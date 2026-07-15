@@ -57,6 +57,12 @@ def init_db():
         icon TEXT, name TEXT, info TEXT, jobs TEXT
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS pending_jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT UNIQUE,

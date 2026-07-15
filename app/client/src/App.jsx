@@ -86,7 +86,7 @@ function App() {
   const [processImmediately, setProcessImmediately] = useState(true)
   const [urlError, setUrlError] = useState('')
 
-  const [sortBy, setSortBy] = useState('score')
+  const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
   const [filterCities, setFilterCities] = useState([])
   const [filterCompanies, setFilterCompanies] = useState([])
@@ -103,14 +103,17 @@ function App() {
   }, [theme])
 
   const [preferences, setPreferences] = useState(null)
+  const [metadata, setMetadata] = useState({})
 
   useEffect(() => {
     fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
     fetchPending()
     fetchPreferences()
+    fetchMetadata()
   }, [])
 
   const fetchPreferences = () => fetch(`${API}/preferences`).then(r => r.json()).then(setPreferences)
+  const fetchMetadata = () => fetch(`${API}/metadata`).then(r => r.json()).then(setMetadata)
 
   // SSE for real-time pending job updates + fallback polling
   useEffect(() => {
@@ -397,6 +400,7 @@ function App() {
     setRefreshing(r => ({...r, dashboard: true}))
     await fetch(`${API}/refresh/dashboard`, { method: 'POST' })
     fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
+    fetchMetadata()
     setRefreshing(r => ({...r, dashboard: false}))
   }
 
@@ -404,6 +408,7 @@ function App() {
     setRefreshing(r => ({...r, skills: true}))
     await fetch(`${API}/refresh/skills`, { method: 'POST' })
     fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
+    fetchMetadata()
     setRefreshing(r => ({...r, skills: false}))
   }
 
@@ -595,28 +600,45 @@ function App() {
                           <button onClick={(e)=>{e.stopPropagation();rescoreAll()}} title="Rescore all jobs" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10 ml-auto" style={{color:'#22c55e'}}>🔃</button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2">
-                          <div className="flex flex-wrap items-center gap-1 mb-1">
-                            <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="🏙️ City" options={allCities.map(c=>({value:c,label:c}))} />
-                            <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="🏢 Co" options={allCompanies.map(c=>({value:c,label:c}))} />
-                            <div className="relative">
+                          {/* First row: Search */}
+                          <div className="flex items-center gap-1 mb-2">
+                            <div className="relative flex-1">
                               <input value={filterTech} onChange={e=>setFilterTech(e.target.value)}
-                                placeholder="🔍 Search..."
-                                className="px-2 py-1 rounded border text-xs min-w-[100px] transition"
+                                placeholder="🔍 Search by role, company, stack, or notes..."
+                                className="w-full px-2 py-1.5 rounded border text-xs transition"
                                 style={{background: filterTech ? 'rgba(99,102,241,0.15)' : 'var(--surface2)', borderColor: filterTech ? 'var(--accent)' : 'var(--border)', color: filterTech ? 'var(--accent)' : 'var(--text-dim)'}} />
-                              {filterTech && <button onClick={()=>setFilterTech('')} className="absolute right-1 top-1/2 -translate-y-1/2 text-[0.5rem]" style={{color:'var(--text-dim)'}}>✕</button>}
+                              {filterTech && <button onClick={()=>setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem]" style={{color:'var(--text-dim)'}}>✕</button>}
                             </div>
-                            <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="📊 Match" options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
-                            <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="🏠 Work" options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
-                            <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="💼 Emp" options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} />
-                            {activeFilterCount > 0 && <button onClick={clearFilters} className="px-1.5 py-0.5 rounded text-[0.55rem] font-semibold transition hover:bg-red-500/20" style={{color:'var(--red)'}}>Clear</button>}
+                            {activeFilterCount > 0 && <button onClick={clearFilters} className="px-2 py-1 rounded text-[0.6rem] font-semibold transition hover:bg-red-500/20 whitespace-nowrap" style={{color:'var(--red)'}}>Clear all</button>}
                           </div>
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <span className="text-[0.55rem] mr-1" style={{color:'var(--text-dim)'}}>Sort:</span>
-                            {[{key:'score',l:'Score'},{key:'created_at',l:'Newest'},{key:'posted_at',l:'Posted'},{key:'applicants',l:'Apps'},{key:'company',l:'Co'},{key:'location',l:'City'}].map(s=>(
-                              <button key={s.key} onClick={()=>toggleSort(s.key)} className="px-1.5 py-0.5 rounded text-[0.55rem] font-semibold transition" style={{background:sortBy===s.key?'var(--accent)':'var(--surface2)',color:sortBy===s.key?'white':'var(--text-dim)',border:`1px solid ${sortBy===s.key?'var(--accent)':'var(--border)'}`}}>
-                                {s.l}{sortBy===s.key?(sortDir==='desc'?'↓':'↑'):''}
+                          {/* Second row: Sort on left, filters on right */}
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            {/* Sort dropdown */}
+                            <div className="relative">
+                              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setSortDir(e.target.value === 'score' ? 'desc' : 'desc') }}
+                                className="px-2 py-1 rounded border text-[0.6rem] appearance-none cursor-pointer transition"
+                                style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
+                                <option value="created_at">Newest first</option>
+                                <option value="posted_at">Posted date</option>
+                                <option value="score">Score</option>
+                                <option value="applicants">Applicants</option>
+                                <option value="company">Company</option>
+                                <option value="location">Location</option>
+                              </select>
+                              <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                                className="ml-1 px-1.5 py-0.5 rounded border text-[0.6rem] transition"
+                                style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
+                                {sortDir === 'desc' ? '↓' : '↑'}
                               </button>
-                            ))}
+                            </div>
+                            {/* Filters */}
+                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                              <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="🏙️ City" options={allCities.map(c=>({value:c,label:c}))} />
+                              <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="🏢 Co" options={allCompanies.map(c=>({value:c,label:c}))} />
+                              <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="📊 Match" options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
+                              <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="🏠 Work" options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
+                              <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="💼 Emp" options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} />
+                            </div>
                           </div>
                           <div style={isMax ? gridStyle : {display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:'0.5rem'}}>
                             {filteredJobs.map((j,i) => <ScoreCard key={j.num} job={j} rank={i+1} onClick={()=>openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} />)}
@@ -649,7 +671,14 @@ function App() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-extrabold">Dashboard</h2>
-                      <p className="text-sm" style={{color:'var(--text-dim)'}}>Job search strategy and insights.</p>
+                      <p className="text-sm" style={{color:'var(--text-dim)'}}>
+                        Job search strategy and insights.
+                        {metadata.dashboard_updated_at && (
+                          <span className="ml-2 text-[0.6rem]">
+                            Last updated: {new Date(metadata.dashboard_updated_at.value).toLocaleString()}
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <button onClick={refreshDashboard} disabled={refreshing.dashboard}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50"
@@ -863,6 +892,11 @@ function App() {
                       <h2 className="text-xl font-extrabold">Skills & Technology</h2>
                       <p className="text-sm" style={{color:'var(--text-dim)'}}>
                         Your tech stack coverage, learning priorities, and market demand analysis.
+                        {metadata.skills_updated_at && (
+                          <span className="ml-2 text-[0.6rem]">
+                            Last updated: {new Date(metadata.skills_updated_at.value).toLocaleString()}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <button onClick={refreshSkills} disabled={refreshing.skills}

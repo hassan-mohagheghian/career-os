@@ -478,6 +478,28 @@ def get_all():
     conn.close()
     return stream_json(data)
 
+@app.route('/api/metadata')
+def get_metadata():
+    conn = get_db()
+    rows = conn.execute('SELECT key, value, updated_at FROM metadata').fetchall()
+    conn.close()
+    meta = {}
+    for row in rows:
+        r = dict(row)
+        meta[r['key']] = {'value': r['value'], 'updated_at': r['updated_at']}
+    return jsonify(meta)
+
+@app.route('/api/metadata/<key>', methods=['PUT'])
+def update_metadata(key):
+    data = request.get_json()
+    value = data.get('value', '')
+    conn = get_db()
+    conn.execute('''INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, ?)''',
+        (key, value, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'updated', 'key': key})
+
 @app.route('/api/stream/all')
 def stream_all():
     """Streaming version — sends data incrementally."""

@@ -181,6 +181,13 @@ def _log(pid, step, msg):
     conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
 
+def _update_metadata(key, value):
+    """Update metadata key-value pair."""
+    conn = _db()
+    conn.execute('''INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, ?)''',
+        (key, value, datetime.now().isoformat()))
+    conn.commit(); conn.close()
+
 def _load_preferences():
     """Load all enabled preferences from DB and format for prompt."""
     conn = _db()
@@ -227,6 +234,7 @@ def _update_dashboard_insights(pid):
                         (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
                          item.get('description', item.get('detail', item.get('note', ''))), i))
         conn.commit(); conn.close()
+        _update_metadata('dashboard_updated_at', datetime.now().isoformat())
         try: os.remove(result_file)
         except OSError: pass
         print(f"[worker] Dashboard insights updated")
@@ -265,6 +273,7 @@ def _update_skills_insights(pid):
                     (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
                      t.get('roles', ''), t.get('path', '')))
         conn.commit(); conn.close()
+        _update_metadata('skills_updated_at', datetime.now().isoformat())
         try: os.remove(result_file)
         except OSError: pass
         print(f"[worker] Skills insights updated")
