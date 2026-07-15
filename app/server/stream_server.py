@@ -267,7 +267,15 @@ async def _update_dashboard_insights(pid):
     if proc.returncode == 0 and os.path.exists(result_file):
         with open(result_file) as f:
             insights = json.load(f)
+
+        # Save to analysis_runs table
         conn = _db()
+        from datetime import datetime
+        now = datetime.now().isoformat()
+        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
+            ('dashboard', now, json.dumps(insights, ensure_ascii=False)))
+
+        # Also update legacy table for backward compatibility
         conn.execute('DELETE FROM dashboard_insights')
         for item_type, items in insights.items():
             if isinstance(items, list):

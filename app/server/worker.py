@@ -181,13 +181,6 @@ def _log(pid, step, msg):
     conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
 
-def _update_metadata(key, value):
-    """Update metadata key-value pair."""
-    conn = _db()
-    conn.execute('''INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, ?)''',
-        (key, value, datetime.now().isoformat()))
-    conn.commit(); conn.close()
-
 def _load_preferences():
     """Load all enabled preferences from DB and format for prompt."""
     conn = _db()
@@ -223,8 +216,14 @@ def _update_dashboard_insights(pid):
     if proc.returncode == 0 and os.path.exists(result_file):
         with open(result_file) as f:
             insights = json.load(f)
-        # Save to DB
+
+        # Save to analysis_runs table
         conn = _db()
+        now = datetime.now().isoformat()
+        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
+            ('dashboard', now, json.dumps(insights, ensure_ascii=False)))
+
+        # Also update the legacy dashboard_insights table for backward compatibility
         conn.execute('DELETE FROM dashboard_insights')
         for item_type, items in insights.items():
             if isinstance(items, list):
@@ -233,8 +232,8 @@ def _update_dashboard_insights(pid):
                         VALUES (?, ?, ?, ?, ?)''',
                         (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
                          item.get('description', item.get('detail', item.get('note', ''))), i))
+
         conn.commit(); conn.close()
-        _update_metadata('dashboard_updated_at', datetime.now().isoformat())
         try: os.remove(result_file)
         except OSError: pass
         print(f"[worker] Dashboard insights updated")
@@ -255,7 +254,14 @@ def _update_skills_insights(pid):
     if proc.returncode == 0 and os.path.exists(result_file):
         with open(result_file) as f:
             insights = json.load(f)
+
+        # Save to analysis_runs table
         conn = _db()
+        now = datetime.now().isoformat()
+        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
+            ('skills', now, json.dumps(insights, ensure_ascii=False)))
+
+        # Also update the legacy tables for backward compatibility
         # Update tech_learning
         if 'techLearning' in insights:
             conn.execute('DELETE FROM tech_learning')
@@ -272,11 +278,69 @@ def _update_skills_insights(pid):
                 conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
                     (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
                      t.get('roles', ''), t.get('path', '')))
+
         conn.commit(); conn.close()
-        _update_metadata('skills_updated_at', datetime.now().isoformat())
         try: os.remove(result_file)
         except OSError: pass
         print(f"[worker] Skills insights updated")
+
+def _update_unified_analysis(pid):
+    """Update unified analysis combining dashboard and skills insights."""
+    import subprocess
+    prompt = load_prompt('analysis_update',
+        project_root=PROJECT_ROOT, pid=pid)
+    result_file = os.path.join(PROJECT_ROOT, 'data', f'analysis_{pid}.json')
+
+    proc = subprocess.run(
+        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=180,
+        env={**os.environ, 'NO_COLOR': '1'}
+    )
+
+    if proc.returncode == 0 and os.path.exists(result_file):
+        with open(result_file) as f:
+            insights = json.load(f)
+
+        # Save to analysis_runs table
+        conn = _db()
+        now = datetime.now().isoformat()
+        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
+            ('analysis', now, json.dumps(insights, ensure_ascii=False)))
+
+        # Also update legacy tables for backward compatibility
+        # Dashboard insights
+        conn.execute('DELETE FROM dashboard_insights')
+        for item_type in ['strategy', 'strengths', 'weaknesses', 'visa_companies', 'apply_urgency']:
+            items = insights.get(item_type, [])
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    conn.execute('''INSERT INTO dashboard_insights (type, icon, title, description, priority)
+                        VALUES (?, ?, ?, ?, ?)''',
+                        (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
+                         item.get('description', item.get('detail', item.get('note', ''))), i))
+
+        # Tech learning
+        if 'techLearning' in insights:
+            conn.execute('DELETE FROM tech_learning')
+            for t in insights['techLearning']:
+                conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
+                    (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
+                     t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
+                     t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
+
+        # Tech stack
+        if 'techStack' in insights:
+            conn.execute('DELETE FROM tech_stack')
+            for t in insights['techStack']:
+                conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
+                    (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
+                     t.get('roles', ''), t.get('path', '')))
+
+        conn.commit(); conn.close()
+        try: os.remove(result_file)
+        except OSError: pass
+        print(f"[worker] Unified analysis updated")
 
 def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""

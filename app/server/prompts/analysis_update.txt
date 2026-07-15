@@ -1,0 +1,103 @@
+Analyze ALL processed jobs and generate a comprehensive job search analysis for Hassan.
+
+Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
+
+Generate analysis as JSON and save to {project_root}/data/analysis_{pid}.json with this structure:
+
+{{
+  "overview": {{
+    "totalJobs": <number>,
+    "highMatch": <number>,
+    "applyNow": <number>,
+    "remoteJobs": <number>,
+    "visaReady": <number>,
+    "avgScore": <number>,
+    "topSkills": [<list of most in-demand skills>]
+  }},
+  "strategy": [
+    {{"icon": "🎯", "title": "Strategy Title", "description": "Specific actionable advice with company names and numbers"}}
+  ],
+  "strengths": [
+    {{"name": "Skill Name", "detail": "Why this is a strength with evidence from job data"}}
+  ],
+  "weaknesses": [
+    {{"name": "Skill Gap", "detail": "How many jobs require it and why it matters"}}
+  ],
+  "visa_companies": [
+    {{"company": "Company Name", "visa": "BEST|Strong|Good", "note": "Why this company"}}
+  ],
+  "apply_urgency": [
+    {{"company": "Company Name", "reason": "Why apply now (fresh posting, high score, etc.)"}}
+  ],
+  "techStack": [
+    {{"name": "Python/Django", "level": 5, "ml": "Expert", "mc": "p1", "roles": "90% of jobs", "path": "Maintain through project work"}}
+  ],
+  "techLearning": [
+    {{"name": "TypeScript", "priority": 1, "pl": "Learning", "pc": "p1", "sc": "text-yellow-500", "dc": "bg-yellow-500", "usage": 45, "uc": "#eab308", "jobs": "9/20", "jd": "jobs require TypeScript", "reason": "Required in X jobs", "action": "Complete TypeScript roadmap"}}
+  ],
+  "skillJobFit": [
+    {{"skill": "Python", "jobsRequiring": 25, "totalJobs": 28, "fitScore": 95, "note": "Core requirement, Hassan has 9+ years"}}
+  ],
+  "learningROI": [
+    {{"skill": "TypeScript", "currentLevel": "None", "jobsRequiring": 8, "impactScore": 9, "timeToLearn": "2-3 months", "reason": "High impact: unlocks 8 additional job matches"}}
+  ],
+  "cities": [
+    {{"name": "Berlin", "jobs": 15, "percentage": 54, "topCompanies": ["Cara Care", "Audatic"]}}
+  ]
+}}
+
+RULES FOR overview:
+- Count jobs requiring Python, TypeScript, and other key skills
+- Calculate average score from all jobs
+- List top 5 most in-demand skills
+
+RULES FOR strategy:
+- 5-6 items, specific to actual job data (name companies, give counts)
+- Include visa strategy, application timing, and Python advantage
+
+RULES FOR strengths:
+- Only include skills Hassan actually has with evidence from job requirements
+- Reference specific job counts and companies
+
+RULES FOR weaknesses:
+- Skills that appear in multiple jobs but Hassan lacks
+- Include count of jobs requiring each skill
+
+RULES FOR visa_companies:
+- Companies with BEST or Strong visa rating from processed jobs
+- Include why each company is good for visa
+
+RULES FOR apply_urgency:
+- Jobs scored 75+ or posted recently that need immediate action
+- Include applicant counts when available
+
+RULES FOR techStack:
+- level: 1-5 based on Hassan's current proficiency (5=expert, 1=beginner)
+- roles: percentage of jobs where this skill applies
+- path: learning or maintenance recommendation
+
+RULES FOR techLearning:
+- Only include technologies that appear in actual job postings
+- priority: 1=critical (appears in 30%+ jobs), 2=important (15-30%), 3=useful (5-15%)
+- usage: percentage of jobs requiring this skill
+- jobs: fraction like "9/20" showing how many jobs need it
+- reason: explain why Hassan should learn this (based on job data)
+- action: specific learning recommendation
+
+RULES FOR skillJobFit:
+- For each of Hassan's skills, calculate what percentage of jobs require it
+- fitScore: 0-100 based on skill proficiency × job relevance
+- Include specific companies that need each skill
+
+RULES FOR learningROI:
+- For skills Hassan doesn't have, calculate learning ROI
+- impactScore: 1-10 based on number of jobs unlocked
+- timeToLearn: estimated time to reach usable proficiency
+- Sort by impactScore descending
+
+RULES FOR cities:
+- Count jobs per city from job data
+- Include top companies in each city
+- Sort by job count descending
+
+Use ONLY data from actual processed jobs. Include specific numbers and company examples.

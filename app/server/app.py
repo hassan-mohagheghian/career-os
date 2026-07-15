@@ -388,6 +388,69 @@ def refresh_skills():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/refresh/analysis', methods=['POST'])
+def refresh_analysis():
+    """Manually refresh unified analysis (combines dashboard + skills)."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from worker import _update_unified_analysis
+    try:
+        _update_unified_analysis(0)
+        return jsonify({'status': 'updated'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analysis')
+def get_unified_analysis():
+    """Get the latest unified analysis from the analysis_runs table.
+    Falls back to 'dashboard' page records if no 'analysis' page exists yet."""
+    conn = get_db()
+    # Try unified analysis first
+    row = conn.execute(
+        'SELECT id, page, created_at, analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+        ('analysis',)
+    ).fetchone()
+    # Fall back to dashboard records
+    if not row:
+        row = conn.execute(
+            'SELECT id, page, created_at, analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+            ('dashboard',)
+        ).fetchone()
+    conn.close()
+    if row:
+        r = dict(row)
+        r['analysis'] = json.loads(r['analysis_json'])
+        del r['analysis_json']
+        return jsonify(r)
+    return jsonify({'error': 'No analysis found'}), 404
+
+@app.route('/api/analysis/<page>')
+def get_analysis(page):
+    """Get the latest analysis for a page from the analysis_runs table."""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id, page, created_at, analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+        (page,)
+    ).fetchone()
+    conn.close()
+    if row:
+        r = dict(row)
+        r['analysis'] = json.loads(r['analysis_json'])
+        del r['analysis_json']
+        return jsonify(r)
+    return jsonify({'error': 'No analysis found', 'page': page}), 404
+
+@app.route('/api/analysis/<page>/history')
+def get_analysis_history(page):
+    """Get all analysis runs for a page."""
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT id, page, created_at FROM analysis_runs WHERE page=? ORDER BY created_at DESC',
+        (page,)
+    ).fetchall()
+    conn.close()
+    return jsonify(rows_to_list(rows))
+
 @app.route('/api/pending/stream')
 def stream_pending():
     """SSE endpoint for real-time pending job updates."""
@@ -478,28 +541,6 @@ def get_all():
     conn.close()
     return stream_json(data)
 
-@app.route('/api/metadata')
-def get_metadata():
-    conn = get_db()
-    rows = conn.execute('SELECT key, value, updated_at FROM metadata').fetchall()
-    conn.close()
-    meta = {}
-    for row in rows:
-        r = dict(row)
-        meta[r['key']] = {'value': r['value'], 'updated_at': r['updated_at']}
-    return jsonify(meta)
-
-@app.route('/api/metadata/<key>', methods=['PUT'])
-def update_metadata(key):
-    data = request.get_json()
-    value = data.get('value', '')
-    conn = get_db()
-    conn.execute('''INSERT OR REPLACE INTO metadata (key, value, updated_at) VALUES (?, ?, ?)''',
-        (key, value, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
-    return jsonify({'status': 'updated', 'key': key})
-
 @app.route('/api/stream/all')
 def stream_all():
     """Streaming version — sends data incrementally."""
@@ -571,7 +612,31 @@ def stream_all():
         for i, row in enumerate(rows):
             if i > 0: yield ','
             yield json.dumps(dict(row), ensure_ascii=False)
-        yield ']}'
+        yield ']'
+
+        # Include latest analysis metadata
+        dash_analysis = conn.execute(
+            'SELECT id, created_at FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+            ('dashboard',)
+        ).fetchone()
+        skills_analysis = conn.execute(
+            'SELECT id, created_at FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+            ('skills',)
+        ).fetchone()
+
+        yield ',"analysisMeta":{'
+        if dash_analysis:
+            yield f'"dashboard":{{"id":{dict(dash_analysis)["id"]},"created_at":"{dict(dash_analysis)["created_at"]}"}}'
+        else:
+            yield '"dashboard":null'
+        yield ','
+        if skills_analysis:
+            yield f'"skills":{{"id":{dict(skills_analysis)["id"]},"created_at":"{dict(skills_analysis)["created_at"]}"}}'
+        else:
+            yield '"skills":null'
+        yield '}'
+
+        yield '}'
         conn.close()
     return Response(generate(), mimetype='application/json')
 

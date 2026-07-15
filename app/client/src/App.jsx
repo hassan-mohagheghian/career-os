@@ -103,17 +103,23 @@ function App() {
   }, [theme])
 
   const [preferences, setPreferences] = useState(null)
-  const [metadata, setMetadata] = useState({})
+  const [analysis, setAnalysis] = useState(null)
+  const [dashboardSubTab, setDashboardSubTab] = useState('overview')
 
   useEffect(() => {
     fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
     fetchPending()
     fetchPreferences()
-    fetchMetadata()
+    fetchAnalysis()
   }, [])
 
   const fetchPreferences = () => fetch(`${API}/preferences`).then(r => r.json()).then(setPreferences)
-  const fetchMetadata = () => fetch(`${API}/metadata`).then(r => r.json()).then(setMetadata)
+  const fetchAnalysis = () => {
+    fetch(`${API}/analysis`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setAnalysis(data))
+      .catch(() => {})
+  }
 
   // SSE for real-time pending job updates + fallback polling
   useEffect(() => {
@@ -390,26 +396,23 @@ function App() {
   const tabs = [
     { id: 'scoreboard', icon: '💼', label: 'Jobs', badge: jobs?.length, section: 'jobs' },
     { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'analysis' },
-    { id: 'skills', icon: '🧠', label: 'Skills', section: 'analysis' },
     { id: 'preferences', icon: '⚙️', label: 'Preferences', section: 'settings' },
+  ]
+
+  const dashboardTabs = [
+    { id: 'overview', icon: '📊', label: 'Overview' },
+    { id: 'strategy', icon: '🎯', label: 'Strategy' },
+    { id: 'skills', icon: '🧠', label: 'Skills' },
   ]
 
   const [refreshing, setRefreshing] = useState({})
 
-  const refreshDashboard = async () => {
-    setRefreshing(r => ({...r, dashboard: true}))
-    await fetch(`${API}/refresh/dashboard`, { method: 'POST' })
+  const refreshAnalysis = async () => {
+    setRefreshing(r => ({...r, analysis: true}))
+    await fetch(`${API}/refresh/analysis`, { method: 'POST' })
     fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
-    fetchMetadata()
-    setRefreshing(r => ({...r, dashboard: false}))
-  }
-
-  const refreshSkills = async () => {
-    setRefreshing(r => ({...r, skills: true}))
-    await fetch(`${API}/refresh/skills`, { method: 'POST' })
-    fetch(`${API}/stream/all`).then(r => r.json()).then(setData)
-    fetchMetadata()
-    setRefreshing(r => ({...r, skills: false}))
+    fetchAnalysis()
+    setRefreshing(r => ({...r, analysis: false}))
   }
 
   if (!data) return <div className="flex items-center justify-center h-screen" style={{color:'var(--text-dim)'}}>Loading...</div>
@@ -651,432 +654,454 @@ function App() {
               )
             })()}
 
-            {/* === DASHBOARD === */}
+            {/* === DASHBOARD (Unified with inner tabs) === */}
             {tab === 'dashboard' && (() => {
+              // Get data from unified analysis or fallback to legacy
+              const analysisData = analysis?.analysis || {}
+              const overview = analysisData.overview || {}
+              const strategy = analysisData.strategy || dashboardInsights?.filter(i => i.type === 'strategy') || []
+              const strengths = analysisData.strengths || dashboardInsights?.filter(i => i.type === 'strengths') || []
+              const weaknesses = analysisData.weaknesses || dashboardInsights?.filter(i => i.type === 'weaknesses') || []
+              const visaCompanies = analysisData.visa_companies || dashboardInsights?.filter(i => i.type === 'visa_companies') || []
+              const applyUrgency = analysisData.apply_urgency || dashboardInsights?.filter(i => i.type === 'apply_urgency') || []
+              const techStackData = analysisData.techStack || techStack || []
+              const techLearningData = analysisData.techLearning || techLearning || []
+              const skillJobFit = analysisData.skillJobFit || []
+              const learningROI = analysisData.learningROI || []
+
               const highMatchJobs = jobs.filter(j => j.match === 'High')
               const applyNow = jobs.filter(j => j.score >= 75)
               const remoteJobs = jobs.filter(j => j.work_type === 'Remote')
               const visaReady = jobs.filter(j => j.visa === 'BEST' || j.visa === 'Strong')
 
-              // Dynamic insights from backend
-              const strategy = dashboardInsights?.filter(i => i.type === 'strategy') || []
-              const strengths = dashboardInsights?.filter(i => i.type === 'strengths') || []
-              const weaknesses = dashboardInsights?.filter(i => i.type === 'weaknesses') || []
-              const visaCompanies = dashboardInsights?.filter(i => i.type === 'visa_companies') || []
-              const applyUrgency = dashboardInsights?.filter(i => i.type === 'apply_urgency') || []
+              const strongStack = techStackData.filter(t => t.mc === 'p1') || []
+              const midStack = techStackData.filter(t => t.mc === 'p2') || []
+              const weakStack = techStackData.filter(t => t.mc === 'p3' || t.mc === 'p4') || []
+              const p1Tech = techLearningData.filter(t => t.pc === 'p1') || []
+              const p2Tech = techLearningData.filter(t => t.pc === 'p2') || []
+              const totalUsage = techStackData.reduce((sum, t) => sum + (t.level || 0), 0) || 0
+              const avgLevel = techStackData.length ? (totalUsage / techStackData.length).toFixed(1) : 0
 
               return (
                 <div className="space-y-5">
-                  {/* Header with refresh */}
+                  {/* Header with inner tabs and refresh */}
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex items-center gap-4">
                       <h2 className="text-xl font-extrabold">Dashboard</h2>
-                      <p className="text-sm" style={{color:'var(--text-dim)'}}>
-                        Job search strategy and insights.
-                        {metadata.dashboard_updated_at && (
-                          <span className="ml-2 text-[0.6rem]">
-                            Last updated: {new Date(metadata.dashboard_updated_at.value).toLocaleString()}
-                          </span>
+                      <div className="flex gap-1 p-1 rounded-lg" style={{background:'var(--surface2)'}}>
+                        {dashboardTabs.map(t => (
+                          <button key={t.id} onClick={() => setDashboardSubTab(t.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition`}
+                            style={{background: dashboardSubTab === t.id ? 'var(--surface)' : 'transparent', color: dashboardSubTab === t.id ? 'var(--accent)' : 'var(--text-dim)', boxShadow: dashboardSubTab === t.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'}}>
+                            <span>{t.icon}</span>
+                            <span>{t.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs" style={{color:'var(--text-dim)'}}>
+                        {analysis?.created_at && (
+                          <span>Last updated: {new Date(analysis.created_at).toLocaleString()}</span>
                         )}
                       </p>
                     </div>
-                    <button onClick={refreshDashboard} disabled={refreshing.dashboard}
+                    <button onClick={refreshAnalysis} disabled={refreshing.analysis}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50"
-                      style={{background: refreshing.dashboard ? 'var(--surface2)' : 'var(--accent)', color: refreshing.dashboard ? 'var(--text-dim)' : 'white'}}>
-                      <span className={refreshing.dashboard ? 'animate-spin' : ''}>🔄</span>
-                      {refreshing.dashboard ? 'Updating...' : 'Refresh Insights'}
+                      style={{background: refreshing.analysis ? 'var(--surface2)' : 'var(--accent)', color: refreshing.analysis ? 'var(--text-dim)' : 'white'}}>
+                      <span className={refreshing.analysis ? 'animate-spin' : ''}>🔄</span>
+                      {refreshing.analysis ? 'Updating...' : 'Refresh Analysis'}
                     </button>
                   </div>
 
-                  {/* Hero Stats */}
-                  <div className="grid grid-cols-6 gap-3">
-                    {[
-                      {n:jobs.length,l:'Total Jobs',c:'var(--accent)',icon:'💼'},
-                      {n:highMatchJobs.length,l:'High Match',c:'var(--green)',icon:'🎯'},
-                      {n:applyNow.length,l:'Apply Now (75+)',c:'var(--yellow)',icon:'🚀'},
-                      {n:remoteJobs.length,l:'Remote',c:'var(--cyan)',icon:'🏠'},
-                      {n:visaReady.length,l:'Visa Ready',c:'var(--purple)',icon:'🛂'},
-                      {n:resumes.filter(r=>r.id!=='original').length,l:'Resumes',c:'var(--accent)',icon:'📄'},
-                    ].map((s,i)=>(
-                      <div key={i} className="rounded-xl p-4 border transition hover:border-[var(--accent)]" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="text-lg mb-1">{s.icon}</div>
-                        <div className="text-2xl font-extrabold" style={{color:s.c}}>{s.n}</div>
-                        <div className="text-[0.65rem] uppercase tracking-wider mt-0.5" style={{color:'var(--text-dim)'}}>{s.l}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Two-column layout */}
-                  <div className="grid grid-cols-[1fr_320px] gap-4">
-                    {/* Left: Apply Now + Top Matches */}
-                    <div className="space-y-4">
-                      {/* Apply Now */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🚀</span>
-                          <h3 className="font-extrabold text-sm">Apply Now — Score 75+</h3>
-                          <span className="text-[0.6rem] px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(34,197,94,0.15)',color:'var(--green)'}}>{applyNow.length} jobs</span>
-                        </div>
-                        {applyNow.length === 0 ? (
-                          <div className="text-center py-6 text-xs" style={{color:'var(--text-dim)'}}>No jobs scored 75+ yet</div>
-                        ) : (
-                          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
-                            {applyNow.slice(0, 6).map(j => <JobCard key={j.num} job={j} onClick={() => openDrawer(j.num)} />)}
+                  {/* === OVERVIEW TAB === */}
+                  {dashboardSubTab === 'overview' && (
+                    <div className="space-y-5">
+                      {/* Hero Stats */}
+                      <div className="grid grid-cols-6 gap-3">
+                        {[
+                          {n: overview.totalJobs || jobs.length, l: 'Total Jobs', c: 'var(--accent)', icon: '💼'},
+                          {n: overview.highMatch || highMatchJobs.length, l: 'High Match', c: 'var(--green)', icon: '🎯'},
+                          {n: overview.applyNow || applyNow.length, l: 'Apply Now (75+)', c: 'var(--yellow)', icon: '🚀'},
+                          {n: overview.remoteJobs || remoteJobs.length, l: 'Remote', c: 'var(--cyan)', icon: '🏠'},
+                          {n: overview.visaReady || visaReady.length, l: 'Visa Ready', c: 'var(--purple)', icon: '🛂'},
+                          {n: resumes.filter(r => r.id !== 'original').length, l: 'Resumes', c: 'var(--accent)', icon: '📄'},
+                        ].map((s, i) => (
+                          <div key={i} className="rounded-xl p-4 border transition hover:border-[var(--accent)]" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="text-lg mb-1">{s.icon}</div>
+                            <div className="text-2xl font-extrabold" style={{color:s.c}}>{s.n}</div>
+                            <div className="text-[0.65rem] uppercase tracking-wider mt-0.5" style={{color:'var(--text-dim)'}}>{s.l}</div>
                           </div>
-                        )}
+                        ))}
                       </div>
 
-                      {/* Apply Urgency (dynamic) */}
-                      {applyUrgency.length > 0 && (
-                        <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-lg">⚡</span>
-                            <h3 className="font-extrabold text-sm">Urgent Applications</h3>
-                          </div>
-                          <div className="space-y-1.5">
-                            {applyUrgency.map((item,i) => (
-                              <div key={i} className="flex items-start gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{item.title}</span>
-                                <span style={{color:'var(--text-dim)'}}>- {item.description}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* High Match Jobs */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🎯</span>
-                          <h3 className="font-extrabold text-sm">High Match Jobs</h3>
-                          <span className="text-[0.6rem] px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(34,197,94,0.15)',color:'var(--green)'}}>{highMatchJobs.length} jobs</span>
-                        </div>
-                        {highMatchJobs.length === 0 ? (
-                          <div className="text-center py-6 text-xs" style={{color:'var(--text-dim)'}}>No high match jobs</div>
-                        ) : (
-                          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
-                            {highMatchJobs.slice(0, 6).map(j => <JobCard key={j.num} job={j} onClick={() => openDrawer(j.num)} />)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right sidebar: Strategy + Cities + Tech */}
-                    <div className="space-y-4">
-                      {/* Strategy Guide (dynamic) */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">📋</span>
-                          <h3 className="font-extrabold text-sm">Strategy</h3>
-                          {strategy.length === 0 && <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'var(--surface2)',color:'var(--text-dim)'}}>Processing...</span>}
-                        </div>
-                        <div className="space-y-2">
-                          {strategy.map((g,i)=>(
-                            <div key={i} className="flex items-start gap-2 p-2 rounded-lg transition hover:bg-[var(--surface2)]" style={{borderLeft:'2px solid var(--accent)'}}>
-                              <span className="text-sm shrink-0">{g.icon}</span>
-                              <div><div className="font-bold text-xs">{g.title}</div><div className="text-[0.6rem]" style={{color:'var(--text-dim)'}}>{g.description}</div></div>
+                      <div className="grid grid-cols-[1fr_320px] gap-4">
+                        <div className="space-y-4">
+                          {/* Apply Now */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🚀</span>
+                              <h3 className="font-extrabold text-sm">Apply Now — Score 75+</h3>
+                              <span className="text-[0.6rem] px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(34,197,94,0.15)', color:'var(--green)'}}>{applyNow.length} jobs</span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                            {applyNow.length === 0 ? (
+                              <div className="text-center py-6 text-xs" style={{color:'var(--text-dim)'}}>No jobs scored 75+ yet</div>
+                            ) : (
+                              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+                                {applyNow.slice(0, 6).map(j => <JobCard key={j.num} job={j} onClick={() => openDrawer(j.num)} />)}
+                              </div>
+                            )}
+                          </div>
 
-                      {/* Cities */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🌍</span>
-                          <h3 className="font-extrabold text-sm">Cities</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {cities?.map((c,i) => (
-                            <div key={i} className="rounded-lg p-2 text-center border transition hover:border-[var(--accent)]" style={{background:'var(--surface2)',borderColor:'var(--border)'}}>
-                              <div className="text-sm mb-0.5">{c.icon}</div>
-                              <div className="font-bold text-xs">{c.name}</div>
-                              <div className="text-[0.55rem]" style={{color:'var(--text-dim)'}}>{c.info}</div>
-                              <div className="text-[0.55rem] font-semibold" style={{color:'var(--accent)'}}>{c.jobs}</div>
+                          {/* High Match Jobs */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🎯</span>
+                              <h3 className="font-extrabold text-sm">High Match Jobs</h3>
+                              <span className="text-[0.6rem] px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(34,197,94,0.15)', color:'var(--green)'}}>{highMatchJobs.length} jobs</span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Tech Strengths (dynamic) */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">💪</span>
-                          <h3 className="font-extrabold text-sm">Your Strengths</h3>
-                        </div>
-                        {strengths.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {strengths.map((t,i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs">
-                                <span className="w-1.5 h-1.5 rounded-full" style={{background:'var(--green)'}} />
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.title}</span>
-                                <span style={{color:'var(--text-dim)'}}>- {t.description}</span>
+                            {highMatchJobs.length === 0 ? (
+                              <div className="text-center py-6 text-xs" style={{color:'var(--text-dim)'}}>No high match jobs</div>
+                            ) : (
+                              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+                                {highMatchJobs.slice(0, 6).map(j => <JobCard key={j.num} job={j} onClick={() => openDrawer(j.num)} />)}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No strong matches yet</div>
-                        )}
-                      </div>
 
-                      {/* Tech Weaknesses (dynamic) */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">📚</span>
-                          <h3 className="font-extrabold text-sm">What to Learn</h3>
-                        </div>
-                        {weaknesses.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {weaknesses.map((t,i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.title}</span>
-                                <span style={{color:'var(--text-dim)'}}>- {t.description}</span>
+                          {/* Skill-Job Fit (new) */}
+                          {skillJobFit.length > 0 && (
+                            <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">🔗</span>
+                                <h3 className="font-extrabold text-sm">Skill-Job Fit Analysis</h3>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No urgent learning needed</div>
-                        )}
-                      </div>
-
-                      {/* Visa Companies (dynamic) */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🛂</span>
-                          <h3 className="font-extrabold text-sm">Visa Sponsorship</h3>
-                        </div>
-                        {visaCompanies.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {visaCompanies.map((j,i) => (
-                              <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{j.title}</span>
-                                <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(34,197,94,0.15)',color:'var(--green)'}}>{j.description}</span>
+                              <div className="space-y-2">
+                                {skillJobFit.slice(0, 8).map((item, i) => (
+                                  <div key={i} className="flex items-center gap-3 text-xs p-2 rounded-lg hover:bg-[var(--surface2)] transition">
+                                    <div className="w-24 font-semibold" style={{color:'var(--text)'}}>{item.skill}</div>
+                                    <div className="flex-1 h-2 rounded-full" style={{background:'var(--surface2)'}}>
+                                      <div className="h-full rounded-full" style={{width:`${item.fitScore}%`, background: item.fitScore >= 70 ? 'var(--green)' : item.fitScore >= 40 ? 'var(--yellow)' : 'var(--red)'}} />
+                                    </div>
+                                    <div className="w-12 text-right font-bold" style={{color:'var(--accent)'}}>{item.fitScore}%</div>
+                                    <div className="w-20 text-right" style={{color:'var(--text-dim)'}}>{item.jobsRequiring}/{overview.totalJobs || jobs.length}</div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        ) : visaReady.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {visaReady.map((j,i) => (
-                              <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition cursor-pointer" onClick={() => openDrawer(j.num)}>
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{j.company}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[0.55rem] font-bold ${j.visa==='BEST'?'bg-green-500/15 text-green-500':'bg-green-500/10 text-green-400'}`}>{j.visa}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No visa-ready jobs</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* === SKILLS (merged Tech Learn + Tech Stack) === */}
-            {tab === 'skills' && (() => {
-              const strongStack = techStack?.filter(t => t.mc === 'p1') || []
-              const midStack = techStack?.filter(t => t.mc === 'p2') || []
-              const weakStack = techStack?.filter(t => t.mc === 'p3' || t.mc === 'p4') || []
-              const p1Tech = techLearning?.filter(t => t.pc === 'p1') || []
-              const p2Tech = techLearning?.filter(t => t.pc === 'p2') || []
-              const totalUsage = techStack?.reduce((sum, t) => sum + (t.level || 0), 0) || 0
-              const avgLevel = techStack?.length ? (totalUsage / techStack.length).toFixed(1) : 0
-
-              return (
-                <div className="space-y-5">
-                  {/* Header with refresh */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-extrabold">Skills & Technology</h2>
-                      <p className="text-sm" style={{color:'var(--text-dim)'}}>
-                        Your tech stack coverage, learning priorities, and market demand analysis.
-                        {metadata.skills_updated_at && (
-                          <span className="ml-2 text-[0.6rem]">
-                            Last updated: {new Date(metadata.skills_updated_at.value).toLocaleString()}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <button onClick={refreshSkills} disabled={refreshing.skills}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50"
-                      style={{background: refreshing.skills ? 'var(--surface2)' : 'var(--accent)', color: refreshing.skills ? 'var(--text-dim)' : 'white'}}>
-                      <span className={refreshing.skills ? 'animate-spin' : ''}>🔄</span>
-                      {refreshing.skills ? 'Updating...' : 'Refresh Skills'}
-                    </button>
-                  </div>
-
-                  {/* Stats Row */}
-                  <div className="grid grid-cols-5 gap-3">
-                    {[
-                      {n: techStack?.length || 0, l: 'Total Skills', c: 'var(--accent)', icon: '🔧'},
-                      {n: strongStack.length, l: 'Strong Match', c: 'var(--green)', icon: '💪'},
-                      {n: midStack.length, l: 'Moderate', c: 'var(--blue)', icon: '📘'},
-                      {n: weakStack.length, l: 'Gaps', c: 'var(--yellow)', icon: '📚'},
-                      {n: `${avgLevel}/5`, l: 'Avg Level', c: 'var(--purple)', icon: '📊'},
-                    ].map((s,i) => (
-                      <div key={i} className="rounded-xl p-3 text-center border transition hover:border-[var(--accent)]" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="text-lg mb-0.5">{s.icon}</div>
-                        <div className="text-xl font-extrabold" style={{color:s.c}}>{s.n}</div>
-                        <div className="text-[0.6rem] uppercase tracking-wider" style={{color:'var(--text-dim)'}}>{s.l}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Two-column layout */}
-                  <div className="grid grid-cols-[1fr_320px] gap-4">
-                    {/* Left: Main content */}
-                    <div className="space-y-4">
-                      {/* Current Tech Stack */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">⚙️</span>
-                          <h3 className="font-extrabold text-sm">Current Tech Stack</h3>
-                          <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'var(--surface2)',color:'var(--text-dim)'}}>
-                            {techStack?.length || 0} skills
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-                          {techStack?.map((t,i) => <StackCard key={i} tech={t} />)}
-                        </div>
-                      </div>
-
-                      {/* Technologies to Learn */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🧠</span>
-                          <h3 className="font-extrabold text-sm">Technologies to Master</h3>
-                          <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(34,197,94,0.15)',color:'var(--green)'}}>
-                            {techLearning?.length || 0} items
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-                          {techLearning?.map((t,i) => <TechCard key={i} tech={t} />)}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right sidebar: Summary + Insights */}
-                    <div className="space-y-4">
-                      {/* Strengths from Preferences */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">💪</span>
-                          <h3 className="font-extrabold text-sm">Your Strengths</h3>
-                        </div>
-                        {strongStack.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {strongStack.map((t,i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs">
-                                <span className="w-1.5 h-1.5 rounded-full" style={{background:'var(--green)'}} />
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
-                                <span style={{color:'var(--text-dim)'}}>- {t.roles}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No strong matches yet</div>
-                        )}
-                      </div>
-
-                      {/* Learning Priorities */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🎯</span>
-                          <h3 className="font-extrabold text-sm">Learning Priorities</h3>
-                        </div>
-                        {p1Tech.length > 0 || p2Tech.length > 0 ? (
-                          <div className="space-y-2">
-                            {p1Tech.map((t,i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
-                                <span className="text-[0.55rem] px-1 py-0.5 rounded ml-auto" style={{background:'rgba(34,197,94,0.15)',color:'var(--green)'}}>P1</span>
-                              </div>
-                            ))}
-                            {p2Tech.map((t,i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
-                                <span className="text-[0.55rem] px-1 py-0.5 rounded ml-auto" style={{background:'rgba(59,130,246,0.15)',color:'var(--blue)'}}>P2</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No urgent learning needed</div>
-                        )}
-                      </div>
-
-                      {/* Skill Gaps */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">📚</span>
-                          <h3 className="font-extrabold text-sm">Skill Gaps</h3>
-                        </div>
-                        {weakStack.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {weakStack.map((t,i) => (
-                              <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
-                                <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
-                                <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(234,179,8,0.15)',color:'var(--yellow)'}}>{t.ml}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs" style={{color:'var(--text-dim)'}}>No major gaps</div>
-                        )}
-                      </div>
-
-                      {/* Skill Level Distribution */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">📊</span>
-                          <h3 className="font-extrabold text-sm">Level Distribution</h3>
-                        </div>
-                        <div className="space-y-2">
-                          {[
-                            {label: 'Strong (5/5)', count: strongStack.length, color: 'var(--green)', bg: 'rgba(34,197,94,'},
-                            {label: 'Good (4/5)', count: techStack?.filter(t => t.level === 4).length || 0, color: 'var(--blue)', bg: 'rgba(59,130,246,'},
-                            {label: 'Moderate (3/5)', count: techStack?.filter(t => t.level === 3).length || 0, color: 'var(--yellow)', bg: 'rgba(234,179,8,'},
-                            {label: 'Basic (2/5)', count: techStack?.filter(t => t.level === 2).length || 0, color: 'var(--orange)', bg: 'rgba(249,115,22,'},
-                            {label: 'Beginner (1/5)', count: techStack?.filter(t => t.level === 1).length || 0, color: 'var(--red)', bg: 'rgba(239,68,68,'},
-                          ].map((s,i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <div className="w-20 text-[0.6rem]" style={{color:'var(--text-dim)'}}>{s.label}</div>
-                              <div className="flex-1 h-2 rounded-full" style={{background:'var(--surface2)'}}>
-                                <div className="h-full rounded-full" style={{
-                                  width: `${techStack?.length ? (s.count / techStack.length * 100) : 0}%`,
-                                  background: `${s.bg}0.8)`
-                                }} />
-                              </div>
-                              <div className="w-6 text-right text-[0.6rem] font-bold" style={{color:s.color}}>{s.count}</div>
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
 
-                      {/* Quick Actions */}
-                      <div className="rounded-xl border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">⚡</span>
-                          <h3 className="font-extrabold text-sm">Quick Actions</h3>
-                        </div>
-                        <div className="space-y-2">
-                          <button onClick={() => switchTab('preferences')}
-                            className="w-full text-left text-xs p-2 rounded-lg hover:bg-[var(--surface2)] transition flex items-center gap-2"
-                            style={{color:'var(--text)'}}>
-                            <span>⚙️</span> Edit scoring preferences
-                          </button>
-                          <button onClick={() => switchTab('dashboard')}
-                            className="w-full text-left text-xs p-2 rounded-lg hover:bg-[var(--surface2)] transition flex items-center gap-2"
-                            style={{color:'var(--text)'}}>
-                            <span>📊</span> View dashboard insights
-                          </button>
+                        <div className="space-y-4">
+                          {/* Cities */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🌍</span>
+                              <h3 className="font-extrabold text-sm">Cities</h3>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {cities?.slice(0, 6).map((c, i) => (
+                                <div key={i} className="rounded-lg p-2 text-center border transition hover:border-[var(--accent)]" style={{background:'var(--surface2)', borderColor:'var(--border)'}}>
+                                  <div className="text-sm mb-0.5">{c.icon}</div>
+                                  <div className="font-bold text-xs">{c.name}</div>
+                                  <div className="text-[0.55rem]" style={{color:'var(--text-dim)'}}>{c.info}</div>
+                                  <div className="text-[0.55rem] font-semibold" style={{color:'var(--accent)'}}>{c.jobs}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Visa Companies */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🛂</span>
+                              <h3 className="font-extrabold text-sm">Visa Sponsorship</h3>
+                            </div>
+                            {visaCompanies.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {visaCompanies.slice(0, 6).map((j, i) => (
+                                  <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{j.title || j.company}</span>
+                                    <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(34,197,94,0.15)', color:'var(--green)'}}>{j.description || j.visa}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No visa data yet</div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* === STRATEGY TAB === */}
+                  {dashboardSubTab === 'strategy' && (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-[1fr_320px] gap-4">
+                        <div className="space-y-4">
+                          {/* Strategy Guide */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">📋</span>
+                              <h3 className="font-extrabold text-sm">Strategy Guide</h3>
+                              {strategy.length === 0 && <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'var(--surface2)', color:'var(--text-dim)'}}>Processing...</span>}
+                            </div>
+                            <div className="space-y-2">
+                              {strategy.map((g, i) => (
+                                <div key={i} className="flex items-start gap-2 p-2 rounded-lg transition hover:bg-[var(--surface2)]" style={{borderLeft:'2px solid var(--accent)'}}>
+                                  <span className="text-sm shrink-0">{g.icon}</span>
+                                  <div>
+                                    <div className="font-bold text-xs">{g.title}</div>
+                                    <div className="text-[0.6rem]" style={{color:'var(--text-dim)'}}>{g.description}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Apply Urgency */}
+                          {applyUrgency.length > 0 && (
+                            <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">⚡</span>
+                                <h3 className="font-extrabold text-sm">Urgent Applications</h3>
+                              </div>
+                              <div className="space-y-1.5">
+                                {applyUrgency.map((item, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{item.title || item.company}</span>
+                                    <span style={{color:'var(--text-dim)'}}>- {item.description || item.reason}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Strengths */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">💪</span>
+                              <h3 className="font-extrabold text-sm">Your Strengths</h3>
+                            </div>
+                            {strengths.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {strengths.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{background:'var(--green)'}} />
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.title || t.name}</span>
+                                    <span style={{color:'var(--text-dim)'}}>- {t.description || t.detail}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No strong matches yet</div>
+                            )}
+                          </div>
+
+                          {/* Weaknesses */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">📚</span>
+                              <h3 className="font-extrabold text-sm">What to Learn</h3>
+                            </div>
+                            {weaknesses.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {weaknesses.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.title || t.name}</span>
+                                    <span style={{color:'var(--text-dim)'}}>- {t.description || t.detail}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No urgent learning needed</div>
+                            )}
+                          </div>
+
+                          {/* Learning ROI (new) */}
+                          {learningROI.length > 0 && (
+                            <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">📈</span>
+                                <h3 className="font-extrabold text-sm">Learning ROI</h3>
+                              </div>
+                              <div className="space-y-2">
+                                {learningROI.slice(0, 6).map((item, i) => (
+                                  <div key={i} className="p-2 rounded-lg hover:bg-[var(--surface2)] transition">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="font-semibold text-xs" style={{color:'var(--text)'}}>{item.skill}</span>
+                                      <span className="text-[0.55rem] px-1.5 py-0.5 rounded font-bold" style={{background: item.impactScore >= 7 ? 'rgba(34,197,94,0.15)' : 'rgba(234,179,8,0.15)', color: item.impactScore >= 7 ? 'var(--green)' : 'var(--yellow)'}}>
+                                        Impact: {item.impactScore}/10
+                                      </span>
+                                    </div>
+                                    <div className="text-[0.6rem]" style={{color:'var(--text-dim)'}}>
+                                      {item.jobsRequiring} jobs • {item.timeToLearn}
+                                    </div>
+                                    <div className="text-[0.6rem] mt-0.5" style={{color:'var(--text-dim)'}}>{item.reason}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* === SKILLS TAB === */}
+                  {dashboardSubTab === 'skills' && (
+                    <div className="space-y-5">
+                      {/* Stats Row */}
+                      <div className="grid grid-cols-5 gap-3">
+                        {[
+                          {n: techStackData.length || 0, l: 'Total Skills', c: 'var(--accent)', icon: '🔧'},
+                          {n: strongStack.length, l: 'Strong Match', c: 'var(--green)', icon: '💪'},
+                          {n: midStack.length, l: 'Moderate', c: 'var(--blue)', icon: '📘'},
+                          {n: weakStack.length, l: 'Gaps', c: 'var(--yellow)', icon: '📚'},
+                          {n: `${avgLevel}/5`, l: 'Avg Level', c: 'var(--purple)', icon: '📊'},
+                        ].map((s, i) => (
+                          <div key={i} className="rounded-xl p-3 text-center border transition hover:border-[var(--accent)]" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="text-lg mb-0.5">{s.icon}</div>
+                            <div className="text-xl font-extrabold" style={{color:s.c}}>{s.n}</div>
+                            <div className="text-[0.6rem] uppercase tracking-wider" style={{color:'var(--text-dim)'}}>{s.l}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-[1fr_320px] gap-4">
+                        <div className="space-y-4">
+                          {/* Current Tech Stack */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">⚙️</span>
+                              <h3 className="font-extrabold text-sm">Current Tech Stack</h3>
+                              <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'var(--surface2)', color:'var(--text-dim)'}}>
+                                {techStackData.length || 0} skills
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+                              {techStackData.map((t, i) => <StackCard key={i} tech={t} />)}
+                            </div>
+                          </div>
+
+                          {/* Technologies to Learn */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🧠</span>
+                              <h3 className="font-extrabold text-sm">Technologies to Master</h3>
+                              <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(34,197,94,0.15)', color:'var(--green)'}}>
+                                {techLearningData.length || 0} items
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+                              {techLearningData.map((t, i) => <TechCard key={i} tech={t} />)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Strengths from Stack */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">💪</span>
+                              <h3 className="font-extrabold text-sm">Your Strengths</h3>
+                            </div>
+                            {strongStack.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {strongStack.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{background:'var(--green)'}} />
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
+                                    <span style={{color:'var(--text-dim)'}}>- {t.roles}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No strong matches yet</div>
+                            )}
+                          </div>
+
+                          {/* Learning Priorities */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">🎯</span>
+                              <h3 className="font-extrabold text-sm">Learning Priorities</h3>
+                            </div>
+                            {p1Tech.length > 0 || p2Tech.length > 0 ? (
+                              <div className="space-y-2">
+                                {p1Tech.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
+                                    <span className="text-[0.55rem] px-1 py-0.5 rounded ml-auto" style={{background:'rgba(34,197,94,0.15)', color:'var(--green)'}}>P1</span>
+                                  </div>
+                                ))}
+                                {p2Tech.map((t, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
+                                    <span className="text-[0.55rem] px-1 py-0.5 rounded ml-auto" style={{background:'rgba(59,130,246,0.15)', color:'var(--blue)'}}>P2</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No urgent learning needed</div>
+                            )}
+                          </div>
+
+                          {/* Skill Gaps */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">📚</span>
+                              <h3 className="font-extrabold text-sm">Skill Gaps</h3>
+                            </div>
+                            {weakStack.length > 0 ? (
+                              <div className="space-y-1.5">
+                                {weakStack.map((t, i) => (
+                                  <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-[var(--surface2)] transition">
+                                    <span className="font-semibold" style={{color:'var(--text)'}}>{t.name}</span>
+                                    <span className="text-[0.55rem] px-1.5 py-0.5 rounded" style={{background:'rgba(234,179,8,0.15)', color:'var(--yellow)'}}>{t.ml}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs" style={{color:'var(--text-dim)'}}>No major gaps</div>
+                            )}
+                          </div>
+
+                          {/* Level Distribution */}
+                          <div className="rounded-xl border p-4" style={{background:'var(--surface)', borderColor:'var(--border)'}}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-lg">📊</span>
+                              <h3 className="font-extrabold text-sm">Level Distribution</h3>
+                            </div>
+                            <div className="space-y-2">
+                              {[
+                                {label: 'Strong (5/5)', count: strongStack.length, color: 'var(--green)', bg: 'rgba(34,197,94,'},
+                                {label: 'Good (4/5)', count: techStackData.filter(t => t.level === 4).length || 0, color: 'var(--blue)', bg: 'rgba(59,130,246,'},
+                                {label: 'Moderate (3/5)', count: techStackData.filter(t => t.level === 3).length || 0, color: 'var(--yellow)', bg: 'rgba(234,179,8,'},
+                                {label: 'Basic (2/5)', count: techStackData.filter(t => t.level === 2).length || 0, color: 'var(--orange)', bg: 'rgba(249,115,22,'},
+                                {label: 'Beginner (1/5)', count: techStackData.filter(t => t.level === 1).length || 0, color: 'var(--red)', bg: 'rgba(239,68,68,'},
+                              ].map((s, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <div className="w-20 text-[0.6rem]" style={{color:'var(--text-dim)'}}>{s.label}</div>
+                                  <div className="flex-1 h-2 rounded-full" style={{background:'var(--surface2)'}}>
+                                    <div className="h-full rounded-full" style={{
+                                      width: `${techStackData.length ? (s.count / techStackData.length * 100) : 0}%`,
+                                      background: `${s.bg}0.8)`
+                                    }} />
+                                  </div>
+                                  <div className="w-6 text-right text-[0.6rem] font-bold" style={{color:s.color}}>{s.count}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })()}
