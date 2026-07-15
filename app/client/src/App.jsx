@@ -24,7 +24,7 @@ const VISA_STYLES = {
   'N/A': { bg: 'var(--surface2)', text: 'var(--text-dim)', label: '🛂 N/A' },
 }
 
-function MultiSelect({ value, onChange, options, placeholder }) {
+function MultiSelect({ value, onChange, options, placeholder, alignRight }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -51,7 +51,7 @@ function MultiSelect({ value, onChange, options, placeholder }) {
         <span className="text-[0.4rem]">▼</span>
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-40 rounded-lg border shadow-lg max-h-40 overflow-y-auto"
+        <div className={`absolute z-50 mt-1 w-40 rounded-lg border shadow-lg max-h-40 overflow-y-auto ${alignRight ? 'right-0' : 'left-0'}`}
           style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           {options.map(o => {
             const checked = value.includes(o.value)
@@ -637,7 +637,7 @@ function App() {
                               <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="🏢 Co" options={allCompanies.map(c=>({value:c,label:c}))} />
                               <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="📊 Match" options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
                               <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="🏠 Work" options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
-                              <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="💼 Emp" options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} />
+                              <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="💼 Emp" options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} alignRight />
                             </div>
                           </div>
                           <div style={isMax ? gridStyle : {display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:'0.5rem'}}>
