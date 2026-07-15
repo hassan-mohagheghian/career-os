@@ -3,6 +3,10 @@ Process this job posting for Hassan's job search.
 URL: {url}
 Fetched content saved at: {job_file}
 
+NOTE: Raw job descriptions are also stored in the jobs table (raw_description column)
+and structured extractions in structured_description column. Use these for faster
+processing of previously fetched jobs.
+
 Hassan's preferences:
 {preferences}
 

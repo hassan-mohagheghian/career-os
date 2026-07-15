@@ -1,6 +1,13 @@
 Analyze ALL processed jobs and generate a comprehensive job search analysis for Hassan.
 
 Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
+Each job has:
+- Basic fields: company, role, location, score, match, stack, visa, etc.
+- raw_description: Full raw text fetched from the job posting URL
+- structured_description: Pre-extracted JSON with requirements, responsibilities, benefits, etc.
+
+Use structured_description when available for detailed analysis (requirements, nice_to_have, responsibilities, benefits).
+Use raw_description as fallback when structured_description is not available.
 
 Generate analysis as JSON and save to {project_root}/data/analysis_{pid}.json with this structure:
 

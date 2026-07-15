@@ -27,7 +27,8 @@ def init_db():
         deleted INTEGER DEFAULT 0,
         employment_type TEXT DEFAULT 'Full-time',
         work_types TEXT DEFAULT '[]',
-        raw_description TEXT
+        raw_description TEXT,
+        structured_description TEXT
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS summaries (
@@ -151,6 +152,12 @@ def init_db():
         c.execute("SELECT raw_description FROM jobs LIMIT 1")
     except sqlite3.OperationalError:
         c.execute("ALTER TABLE jobs ADD COLUMN raw_description TEXT")
+
+    # Add structured_description column if missing (for existing DBs)
+    try:
+        c.execute("SELECT structured_description FROM jobs LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE jobs ADD COLUMN structured_description TEXT")
 
     conn.commit()
     conn.close()

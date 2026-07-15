@@ -107,13 +107,14 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
          normalized_wt[0] if normalized_wt else 'On-site', d.get('workflow_log', '[]'),
          d.get('created_at', now), posted_at, json.dumps(locations), 0,
-         employment_type, json.dumps(normalized_wt), d.get('raw_description')))
+         employment_type, json.dumps(normalized_wt), d.get('raw_description'),
+         d.get('structured_description')))
     conn.commit(); conn.close()
 
 
@@ -199,6 +200,28 @@ def _load_preferences():
         if r['description']:
             lines.append(f"  ({r['description']})")
     return '\n'.join(lines)
+
+def _extract_structured_description(raw_text, num):
+    """Extract structured job info from raw description using mimo."""
+    output_file = os.path.join(PROJECT_ROOT, 'data', f'structured_{num}.json')
+    prompt = load_prompt('job_extract',
+        raw_content=raw_text[:5000], output_file=output_file)
+
+    proc = subprocess.run(
+        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
+        env={**os.environ, 'NO_COLOR': '1'}
+    )
+
+    if proc.returncode == 0 and os.path.exists(output_file):
+        try:
+            with open(output_file) as f:
+                structured = json.load(f)
+            os.remove(output_file)
+            return json.dumps(structured, ensure_ascii=False)
+        except Exception:
+            pass
+    return None
 
 def _update_dashboard_insights(pid):
     """Update dashboard insights based on all processed jobs."""
@@ -592,6 +615,14 @@ def process_job(pid):
         _log(pid, 'fetch', f'Fetched {len(raw_text)} chars')
         _mark(pid, 'step_fetch')
 
+        # Step 1.5: Extract structured description from raw content
+        _log(pid, 'extract', 'Extracting structured job info...')
+        structured_json = _extract_structured_description(raw_text, pid)
+        if structured_json:
+            _log(pid, 'extract', 'Structured extraction complete')
+        else:
+            _log(pid, 'extract', 'Extraction failed, continuing with raw')
+
         # Extract job title and company from fetched content so the
         # frontend can display them immediately — before mimo finishes.
         title = ''
@@ -667,8 +698,9 @@ def process_job(pid):
         job_data = data['job']
         _mark(pid, 'step_analyze', company=job_data.get('company'), job_num=job_data['num'])
 
-        # Add raw_description to job_data for DB storage
+        # Add raw_description and structured_description to job_data for DB storage
         job_data['raw_description'] = raw_text
+        job_data['structured_description'] = structured_json
 
         # Save raw job description to jobs folder
         jobs_dir = os.path.join(PROJECT_ROOT, 'jobs')
