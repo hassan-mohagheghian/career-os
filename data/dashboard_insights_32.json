@@ -1,0 +1,220 @@
+{
+  "strategy": [
+    {
+      "icon": "🎯",
+      "title": "Immediate Applications: BEST Visa + High Match",
+      "description": "Apply TODAY to Cara Care (score 92, remote, BEST visa, 25 applicants), Audatic (score 91, 36 applicants, explicit immigration support, posted 7 hours ago), and Jobgether (score 88, <25 applicants, fully remote, posted 15 hours ago). These three combine the strongest visa pathways with highest match scores and lowest competition across all 25 processed jobs."
+    },
+    {
+      "icon": "⚡",
+      "title": "Speed Advantage: Fresh Postings Under 1 Week",
+      "description": "6 jobs posted within the last week need immediate attention: Audatic (7h old), Jobgether (15h old), Flix (2d, score 85), Venture Up (3d), WorkGenius (4d), and Sunday Natural (Active, score 82). Early applications significantly improve callback rates — apply within 24-48 hours of posting."
+    },
+    {
+      "icon": "🏢",
+      "title": "Target Berlin-Based Strong Visa Companies",
+      "description": "Focus on Berlin roles with confirmed visa support: Sunday Natural (Strong, 40+ nationalities), Parloa (Strong, AI company), lemon.markets (Strong, bank-backed), Scope Ratings (Strong, European credit agency), Engelhart (Good, 25 applicants). These have established relocation infrastructure and diverse international teams."
+    },
+    {
+      "icon": "💰",
+      "title": "Salary Band: Apply to €75K-€100K Roles",
+      "description": "Your 9+ years experience qualifies for senior bands. Target Flix (€75K-€95K), Engelhart (€70K-€95K), Parloa (€80K-€100K), Mobility House (€80K-€100K), and Ebury (€70K-€100K). Don't undersell at €60K-€80K roles when senior positions are available."
+    },
+    {
+      "icon": "🏥",
+      "title": "Domain Leverage: HealthTech + FinTech + Energy",
+      "description": "Your IDEX fintech background differentiates for FinTech roles (lemon.markets, Engelhart, Ebury, Scope Ratings). HealthTech roles (Cara Care, Audatic, Mindpeak) value your regulated systems experience. Energy domain (Lumenaza, suena, Mobility House) benefits from your backend architecture depth."
+    },
+    {
+      "icon": "🤖",
+      "title": "AI Differentiator: Leverage M.Sc. AI + Claude Code",
+      "description": "Your M.Sc. AI and Claude Code experience is a rare differentiator. Highlight for AI companies: Audatic (speech AI, TensorFlow), Jobgether (AI/ML tools), Parloa (conversational AI, MCP), The Exploration Company (LangChain). Mindpeak specifically values AI coding agents experience."
+    }
+  ],
+  "strengths": [
+    {
+      "name": "Python (9+ years)",
+      "detail": "Primary language across 24 of 25 jobs (96%). Hassan's 9+ years exceeds most 5-7 year requirements. Foundational strength with zero gap. Core match for roles from Cara Care (score 92) to Ebury (score 76)."
+    },
+    {
+      "name": "Django/DRF",
+      "detail": "Direct match for Cara Care (score 92), Lumenaza (score 72), Sunday Natural (score 82). Django expertise is listed explicitly in 4 roles (Cara Care, Sunday Natural, Lumenaza, suena energy) and implicitly compatible with 8+ more Python/Django shops."
+    },
+    {
+      "name": "FastAPI",
+      "detail": "Explicit requirement in 12 jobs: Sunday Natural, Engelhart, Cirql One, Karla, lemon.markets, exmox, WorkGenius, Parloa, Audatic, EnopAI, The Exploration Company, SOA Experts. Hassan has production FastAPI experience — most in-demand Python framework across Berlin startups."
+    },
+    {
+      "name": "PostgreSQL",
+      "detail": "Required in 15 of 25 jobs (60%). Hassan's PostgreSQL expertise covers Cara Care, Sunday Natural, Engelhart, Flix, lemon.markets, Lumenaza, Scope Ratings, ARX Robotics, Audatic, Cresta, Karla, WorkGenius, EnopAI, The Exploration Company, and Almetra. Core differentiator."
+    },
+    {
+      "name": "Docker/K8s",
+      "detail": "Docker appears in 14 jobs, Kubernetes in 7. Hassan's containerization experience (Docker + K8s) matches Cara Care, Engelhart, exmox, Mobility House, ARX Robotics, Parloa, SOA Experts requirements. Combined Docker+K8s coverage opens 60% of roles."
+    },
+    {
+      "name": "AWS/GCP Cloud",
+      "detail": "Cloud experience required in 11 jobs. Hassan has both AWS (Engelhart, Flix, lemon.markets, Venture Up, exmox, Mobility House, The Exploration Company, EnopAI, Almetra) and GCP (Cara Care) — rare dual-cloud coverage that most candidates lack."
+    },
+    {
+      "name": "Redis/Celery",
+      "detail": "Async task queues and caching in 6 jobs. Hassan's Redis + Celery production experience directly matches Cara Care, Lumenaza, Sunday Natural, suena energy, Engelhart, The Exploration Company stack requirements."
+    },
+    {
+      "name": "Distributed Systems & Kafka",
+      "detail": "Kafka in 5 jobs (GALVANY, Flix, exmox, Parloa, Sunday Natural). Hassan's event-driven architecture and microservices experience aligns with high-throughput production systems."
+    },
+    {
+      "name": "REST API Design",
+      "detail": "Explicitly required in 8+ roles. Hassan's API gateway, rate limiting, and microservices experience at IDEX directly demonstrates this capability. Key for ARX Robotics, lemon.markets, Ebury, and Scope Ratings."
+    },
+    {
+      "name": "AI/ML Background (M.Sc.)",
+      "detail": "Differentiator for 7 AI-focused roles: Audatic (speech enhancement AI, TensorFlow), Mindpeak (digital pathology ML), Jobgether (AI/ML developer tools), Cresta (AI-powered CDP), Parloa (conversational AI), The Exploration Company (LangChain), Venture Up (MLflow/SageMaker). Hassan's M.Sc. AI and Claude Code experience stand out."
+    }
+  ],
+  "weaknesses": [
+    {
+      "name": "TypeScript/Node.js Gap",
+      "detail": "Required as primary or co-primary in 5 roles: Parloa (TypeScript primary), ARX Robotics (Node.js), The Exploration Company (Node.js), Mobility House (TypeScript), Jobgether (TypeScript). Parloa notes 'willing to learn' is acceptable — partial mitigation. 4 roles explicitly need it."
+    },
+    {
+      "name": "German Language (A2 level)",
+      "detail": "BLOCKED: suena energy requires German C1, EnopAI requires negotiation-level (B2/C1). At least 2 roles are disqualified entirely. Market reality: most Berlin roles are English-only, but German would unlock additional energy sector opportunities."
+    },
+    {
+      "name": "Go Language (Zero experience)",
+      "detail": "HARD GAP: GALVANY (Go primary, score 10) and Cresta (Go co-primary, score 65) are effectively inaccessible. ARX Robotics lists Go as secondary. Cannot be learned quickly enough to apply. 2-3 roles eliminated."
+    },
+    {
+      "name": "Kubernetes (Partial experience)",
+      "detail": "Listed in 7 roles (Cara Care, Parloa, exmox, Mobility House, ARX Robotics, SOA Experts, Almetra) but Hassan has partial/limited K8s exposure. Docker is strong but K8s orchestration depth is a gap."
+    },
+    {
+      "name": "React/Frontend (Limited)",
+      "detail": "Frontend mentioned in 5+ roles (GALVANY, Flix, Karla, Mindpeak, Jobgether). Hassan is backend-focused. Not a dealbreaker for most roles but limits full-stack positioning."
+    },
+    {
+      "name": "ML/AI Production Deployment",
+      "detail": "Roles like Venture Up (MLflow/SageMaker), Mindpeak (ML model serving), EnopAI (real-time optimization) require production ML deployment experience. Hassan has M.Sc. AI but limited production ML engineering."
+    },
+    {
+      "name": "Financial Domain Knowledge (Partial)",
+      "detail": "FinTech roles (lemon.markets, Engelhart, Ebury, Scope Ratings) value domain expertise. Hassan has IDEX payment processing experience but lacks deep brokerage/trading knowledge. Can be positioned as transferable."
+    }
+  ],
+  "visa_companies": [
+    {
+      "company": "Cara Care",
+      "visa": "BEST",
+      "note": "Remote-first, Bayer-backed. Explicit visa sponsorship. Work from Iran initially possible. Score 92. Only 25 applicants. Best visa path for Iran-to-Germany transition."
+    },
+    {
+      "company": "Audatic",
+      "visa": "BEST",
+      "note": "Immigration support EXPLICIT in job description. Sonova backing. Score 91. 36 applicants. Posted 7 hours ago. Strongest combination of visa + freshness + low competition."
+    },
+    {
+      "company": "Jobgether",
+      "visa": "BEST",
+      "note": "Fully remote, <25 applicants, posted 15 hours ago. Score 88. Can work from Iran initially. Open-source AI/ML developer tools. Best for starting immediately without relocation urgency."
+    },
+    {
+      "company": "Sunday Natural",
+      "visa": "Strong",
+      "note": "40+ nationalities on team, established international hiring. Score 82. Supply chain/ERP domain. Berlin on-site. Strong visa infrastructure already in place."
+    },
+    {
+      "company": "Flix",
+      "visa": "Strong",
+      "note": "Publicly traded company (FlixSE). Strong visa sponsorship infrastructure. Score 85. Work anywhere 60 days/year policy. Berlin-based with global operations."
+    },
+    {
+      "company": "lemon.markets",
+      "visa": "Strong",
+      "note": "Bank-backed (dwpbank). Score 80. Hybrid Berlin. Strong fintech with established international hiring. Workation 60 days/year."
+    },
+    {
+      "company": "Parloa",
+      "visa": "Strong",
+      "note": "Top-tier VC backed AI company. Score 79. Berlin on-site. Enterprise CX platform. Strong visa potential given AI talent scarcity."
+    },
+    {
+      "company": "Scope Ratings",
+      "visa": "Strong",
+      "note": "European credit rating agency (ESMA-registered). Score 72. Berlin. International financial institution with diverse workforce."
+    },
+    {
+      "company": "Ebury",
+      "visa": "Strong",
+      "note": "Major European fintech. Score 76. Remote/Hybrid across Europe. Global team (Europe + South America). Technology-agnostic role. Likely offers visa sponsorship."
+    },
+    {
+      "company": "Karla",
+      "visa": "Strong",
+      "note": "Remote-first e-commerce platform. Score 68. AI-first workflow. Claude Code valued. Posted ~5 months ago — verify status."
+    },
+    {
+      "company": "Engelhart",
+      "visa": "Good",
+      "note": "Finance/Trading company. Score 78. Only 25 applicants — low competition. Energy trading domain. Berlin on-site."
+    },
+    {
+      "company": "Lumenaza",
+      "visa": "Good",
+      "note": "Green tech energy platform in Berlin Kreuzberg. Score 72. Near-perfect stack match (Django/Python/PostgreSQL). Posted ~3 months ago — verify."
+    },
+    {
+      "company": "The Exploration Company",
+      "visa": "Good",
+      "note": "Visa sponsorship mentioned in posting. Score 68. Munich. Aerospace/space domain. FastAPI perfect match."
+    },
+    {
+      "company": "ARX Robotics",
+      "visa": "Good",
+      "note": "Relocation support mentioned. Score 72. Munich. Defense/aerospace. Python primary role. Hybrid."
+    }
+  ],
+  "apply_urgency": [
+    {
+      "company": "Audatic",
+      "reason": "Posted ~7 hours ago. Score 91. ONLY 36 applicants. BEST visa. Explicit immigration support. Speech enhancement AI (aligns with M.Sc. AI). Apply within 24 hours for maximum advantage."
+    },
+    {
+      "company": "Jobgether",
+      "reason": "Posted ~15 hours ago. Score 88. LESS THAN 25 applicants. BEST visa. Fully remote (work from Iran). Open-source AI/ML tools. Lowest competition of any role — apply immediately."
+    },
+    {
+      "company": "Cara Care",
+      "reason": "Active posting. Score 92 (highest overall). BEST visa. Remote-first. Bayer-backed. Only 25 applicants. Digital health regulated platform. Already highest match — apply regardless of freshness."
+    },
+    {
+      "company": "Flix",
+      "reason": "Posted ~2 days ago. Score 85. Strong visa. Publicly traded. 174 applicants but still fresh. Apply today to stay in early review batch."
+    },
+    {
+      "company": "Sunday Natural",
+      "reason": "Active posting. Score 82. Strong visa. 40+ nationalities. Berlin. Near-perfect Python/Django/FastAPI fit. Apply this week."
+    },
+    {
+      "company": "Engelhart",
+      "reason": "Active posting. Score 78. Good visa. Only 25 applicants (lowest competition among active Berlin roles). Energy trading domain. Apply this week."
+    },
+    {
+      "company": "lemon.markets",
+      "reason": "Posted ~1 month ago. Score 80. Strong visa. Bank-backed fintech. Still active. Apply this week before it closes."
+    },
+    {
+      "company": "Parloa",
+      "reason": "Posted ~2 weeks ago. Score 79. Strong visa. AI company. TypeScript gap noted but 'willing to learn' acceptable. Apply within days."
+    },
+    {
+      "company": "Ebury",
+      "reason": "Active posting. Score 76. Strong visa. Technology-agnostic removes language gaps. Payment domain directly relevant (IDEX experience). Apply this week."
+    },
+    {
+      "company": "WorkGenius",
+      "reason": "Posted ~4 days ago. Score 63. Perfect FastAPI stack match. Small team (9 people). Hamburg hybrid. 200+ applicants but small team means faster hiring decisions."
+    }
+  ]
+}

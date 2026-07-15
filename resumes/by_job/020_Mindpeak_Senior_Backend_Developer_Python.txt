@@ -1,0 +1,40 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building production Python systems and M.Sc. in AI. Experience with AI coding agents (Claude Code), Docker, Linux, and cloud infrastructure. Built distributed systems serving ML models and data-heavy pipelines. Passionate about applying AI techniques to real-world problems.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- High-scale transaction processing (Django, PostgreSQL, Redis) — production systems serving data-intensive workloads
+- WorkGraph multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — scalable API design
+- RustWatch distributed telemetry tool (Rust, Tokio) — monitoring backend services across distributed infrastructure
+- AI agentic development workflows using Claude Code — improved developer productivity
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- REST APIs (Django, DRF, PostgreSQL, Celery) — backend services for enterprise clients
+- Modernized 4 legacy systems, improved data consistency 25%
+- Mentored junior developers through code reviews and technical knowledge-sharing
+- Cross-functional collaboration with product, design, and infrastructure teams
+
+Senior Backend Developer | hengam.io, Canada | Mar 2022 – Mar 2023
+- AI-powered application — automated content generation using NLP models (LangChain, LlamaIndex)
+- Real-time notification system — low-latency data pipelines
+- Collaborated with stakeholders to define requirements and prioritize features
+
+SKILLS
+Python: Django, FastAPI, DRF, AsyncIO
+AI/ML: M.Sc. AI, LangChain, LlamaIndex, Autogen, AI coding agents (Claude Code)
+Infrastructure: Docker, Linux, AWS, CI/CD, Terraform
+Databases: PostgreSQL, Redis
+Architecture: Microservices, TDD, Clean Architecture
+Collaboration: Mentoring, cross-functional teams, technical leadership
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: AI coding agents experience (Claude Code) is a key differentiator. M.Sc. AI directly relevant to digital pathology domain.

@@ -1,0 +1,195 @@
+{
+  "strategy": [
+    {
+      "icon": "🎯",
+      "title": "Prioritize BEST visa companies",
+      "description": "Cara Care, Audatic, and Jobgether have explicit immigration support or remote-first policies allowing initial work from Iran. These are the safest visa paths — apply to all three immediately."
+    },
+    {
+      "icon": "⚡",
+      "title": "Apply to fresh postings within 24 hours",
+      "description": "Audatic (7 hours old, 36 applicants), Jobgether (15 hours, <25 applicants), and Flix (2 days old) are the freshest. Early application to low-competition postings dramatically increases interview chances."
+    },
+    {
+      "icon": "🐍",
+      "title": "Target Python-only or Python-primary roles",
+      "description": "20 of 22 jobs (91%) require Python. Avoid Go-heavy roles (GALVANY, Cresta, ARX Robotics). Focus on FastAPI/Django positions where Hassan's 9+ years of Python is a decisive advantage."
+    },
+    {
+      "icon": "🏢",
+      "title": "Leverage Berlin + Remote-first positions",
+      "description": "12 jobs are in Berlin or fully remote. Berlin on-site roles (Sunday Natural, Parloa, Audatic, Scope Ratings, lemon.markets) have stronger visa sponsorship. Remote roles (Jobgether, Ebury, Cara Care) allow starting work before relocation."
+    },
+    {
+      "icon": "💰",
+      "title": "Apply to high-match fintech/payments roles",
+      "description": "Ebury (score 76, tech-agnostic), lemon.markets (score 80, bank-backed), and Scope Ratings (score 72, credit rating agency) align with Hassan's IDEX payment processing and fintech experience. Domain knowledge is a differentiator."
+    },
+    {
+      "icon": "🔄",
+      "title": "Verify stale postings before applying",
+      "description": "Karla (5 months), Mindpeak (4 months), Lumenaza (3 months), and Almetra (2 months) are old. Check if still open before spending application time. Prioritize active and recent postings instead."
+    }
+  ],
+  "strengths": [
+    {
+      "name": "Python (9+ years)",
+      "detail": "Required in 20/22 jobs (91%). Hassan's primary language with deep expertise in FastAPI, Django, asyncio, and data processing. Core differentiator for roles at Audatic, Cara Care, Sunday Natural, Flix, and lemon.markets."
+    },
+    {
+      "name": "Django/DRF",
+      "detail": "Strong match for 5 jobs (Cara Care score 92, Lumenaza score 72, Sunday Natural score 82, suena energy, EnopAI). Django is explicitly required in healthcare, energy, and e-commerce roles."
+    },
+    {
+      "name": "FastAPI/async",
+      "detail": "Required in 11 jobs (Engelhart, Cirql One, Karla, lemon.markets, exmox, WorkGenius, Parloa, Audatic, The Exploration Company, EnopAI, SOA Experts). FastAPI is the most in-demand Python framework across Berlin startups."
+    },
+    {
+      "name": "PostgreSQL",
+      "detail": "Appears in 15/22 jobs (68%). Hassan's deep PostgreSQL expertise (schema design, optimization, data pipelines) is a strong match for Cara Care, Flix, lemon.markets, Scope Ratings, and Lumenaza."
+    },
+    {
+      "name": "Docker/Kubernetes",
+      "detail": "Appears in 10/22 jobs (45%). Container orchestration experience matches Cara Care (K8s), Parloa (K8s), exmox (Docker/K8s), ARX Robotics (Docker/K8s), and WorkGenius (Docker)."
+    },
+    {
+      "name": "AWS/GCP Cloud",
+      "detail": "Cloud experience matches 10+ jobs. AWS appears in Engelhart, lemon.markets, Flix, Venture Up, exmox, Almetra. GCP matches Cara Care. Cloud infrastructure is a baseline requirement for senior roles."
+    },
+    {
+      "name": "AI/ML background (M.Sc.)",
+      "detail": "Differentiator for 5 AI-focused roles: Audatic (speech enhancement AI, TensorFlow), Mindpeak (digital pathology ML), Jobgether (AI/ML developer tools), Cresta (AI-powered CDP), Parloa (conversational AI). Hassan's M.Sc. AI and Claude Code experience stand out."
+    },
+    {
+      "name": "REST API design",
+      "detail": "Appears in 8+ jobs as core requirement. Hassan's API design experience (IDEX invoice microservice, transaction processing) is directly transferable to roles at ARX Robotics, lemon.markets, Ebury, and Scope Ratings."
+    }
+  ],
+  "weaknesses": [
+    {
+      "name": "TypeScript/Node.js",
+      "detail": "Appears in 4 jobs (Parloa, Mobility House, ARX Robotics, Jobgether) but not in Hassan's primary stack. Parloa notes 'willing to learn' is acceptable, but TypeScript proficiency would open more senior roles."
+    },
+    {
+      "name": "Go (Golang)",
+      "detail": "Primary or co-primary language in 3 jobs (GALVANY, Cresta, ARX Robotics). Hassan has no Go experience. These are hard gaps — GALVANY and Cresta are effectively blocked without Go."
+    },
+    {
+      "name": "German language",
+      "detail": "Blocked 2 jobs entirely: suena energy (C1 required, Hassan has A2) and EnopAI (B2/C1 required). German proficiency would unlock energy sector roles that are otherwise strong technical fits."
+    },
+    {
+      "name": "React/Frontend",
+      "detail": "Appears in 4+ jobs (GALVANY, Karla, Flix, Mindpeak) as secondary requirement. Backend-focused roles often still expect basic frontend familiarity. Hassan's frontend skills are not highlighted in resume data."
+    },
+    {
+      "name": "Terraform/IaC",
+      "detail": "Appears in 3 jobs (Flix, Almetra, Venture Up) as infrastructure-as-code requirement. Hassan has Docker/K8s but Terraform-specific experience is not confirmed."
+    },
+    {
+      "name": "Domain-specific knowledge",
+      "detail": "Energy trading (suena, Engelhart), aerospace (The Exploration Company), defense (ARX Robotics), and SAP/enterprise (Cirql One) are new domains. While transferable, domain familiarity would strengthen applications."
+    }
+  ],
+  "visa_companies": [
+    {
+      "company": "Cara Care",
+      "visa": "BEST",
+      "note": "Remote-first policy allows starting work from Iran before relocating. Bayer backing provides institutional stability. Score 92 — highest match of all jobs."
+    },
+    {
+      "company": "Audatic",
+      "visa": "BEST",
+      "note": "Immigration support EXPLICIT in job posting. Sonova (parent company) is a major Swiss healthcare conglomerate. Only 36 applicants — low competition for BEST visa path."
+    },
+    {
+      "company": "Jobgether",
+      "visa": "BEST",
+      "note": "Fully remote with <25 applicants. Open-source AI/ML developer tools. Can work from Iran indefinitely — no relocation urgency."
+    },
+    {
+      "company": "Sunday Natural",
+      "visa": "Strong",
+      "note": "40+ nationalities employed. Active hiring. Score 82. Supply chain/ERP domain with Python/Django stack match."
+    },
+    {
+      "company": "Flix",
+      "visa": "Strong",
+      "note": "Publicly traded company (FlixMobility). Work from anywhere 60 days/year. Strong institutional visa sponsorship process."
+    },
+    {
+      "company": "lemon.markets",
+      "visa": "Strong",
+      "note": "Bank-backed (dwpbank). FinTech brokerage platform. Institutional backing usually means established visa processes."
+    },
+    {
+      "company": "Parloa",
+      "visa": "Strong",
+      "note": "Top-tier VC backing. AI conversational platform. Strong funding indicates ability to sponsor visas."
+    },
+    {
+      "company": "Scope Ratings",
+      "visa": "Strong",
+      "note": "ESMA-registered European credit rating agency. Established financial institution with likely existing visa sponsorship infrastructure."
+    },
+    {
+      "company": "Ebury",
+      "visa": "Strong",
+      "note": "Major European FinTech with global team (Europe + South America). Technology-agnostic role. Payment domain experience is differentiator."
+    },
+    {
+      "company": "Engelhart",
+      "visa": "Good",
+      "note": "Renewables trading platform. Low competition (25 applicants). Financial sector typically sponsors visas."
+    },
+    {
+      "company": "Lumenaza",
+      "visa": "Good",
+      "note": "Green tech energy platform in Berlin Kreuzberg. Near-perfect stack match (Django/Python/PostgreSQL)."
+    },
+    {
+      "company": "The Exploration Company",
+      "visa": "Good",
+      "note": "Visa sponsorship mentioned in posting. Aerospace startup (Nyx orbital vehicle). FastAPI/Python perfect match."
+    },
+    {
+      "company": "ARX Robotics",
+      "visa": "Good",
+      "note": "Relocation support mentioned. Defense tech with platform/API work. Python primary despite Go/TypeScript co-requirements."
+    }
+  ],
+  "apply_urgency": [
+    {
+      "company": "Audatic",
+      "reason": "Posted 7 HOURS ago. Only 36 applicants. BEST visa support. Score 91. Python-only role. Sonova backing. Lowest competition of any high-match job — apply within hours, not days."
+    },
+    {
+      "company": "Jobgether",
+      "reason": "Posted 15 HOURS ago. Fewer than 25 applicants. BEST visa (fully remote). Score 88. Open-source AI/ML tools. Can work from Iran — zero relocation risk."
+    },
+    {
+      "company": "Cara Care",
+      "reason": "BEST visa (remote-first, Bayer backing). Score 92 — highest match overall. Python/Django/PostgreSQL stack is Hassan's core expertise. Remote-first means no relocation urgency."
+    },
+    {
+      "company": "Flix",
+      "reason": "Posted 2 days ago. Score 85. Strong visa (publicly traded). 174 applicants but fresh posting means application window is still open. DDD/Clean Architecture aligns with resume."
+    },
+    {
+      "company": "Engelhart",
+      "reason": "Only 25 applicants — lowest competition of all Berlin jobs. Score 78. Python/FastAPI/AWS/Redis/Docker stack is strong match. Energy trading domain transfers from IDEX fintech experience."
+    },
+    {
+      "company": "Sunday Natural",
+      "reason": "Score 82. Strong visa (40+ nationalities). Near-perfect Python/Django/FastAPI stack match. Active posting. Supply chain domain is new but transferable."
+    },
+    {
+      "company": "lemon.markets",
+      "reason": "Score 80. Strong visa (bank-backed). FinTech brokerage platform — IDEX payment experience is direct domain match. Posted ~1 month ago — still active."
+    },
+    {
+      "company": "Ebury",
+      "reason": "Score 76. Strong visa (global team). Technology-agnostic removes language gaps. Payment processing domain directly relevant to Hassan's IDEX experience (5K TPM transaction system)."
+    }
+  ]
+}

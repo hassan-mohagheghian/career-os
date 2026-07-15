@@ -1,0 +1,52 @@
+[CANDIDATE]
+Senior Software Engineer | Distributed Systems & Cloud-Native | Python (FastAPI, Django) | 9+ Years | Kubernetes, Docker, Linux | Rust
+[LOCATION]
+
+SUMMARY
+Senior Backend Engineer with 9+ years building backend systems, distributed architectures, and production APIs. Python (FastAPI, Django) specialist. Microservice-based systems, scalable APIs, data-driven backend platforms. Kubernetes, Docker, Terraform, Linux. SIEM platforms, ERP services, real-time notification systems, SaaS applications. Performance improvements, system refactoring, legacy migration. M.Sc. AI with increasing interest in applying AI techniques in backend systems and automation workflows. Open to Senior Software Engineer roles in Germany.
+
+EXPERIENCE
+
+Freelance | Senior Software Engineer | Sep 2025 – Present | Remote
+- High-performance transaction processing: Django, PostgreSQL, Redis
+- Backend services and SaaS platforms: Python, FastAPI, DDD, Hexagonal Architecture
+- Open-source projects:
+  - WorkGraph: Multi-tenant project, knowledge management, AI workflow platform (FastAPI, DDD, Hexagonal, CQRS)
+  - RustWatch: Distributed observability and telemetry platform (Rust)
+  - Order Management DDD/Clean Architecture reference implementation
+  - User Management DDD/Clean Architecture reference implementation
+
+[COMPANY_A] | Senior Backend Engineer | Sep 2023 – Sep 2025 | [COUNTRY_B]
+- Modernized 4 legacy systems, improved data consistency 25%
+- REST API development (Python, Django, DRF, PostgreSQL, Celery), boosted productivity 35%
+- File management optimization, reduced errors 40%, sped validation 50%
+- Inter-company collaboration framework, 20% faster delivery
+- Cross-functional notification and ticketing system, cut response time 60%
+
+[COMPANY_C] | Senior Backend Developer | Mar 2022 – Mar 2023 | [COUNTRY_D]
+- AI-powered Shopify app: Python, automated product descriptions, 20% revenue increase
+- Real-time restock notifications, improved query speed 10%
+
+[COMPANY_E] | Full Stack Developer | Mar 2018 – Mar 2021 | [COUNTRY]
+- Web panels for asset management: Django, DRF, ReactJS
+- Ticketing platform: doubled response speed, reduced resolution time 40%
+- WebSocket notifications: latency reduced 60%
+- Python 2→3 & Django 1→3 migration
+- Agile frontend-backend separation, boosted team communication 50%
+
+[COMPANY_F] | Software Developer | Sep 2017 – Mar 2018 | [COUNTRY]
+- AI-powered O-ring and ice-cream wood inspection detection interface
+- Enhanced desktop AI apps, increased detection speed 20%
+
+[COMPANY_G] | Software Developer | Mar 2017 – Sep 2017 | [COUNTRY]
+- Launched 5 websites, increased client revenue 20–50%
+
+EDUCATION
+[UNIVERSITY_A] | M.Sc. Computer Science - AI | 2013–2015
+[UNIVERSITY_B] | B.Sc. Computer Science | 2009–2013
+
+CERTIFICATIONS
+Python Essential Training
+RabbitMQ Training Course (CloudAMQP)
+Learning the Python 3 Standard Library
+Python Object-Oriented Programming

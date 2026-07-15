@@ -1,0 +1,133 @@
+Contact
+Esfahan, Iran
++989371800561 (Mobile)
+hassan.mohagheghian.cs@gmai
+l.com
+www.linkedin.com/in/hassan-
+mohagheghian (LinkedIn)
+github.com/hassan-mohagheghian
+(Portfolio)
+Top Skills
+Design Patterns
+Python (Programming Language)
+Django
+Languages
+Persian (Native or Bilingual)
+English (Professional Working)
+Certifications
+Python Essential Training
+How to Create a Career You Love
+RabbitMQ Training Course - by
+CloudAMQP
+Learning the Python 3 Standard
+Library
+Python Object-Oriented
+Programming
+Hassan Mohagheghian
+Senior Software Engineer | Distributed Systems & Cloud-Native
+| Python (FastAPI, Django) | 9+ Years Experience | Kubernetes,
+Docker, Linux | Rust
+Isfahan Province, Iran
+Summary
+Senior Backend Engineer with 9+ years of experience building
+backend systems, distributed architectures, and production APIs.
+Strong focus on Python (FastAPI, Django) with experience designing
+and maintaining microservice-based systems, scalable APIs, and
+data-driven backend platforms. Hands-on work with Kubernetes,
+Docker, Terraform, and Linux for deploying and operating cloud-
+based systems. Experience includes building backend systems
+for SIEM platforms, ERP services, real-time notification systems,
+and SaaS applications. Work includes performance improvements,
+system refactoring, and migration of legacy systems to modern
+architectures. Master’s degree in Artificial Intelligence with solid
+understanding of machine learning concepts and increasing interest
+in applying AI techniques in backend systems and automation
+workflows. Open to Senior Software Engineer roles in Germany,
+focusing on backend systems, distributed architectures, cloud-native
+infrastructure, and scalable product platforms.
+Experience
+Freelance
+Senior Software Engineer (Freelance Consulting)
+September 2025 - Present (11 months)
+Remote
+Independent consulting practice focused on Backend Engineering, Distributed
+Systems, Clean Architecture, and AI-enabled platforms.
+Selected projects include:
+• Architected and developed a high-performance transaction processing
+system using Django, PostgreSQL, and Redis, focused on scalability,
+reliability, and low-latency operations.
+• Built backend services and SaaS platforms with Python, FastAPI, Domain-
+Driven Design (DDD), and Hexagonal Architecture.
+Page 1 of 4
+• Open-sourced engineering projects, including:
+ــــــ WorkGraph: Multi-tenant project, knowledge management, and AI
+workflow platform built with FastAPI, DDD, Hexagonal Architecture, and
+CQRS.
+ــــــ RustWatch: Distributed observability and telemetry platform built with Rust
+for logs, metrics, traces, and events.
+ــــــ Order Management DDD/Clean Architecture reference implementation.
+ــــــ User Management DDD/Clean Architecture reference implementation.
+> Open to full-time Senior Backend Engineering opportunities in Berlin, with
+relocation and visa sponsorship.
+Externa competence AB
+Senior Backend Engineer
+September 2023 - September 2025 (2 years 1 month)
+Sweden
+- Modernized four legacy systems, improving data consistency by 25%
+- Boosted productivity by 35% with REST API development (Python, Django,
+DRF, PostgreSQL, Celery)
+- Optimized file management, reducing errors by 40% and speeding validation
+by 50%
+- Engineered inter-company collaboration framework, achieving 20% faster
+delivery
+- Built cross-functional notification and ticketing system, cutting response time
+by 60%
+Freelance
+Senior Backend Engineer
+March 2023 - September 2023 (7 months)
+Iran
+hengam.io
+Senior Backend Developer
+March 2022 - March 2023 (1 year 1 month)
+Tehran, Iran
+- Developed AI-powered REST APIs for Shopify app, increasing revenue by
+20%
+- Built real-time product restock notifications, improving query speed by 10%
+Freelance
+Page 2 of 4
+Full Stack Engineer
+March 2021 - March 2022 (1 year 1 month)
+Iran
+- Built scalable multi-vendor order management
+- Managed end-to-end development, optimized performance, and streamlined
+vendor on-boarding
+PayamPardaz
+Full Stack Developer
+March 2018 - March 2021 (3 years 1 month)
+Esfahan, Iran
+- Developed web panels for asset management (Django, DRF, ReactJS)
+- Led ticketing platform, doubling response speed and reducing resolution time
+by 40%
+- Built WebSocket notifications, cutting latency by 60%
+- Upgraded Python 2 → 3 & Django 1 → 3, reducing technical debt
+- Enabled agile frontend-backend separation, boosting team communication by
+50%
+NovinIlya
+Software Developer
+September 2017 - March 2018 (7 months)
+Isfahan Province, Iran
+- Develop fast and accurate O-rings and ice-cream woods inspect detection
+interface powered by AI
+- Enhanced desktop AI apps, increasing detection speed by 20%
+NetBranding
+Software Developer
+March 2017 - September 2017 (7 months)
+Esfahan, Iran
+Launched 5 websites, increasing client revenue by 20–50%
+Education
+University of Kashan
+Bachelor's degree, Computer Science · (2009 - 2013)
+Vali-e-Asr University
+Master's degree, Computer Science - AI · (2013 - 2015)
+Page 3 of 4
+Page 4 of 4

@@ -1,0 +1,8 @@
+LANGUAGES TO USE: Python, Rust, TypeScript, C, WASM, SQL
+DO NOT LEARN: Go
+FRONTEND: React, Next.js, Shadcn, Tailwind
+DOMAIN: Software engineering. Need improvement: Supply chain
+VISA: Need sponsorship for Germany + relocation from Iran
+BEST PATH: Remote-first companies (work from Iran while visa processes)
+ENGLISH: B2
+GERMAN: A1-A2

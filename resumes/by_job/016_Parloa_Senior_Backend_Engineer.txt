@@ -1,0 +1,35 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building distributed systems and AI-powered platforms. Python (FastAPI/Django) specialist with growing TypeScript proficiency. M.Sc. in AI with hands-on experience in LLM frameworks and MCP integrations. Production experience with Kafka, Kubernetes, and event-driven architectures.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- WorkGraph multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — scalable API design
+- RustWatch distributed telemetry tool (Rust, Tokio) — observability infrastructure
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- ERP backend systems — distributed microservices architecture, event-driven processing
+- REST APIs (Django, DRF, PostgreSQL, Celery) — Kafka integration for real-time data flows
+- Mentored developers on clean code, TDD, microservices
+
+Senior Backend Developer | hengam.io, Canada | Mar 2022 – Mar 2023
+- AI-powered application — LLM integration for automated content generation
+- Full-stack contributions (Python + TypeScript/React)
+
+SKILLS
+Python: Django, FastAPI, DRF, AsyncIO, LangChain, LlamaIndex
+Frontend: TypeScript, React, Next.js (willing to deepen)
+AI/ML: M.Sc. AI, NLP, LLM frameworks, MCP integrations
+Infrastructure: Docker, Kubernetes, CI/CD, AWS, GCP, Terraform
+Architecture: Microservices, TDD, Distributed Systems, Event-Driven
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: TypeScript gap explicitly acceptable ("willing to learn"). Top-tier VC backed.

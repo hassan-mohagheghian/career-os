@@ -1,0 +1,35 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building production Python systems in regulated environments. Specialized in Django/FastAPI with PostgreSQL, Kubernetes, and GCP/AWS cloud infrastructure. Experience with SIEM/security-compliant platforms translates directly to healthcare data security (ISO 62304, TR-03161). Delivered scalable distributed systems for international teams across Europe.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- High-scale transaction processing (Django, PostgreSQL, Redis) — 5,000+ txn/min with healthcare-grade reliability requirements
+- Multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — secure API design for sensitive data with role-based access control
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- Modernized 4 legacy systems — compliance-aware architecture for enterprise clients
+- REST APIs (Django, DRF, PostgreSQL, Celery) — notification systems, task services
+- Cross-functional notification and ticketing system — improved response time 60%
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- SIEM console platform (Django, PostgreSQL, Celery, Redis, K8s) — security-compliant microservices infrastructure
+- WebSocket notification system (Django Channels) — real-time features for patient-facing applications
+- Python 2 → Python 3 migration — reducing technical debt in security-critical systems
+
+SKILLS
+Core: Python (Django, FastAPI, DRF, AsyncIO), PostgreSQL, Redis, Celery
+Infrastructure: Docker, Kubernetes, GCP, AWS, CI/CD, Prometheus/Loki/Grafana
+Architecture: Microservices, TDD, Clean Architecture
+Compliance: SIEM, security-conscious environments, regulated industries
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: Visa sponsorship required. Remote-first policy allows starting from Iran during process.

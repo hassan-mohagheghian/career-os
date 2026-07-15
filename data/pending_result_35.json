@@ -1,0 +1,29 @@
+{
+  "job": {
+    "num": 47,
+    "company": "AIRMO",
+    "role": "Space Optical Systems Engineer",
+    "location": "Berlin",
+    "locations": ["Berlin", "Munich"],
+    "match": "Low",
+    "score": 5,
+    "salary": "Not specified",
+    "stack": "Optical systems, tolerancing, simulation, calibration — no software stack",
+    "visa": "Uncertain",
+    "applicants": "Not specified",
+    "posted": "Jun 26, 2026",
+    "industry": "Space / Aerospace",
+    "domain": "Optical instrument design, payload instrumentation",
+    "notes": "NOT A SOFTWARE ROLE. This is optical systems engineering requiring physics/photonics background. Complete domain mismatch.",
+    "action": "Do not apply — wrong field entirely",
+    "url": "https://jobs.pilabs.vc/companies/airmo/jobs/84224347",
+    "work_type": "On-site"
+  },
+  "summary": {
+    "summary": "Space Optical Systems Engineer at AIRMO (Pi Labs portfolio company). Responsible for designing, developing, and maintaining optical instruments for space payloads — including optical frontend design, tolerancing, simulation, calibration, and testing. Requires optical engineering background.",
+    "stack": "Optical systems design, tolerancing, simulation, optical instrumentation — no software languages listed",
+    "resumeFit": "Zero fit. Hassan's resume is backend software engineering (Python/Django/FastAPI). This role requires optical engineering/physics background, not software development.",
+    "note": "REJECTED — completely wrong domain. This is a hardware/optical engineering role, not software. AIRMO makes space observation instruments. No Python, no backend, no microservices."
+  },
+  "resume_html": ""
+}

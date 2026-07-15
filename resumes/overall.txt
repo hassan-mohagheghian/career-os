@@ -1,0 +1,59 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com | LinkedIn | GitHub
+
+SUMMARY
+Senior Software Engineer with 9+ years building production Python backend systems for international teams across Europe and North America. Specialized in Django and FastAPI with PostgreSQL, delivering scalable distributed architectures, microservices, and event-driven platforms. Experience in regulated environments (SIEM/compliance), ERP systems, and SaaS products. Strong in Docker, Kubernetes, and cloud infrastructure (AWS/GCP, Terraform, Linux). Track record of legacy modernization, technical mentorship, and delivering measurable business impact.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance, Iran | Sep 2025 – Present
+- Designed high-scale transaction processing system with Django, PostgreSQL, Redis handling ~5,000 transactions/min with 99.9% uptime
+- Architected WorkGraph multi-tenant platform: FastAPI, JWT authentication, RBAC, PostgreSQL, DDD, Hexagonal Architecture, CQRS — enabling scalable API design for organization-based collaboration
+- Built RustWatch distributed telemetry/observability tool in Rust (Axum, Tokio) for monitoring backend services across distributed systems
+- Created Order Management and User Management DDD/Clean Architecture reference implementations (open-source)
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- Modernized 4 legacy systems, improving data consistency by 25% and reducing technical debt
+- Developed REST APIs (Python, Django, DRF, PostgreSQL, Celery), boosting engineering productivity by 35%
+- Optimized file management pipeline, reducing errors by 40% and speeding validation by 50%
+- Engineered inter-company collaboration framework, achieving 20% faster delivery
+- Built cross-functional notification and ticketing system, cutting response time by 60%
+- Mentored junior developers through code reviews and technical knowledge-sharing sessions
+
+Senior Backend Developer | hengam.io, Canada | Mar 2022 – Mar 2023
+- Delivered AI-powered Shopify app in Python for automated product descriptions and back-in-stock alerts, increasing merchant revenue by 20%
+- Optimized real-time restock notification system, improving query performance by 10% and user retention
+- Reduced system coupling by 20% through component analysis and backend refactoring
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- Developed web panels for asset management (Django, DRF, ReactJS) with WebSocket notifications, reducing latency by 60%
+- Owned ticketing platform, doubling response speed and reducing issue resolution time by 40%
+- Led migration from Python 2/Django 1 to Python 3/Django 3, reducing technical debt
+- Enabled agile frontend-backend separation, boosting team communication by 50%
+
+Software Developer | NovinIlya, Iran | Sep 2017 – Mar 2018
+- Developed AI-powered O-ring and ice-cream wood inspection detection interface
+- Enhanced desktop AI apps, increasing detection speed by 20%
+
+Software Developer | NetBranding, Iran | Mar 2017 – Sep 2017
+- Launched 5 websites, increasing client revenue by 20–50%
+
+SKILLS
+Languages & Frameworks: Python (Django, FastAPI, DRF, AsyncIO), Rust (Axum, Tokio), TypeScript, React
+Infrastructure: Docker, Kubernetes, GitHub Actions, AWS, GCP, Terraform, Linux
+Databases: PostgreSQL, Redis, RabbitMQ, Kafka
+Architecture: Microservices, TDD, DDD, Clean Architecture, Hexagonal, CQRS
+AI & Specialized: LangChain, LlamaIndex, Autogen, WebSockets, SaaS
+Soft Skills: Technical Leadership, Mentoring, Code Reviews, Cross-functional Collaboration
+
+EDUCATION
+M.Sc. in Computer Science (AI) — Vali-e-Asr University of Rafsanjan, 2013–2015
+B.Sc. in Computer Science — University of Kashan, 2009–2013
+
+LANGUAGES
+English B2
+German A1-A2
+Persian Native
+
+CERTIFICATIONS
+Python Essential Training | RabbitMQ Training Course (CloudAMQP) | Python Object-Oriented Programming

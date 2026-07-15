@@ -1,0 +1,36 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building production systems with strong focus on reliability, observability, and infrastructure. Experience with Docker, Kubernetes, CI/CD pipelines, and production monitoring. SIEM/compliance background transfers to SRE reliability thinking.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- RustWatch distributed telemetry/observability tool (Rust, Tokio) — monitoring, logging, metrics
+- High-scale transaction processing (Django, PostgreSQL, Redis) — reliability-focused systems
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- Owned infrastructure: databases, cloud deployment, CI/CD pipelines
+- Legacy modernization — improved system reliability and consistency 25%
+- Cross-functional notification system — incident response, monitoring
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- SIEM console platform (Django, PostgreSQL, Celery, Redis, K8s) — security monitoring, alerting, incident management
+- Production ownership: reduced bugs 30%, improved uptime
+
+SKILLS
+Infrastructure: Docker, Kubernetes, CI/CD, AWS, GCP, Terraform, Linux
+Observability: Prometheus, Grafana, logging, metrics, tracing
+Databases: PostgreSQL, Redis, Celery
+Python: Django, FastAPI, DRF, AsyncIO
+Architecture: Microservices, TDD, Clean Architecture
+Compliance: SIEM, security-conscious environments
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: SRE-focused role. SIEM/monitoring background is a differentiator.

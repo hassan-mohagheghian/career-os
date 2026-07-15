@@ -1,0 +1,37 @@
+Process this job posting for Hassan's job search.
+
+URL: {url}
+Fetched content saved at: {job_file}
+
+Hassan's preferences:
+{preferences}
+
+Follow the same workflow as previous jobs:
+1. Read the job posting from {job_file}
+2. Read Hassan's resume at {project_root}/inputs/original/resume.txt
+3. Read the existing jobs at {project_root}/data/jobs.json and summaries at {project_root}/data/summaries.json for format reference
+4. Analyze the job, score it, create a tailored resume using the preferences above
+5. Save the result as JSON to {project_root}/data/pending_result_{pid}.json with this structure:
+
+{{"job": {{"num": {next_num}, "company": "...", "role": "...", "location": "Berlin", "locations": ["Berlin", "Munich", ...], "match": "High|Medium|Low", "score": 0-100, "salary": "...", "stack": "...", "visa": "BEST|Strong|Good|Moderate|Uncertain", "applicants": "...", "posted": "...", "industry": "...", "domain": "...", "notes": "...", "action": "...", "url": "{url}", "work_type": "Remote|Hybrid|On-site"}}, "summary": {{"summary": "...", "stack": "...", "resumeFit": "...", "note": "..."}}, "resume_html": "<HTML>"}}
+
+CRITICAL LOCATION RULES:
+- "location" must be ONLY the primary city name (e.g., "Berlin", "Munich", "Hamburg")
+- "locations" must be an array of ONLY city names (e.g., ["Berlin", "Munich", "Remote"])
+- Do NOT include country names in locations unless the job is country-wide (e.g., "Germany" for fully remote)
+- Do NOT include region/state names (e.g., NOT "Bavaria", NOT "Bayern")
+- Extract city names from strings like "Munich, Bavaria, Germany" -> just "Munich"
+- For remote jobs, use "Remote" as one location if no specific city
+- For multi-city listings like "Leipzig/Berlin", include both as separate items
+
+CRITICAL WORK_TYPE RULES:
+- "work_type" must be exactly ONE of: "Remote", "Hybrid", or "On-site"
+- Extract this from the job posting, NOT from the location field
+- "Remote" = work from anywhere
+- "Hybrid" = mix of office and remote
+- "On-site" = must work from office
+
+Example of correct output:
+{{"location": "Berlin", "locations": ["Berlin", "Munich"], "work_type": "Hybrid"}}
+
+Score based on the preferences listed above. Consider visa sponsorship, relocation package, tech stack match, work type, and location.

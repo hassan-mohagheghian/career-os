@@ -1,0 +1,36 @@
+Analyze ALL processed jobs and generate strategic dashboard insights for Hassan's job search.
+
+Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
+
+Generate insights as JSON and save to {project_root}/data/dashboard_insights_{pid}.json with this structure:
+
+{{"strategy": [
+  {{"icon": "🎯", "title": "Apply Top 5 First", "description": "List top 5 companies by score that match Hassan's profile"}},
+  {{"icon": "🌍", "title": "Visa Strategy", "description": "Best approach for visa sponsorship based on job data"}},
+  {{"icon": "⚡", "title": "Speed Matters", "description": "List fresh postings that need immediate application"}},
+  {{"icon": "🏢", "title": "Company = Visa", "description": "Companies with established sponsorship programs"}},
+  {{"icon": "🐍", "title": "Python Edge", "description": "How many jobs require Python and Hassan's advantage"}}
+],
+"strengths": [
+  {{"name": "Python", "detail": "X/Y jobs require Python — Hassan has 9+ years"}},
+  {{"name": "Django/FastAPI", "detail": "X jobs mention these frameworks"}}
+],
+"weaknesses": [
+  {{"name": "TypeScript", "detail": "X jobs require it — Hassan has gaps"}},
+  {{"name": "German C1", "detail": "X jobs require German — focus on English-only"}}
+],
+"visa_companies": [
+  {{"company": "Company Name", "visa": "BEST|Strong", "note": "Why this company"}}
+],
+"apply_urgency": [
+  {{"company": "Company Name", "reason": "Why apply now (fresh posting, high score, etc.)"}}
+]}}
+
+RULES:
+- strategy: 5-6 items, specific to actual job data (name companies, give counts)
+- strengths: only include skills Hassan actually has with evidence from job requirements
+- weaknesses: skills that appear in multiple jobs but Hassan lacks
+- visa_companies: companies with BEST or Strong visa rating from processed jobs
+- apply_urgency: jobs scored 75+ or posted recently that need immediate action
+- Use real company names and numbers from the job data
+- Keep descriptions concise (one sentence each)

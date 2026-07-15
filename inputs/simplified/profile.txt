@@ -1,0 +1,30 @@
+Hassan Mohagheghian
+Senior Software Engineer | Isfahan, Iran
+
+BACKGROUND
+- 9+ years backend engineering experience
+- M.Sc. Computer Science (AI)
+- Core: Python (Django, FastAPI, DRF), PostgreSQL, Docker, K8s, AWS/GCP, Terraform, Linux
+- Secondary: Rust (Axum, Tokio), TypeScript, React
+- AI: LangChain, LlamaIndex, Autogen, M.Sc. AI
+- Architecture: Microservices, TDD, DDD, Clean Architecture, Hexagonal, CQRS
+
+EXPERIENCE HIGHLIGHTS
+- Freelance (Sep 2025–present): Django transaction system, WorkGraph platform (DDD/Hexagonal/CQRS), RustWatch tool (Rust), open-source projects
+- Externa competence AB Sweden (Sep 2023–Sep 2025): 4 legacy modernizations, REST APIs (Django/DRF/PostgreSQL/Celery), productivity 35%, errors 40%
+- hengam.io Canada (Mar 2022–Mar 2023): AI-powered Shopify app, real-time notifications
+- PayamPardaz Iran (Mar 2018–Mar 2021): SIEM platform, Django+React, WebSocket system, Python 2→3 migration
+- NovinIlya Iran (Sep 2017–Mar 2018): AI-powered inspection interface
+- NetBranding Iran (Mar 2017–Sep 2017): 5 websites launched
+
+CONSTRAINTS
+- Need visa sponsorship for Germany + relocation from Iran
+- Languages to use: Python, Rust, TypeScript, C, WASM, SQL
+- Do NOT learn: Go
+- English (B2)
+- German (A1-A2)
+
+JOB TARGETS
+- Senior Backend Engineer (Python primary)
+- Best visa path: remote-first companies
+- Top markets: Berlin, Munich, Hamburg, Remote Germany

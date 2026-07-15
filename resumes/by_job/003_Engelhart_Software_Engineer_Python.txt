@@ -1,0 +1,35 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building Python backend systems with async programming, cloud infrastructure, and container-driven architecture. Production experience with FastAPI, Redis, Docker, and AWS. Strong in TDD practices and cross-functional collaboration for international teams.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- High-scale transaction processing (Django, PostgreSQL, Redis) — async workflows, high-throughput systems
+- WorkGraph multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — container-driven architecture
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- REST APIs (Django, DRF, PostgreSQL, Celery) — hybrid-cloud deployment, microservices architecture
+- Invoice microservice — Python async processing, Redis caching
+- TDD practitioner, mentored developers on testing and clean code
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- SIEM platform (Django, PostgreSQL, Celery, Redis, K8s) — container orchestration
+- Cross-functional collaboration with international teams
+
+SKILLS
+Python: Django, FastAPI, DRF, AsyncIO, Pandas
+Databases: PostgreSQL, Redis, SQL Server
+Infrastructure: Docker, Kubernetes, AWS, CI/CD, Terraform
+Architecture: Microservices, TDD, Container-driven, Hybrid-cloud
+Practices: Test-driven development, code reviews
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: Global company (BTG Pactual). Low competition (25 applicants).

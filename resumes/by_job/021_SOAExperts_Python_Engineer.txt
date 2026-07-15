@@ -1,0 +1,37 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building Python backend systems with FastAPI/Django, REST APIs, and cloud infrastructure. Production experience with Docker, Kubernetes, CI/CD pipelines, and database design. Strong in scalable architecture, code reviews, and cross-functional collaboration.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- High-scale transaction processing (Django, PostgreSQL, Redis) — scalable backend services
+- WorkGraph multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — REST API design, data modeling
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- REST APIs (Django, DRF, PostgreSQL, Celery) — backend services for enterprise clients
+- Modernized 4 legacy systems, improved data consistency 25%
+- Mentored junior developers through code reviews and technical knowledge-sharing
+- Cross-functional collaboration with product, design, and infrastructure teams
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- SIEM platform (Django, PostgreSQL, Celery, Redis, K8s) — containerized backend services
+- Ticketing system (Django + React) — API development, data interfaces
+- WebSocket notifications — real-time data processing
+
+SKILLS
+Python: Django, FastAPI, DRF, AsyncIO, Flask
+Databases: PostgreSQL, Redis, SQL/NoSQL, data modeling
+Infrastructure: Docker, Kubernetes, CI/CD (GitLab, GitHub Actions), AWS
+Architecture: Microservices, REST APIs, Clean Architecture, TDD
+Practices: Code reviews, documentation, cross-functional collaboration
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: English fluent. German A1 (learning). 3+ years exceeded with 9+.

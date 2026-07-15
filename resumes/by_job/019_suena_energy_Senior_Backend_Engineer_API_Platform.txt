@@ -1,0 +1,35 @@
+Hassan Mohagheghian — Senior Software Engineer
+Isfahan, Iran | +98 937 180 0561 | hassan.mohagheghian.cs@gmail.com
+
+SUMMARY
+Senior Backend Engineer with 9+ years building Python backend systems with Django/FastAPI, PostgreSQL, Redis, Celery, and AWS. Production experience with API design, async workflows, and cloud infrastructure. Strong in distributed systems and platform architecture.
+
+EXPERIENCE
+
+Senior Backend Engineer | Freelance | Sep 2025 – Present
+- High-scale transaction processing (Django, PostgreSQL, Redis) — API platform design
+- WorkGraph multi-tenant platform (FastAPI, JWT, RBAC, PostgreSQL) — scalable API architecture
+
+Senior Backend Engineer | Externa competence AB, Sweden | Sep 2023 – Sep 2025
+- REST APIs (Django, DRF, PostgreSQL, Celery) — backend integrations, data flows
+- Cross-functional notification and ticketing system — system reliability, scalability
+- Legacy modernization — improved system reliability and performance
+
+Full Stack Developer | PayamPardaz, Iran | Mar 2018 – Mar 2021
+- SIEM platform (Django, PostgreSQL, Celery, Redis, K8s) — distributed platform architecture
+- WebSocket notifications — real-time data flows
+
+SKILLS
+Python: Django, FastAPI, DRF, AsyncIO
+Databases: PostgreSQL, TimescaleDB (learning), Redis, Celery
+Cloud: AWS, Docker, CI/CD, GitLab
+Architecture: Microservices, API Design, Distributed Systems
+Practices: TDD, code reviews, system reliability
+
+EDUCATION
+M.Sc. Computer Science (AI) — Vali-e-Asr University, 2013–2015
+
+LANGUAGES
+English B2 | German A1-A2 | Persian Native
+
+NOTE: GERMAN C1 REQUIRED. Excellent technical fit but language barrier.
