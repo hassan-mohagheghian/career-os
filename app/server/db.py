@@ -26,7 +26,8 @@ def init_db():
         locations TEXT DEFAULT '[]',
         deleted INTEGER DEFAULT 0,
         employment_type TEXT DEFAULT 'Full-time',
-        work_types TEXT DEFAULT '[]'
+        work_types TEXT DEFAULT '[]',
+        raw_description TEXT
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS summaries (
@@ -144,6 +145,12 @@ def init_db():
         c.execute("SELECT work_types FROM jobs LIMIT 1")
     except sqlite3.OperationalError:
         c.execute("ALTER TABLE jobs ADD COLUMN work_types TEXT DEFAULT '[]'")
+
+    # Add raw_description column if missing (for existing DBs)
+    try:
+        c.execute("SELECT raw_description FROM jobs LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE jobs ADD COLUMN raw_description TEXT")
 
     conn.commit()
     conn.close()

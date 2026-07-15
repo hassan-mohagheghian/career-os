@@ -107,13 +107,13 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
          normalized_wt[0] if normalized_wt else 'On-site', d.get('workflow_log', '[]'),
          d.get('created_at', now), posted_at, json.dumps(locations), 0,
-         employment_type, json.dumps(normalized_wt)))
+         employment_type, json.dumps(normalized_wt), d.get('raw_description')))
     conn.commit(); conn.close()
 
 
@@ -666,6 +666,22 @@ def process_job(pid):
 
         job_data = data['job']
         _mark(pid, 'step_analyze', company=job_data.get('company'), job_num=job_data['num'])
+
+        # Add raw_description to job_data for DB storage
+        job_data['raw_description'] = raw_text
+
+        # Save raw job description to jobs folder
+        jobs_dir = os.path.join(PROJECT_ROOT, 'jobs')
+        os.makedirs(jobs_dir, exist_ok=True)
+        num = job_data.get('num', pid)
+        company = (job_data.get('company', 'Unknown') or 'Unknown').replace(' ', '_').replace('/', '_')
+        role = (job_data.get('role', 'Unknown') or 'Unknown').replace(' ', '_').replace('/', '_')
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        raw_filename = f"{num:03d}_{company}_{role}_{date_str}.md"
+        raw_filepath = os.path.join(jobs_dir, raw_filename)
+        with open(raw_filepath, 'w') as f:
+            f.write(raw_text)
+        _log(pid, 'save', f'Saved raw description to {raw_filename}')
 
         resume_data = {
             'id': f"pending_{pid}",
