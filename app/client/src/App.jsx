@@ -43,23 +43,23 @@ function MultiSelect({ value, onChange, options, placeholder }) {
   }
   const hasValue = value.length > 0
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative flex-shrink-0">
       <button onClick={() => setOpen(!open)}
-        className="px-2 py-1 rounded border text-xs flex items-center gap-1 min-w-[80px] text-left transition"
+        className="px-1.5 py-0.5 rounded border text-[0.6rem] flex items-center gap-0.5 whitespace-nowrap transition"
         style={{background: hasValue ? 'rgba(99,102,241,0.15)' : 'var(--surface2)', borderColor: open ? 'var(--accent)' : hasValue ? 'var(--accent)' : 'var(--border)', color: hasValue ? 'var(--accent)' : 'var(--text-dim)'}}>
-        {hasValue ? `${value.length} selected` : placeholder}
-        <span className="ml-auto text-[0.5rem]">▼</span>
+        {hasValue ? `${value.length} sel` : placeholder}
+        <span className="text-[0.4rem]">▼</span>
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-48 rounded-lg border shadow-lg max-h-48 overflow-y-auto"
+        <div className="absolute z-50 mt-1 w-40 rounded-lg border shadow-lg max-h-40 overflow-y-auto"
           style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           {options.map(o => {
             const checked = value.includes(o.value)
             return (
-              <label key={o.value} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer transition"
+              <label key={o.value} className="flex items-center gap-1.5 px-2 py-1 text-[0.6rem] cursor-pointer transition"
                 style={{background: checked ? 'rgba(99,102,241,0.1)' : 'transparent', color:'var(--text)'}}>
                 <input type="checkbox" checked={checked} onChange={() => toggle(o.value)}
-                  className="rounded" style={{accentColor:'var(--accent)'}} />
+                  className="rounded w-3 h-3" style={{accentColor:'var(--accent)'}} />
                 {o.icon && <span>{o.icon}</span>}
                 <span style={{fontWeight: checked ? 600 : 400}}>{o.label}</span>
               </label>
@@ -93,6 +93,7 @@ function App() {
   const [filterTech, setFilterTech] = useState('')
   const [filterMatches, setFilterMatches] = useState([])
   const [filterWorkTypes, setFilterWorkTypes] = useState([])
+  const [filterEmploymentTypes, setFilterEmploymentTypes] = useState([])
   const [maximizedCol, setMaximizedCol] = useState(null) // null | 'queue' | 'processing' | 'failed' | 'done'
   const [dragOverCol, setDragOverCol] = useState(null)
 
@@ -317,7 +318,22 @@ function App() {
       )
     }
     if (filterMatches.length) r = r.filter(j => filterMatches.includes(j.match))
-    if (filterWorkTypes.length) r = r.filter(j => filterWorkTypes.includes(j.work_type))
+    if (filterWorkTypes.length) {
+      r = r.filter(j => {
+        // Check both work_type and work_types array
+        let jWorkTypes = []
+        if (j.work_types) {
+          try {
+            jWorkTypes = typeof j.work_types === 'string' ? JSON.parse(j.work_types) : j.work_types
+          } catch { jWorkTypes = [] }
+        }
+        if (!jWorkTypes.length && j.work_type) jWorkTypes = [j.work_type]
+        return filterWorkTypes.some(wt => jWorkTypes.includes(wt))
+      })
+    }
+    if (filterEmploymentTypes.length) {
+      r = r.filter(j => filterEmploymentTypes.includes(j.employment_type || 'Full-time'))
+    }
     r.sort((a, b) => {
       if (sortBy === 'score') return sortDir === 'desc' ? b.score - a.score : a.score - b.score
       if (sortBy === 'num') return sortDir === 'desc' ? b.num - a.num : a.num - b.num
@@ -341,10 +357,10 @@ function App() {
       return 0
     })
     return r
-  }, [jobs, sortBy, sortDir, filterCities, filterCompanies, filterTech, filterMatches, filterWorkTypes])
+  }, [jobsWithLocations, sortBy, sortDir, filterCities, filterCompanies, filterTech, filterMatches, filterWorkTypes, filterEmploymentTypes])
 
   const sorted = jobs ? [...jobs].sort((a, b) => b.score - a.score) : []
-  const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length + filterWorkTypes.length + (filterTech ? 1 : 0)
+  const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length + filterWorkTypes.length + filterEmploymentTypes.length + (filterTech ? 1 : 0)
 
   const openDrawer = (num) => {
     if (!jobs) return
@@ -360,7 +376,7 @@ function App() {
   }
 
   const clearFilters = () => {
-    setFilterCities([]); setFilterCompanies([]); setFilterTech(''); setFilterMatches([]); setFilterWorkTypes([])
+    setFilterCities([]); setFilterCompanies([]); setFilterTech(''); setFilterMatches([]); setFilterWorkTypes([]); setFilterEmploymentTypes([])
   }
 
   const switchTab = (t) => {
@@ -579,7 +595,7 @@ function App() {
                           <button onClick={(e)=>{e.stopPropagation();rescoreAll()}} title="Rescore all jobs" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10 ml-auto" style={{color:'#22c55e'}}>🔃</button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2">
-                          <div className="flex items-center gap-1 mb-1">
+                          <div className="flex flex-wrap items-center gap-1 mb-1">
                             <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="🏙️ City" options={allCities.map(c=>({value:c,label:c}))} />
                             <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="🏢 Co" options={allCompanies.map(c=>({value:c,label:c}))} />
                             <div className="relative">
@@ -590,7 +606,8 @@ function App() {
                               {filterTech && <button onClick={()=>setFilterTech('')} className="absolute right-1 top-1/2 -translate-y-1/2 text-[0.5rem]" style={{color:'var(--text-dim)'}}>✕</button>}
                             </div>
                             <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="📊 Match" options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
-                            <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="🏠 Type" options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
+                            <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="🏠 Work" options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
+                            <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="💼 Emp" options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} />
                             {activeFilterCount > 0 && <button onClick={clearFilters} className="px-1.5 py-0.5 rounded text-[0.55rem] font-semibold transition hover:bg-red-500/20" style={{color:'var(--red)'}}>Clear</button>}
                           </div>
                           <div className="flex items-center gap-1 mb-1.5">

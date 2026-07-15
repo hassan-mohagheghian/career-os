@@ -65,12 +65,55 @@ def _insert_job(d):
     locations = d.get('locations', [])
     if isinstance(locations, str):
         locations = [locations] if locations else []
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+
+    # Employment type (single value)
+    employment_type = d.get('employment_type', 'Full-time')
+    et_lower = (employment_type or '').lower()
+    if 'full' in et_lower:
+        employment_type = 'Full-time'
+    elif 'part' in et_lower:
+        employment_type = 'Part-time'
+    elif 'contract' in et_lower or 'freelance' in et_lower:
+        employment_type = 'Contract'
+    elif 'intern' in et_lower:
+        employment_type = 'Internship'
+    elif 'temp' in et_lower:
+        employment_type = 'Temporary'
+    else:
+        employment_type = 'Full-time'
+
+    # Work types (multiple values as JSON array)
+    work_types = d.get('work_types', [])
+    if isinstance(work_types, str):
+        try:
+            work_types = json.loads(work_types)
+        except:
+            work_types = []
+    if not work_types and d.get('work_type'):
+        work_types = [d['work_type']]
+    # Normalize each work type
+    normalized_wt = []
+    for wt in work_types:
+        wt_lower = (wt or '').lower()
+        if 'remote' in wt_lower:
+            if 'Remote' not in normalized_wt:
+                normalized_wt.append('Remote')
+        elif 'hybrid' in wt_lower:
+            if 'Hybrid' not in normalized_wt:
+                normalized_wt.append('Hybrid')
+        elif 'on-site' in wt_lower or 'onsite' in wt_lower or 'office' in wt_lower:
+            if 'On-site' not in normalized_wt:
+                normalized_wt.append('On-site')
+    if not normalized_wt:
+        normalized_wt = ['On-site']
+
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
-         d.get('work_type', 'On-site'), d.get('workflow_log', '[]'),
-         d.get('created_at', now), posted_at, json.dumps(locations), 0))
+         normalized_wt[0] if normalized_wt else 'On-site', d.get('workflow_log', '[]'),
+         d.get('created_at', now), posted_at, json.dumps(locations), 0,
+         employment_type, json.dumps(normalized_wt)))
     conn.commit(); conn.close()
 
 

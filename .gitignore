@@ -8,3 +8,36 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Node modules
+node_modules/
+app/client/node_modules/
+
+# Build outputs
+app/client/dist/
+
+# Database files
+*.db
+
+# Temporary files
+*.tmp
+temo.json
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MimoCode
+.mimocode/
+
+# Data files (generated)
+data/*.json
+!data/cities.json
+!data/tech-learning.json
+!data/tech-stack.json

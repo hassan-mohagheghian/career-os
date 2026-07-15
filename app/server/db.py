@@ -22,7 +22,9 @@ def init_db():
         work_type TEXT DEFAULT 'On-site',
         workflow_log TEXT DEFAULT '[]',
         locations TEXT DEFAULT '[]',
-        deleted INTEGER DEFAULT 0
+        deleted INTEGER DEFAULT 0,
+        employment_type TEXT DEFAULT 'Full-time',
+        work_types TEXT DEFAULT '[]'
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS summaries (
@@ -112,6 +114,18 @@ def init_db():
         c.execute('SELECT deleted FROM jobs LIMIT 1')
     except sqlite3.OperationalError:
         c.execute("ALTER TABLE jobs ADD COLUMN deleted INTEGER DEFAULT 0")
+
+    # Add employment_type column if missing (for existing DBs)
+    try:
+        c.execute('SELECT employment_type FROM jobs LIMIT 1')
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE jobs ADD COLUMN employment_type TEXT DEFAULT 'Full-time'")
+
+    # Add work_types column if missing (for existing DBs)
+    try:
+        c.execute('SELECT work_types FROM jobs LIMIT 1')
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE jobs ADD COLUMN work_types TEXT DEFAULT '[]'")
 
     conn.commit()
     conn.close()
