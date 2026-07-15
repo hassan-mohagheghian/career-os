@@ -13,6 +13,27 @@ CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
 
+def _ensure_db_schema():
+    """Auto-migrate: add missing columns to jobs table."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute('PRAGMA table_info(jobs)')
+    columns = {row[1] for row in cursor.fetchall()}
+    migrations = {
+        'locations': "ALTER TABLE jobs ADD COLUMN locations TEXT DEFAULT '[]'",
+        'deleted': "ALTER TABLE jobs ADD COLUMN deleted INTEGER DEFAULT 0",
+        'employment_type': "ALTER TABLE jobs ADD COLUMN employment_type TEXT DEFAULT 'Full-time'",
+        'work_types': "ALTER TABLE jobs ADD COLUMN work_types TEXT DEFAULT '[]'",
+        'raw_description': "ALTER TABLE jobs ADD COLUMN raw_description TEXT",
+        'structured_description': "ALTER TABLE jobs ADD COLUMN structured_description TEXT",
+    }
+    for col, sql in migrations.items():
+        if col not in columns:
+            conn.execute(sql)
+    conn.commit()
+    conn.close()
+
+_ensure_db_schema()
+
 
 def normalize_url(url):
     """Remove query parameters and trailing slash from URL for duplicate detection."""
