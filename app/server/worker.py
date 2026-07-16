@@ -231,11 +231,23 @@ def rescore_only(num):
             f.write(raw_desc)
 
         preferences = _load_preferences()
+        # Load resume from DB (latest version)
+        resume_file = os.path.join(TMP_DIR, f'rescore_resume_{num}.txt')
+        conn = _db()
+        resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+        conn.close()
+        if resume_row and dict(resume_row).get('raw_text'):
+            with open(resume_file, 'w') as f:
+                f.write(dict(resume_row)['raw_text'])
+            resume_path = resume_file
+        else:
+            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
+
         # Use a unique pid per rescore run to avoid file conflicts
         rescore_pid = f'rescore_{num}_{int(datetime.now().timestamp()*1000)}'
         prompt = load_prompt('step7_score',
-            url=url, job_file=job_file, project_root=PROJECT_ROOT,
-            pid=rescore_pid, next_num=num, preferences=preferences)
+            url=url, job_file=job_file, resume_file=resume_path,
+            tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, preferences=preferences)
 
         returncode, output_lines = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
@@ -645,9 +657,9 @@ def _fetch_url(url):
 
 def _validate_job_content(raw_text, pid):
     """Validate and extract main job section from fetched content using mimo."""
-    prompt = load_prompt('step2_validate', content=raw_text[:3000])
-
     result_file = os.path.join(TMP_DIR, f'validate_{pid}.json')
+    prompt = load_prompt('step2_validate', content=raw_text[:3000], result_file=result_file)
+
     proc = subprocess.run(
         [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
         cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
@@ -965,9 +977,23 @@ def process_job(pid):
         else:
             _log(pid, 'score', f'Scoring job #{next_num}...')
         preferences = _load_preferences()
+
+        # Load resume from DB (latest version)
+        resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
+        conn = _db()
+        resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+        conn.close()
+        if resume_row and dict(resume_row).get('raw_text'):
+            with open(resume_file, 'w') as f:
+                f.write(dict(resume_row)['raw_text'])
+            resume_path = resume_file
+        else:
+            # Fallback to file if no resume in DB
+            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
+
         prompt = load_prompt('step7_score',
-            url=url, job_file=job_file, project_root=PROJECT_ROOT, tmp_dir=TMP_DIR,
-            pid=pid, next_num=next_num, preferences=preferences)
+            url=url, job_file=job_file, resume_file=resume_path,
+            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, preferences=preferences)
 
         returncode, output_lines = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],

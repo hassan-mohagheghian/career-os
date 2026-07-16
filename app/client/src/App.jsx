@@ -8,7 +8,7 @@ import {
   Users, Spinner, Stack, Check, CaretDown, Keyboard,
   ListChecks, Star, Gift, Shield, MapPin, TreePalm, MusicNote, Bank, Factory,
   HouseSimple, Bug, Compass, ArrowRight,
-  CurrencyDollar, UsersFour, HourglassHigh, Handshake, Student, Lightbulb, GraduationCap
+  CurrencyDollar, UsersFour, HourglassHigh, Handshake, Student, Lightbulb, GraduationCap, Copy
 } from '@phosphor-icons/react'
 
 const EMOJI_ICON_MAP = {
@@ -130,7 +130,7 @@ function App() {
   const [cities, setCities] = useState([])
   const [tab, setTab] = useState(() => {
     const hash = window.location.hash.replace('#', '')
-    return hash || 'scoreboard'
+    return hash || 'jobs'
   })
   const [drawer, setDrawer] = useState(null)
   const [drawerTab, setDrawerTab] = useState('details')
@@ -152,7 +152,9 @@ function App() {
   const [filterMatches, setFilterMatches] = useState([])
   const [filterWorkTypes, setFilterWorkTypes] = useState([])
   const [filterEmploymentTypes, setFilterEmploymentTypes] = useState([])
-  const [maximizedCol, setMaximizedCol] = useState(null) // null | 'queue' | 'processing' | 'failed' | 'done'
+  const [maximizedCol, setMaximizedCol] = useState(null) // null | 'stacked' | 'done'
+  const [collapsedSections, setCollapsedSections] = useState({}) // { queue: bool, processing: bool, failed: bool }
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dragOverCol, setDragOverCol] = useState(null)
   const JOBS_PAGE_SIZE = 30
   const [jobsPage, setJobsPage] = useState(0)
@@ -360,7 +362,7 @@ function App() {
   }
 
   const deleteJob = async (num) => {
-    const ok = await showConfirm('Hide Job', `Hide job #${num}? It can be restored later.`, 'Hide')
+    const ok = await showConfirm('Delete Job', `Permanently delete job #${num}? This cannot be undone.`, 'Delete Forever')
     if (!ok) return
     await fetch(`${API}/jobs/${num}`, { method: 'DELETE' })
     refreshJobs()
@@ -545,7 +547,8 @@ function App() {
   }
 
   const tabs = [
-    { id: 'scoreboard', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
+    { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
+    { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
     { id: 'dashboard', icon: <ChartBar className="w-4 h-4" />, label: 'Dashboard', section: 'analysis' },
     { id: 'preferences', icon: <Gear className="w-4 h-4" />, label: 'Preferences', section: 'settings' },
   ]
@@ -570,45 +573,62 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{background:'var(--bg)',color:'var(--text)'}}>
-      <aside className="w-[170px] border-r flex flex-col pt-12" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-        <div className="px-3 py-2 text-xs uppercase tracking-wider" style={{color:'var(--text-dim)'}}>Jobs</div>
-        {tabs.filter(t => t.section === 'jobs').map(t => (
-          <button key={t.id} onClick={() => switchTab(t.id)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
-            style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
-            <span>{t.icon}</span><span>{t.label}</span>
-            {t.badge && <span className="ml-auto text-[0.55rem] font-bold px-1.5 py-0.5 rounded-md text-white" style={{background:'var(--accent)'}}>{t.badge}</span>}
-          </button>
-        ))}
-        <div className="px-3 py-2 mt-2 text-xs uppercase tracking-wider" style={{color:'var(--text-dim)'}}>Analysis</div>
-        {tabs.filter(t => t.section === 'analysis').map(t => (
-          <button key={t.id} onClick={() => switchTab(t.id)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
-            style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
-            <span>{t.icon}</span><span>{t.label}</span>
-          </button>
-        ))}
-        <div className="px-3 py-2 mt-2 text-xs uppercase tracking-wider" style={{color:'var(--text-dim)'}}>Settings</div>
-        {tabs.filter(t => t.section === 'settings').map(t => (
-          <button key={t.id} onClick={() => switchTab(t.id)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
-            style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
-            <span>{t.icon}</span><span>{t.label}</span>
-          </button>
-        ))}
+      {/* Mobile sidebar toggle */}
+      <button onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-3 left-3 z-[60] w-8 h-8 rounded-lg flex items-center justify-center lg:hidden"
+        style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text)'}}>
+        {sidebarOpen ? <X className="w-4 h-4" /> : <ListChecks className="w-4 h-4" />}
+      </button>
+
+      {/* Sidebar overlay on mobile */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-[49] lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
+      <aside className={`${sidebarOpen ? 'w-[170px]' : 'w-0 overflow-hidden'} fixed lg:relative inset-y-0 left-0 z-[50] lg:z-auto border-r flex flex-col transition-all duration-200`}
+        style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+        <div className="pt-12 lg:pt-0 flex-1 overflow-y-auto">
+          <div className="px-3 py-2 text-xs uppercase tracking-wider shrink-0" style={{color:'var(--text-dim)'}}>Jobs</div>
+          {tabs.filter(t => t.section === 'jobs').map(t => (
+            <button key={t.id} onClick={() => switchTab(t.id)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
+              style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
+              <span>{t.icon}</span><span>{t.label}</span>
+              {t.badge && <span className="ml-auto text-[0.55rem] font-bold px-1.5 py-0.5 rounded-md text-white" style={{background:'var(--accent)'}}>{t.badge}</span>}
+            </button>
+          ))}
+          <div className="px-3 py-2 mt-2 text-xs uppercase tracking-wider" style={{color:'var(--text-dim)'}}>Analysis</div>
+          {tabs.filter(t => t.section === 'analysis').map(t => (
+            <button key={t.id} onClick={() => switchTab(t.id)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
+              style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
+              <span>{t.icon}</span><span>{t.label}</span>
+            </button>
+          ))}
+          <div className="px-3 py-2 mt-2 text-xs uppercase tracking-wider" style={{color:'var(--text-dim)'}}>Settings</div>
+          {tabs.filter(t => t.section === 'settings').map(t => (
+            <button key={t.id} onClick={() => switchTab(t.id)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition ${tab===t.id ? 'border-l-[var(--accent)] font-semibold' : 'border-l-transparent'}`}
+              style={{color: tab===t.id ? 'var(--accent)' : 'var(--text-dim)'}}>
+              <span>{t.icon}</span><span>{t.label}</span>
+            </button>
+          ))}
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-12 border-b flex items-center px-4 gap-6 shrink-0 fixed top-0 left-[170px] right-0 z-50" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-          <span className="font-extrabold text-sm bg-gradient-to-r from-[var(--accent)] to-[var(--purple)] bg-clip-text text-transparent">JS</span>
-          <div className="flex gap-4 text-sm" style={{color:'var(--text-dim)'}}>
-            <span><b className="text-[var(--text)]">{jobsTotal}</b> Jobs</span>
-            <span><b className="text-green-500">{jobs.filter(j=>j.match==='High').length}</b> High</span>
-            <span><b className="text-purple-500">{sorted[0]?.score}</b> Top</span>
-            <span><b className="text-cyan-500">{resumes.filter(r=>r.id!=='original').length}</b> Resumes</span>
+        <header className="h-12 border-b flex items-center px-4 gap-4 lg:gap-6 shrink-0 fixed top-0 left-0 lg:left-[170px] right-0 z-40" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+          <span className="font-extrabold text-sm bg-gradient-to-r from-[var(--accent)] to-[var(--purple)] bg-clip-text text-transparent ml-10 lg:ml-0 whitespace-nowrap">Job Search</span>
+          <div className="hidden sm:flex gap-3 text-[0.65rem]" style={{color:'var(--text-dim)'}}>
+            <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /><b className="text-[var(--text)]">{jobsTotal}</b> total</span>
+            <span className="text-[var(--border)]">|</span>
+            <span className="flex items-center gap-1"><Target className="w-3 h-3" style={{color:'var(--green)'}} /><b style={{color:'var(--green)'}}>{jobs.filter(j=>j.match==='High').length}</b> high match</span>
+            <span className="text-[var(--border)]">|</span>
+            <span className="flex items-center gap-1"><Rocket className="w-3 h-3" style={{color:'var(--yellow)'}} /><b style={{color:'var(--yellow)'}}>{jobs.filter(j=>j.score>=75).length}</b> apply now</span>
+            <span className="text-[var(--border)]">|</span>
+            <span className="flex items-center gap-1"><House className="w-3 h-3" style={{color:'var(--cyan)'}} /><b style={{color:'var(--cyan)'}}>{jobs.filter(j=>j.work_type==='Remote').length}</b> remote</span>
+            <span className="text-[var(--border)]">|</span>
+            <span className="flex items-center gap-1"><FileText className="w-3 h-3" style={{color:'var(--accent)'}} /><b style={{color:'var(--accent)'}}>{resumes.filter(r=>r.id?.startsWith('original')).length}</b> resume</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-xs" style={{color:'var(--text-dim)'}}>July 15, 2026</span>
             <button onClick={() => setTheme(t => t==='dark'?'light':'dark')}
               className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm transition hover:border-[var(--accent)]"
               style={{background:'var(--surface2)',borderColor:'var(--border)',color:'var(--text)'}}>
@@ -620,12 +640,12 @@ function App() {
         <div className="flex-1 overflow-y-auto p-4 pt-16">
           <div className="max-w-[1400px] mx-auto">
 
-            {/* === SCOREBOARD (Kanban with maximize + drag-drop) === */}
-            {tab === 'scoreboard' && (() => {
+            {/* === SCOREBOARD (Two fixed columns: Active + Processed) === */}
+            {tab === 'jobs' && (() => {
               const qCount = pending.filter(p=>p.status==='queued').length
               const pCount = pending.filter(p=>p.status!=='done'&&p.status!=='failed'&&p.status!=='queued').length
               const fCount = pending.filter(p=>p.status==='failed').length
-              const anyMax = maximizedCol !== null
+              const stackedTotal = qCount + pCount + fCount
 
               const handleDragStart = (e, id) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
               const handleDragOver = (e, colId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(colId) }
@@ -633,187 +653,155 @@ function App() {
               const handleDrop = (e, colId) => {
                 e.preventDefault(); setDragOverCol(null)
                 if (!dragId) return
-                if (colId === 'queue') resetPending(dragId)      // Processing → Queue
-                else if (colId === 'processing') processPending(dragId)  // Queue → Processing
+                if (colId === 'queue') resetPending(dragId)
+                else if (colId === 'processing') processPending(dragId)
                 setDragId(null)
               }
 
-              const colConfigs = [
-                { id:'queue', icon:<Clock className="w-4 h-4" />, label:'Queue', count:qCount, color:'#eab308', bg:'rgba(234,179,8,' },
-                { id:'processing', icon:<Gear className="w-4 h-4" />, label:'Processing', count:pCount + fCount, color:'var(--accent)', bg:'rgba(99,102,241,' },
-              ]
-
               return (
                 <div className="flex gap-2 h-[calc(100vh-80px)]">
-                  {/* Queue, Processing, Process Failed columns */}
-                  {colConfigs.map(col => {
-                    const isMax = maximizedCol === col.id
-                    const isMin = anyMax && !isMax
-                    const isDrop = dragOverCol === col.id
-                    const autoCols = Math.min(5, Math.max(1, Math.ceil(Math.sqrt(col.count))))
-                    const gridStyle = isMax ? {display:'grid',gridTemplateColumns:`repeat(${autoCols}, minmax(0, 1fr))`,gap:'0.5rem',alignContent:'start'} : {}
-                    if (isMin) {
-                      return (
-                        <div key={col.id}
-                          onClick={() => setMaximizedCol(col.id)}
-                          className="w-[44px] flex flex-col items-center justify-center gap-2 rounded-lg cursor-pointer select-none transition-all duration-200 hover:opacity-80"
-                          style={{background:`linear-gradient(180deg, ${col.bg}0.25), ${col.bg}0.08))`,border:`1px solid ${col.bg}0.3)`}}>
-                          <span className="text-xl" style={{color:col.color}}>{col.icon}</span>
-                          <span className="text-base font-black" style={{color:col.color}}>{col.count}</span>
-                          <span className="text-[0.6rem] font-black uppercase tracking-wider" style={{color:col.color,writingMode:'vertical-rl',textOrientation:'mixed'}}>{col.label}</span>
-                        </div>
-                      )
-                    }
-                    return (
-                      <div key={col.id}
-                        className={`flex flex-col rounded-lg border overflow-hidden transition-all duration-200 ${isMax ? 'flex-1' : 'w-[280px]'}`}
-                        style={{background:'var(--surface)',borderColor: isDrop ? col.color : 'var(--border)', boxShadow: isDrop ? `0 0 0 2px ${col.color}` : 'none'}}>
-                        <div onClick={()=>setMaximizedCol(isMax ? null : col.id)}
-                          className="px-2 py-1.5 flex items-center gap-1 shrink-0 cursor-pointer select-none transition hover:opacity-80"
-                          style={{background:`linear-gradient(135deg, ${col.bg}0.12), ${col.bg}0.04))`,borderBottom:`1px solid ${col.bg}0.2)`}}>
-                          <span className="text-sm" style={{color:col.color}}>{col.icon}</span>
-                          <span className="font-bold text-xs" style={{color:col.color}}>{col.label}</span>
-                          <span className="text-[0.5rem] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{background:`${col.bg}0.15)`,color:col.color}}>{col.count}</span>
-                        </div>
-                        {!isMin && (
-                          <div className="flex-1 overflow-y-auto p-2"
-                            style={isMax ? gridStyle : {display:'flex',flexDirection:'column',gap:'0.5rem'}}
-                            onDragOver={e => handleDragOver(e, col.id)} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, col.id)}>
-                            {col.id === 'queue' && !isMin && (
-                              <div className={`rounded-lg border shrink-0 ${isMax ? 'p-3 col-span-full' : 'p-2'}`} style={{background:'var(--surface2)',borderColor:'var(--border)'}}>
-                                <input type="url" value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError('') }}
-                                  onKeyDown={e => e.key === 'Enter' && submitUrl()}
-                                  placeholder="Paste LinkedIn URL..."
-                                  className={`w-full rounded border outline-none mb-1 focus:border-[var(--accent)] ${isMax ? 'px-3 py-2 text-sm' : 'px-2 py-1.5 text-xs'}`}
-                                  style={{background:'var(--surface)',borderColor: urlError ? 'var(--red)' : 'var(--border)',color:'var(--text)'}} />
-                                {urlError && <div className="text-[0.55rem] mb-1 px-0.5 flex items-center gap-1" style={{color:'var(--red)'}}><Warning className="w-3 h-3" /> {urlError}</div>}
-                                <div className="flex items-center gap-2">
-                                  <button onClick={submitUrl} disabled={submitting || !urlInput.trim()}
-                                    className={`flex-1 rounded font-bold text-white transition disabled:opacity-50 ${isMax ? 'px-3 py-2 text-xs' : 'px-2 py-1.5 text-[0.6rem]'}`}
-                                    style={{background:'var(--accent)'}}>{submitting ? '...' : processImmediately ? 'Add & Process' : 'Add'}</button>
-                                  <label className="flex items-center gap-1 cursor-pointer shrink-0" title="Process immediately">
-                                    <input type="checkbox" checked={processImmediately} onChange={e => setProcessImmediately(e.target.checked)}
-                                      className="rounded w-3 h-3" style={{accentColor:'var(--accent)'}} />
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-                            {col.id === 'queue' && pending.filter(p=>p.status==='queued').map(p =>
-                              <PendingItem key={p.id} item={p} onProcess={()=>processPending(p.id)} onDragStart={e=>handleDragStart(e,p.id)} onViewWorkflow={openWorkflow} />)}
-                            {col.id === 'queue' && qCount === 0 && <div className="text-center py-6 text-[0.6rem]" style={{color:'var(--text-dim)'}}>No queued jobs</div>}
-
-                            {col.id === 'processing' && pending.filter(p=>p.status!=='done'&&p.status!=='failed'&&p.status!=='queued').map(p =>
-                              <PendingItem key={p.id} item={p} onDragStart={e=>handleDragStart(e,p.id)}
-                                onProcess={()=>processPending(p.id)} onReset={()=>resetPending(p.id)} onPause={()=>pausePending(p.id)} onDelete={()=>deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
-                            {col.id === 'processing' && pCount === 0 && <div className="text-center py-4 text-[0.6rem]" style={{color:'var(--text-dim)'}}>Nothing processing</div>}
-                            {col.id === 'processing' && fCount > 0 && (
-                              <div className="mt-1 pt-2 border-t" style={{borderColor:'rgba(239,68,68,0.2)'}}>
-                                <div className="flex items-center gap-1 mb-2 px-1">
-                                  <X className="w-3 h-3" style={{color:'var(--red)'}} />
-                                  <span className="text-[0.55rem] font-bold uppercase tracking-wider" style={{color:'var(--red)'}}>Failed ({fCount})</span>
-                                </div>
-                                {pending.filter(p=>p.status==='failed').map(p =>
-                                  <PendingItem key={p.id} item={p} onDelete={()=>deletePending(p.id)} onProcess={()=>processPending(p.id)} onReset={()=>resetPending(p.id)} onViewWorkflow={openWorkflow} />)}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Minimized: icon + count only */}
-                        {isMin && (
-                          <div className="flex-1 flex flex-col items-center justify-center gap-2 py-2">
-                            <span className="text-lg">{col.icon}</span>
-                            <span className="text-sm font-black" style={{color:col.color}}>{col.count}</span>
-                            <span className="text-[0.4rem] font-bold uppercase tracking-wider" style={{color:col.color,writingMode:'vertical-rl',textOrientation:'mixed'}}>{col.label}</span>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {/* Processed column — with auto inner cols when maximized */}
-                  {(() => {
-                    const isMax = maximizedCol === 'done'
-                    const isMin = anyMax && !isMax
-                    const autoCols = Math.min(5, Math.max(1, Math.ceil(Math.sqrt(filteredJobs.length))))
-                    const gridStyle = isMax ? {display:'grid',gridTemplateColumns:`repeat(${autoCols}, minmax(0, 1fr))`,gap:'0.5rem',alignContent:'start'} : {}
-                    if (isMin) {
-                      return (
-                        <div onClick={() => setMaximizedCol('done')}
-                          className="w-[44px] flex flex-col items-center justify-center gap-2 rounded-lg cursor-pointer select-none transition-all duration-200 hover:opacity-80"
-                          style={{background:'linear-gradient(180deg, rgba(34,197,94,0.25), rgba(34,197,94,0.08))',border:'1px solid rgba(34,197,94,0.3)'}}>
-                          <CheckCircle className="w-5 h-5" style={{color:'#22c55e'}} />
-                          <span className="text-base font-black" style={{color:'#22c55e'}}>{filteredJobs.length}/{jobsTotal}</span>
-                          <span className="text-[0.6rem] font-black uppercase tracking-wider" style={{color:'#22c55e',writingMode:'vertical-rl',textOrientation:'mixed'}}>Processed</span>
-                        </div>
-                      )
-                    }
-                    return (
-                      <div className={`flex flex-col rounded-lg border overflow-hidden transition-all duration-200 ${isMax ? 'flex-1' : 'w-[500px]'}`}
-                        style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-                        <div onClick={()=>setMaximizedCol(isMax ? null : 'done')}
-                          className="px-2 py-1.5 flex items-center gap-1 shrink-0 cursor-pointer select-none transition hover:opacity-80"
-                          style={{background:'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04))',borderBottom:'1px solid rgba(34,197,94,0.2)'}}>
-                          <CheckCircle className="w-4 h-4" style={{color:'#22c55e'}} />
-                          <span className="font-bold text-xs" style={{color:'#22c55e'}}>Processed</span>
-                          <span className="text-[0.5rem] font-bold px-1.5 py-0.5 rounded-full" style={{background:'rgba(34,197,94,0.15)',color:'#22c55e'}}>{filteredJobs.length}/{jobsTotal}</span>
-                          <div className="flex items-center gap-0.5 ml-auto" onClick={e => e.stopPropagation()}>
-                            <button onClick={()=>refreshJobs()} title="Refresh from server" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'#22c55e'}}><ArrowsClockwise className="w-3 h-3" /></button>
-                            <button onClick={()=>rescoreAll()} title="Rescore all jobs" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--accent)'}}><TrendUp className="w-3 h-3" /></button>
-                            <button onClick={()=>reprocessAll()} title="Reprocess all jobs from scratch" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--yellow)'}}><Repeat className="w-3 h-3" /></button>
-                          </div>
-                        </div>
-                        <div ref={jobsScrollRef} className="flex-1 overflow-y-auto p-2">
-                          {/* First row: Search */}
-                          <div className="flex items-center gap-1 mb-2">
-                            <div className="relative flex-1">
-                              <input value={filterTech} onChange={e=>setFilterTech(e.target.value)}
-                                placeholder="Search by role, company, stack, or notes..."
-                                className="w-full px-2 py-1.5 rounded border text-xs transition"
-                                style={{background: filterTech ? 'rgba(99,102,241,0.15)' : 'var(--surface2)', borderColor: filterTech ? 'var(--accent)' : 'var(--border)', color: filterTech ? 'var(--accent)' : 'var(--text-dim)'}} />
-                              {filterTech && <button onClick={()=>setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem]" style={{color:'var(--text-dim)'}}>✕</button>}
-                            </div>
-                            {activeFilterCount > 0 && <button onClick={clearFilters} className="px-2 py-1 rounded text-[0.6rem] font-semibold transition hover:bg-red-500/20 whitespace-nowrap" style={{color:'var(--red)'}}>Clear all</button>}
-                          </div>
-                          {/* Second row: Sort on left, filters on right */}
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            {/* Sort dropdown */}
-                            <div className="relative">
-                              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setSortDir(e.target.value === 'score' ? 'desc' : 'desc') }}
-                                className="px-2 py-1 rounded border text-[0.6rem] appearance-none cursor-pointer transition"
-                                style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
-                                <option value="created_at">Newest first</option>
-                                <option value="posted_at">Posted date</option>
-                                <option value="score">Score</option>
-                                <option value="applicants">Applicants</option>
-                                <option value="company">Company</option>
-                                <option value="location">Location</option>
-                              </select>
-                              <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-                                className="ml-1 px-1.5 py-0.5 rounded border text-[0.6rem] transition"
-                                style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
-                                {sortDir === 'desc' ? '↓' : '↑'}
-                              </button>
-                            </div>
-                            {/* Filters */}
-                            <div className="flex items-center gap-1 flex-wrap justify-end">
-                              <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="City" icon={<MapPin className="w-3 h-3" />} options={allCities.map(c=>({value:c,label:c}))} />
-                              <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="Co" icon={<Buildings className="w-3 h-3" />} options={allCompanies.map(c=>({value:c,label:c}))} />
-                              <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="Match" icon={<Target className="w-3 h-3" />} options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
-                              <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="Work" icon={<HouseSimple className="w-3 h-3" />} options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
-                              <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} alignRight />
-                            </div>
-                          </div>
-                          <div style={isMax ? gridStyle : {display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:'0.5rem'}}>
-                            {filteredJobs.map((j,i) => <JobCard key={j.num} job={j} rank={i+1} onClick={()=>openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} />)}
-                          </div>
-                          {/* Sentinel for infinite scroll */}
-                          <div ref={jobsSentinelRef} className="h-1" />
-                          {loadingMore && <div className="text-center py-2 text-[0.6rem]" style={{color:'var(--text-dim)'}}>Loading more...</div>}
-                          {!loadingMore && filteredJobs.length >= jobsTotal && filteredJobs.length > 0 && <div className="text-center py-2 text-[0.55rem]" style={{color:'var(--text-dim)',opacity:0.5}}>All {jobsTotal} jobs loaded</div>}
+                  {/* ─── Active column (1/4) ─── */}
+                  <div className="w-1/4 flex flex-col rounded-lg border overflow-hidden"
+                    style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+                    <div className="px-2 py-1.5 flex items-center gap-1 shrink-0"
+                      style={{background:'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.04))',borderBottom:'1px solid rgba(99,102,241,0.2)'}}>
+                      <span className="text-sm" style={{color:'var(--accent)'}}><Gear className="w-4 h-4" /></span>
+                      <span className="font-bold text-xs" style={{color:'var(--accent)'}}>Active</span>
+                      <span className="text-[0.5rem] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{background:'rgba(99,102,241,0.15)',color:'var(--accent)'}}>{stackedTotal}</span>
+                    </div>
+                    <div className="flex flex-col flex-1 min-h-0 p-2">
+                      {/* Add URL */}
+                      <div className="rounded border p-1.5 shrink-0 mb-1" style={{background:'var(--surface2)',borderColor:'var(--border)'}}>
+                        <input type="url" value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError('') }}
+                          onKeyDown={e => e.key === 'Enter' && submitUrl()}
+                          placeholder="Paste LinkedIn URL..."
+                          className="w-full rounded border outline-none mb-1 px-2 py-1 text-[0.6rem] focus:border-[var(--accent)]"
+                          style={{background:'var(--surface)',borderColor: urlError ? 'var(--red)' : 'var(--border)',color:'var(--text)'}} />
+                        {urlError && <div className="text-[0.5rem] mb-1 px-0.5 flex items-center gap-1" style={{color:'var(--red)'}}><Warning className="w-2.5 h-2.5" /> {urlError}</div>}
+                        <div className="flex items-center gap-1">
+                          <button onClick={submitUrl} disabled={submitting || !urlInput.trim()}
+                            className="flex-1 rounded font-bold text-white transition disabled:opacity-50 px-2 py-1 text-[0.55rem]"
+                            style={{background:'var(--accent)'}}>{submitting ? '...' : processImmediately ? 'Add & Process' : 'Add'}</button>
+                          <label className="flex items-center gap-0.5 cursor-pointer shrink-0" title="Process immediately">
+                            <input type="checkbox" checked={processImmediately} onChange={e => setProcessImmediately(e.target.checked)}
+                              className="rounded w-2.5 h-2.5" style={{accentColor:'var(--accent)'}} />
+                          </label>
                         </div>
                       </div>
-                    )
-                  })()}
+                      {/* Stacked sections */}
+                      <div className="flex flex-col flex-1 min-h-0 gap-1 overflow-hidden">
+                        {(() => {
+                          const sections = [
+                            { id:'queue', count:qCount, label:'Queue', icon:<Clock className="w-3 h-3" />, color:'#eab308', bg:'rgba(234,179,8,' },
+                            { id:'processing', count:pCount, label:'Processing', icon:<Gear className="w-3 h-3" />, color:'var(--accent)', bg:'rgba(99,102,241,' },
+                            { id:'failed', count:fCount, label:'Failed', icon:<X className="w-3 h-3" />, color:'var(--red)', bg:'rgba(239,68,68,' },
+                          ]
+                          return sections.filter(s => s.count > 0).map(s => {
+                            const isOpen = !collapsedSections[s.id]
+                            const toggleSection = () => setCollapsedSections(prev => ({...prev, [s.id]: !prev[s.id]}))
+                            return (
+                              <div key={s.id}
+                                className="flex flex-col min-h-0 rounded-lg border overflow-hidden"
+                                style={{flex:'1 1 auto', borderColor:`${s.bg}0.2)`}}>
+                                <div onClick={toggleSection}
+                                  className="px-2 py-1 flex items-center gap-1 shrink-0 cursor-pointer select-none hover:opacity-80 transition"
+                                  style={{background:`${s.bg}0.08)`}}>
+                                  <span style={{color:s.color}}>{s.icon}</span>
+                                  <span className="font-bold text-[0.6rem] uppercase tracking-wider" style={{color:s.color}}>{s.label}</span>
+                                  <span className="text-[0.5rem] font-bold px-1 py-0.5 rounded-full" style={{background:`${s.bg}0.15)`,color:s.color}}>{s.count}</span>
+                                  <span className="text-[0.5rem] ml-auto" style={{color:s.color}}>{isOpen ? '▾' : '▸'}</span>
+                                </div>
+                                {isOpen && s.id === 'queue' && (
+                                  <div className="flex-1 overflow-y-auto p-1 space-y-1 min-h-0"
+                                    onDragOver={e => handleDragOver(e, 'queue')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'queue')}>
+                                    {pending.filter(p=>p.status==='queued').map(p =>
+                                      <PendingItem key={p.id} item={p} onProcess={()=>processPending(p.id)} onDragStart={e=>handleDragStart(e,p.id)} onViewWorkflow={openWorkflow} />)}
+                                  </div>
+                                )}
+                                {isOpen && s.id === 'processing' && (
+                                  <div className="flex-1 overflow-y-auto p-1 space-y-1 min-h-0"
+                                    onDragOver={e => handleDragOver(e, 'processing')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'processing')}>
+                                    {pending.filter(p=>p.status!=='done'&&p.status!=='failed'&&p.status!=='queued').map(p =>
+                                      <PendingItem key={p.id} item={p} onDragStart={e=>handleDragStart(e,p.id)}
+                                        onProcess={()=>processPending(p.id)} onReset={()=>resetPending(p.id)} onPause={()=>pausePending(p.id)} onDelete={()=>deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
+                                  </div>
+                                )}
+                                {isOpen && s.id === 'failed' && (
+                                  <div className="flex-1 overflow-y-auto p-1 space-y-1 min-h-0">
+                                    {pending.filter(p=>p.status==='failed').map(p =>
+                                      <PendingItem key={p.id} item={p} onDelete={()=>deletePending(p.id)} onProcess={()=>processPending(p.id)} onReset={()=>resetPending(p.id)} onViewWorkflow={openWorkflow} />)}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })
+                        })()}
+                      </div>
+                      {stackedTotal === 0 && (
+                        <div className="text-center py-8 text-[0.6rem] shrink-0" style={{color:'var(--text-dim)'}}>All jobs processed</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ─── Processed column (3/4) ─── */}
+                  <div className="w-3/4 flex flex-col rounded-lg border overflow-hidden"
+                    style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+                    <div className="px-2 py-1.5 flex items-center gap-1 shrink-0"
+                      style={{background:'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04))',borderBottom:'1px solid rgba(34,197,94,0.2)'}}>
+                      <CheckCircle className="w-4 h-4" style={{color:'#22c55e'}} />
+                      <span className="font-bold text-xs" style={{color:'#22c55e'}}>Processed</span>
+                      <span className="text-[0.5rem] font-bold px-1.5 py-0.5 rounded-full" style={{background:'rgba(34,197,94,0.15)',color:'#22c55e'}}>{filteredJobs.length}/{jobsTotal}</span>
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        <button onClick={()=>refreshJobs()} title="Refresh from server" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'#22c55e'}}><ArrowsClockwise className="w-3 h-3" /></button>
+                        <button onClick={()=>rescoreAll()} title="Rescore all jobs" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--accent)'}}><TrendUp className="w-3 h-3" /></button>
+                        <button onClick={()=>reprocessAll()} title="Reprocess all jobs from scratch" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--yellow)'}}><Repeat className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                    <div ref={jobsScrollRef} className="flex-1 overflow-y-auto p-2">
+                      <div className="flex items-center gap-1 mb-2">
+                        <div className="relative flex-1">
+                          <input value={filterTech} onChange={e=>setFilterTech(e.target.value)}
+                            placeholder="Search by role, company, stack, or notes..."
+                            className="w-full px-2 py-1.5 rounded border text-xs transition"
+                            style={{background: filterTech ? 'rgba(99,102,241,0.15)' : 'var(--surface2)', borderColor: filterTech ? 'var(--accent)' : 'var(--border)', color: filterTech ? 'var(--accent)' : 'var(--text-dim)'}} />
+                          {filterTech && <button onClick={()=>setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem]" style={{color:'var(--text-dim)'}}>✕</button>}
+                        </div>
+                        {activeFilterCount > 0 && <button onClick={clearFilters} className="px-2 py-1 rounded text-[0.6rem] font-semibold transition hover:bg-red-500/20 whitespace-nowrap" style={{color:'var(--red)'}}>Clear all</button>}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="relative">
+                          <select value={sortBy} onChange={e => { setSortBy(e.target.value); setSortDir(e.target.value === 'score' ? 'desc' : 'desc') }}
+                            className="px-2 py-1 rounded border text-[0.6rem] appearance-none cursor-pointer transition"
+                            style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
+                            <option value="created_at">Newest first</option>
+                            <option value="posted_at">Posted date</option>
+                            <option value="score">Score</option>
+                            <option value="applicants">Applicants</option>
+                            <option value="company">Company</option>
+                            <option value="location">Location</option>
+                          </select>
+                          <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                            className="ml-1 px-1.5 py-0.5 rounded border text-[0.6rem] transition"
+                            style={{background:'var(--surface2)', borderColor:'var(--border)', color:'var(--text)'}}>
+                            {sortDir === 'desc' ? '↓' : '↑'}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap justify-end">
+                          <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="City" icon={<MapPin className="w-3 h-3" />} options={allCities.map(c=>({value:c,label:c}))} />
+                          <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="Co" icon={<Buildings className="w-3 h-3" />} options={allCompanies.map(c=>({value:c,label:c}))} />
+                          <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="Match" icon={<Target className="w-3 h-3" />} options={[{value:'High',label:'High'},{value:'Medium',label:'Medium'},{value:'Low',label:'Low'}]} />
+                          <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="Work" icon={<HouseSimple className="w-3 h-3" />} options={[{value:'On-site',label:'On-site'},{value:'Remote',label:'Remote'},{value:'Hybrid',label:'Hybrid'}]} />
+                          <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{value:'Full-time',label:'Full-time'},{value:'Part-time',label:'Part-time'},{value:'Contract',label:'Contract'},{value:'Internship',label:'Internship'},{value:'Temporary',label:'Temporary'}]} alignRight />
+                        </div>
+                      </div>
+                      <div className="grid gap-2" style={{gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))'}}>
+                        {filteredJobs.map((j,i) => <JobCard key={j.num} job={j} rank={i+1} onClick={()=>openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} />)}
+                      </div>
+                      <div ref={jobsSentinelRef} className="h-1" />
+                      {loadingMore && <div className="text-center py-2 text-[0.6rem]" style={{color:'var(--text-dim)'}}>Loading more...</div>}
+                      {!loadingMore && filteredJobs.length >= jobsTotal && filteredJobs.length > 0 && <div className="text-center py-2 text-[0.55rem]" style={{color:'var(--text-dim)',opacity:0.5}}>All {jobsTotal} jobs loaded</div>}
+                    </div>
+                  </div>
                 </div>
               )
             })()}
@@ -1270,6 +1258,9 @@ function App() {
               )
             })()}
 
+            {/* === RESUME === */}
+            {tab === 'resume' && <ResumeTab resumes={resumes} onRefresh={() => fetch(`${API}/resumes`).then(r=>r.json()).then(r=>setResumes(r))} />}
+
             {/* === PREFERENCES === */}
             {tab === 'preferences' && (
               <PreferencesTab preferences={preferences} onUpdate={fetchPreferences} />
@@ -1296,7 +1287,7 @@ function App() {
             style={{background:'var(--surface)',borderColor:'var(--border)'}}>
             <button onClick={() => setDrawer(null)} className="absolute top-3 right-3 w-7 h-7 rounded-md border flex items-center justify-center text-sm hover:bg-red-500 hover:border-red-500 hover:text-white transition"
               style={{background:'var(--surface2)',borderColor:'var(--border)',color:'var(--text)'}}>✕</button>
-            <div className="flex gap-4 mb-3">
+            <div className="flex gap-4 mb-3 pr-10">
               {/* Left: Score, Company, Role, Locations */}
               <div className="flex-1 min-w-0">
                 <div className={`text-4xl font-black mb-1 ${getScoreColor(drawer.job.score)}`}>{drawer.job.score}<span className="text-lg font-bold opacity-50">/100</span></div>
@@ -1818,7 +1809,16 @@ function PendingItem({ item, onDelete, onProcess, onReset, onPause, onDragStart,
           </div>
         )}
         {/* URL */}
-        <div className="text-[0.55rem] truncate mb-2 px-1" style={{color:'var(--text-dim)',opacity:0.6}}>{item.url}</div>
+        <div className="flex items-center gap-1 mb-2 px-1">
+          <a href={item.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+            className="text-[0.55rem] truncate flex-1 min-w-0 transition hover:underline" style={{color:'var(--accent)'}} title={item.url}>
+            {item.url}
+          </a>
+          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.url); setToast('URL copied!'); setTimeout(() => setToast(null), 1500) }}
+            className="shrink-0 w-4 h-4 rounded flex items-center justify-center transition hover:bg-white/10" style={{color:'var(--text-dim)'}} title="Copy URL">
+            <Copy className="w-2.5 h-2.5" />
+          </button>
+        </div>
       </div>
 
       {/* Steps pipeline */}
@@ -1956,7 +1956,7 @@ function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWor
           {hasLogs && onViewWorkflow && <button onClick={(e)=>{e.stopPropagation();onViewWorkflow({id:job.num,workflow_log:job.workflow_log,company:job.company,job_num:job.num})}} title="View workflow log" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--text-dim)',border:'1px solid var(--border)'}}><FileText className="w-3 h-3" /></button>}
           {onRescore && <button onClick={async (e)=>{e.stopPropagation(); if(isRescoring){ const ok = await showConfirm('Rescore Running', 'Another rescore is already running. Start a new one?', 'Start New Rescore', 'warning'); if(!ok) return } onRescore(job.num)}} title="Rescore this job" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-white/10" style={{color:'var(--text-dim)',border:'1px solid var(--border)'}}><TrendUp className="w-3 h-3" /></button>}
           {onRequeue && <button onClick={(e)=>{e.stopPropagation();onRequeue(job.num)}} title="Reprocess from scratch (hard delete)" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-blue-500/20" style={{color:'var(--blue, #3b82f6)',border:'1px solid rgba(59,130,246,0.3)'}}><Repeat className="w-3 h-3" /></button>}
-          {onDelete && <button onClick={(e)=>{e.stopPropagation();onDelete(job.num)}} title="Hide this job" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-red-500/20" style={{color:'var(--red)',border:'1px solid rgba(239,68,68,0.3)'}}><Trash className="w-3 h-3" /></button>}
+          {onDelete && <button onClick={(e)=>{e.stopPropagation();onDelete(job.num)}} title="Delete this job forever" className="w-5 h-5 rounded flex items-center justify-center text-[0.55rem] transition hover:bg-red-500/20" style={{color:'var(--red)',border:'1px solid rgba(239,68,68,0.3)'}}><Trash className="w-3 h-3" /></button>}
           <span onClick={onClick} className={`cursor-pointer text-lg font-black ${getScoreColor(job.score)}`}>{job.score}</span>
         </div>
       </div>
@@ -1999,6 +1999,150 @@ function StackCard({ tech }) {
       <div className="flex gap-0.5 mb-2">{Array.from({length:5},(_,i)=><div key={i} className="flex-1 h-[3px] rounded-full" style={{background:i<tech.level?'var(--accent)':'var(--surface2)'}} />)}</div>
       <div className="text-xs mb-1" style={{color:'var(--text-dim)'}}><b style={{color:'var(--text)'}}>{tech.roles}</b></div>
       <div className="text-xs" style={{color:'var(--text-dim)'}}><b style={{color:'var(--accent)'}}>Path:</b> {tech.path}</div>
+    </div>
+  )
+}
+
+function ResumeTab({ resumes, onRefresh }) {
+  const [rawText, setRawText] = useState('')
+  const [maskedPreview, setMaskedPreview] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState(null)
+  const [activeVersion, setActiveVersion] = useState(null)
+
+  const originalResumes = resumes.filter(r => r.id?.startsWith('original_')).sort((a,b) => (b.version||0) - (a.version||0))
+  const latestResume = originalResumes[0]
+
+  useEffect(() => {
+    if (latestResume && !activeVersion) {
+      setActiveVersion(latestResume.version)
+      setRawText(latestResume.raw_text || '')
+      setMaskedPreview(latestResume.content || '')
+    }
+  }, [latestResume])
+
+  const handlePreview = () => {
+    if (!rawText.trim()) return
+    fetch(`${API}/resumes`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ raw_text: rawText })
+    }).then(r=>r.json()).then(data => {
+      if (data.masked_text) setMaskedPreview(data.content || '')
+    })
+  }
+
+  const handleSave = async () => {
+    if (!rawText.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`${API}/resumes`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ raw_text: rawText })
+      })
+      const data = await res.json()
+      if (data.status === 'saved') {
+        setToast(`Resume v${data.version} saved`)
+        setTimeout(() => setToast(null), 2000)
+        setActiveVersion(data.version)
+        setMaskedPreview(data.content || '')
+        onRefresh()
+      }
+    } finally { setSaving(false) }
+  }
+
+  const handleDelete = async (version) => {
+    await fetch(`${API}/resumes/${version}`, { method: 'DELETE' })
+    if (activeVersion === version) { setActiveVersion(null); setRawText(''); setMaskedPreview('') }
+    onRefresh()
+  }
+
+  const handleCopy = () => {
+    const el = document.getElementById('resume-preview')
+    if (el) { navigator.clipboard.writeText(el.innerText); setToast('Copied!'); setTimeout(() => setToast(null), 1500) }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 pt-16">
+      <div className="max-w-[1400px] mx-auto space-y-4">
+        {toast && <div className="fixed top-14 right-4 z-[200] px-3 py-1.5 rounded-lg text-xs font-bold" style={{background:'var(--accent)',color:'white'}}>{toast}</div>}
+        <div className="flex items-center gap-3">
+          <FileText className="w-5 h-5" style={{color:'var(--accent)'}} />
+          <h2 className="text-xl font-extrabold">Resume Manager</h2>
+          {latestResume && <span className="text-[0.6rem] px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(99,102,241,0.15)',color:'var(--accent)'}}>v{latestResume.version}</span>}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left: Editor */}
+          <div className="rounded-lg border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <div className="flex items-center gap-2 mb-3">
+              <PencilSimple className="w-4 h-4" style={{color:'var(--accent)'}} />
+              <h3 className="font-extrabold text-sm">Raw Resume</h3>
+              <span className="text-[0.55rem]" style={{color:'var(--text-dim)'}}>Paste your resume text</span>
+            </div>
+            <textarea value={rawText} onChange={e => setRawText(e.target.value)}
+              placeholder="Paste your resume content here...&#10;&#10;Personal info (name, phone, email) will be automatically masked for privacy."
+              className="w-full h-[400px] rounded border p-3 text-xs font-mono resize-none outline-none focus:border-[var(--accent)] transition"
+              style={{background:'var(--surface2)',borderColor:'var(--border)',color:'var(--text)'}} />
+            <div className="flex gap-2 mt-3">
+              <button onClick={handleSave} disabled={saving || !rawText.trim()}
+                className="px-4 py-1.5 rounded-lg font-bold text-xs text-white transition disabled:opacity-50"
+                style={{background:'var(--accent)'}}>
+                {saving ? 'Saving...' : 'Save New Version'}
+              </button>
+              <button onClick={handlePreview} disabled={!rawText.trim()}
+                className="px-4 py-1.5 rounded-lg font-bold text-xs transition"
+                style={{background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)'}}>
+                Preview Masked
+              </button>
+            </div>
+          </div>
+
+          {/* Right: A4 Preview */}
+          <div className="rounded-lg border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="w-4 h-4" style={{color:'#22c55e'}} />
+              <h3 className="font-extrabold text-sm">A4 Preview (Masked)</h3>
+              <button onClick={handleCopy} className="ml-auto px-2 py-0.5 rounded text-[0.55rem] font-bold transition hover:bg-white/10" style={{color:'var(--accent)',border:'1px solid var(--border)'}}>Copy</button>
+            </div>
+            {/* A4 paper */}
+            <div className="mx-auto shadow-lg" style={{width:'100%',maxWidth:'595px',aspectRatio:'210/297',background:'white',borderRadius:'2px',overflow:'hidden'}}>
+              <div id="resume-preview" className="p-6 overflow-y-auto h-full" style={{fontFamily:'system-ui,-apple-system,sans-serif',fontSize:'11px',lineHeight:'1.5',color:'#333'}}>
+                {maskedPreview ? (
+                  <div dangerouslySetInnerHTML={{__html: maskedPreview}} />
+                ) : (
+                  <div className="flex items-center justify-center h-full" style={{color:'#999'}}>Save or preview to see masked output</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Version History */}
+        {originalResumes.length > 0 && (
+          <div className="rounded-lg border p-4" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <h3 className="font-extrabold text-sm mb-3">Version History</h3>
+            <div className="space-y-1">
+              {originalResumes.map(r => (
+                <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-lg transition hover:bg-[var(--surface2)]"
+                  style={{border: activeVersion === r.version ? '1px solid var(--accent)' : '1px solid transparent'}}>
+                  <span className="text-xs font-bold" style={{color:'var(--accent)'}}>v{r.version}</span>
+                  <span className="text-[0.6rem]" style={{color:'var(--text-dim)'}}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</span>
+                  <div className="flex gap-1 ml-auto">
+                    <button onClick={() => { setActiveVersion(r.version); setRawText(r.raw_text || ''); setMaskedPreview(r.content || '') }}
+                      className="px-2 py-0.5 rounded text-[0.55rem] font-bold transition hover:bg-white/10" style={{color:'var(--accent)',border:'1px solid var(--border)'}}>
+                      Load
+                    </button>
+                    <button onClick={() => handleDelete(r.version)}
+                      className="px-2 py-0.5 rounded text-[0.55rem] font-bold transition hover:bg-red-500/20" style={{color:'var(--red)',border:'1px solid rgba(239,68,68,0.3)'}}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

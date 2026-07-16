@@ -186,9 +186,11 @@ def get_job(num):
 
 @app.route('/api/jobs/<int:num>', methods=['DELETE'])
 def delete_job(num):
-    """Soft delete a processed job."""
+    """Hard delete a processed job and all related data."""
     conn = get_db()
-    conn.execute('UPDATE jobs SET deleted=1 WHERE num=?', (num,))
+    conn.execute('DELETE FROM jobs WHERE num=?', (num,))
+    conn.execute('DELETE FROM summaries WHERE num=?', (num,))
+    conn.execute("DELETE FROM resumes WHERE id=? OR id=?", (f'pending_{num}', f'rescore_{num}'))
     conn.commit()
     conn.close()
     return jsonify({'status': 'deleted', 'num': num})
@@ -234,9 +236,100 @@ def get_summaries():
 @app.route('/api/resumes')
 def get_resumes():
     conn = get_db()
-    rows = conn.execute('SELECT * FROM resumes').fetchall()
+    rows = conn.execute('SELECT * FROM resumes ORDER BY created_at DESC').fetchall()
     conn.close()
     return stream_json(rows_to_list(rows))
+
+@app.route('/api/resumes/latest')
+def get_latest_resume():
+    conn = get_db()
+    row = conn.execute("SELECT * FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+    conn.close()
+    if row:
+        return jsonify(row_to_dict(row))
+    return jsonify({})
+
+@app.route('/api/resumes', methods=['POST'])
+def save_resume():
+    """Save a new resume version."""
+    data = request.get_json()
+    raw_text = data.get('raw_text', '').strip()
+    if not raw_text:
+        return jsonify({'error': 'Resume text required'}), 400
+
+    conn = get_db()
+    # Get next version number
+    row = conn.execute("SELECT MAX(version) as max_v FROM resumes WHERE id LIKE 'original_%'").fetchone()
+    next_version = (dict(row)['max_v'] or 0) + 1
+
+    # Generate masked version for preview
+    masked_text = _mask_pii(raw_text)
+
+    # Convert to simple HTML for storage
+    content_html = _text_to_html(masked_text)
+
+    resume_id = f'original_{next_version}'
+    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, badge, badgeClass, company, role, content, version, raw_text, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (resume_id, f'Resume v{next_version}', 'Original', 'badge-original', '', '', content_html, next_version, raw_text, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'status': 'saved', 'id': resume_id, 'version': next_version,
+        'content': content_html, 'raw_text': raw_text, 'masked_text': masked_text
+    })
+
+@app.route('/api/resumes/<version>', methods=['DELETE'])
+def delete_resume_version(version):
+    """Delete a specific resume version."""
+    conn = get_db()
+    resume_id = f'original_{version}'
+    conn.execute("DELETE FROM resumes WHERE id=?", (resume_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted', 'version': version})
+
+def _mask_pii(text):
+    """Mask personally identifiable information for safe sharing."""
+    import re
+    masked = text
+    # Mask phone numbers (various formats)
+    masked = re.sub(r'[\+]?\d[\d\s\-\(\)]{8,15}', '[PHONE]', masked)
+    # Mask email addresses
+    masked = re.sub(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', '[EMAIL]', masked)
+    # Mask LinkedIn URLs
+    masked = re.sub(r'linkedin\.com/in/[^\s]+', 'linkedin.com/in/[PROFILE]', masked)
+    # Mask GitHub URLs
+    masked = re.sub(r'github\.com/[^\s]+', 'github.com/[PROFILE]', masked)
+    # Mask names at the top (first line if it looks like a name - no special chars, short)
+    lines = masked.split('\n')
+    if lines and len(lines[0].strip()) < 60 and not any(c in lines[0] for c in '@:;#'):
+        lines[0] = '[NAME]'
+        masked = '\n'.join(lines)
+    return masked
+
+def _text_to_html(text):
+    """Convert plain text resume to simple HTML."""
+    import html
+    lines = text.split('\n')
+    html_lines = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            html_lines.append('<br>')
+            continue
+        escaped = html.escape(line)
+        # Detect section headers (ALL CAPS or known keywords)
+        if line.isupper() or line in ('Summary', 'Professional Experience', 'Skills', 'Education', 'Languages'):
+            html_lines.append(f'<h3 style="margin:0.5em 0 0.2em;color:#e6edf3;font-size:14px;border-bottom:1px solid #30363d;padding-bottom:2px">{escaped}</h3>')
+        elif line.startswith('●') or line.startswith('•') or line.startswith('-'):
+            html_lines.append(f'<div style="margin:2px 0;padding-left:1em">{escaped}</div>')
+        elif '|' in line and ('Engineer' in line or 'Developer' in line):
+            html_lines.append(f'<div style="font-weight:600;color:#c9d1d9;margin:4px 0 2px">{escaped}</div>')
+        else:
+            html_lines.append(f'<div style="margin:2px 0">{escaped}</div>')
+    return '\n'.join(html_lines)
 
 @app.route('/api/tech-learning')
 def get_tech_learning():

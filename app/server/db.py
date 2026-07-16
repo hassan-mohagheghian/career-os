@@ -40,7 +40,10 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS resumes (
         id TEXT PRIMARY KEY,
         title TEXT, badge TEXT, badgeClass TEXT,
-        company TEXT, role TEXT, content TEXT
+        company TEXT, role TEXT, content TEXT,
+        version INTEGER DEFAULT 1,
+        raw_text TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS tech_learning (
@@ -165,6 +168,16 @@ def init_db():
             c.execute(f"SELECT {col} FROM pending_jobs LIMIT 1")
         except sqlite3.OperationalError:
             c.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
+
+    # Add version, raw_text, created_at to resumes
+    for col, default in [('version', 1), ('raw_text', None), ('created_at', None)]:
+        try:
+            c.execute(f"SELECT {col} FROM resumes LIMIT 1")
+        except sqlite3.OperationalError:
+            if default is None:
+                c.execute(f"ALTER TABLE resumes ADD COLUMN {col} TEXT")
+            else:
+                c.execute(f"ALTER TABLE resumes ADD COLUMN {col} INTEGER DEFAULT {default}")
 
     conn.commit()
     conn.close()

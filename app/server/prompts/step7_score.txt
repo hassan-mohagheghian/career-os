@@ -11,7 +11,7 @@ Hassan's preferences:
 
 Follow the same workflow as previous jobs:
 1. Read the job posting from {job_file}
-2. Read Hassan's resume at {project_root}/inputs/original/resume.txt
+2. Read Hassan's resume at {resume_file}
 3. Analyze the job, score it, create a tailored resume using the preferences above
 4. Save the result as JSON to {tmp_dir}/pending_result_{pid}.json with this structure:
 
