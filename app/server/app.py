@@ -25,7 +25,18 @@ def _ensure_db_schema():
         'work_types': "ALTER TABLE jobs ADD COLUMN work_types TEXT DEFAULT '[]'",
         'raw_description': "ALTER TABLE jobs ADD COLUMN raw_description TEXT",
         'structured_description': "ALTER TABLE jobs ADD COLUMN structured_description TEXT",
+        'raw_file_path': "ALTER TABLE jobs ADD COLUMN raw_file_path TEXT",
+        'structured_file_path': "ALTER TABLE jobs ADD COLUMN structured_file_path TEXT",
     }
+    # pending_jobs: add step columns if missing
+    cursor2 = conn.execute('PRAGMA table_info(pending_jobs)')
+    pending_cols = {row[1] for row in cursor2.fetchall()}
+    for col in ['step_extract_raw', 'step_extract_struct', 'step_summary', 'step_validate']:
+        if col not in pending_cols:
+            conn.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
+    # jobs: add rescoring column if missing
+    if 'rescoring' not in columns:
+        conn.execute("ALTER TABLE jobs ADD COLUMN rescoring INTEGER DEFAULT 0")
     for col, sql in migrations.items():
         if col not in columns:
             conn.execute(sql)
@@ -46,8 +57,9 @@ def normalize_url(url):
     return base_url
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')
     return conn
 
 def row_to_dict(row):
@@ -64,21 +76,104 @@ def stream_json(data):
         yield json.dumps(data, ensure_ascii=False)
     return Response(generate(), mimetype='application/json')
 
-def stream_jsonl(rows):
-    """Stream JSONL (newline-delimited JSON) for progressive loading."""
-    def generate():
-        for row in rows:
-            yield json.dumps(dict(row), ensure_ascii=False) + '\n'
-    return Response(generate(), mimetype='application/x-ndjson')
-
 # --- API Routes ---
 
 @app.route('/api/jobs')
 def get_jobs():
     conn = get_db()
-    rows = conn.execute('SELECT * FROM jobs WHERE deleted=0 ORDER BY score DESC').fetchall()
+    offset = request.args.get('offset', type=int)
+    limit = request.args.get('limit', type=int)
+
+    # Sorting
+    sort_by = request.args.get('sort_by', 'created_at')
+    sort_dir = request.args.get('sort_dir', 'desc')
+    allowed_sorts = {'created_at', 'score', 'num', 'company', 'location', 'posted_at', 'applicants'}
+    if sort_by not in allowed_sorts:
+        sort_by = 'created_at'
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'desc'
+
+    # Build WHERE clause
+    conditions = ['deleted=0']
+    params = []
+
+    # Filter: cities
+    filter_cities = request.args.get('filter_cities', '')
+    if filter_cities:
+        cities = [c.strip() for c in filter_cities.split(',') if c.strip()]
+        if cities:
+            # Match against locations JSON array or location column
+            city_conditions = []
+            for city in cities:
+                city_conditions.append("locations LIKE ?")
+                params.append(f'%"{city}"%')
+                city_conditions.append("location = ?")
+                params.append(city)
+            conditions.append(f'({" OR ".join(city_conditions)})')
+
+    # Filter: companies
+    filter_companies = request.args.get('filter_companies', '')
+    if filter_companies:
+        companies = [c.strip() for c in filter_companies.split(',') if c.strip()]
+        if companies:
+            placeholders = ','.join(['?' for _ in companies])
+            conditions.append(f'company IN ({placeholders})')
+            params.extend(companies)
+
+    # Filter: matches
+    filter_matches = request.args.get('filter_matches', '')
+    if filter_matches:
+        matches = [m.strip() for m in filter_matches.split(',') if m.strip()]
+        if matches:
+            placeholders = ','.join(['?' for _ in matches])
+            conditions.append(f'match IN ({placeholders})')
+            params.extend(matches)
+
+    # Filter: work types
+    filter_work_types = request.args.get('filter_work_types', '')
+    if filter_work_types:
+        wtypes = [w.strip() for w in filter_work_types.split(',') if w.strip()]
+        if wtypes:
+            wt_conditions = []
+            for wt in wtypes:
+                wt_conditions.append("work_types LIKE ?")
+                params.append(f'%"{wt}"%')
+                wt_conditions.append("work_type = ?")
+                params.append(wt)
+            conditions.append(f'({" OR ".join(wt_conditions)})')
+
+    # Filter: employment types
+    filter_employment_types = request.args.get('filter_employment_types', '')
+    if filter_employment_types:
+        etypes = [e.strip() for e in filter_employment_types.split(',') if e.strip()]
+        if etypes:
+            placeholders = ','.join(['?' for _ in etypes])
+            conditions.append(f'employment_type IN ({placeholders})')
+            params.extend(etypes)
+
+    # Filter: text search (stack, role, company, notes)
+    filter_tech = request.args.get('filter_tech', '').strip()
+    if filter_tech:
+        like_param = f'%{filter_tech}%'
+        conditions.append('(stack LIKE ? OR role LIKE ? OR company LIKE ? OR notes LIKE ?)')
+        params.extend([like_param, like_param, like_param, like_param])
+
+    where_clause = ' AND '.join(conditions)
+    total = conn.execute(f'SELECT COUNT(*) FROM jobs WHERE {where_clause}', params).fetchone()[0]
+
+    # Handle applicants sorting specially (parse numeric from text)
+    if sort_by == 'applicants':
+        order_clause = f"CAST(REPLACE(REPLACE(applicants, 'Not specified', '999'), '+', '') AS INTEGER) {sort_dir}"
+    else:
+        order_clause = f'{sort_by} {sort_dir}'
+
+    if offset is not None and limit is not None:
+        rows = conn.execute(f'SELECT * FROM jobs WHERE {where_clause} ORDER BY {order_clause} LIMIT ? OFFSET ?', params + [limit, offset]).fetchall()
+        conn.close()
+        return jsonify({'jobs': rows_to_list(rows), 'total': total})
+    rows = conn.execute(f'SELECT * FROM jobs WHERE {where_clause} ORDER BY {order_clause}', params).fetchall()
     conn.close()
-    return stream_json(rows_to_list(rows))
+    return jsonify({'jobs': rows_to_list(rows), 'total': total})
 
 @app.route('/api/jobs/<int:num>')
 def get_job(num):
@@ -100,7 +195,7 @@ def delete_job(num):
 
 @app.route('/api/jobs/<int:num>/requeue', methods=['POST'])
 def requeue_job(num):
-    """Re-queue a deleted job for processing. Creates a new job after processing."""
+    """Re-queue a job for fresh processing. Old job deleted only after new one succeeds."""
     conn = get_db()
     job = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
     if not job:
@@ -109,12 +204,15 @@ def requeue_job(num):
     j = dict(job)
     url = j['url']
     company = j.get('company', '')
+    # Mark old job for deferred deletion (worker deletes after success)
+    conn.execute('UPDATE jobs SET deleted=1 WHERE num=?', (num,))
     # Find or create pending entry
     row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
     if row:
         pid = dict(row)['id']
         conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='requeue',
-            company=?, step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+            company=?, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+            step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
             workflow_log='[]', updated_at=? WHERE id=?''',
             (company, datetime.now().isoformat(), pid))
     else:
@@ -308,8 +406,8 @@ def add_pending():
     normalized = normalize_url(url)
     conn = get_db()
 
-    # Check pending_jobs for duplicate (normalized URL)
-    pending = conn.execute('SELECT id, status, url FROM pending_jobs').fetchall()
+    # Check if there's an active (non-done/failed) pending entry
+    pending = conn.execute('SELECT id, status, url FROM pending_jobs WHERE status NOT IN (?,?)', ('done', 'failed')).fetchall()
     for row in pending:
         r = dict(row)
         if normalize_url(r['url']) == normalized:
@@ -317,12 +415,26 @@ def add_pending():
             return jsonify({'error': 'Already in queue', 'id': r['id'], 'status': r['status']}), 409
 
     # Check jobs table for duplicate (normalized URL) - only non-deleted
-    jobs = conn.execute('SELECT num, company, url FROM jobs WHERE deleted=0').fetchall()
+    jobs = conn.execute('SELECT num, company, url, score, match FROM jobs WHERE deleted=0').fetchall()
     for row in jobs:
         j = dict(row)
         if normalize_url(j['url']) == normalized:
             conn.close()
-            return jsonify({'error': f'Already processed as #{j["num"]} ({j["company"]})', 'num': j['num']}), 409
+            return jsonify({
+                'status': 'exists',
+                'num': j['num'],
+                'company': j['company'],
+                'score': j['score'],
+                'match': j['match'],
+                'url': url
+            })
+
+    # Clean up any old done/failed pending entries for this URL
+    old_pending = conn.execute('SELECT id FROM pending_jobs WHERE url=? AND status IN (?,?)', (url, 'done', 'failed')).fetchall()
+    for row in old_pending:
+        conn.execute('DELETE FROM pending_jobs WHERE id=?', (dict(row)['id'],))
+    if old_pending:
+        conn.commit()
 
     try:
         cur = conn.execute('INSERT INTO pending_jobs (url, source) VALUES (?, ?)', (url, source))
@@ -337,6 +449,18 @@ def add_pending():
 @app.route('/api/pending/<int:id>', methods=['DELETE'])
 def delete_pending(id):
     conn = get_db()
+    # Get the URL and associated job num before deleting
+    row = conn.execute('SELECT url FROM pending_jobs WHERE id=?', (id,)).fetchone()
+    if row:
+        url = dict(row)['url']
+        # Find associated job num
+        job_row = conn.execute('SELECT num, company FROM jobs WHERE url=?', (url,)).fetchone()
+        # Soft-delete any processed job with the same URL
+        conn.execute('UPDATE jobs SET deleted=1 WHERE url=?', (url,))
+        conn.execute('DELETE FROM summaries WHERE url=?', (url,))
+        if job_row:
+            num = dict(job_row)['num']
+            conn.execute('DELETE FROM resumes WHERE id=? OR id=?', (f'pending_{num}', f'rescore_{num}'))
     conn.execute('DELETE FROM pending_jobs WHERE id=?', (id,))
     conn.commit()
     conn.close()
@@ -344,15 +468,43 @@ def delete_pending(id):
 
 @app.route('/api/pending/<int:id>/reset', methods=['PUT'])
 def reset_pending(id):
-    """Reset a pending job back to queued status."""
+    """Reset a pending job back to queued status (stop — from scratch)."""
     conn = get_db()
     conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL,
-                    step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+                    step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+                    step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
                     updated_at=? WHERE id=?''',
                  (datetime.now().isoformat(), id))
     conn.commit()
     conn.close()
     return jsonify({'status': 'queued', 'id': id})
+
+@app.route('/api/pending/<int:id>/pause', methods=['PUT'])
+def pause_pending(id):
+    """Pause a processing job — keep completed steps, reset current step, move to paused."""
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    item = dict(row)
+    # Find the current (first incomplete) step and reset only that one
+    step_cols = ['step_fetch', 'step_extract_raw', 'step_extract_struct', 'step_analyze', 'step_resume']
+    reset_col = None
+    for col in step_cols:
+        if item.get(col) == 0:
+            reset_col = col
+            break
+    if reset_col:
+        conn.execute(f'UPDATE pending_jobs SET status="paused", error=NULL, {reset_col}=0, updated_at=? WHERE id=?',
+                     (datetime.now().isoformat(), id))
+    else:
+        # All steps complete, just pause
+        conn.execute('UPDATE pending_jobs SET status="paused", updated_at=? WHERE id=?',
+                     (datetime.now().isoformat(), id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'paused', 'id': id})
 
 @app.route('/api/pending/<int:id>/process', methods=['POST'])
 def process_pending(id):
@@ -371,10 +523,12 @@ def process_pending(id):
     # Update status to processing (reset steps if retrying a failed job)
     if item['status'] == 'failed':
         conn.execute('''UPDATE pending_jobs SET status='processing', error=NULL,
-                        step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+                        step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+                        step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
                         updated_at=? WHERE id=?''',
                      (datetime.now().isoformat(), id))
     else:
+        # For paused or queued: keep existing steps (continue from current step)
         conn.execute('''UPDATE pending_jobs SET status='processing', updated_at=? WHERE id=?''',
                      (datetime.now().isoformat(), id))
     conn.commit()
@@ -511,156 +665,6 @@ def update_step(id):
     conn.close()
     return jsonify({'status': 'updated'})
 
-@app.route('/api/all')
-def get_all():
-    """Single endpoint returning all data — reduces round trips."""
-    conn = get_db()
-
-    # Build cities dynamically from job locations
-    job_rows = conn.execute('SELECT location, locations FROM jobs').fetchall()
-    city_counts = {}
-    for row in job_rows:
-        r = dict(row)
-        locations = []
-        if r.get('locations'):
-            try:
-                locations = json.loads(r['locations']) if isinstance(r['locations'], str) else r['locations']
-            except:
-                pass
-        if not locations and r.get('location'):
-            locations = [r['location']]
-        for loc in locations:
-            if loc and loc != 'Not specified':
-                city_counts[loc] = city_counts.get(loc, 0) + 1
-    city_info = {
-        'Berlin': {'icon': '🐻', 'info': 'Largest tech hub.'},
-        'Munich': {'icon': '🦁', 'info': 'Highest salaries.'},
-        'Hamburg': {'icon': '🎵', 'info': 'Growing tech scene.'},
-        'Heidelberg': {'icon': '🏛️', 'info': 'Enterprise AI.'},
-        'Frankfurt': {'icon': '🏦', 'info': 'FinTech capital.'},
-        'Cologne': {'icon': '🗼', 'info': 'Media & commerce.'},
-        'Stuttgart': {'icon': '🏭', 'info': 'Engineering.'},
-        'Remote': {'icon': '🏠', 'info': 'Best for visa.'},
-        'Remote Germany': {'icon': '🏠', 'info': 'Best for visa.'},
-        'Germany': {'icon': '🇩🇪', 'info': 'Country-wide.'},
-    }
-    total = len(city_counts)
-    cities = []
-    for city, count in sorted(city_counts.items(), key=lambda x: -x[1]):
-        info = city_info.get(city, {'icon': '📍', 'info': 'Tech hub.'})
-        cities.append({'icon': info['icon'], 'name': city, 'info': info['info'], 'jobs': f'{count}/{total} jobs'})
-
-    data = {
-        'jobs': rows_to_list(conn.execute('SELECT * FROM jobs WHERE deleted=0 ORDER BY score DESC').fetchall()),
-        'summaries': rows_to_list(conn.execute('SELECT * FROM summaries ORDER BY score DESC').fetchall()),
-        'resumes': rows_to_list(conn.execute('SELECT * FROM resumes').fetchall()),
-        'techLearning': rows_to_list(conn.execute('SELECT * FROM tech_learning ORDER BY priority').fetchall()),
-        'techStack': rows_to_list(conn.execute('SELECT * FROM tech_stack ORDER BY level DESC').fetchall()),
-        'cities': cities,
-        'dashboardInsights': rows_to_list(conn.execute('SELECT * FROM dashboard_insights ORDER BY type, priority').fetchall()),
-    }
-    conn.close()
-    return stream_json(data)
-
-@app.route('/api/stream/all')
-def stream_all():
-    """Streaming version — sends data incrementally."""
-    conn = get_db()
-    def generate():
-        yield '{"jobs":['
-        rows = conn.execute('SELECT * FROM jobs WHERE deleted=0 ORDER BY score DESC').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield '],"summaries":['
-        rows = conn.execute('SELECT * FROM summaries ORDER BY score DESC').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield '],"resumes":['
-        rows = conn.execute('SELECT * FROM resumes').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield '],"techLearning":['
-        rows = conn.execute('SELECT * FROM tech_learning ORDER BY priority').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield '],"techStack":['
-        rows = conn.execute('SELECT * FROM tech_stack ORDER BY level DESC').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield '],"cities":['
-        # Build cities dynamically from job locations
-        job_rows = conn.execute('SELECT location, locations FROM jobs').fetchall()
-        city_counts = {}
-        for row in job_rows:
-            r = dict(row)
-            locations = []
-            if r.get('locations'):
-                try:
-                    locations = json.loads(r['locations']) if isinstance(r['locations'], str) else r['locations']
-                except:
-                    pass
-            if not locations and r.get('location'):
-                locations = [r['location']]
-            for loc in locations:
-                if loc and loc != 'Not specified':
-                    city_counts[loc] = city_counts.get(loc, 0) + 1
-        city_info = {
-            'Berlin': {'icon': '🐻', 'info': 'Largest tech hub.'},
-            'Munich': {'icon': '🦁', 'info': 'Highest salaries.'},
-            'Hamburg': {'icon': '🎵', 'info': 'Growing tech scene.'},
-            'Heidelberg': {'icon': '🏛️', 'info': 'Enterprise AI.'},
-            'Frankfurt': {'icon': '🏦', 'info': 'FinTech capital.'},
-            'Cologne': {'icon': '🗼', 'info': 'Media & commerce.'},
-            'Stuttgart': {'icon': '🏭', 'info': 'Engineering.'},
-            'Remote': {'icon': '🏠', 'info': 'Best for visa.'},
-            'Remote Germany': {'icon': '🏠', 'info': 'Best for visa.'},
-            'Germany': {'icon': '🇩🇪', 'info': 'Country-wide.'},
-        }
-        total = len(city_counts)
-        first = True
-        for city, count in sorted(city_counts.items(), key=lambda x: -x[1]):
-            info = city_info.get(city, {'icon': '📍', 'info': 'Tech hub.'})
-            if not first: yield ','
-            first = False
-            yield json.dumps({'icon': info['icon'], 'name': city, 'info': info['info'], 'jobs': f'{count}/{total} jobs'}, ensure_ascii=False)
-        yield '],"dashboardInsights":['
-        rows = conn.execute('SELECT * FROM dashboard_insights ORDER BY type, priority').fetchall()
-        for i, row in enumerate(rows):
-            if i > 0: yield ','
-            yield json.dumps(dict(row), ensure_ascii=False)
-        yield ']'
-
-        # Include latest analysis metadata
-        dash_analysis = conn.execute(
-            'SELECT id, created_at FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
-            ('dashboard',)
-        ).fetchone()
-        skills_analysis = conn.execute(
-            'SELECT id, created_at FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
-            ('skills',)
-        ).fetchone()
-
-        yield ',"analysisMeta":{'
-        if dash_analysis:
-            yield f'"dashboard":{{"id":{dict(dash_analysis)["id"]},"created_at":"{dict(dash_analysis)["created_at"]}"}}'
-        else:
-            yield '"dashboard":null'
-        yield ','
-        if skills_analysis:
-            yield f'"skills":{{"id":{dict(skills_analysis)["id"]},"created_at":"{dict(skills_analysis)["created_at"]}"}}'
-        else:
-            yield '"skills":null'
-        yield '}'
-
-        yield '}'
-        conn.close()
-    return Response(generate(), mimetype='application/json')
-
 # --- Serve React app ---
 
 @app.route('/')
@@ -670,57 +674,71 @@ def serve():
 @app.route('/<path:path>')
 @app.route('/api/jobs/<int:num>/rescore', methods=['POST'])
 def rescore_job(num):
-    """Re-score a single job — reset its pending entry and reprocess (updates existing job)."""
+    """Re-score a single job in the background without moving to processing queue."""
     conn = get_db()
     job = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
     if not job:
         conn.close()
         return jsonify({'error': 'Job not found'}), 404
     j = dict(job)
-    url = j['url']
-    company = j.get('company', '')
-    role = j.get('role', '')
-    # Find or create pending entry
-    row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
-    if row:
-        pid = dict(row)['id']
-        conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-            company=?, step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
-            workflow_log='[]', updated_at=? WHERE id=?''',
-            (company, datetime.now().isoformat(), pid))
-    else:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)', (url, 'rescore', company))
-        pid = cur.lastrowid
+    # Set rescoring flag
+    conn.execute('UPDATE jobs SET rescoring=1 WHERE num=?', (num,))
     conn.commit()
     conn.close()
-    threading.Thread(target=process_job, args=(pid,), daemon=True).start()
-    return jsonify({'status': 'rescoring', 'pid': pid, 'num': num, 'company': company})
+    # Spawn background rescore thread
+    from worker import rescore_only
+    threading.Thread(target=rescore_only, args=(num,), daemon=True).start()
+    return jsonify({'status': 'rescoring', 'num': num, 'company': j.get('company', '')})
 
 @app.route('/api/jobs/rescore-all', methods=['POST'])
 def rescore_all():
-    """Re-score all jobs — reset and reprocess each (updates existing jobs)."""
+    """Re-score all jobs in the background."""
     conn = get_db()
-    jobs = conn.execute('SELECT num, url FROM jobs').fetchall()
+    jobs = conn.execute('SELECT num FROM jobs WHERE deleted=0 AND rescoring=0').fetchall()
+    conn.close()
+    count = 0
+    from worker import rescore_only
+    for job in jobs:
+        num = dict(job)['num']
+        threading.Thread(target=rescore_only, args=(num,), daemon=True).start()
+        count += 1
+    return jsonify({'status': 'rescoring', 'count': count})
+
+@app.route('/api/jobs/reprocess-all', methods=['POST'])
+def reprocess_all():
+    """Hard-delete all processed jobs and re-queue for fresh processing."""
+    conn = get_db()
+    jobs = conn.execute('SELECT num, url, company FROM jobs WHERE deleted=0').fetchall()
+    # Hard-delete all jobs and related data
+    conn.execute('DELETE FROM jobs WHERE deleted=0')
+    conn.execute('DELETE FROM summaries')
+    conn.execute("DELETE FROM resumes WHERE id != 'original'")
+    conn.commit()
     conn.close()
     count = 0
     for job in jobs:
         j = dict(job)
-        conn = get_db()
-        row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (j['url'],)).fetchone()
+        url = j['url']
+        company = j.get('company', '')
+        # Find or create pending entry
+        c = get_db()
+        row = c.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
         if row:
             pid = dict(row)['id']
-            conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-                step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+            c.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='requeue',
+                company=?, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+                step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
                 workflow_log='[]', updated_at=? WHERE id=?''',
-                (datetime.now().isoformat(), pid))
+                (company, datetime.now().isoformat(), pid))
         else:
-            cur = conn.execute('INSERT INTO pending_jobs (url, source) VALUES (?, ?)', (j['url'], 'rescore'))
+            cur = c.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
+                (url, 'requeue', company))
             pid = cur.lastrowid
-        conn.commit()
-        conn.close()
+        c.commit()
+        c.close()
         threading.Thread(target=process_job, args=(pid,), daemon=True).start()
         count += 1
-    return jsonify({'status': 'rescoring', 'count': count})
+    return jsonify({'status': 'reprocessing', 'count': count})
 
 def static_proxy(path):
     file_path = os.path.join(app.static_folder, path)

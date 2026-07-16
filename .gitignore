@@ -22,6 +22,7 @@ app/client/dist/
 # Temporary files
 *.tmp
 temo.json
+.env
 
 # IDE files
 .idea/
@@ -36,8 +37,7 @@ Thumbs.db
 # MimoCode
 .mimocode/
 
-# Data files (generated)
-data/*.json
-!data/cities.json
-!data/tech-learning.json
-!data/tech-stack.json
+# Data folders (generated content)
+jobs/
+resumes/
+inputs/

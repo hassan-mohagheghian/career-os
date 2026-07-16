@@ -389,5 +389,127 @@ def add_pref(category: str = typer.Argument(..., help="Category: scoring, tech, 
     finally:
         conn.close()
 
+def _load_env():
+    """Read .env file from project root into os.environ."""
+    env_path = os.path.join(PROJECT_ROOT, '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+_load_env()
+JOBS_DIR = os.path.abspath(os.environ.get('JOBS_DIR', os.path.join(PROJECT_ROOT, 'jobs')))
+
+@app.command()
+def generate_files(job_num: int = typer.Option(None, help="Generate files for a specific job number (all jobs if omitted)"),
+                   force: bool = typer.Option(False, help="Overwrite existing files")):
+    """Generate raw and structured files for processed jobs."""
+    conn = get_db()
+    if job_num:
+        rows = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (job_num,)).fetchall()
+    else:
+        rows = conn.execute('SELECT * FROM jobs WHERE deleted=0 ORDER BY num').fetchall()
+    conn.close()
+
+    if not rows:
+        console.print("[yellow]No jobs found[/yellow]")
+        return
+
+    raw_dir = os.path.join(JOBS_DIR, 'raw')
+    struct_dir = os.path.join(JOBS_DIR, 'structured')
+    os.makedirs(raw_dir, exist_ok=True)
+    os.makedirs(struct_dir, exist_ok=True)
+
+    created = 0
+    skipped = 0
+    for row in rows:
+        j = dict(row)
+        num = j['num']
+        co = (j.get('company') or 'Unknown').replace(' ', '_').replace('/', '_')
+        ro = (j.get('role') or 'Unknown').replace(' ', '_').replace('/', '_')
+        date_str = ''
+        if j.get('created_at'):
+            try:
+                date_str = j['created_at'][:10]
+            except:
+                pass
+        base = f"{num:03d}_{co}_{ro}_{date_str}"
+
+        # Raw file
+        raw_path = os.path.join(raw_dir, f"{base}.md")
+        if os.path.exists(raw_path) and not force:
+            skipped += 1
+        elif j.get('raw_description'):
+            with open(raw_path, 'w') as f:
+                f.write(j['raw_description'])
+            created += 1
+            console.print(f"  [green]Raw:[/green] {base}.md")
+
+        # Structured file
+        struct_path = os.path.join(struct_dir, f"{base}.json")
+        if os.path.exists(struct_path) and not force:
+            skipped += 1
+        elif j.get('structured_description'):
+            try:
+                import json
+                structured = json.loads(j['structured_description'])
+                with open(struct_path, 'w') as f:
+                    json.dump(structured, f, indent=2, ensure_ascii=False)
+                created += 1
+                console.print(f"  [green]Struct:[/green] {base}.json")
+            except:
+                skipped += 1
+
+    console.print(f"\n[bold]Done:[/bold] {created} files created, {skipped} skipped")
+
+@app.command()
+def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by default)")):
+    """Check jobs with missing raw_description or structured_description."""
+    conn = get_db()
+    rows = conn.execute('SELECT num, company, role, raw_description, structured_description FROM jobs WHERE deleted=0 ORDER BY num').fetchall()
+    conn.close()
+
+    missing_raw = []
+    missing_struct = []
+    for row in rows:
+        j = dict(row)
+        if not j.get('raw_description'):
+            missing_raw.append(j)
+        if not j.get('structured_description'):
+            missing_struct.append(j)
+
+    if not missing_raw and not missing_struct:
+        console.print("[green]All jobs have both raw and structured descriptions[/green]")
+        return
+
+    console.print(f"[yellow]Found {len(missing_raw)} jobs missing raw_description[/yellow]")
+    for j in missing_raw:
+        console.print(f"  #{j['num']} {j['company']} — {j['role']}")
+
+    console.print(f"[yellow]Found {len(missing_struct)} jobs missing structured_description[/yellow]")
+    for j in missing_struct:
+        console.print(f"  #{j['num']} {j['company']} — {j['role']}")
+
+    if not fix:
+        console.print("\n[dim]Dry run — use --fix to update[/dim]")
+        return
+
+    console.print("\n[bold]Re-processing missing jobs...[/bold]")
+    from worker import process_job
+    for j in missing_raw + missing_struct:
+        num = j['num']
+        console.print(f"  Re-processing #{num} {j['company']}...")
+        # Create a temp pending entry and process it
+        conn = get_db()
+        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
+            ('', 'sync', j['company']))
+        pid = cur.lastrowid
+        conn.commit()
+        conn.close()
+        # Note: this needs the URL — we can't re-process without it
+        console.print(f"  [yellow]Skipped #{num} — URL not available in DB for re-processing[/yellow]")
+
 if __name__ == '__main__':
     app()

@@ -2,7 +2,7 @@ Analyze ALL processed jobs and update Hassan's skills profile.
 
 Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
 
-Generate skills analysis as JSON and save to {project_root}/data/skills_insights_{pid}.json with this structure:
+Generate skills analysis as JSON and save to {tmp_dir}/skills_insights_{pid}.json with this structure:
 
 {{"techLearning": [
   {{"name": "TypeScript", "priority": 1, "pl": "Learning", "pc": "p1", "sc": "text-yellow-500", "dc": "bg-yellow-500", "usage": 45, "uc": "#eab308", "jobs": "9/20", "jd": "jobs require TypeScript", "reason": "Required in X jobs. Hassan knows Python well, TypeScript is the natural next step for full-stack.", "action": "Complete TypeScript roadmap, build a React+TypeScript project"}},

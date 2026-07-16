@@ -1,9 +1,9 @@
-Extract structured information from this raw job description.
+Extract structured information from this raw job description. Output ONLY valid JSON.
 
 Raw content:
 {raw_content}
 
-Extract the following into JSON and save to {output_file}:
+Extract the following fields:
 
 {{
   "company": "Company name",
@@ -41,6 +41,7 @@ Extract the following into JSON and save to {output_file}:
 }}
 
 RULES:
+- Output ONLY the JSON object, no markdown, no explanation
 - location: ONLY city name, no country/region
 - locations: array of city names only
 - employment_type: exactly one of Full-time, Part-time, Contract, Internship, Temporary

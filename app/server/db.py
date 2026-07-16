@@ -159,125 +159,20 @@ def init_db():
     except sqlite3.OperationalError:
         c.execute("ALTER TABLE jobs ADD COLUMN structured_description TEXT")
 
+    # Add step_extract_raw, step_extract_struct to pending_jobs
+    for col in ['step_extract_raw', 'step_extract_struct']:
+        try:
+            c.execute(f"SELECT {col} FROM pending_jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            c.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
 
 
 def load_json_to_db():
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-    conn = get_db()
-    c = conn.cursor()
-
-    # Jobs
-    with open(os.path.join(data_dir, "jobs.json")) as f:
-        for j in json.load(f):
-            c.execute(
-                """INSERT OR REPLACE INTO jobs (num, company, role, location, match,
-                score, salary, stack, visa, applicants, posted, industry, domain, notes, action, url,
-                work_type, workflow_log, locations, deleted, employment_type, work_types)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    j["num"],
-                    j["company"],
-                    j["role"],
-                    j["location"],
-                    j["match"],
-                    j["score"],
-                    j["salary"],
-                    j["stack"],
-                    j["visa"],
-                    j["applicants"],
-                    j["posted"],
-                    j["industry"],
-                    j["domain"],
-                    j["notes"],
-                    j["action"],
-                    j["url"],
-                    j.get("work_type", "On-site"),
-                    j.get("workflow_log", "[]"),
-                    j.get("locations", "[]"),
-                    0,
-                    j.get("employment_type", "Full-time"),
-                    j.get("work_types", "[]"),
-                ),
-            )
-
-    # Summaries
-    with open(os.path.join(data_dir, "summaries.json")) as f:
-        for s in json.load(f):
-            c.execute(
-                """INSERT OR REPLACE INTO summaries VALUES (?,?,?,?,?,?,?,?,?)""",
-                (
-                    s["num"],
-                    s["company"],
-                    s["match"],
-                    s["score"],
-                    s["summary"],
-                    s["stack"],
-                    s["resumeFit"],
-                    s["note"],
-                    s["url"],
-                ),
-            )
-
-    # Resumes
-    with open(os.path.join(data_dir, "resumes.json")) as f:
-        for r in json.load(f):
-            c.execute(
-                """INSERT OR REPLACE INTO resumes VALUES (?,?,?,?,?,?,?)""",
-                (
-                    r["id"],
-                    r["title"],
-                    r["badge"],
-                    r["badgeClass"],
-                    r["company"],
-                    r["role"],
-                    r["content"],
-                ),
-            )
-
-    # Tech learning
-    c.execute("DELETE FROM tech_learning")
-    with open(os.path.join(data_dir, "tech-learning.json")) as f:
-        for t in json.load(f):
-            c.execute(
-                """INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    t["name"],
-                    t["priority"],
-                    t["pl"],
-                    t["pc"],
-                    t["sc"],
-                    t["dc"],
-                    t["usage"],
-                    t["uc"],
-                    t["jobs"],
-                    t["jd"],
-                    t["reason"],
-                    t["action"],
-                ),
-            )
-
-    # Tech stack
-    c.execute("DELETE FROM tech_stack")
-    with open(os.path.join(data_dir, "tech-stack.json")) as f:
-        for t in json.load(f):
-            c.execute(
-                """INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)""",
-                (t["name"], t["level"], t["ml"], t["mc"], t["roles"], t["path"]),
-            )
-
-    # Cities
-    c.execute("DELETE FROM cities")
-    with open(os.path.join(data_dir, "cities.json")) as f:
-        for ci in json.load(f):
-            c.execute(
-                """INSERT INTO cities (icon,name,info,jobs) VALUES (?,?,?,?)""",
-                (ci["icon"], ci["name"], ci["info"], ci["jobs"]),
-            )
-
-    conn.commit()
-    conn.close()
+    """No-op: data is now managed entirely in SQLite. Kept for backwards compatibility."""
+    pass
 
 
 def load_initial_preferences():

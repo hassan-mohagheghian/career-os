@@ -2,7 +2,7 @@ Analyze ALL processed jobs and generate strategic dashboard insights for Hassan'
 
 Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
 
-Generate insights as JSON and save to {project_root}/data/dashboard_insights_{pid}.json with this structure:
+Generate insights as JSON and save to {tmp_dir}/dashboard_insights_{pid}.json with this structure:
 
 {{"strategy": [
   {{"icon": "🎯", "title": "Apply Top 5 First", "description": "List top 5 companies by score that match Hassan's profile"}},

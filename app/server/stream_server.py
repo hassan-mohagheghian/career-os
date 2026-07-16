@@ -491,7 +491,7 @@ async def process_job_stream(pid):
 
         # Step 3: Read result
         current_step = 'resume'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat data/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
+        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat /tmp/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
         _log(pid, 'resume', 'Reading analysis result...')
         _update_step(pid, 'step_resume', 0, status='processing')
         await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})

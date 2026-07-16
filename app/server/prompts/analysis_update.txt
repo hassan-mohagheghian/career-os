@@ -9,7 +9,7 @@ Each job has:
 Use structured_description when available for detailed analysis (requirements, nice_to_have, responsibilities, benefits).
 Use raw_description as fallback when structured_description is not available.
 
-Generate analysis as JSON and save to {project_root}/data/analysis_{pid}.json with this structure:
+Generate analysis as JSON and save to {tmp_dir}/analysis_{pid}.json with this structure:
 
 {{
   "overview": {{
