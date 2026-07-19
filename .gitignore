@@ -42,3 +42,9 @@ Thumbs.db
 jobs/
 resumes/
 inputs/
+
+# DB runtime files
+app/server/db/
+
+# Temp files
+exp-file.txt
