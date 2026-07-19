@@ -8,7 +8,8 @@ import {
   Users, Spinner, Stack, Check, CaretDown, Keyboard,
   ListChecks, Star, Gift, Shield, MapPin, TreePalm, MusicNote, Bank, Factory,
   HouseSimple, Bug, Compass, ArrowRight,
-  CurrencyDollar, UsersFour, HourglassHigh, Handshake, Student, Lightbulb, GraduationCap, Copy
+  CurrencyDollar, UsersFour, HourglassHigh, Handshake, Student, Lightbulb, GraduationCap, Copy,
+  LinkedinLogo
 } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
@@ -84,6 +85,7 @@ function App() {
   const [jobs, setJobs] = useState(null)
   const [summaries, setSummaries] = useState([])
   const [resumes, setResumes] = useState([])
+  const [linkedinProfiles, setLinkedinProfiles] = useState([])
   const [cities, setCities] = useState([])
   const [tab, setTab] = useState(() => window.location.hash.replace('#', '') || 'jobs')
   const [drawer, setDrawer] = useState(null)
@@ -142,16 +144,17 @@ function App() {
       fetch(`${API}/jobs?offset=0&limit=${JOBS_PAGE_SIZE}&sort_by=created_at&sort_dir=desc`).then(r => r.json()),
       fetch(`${API}/summaries`).then(r => r.json()),
       fetch(`${API}/resumes`).then(r => r.json()),
+      fetch(`${API}/linkedin`).then(r => r.json()),
       fetch(`${API}/cities`).then(r => r.json()),
-    ]).then(([jobsData, sums, res, cits]) => {
+    ]).then(([jobsData, sums, res, linkedin, cits]) => {
       setJobs(jobsData.jobs || []); setJobsTotal(jobsData.total || 0); setJobAgg(jobsData.agg || {}); setJobsPage(0)
-      setSummaries(sums); setResumes(res); setCities(cits)
+      setSummaries(sums); setResumes(res); setLinkedinProfiles(linkedin); setCities(cits)
     })
     fetchPending(); fetchRules(); fetchAnalysis()
   }, [])
 
   const fetchRules = () => fetch(`${API}/preferences`).then(r => r.json()).then(setRules)
-  const fetchAnalysis = () => fetch(`${API}/analysis`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => {})
+  const fetchAnalysis = () => fetch(`${API}/analysis`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => setAnalysis(null))
 
   const seenDoneRef = useRef(new Set())
   const refreshJobs = () => {
@@ -408,7 +411,7 @@ function App() {
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
   ]
 
-  const refreshAnalysis = async () => { setRefreshing(r => ({ ...r, analysis: true })); await fetch(`${API}/refresh/analysis`, { method: 'POST' }); refreshJobs(); fetchAnalysis(); setRefreshing(r => ({ ...r, analysis: false })) }
+  const refreshAnalysis = async () => { setRefreshing(r => ({ ...r, analysis: true })); try { await fetch(`${API}/refresh/analysis`, { method: 'POST' }); } catch {} refreshJobs(); await fetchAnalysis(); setRefreshing(r => ({ ...r, analysis: false })) }
 
   if (jobs === null) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>
 
@@ -651,6 +654,7 @@ function App() {
             {/* === DASHBOARD TAB === */}
             {tab === 'dashboard' && (() => {
               const analysisData = analysis?.analysis || {}
+              const hasAnalysis = !!analysis?.analysis
               const overview = analysisData.overview || {}
               const strategy = analysisData.strategy || []
               const strengths = analysisData.strengths || []
@@ -661,6 +665,10 @@ function App() {
               const techLearningData = analysisData.techLearning || []
               const skillJobFit = analysisData.skillJobFit || []
               const learningROI = analysisData.learningROI || []
+              const searchSummary = analysisData.searchSummary || {}
+              const improvements = analysisData.improvements || []
+              const goals = analysisData.goals || []
+              const networking = analysisData.networking || []
 
               const highMatchJobs = jobs.filter(j => j.match === 'High')
               const applyNow = jobs.filter(j => ['A', 'A+', 'A++'].includes(j.score))
@@ -684,6 +692,7 @@ function App() {
                         <TabsList className="bg-muted">
                           <TabsTrigger value="overview"><ChartBar className="w-4 h-4 mr-1.5" />Overview</TabsTrigger>
                           <TabsTrigger value="strategy"><Target className="w-4 h-4 mr-1.5" />Strategy</TabsTrigger>
+                          <TabsTrigger value="networking"><Users className="w-4 h-4 mr-1.5" />Networking</TabsTrigger>
                           <TabsTrigger value="skills"><Brain className="w-4 h-4 mr-1.5" />Skills</TabsTrigger>
                         </TabsList>
                       </Tabs>
@@ -696,6 +705,17 @@ function App() {
                       {refreshing.analysis ? 'Updating...' : 'Refresh Analysis'}
                     </Button>
                   </div>
+
+                  {!hasAnalysis && !refreshing.analysis && (
+                    <Card className="p-8 text-center border-dashed">
+                      <ChartBar className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                      <p className="text-sm font-semibold mb-1">No analysis data yet</p>
+                      <p className="text-xs text-muted-foreground mb-4">Click "Refresh Analysis" to generate insights from your {jobs.length} processed jobs.</p>
+                      <Button onClick={refreshAnalysis} size="sm" className="gap-1.5">
+                        <ArrowsClockwise className="w-3.5 h-3.5" /> Generate Analysis
+                      </Button>
+                    </Card>
+                  )}
 
                   {/* OVERVIEW */}
                   {dashboardSubTab === 'overview' && (
@@ -792,13 +812,85 @@ function App() {
                               <div className="space-y-1.5">
                                 {visaCompanies.slice(0, 6).map((j, i) => (
                                   <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted transition">
-                                    <span className="font-semibold">{j.title || j.company}</span>
-                                    <Badge variant="secondary" className="text-[0.55rem] bg-green-500/15 text-green-500">{j.description || j.visa}</Badge>
+                                    <span className="font-semibold">{j.company}</span>
+                                    <Badge variant="secondary" className="text-[0.55rem] bg-green-500/15 text-green-500">{j.visa}</Badge>
                                   </div>
                                 ))}
                               </div>
                             ) : <div className="text-xs text-muted-foreground">No visa data yet</div>}
                           </Card>
+
+                          {/* Profile Status */}
+                          {(() => {
+                            const latestResume = resumes.filter(r => r.id?.startsWith('original_')).sort((a, b) => (b.version || 0) - (a.version || 0))[0]
+                            const latestLinkedin = linkedinProfiles.filter(p => p.id?.startsWith('linkedin_')).sort((a, b) => (b.version || 0) - (a.version || 0))[0]
+                            if (!latestResume && !latestLinkedin) return null
+                            return (
+                              <Card className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <FileText className="w-5 h-5 text-primary" />
+                                  <h3 className="font-extrabold text-sm">Your Profile</h3>
+                                </div>
+                                <div className="space-y-2">
+                                  {latestResume && (
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="flex items-center gap-1.5"><FileText className="w-3 h-3 text-green-500" /> Resume</span>
+                                      <Badge variant="secondary" className="text-[0.5rem]">v{latestResume.version}</Badge>
+                                    </div>
+                                  )}
+                                  {latestLinkedin && (
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="flex items-center gap-1.5"><LinkedinLogo className="w-3 h-3 text-[#0A66C2]" /> LinkedIn</span>
+                                      <Badge variant="secondary" className="text-[0.5rem]">v{latestLinkedin.version}</Badge>
+                                    </div>
+                                  )}
+                                  {!latestResume && (
+                                    <div className="text-[0.6rem] text-yellow-500">No resume uploaded</div>
+                                  )}
+                                </div>
+                              </Card>
+                            )
+                          })()}
+
+                          {/* Scoring Rules Summary */}
+                          {rules && rules.length > 0 && (() => {
+                            const fitRules = rules.filter(r => r.category === 'fit' && r.enabled)
+                            const successRules = rules.filter(r => r.category === 'success' && r.enabled)
+                            if (fitRules.length === 0 && successRules.length === 0) return null
+                            return (
+                              <Card className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Gear className="w-5 h-5 text-primary" />
+                                  <h3 className="font-extrabold text-sm">Scoring Rules</h3>
+                                  <Badge variant="secondary" className="text-[0.5rem]">{fitRules.length + successRules.length} active</Badge>
+                                </div>
+                                <div className="space-y-2">
+                                  <div>
+                                    <div className="text-[0.6rem] text-muted-foreground mb-1">Fit Rules ({fitRules.length})</div>
+                                    <div className="space-y-0.5">
+                                      {fitRules.slice(0, 4).map((r, i) => (
+                                        <div key={i} className="text-[0.6rem] text-muted-foreground truncate" title={r.value}>
+                                          <span className="font-semibold text-foreground/70">#{r.priority}</span> {r.key}
+                                        </div>
+                                      ))}
+                                      {fitRules.length > 4 && <div className="text-[0.55rem] text-muted-foreground/60">+{fitRules.length - 4} more</div>}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[0.6rem] text-muted-foreground mb-1">Success Rules ({successRules.length})</div>
+                                    <div className="space-y-0.5">
+                                      {successRules.slice(0, 4).map((r, i) => (
+                                        <div key={i} className="text-[0.6rem] text-muted-foreground truncate" title={r.value}>
+                                          <span className="font-semibold text-foreground/70">#{r.priority}</span> {r.key}
+                                        </div>
+                                      ))}
+                                      {successRules.length > 4 && <div className="text-[0.55rem] text-muted-foreground/60">+{successRules.length - 4} more</div>}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -809,19 +901,34 @@ function App() {
                     <div className="space-y-5">
                       <div className="grid grid-cols-[1fr_320px] gap-4">
                         <div className="space-y-4">
+                          {/* Action Items — merged Strategy Guide + Must Improve */}
                           <Card className="p-4">
                             <div className="flex items-center gap-2 mb-3">
                               <Clipboard className="w-5 h-5 text-primary" />
-                              <h3 className="font-extrabold text-sm">Strategy Guide</h3>
-                              {strategy.length === 0 && <Badge variant="secondary" className="text-[0.55rem]">Processing...</Badge>}
+                              <h3 className="font-extrabold text-sm">Action Items</h3>
+                              {strategy.length === 0 && improvements.length === 0 && <Badge variant="secondary" className="text-[0.55rem]">Processing...</Badge>}
                             </div>
                             <div className="space-y-2">
                               {strategy.map((g, i) => (
-                                <div key={i} className="flex items-start gap-2 p-2 rounded-lg transition hover:bg-muted border-l-2 border-primary">
+                                <div key={`s-${i}`} className="flex items-start gap-2 p-2 rounded-lg transition hover:bg-muted border-l-2 border-primary">
                                   <span className="shrink-0 text-primary"><EmojiIcon emoji={g.icon} /></span>
                                   <div>
                                     <div className="font-bold text-xs">{g.title}</div>
                                     <div className="text-[0.6rem] text-muted-foreground">{g.description}</div>
+                                  </div>
+                                </div>
+                              ))}
+                              {improvements.map((item, i) => (
+                                <div key={`i-${i}`} className="flex items-start gap-2 p-2 rounded-lg transition hover:bg-muted border-l-2 border-orange-500">
+                                  <Lightning className="w-3.5 h-3.5 shrink-0 mt-0.5 text-orange-500" />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-xs">{item.area}</span>
+                                      <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5", item.priority === 'high' ? "bg-red-500/15 text-red-500" : item.priority === 'medium' ? "bg-yellow-500/15 text-yellow-500" : "bg-blue-500/15 text-blue-500")}>
+                                        {item.priority}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-[0.6rem] text-muted-foreground">{item.action}</div>
                                   </div>
                                 </div>
                               ))}
@@ -837,8 +944,31 @@ function App() {
                               <div className="space-y-1.5">
                                 {applyUrgency.map((item, i) => (
                                   <div key={i} className="flex items-start gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
-                                    <span className="font-semibold">{item.title || item.company}</span>
-                                    <span className="text-muted-foreground">- {item.description || item.reason}</span>
+                                    <span className="font-semibold">{item.company}</span>
+                                    <span className="text-muted-foreground">- {item.reason}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </Card>
+                          )}
+
+                          {goals.length > 0 && (
+                            <Card className="p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Target className="w-5 h-5 text-cyan-500" />
+                                <h3 className="font-extrabold text-sm">Goals & Best Practices</h3>
+                              </div>
+                              <div className="space-y-2">
+                                {goals.map((g, i) => (
+                                  <div key={i} className="flex items-start gap-2 p-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
+                                    <Target className="w-3.5 h-3.5 shrink-0 mt-0.5 text-cyan-500" />
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="font-bold text-xs text-cyan-500">{g.title}</span>
+                                        <Badge variant="secondary" className="text-[0.45rem] h-3.5">{g.timeline}</Badge>
+                                      </div>
+                                      <div className="text-[0.6rem] text-muted-foreground">{g.bestPractice}</div>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -857,54 +987,212 @@ function App() {
                                 {strengths.map((t, i) => (
                                   <div key={i} className="flex items-center gap-2 text-xs">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    <span className="font-semibold">{t.title || t.name}</span>
-                                    <span className="text-muted-foreground">- {t.description || t.detail}</span>
+                                    <span className="font-semibold">{t.name}</span>
+                                    <span className="text-muted-foreground">- {t.detail}</span>
                                   </div>
                                 ))}
                               </div>
                             ) : <div className="text-xs text-muted-foreground">No strong matches yet</div>}
                           </Card>
 
-                          <Card className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <BookOpen className="w-5 h-5 text-yellow-500" />
-                              <h3 className="font-extrabold text-sm">What to Learn</h3>
-                            </div>
-                            {weaknesses.length > 0 ? (
-                              <div className="space-y-1.5">
-                                {weaknesses.map((t, i) => (
-                                  <div key={i} className="flex items-center gap-2 text-xs">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                                    <span className="font-semibold">{t.title || t.name}</span>
-                                    <span className="text-muted-foreground">- {t.description || t.detail}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : <div className="text-xs text-muted-foreground">No urgent learning needed</div>}
-                          </Card>
-
-                          {learningROI.length > 0 && (
+                          {searchSummary.totalSearched > 0 && (
                             <Card className="p-4">
                               <div className="flex items-center gap-2 mb-3">
-                                <ChartLineUp className="w-5 h-5 text-primary" />
-                                <h3 className="font-extrabold text-sm">Learning ROI</h3>
+                                <MagnifyingGlass className="w-5 h-5 text-primary" />
+                                <h3 className="font-extrabold text-sm">Search Summary</h3>
                               </div>
-                              <div className="space-y-2">
-                                {learningROI.slice(0, 6).map((item, i) => (
-                                  <div key={i} className="p-2 rounded-lg hover:bg-muted transition">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className="font-semibold text-xs">{item.skill}</span>
-                                      <Badge variant="secondary" className={cn("text-[0.55rem] font-bold", item.impactScore >= 7 ? "bg-green-500/15 text-green-500" : "bg-yellow-500/15 text-yellow-500")}>
-                                        Impact: {item.impactScore}/10
-                                      </Badge>
-                                    </div>
-                                    <div className="text-[0.6rem] text-muted-foreground">{item.jobsRequiring} jobs • {item.timeToLearn}</div>
-                                    <div className="text-[0.6rem] mt-0.5 text-muted-foreground">{item.reason}</div>
+                              <div className="space-y-1.5 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Jobs Analyzed</span>
+                                  <span className="font-bold">{searchSummary.totalSearched}</span>
+                                </div>
+                                {searchSummary.avgApplicants > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Avg Applicants</span>
+                                    <span className="font-bold">{Math.round(searchSummary.avgApplicants)}</span>
                                   </div>
-                                ))}
+                                )}
+                                {searchSummary.dateRange && (
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Date Range</span>
+                                    <span className="font-bold text-[0.6rem]">{searchSummary.dateRange}</span>
+                                  </div>
+                                )}
+                                {searchSummary.topCompanies?.length > 0 && (
+                                  <div className="mt-1.5">
+                                    <div className="text-[0.6rem] text-muted-foreground mb-1">Top Companies</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {searchSummary.topCompanies.slice(0, 5).map((c, i) => (
+                                        <Badge key={i} variant="secondary" className="text-[0.5rem]">{c}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {searchSummary.topRoles?.length > 0 && (
+                                  <div className="mt-1.5">
+                                    <div className="text-[0.6rem] text-muted-foreground mb-1">Top Roles</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {searchSummary.topRoles.slice(0, 5).map((r, i) => (
+                                        <Badge key={i} variant="secondary" className="text-[0.5rem]">{r}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {searchSummary.pattern && (
+                                  <div className="mt-2 p-2 rounded bg-muted text-[0.6rem] text-muted-foreground">
+                                    {searchSummary.pattern}
+                                  </div>
+                                )}
                               </div>
                             </Card>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* NETWORKING */}
+                  {dashboardSubTab === 'networking' && (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-[1fr_320px] gap-4">
+                        <div className="space-y-4">
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Users className="w-5 h-5 text-primary" />
+                              <h3 className="font-extrabold text-sm">Networking Targets</h3>
+                              {networking.length === 0 && <Badge variant="secondary" className="text-[0.55rem]">Processing...</Badge>}
+                            </div>
+                            <p className="text-[0.6rem] text-muted-foreground mb-3">Top companies to connect with on LinkedIn. Reach out to recruiters and engineering staff to increase your visibility.</p>
+                            <div className="space-y-3">
+                              {networking.map((item, i) => (
+                                <div key={i} className="rounded-lg border p-3 space-y-2.5 hover:shadow transition">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-extrabold text-sm">{item.company}</span>
+                                      <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5",
+                                        item.score === 'A++' || item.score === 'A+' ? "bg-green-500/15 text-green-500" :
+                                        item.score === 'A' ? "bg-blue-500/15 text-blue-500" :
+                                        "bg-yellow-500/15 text-yellow-500"
+                                      )}>{item.score}</Badge>
+                                      <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5",
+                                        item.match === 'High' ? "bg-green-500/15 text-green-500" :
+                                        item.match === 'Medium' ? "bg-yellow-500/15 text-yellow-500" :
+                                        "bg-gray-500/15 text-gray-500"
+                                      )}>{item.match}</Badge>
+                                    </div>
+                                    {item.jobUrl && (
+                                      <a href={item.jobUrl} target="_blank" rel="noopener noreferrer"
+                                        className="text-[0.55rem] text-primary hover:underline flex items-center gap-1">
+                                        <Link className="w-3 h-3" /> View Job
+                                      </a>
+                                    )}
+                                  </div>
+                                  {item.roles && item.roles.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {item.roles.map((r, ri) => (
+                                        <Badge key={ri} variant="outline" className="text-[0.45rem] h-3.5">{r}</Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div className="text-[0.6rem] text-muted-foreground">{item.reason}</div>
+
+                                  {/* Recruiter links */}
+                                  {item.recruiters && item.recruiters.length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <IdentificationCard className="w-3 h-3 text-purple-500" />
+                                        <span className="text-[0.55rem] font-bold text-purple-500">Recruiters & Talent</span>
+                                      </div>
+                                      {item.recruiters.map((r, ri) => (
+                                        <a key={ri} href={r.linkedinSearch} target="_blank" rel="noopener noreferrer"
+                                          className="flex items-center gap-1.5 text-[0.55rem] text-primary hover:underline pl-4">
+                                          <MagnifyingGlass className="w-2.5 h-2.5 shrink-0" />
+                                          {r.title || r.name}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Engineer links */}
+                                  {item.engineers && item.engineers.length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <Gear className="w-3 h-3 text-blue-500" />
+                                        <span className="text-[0.55rem] font-bold text-blue-500">Software Engineers</span>
+                                      </div>
+                                      {item.engineers.map((e, ei) => (
+                                        <a key={ei} href={e.linkedinSearch} target="_blank" rel="noopener noreferrer"
+                                          className="flex items-center gap-1.5 text-[0.55rem] text-primary hover:underline pl-4">
+                                          <MagnifyingGlass className="w-2.5 h-2.5 shrink-0" />
+                                          {e.title || e.name}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {networking.length === 0 && !refreshing.analysis && (
+                                <div className="text-xs text-muted-foreground text-center py-4">
+                                  Run analysis to generate networking targets.
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        </div>
+
+                        <div className="space-y-4">
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Lightbulb className="w-5 h-5 text-yellow-500" />
+                              <h3 className="font-extrabold text-sm">Networking Tips</h3>
+                            </div>
+                            <div className="space-y-2 text-[0.6rem] text-muted-foreground">
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                                <span>Search for <strong>Recruiters</strong> and <strong>Talent Acquisition</strong> at each company first — they control the hiring pipeline.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                                <span>Connect with <strong>Software Engineers</strong> and <strong>Backend Engineers</strong> — they can refer you internally and share team culture.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                                <span>Personalize your connection request — mention the specific role and why you're interested in their company.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                                <span>Engage with their posts before connecting — like, comment, and share to build familiarity.</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-3 h-3 shrink-0 mt-0.5 text-green-500" />
+                                <span>Follow up 1 week after connecting with a brief message about your interest in the role.</span>
+                              </div>
+                            </div>
+                          </Card>
+
+                          <Card className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <LinkedinLogo className="w-5 h-5 text-[#0A66C2]" />
+                              <h3 className="font-extrabold text-sm">Quick Searches</h3>
+                            </div>
+                            <div className="space-y-1.5">
+                              <a href="https://www.google.com/search?q=site:linkedin.com/in+%22recruiter%22+%22software+engineer%22+Berlin" target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[0.6rem] text-primary hover:underline p-1.5 rounded hover:bg-muted transition">
+                                <MagnifyingGlass className="w-3 h-3" />
+                                Recruiters — Software Engineers Berlin
+                              </a>
+                              <a href="https://www.google.com/search?q=site:linkedin.com/in+%22talent+acquisition%22+%22backend%22+Berlin" target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[0.6rem] text-primary hover:underline p-1.5 rounded hover:bg-muted transition">
+                                <MagnifyingGlass className="w-3 h-3" />
+                                Talent Acquisition — Backend Berlin
+                              </a>
+                              <a href="https://www.google.com/search?q=site:linkedin.com/in+%22hiring+manager%22+%22python%22+Berlin" target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[0.6rem] text-primary hover:underline p-1.5 rounded hover:bg-muted transition">
+                                <MagnifyingGlass className="w-3 h-3" />
+                                Hiring Managers — Python Berlin
+                              </a>
+                            </div>
+                          </Card>
                         </div>
                       </div>
                     </div>
@@ -955,65 +1243,64 @@ function App() {
                         </div>
 
                         <div className="space-y-4">
-                          <Card className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <TrendUp className="w-5 h-5 text-green-500" />
-                              <h3 className="font-extrabold text-sm">Your Strengths</h3>
-                            </div>
-                            {strongStack.length > 0 ? (
-                              <div className="space-y-1.5">
-                                {strongStack.map((t, i) => (
-                                  <div key={i} className="flex items-center gap-2 text-xs">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    <span className="font-semibold">{t.name}</span>
-                                    <span className="text-muted-foreground">- {t.roles}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : <div className="text-xs text-muted-foreground">No strong matches yet</div>}
-                          </Card>
-
-                          <Card className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Target className="w-5 h-5 text-green-500" />
-                              <h3 className="font-extrabold text-sm">Learning Priorities</h3>
-                            </div>
-                            {p1Tech.length > 0 || p2Tech.length > 0 ? (
-                              <div className="space-y-2">
-                                {p1Tech.map((t, i) => (
-                                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    <span className="font-semibold">{t.name}</span>
-                                    <Badge variant="secondary" className="text-[0.55rem] ml-auto bg-green-500/15 text-green-500">P1</Badge>
-                                  </div>
-                                ))}
-                                {p2Tech.map((t, i) => (
-                                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                    <span className="font-semibold">{t.name}</span>
-                                    <Badge variant="secondary" className="text-[0.55rem] ml-auto bg-blue-500/15 text-blue-500">P2</Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : <div className="text-xs text-muted-foreground">No urgent learning needed</div>}
-                          </Card>
-
+                          {/* What to Learn — merged: weaknesses + learning priorities + skill gaps */}
                           <Card className="p-4">
                             <div className="flex items-center gap-2 mb-3">
                               <BookOpen className="w-5 h-5 text-yellow-500" />
-                              <h3 className="font-extrabold text-sm">Skill Gaps</h3>
+                              <h3 className="font-extrabold text-sm">What to Learn</h3>
                             </div>
-                            {weakStack.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {p1Tech.map((t, i) => (
+                                <div key={`p1-${i}`} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                  <span className="font-semibold">{t.name}</span>
+                                  <span className="text-muted-foreground text-[0.55rem] truncate flex-1">{t.reason}</span>
+                                  <Badge variant="secondary" className="text-[0.45rem] h-3.5 bg-green-500/15 text-green-500 shrink-0">P1</Badge>
+                                </div>
+                              ))}
+                              {p2Tech.map((t, i) => (
+                                <div key={`p2-${i}`} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                  <span className="font-semibold">{t.name}</span>
+                                  <span className="text-muted-foreground text-[0.55rem] truncate flex-1">{t.reason}</span>
+                                  <Badge variant="secondary" className="text-[0.45rem] h-3.5 bg-blue-500/15 text-blue-500 shrink-0">P2</Badge>
+                                </div>
+                              ))}
+                              {weaknesses.filter(w => !p1Tech.some(p => p.name === w.name) && !p2Tech.some(p => p.name === w.name)).map((t, i) => (
+                                <div key={`w-${i}`} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                  <span className="font-semibold">{t.name}</span>
+                                  <span className="text-muted-foreground text-[0.55rem] truncate flex-1">{t.detail}</span>
+                                </div>
+                              ))}
+                              {p1Tech.length === 0 && p2Tech.length === 0 && weaknesses.length === 0 && (
+                                <div className="text-xs text-muted-foreground">No major gaps</div>
+                              )}
+                            </div>
+                          </Card>
+
+                          {learningROI.length > 0 && (
+                            <Card className="p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <ChartLineUp className="w-5 h-5 text-primary" />
+                                <h3 className="font-extrabold text-sm">Learning ROI</h3>
+                              </div>
                               <div className="space-y-1.5">
-                                {weakStack.map((t, i) => (
-                                  <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded hover:bg-muted transition">
-                                    <span className="font-semibold">{t.name}</span>
-                                    <Badge variant="secondary" className="text-[0.55rem] bg-yellow-500/15 text-yellow-500">{t.ml}</Badge>
+                                {learningROI.slice(0, 5).map((item, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover:bg-muted transition">
+                                    <span className="font-semibold w-20 truncate">{item.skill}</span>
+                                    <div className="flex-1 h-[3px] rounded-full bg-muted">
+                                      <div className="h-full rounded-full bg-primary" style={{ width: `${item.impactScore * 10}%` }} />
+                                    </div>
+                                    <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5 shrink-0", item.impactScore >= 7 ? "bg-green-500/15 text-green-500" : "bg-yellow-500/15 text-yellow-500")}>
+                                      {item.impactScore}/10
+                                    </Badge>
+                                    <span className="text-muted-foreground text-[0.55rem] shrink-0">{item.timeToLearn}</span>
                                   </div>
                                 ))}
                               </div>
-                            ) : <div className="text-xs text-muted-foreground">No major gaps</div>}
-                          </Card>
+                            </Card>
+                          )}
 
                           <Card className="p-4">
                             <div className="flex items-center gap-2 mb-3">
@@ -1045,7 +1332,7 @@ function App() {
             })()}
 
             {/* === RESUME === */}
-            {tab === 'resume' && <ResumeTab resumes={resumes} onRefresh={() => fetch(`${API}/resumes`).then(r => r.json()).then(r => setResumes(r))} onOpenJob={openDrawer} />}
+            {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={() => fetch(`${API}/resumes`).then(r => r.json()).then(r => setResumes(r))} onRefreshLinkedin={() => fetch(`${API}/linkedin`).then(r => r.json()).then(r => setLinkedinProfiles(r))} />}
 
             {/* === PREFERENCES === */}
             {tab === 'rules' && <PreferencesTab preferences={rules} onUpdate={fetchRules} />}
@@ -1080,6 +1367,7 @@ function App() {
                       <SheetTitle className="text-lg">{drawer.job.company}</SheetTitle>
                       <SheetDescription>{drawer.job.role}</SheetDescription>
                       <div className="flex flex-wrap gap-1 mt-2">
+                        {drawer.job.industry && <Badge variant="secondary" className="text-[0.55rem] bg-primary/10 text-primary">{drawer.job.industry}</Badge>}
                         {drawerLocations.map((loc, i) => <LocationBadge key={i} loc={loc} />)}
                       </div>
                     </div>
@@ -1103,6 +1391,9 @@ function App() {
                   </a>
                   <Button variant="outline" onClick={() => { navigator.clipboard.writeText(drawer.job.url); setToast('Copied!'); setTimeout(() => setToast(null), 2000) }}>
                     Copy URL
+                  </Button>
+                  <Button variant="outline" className="gap-1" onClick={() => requeueJob(drawer.job.num)} title="Reprocess from scratch">
+                    <Repeat className="w-3.5 h-3.5" /> Reprocess
                   </Button>
                 </div>
 

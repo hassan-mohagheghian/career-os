@@ -1,6 +1,6 @@
-Analyze ALL processed jobs and generate a comprehensive job search analysis for Hassan.
+Analyze ALL processed jobs and generate a comprehensive job search analysis for the candidate.
 
-Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
+Read the jobs database at {project_root}/app/server/db/jobs.db (table: jobs, column: deleted=0).
 Each job has:
 - Basic fields: company, role, location, score, match, stack, visa, etc.
 - raw_description: Full raw text fetched from the job posting URL
@@ -43,13 +43,44 @@ Generate analysis as JSON and save to {tmp_dir}/analysis_{pid}.json with this st
     {{"name": "TypeScript", "priority": 1, "pl": "Learning", "pc": "p1", "sc": "text-yellow-500", "dc": "bg-yellow-500", "usage": 45, "uc": "#eab308", "jobs": "9/20", "jd": "jobs require TypeScript", "reason": "Required in X jobs", "action": "Complete TypeScript roadmap"}}
   ],
   "skillJobFit": [
-    {{"skill": "Python", "jobsRequiring": 25, "totalJobs": 28, "fitScore": 95, "note": "Core requirement, Hassan has 9+ years"}}
+    {{"skill": "Python", "jobsRequiring": 25, "totalJobs": 28, "fitScore": 95, "note": "Core requirement, strong experience"}}
   ],
   "learningROI": [
     {{"skill": "TypeScript", "currentLevel": "None", "jobsRequiring": 8, "impactScore": 9, "timeToLearn": "2-3 months", "reason": "High impact: unlocks 8 additional job matches"}}
   ],
   "cities": [
-    {{"name": "Berlin", "jobs": 15, "percentage": 54, "topCompanies": ["Cara Care", "Audatic"]}}
+    {{"name": "Berlin", "jobs": 15, "percentage": 54, "topCompanies": ["Company A", "Company B"]}}
+  ],
+  "searchSummary": {{
+    "totalSearched": <number>,
+    "topCompanies": [<list of most frequent companies>],
+    "topRoles": [<list of most common role titles>],
+    "topStacks": [<list of most common tech stacks>],
+    "avgApplicants": <number>,
+    "dateRange": "earliest - latest posting date",
+    "pattern": "Brief summary of what the candidate has been searching for and any patterns"
+  }},
+  "improvements": [
+    {{"area": "Area Name", "current": "Current state", "target": "Target state", "action": "Specific action to take", "priority": "high|medium|low"}}
+  ],
+  "goals": [
+    {{"title": "Goal Title", "description": "What to achieve", "bestPractice": "Industry best practice to follow", "metrics": "How to measure success", "timeline": "Estimated timeframe"}}
+  ],
+  "networking": [
+    {{
+      "company": "Company Name",
+      "jobUrl": "https://linkedin.com/jobs/view/...",
+      "score": "A",
+      "match": "High",
+      "roles": ["Software Engineer", "Backend Engineer"],
+      "recruiters": [
+        {{"name": "Recruiter Name", "title": "Talent Acquisition / Recruiter at Company", "linkedinSearch": "https://www.google.com/search?q=site:linkedin.com/in+%22recruiter%22+%22Company+Name%22+Berlin"}}
+      ],
+      "engineers": [
+        {{"name": "Suggested Search", "title": "Software Engineer / Backend Engineer at Company", "linkedinSearch": "https://www.google.com/search?q=site:linkedin.com/in+%22software+engineer%22+%22Company+Name%22+Berlin"}}
+      ],
+      "reason": "Why this company is a top networking target"
+    }}
   ]
 }}
 
@@ -63,11 +94,11 @@ RULES FOR strategy:
 - Include visa strategy, application timing, and Python advantage
 
 RULES FOR strengths:
-- Only include skills Hassan actually has with evidence from job requirements
+- Only include skills the candidate actually has with evidence from job requirements
 - Reference specific job counts and companies
 
 RULES FOR weaknesses:
-- Skills that appear in multiple jobs but Hassan lacks
+- Skills that appear in multiple jobs but the candidate lacks
 - Include count of jobs requiring each skill
 
 RULES FOR visa_companies:
@@ -75,11 +106,11 @@ RULES FOR visa_companies:
 - Include why each company is good for visa
 
 RULES FOR apply_urgency:
-- Jobs scored 75+ or posted recently that need immediate action
+- Jobs scored A or above or posted recently that need immediate action
 - Include applicant counts when available
 
 RULES FOR techStack:
-- level: 1-5 based on Hassan's current proficiency (5=expert, 1=beginner)
+- level: 1-5 based on the candidate's current proficiency (5=expert, 1=beginner)
 - roles: percentage of jobs where this skill applies
 - path: learning or maintenance recommendation
 
@@ -88,16 +119,16 @@ RULES FOR techLearning:
 - priority: 1=critical (appears in 30%+ jobs), 2=important (15-30%), 3=useful (5-15%)
 - usage: percentage of jobs requiring this skill
 - jobs: fraction like "9/20" showing how many jobs need it
-- reason: explain why Hassan should learn this (based on job data)
+- reason: explain why the candidate should learn this (based on job data)
 - action: specific learning recommendation
 
 RULES FOR skillJobFit:
-- For each of Hassan's skills, calculate what percentage of jobs require it
+- For each of the candidate's skills, calculate what percentage of jobs require it
 - fitScore: 0-100 based on skill proficiency × job relevance
 - Include specific companies that need each skill
 
 RULES FOR learningROI:
-- For skills Hassan doesn't have, calculate learning ROI
+- For skills the candidate doesn't have, calculate learning ROI
 - impactScore: 1-10 based on number of jobs unlocked
 - timeToLearn: estimated time to reach usable proficiency
 - Sort by impactScore descending
@@ -107,4 +138,33 @@ RULES FOR cities:
 - Include top companies in each city
 - Sort by job count descending
 
-Use ONLY data from actual processed jobs. Include specific numbers and company examples.
+RULES FOR searchSummary:
+- totalSearched: Total number of jobs processed
+- topCompanies: Top 5 most frequently appearing companies
+- topRoles: Top 5 most common job titles
+- topStacks: Top 5 most common tech stack combinations
+- avgApplicants: Average applicant count across all jobs
+- dateRange: Earliest and latest posting dates found
+- pattern: 2-3 sentence summary of search patterns (e.g., "Mostly backend Python roles in Berlin, targeting senior positions at mid-size fintech companies")
+
+RULES FOR improvements:
+- 3-5 actionable improvements based on gaps between candidate's skills and job requirements
+- Each must have: area (what to improve), current (where they are now), target (where they should be), action (specific step), priority (high/medium/low)
+- Focus on skills that appear in 20%+ of jobs but candidate lacks
+- Include both technical skills and soft factors (e.g., German language, portfolio)
+
+RULES FOR goals:
+- 3-5 career goals based on the job market data
+- Each must have: title (concise goal), description (what to achieve), bestPractice (industry standard approach), metrics (how to measure), timeline (estimated time)
+- Goals should be specific to the jobs found (e.g., "Land a senior Python role at a Berlin fintech with visa sponsorship within 3 months")
+- Include both short-term (1-3 months) and medium-term (3-6 months) goals
+
+RULES FOR networking:
+- Top 5-8 companies worth networking with, sorted by score descending
+- Include companies where the candidate has the best fit (score A or above, or High match)
+- For each company, include the job URL from the database so the user can reference the specific role
+- Provide Google search URLs to find Recruiting/Talent Acquisition staff at the company on LinkedIn
+- Provide Google search URLs to find Software/Backend Engineers at the company on LinkedIn
+- The LinkedIn search URLs should use this pattern: https://www.google.com/search?q=site:linkedin.com/in+"ROLE"+"COMPANY"+Berlin
+- reason should explain why this company is a strong networking target (visa support, tech stack match, company culture, growth, etc.)
+- Include a mix of companies: some with BEST visa rating, some with highest scores, some remote-friendly

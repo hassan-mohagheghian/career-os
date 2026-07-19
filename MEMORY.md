@@ -80,3 +80,10 @@ Job-Search/
 - **Priority to learn:** TypeScript (7/19 jobs)
 - **Explore:** Rust (personal project, low market demand)
 - **Skip:** C, WASM (zero market demand in current search)
+
+## Dashboard Refactor Notes
+
+- **Regenerate analysis** after any prompt change in `app/server/prompts/analysis_update.txt` — click "Refresh Analysis" in the dashboard or hit `POST /api/refresh/analysis`
+- Full analysis JSON is stored in `analysis_runs` table (`analysis_json` column); the UI reads the latest row directly
+- New insight sections (like `networking`) are added to the prompt schema, parsed in `App.jsx`, and rendered in their own sub-tab
+- Legacy `dashboard_insights` table is only for backward compat — new features go into the full JSON
