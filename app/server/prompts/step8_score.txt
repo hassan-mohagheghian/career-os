@@ -1,0 +1,54 @@
+Process this job posting for the candidate's job search.
+
+═══════════════════════════════════════════════════════════════
+STEPS
+═══════════════════════════════════════════════════════════════
+
+1. Read the job posting from {job_file}
+2. Read the candidate's master resume from {resume_file} for context
+3. Score using TWO grades (see SCORING below)
+4. You MUST use the Write tool to save the result as JSON to this exact path: {tmp_dir}/pending_result_{pid}.json
+
+The file content must be valid JSON:
+{{"job": {{"num": {next_num}, "company": "...", "role": "...", "location": "Berlin", "locations": ["Berlin", "Munich"], "employment_type": "Full-time|Part-time|Contract|Internship|Temporary", "work_types": ["On-site", "Remote"], "match": "High|Medium|Low", "score": "P|E|D|C|B|A|A+|A++", "success": "P|E|D|C|B|A|A+|A++", "salary": "...", "stack": "...", "visa": "BEST|Strong|Good|Moderate|Uncertain", "applicants": "...", "posted": "...", "industry": "...", "domain": "...", "notes": "...", "action": "Apply Now|Apply Soon|Consider|Skip", "apply_reason": "1-2 sentence reason why the candidate should apply or skip this job, based on scores and preferences", "url": "{url}"}}, "summary": {{"summary": "...", "stack": "...", "resumeFit": "...", "note": "..."}}}}
+
+═══════════════════════════════════════════════════════════════
+SCORING
+═══════════════════════════════════════════════════════════════
+
+Preferences are split into FIT and SUCCESS groups. Read every preference. Weight by priority — higher = more impact.
+
+"score" = FIT → Use FIT preferences
+How well does this job match the candidate's skills, experience, and career direction?
+
+"success" = SUCCESS → Use SUCCESS preferences
+What is the probability of actually getting hired? Consider visa, competition, company, logistics, and application strategy.
+
+"action" = Derive from both scores:
+- score=A++ or A+ AND success=A+ or A++ → "Apply Now"
+- score=A or B AND success=B or better → "Apply Soon"
+- score=C or better AND success=C or better → "Consider"
+- Otherwise → "Skip"
+
+"apply_reason" = A concise 1-2 sentence explanation of WHY the candidate should apply or skip. Reference specific strengths (tech stack match, visa clarity, salary) or weaknesses (wrong stack, too many applicants, German required). This is the decision-making summary.
+
+"notes" = Explain reasoning using at least 2 specific preferences.
+
+Grade scale (both scores):
+- "P" = Pending (do NOT use)
+- "E" = Very poor / Very unlikely
+- "D" = Poor / Unlikely
+- "C" = Moderate / Possible
+- "B" = Good / Good chance
+- "A" = Great / Strong chance
+- "A+" = Excellent / Very strong chance
+- "A++" = Perfect / Almost certain
+
+Rules:
+- score and success are INDEPENDENT
+- Use ALL enabled preferences, weighted by priority
+- "match" = High/Medium/Low based on overall assessment
+
+LOCATION: "location" = city only. "locations" = array of cities. No country/region.
+EMPLOYMENT: One of Full-time, Part-time, Contract, Internship, Temporary (default: Full-time)
+WORK TYPES: Array of On-site, Remote, Hybrid (default: ["On-site"])

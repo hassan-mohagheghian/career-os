@@ -19,6 +19,7 @@ processes = {}  # pid -> Popen object
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+TMP_DIR = os.environ.get('TEMP_DIR', '/tmp')
 
 # --- DB helpers (async-safe: each call opens its own connection) ---
 
@@ -38,9 +39,9 @@ def _log(pid, step, msg):
     conn.commit(); conn.close()
 
 def _load_preferences():
-    """Load all enabled preferences from DB and format for prompt."""
+    """Load all enabled preferences from DB, ordered by priority desc, formatted for prompt."""
     conn = _db()
-    rows = conn.execute('SELECT category, key, value, description FROM preferences WHERE enabled=1 ORDER BY category, priority').fetchall()
+    rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
     conn.close()
     if not rows:
         return "No preferences set."
@@ -48,12 +49,11 @@ def _load_preferences():
     current_cat = None
     for row in rows:
         r = dict(row)
-        if r['category'] != current_cat:
-            current_cat = r['category']
-            lines.append(f"\n{current_cat.upper()}:")
-        lines.append(f"- {r['key']}: {r['value']}")
-        if r['description']:
-            lines.append(f"  ({r['description']})")
+        cat = r['category']
+        if cat != current_cat:
+            current_cat = cat
+            lines.append(f"\n── {cat.upper()} {'─' * (35 - len(cat))}")
+        lines.append(f"  #{r['priority']:>3}  {r['key']}: {r['value']}")
     return '\n'.join(lines)
 
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
@@ -94,11 +94,48 @@ def _get_existing_num(url):
     conn.close()
     return dict(row)['num'] if row else None
 
+def _parse_adv_at(posted_text):
+    """Estimate when the job was advertised. If no specific datetime, return current datetime.
+    For human-readable text like '1 month', '1 month+', '4 months+':
+    - exact like '1 month' -> 1 month ago
+    - with '+' like '1 month+' -> 1.5 months ago (adds 0.5)
+    - '4 months+' -> 4.5 months ago
+    """
+    from datetime import timedelta
+    now = datetime.now()
+    if not posted_text or posted_text in ('Active', 'N/A', 'Not specified'):
+        return now.isoformat()
+    posted_text = posted_text.lower().strip()
+    has_plus = '+' in posted_text
+    try:
+        if 'hour' in posted_text:
+            hours = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            return (now - timedelta(hours=hours)).isoformat()
+        elif 'day' in posted_text:
+            days = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            return (now - timedelta(days=days)).isoformat()
+        elif 'week' in posted_text:
+            weeks = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            return (now - timedelta(weeks=weeks)).isoformat()
+        elif 'month' in posted_text:
+            months = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            if has_plus:
+                months += 0.5
+            from dateutil.relativedelta import relativedelta
+            return (now - relativedelta(months=months)).isoformat()
+    except Exception:
+        pass
+    return now.isoformat()
+
+
 def _insert_job(d):
     import sqlite3
     # Normalize location and work_type
     d = _normalize_job_data(d)
     conn = _db()
+    now = datetime.now().isoformat()
+    adv_at = d.get('adv_at') or _parse_adv_at(d.get('posted', ''))
+    see_at = d.get('see_at') or now
     locations = d.get('locations', [])
     if isinstance(locations, str):
         locations = [locations] if locations else []
@@ -143,13 +180,17 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
          normalized_wt[0] if normalized_wt else 'On-site', d.get('workflow_log', '[]'),
-         d.get('created_at', datetime.now().isoformat()), d.get('posted_at'),
-         json.dumps(locations), 0, employment_type, json.dumps(normalized_wt)))
+         d.get('created_at', now), d.get('posted_at'),
+         json.dumps(locations), 0, employment_type, json.dumps(normalized_wt),
+         d.get('raw_description'), d.get('structured_description'),
+         d.get('raw_file_path'), d.get('structured_file_path'),
+         d.get('rescoring', 0), d.get('success'),
+         adv_at, see_at, d.get('apply_reason', '')))
 
 def _save_job_workflow_log(num, log_json):
     conn = _db()
@@ -168,9 +209,10 @@ def _insert_summary(d):
 def _insert_resume(d):
     import sqlite3
     conn = _db()
-    conn.execute('''INSERT OR REPLACE INTO resumes VALUES (?,?,?,?,?,?,?)''',
-        (d['id'], d['title'], d['badge'], d['badgeClass'],
-         d['company'], d['role'], d['content']))
+    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num) VALUES (?,?,?,?,?,?,?,?,?)''',
+        (d['id'], d.get('title'),
+         d.get('company'), d.get('role'), d.get('content'),
+         d.get('version', 1), d.get('raw_text'), d.get('created_at'), d.get('job_num')))
     conn.commit(); conn.close()
 
 def _mark_old_job_deleted(url, exclude_num=None):
@@ -480,7 +522,7 @@ async def process_job_stream(pid):
             _log(pid, 'analyze', f'New job #{next_num}...')
 
         preferences = _load_preferences()
-        prompt = load_prompt('job_processing',
+        prompt = load_prompt('step8_score',
             url=url, job_file=job_file, project_root=PROJECT_ROOT,
             pid=pid, next_num=next_num, preferences=preferences)
 
@@ -493,15 +535,14 @@ async def process_job_stream(pid):
         current_step = 'resume'
         await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat /tmp/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
         _log(pid, 'resume', 'Reading analysis result...')
-        _update_step(pid, 'step_resume', 0, status='processing')
         await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-        result_path = os.path.join(PROJECT_ROOT, 'data', f'pending_result_{pid}.json')
+        result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
         if not os.path.exists(result_path):
             raise RuntimeError(f"Result file not found: {result_path}")
 
         with open(result_path) as f:
-            data = json.load(f)
+            data = json.loads(f.read(), strict=False)
 
         job_data = data['job']
         _mark(pid, 'step_analyze', company=job_data.get('company'), job_num=job_data['num'])
@@ -510,13 +551,11 @@ async def process_job_stream(pid):
 
         resume_data = {
             'id': f"pending_{pid}",
-            'title': f"{job_data.get('company', 'Unknown')} (Score {job_data.get('score', 0)})",
-            'badge': 'Tailored', 'badgeClass': 'badge-tailored',
+            'title': f"{job_data.get('company', 'Unknown')} ({job_data.get('score', 'P')})",
             'company': job_data.get('company', 'Unknown'),
             'role': job_data.get('role', 'Unknown'),
             'content': data.get('resume_html', ''),
         }
-        _mark(pid, 'step_resume')
         _mark(pid, 'step_db')
         await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
 

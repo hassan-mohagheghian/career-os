@@ -20,6 +20,39 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 TMP_DIR = tempfile.gettempdir()
 
+VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
+GRADE_RANK = {g: i for i, g in enumerate(VALID_GRADES)}
+NUMERIC_TO_GRADE = {
+    range(0, 15): 'E', range(15, 30): 'D', range(30, 50): 'C',
+    range(50, 70): 'B', range(70, 82): 'A', range(82, 92): 'A+', range(92, 101): 'A++',
+}
+
+def normalize_score(score):
+    """Ensure score is a valid letter grade. Converts numeric or invalid values."""
+    if isinstance(score, str):
+        s = score.strip().upper()
+        # Handle variants like "a++", "A +", "a + +"
+        s = s.replace(' ', '')
+        if s in VALID_GRADES:
+            return s
+        # Try parsing as numeric
+        try:
+            n = int(float(s))
+            return _numeric_to_grade(n)
+        except (ValueError, TypeError):
+            pass
+    elif isinstance(score, (int, float)):
+        return _numeric_to_grade(int(score))
+    return 'P'
+
+def _numeric_to_grade(n):
+    """Convert a numeric score (0-100) to a letter grade."""
+    n = max(0, min(100, n))
+    for r, g in NUMERIC_TO_GRADE.items():
+        if n in r:
+            return g
+    return 'P'
+
 def _load_env():
     """Read .env file from project root into os.environ."""
     env_path = os.path.join(PROJECT_ROOT, '.env')
@@ -32,15 +65,21 @@ def _load_env():
                     os.environ.setdefault(k.strip(), v.strip())
 _load_env()
 
-JOBS_DIR = os.path.abspath(os.environ.get('JOBS_DIR', os.path.join(PROJECT_ROOT, 'jobs')))
-
 # --- DB helpers ---
 
 def _db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    return conn
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5)
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA journal_mode=WAL')
+            return conn
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 4:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise
 
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     conn = _db()
@@ -78,6 +117,8 @@ def _insert_job(d):
     conn = _db()
     now = datetime.now().isoformat()
     posted_at = d.get('posted_at') or _parse_posted_date(d.get('posted', ''))
+    adv_at = d.get('adv_at') or _parse_adv_at(d.get('posted', ''))
+    see_at = d.get('see_at') or now
     locations = d.get('locations', [])
     if isinstance(locations, str):
         locations = [locations] if locations else []
@@ -123,7 +164,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -131,7 +172,8 @@ def _insert_job(d):
          d.get('created_at', now), posted_at, json.dumps(locations), 0,
          employment_type, json.dumps(normalized_wt), d.get('raw_description'),
          d.get('structured_description'), d.get('raw_file_path'),
-         d.get('structured_file_path'), d.get('rescoring', 0)))
+         d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
+         adv_at, see_at, d.get('apply_reason', '')))
     conn.commit(); conn.close()
 
 
@@ -162,6 +204,42 @@ def _parse_posted_date(posted_text):
         return None
     return None
 
+
+def _parse_adv_at(posted_text):
+    """Estimate when the job was advertised. If no specific datetime, return current datetime.
+    For human-readable text like '1 month', '1 month+', '4 months+':
+    - exact like '1 month' -> 1 month ago
+    - with '+' like '1 month+' -> 1.5 months ago (adds 0.5)
+    - '4 months+' -> 4.5 months ago
+    """
+    now = datetime.now()
+    if not posted_text or posted_text in ('Active', 'N/A', 'Not specified'):
+        return now.isoformat()
+    posted_text = posted_text.lower().strip()
+    has_plus = '+' in posted_text
+    try:
+        if 'hour' in posted_text:
+            hours = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            from datetime import timedelta
+            return (now - timedelta(hours=hours)).isoformat()
+        elif 'day' in posted_text:
+            days = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            from datetime import timedelta
+            return (now - timedelta(days=days)).isoformat()
+        elif 'week' in posted_text:
+            weeks = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            from datetime import timedelta
+            return (now - timedelta(weeks=weeks)).isoformat()
+        elif 'month' in posted_text:
+            months = int(''.join(filter(str.isdigit, posted_text)) or 1)
+            if has_plus:
+                months += 0.5
+            from dateutil.relativedelta import relativedelta
+            return (now - relativedelta(months=months)).isoformat()
+    except Exception:
+        pass
+    return now.isoformat()
+
 def _save_job_workflow_log(num, log_json):
     """Save workflow log to the jobs table."""
     conn = _db()
@@ -177,9 +255,10 @@ def _insert_summary(d):
 
 def _insert_resume(d):
     conn = _db()
-    conn.execute('''INSERT OR REPLACE INTO resumes VALUES (?,?,?,?,?,?,?)''',
-        (d['id'], d['title'], d['badge'], d['badgeClass'],
-         d['company'], d['role'], d['content']))
+    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num) VALUES (?,?,?,?,?,?,?,?,?)''',
+        (d['id'], d.get('title'),
+         d.get('company'), d.get('role'), d.get('content'),
+         d.get('version', 1), d.get('raw_text'), d.get('created_at'), d.get('job_num')))
     conn.commit(); conn.close()
 
 def _mark(pid, step, company=None, job_num=None):
@@ -245,7 +324,7 @@ def rescore_only(num):
 
         # Use a unique pid per rescore run to avoid file conflicts
         rescore_pid = f'rescore_{num}_{int(datetime.now().timestamp()*1000)}'
-        prompt = load_prompt('step7_score',
+        prompt = load_prompt('step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, preferences=preferences)
 
@@ -285,13 +364,17 @@ def rescore_only(num):
             'location': analyzed_data.get('location', j.get('location', 'Not specified')),
             'locations': analyzed_data.get('locations', []),
             'match': analyzed_data.get('match', j.get('match', 'Medium')),
-            'score': analyzed_data.get('score', j.get('score', 0)),
+            'score': normalize_score(analyzed_data.get('score', j.get('score', 'P'))),
+            'success': normalize_score(analyzed_data.get('success', j.get('success', 'P'))),
             'salary': analyzed_data.get('salary', j.get('salary', 'Not specified')),
             'stack': analyzed_data.get('stack', j.get('stack', '')),
             'visa': analyzed_data.get('visa', j.get('visa', 'Uncertain')),
             'applicants': analyzed_data.get('applicants', j.get('applicants', 'Not specified')),
             'posted': analyzed_data.get('posted', j.get('posted', 'Not specified')),
             'posted_at': analyzed_data.get('posted_at', j.get('posted_at')),
+            'adv_at': analyzed_data.get('adv_at', j.get('adv_at')),
+            'see_at': j.get('see_at'),
+            'apply_reason': analyzed_data.get('apply_reason', j.get('apply_reason', '')),
             'industry': analyzed_data.get('industry', j.get('industry', '')),
             'domain': analyzed_data.get('domain', j.get('domain', '')),
             'notes': analyzed_data.get('notes', j.get('notes', '')),
@@ -319,8 +402,8 @@ def rescore_only(num):
         resume_data = {
             'id': f"rescore_{num}",
             'title': f"{job_data['company']} (Score {job_data['score']})",
-            'badge': 'Tailored', 'badgeClass': 'badge-tailored',
             'company': job_data['company'], 'role': job_data['role'],
+            'job_num': num,
             'content': data.get('resume_html', ''),
         }
         _insert_resume(resume_data)
@@ -359,9 +442,9 @@ def _log(pid, step, msg):
     conn.commit(); conn.close()
 
 def _load_preferences():
-    """Load all enabled preferences from DB and format for prompt."""
+    """Load all enabled preferences from DB, ordered by priority desc, formatted for prompt."""
     conn = _db()
-    rows = conn.execute('SELECT category, key, value, description FROM preferences WHERE enabled=1 ORDER BY category, priority').fetchall()
+    rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
     conn.close()
     if not rows:
         return "No preferences set."
@@ -369,18 +452,17 @@ def _load_preferences():
     current_cat = None
     for row in rows:
         r = dict(row)
-        if r['category'] != current_cat:
-            current_cat = r['category']
-            lines.append(f"\n{current_cat.upper()}:")
-        lines.append(f"- {r['key']}: {r['value']}")
-        if r['description']:
-            lines.append(f"  ({r['description']})")
+        cat = r['category']
+        if cat != current_cat:
+            current_cat = cat
+            lines.append(f"\n── {cat.upper()} {'─' * (35 - len(cat))}")
+        lines.append(f"  #{r['priority']:>3}  {r['key']}: {r['value']}")
     return '\n'.join(lines)
 
 def _extract_structured_description(raw_text, num):
     """Extract structured job info from raw description using mimo."""
     output_file = os.path.join(TMP_DIR, f'structured_{num}.json')
-    prompt = load_prompt('step4_extract',
+    prompt = load_prompt('step4_extract_struct',
         raw_content=raw_text[:5000], output_file=output_file)
 
     proc = subprocess.run(
@@ -395,6 +477,28 @@ def _extract_structured_description(raw_text, num):
                 structured = json.load(f)
             os.remove(output_file)
             return json.dumps(structured, ensure_ascii=False)
+        except Exception:
+            pass
+    return None
+
+def _extract_all(raw_text, pid):
+    """Combined extraction: validate + structured + summary in one mimo call."""
+    output_file = os.path.join(TMP_DIR, f'extract_{pid}.json')
+    prompt = load_prompt('step3_extract_raw',
+        content=raw_text[:5000], output_file=output_file)
+
+    proc = subprocess.run(
+        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=90,
+        env={**os.environ, 'NO_COLOR': '1'}
+    )
+
+    if proc.returncode == 0 and os.path.exists(output_file):
+        try:
+            with open(output_file) as f:
+                result = json.load(f)
+            os.remove(output_file)
+            return result
         except Exception:
             pass
     return None
@@ -807,11 +911,193 @@ def process_job(pid):
     source = item.get('source', 'cli')
 
     job_file = os.path.join(tempfile.gettempdir(), f'job_{pid}.txt')
-    os.makedirs(JOBS_DIR, exist_ok=True)
 
     try:
         current_step = 'fetch'
         _log(pid, 'start', f'Processing {url[:60]}...')
+
+        if source == 'rescore':
+            # ── RESCORE PATH: skip fetch/validate/extract, go straight to scoring ──
+            _log(pid, 'rescore', 'Rescoring — loading existing job data from DB...')
+
+            # Load existing job from DB
+            conn = _db()
+            existing_job = conn.execute('SELECT * FROM jobs WHERE num=?', (item.get('job_num', 0),)).fetchone()
+            conn.close()
+            if not existing_job:
+                raise RuntimeError(f"Original job #{item.get('job_num')} not found in DB")
+
+            ej = dict(existing_job)
+            raw_text = ej.get('raw_description', '')
+            if not raw_text:
+                raw_path = ej.get('raw_file_path', '')
+                if raw_path and os.path.exists(raw_path):
+                    with open(raw_path) as f:
+                        raw_text = f.read()
+            if not raw_text:
+                raise RuntimeError("No raw description available for rescoring")
+
+            # Write raw content to temp file for the prompt
+            with open(job_file, 'w') as f:
+                f.write(raw_text)
+
+            # Mark early steps as done instantly
+            _mark(pid, 'step_fetch')
+            _mark(pid, 'step_validate')
+            _mark(pid, 'step_extract_raw')
+            _mark(pid, 'step_extract_struct')
+            _mark(pid, 'step_summary')
+
+            # Build job_data from existing job
+            job_data = {
+                'num': ej['num'],
+                'company': ej['company'],
+                'role': ej['role'],
+                'location': ej['location'],
+                'locations': ej.get('locations', '[]'),
+                'match': ej['match'],
+                'score': ej['score'],
+                'success': ej.get('success', 'P'),
+                'salary': ej.get('salary', 'Not specified'),
+                'stack': ej.get('stack', ''),
+                'visa': ej.get('visa', 'Uncertain'),
+                'applicants': ej.get('applicants', 'Not specified'),
+                'posted': ej.get('posted', 'Not specified'),
+                'industry': ej.get('industry', ''),
+                'domain': ej.get('domain', ''),
+                'notes': ej.get('notes', ''),
+                'action': ej.get('action', ''),
+                'url': url,
+                'raw_description': raw_text,
+                'structured_description': ej.get('structured_description'),
+                'employment_type': ej.get('employment_type', 'Full-time'),
+                'work_types': ej.get('work_types', []),
+                'adv_at': ej.get('adv_at'),
+                'see_at': ej.get('see_at'),
+                'apply_reason': ej.get('apply_reason', ''),
+            }
+            existing_num = ej['num']
+
+            # Skip to scoring step
+            current_step = 'score'
+            _update_step(pid, 'step_analyze', 0, status='processing')
+            _log(pid, 'score', f'Rescoring existing job #{existing_num}...')
+            preferences = _load_preferences()
+
+            resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
+            conn = _db()
+            resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+            conn.close()
+            if resume_row and dict(resume_row).get('raw_text'):
+                with open(resume_file, 'w') as f:
+                    f.write(dict(resume_row)['raw_text'])
+                resume_path = resume_file
+            else:
+                resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
+
+            prompt = load_prompt('step8_score',
+                url=url, job_file=job_file, resume_file=resume_path,
+                tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, preferences=preferences)
+
+            returncode, output_lines = _stream_mimo_output(
+                [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+                cwd=PROJECT_ROOT,
+                env={**os.environ, 'NO_COLOR': '1'},
+                timeout=300,
+                pid=pid,
+            )
+
+            if returncode != 0:
+                error_msg = f"exit code {returncode}"
+                for line in output_lines:
+                    try:
+                        evt = json.loads(line)
+                        if evt.get('type') == 'text':
+                            error_msg = evt.get('part', {}).get('text', error_msg)[:300]
+                    except json.JSONDecodeError:
+                        continue
+                raise RuntimeError(f"mimo failed: {error_msg}")
+
+            result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
+            if not os.path.exists(result_path):
+                raise RuntimeError(f"Result file not found: {result_path}")
+
+            with open(result_path) as f:
+                data = json.loads(f.read(), strict=False)
+
+            analyzed_data = data['job']
+            _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
+
+            score = normalize_score(analyzed_data.get('score', 'P'))
+            match = analyzed_data.get('match', 'Medium')
+            _log(pid, 'score', f'Score: {score} — Match: {match}')
+
+            job_data.update({
+                'company': analyzed_data.get('company', job_data['company']),
+                'role': analyzed_data.get('role', job_data['role']),
+                'location': analyzed_data.get('location', job_data['location']),
+                'locations': analyzed_data.get('locations', []),
+                'match': match,
+                'score': score,
+                'success': normalize_score(analyzed_data.get('success', 'P')),
+                'salary': analyzed_data.get('salary', job_data.get('salary', 'Not specified')),
+                'stack': analyzed_data.get('stack', job_data.get('stack', '')),
+                'visa': analyzed_data.get('visa', job_data.get('visa', 'Uncertain')),
+                'applicants': analyzed_data.get('applicants', job_data.get('applicants', 'Not specified')),
+                'posted': analyzed_data.get('posted', job_data.get('posted', 'Not specified')),
+                'posted_at': analyzed_data.get('posted_at'),
+                'adv_at': analyzed_data.get('adv_at', job_data.get('adv_at')),
+                'apply_reason': analyzed_data.get('apply_reason', job_data.get('apply_reason', '')),
+                'industry': analyzed_data.get('industry', job_data.get('industry', '')),
+                'domain': analyzed_data.get('domain', job_data.get('domain', '')),
+                'notes': analyzed_data.get('notes', job_data.get('notes', '')),
+                'action': analyzed_data.get('action', job_data.get('action', '')),
+                'employment_type': analyzed_data.get('employment_type', job_data.get('employment_type', 'Full-time')),
+                'work_types': analyzed_data.get('work_types', job_data.get('work_types', [])),
+                'workflow_log': analyzed_data.get('workflow_log', '[]'),
+            })
+
+            # Save updated job, summary, and resume
+            _insert_job(job_data)
+            _log(pid, 'save', 'Updated job with new score')
+            _insert_summary({
+                'num': job_data['num'], 'company': job_data['company'],
+                'match': match, 'score': score,
+                'summary': data.get('summary', {}).get('summary', ''),
+                'stack': job_data.get('stack'),
+                'resumeFit': data.get('summary', {}).get('resumeFit', ''),
+                'note': data.get('summary', {}).get('note', ''), 'url': url,
+            })
+            _insert_resume({
+                'id': f"rescore_{job_data['num']}",
+                'title': f"{job_data['company']} (Score {score})",
+                'company': job_data['company'], 'role': job_data['role'],
+                'job_num': job_data['num'],
+                'content': data.get('resume_html', ''),
+            })
+
+            # Clear rescoring flag
+            conn = _db()
+            conn.execute('UPDATE jobs SET rescoring=0 WHERE num=?', (job_data['num'],))
+            conn.commit(); conn.close()
+            _log(pid, 'done', f"Rescore complete: {job_data['company']} #{job_data['num']} → score {score}")
+
+            # Mark pending done
+            _update_step(pid, 'step_done', 0, status='done')
+            _mark(pid, 'step_done')
+
+            # Save workflow_log to jobs table
+            conn = _db()
+            row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
+            conn.close()
+            if row:
+                _save_job_workflow_log(job_data['num'], dict(row)['workflow_log'] or '[]')
+
+            try: os.remove(result_path)
+            except OSError: pass
+            return
+
+        # ── NORMAL PATH: fetch, validate, extract, score ──
 
         # Check before step 1
         if _is_paused_or_stopped(pid):
@@ -831,30 +1117,35 @@ def process_job(pid):
             _log(pid, 'pause', 'Job paused/stopped after fetch')
             return
 
-        # ── Step 2: Validate — extract main job section ──
+        # ── Steps 2-6: Combined extraction (one mimo call, separate UI steps) ──
+        # Step 2: Validate
         current_step = 'validate'
         _update_step(pid, 'step_validate', 0, status='processing')
-        _log(pid, 'validate', 'Finding main job section...')
-        validation = _validate_job_content(raw_text, pid)
-        is_valid = validation.get('valid', False)
-        reason = validation.get('reason', 'Unknown')
-        v_title = validation.get('title')
-        v_company = validation.get('company')
-        v_content = validation.get('content', raw_text)
+        _log(pid, 'validate', 'Extracting job info...')
+        _mark(pid, 'step_validate')
 
-        if is_valid:
-            _log(pid, 'validate', f'Valid: {reason}')
-            # Use extracted content if available
-            if v_content and len(v_content) > 100:
-                raw_text = v_content
-                with open(job_file, 'w') as f:
-                    f.write(raw_text)
-                _log(pid, 'validate', f'Extracted main section ({len(raw_text)} chars)')
+        # Step 3: Extract structured + summary (one mimo call)
+        current_step = 'extract_raw'
+        _update_step(pid, 'step_extract_raw', 0, status='processing')
+        extraction = _extract_all(raw_text, pid)
+        if extraction and extraction.get('valid', False):
+            _log(pid, 'extract_raw', f'Valid: {extraction.get("reason", "OK")}')
         else:
-            _log(pid, 'validate', f'WARNING: {reason} — continuing anyway')
+            reason = extraction.get('reason', 'Unknown') if extraction else 'Extraction failed'
+            _log(pid, 'extract_raw', f'WARNING: {reason} — continuing anyway')
+        _mark(pid, 'step_extract_raw')
 
-        title = v_title or ''
-        company = v_company or ''
+        # Step 4: Process structured data
+        current_step = 'extract_struct'
+        _update_step(pid, 'step_extract_struct', 0, status='processing')
+        structured_json = json.dumps(extraction, ensure_ascii=False) if extraction else None
+        _mark(pid, 'step_extract_struct')
+
+        # Step 5: Build summary
+        current_step = 'summary'
+        _update_step(pid, 'step_summary', 0, status='processing')
+        title = (extraction or {}).get('title') or ''
+        company = (extraction or {}).get('company') or ''
         if not title:
             for tline in raw_text.split('\n'):
                 tline = tline.strip()
@@ -875,100 +1166,46 @@ def process_job(pid):
             conn = _db()
             conn.execute('UPDATE pending_jobs SET company=? WHERE id=?', (company or title[:40], pid))
             conn.commit(); conn.close()
-        _mark(pid, 'step_validate')
+        _log(pid, 'summary', f'Summary: {(extraction or {}).get("summary", "")[:150]}')
+        _mark(pid, 'step_summary')
 
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after validate')
-            return
-
-        # ── Step 3: Extract raw → save to DB ──
-        current_step = 'extract_raw'
-        _update_step(pid, 'step_extract_raw', 0, status='processing')
-        _log(pid, 'extract_raw', 'Saving raw description...')
+        # Step 6: Save to DB
+        current_step = 'resume'
         temp_num = _get_next_num()
         existing_num = _get_existing_num(url)
         if existing_num:
             temp_num = existing_num
         job_data = {
             'num': temp_num, 'company': company or title or 'Unknown',
-            'role': title or 'Unknown', 'location': 'Not specified',
-            'match': 'Pending', 'score': 0, 'salary': 'Not specified',
-            'stack': '', 'visa': 'Uncertain', 'applicants': 'Not specified',
-            'posted': 'Not specified', 'industry': '', 'domain': '',
+            'role': title or 'Unknown', 'location': (extraction or {}).get('location', 'Not specified'),
+            'locations': (extraction or {}).get('locations', []),
+            'match': 'Pending', 'score': 'P', 'success': 'P',
+            'salary': (extraction or {}).get('salary', 'Not specified'),
+            'stack': (extraction or {}).get('stack', ''),
+            'visa': (extraction or {}).get('visa', 'Uncertain'),
+            'applicants': (extraction or {}).get('applicants', 'Not specified'),
+            'posted': (extraction or {}).get('posted', 'Not specified'),
+            'industry': (extraction or {}).get('industry', ''),
+            'domain': (extraction or {}).get('domain', ''),
             'notes': '', 'action': '', 'url': url,
-            'raw_description': raw_text, 'structured_description': None,
+            'raw_description': raw_text, 'structured_description': structured_json,
+            'apply_reason': '',
         }
-        _insert_job(job_data)
-        _log(pid, 'extract_raw', f'Saved (job #{temp_num})')
-        _mark(pid, 'step_extract_raw')
-
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after extract raw')
-            return
-
-        # ── Step 4: Extract structured → save to DB ──
-        current_step = 'extract_struct'
-        _update_step(pid, 'step_extract_struct', 0, status='processing')
-        _log(pid, 'extract_struct', 'Extracting structured info...')
-        structured_json = _extract_structured_description(raw_text, pid)
-        if structured_json:
-            job_data['structured_description'] = structured_json
-            _insert_job(job_data)
-            _log(pid, 'extract_struct', 'Structured extraction saved')
-        else:
-            _log(pid, 'extract_struct', 'Extraction failed, skipping')
-        _mark(pid, 'step_extract_struct')
-
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after extract struct')
-            return
-
-        # ── Step 5: Summary — extract summary from structured data ──
-        current_step = 'summary'
-        _update_step(pid, 'step_summary', 0, status='processing')
-        _log(pid, 'summary', 'Generating summary...')
-        # Summary is extracted from the analysis step (which runs first now via mimo)
-        # For now, extract basic summary from structured data
-        sd = None
-        if structured_json:
-            try:
-                sd = json.loads(structured_json) if isinstance(structured_json, str) else structured_json
-            except Exception:
-                pass
-        basic_summary = {
-            'summary': f"{job_data['role']} at {job_data['company']}" if sd else '',
-            'stack': sd.get('stack', '') if sd else '',
-            'resumeFit': '',
-            'note': '',
-        }
-        _log(pid, 'summary', f'Summary: {basic_summary["summary"][:150]}')
-        _mark(pid, 'step_summary')
-
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after summary')
-            return
-
-        # ── Step 6: Resume — save extracted data to DB ──
-        current_step = 'resume'
-        _update_step(pid, 'step_resume', 0, status='processing')
-        _log(pid, 'resume', 'Saving to database...')
         _insert_job(job_data)
         _insert_summary({
             'num': temp_num, 'company': job_data['company'],
-            'match': 'Pending', 'score': 0,
-            'summary': basic_summary['summary'],
-            'stack': basic_summary['stack'],
-            'resumeFit': '', 'note': '',
-            'url': url,
+            'match': 'Pending', 'score': 'P',
+            'summary': (extraction or {}).get('summary', ''),
+            'stack': (extraction or {}).get('stack', ''),
+            'resumeFit': '', 'note': '', 'url': url,
         })
         _log(pid, 'resume', f'Saved job #{temp_num} to DB')
-        _mark(pid, 'step_resume')
 
         if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after resume')
+            _log(pid, 'pause', 'Job paused/stopped after save')
             return
 
-        # ── Step 7: Score — MiMo scoring + resume generation ──
+        # ── Step 7: Score — MiMo scoring ──
         current_step = 'score'
         _update_step(pid, 'step_analyze', 0, status='processing')
         next_num = temp_num
@@ -978,7 +1215,7 @@ def process_job(pid):
             _log(pid, 'score', f'Scoring job #{next_num}...')
         preferences = _load_preferences()
 
-        # Load resume from DB (latest version)
+        # Load resume from DB for scoring context
         resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
         conn = _db()
         resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
@@ -988,10 +1225,9 @@ def process_job(pid):
                 f.write(dict(resume_row)['raw_text'])
             resume_path = resume_file
         else:
-            # Fallback to file if no resume in DB
             resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
 
-        prompt = load_prompt('step7_score',
+        prompt = load_prompt('step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=pid, next_num=next_num, preferences=preferences)
 
@@ -1020,15 +1256,15 @@ def process_job(pid):
             raise RuntimeError(f"Result file not found: {result_path}")
 
         with open(result_path) as f:
-            data = json.load(f)
+            data = json.loads(f.read(), strict=False)
 
         analyzed_data = data['job']
         _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
 
         # Log score results
-        score = analyzed_data.get('score', 0)
+        score = normalize_score(analyzed_data.get('score', 'P'))
         match = analyzed_data.get('match', 'Medium')
-        _log(pid, 'score', f'Score: {score}/100 — Match: {match}')
+        _log(pid, 'score', f'Score: {score} — Match: {match}')
 
         # Update job data with scored results
         job_data.update({
@@ -1038,12 +1274,15 @@ def process_job(pid):
             'locations': analyzed_data.get('locations', []),
             'match': match,
             'score': score,
+            'success': normalize_score(analyzed_data.get('success', 'P')),
             'salary': analyzed_data.get('salary', 'Not specified'),
             'stack': analyzed_data.get('stack', ''),
             'visa': analyzed_data.get('visa', 'Uncertain'),
             'applicants': analyzed_data.get('applicants', 'Not specified'),
             'posted': analyzed_data.get('posted', 'Not specified'),
             'posted_at': analyzed_data.get('posted_at'),
+            'adv_at': analyzed_data.get('adv_at', job_data.get('adv_at')),
+            'apply_reason': analyzed_data.get('apply_reason', job_data.get('apply_reason', '')),
             'industry': analyzed_data.get('industry', ''),
             'domain': analyzed_data.get('domain', ''),
             'notes': analyzed_data.get('notes', ''),
@@ -1067,12 +1306,12 @@ def process_job(pid):
         resume_data = {
             'id': f"pending_{pid}",
             'title': f"{job_data['company']} (Score {score})",
-            'badge': 'Tailored', 'badgeClass': 'badge-tailored',
             'company': job_data['company'], 'role': job_data['role'],
+            'job_num': job_data.get('num'),
             'content': data.get('resume_html', ''),
         }
         _insert_resume(resume_data)
-        _log(pid, 'score', f'Final score: {score}/100 saved')
+        _log(pid, 'score', f'Final score: {score} saved')
         _mark(pid, 'step_analyze')
 
         if source == 'rescore':
@@ -1132,3 +1371,9 @@ def process_job(pid):
     finally:
         try: os.remove(job_file)
         except OSError: pass
+        # Signal queue manager to pick up next job
+        try:
+            from queue_manager import get_queue_manager
+            get_queue_manager().signal_job_done(pid)
+        except Exception:
+            pass

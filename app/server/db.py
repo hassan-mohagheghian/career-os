@@ -18,7 +18,7 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS jobs (
         num INTEGER PRIMARY KEY,
         company TEXT, role TEXT, location TEXT, match TEXT,
-        score INTEGER, salary TEXT, stack TEXT, visa TEXT,
+        score TEXT, success TEXT, salary TEXT, stack TEXT, visa TEXT,
         applicants TEXT, posted TEXT, industry TEXT,
         domain TEXT, notes TEXT, action TEXT, url TEXT,
         work_type TEXT DEFAULT 'On-site',
@@ -28,22 +28,26 @@ def init_db():
         employment_type TEXT DEFAULT 'Full-time',
         work_types TEXT DEFAULT '[]',
         raw_description TEXT,
-        structured_description TEXT
+        structured_description TEXT,
+        adv_at TEXT,
+        see_at TEXT,
+        apply_reason TEXT
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS summaries (
         num INTEGER PRIMARY KEY,
-        company TEXT, match TEXT, score INTEGER,
+        company TEXT, match TEXT, score TEXT,
         summary TEXT, stack TEXT, resumeFit TEXT, note TEXT, url TEXT
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS resumes (
         id TEXT PRIMARY KEY,
-        title TEXT, badge TEXT, badgeClass TEXT,
+        title TEXT,
         company TEXT, role TEXT, content TEXT,
         version INTEGER DEFAULT 1,
         raw_text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        job_num INTEGER
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS tech_learning (
@@ -72,6 +76,7 @@ def init_db():
         step_fetch INTEGER DEFAULT 0,
         step_analyze INTEGER DEFAULT 0,
         step_resume INTEGER DEFAULT 0,
+        step_cover INTEGER DEFAULT 0,
         step_db INTEGER DEFAULT 0,
         step_done INTEGER DEFAULT 0,
         job_num INTEGER,
@@ -103,6 +108,51 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(category, key)
     )""")
+
+    # Seed initial rules if table is empty
+    if c.execute("SELECT COUNT(*) FROM preferences").fetchone()[0] == 0:
+        c.executemany(
+            "INSERT OR IGNORE INTO preferences (category, key, value, description, priority) VALUES (?,?,?,?,?)",
+            [
+                # ═══ FIT (16 rules) — Technical match ═══
+                ("fit", "python_primary", "Python must be the primary language in the job posting", "Core requirement — Python-heavy roles only", 100),
+                ("fit", "avoid_wrong_stack", "Go/Java/C#-primary roles = automatic skip", "Wrong tech stack = waste of time", 98),
+                ("fit", "backend_core", "Django, FastAPI, Flask, SQLAlchemy, Celery — match if 2+ required", "Core Python backend stack", 95),
+                ("fit", "database_match", "PostgreSQL (expert), Redis, SQL — PostgreSQL is a major plus", "Database expertise matters", 92),
+                ("fit", "seniority_match", "Senior level (9+ years), tech lead or architect preferred", "No junior/mid roles", 88),
+                ("fit", "infrastructure_match", "Docker, Kubernetes, CI/CD, Linux, AWS/GCP", "Cloud and containerization", 85),
+                ("fit", "domain_match", "Backend engineering, systems, data platforms, API design", "Core domain alignment", 82),
+                ("fit", "secondary_tech", "Rust (Axum/Tokio), TypeScript (React/Next.js) — adds value", "Bonus technical skills", 78),
+                ("fit", "role_alignment", "Backend engineer, Platform engineer, Systems engineer, Data engineer, SRE", "Title patterns that match", 75),
+                ("fit", "min_tech_overlap", "Must require at least 3 technologies the candidate knows", "Minimum threshold for fit", 72),
+                ("fit", "growth_fit", "Fintech, healthtech, developer tools, supply chain, AI/ML infrastructure", "Domains where the candidate can grow", 68),
+                ("fit", "ai_ml_fit", "Python ML pipelines, model serving, data processing", "AI/ML experience value", 65),
+                ("fit", "api_backend_match", "REST API design, GraphQL, gRPC — backend API work", "API design experience", 62),
+                ("fit", "no_critical_gaps", "No must-have skills that the candidate completely lacks", "Critical gaps = bad fit", 58),
+                ("fit", "tech_depth", "Job requires deep expertise, not just surface-level knowledge", "Depth over breadth preference", 55),
+                ("fit", "team_composition", "Small focused teams (3-8 engineers) preferred over large orgs", "Team structure compatibility", 50),
+
+                # ═══ SUCCESS (16 rules) — Application probability ═══
+                ("success", "visa_requirement", "Company must sponsor work visa for non-EU nationals — HARD REQUIREMENT", "No sponsorship = very unlikely", 100),
+                ("success", "visa_path_clarity", "Company has documented visa process or history of sponsoring", "Clear process = higher chance", 95),
+                ("success", "remote_option", "Remote or hybrid work available — helps visa transition", "Remote increases success", 92),
+                ("success", "language_match", "English-only preferred, German C1 required = major negative factor", "Language barrier impact", 88),
+                ("success", "competition_level", "<50 applicants = excellent, 50-100 = good, 100-200 = moderate, 200+ = poor", "Competition thresholds", 85),
+                ("success", "posting_freshness", "<7 days = excellent, 7-30 = good, 30-90 = moderate, 90+ = stale", "Job age affects success", 82),
+                ("success", "location_match", "Berlin = best, Munich = good, Hamburg = moderate, Remote = best", "City compatibility", 80),
+                ("success", "work_arrangement", "Remote > Hybrid > On-site for visa flexibility", "Work type preference", 78),
+                ("success", "company_stability", "50-500 employees, funded (Series A-C) or profitable", "Size and financial health", 75),
+                ("success", "salary_clarity", "Jobs with listed salary have higher success (clear expectations)", "Transparency helps", 70),
+                ("success", "niche_posting", "Niche/specialized roles have fewer applicants, better odds", "Avoid mass-posted jobs", 68),
+                ("success", "relocation_support", "Relocation package or assistance removes barriers", "Relocation bonus", 65),
+                ("success", "hiring_speed", "Company known for fast hiring process (<4 weeks)", "Speed matters for visa", 60),
+                ("success", "response_rate", "Company responds to applications (not black hole)", "Communication quality", 55),
+                ("success", "role_clarity", "Clear job description with specific requirements listed", "Ambiguous = harder to target", 50),
+                ("success", "growth_opportunity", "Clear career progression, learning budget, or mentorship", "Long-term success factor", 45),
+            ]
+        )
+        conn.commit()
+        print(f"[db] Seeded {c.execute('SELECT COUNT(*) FROM preferences').fetchone()[0]} scoring rules")
 
     c.execute("""CREATE TABLE IF NOT EXISTS analysis_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,12 +212,25 @@ def init_db():
     except sqlite3.OperationalError:
         c.execute("ALTER TABLE jobs ADD COLUMN structured_description TEXT")
 
+    # Add adv_at, see_at, apply_reason columns if missing (for existing DBs)
+    for col in ['adv_at', 'see_at', 'apply_reason']:
+        try:
+            c.execute(f"SELECT {col} FROM jobs LIMIT 1")
+        except sqlite3.OperationalError:
+            c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
+
     # Add step_extract_raw, step_extract_struct to pending_jobs
     for col in ['step_extract_raw', 'step_extract_struct']:
         try:
             c.execute(f"SELECT {col} FROM pending_jobs LIMIT 1")
         except sqlite3.OperationalError:
             c.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
+
+    # Add queue_order column for FIFO queue ordering
+    try:
+        c.execute("SELECT queue_order FROM pending_jobs LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE pending_jobs ADD COLUMN queue_order INTEGER DEFAULT 0")
 
     # Add version, raw_text, created_at to resumes
     for col, default in [('version', 1), ('raw_text', None), ('created_at', None)]:
@@ -179,6 +242,12 @@ def init_db():
             else:
                 c.execute(f"ALTER TABLE resumes ADD COLUMN {col} INTEGER DEFAULT {default}")
 
+    # Add job_num to resumes (links tailored resume to its job)
+    try:
+        c.execute("SELECT job_num FROM resumes LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("ALTER TABLE resumes ADD COLUMN job_num INTEGER")
+
     conn.commit()
     conn.close()
 
@@ -186,159 +255,6 @@ def init_db():
 def load_json_to_db():
     """No-op: data is now managed entirely in SQLite. Kept for backwards compatibility."""
     pass
-
-
-def load_initial_preferences():
-    """Load initial preferences from extracted data."""
-    conn = get_db()
-    c = conn.cursor()
-
-    # Check if preferences already exist
-    count = c.execute("SELECT COUNT(*) FROM preferences").fetchone()[0]
-    if count > 0:
-        conn.close()
-        return
-
-    preferences = [
-        # Scoring weights
-        (
-            "scoring",
-            "python_match",
-            "high",
-            "Python stack match is primary scoring factor",
-            1,
-        ),
-        (
-            "scoring",
-            "visa_path",
-            "high",
-            "Visa sponsorship availability affects score significantly",
-            2,
-        ),
-        (
-            "scoring",
-            "competition",
-            "medium",
-            "Number of applicants affects competitiveness",
-            3,
-        ),
-        (
-            "scoring",
-            "location",
-            "medium",
-            "Berlin/preferred cities get bonus points",
-            4,
-        ),
-        (
-            "scoring",
-            "work_type",
-            "medium",
-            "Remote/Hybrid preferred for visa flexibility",
-            5,
-        ),
-        ("scoring", "salary_range", "low", "Salary information when available", 6),
-        # Tech preferences
-        (
-            "tech",
-            "languages_use",
-            "Python, Rust, TypeScript, C, WASM, SQL",
-            "Languages to use and learn",
-            1,
-        ),
-        (
-            "tech",
-            "languages_avoid",
-            "Go",
-            "Do NOT learn Go or other languages right now",
-            2,
-        ),
-        (
-            "tech",
-            "frontend",
-            "React, Next.js, Shadcn, Tailwind",
-            "Frontend technologies",
-            3,
-        ),
-        (
-            "tech",
-            "strengths",
-            "Python 9+ years, Django/FastAPI, PostgreSQL, Docker/K8s",
-            "Core strengths for scoring",
-            4,
-        ),
-        ("tech", "gaps", "Go, TypeScript, German A1", "Skill gaps to consider", 5),
-        # Domain preferences
-        ("domain", "primary", "Software engineering", "Primary job domain", 1),
-        (
-            "domain",
-            "improvement",
-            "Supply chain domain",
-            "Domain needing improvement",
-            2,
-        ),
-        # Visa & relocation
-        (
-            "visa",
-            "need",
-            "Visa sponsorship for Germany + relocation from Iran",
-            "Visa requirement",
-            1,
-        ),
-        (
-            "visa",
-            "best_path",
-            "Companies with remote-first policy (work from Iran initially while visa processes)",
-            "Best visa strategy",
-            2,
-        ),
-        (
-            "visa",
-            "priority_companies",
-            "Cara Care (Bayer), Sunday Natural (40+ nationalities), Cresta (US-funded)",
-            "Priority companies for visa",
-            3,
-        ),
-        (
-            "visa",
-            "relocation_package",
-            "preferred",
-            "Relocation package is a plus factor",
-            4,
-        ),
-        # Apply strategy
-        (
-            "strategy",
-            "apply_top_first",
-            "Cara Care, Audatic, Jobgether, Flix, Sunday Natural",
-            "Top companies to apply first",
-            1,
-        ),
-        (
-            "strategy",
-            "avoid_german_c1",
-            "Focus on English-only positions",
-            "Avoid jobs requiring German C1",
-            2,
-        ),
-        (
-            "strategy",
-            "speed_matters",
-            "Fresh postings: apply immediately",
-            "Time-sensitive applications",
-            3,
-        ),
-    ]
-
-    for cat, key, value, desc, priority in preferences:
-        c.execute(
-            """INSERT OR IGNORE INTO preferences (category, key, value, description, priority)
-            VALUES (?, ?, ?, ?, ?)""",
-            (cat, key, value, desc, priority),
-        )
-
-    conn.commit()
-    conn.close()
-    print(f"Loaded {len(preferences)} initial preferences")
 
 
 def migrate_existing_analysis_files():
@@ -462,9 +378,132 @@ def migrate_existing_analysis_files():
     print(f"Migrated {migrated} analysis records to analysis_runs table")
 
 
+def migrate_resume_files_to_db():
+    """Migrate existing resume files from inputs/ and resumes/ to the DB, then delete them."""
+    import glob as globmod
+    project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+    conn = get_db()
+    c = conn.cursor()
+
+    # 1. Migrate master resume from inputs/original/resume.txt
+    master_path = os.path.join(project_root, "inputs", "original", "resume.txt")
+    if os.path.exists(master_path):
+        existing = c.execute("SELECT COUNT(*) FROM resumes WHERE id LIKE 'original_%'").fetchone()[0]
+        if existing == 0:
+            with open(master_path) as f:
+                raw_text = f.read().strip()
+            if raw_text:
+                # Simple HTML conversion
+                content_html = _text_to_html(raw_text)
+                c.execute(
+                    """INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ('original_1', 'Resume v1', '', '', content_html, 1, raw_text, datetime.now().isoformat()),
+                )
+                print(f"[migrate] Imported master resume from {master_path}")
+                try:
+                    os.remove(master_path)
+                    print(f"[migrate] Deleted {master_path}")
+                except OSError:
+                    pass
+        else:
+            # Already in DB, just remove file
+            try:
+                os.remove(master_path)
+                print(f"[migrate] Deleted existing {master_path}")
+            except OSError:
+                pass
+
+    # 2. Migrate tailored resumes from resumes/by_job/
+    by_job_dir = os.path.join(project_root, "resumes", "by_job")
+    if os.path.isdir(by_job_dir):
+        txt_files = sorted(globmod.glob(os.path.join(by_job_dir, "*.txt")))
+        migrated_count = 0
+        for filepath in txt_files:
+            basename = os.path.basename(filepath)
+            # Parse filename: 001_GALVANY_Backend_Engineer.txt
+            parts = basename.replace('.txt', '').split('_', 2)
+            company = parts[1] if len(parts) > 1 else basename
+            role = parts[2].replace('_', ' ') if len(parts) > 2 else ''
+
+            with open(filepath) as f:
+                raw_text = f.read().strip()
+            if not raw_text:
+                continue
+
+            resume_id = f"file_{basename.replace('.txt', '')}"
+            existing = c.execute("SELECT id FROM resumes WHERE id=?", (resume_id,)).fetchone()
+            if not existing:
+                content_html = _text_to_html(raw_text)
+                c.execute(
+                    """INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (resume_id, f'{company} (File Import)', company, role, content_html, 1, raw_text, datetime.now().isoformat(), None),
+                )
+                migrated_count += 1
+
+        conn.commit()
+
+        if migrated_count > 0:
+            print(f"[migrate] Imported {migrated_count} tailored resumes from {by_job_dir}")
+
+        # Delete files after migration
+        for filepath in txt_files:
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+
+        # Clean up empty directory
+        try:
+            os.rmdir(by_job_dir)
+        except OSError:
+            pass
+
+    # 3. Delete other resume artifacts from resumes/ directory
+    resumes_dir = os.path.join(project_root, "resumes")
+    if os.path.isdir(resumes_dir):
+        for fname in os.listdir(resumes_dir):
+            fpath = os.path.join(resumes_dir, fname)
+            if os.path.isfile(fpath):
+                try:
+                    os.remove(fpath)
+                    print(f"[migrate] Deleted {fpath}")
+                except OSError:
+                    pass
+        try:
+            os.rmdir(resumes_dir)
+            print(f"[migrate] Removed empty {resumes_dir}")
+        except OSError:
+            pass
+
+    conn.commit()
+    conn.close()
+
+
+def _text_to_html(text):
+    """Convert plain text resume to simple HTML."""
+    import re
+    lines = text.strip().split('\n')
+    html_parts = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            html_parts.append('<br/>')
+            continue
+        # Detect section headers (short ALL CAPS or known headers)
+        if re.match(r'^[A-Z][A-Z\s]{3,}$', line) or line in ('Summary', 'Experience', 'Education', 'Skills', 'Projects', 'Certifications', 'Languages'):
+            html_parts.append(f'<h3 style="margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ddd;padding-bottom:2px;">{line}</h3>')
+        elif line.startswith('•') or line.startswith('-'):
+            html_parts.append(f'<li style="margin:2px 0;font-size:11px;">{line.lstrip("•- ")}</li>')
+        else:
+            html_parts.append(f'<p style="margin:3px 0;font-size:11px;">{line}</p>')
+    return '\n'.join(html_parts)
+
+
 if __name__ == "__main__":
     init_db()
     load_json_to_db()
-    load_initial_preferences()
     migrate_existing_analysis_files()
+    migrate_resume_files_to_db()
     print(f"Database initialized at {DB_PATH}")

@@ -7,11 +7,26 @@ import threading
 from datetime import datetime
 from urllib.parse import urlparse
 from worker import process_job
+from queue_manager import init_queue_manager, get_queue_manager
 
 app = Flask(__name__, static_folder='../client/dist', static_url_path='')
 CORS(app)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+
+def get_db():
+    """Get database connection with retry for locked databases."""
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 4:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise
 
 def _ensure_db_schema():
     """Auto-migrate: add missing columns to jobs table."""
@@ -27,6 +42,9 @@ def _ensure_db_schema():
         'structured_description': "ALTER TABLE jobs ADD COLUMN structured_description TEXT",
         'raw_file_path': "ALTER TABLE jobs ADD COLUMN raw_file_path TEXT",
         'structured_file_path': "ALTER TABLE jobs ADD COLUMN structured_file_path TEXT",
+        'adv_at': "ALTER TABLE jobs ADD COLUMN adv_at TEXT",
+        'see_at': "ALTER TABLE jobs ADD COLUMN see_at TEXT",
+        'apply_reason': "ALTER TABLE jobs ADD COLUMN apply_reason TEXT",
     }
     # pending_jobs: add step columns if missing
     cursor2 = conn.execute('PRAGMA table_info(pending_jobs)')
@@ -34,9 +52,13 @@ def _ensure_db_schema():
     for col in ['step_extract_raw', 'step_extract_struct', 'step_summary', 'step_validate']:
         if col not in pending_cols:
             conn.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
+    if 'queue_order' not in pending_cols:
+        conn.execute("ALTER TABLE pending_jobs ADD COLUMN queue_order INTEGER DEFAULT 0")
     # jobs: add rescoring column if missing
     if 'rescoring' not in columns:
         conn.execute("ALTER TABLE jobs ADD COLUMN rescoring INTEGER DEFAULT 0")
+    if 'success' not in columns:
+        conn.execute("ALTER TABLE jobs ADD COLUMN success TEXT")
     for col, sql in migrations.items():
         if col not in columns:
             conn.execute(sql)
@@ -44,6 +66,70 @@ def _ensure_db_schema():
     conn.close()
 
 _ensure_db_schema()
+
+# Initialize the persistent job queue manager
+queue_mgr = init_queue_manager(DB_PATH)
+
+# Migrate numeric scores to letter grades
+try:
+    from worker import normalize_score
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute('SELECT num, score FROM jobs WHERE deleted=0').fetchall()
+    converted = 0
+    for num, score in rows:
+        if isinstance(score, (int, float)):
+            new_grade = normalize_score(int(score))
+            conn.execute('UPDATE jobs SET score=? WHERE num=?', (new_grade, num))
+            converted += 1
+    rows2 = conn.execute('SELECT num, score FROM summaries').fetchall()
+    for num, score in rows2:
+        if isinstance(score, (int, float)):
+            new_grade = normalize_score(int(score))
+            conn.execute('UPDATE summaries SET score=? WHERE num=?', (new_grade, num))
+    if converted:
+        conn.commit()
+        print(f"[migrate] Converted {converted} numeric scores to letter grades")
+    conn.close()
+except Exception as e:
+    print(f"Warning: score migration failed: {e}")
+
+# Migrate old preferences (scoring/tech/domain/visa/strategy) to new fit/success
+try:
+    conn = sqlite3.connect(DB_PATH)
+    old_cats = conn.execute("SELECT DISTINCT category FROM preferences WHERE category NOT IN ('fit','success')").fetchall()
+    if old_cats:
+        print(f"[migrate] Removing old preference categories: {[r[0] for r in old_cats]}")
+        conn.execute("DELETE FROM preferences WHERE category NOT IN ('fit','success')")
+        conn.commit()
+    # Check if rules need updating (old keys vs new keys)
+    existing_keys = {r[0] for r in conn.execute("SELECT key FROM preferences").fetchall()}
+    if 'python_expertise' in existing_keys or 'visa_sponsorship' not in existing_keys:
+        print("[migrate] Replacing old rules with unified fine-grained rules")
+        conn.execute("DELETE FROM preferences")
+        conn.commit()
+        conn.close()
+        from db import init_db
+        init_db()
+    else:
+        conn.close()
+except Exception as e:
+    print(f"Warning: preferences migration failed: {e}")
+
+# Migrate existing jobs: set success = score for jobs without success
+try:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE jobs SET success = score WHERE success IS NULL AND score != 'P'")
+    conn.commit()
+    conn.close()
+except Exception as e:
+    print(f"Warning: success migration failed: {e}")
+
+# Migrate existing resume files from disk to DB on startup
+try:
+    from db import migrate_resume_files_to_db
+    migrate_resume_files_to_db()
+except Exception as e:
+    print(f"Warning: resume file migration failed: {e}")
 
 
 def normalize_url(url):
@@ -57,10 +143,19 @@ def normalize_url(url):
     return base_url
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    return conn
+    """Get database connection with retry for locked databases."""
+    import time
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5)
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA journal_mode=WAL')
+            return conn
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 4:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise
 
 def row_to_dict(row):
     return dict(row) if row else None
@@ -87,7 +182,7 @@ def get_jobs():
     # Sorting
     sort_by = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
-    allowed_sorts = {'created_at', 'score', 'num', 'company', 'location', 'posted_at', 'applicants'}
+    allowed_sorts = {'created_at', 'score', 'score_success', 'score_combined', 'num', 'company', 'location', 'posted_at', 'applicants', 'adv_at', 'see_at'}
     if sort_by not in allowed_sorts:
         sort_by = 'created_at'
     if sort_dir not in ('asc', 'desc'):
@@ -161,19 +256,48 @@ def get_jobs():
     where_clause = ' AND '.join(conditions)
     total = conn.execute(f'SELECT COUNT(*) FROM jobs WHERE {where_clause}', params).fetchone()[0]
 
+    # Aggregate stats (always from full table, not filtered)
+    stats = conn.execute('''SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN match='High' THEN 1 ELSE 0 END) as high_match,
+        SUM(CASE WHEN score IN ('A','A+','A++') THEN 1 ELSE 0 END) as apply_now,
+        SUM(CASE WHEN work_type='Remote' THEN 1 ELSE 0 END) as remote
+        FROM jobs WHERE deleted=0''').fetchone()
+    agg = {
+        'total': stats[0] or 0,
+        'high_match': stats[1] or 0,
+        'apply_now': stats[2] or 0,
+        'remote': stats[3] or 0,
+    }
+
     # Handle applicants sorting specially (parse numeric from text)
     if sort_by == 'applicants':
         order_clause = f"CAST(REPLACE(REPLACE(applicants, 'Not specified', '999'), '+', '') AS INTEGER) {sort_dir}"
+    elif sort_by == 'score':
+        # Fit score primary, success score as tiebreaker
+        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        order_clause = f"{fit_rank} {sort_dir}, {success_rank} {sort_dir}"
+    elif sort_by == 'score_success':
+        # Success score primary, fit score as tiebreaker
+        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        order_clause = f"{success_rank} {sort_dir}, {fit_rank} {sort_dir}"
+    elif sort_by == 'score_combined':
+        # Combined sum of fit + success
+        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+        order_clause = f"({fit_rank} + {success_rank}) {sort_dir}"
     else:
         order_clause = f'{sort_by} {sort_dir}'
 
     if offset is not None and limit is not None:
         rows = conn.execute(f'SELECT * FROM jobs WHERE {where_clause} ORDER BY {order_clause} LIMIT ? OFFSET ?', params + [limit, offset]).fetchall()
         conn.close()
-        return jsonify({'jobs': rows_to_list(rows), 'total': total})
+        return jsonify({'jobs': rows_to_list(rows), 'total': total, 'agg': agg})
     rows = conn.execute(f'SELECT * FROM jobs WHERE {where_clause} ORDER BY {order_clause}', params).fetchall()
     conn.close()
-    return jsonify({'jobs': rows_to_list(rows), 'total': total})
+    return jsonify({'jobs': rows_to_list(rows), 'total': total, 'agg': agg})
 
 @app.route('/api/jobs/<int:num>')
 def get_job(num):
@@ -212,24 +336,25 @@ def requeue_job(num):
     row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
     if row:
         pid = dict(row)['id']
-        conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='requeue',
-            company=?, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-            step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
+        conn.execute('''UPDATE pending_jobs SET status='pending', error=NULL, source='requeue',
+            company=?, queue_order=0, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+            step_analyze=0, step_summary=0, step_db=0, step_done=0,
             workflow_log='[]', updated_at=? WHERE id=?''',
             (company, datetime.now().isoformat(), pid))
     else:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
-            (url, 'requeue', company))
+        cur = conn.execute('INSERT INTO pending_jobs (url, source, company, status) VALUES (?, ?, ?, ?)',
+            (url, 'requeue', company, 'pending'))
         pid = cur.lastrowid
     conn.commit()
     conn.close()
-    threading.Thread(target=process_job, args=(pid,), daemon=True).start()
-    return jsonify({'status': 'requeuing', 'pid': pid, 'num': num, 'company': company})
+    get_queue_manager().enqueue(pid)
+    return jsonify({'status': 'queued', 'pid': pid, 'num': num, 'company': company})
 
 @app.route('/api/summaries')
 def get_summaries():
     conn = get_db()
-    rows = conn.execute('SELECT * FROM summaries ORDER BY score DESC').fetchall()
+    grade_order = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
+    rows = conn.execute(f'SELECT * FROM summaries ORDER BY {grade_order} DESC').fetchall()
     conn.close()
     return stream_json(rows_to_list(rows))
 
@@ -269,9 +394,9 @@ def save_resume():
     content_html = _text_to_html(masked_text)
 
     resume_id = f'original_{next_version}'
-    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, badge, badgeClass, company, role, content, version, raw_text, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        (resume_id, f'Resume v{next_version}', 'Original', 'badge-original', '', '', content_html, next_version, raw_text, datetime.now().isoformat()))
+    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (resume_id, f'Resume v{next_version}', '', '', content_html, next_version, raw_text, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
@@ -282,13 +407,188 @@ def save_resume():
 
 @app.route('/api/resumes/<version>', methods=['DELETE'])
 def delete_resume_version(version):
-    """Delete a specific resume version."""
+    """Delete a specific resume by version (original) or by full ID (tailored)."""
     conn = get_db()
+    # Try as original version first, then as raw ID
     resume_id = f'original_{version}'
-    conn.execute("DELETE FROM resumes WHERE id=?", (resume_id,))
+    deleted = conn.execute("DELETE FROM resumes WHERE id=?", (resume_id,)).rowcount
+    if not deleted:
+        # Try deleting by raw ID (for tailored resumes like pending_X, rescore_X)
+        deleted = conn.execute("DELETE FROM resumes WHERE id=?", (version,)).rowcount
     conn.commit()
     conn.close()
-    return jsonify({'status': 'deleted', 'version': version})
+    return jsonify({'status': 'deleted', 'id': resume_id if deleted else version})
+
+@app.route('/api/jobs/<int:num>/generate-resume', methods=['POST'])
+def generate_resume(num):
+    """Generate a tailored resume for a processed job (on-demand)."""
+    import subprocess
+    from prompts import load_prompt
+
+    conn = get_db()
+    job = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (num,)).fetchone()
+    if not job:
+        conn.close()
+        return jsonify({'error': 'Job not found'}), 404
+    j = dict(job)
+
+    # Load master resume
+    resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+    conn.close()
+    if not resume_row or not dict(resume_row).get('raw_text'):
+        return jsonify({'error': 'No master resume uploaded'}), 400
+
+    # Write temp files
+    import tempfile
+    tmp_dir = os.environ.get('TEMP_DIR', '/tmp')
+    pid = f'resume_{num}_{int(datetime.now().timestamp()*1000)}'
+    job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
+    resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
+
+    raw_desc = j.get('raw_description', '')
+    if not raw_desc:
+        return jsonify({'error': 'No job description available'}), 400
+
+    with open(job_file, 'w') as f:
+        f.write(raw_desc)
+    with open(resume_file, 'w') as f:
+        f.write(dict(resume_row)['raw_text'])
+
+    try:
+        prompt = load_prompt('step_resume_generate',
+            job_file=job_file, resume_file=resume_file,
+            tmp_dir=tmp_dir, pid=pid)
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        mimo_bin = os.path.expanduser('~/.mimocode/bin/mimo')
+
+        proc = subprocess.run(
+            [mimo_bin, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+            cwd=project_root, capture_output=True, text=True,
+            env={**os.environ, 'NO_COLOR': '1'}, timeout=180
+        )
+
+        result_path = os.path.join(tmp_dir, f'resume_{pid}.json')
+        if not os.path.exists(result_path):
+            return jsonify({'error': 'Resume generation failed — no output file'}), 500
+
+        with open(result_path) as f:
+            data = json.loads(f.read(), strict=False)
+
+        resume_html = data.get('resume_html', '')
+        if not resume_html:
+            return jsonify({'error': 'Resume generation returned empty content'}), 500
+
+        # Save to DB
+        conn = get_db()
+        conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
+            VALUES (?,?,?,?,?,?,?,?,?)''',
+            (f'pending_{num}', f"{j['company']} (Score {j['score']})", j['company'], j['role'],
+             resume_html, 1, '', datetime.now().isoformat(), num))
+        conn.commit()
+        conn.close()
+
+        try: os.remove(result_path)
+        except OSError: pass
+
+        return jsonify({'status': 'generated', 'id': f'pending_{num}', 'content': resume_html})
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Resume generation timed out'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        for f in [job_file, resume_file]:
+            try: os.remove(f)
+            except OSError: pass
+
+@app.route('/api/jobs/<int:num>/generate-cover', methods=['POST'])
+def generate_cover(num):
+    """Generate a cover letter for a processed job (on-demand)."""
+    import subprocess
+    from prompts import load_prompt
+
+    conn = get_db()
+    job = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (num,)).fetchone()
+    if not job:
+        conn.close()
+        return jsonify({'error': 'Job not found'}), 404
+    j = dict(job)
+
+    # Load master resume
+    resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
+    conn.close()
+    if not resume_row or not dict(resume_row).get('raw_text'):
+        return jsonify({'error': 'No master resume uploaded'}), 400
+
+    # Write temp files
+    import tempfile
+    tmp_dir = os.environ.get('TEMP_DIR', '/tmp')
+    pid = f'cover_{num}_{int(datetime.now().timestamp()*1000)}'
+    job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
+    resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
+
+    raw_desc = j.get('raw_description', '')
+    if not raw_desc:
+        return jsonify({'error': 'No job description available'}), 400
+
+    with open(job_file, 'w') as f:
+        f.write(raw_desc)
+    with open(resume_file, 'w') as f:
+        f.write(dict(resume_row)['raw_text'])
+
+    try:
+        preferences = ''
+        conn = get_db()
+        pref_rows = conn.execute("SELECT key, value, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC").fetchall()
+        conn.close()
+        if pref_rows:
+            preferences = '\n'.join([f"- {r['key']}: {r['value']} (priority: {r['priority']})" for r in pref_rows])
+
+        prompt = load_prompt('step7_cover_generate',
+            url=j.get('url', ''), job_file=job_file, resume_file=resume_file,
+            tmp_dir=tmp_dir, pid=pid, preferences=preferences)
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        mimo_bin = os.path.expanduser('~/.mimocode/bin/mimo')
+
+        proc = subprocess.run(
+            [mimo_bin, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+            cwd=project_root, capture_output=True, text=True,
+            env={**os.environ, 'NO_COLOR': '1'}, timeout=120
+        )
+
+        result_path = os.path.join(tmp_dir, f'cover_{pid}.json')
+        if not os.path.exists(result_path):
+            return jsonify({'error': 'Cover letter generation failed — no output file'}), 500
+
+        with open(result_path) as f:
+            data = json.loads(f.read(), strict=False)
+
+        cover_html = data.get('cover_letter', '')
+        if not cover_html:
+            return jsonify({'error': 'Cover letter generation returned empty content'}), 500
+
+        # Save to DB
+        conn = get_db()
+        conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
+            VALUES (?,?,?,?,?,?,?,?,?)''',
+            (f'cover_{num}', f"{j['company']} Cover Letter", j['company'], j['role'],
+             cover_html, 1, '', datetime.now().isoformat(), num))
+        conn.commit()
+        conn.close()
+
+        try: os.remove(result_path)
+        except OSError: pass
+
+        return jsonify({'status': 'generated', 'id': f'cover_{num}', 'content': cover_html})
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Cover letter generation timed out'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        for f in [job_file, resume_file]:
+            try: os.remove(f)
+            except OSError: pass
 
 def _mask_pii(text):
     """Mask personally identifiable information for safe sharing."""
@@ -530,11 +830,12 @@ def add_pending():
         conn.commit()
 
     try:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source) VALUES (?, ?)', (url, source))
+        cur = conn.execute('INSERT INTO pending_jobs (url, source, status) VALUES (?, ?, ?)',
+                           (url, source, 'pending'))
         conn.commit()
         new_id = cur.lastrowid
         conn.close()
-        return jsonify({'status': 'queued', 'id': new_id, 'url': url, 'source': source})
+        return jsonify({'status': 'pending', 'id': new_id, 'url': url, 'source': source})
     except sqlite3.IntegrityError:
         conn.close()
         return jsonify({'error': 'URL already exists', 'url': url}), 409
@@ -561,16 +862,16 @@ def delete_pending(id):
 
 @app.route('/api/pending/<int:id>/reset', methods=['PUT'])
 def reset_pending(id):
-    """Reset a pending job back to queued status (stop — from scratch)."""
+    """Reset a pending job back to pending status (from scratch)."""
     conn = get_db()
-    conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL,
+    conn.execute('''UPDATE pending_jobs SET status='pending', error=NULL, queue_order=0,
                     step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-                    step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
+                    step_analyze=0, step_summary=0, step_db=0, step_done=0,
                     updated_at=? WHERE id=?''',
                  (datetime.now().isoformat(), id))
     conn.commit()
     conn.close()
-    return jsonify({'status': 'queued', 'id': id})
+    return jsonify({'status': 'pending', 'id': id})
 
 @app.route('/api/pending/<int:id>/pause', methods=['PUT'])
 def pause_pending(id):
@@ -582,7 +883,7 @@ def pause_pending(id):
         return jsonify({'error': 'Not found'}), 404
     item = dict(row)
     # Find the current (first incomplete) step and reset only that one
-    step_cols = ['step_fetch', 'step_extract_raw', 'step_extract_struct', 'step_analyze', 'step_resume']
+    step_cols = ['step_fetch', 'step_validate', 'step_extract_raw', 'step_extract_struct', 'step_summary', 'step_analyze']
     reset_col = None
     for col in step_cols:
         if item.get(col) == 0:
@@ -601,7 +902,7 @@ def pause_pending(id):
 
 @app.route('/api/pending/<int:id>/process', methods=['POST'])
 def process_pending(id):
-    """Mark a pending job for processing and write trigger file."""
+    """Move a pending/failed job to the queue for processing."""
     conn = get_db()
     row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (id,)).fetchone()
     if not row:
@@ -612,25 +913,27 @@ def process_pending(id):
     if item['status'] == 'done':
         conn.close()
         return jsonify({'error': 'Already completed'}), 400
+    if item['status'] == 'processing':
+        conn.close()
+        return jsonify({'error': 'Already processing', 'id': id}), 409
+    if item['status'] == 'queued':
+        conn.close()
+        return jsonify({'error': 'Already queued', 'id': id}), 409
 
-    # Update status to processing (reset steps if retrying a failed job)
+    # Reset steps if retrying a failed job
     if item['status'] == 'failed':
-        conn.execute('''UPDATE pending_jobs SET status='processing', error=NULL,
+        conn.execute('''UPDATE pending_jobs SET error=NULL,
                         step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-                        step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
+                        step_analyze=0, step_summary=0, step_db=0, step_done=0,
                         updated_at=? WHERE id=?''',
                      (datetime.now().isoformat(), id))
-    else:
-        # For paused or queued: keep existing steps (continue from current step)
-        conn.execute('''UPDATE pending_jobs SET status='processing', updated_at=? WHERE id=?''',
-                     (datetime.now().isoformat(), id))
-    conn.commit()
+        conn.commit()
     conn.close()
 
-    # Spawn background worker thread (autonomous — no MiMoCode dependency)
-    threading.Thread(target=process_job, args=(id,), daemon=True).start()
+    # Enqueue — queue manager will pick it up
+    get_queue_manager().enqueue(id)
 
-    return jsonify({'status': 'processing', 'id': id, 'url': item['url']})
+    return jsonify({'status': 'queued', 'id': id, 'url': item['url']})
 
 @app.route('/api/refresh/dashboard', methods=['POST'])
 def refresh_dashboard():
@@ -745,7 +1048,7 @@ def update_step(id):
     conn = get_db()
     fields = []
     values = []
-    for key in ['status', 'step_fetch', 'step_analyze', 'step_resume', 'step_db', 'step_done', 'job_num', 'company', 'error']:
+    for key in ['status', 'step_fetch', 'step_analyze', 'step_db', 'step_done', 'job_num', 'company', 'error']:
         if key in data:
             fields.append(f'{key}=?')
             values.append(data[key])
@@ -758,6 +1061,22 @@ def update_step(id):
     conn.close()
     return jsonify({'status': 'updated'})
 
+@app.route('/api/queue/status')
+def queue_status():
+    """Get current queue status."""
+    return jsonify(get_queue_manager().get_status())
+
+@app.route('/api/pending/queue-all', methods=['POST'])
+def queue_all_pending():
+    """Move all pending jobs to queued for processing."""
+    conn = get_db()
+    rows = conn.execute("SELECT id FROM pending_jobs WHERE status='pending' ORDER BY created_at ASC").fetchall()
+    conn.close()
+    pending_ids = [dict(r)['id'] for r in rows]
+    if pending_ids:
+        get_queue_manager().enqueue_bulk(pending_ids)
+    return jsonify({'status': 'queued', 'count': len(pending_ids)})
+
 # --- Serve React app ---
 
 @app.route('/')
@@ -767,34 +1086,49 @@ def serve():
 @app.route('/<path:path>')
 @app.route('/api/jobs/<int:num>/rescore', methods=['POST'])
 def rescore_job(num):
-    """Re-score a single job in the background without moving to processing queue."""
+    """Re-score a job through the processing pipeline."""
     conn = get_db()
     job = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
     if not job:
         conn.close()
         return jsonify({'error': 'Job not found'}), 404
     j = dict(job)
+    url = j['url']
     # Set rescoring flag
     conn.execute('UPDATE jobs SET rescoring=1 WHERE num=?', (num,))
+    # Clean up any old pending entries for this URL
+    conn.execute('DELETE FROM pending_jobs WHERE url=?', (url,))
+    # Insert into pending pipeline with source=rescore, status=pending
+    cur = conn.execute('INSERT INTO pending_jobs (url, source, company, job_num, status) VALUES (?, ?, ?, ?, ?)',
+                        (url, 'rescore', j.get('company', ''), num, 'pending'))
     conn.commit()
+    pending_id = cur.lastrowid
     conn.close()
-    # Spawn background rescore thread
-    from worker import rescore_only
-    threading.Thread(target=rescore_only, args=(num,), daemon=True).start()
-    return jsonify({'status': 'rescoring', 'num': num, 'company': j.get('company', '')})
+    # Enqueue — queue manager will process it
+    get_queue_manager().enqueue(pending_id)
+    return jsonify({'status': 'queued', 'num': num, 'company': j.get('company', ''), 'pending_id': pending_id})
 
 @app.route('/api/jobs/rescore-all', methods=['POST'])
 def rescore_all():
-    """Re-score all jobs in the background."""
+    """Re-score all jobs through the processing pipeline."""
     conn = get_db()
-    jobs = conn.execute('SELECT num FROM jobs WHERE deleted=0 AND rescoring=0').fetchall()
-    conn.close()
+    jobs = conn.execute('SELECT num, url, company FROM jobs WHERE deleted=0 AND rescoring=0').fetchall()
     count = 0
-    from worker import rescore_only
+    pending_ids = []
     for job in jobs:
-        num = dict(job)['num']
-        threading.Thread(target=rescore_only, args=(num,), daemon=True).start()
+        j = dict(job)
+        num = j['num']
+        url = j['url']
+        conn.execute('UPDATE jobs SET rescoring=1 WHERE num=?', (num,))
+        cur = conn.execute('INSERT INTO pending_jobs (url, source, company, job_num, status) VALUES (?, ?, ?, ?, ?)',
+                            (url, 'rescore', j.get('company', ''), num, 'pending'))
+        pending_ids.append(cur.lastrowid)
         count += 1
+    conn.commit()
+    conn.close()
+    # Bulk enqueue all pending jobs in order
+    if pending_ids:
+        get_queue_manager().enqueue_bulk(pending_ids)
     return jsonify({'status': 'rescoring', 'count': count})
 
 @app.route('/api/jobs/reprocess-all', methods=['POST'])
@@ -806,32 +1140,31 @@ def reprocess_all():
     conn.execute('DELETE FROM jobs WHERE deleted=0')
     conn.execute('DELETE FROM summaries')
     conn.execute("DELETE FROM resumes WHERE id != 'original'")
-    conn.commit()
-    conn.close()
-    count = 0
+    pending_ids = []
     for job in jobs:
         j = dict(job)
         url = j['url']
         company = j.get('company', '')
         # Find or create pending entry
-        c = get_db()
-        row = c.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
+        row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (url,)).fetchone()
         if row:
             pid = dict(row)['id']
-            c.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='requeue',
-                company=?, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-                step_analyze=0, step_summary=0, step_resume=0, step_db=0, step_done=0,
+            conn.execute('''UPDATE pending_jobs SET status='pending', error=NULL, source='requeue',
+                company=?, queue_order=0, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
+                step_analyze=0, step_summary=0, step_db=0, step_done=0,
                 workflow_log='[]', updated_at=? WHERE id=?''',
                 (company, datetime.now().isoformat(), pid))
+            pending_ids.append(pid)
         else:
-            cur = c.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
-                (url, 'requeue', company))
-            pid = cur.lastrowid
-        c.commit()
-        c.close()
-        threading.Thread(target=process_job, args=(pid,), daemon=True).start()
-        count += 1
-    return jsonify({'status': 'reprocessing', 'count': count})
+            cur = conn.execute('INSERT INTO pending_jobs (url, source, company, status) VALUES (?, ?, ?, ?)',
+                (url, 'requeue', company, 'pending'))
+            pending_ids.append(cur.lastrowid)
+    conn.commit()
+    conn.close()
+    # Bulk enqueue all pending jobs
+    if pending_ids:
+        get_queue_manager().enqueue_bulk(pending_ids)
+    return jsonify({'status': 'reprocessing', 'count': len(pending_ids)})
 
 def static_proxy(path):
     file_path = os.path.join(app.static_folder, path)
