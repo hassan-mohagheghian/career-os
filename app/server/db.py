@@ -5,7 +5,10 @@ import sqlite3
 from dotenv import load_dotenv
 load_dotenv()
 
-DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), "db", "jobs.db"))
+_file_dir = os.path.dirname(os.path.abspath(__file__))
+_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, "db", "jobs.db"))
+# Resolve relative paths against the file's own directory, not CWD
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 
 # Ensure db directory exists
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

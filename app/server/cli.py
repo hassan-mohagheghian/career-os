@@ -22,7 +22,9 @@ from rich.panel import Panel
 app = typer.Typer(help="Job Search CLI — manage pending jobs", no_args_is_help=True)
 console = Console()
 
-DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+_file_dir = os.path.dirname(os.path.abspath(__file__))
+_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 

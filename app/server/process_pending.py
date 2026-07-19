@@ -3,7 +3,9 @@ import json
 import os
 from datetime import datetime
 
-DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+_file_dir = os.path.dirname(os.path.abspath(__file__))
+_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)

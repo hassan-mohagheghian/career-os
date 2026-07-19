@@ -15,7 +15,9 @@ from queue_manager import init_queue_manager, get_queue_manager
 app = Flask(__name__, static_folder='../client/dist', static_url_path='')
 CORS(app)
 
-DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+_file_dir = os.path.dirname(os.path.abspath(__file__))
+_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def get_db():
