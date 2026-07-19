@@ -280,6 +280,10 @@ def migrate_existing_analysis_files():
 
     migrated = 0
 
+    if not os.path.isdir(data_dir):
+        conn.close()
+        return
+
     # Migrate dashboard_insights_*.json files
     for filename in os.listdir(data_dir):
         match = re.match(r"dashboard_insights_(\d+)\.json", filename)

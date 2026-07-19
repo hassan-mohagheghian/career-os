@@ -1085,14 +1085,6 @@ def process_job(pid):
                 'resumeFit': data.get('summary', {}).get('resumeFit', ''),
                 'note': data.get('summary', {}).get('note', ''), 'url': url,
             })
-            _insert_resume({
-                'id': f"rescore_{job_data['num']}",
-                'title': f"{job_data['company']} (Score {score})",
-                'company': job_data['company'], 'role': job_data['role'],
-                'job_num': job_data['num'],
-                'content': data.get('resume_html', ''),
-            })
-
             # Clear rescoring flag
             conn = _db()
             conn.execute('UPDATE jobs SET rescoring=0 WHERE num=?', (job_data['num'],))
