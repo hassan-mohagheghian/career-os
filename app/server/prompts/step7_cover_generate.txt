@@ -1,0 +1,70 @@
+Write a tailored cover letter for the candidate applying to this job.
+
+═══════════════════════════════════════════════════════════════
+STEPS
+═══════════════════════════════════════════════════════════════
+
+1. Read the job posting from {job_file}
+2. Read the candidate's master resume from {resume_file}
+3. Write the cover letter as a complete HTML document
+4. Use the Write tool to save the JSON result to: {tmp_dir}/cover_{pid}.json
+
+The JSON must be exactly:
+{{"cover_letter": "<full HTML document>"}}
+
+═══════════════════════════════════════════════════════════════
+COVER LETTER REQUIREMENTS
+═══════════════════════════════════════════════════════════════
+
+1. LENGTH: 3-4 paragraphs, 250-350 words. No filler.
+
+2. OPENING PARAGRAPH (Hook):
+   - Name the specific role and company
+   - One sentence connecting the candidate's experience to the role's core requirement
+   - No generic openings like "I am writing to apply..." — be direct
+
+3. BODY PARAGRAPH 1 (Technical Fit):
+   - Match 2-3 specific job requirements to the candidate's experience
+   - Use the same keywords from the job posting (ATS scanning)
+   - Include quantified results where possible
+   - Reference relevant projects from the resume
+
+4. BODY PARAGRAPH 2 (Value Add):
+   - What unique value the candidate brings beyond the requirements
+   - Mention cross-functional experience
+
+5. CLOSING PARAGRAPH (Call to Action):
+   - Express enthusiasm for the specific role
+   - Offer to discuss further
+   - Professional sign-off
+
+═══════════════════════════════════════════════════════════════
+HTML FORMAT
+═══════════════════════════════════════════════════════════════
+
+Complete HTML document with inline CSS only:
+- Clean, professional typography
+- 11-12px font size
+- Line height 1.6
+- Margin: 40px on sides
+- No background colors (white background for ATS)
+- Semantic HTML: use <p> for paragraphs, <strong> for emphasis
+
+Example:
+<html>
+<head><style>body{{font-family:system-ui,sans-serif;font-size:11px;line-height:1.6;color:#333;max-width:600px;margin:40px auto;}}</style></head>
+<body>
+<p>Dear Hiring Manager,</p>
+<p>[Opening]</p>
+<p>[Body 1]</p>
+<p>[Body 2]</p>
+<p>[Closing]</p>
+</body>
+</html>
+
+RULES:
+- DO NOT copy-paste the resume into the cover letter
+- DO NOT use generic phrases like "team player", "hard worker"
+- DO NOT fabricate experience or skills
+- Limit "I" to 4-5 times max
+- Do NOT write more than 350 words

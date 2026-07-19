@@ -1,11 +1,11 @@
-Analyze ALL processed jobs and update Hassan's skills profile.
+Analyze ALL processed jobs and update the candidate's skills profile.
 
-Read the jobs database at {project_root}/app/server/jobs.db (table: jobs, column: deleted=0).
+Read the jobs database at {project_root}/app/server/db/jobs.db (table: jobs, column: deleted=0).
 
 Generate skills analysis as JSON and save to {tmp_dir}/skills_insights_{pid}.json with this structure:
 
 {{"techLearning": [
-  {{"name": "TypeScript", "priority": 1, "pl": "Learning", "pc": "p1", "sc": "text-yellow-500", "dc": "bg-yellow-500", "usage": 45, "uc": "#eab308", "jobs": "9/20", "jd": "jobs require TypeScript", "reason": "Required in X jobs. Hassan knows Python well, TypeScript is the natural next step for full-stack.", "action": "Complete TypeScript roadmap, build a React+TypeScript project"}},
+  {{"name": "TypeScript", "priority": 1, "pl": "Learning", "pc": "p1", "sc": "text-yellow-500", "dc": "bg-yellow-500", "usage": 45, "uc": "#eab308", "jobs": "9/20", "jd": "jobs require TypeScript", "reason": "Required in X jobs. Candidate knows Python well, TypeScript is the natural next step for full-stack.", "action": "Complete TypeScript roadmap, build a React+TypeScript project"}},
   ...
 ],
 "techStack": [
@@ -13,7 +13,7 @@ Generate skills analysis as JSON and save to {tmp_dir}/skills_insights_{pid}.jso
   ...
 ],
 "learningPriorities": [
-  {{"name": "TypeScript", "reason": "Appears in X jobs, Hassan has gap"}},
+  {{"name": "TypeScript", "reason": "Appears in X jobs, candidate has gap"}},
   ...
 ],
 "skillGaps": [
@@ -26,19 +26,19 @@ RULES FOR techLearning:
 - priority: 1=critical (appears in 30%+ jobs), 2=important (15-30%), 3=useful (5-15%)
 - usage: percentage of jobs requiring this skill
 - jobs: fraction like "9/20" showing how many jobs need it
-- reason: explain why Hassan should learn this (based on job data)
+- reason: explain why the candidate should learn this (based on job data)
 - action: specific learning recommendation
 
 RULES FOR techStack:
-- level: 1-5 based on Hassan's current proficiency (5=expert, 1=beginner)
+- level: 1-5 based on the candidate's current proficiency (5=expert, 1=beginner)
 - roles: percentage of jobs where this skill applies
 - path: learning or maintenance recommendation
 
 RULES FOR learningPriorities:
-- Top 5 skills Hassan should learn next, with data-backed reasons
+- Top 5 skills the candidate should learn next, with data-backed reasons
 
 RULES FOR skillGaps:
-- Skills that appear in jobs but Hassan lacks
+- Skills that appear in jobs but the candidate lacks
 - Include count of jobs requiring each skill
 
 Use ONLY data from actual processed jobs. Include specific numbers and company examples.

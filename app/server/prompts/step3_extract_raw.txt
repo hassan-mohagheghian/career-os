@@ -1,0 +1,43 @@
+Extract and validate job information from this web page content.
+
+Content:
+{content}
+
+Save the result as JSON to {output_file} with this structure:
+
+{{
+  "valid": true/false,
+  "reason": "brief explanation if invalid",
+  "company": "Company name",
+  "role": "Job title",
+  "location": "Primary city only (Berlin, Munich, etc.)",
+  "locations": ["City1", "City2"],
+  "employment_type": "Full-time|Part-time|Contract|Internship|Temporary",
+  "work_types": ["On-site", "Remote", "Hybrid"],
+  "salary": "Salary range if mentioned, else 'Not specified'",
+  "stack": "Comma-separated tech stack",
+  "visa": "BEST|Strong|Good|Moderate|Uncertain",
+  "visa_reason": "Why this visa rating",
+  "applicants": "Number if mentioned, else 'Not specified'",
+  "posted": "Relative time if mentioned, else 'Not specified'",
+  "industry": "Industry sector",
+  "domain": "Business domain",
+  "requirements": ["Must-have 1", "Must-have 2"],
+  "nice_to_have": ["Nice-to-have 1", "Nice-to-have 2"],
+  "responsibilities": ["Key responsibility 1", "Key responsibility 2"],
+  "benefits": ["Benefit 1", "Benefit 2"],
+  "company_size": "Size if mentioned",
+  "company_description": "Brief company description",
+  "summary": "2-3 sentence summary of the role and company"
+}}
+
+RULES:
+- Output ONLY the JSON object, no markdown
+- valid=true if this is a job posting with requirements/responsibilities
+- valid=false if this is a login page, error, cookie consent, or not a job
+- location: ONLY city name, no country/region
+- locations: array of city names only
+- stack: extract ALL technologies mentioned
+- requirements: extract ALL must-have skills
+- responsibilities: top 3-5 key duties
+- summary: concise overview for quick understanding
