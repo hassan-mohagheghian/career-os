@@ -1007,9 +1007,21 @@ def refresh_dashboard():
     """Manually refresh dashboard insights."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_dashboard_insights
+    from worker import _update_strategy_analysis
     try:
-        _update_dashboard_insights(0)
+        _update_strategy_analysis(0)
+        return jsonify({'status': 'updated'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/refresh/networking', methods=['POST'])
+def refresh_networking():
+    """Manually refresh networking analysis only."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from worker import _update_networking_analysis
+    try:
+        _update_networking_analysis(0)
         return jsonify({'status': 'updated'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1019,16 +1031,16 @@ def refresh_skills():
     """Manually refresh skills insights."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_skills_insights
+    from worker import _update_skills_analysis
     try:
-        _update_skills_insights(0)
+        _update_skills_analysis(0)
         return jsonify({'status': 'updated'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/refresh/analysis', methods=['POST'])
 def refresh_analysis():
-    """Manually refresh unified analysis (combines dashboard + skills)."""
+    """Manually refresh unified analysis (combines all tabs)."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
     from worker import _update_unified_analysis

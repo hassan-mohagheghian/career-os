@@ -168,7 +168,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -177,7 +177,7 @@ def _insert_job(d):
          employment_type, json.dumps(normalized_wt), d.get('raw_description'),
          d.get('structured_description'), d.get('raw_file_path'),
          d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
-         adv_at, see_at, d.get('apply_reason', ''), d.get('company_url')))
+         adv_at, see_at, d.get('apply_reason', ''), d.get('company_url'), d.get('linkedin_url')))
     conn.commit(); conn.close()
 
 
@@ -508,146 +508,139 @@ def _extract_all(raw_text, pid):
     return None
 
 def _update_dashboard_insights(pid):
-    """Update dashboard insights based on all processed jobs."""
-    import subprocess
-    prompt = load_prompt('dashboard_update',
-        project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid)
-    result_file = os.path.join(TMP_DIR, f'dashboard_insights_{pid}.json')
-
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=120,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
-
-    if proc.returncode == 0 and os.path.exists(result_file):
-        with open(result_file) as f:
-            insights = json.load(f)
-
-        # Save to analysis_runs table
-        conn = _db()
-        now = datetime.now().isoformat()
-        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
-            ('dashboard', now, json.dumps(insights, ensure_ascii=False)))
-
-        # Also update the legacy dashboard_insights table for backward compatibility
-        conn.execute('DELETE FROM dashboard_insights')
-        for item_type, items in insights.items():
-            if isinstance(items, list):
-                for i, item in enumerate(items):
-                    conn.execute('''INSERT INTO dashboard_insights (type, icon, title, description, priority)
-                        VALUES (?, ?, ?, ?, ?)''',
-                        (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
-                         item.get('description', item.get('detail', item.get('note', ''))), i))
-
-        conn.commit(); conn.close()
-        try: os.remove(result_file)
-        except OSError: pass
-        print(f"[worker] Dashboard insights updated")
+    """Legacy wrapper — delegates to _update_strategy_analysis."""
+    _update_strategy_analysis(pid)
 
 def _update_skills_insights(pid):
-    """Update skills insights based on all processed jobs."""
-    import subprocess
-    prompt = load_prompt('skills_update',
-        project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid)
-    result_file = os.path.join(TMP_DIR, f'skills_insights_{pid}.json')
+    """Legacy wrapper — delegates to _update_skills_analysis."""
+    _update_skills_analysis(pid)
 
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=120,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
+def _save_analysis(insights, legacy=True):
+    """Save analysis to DB. Merge with existing if partial update."""
+    conn = _db()
+    now = datetime.now().isoformat()
 
-    if proc.returncode == 0 and os.path.exists(result_file):
-        with open(result_file) as f:
-            insights = json.load(f)
+    # Try to merge with existing analysis
+    existing_row = conn.execute(
+        "SELECT analysis_json FROM analysis_runs WHERE page='analysis' ORDER BY created_at DESC LIMIT 1"
+    ).fetchone()
+    if existing_row:
+        existing = json.loads(dict(existing_row)['analysis_json'])
+        # Merge: new keys overwrite, existing keys kept
+        for key, val in insights.items():
+            existing[key] = val
+        merged = existing
+    else:
+        merged = insights
 
-        # Save to analysis_runs table
-        conn = _db()
-        now = datetime.now().isoformat()
-        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
-            ('skills', now, json.dumps(insights, ensure_ascii=False)))
+    conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
+        ('analysis', now, json.dumps(merged, ensure_ascii=False)))
 
-        # Also update the legacy tables for backward compatibility
-        # Update tech_learning
-        if 'techLearning' in insights:
-            conn.execute('DELETE FROM tech_learning')
-            for t in insights['techLearning']:
-                conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-                    (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
-                     t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
-                     t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
-        # Update tech_stack
-        if 'techStack' in insights:
-            conn.execute('DELETE FROM tech_stack')
-            for t in insights['techStack']:
-                conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
-                    (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
-                     t.get('roles', ''), t.get('path', '')))
-
-        conn.commit(); conn.close()
-        try: os.remove(result_file)
-        except OSError: pass
-        print(f"[worker] Skills insights updated")
-
-def _update_unified_analysis(pid):
-    """Update unified analysis combining dashboard and skills insights."""
-    import subprocess
-    prompt = load_prompt('analysis_update',
-        project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid)
-    result_file = os.path.join(TMP_DIR, f'analysis_{pid}.json')
-
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=180,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
-
-    if proc.returncode == 0 and os.path.exists(result_file):
-        with open(result_file) as f:
-            insights = json.load(f)
-
-        # Save to analysis_runs table
-        conn = _db()
-        now = datetime.now().isoformat()
-        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
-            ('analysis', now, json.dumps(insights, ensure_ascii=False)))
-
-        # Also update legacy tables for backward compatibility
-        # Dashboard insights
+    if legacy:
+        # Update legacy tables for backward compatibility
         conn.execute('DELETE FROM dashboard_insights')
         for item_type in ['strategy', 'strengths', 'weaknesses', 'visa_companies', 'apply_urgency']:
-            items = insights.get(item_type, [])
+            items = merged.get(item_type, [])
             if isinstance(items, list):
                 for i, item in enumerate(items):
                     conn.execute('''INSERT INTO dashboard_insights (type, icon, title, description, priority)
                         VALUES (?, ?, ?, ?, ?)''',
                         (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
                          item.get('description', item.get('detail', item.get('note', ''))), i))
-
-        # Tech learning
-        if 'techLearning' in insights:
+        if 'techLearning' in merged:
             conn.execute('DELETE FROM tech_learning')
-            for t in insights['techLearning']:
+            for t in merged['techLearning']:
                 conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
                     (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
                      t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
                      t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
-
-        # Tech stack
-        if 'techStack' in insights:
+        if 'techStack' in merged:
             conn.execute('DELETE FROM tech_stack')
-            for t in insights['techStack']:
+            for t in merged['techStack']:
                 conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
                     (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
                      t.get('roles', ''), t.get('path', '')))
 
-        conn.commit(); conn.close()
+    conn.commit(); conn.close()
+    return merged
+
+def _run_analysis_prompt(prompt_name, timeout=180, **kwargs):
+    """Run a mimo analysis prompt and return the parsed result, or None on failure."""
+    prompt = load_prompt(prompt_name, project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, **kwargs)
+    result_file = os.path.join(TMP_DIR, f'analysis_{kwargs.get("pid", 0)}.json')
+    proc = subprocess.run(
+        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=timeout,
+        env={**os.environ, 'NO_COLOR': '1'}
+    )
+    if proc.returncode == 0 and os.path.exists(result_file):
+        with open(result_file) as f:
+            result = json.load(f)
         try: os.remove(result_file)
         except OSError: pass
+        return result
+    return None
+
+def _update_strategy_analysis(pid):
+    """Refresh strategy tab: strategy, strengths, weaknesses, visa, urgency, goals, improvements."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        # Keep only strategy-relevant sections
+        sections = ['overview', 'strategy', 'strengths', 'weaknesses', 'visa_companies',
+                     'apply_urgency', 'goals', 'improvements', 'searchSummary', 'cities']
+        filtered = {k: v for k, v in result.items() if k in sections}
+        _save_analysis(filtered, legacy=False)
+        print(f"[worker] Strategy analysis updated")
+    else:
+        print(f"[worker] Strategy analysis failed")
+
+def _update_networking_analysis(pid):
+    """Refresh networking tab only."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        filtered = {'networking': result.get('networking', [])}
+        _save_analysis(filtered, legacy=False)
+        print(f"[worker] Networking analysis updated")
+    else:
+        print(f"[worker] Networking analysis failed")
+
+def _update_skills_analysis(pid):
+    """Refresh skills tab: techStack, techLearning, skillJobFit, learningROI."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        sections = ['techStack', 'techLearning', 'skillJobFit', 'learningROI']
+        filtered = {k: v for k, v in result.items() if k in sections}
+        _save_analysis(filtered, legacy=False)
+        # Also update legacy tables
+        conn = _db()
+        if 'techLearning' in result:
+            conn.execute('DELETE FROM tech_learning')
+            for t in result['techLearning']:
+                conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
+                    (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
+                     t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
+                     t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
+        if 'techStack' in result:
+            conn.execute('DELETE FROM tech_stack')
+            for t in result['techStack']:
+                conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
+                    (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
+                     t.get('roles', ''), t.get('path', '')))
+        conn.commit(); conn.close()
+        print(f"[worker] Skills analysis updated")
+    else:
+        print(f"[worker] Skills analysis failed")
+
+def _update_unified_analysis(pid):
+    """Refresh All: regenerate everything."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        _save_analysis(result, legacy=True)
         print(f"[worker] Unified analysis updated")
+    else:
+        print(f"[worker] Unified analysis failed")
 
 def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
@@ -1075,6 +1068,7 @@ def process_job(pid):
                 'work_types': analyzed_data.get('work_types', job_data.get('work_types', [])),
                 'workflow_log': analyzed_data.get('workflow_log', '[]'),
                 'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
+                'linkedin_url': analyzed_data.get('linkedin_url', job_data.get('linkedin_url')),
             })
 
             # Save updated job, summary, and resume
@@ -1202,6 +1196,7 @@ def process_job(pid):
             'notes': '', 'action': '', 'url': url,
             'raw_description': raw_text, 'structured_description': structured_json,
             'apply_reason': '', 'company_url': (extraction or {}).get('company_url'),
+            'linkedin_url': (extraction or {}).get('linkedin_url'),
         }
         _insert_job(job_data)
         _insert_summary({
@@ -1318,6 +1313,7 @@ def process_job(pid):
             'work_types': analyzed_data.get('work_types', []),
             'workflow_log': analyzed_data.get('workflow_log', '[]'),
             'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
+            'linkedin_url': analyzed_data.get('linkedin_url', job_data.get('linkedin_url')),
         })
 
         # Save final results

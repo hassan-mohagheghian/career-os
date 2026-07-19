@@ -70,6 +70,7 @@ Generate analysis as JSON and save to {tmp_dir}/analysis_{pid}.json with this st
     {{
       "company": "Company Name",
       "company_url": "Company website URL if available from job data, else null",
+      "linkedin_url": "Company LinkedIn page URL if available, else null",
       "jobUrl": "https://linkedin.com/jobs/view/...",
       "score": "A",
       "match": "High",

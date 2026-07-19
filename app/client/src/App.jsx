@@ -412,6 +412,9 @@ function App() {
   ]
 
   const refreshAnalysis = async () => { setRefreshing(r => ({ ...r, analysis: true })); try { await fetch(`${API}/refresh/analysis`, { method: 'POST' }); } catch {} refreshJobs(); await fetchAnalysis(); setRefreshing(r => ({ ...r, analysis: false })) }
+  const refreshStrategy = async () => { setRefreshing(r => ({ ...r, strategy: true })); try { await fetch(`${API}/refresh/dashboard`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, strategy: false })) }
+  const refreshNetworking = async () => { setRefreshing(r => ({ ...r, networking: true })); try { await fetch(`${API}/refresh/networking`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, networking: false })) }
+  const refreshSkillsTab = async () => { setRefreshing(r => ({ ...r, skills: true })); try { await fetch(`${API}/refresh/skills`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, skills: false })) }
 
   if (jobs === null) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>
 
@@ -723,7 +726,10 @@ function App() {
                   {dashboardSubTab === 'overview' && (
                     <div className="space-y-5">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-extrabold text-sm">Overview</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-sm">Overview</h3>
+                          {analysis?.created_at && <span className="text-[0.5rem] text-muted-foreground">Updated {new Date(analysis.created_at).toLocaleTimeString()}</span>}
+                        </div>
                         <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
                           <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
                         </Button>
@@ -908,9 +914,12 @@ function App() {
                   {dashboardSubTab === 'strategy' && (
                     <div className="space-y-5">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-extrabold text-sm">Strategy</h3>
-                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
-                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-sm">Strategy</h3>
+                          {analysis?.created_at && <span className="text-[0.5rem] text-muted-foreground">Updated {new Date(analysis.created_at).toLocaleTimeString()}</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={refreshStrategy} disabled={refreshing.strategy} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.strategy && "animate-spin")} /> Refresh
                         </Button>
                       </div>
                       <div className="grid grid-cols-[1fr_320px] gap-4">
@@ -1069,9 +1078,12 @@ function App() {
                   {dashboardSubTab === 'networking' && (
                     <div className="space-y-5">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-extrabold text-sm">Networking</h3>
-                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
-                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-sm">Networking</h3>
+                          {analysis?.created_at && <span className="text-[0.5rem] text-muted-foreground">Updated {new Date(analysis.created_at).toLocaleTimeString()}</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={refreshNetworking} disabled={refreshing.networking} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.networking && "animate-spin")} /> Refresh
                         </Button>
                       </div>
                       <div className="grid grid-cols-[1fr_320px] gap-4">
@@ -1110,6 +1122,12 @@ function App() {
                                       <a href={item.company_url} target="_blank" rel="noopener noreferrer"
                                         className="text-[0.55rem] text-muted-foreground hover:text-primary hover:underline flex items-center gap-1">
                                         <Globe className="w-3 h-3" /> Website
+                                      </a>
+                                    )}
+                                    {item.linkedin_url && (
+                                      <a href={item.linkedin_url} target="_blank" rel="noopener noreferrer"
+                                        className="text-[0.55rem] text-muted-foreground hover:text-primary hover:underline flex items-center gap-1">
+                                        <LinkedinLogo className="w-3 h-3" /> LinkedIn
                                       </a>
                                     )}
                                   </div>
@@ -1228,9 +1246,12 @@ function App() {
                   {dashboardSubTab === 'skills' && (
                     <div className="space-y-5">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-extrabold text-sm">Skills</h3>
-                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
-                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-sm">Skills</h3>
+                          {analysis?.created_at && <span className="text-[0.5rem] text-muted-foreground">Updated {new Date(analysis.created_at).toLocaleTimeString()}</span>}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={refreshSkillsTab} disabled={refreshing.skills} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.skills && "animate-spin")} /> Refresh
                         </Button>
                       </div>
                       <div className="grid grid-cols-5 gap-3">
@@ -1474,6 +1495,7 @@ function App() {
                       <ul className="text-sm space-y-1 mb-3 text-muted-foreground">
                         <li><b className="text-foreground">Salary:</b> {drawer.job.salary}</li>
                         {drawer.job.company_url && <li><b className="text-foreground">Company Website:</b> <a href={drawer.job.company_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{drawer.job.company_url}</a></li>}
+                        {drawer.job.linkedin_url && <li><b className="text-foreground">Company LinkedIn:</b> <a href={drawer.job.linkedin_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{drawer.job.linkedin_url}</a></li>}
                         <li><b className="text-foreground">Industry:</b> {drawer.job.industry}</li>
                         <li><b className="text-foreground">Domain:</b> {drawer.job.domain}</li>
                         <li><b className="text-foreground">Posted:</b> {drawer.job.posted}</li>
