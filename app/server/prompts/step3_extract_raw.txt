@@ -9,6 +9,7 @@ Save the result as JSON to {output_file} with this structure:
   "valid": true/false,
   "reason": "brief explanation if invalid",
   "company": "Company name",
+  "company_url": "Company website URL if found (e.g. https://company.com), else null",
   "role": "Job title",
   "location": "Primary city only (Berlin, Munich, etc.)",
   "locations": ["City1", "City2"],

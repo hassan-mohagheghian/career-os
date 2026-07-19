@@ -69,6 +69,7 @@ Generate analysis as JSON and save to {tmp_dir}/analysis_{pid}.json with this st
   "networking": [
     {{
       "company": "Company Name",
+      "company_url": "Company website URL if available from job data, else null",
       "jobUrl": "https://linkedin.com/jobs/view/...",
       "score": "A",
       "match": "High",
@@ -162,7 +163,7 @@ RULES FOR goals:
 RULES FOR networking:
 - Top 5-8 companies worth networking with, sorted by score descending
 - Include companies where the candidate has the best fit (score A or above, or High match)
-- For each company, include the job URL from the database so the user can reference the specific role
+- For each company, include the job URL and company_url (if available) from the database so the user can reference the specific role and visit the company website
 - Provide Google search URLs to find Recruiting/Talent Acquisition staff at the company on LinkedIn
 - Provide Google search URLs to find Software/Backend Engineers at the company on LinkedIn
 - The LinkedIn search URLs should use this pattern: https://www.google.com/search?q=site:linkedin.com/in+"ROLE"+"COMPANY"+Berlin

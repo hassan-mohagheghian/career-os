@@ -168,7 +168,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -177,7 +177,7 @@ def _insert_job(d):
          employment_type, json.dumps(normalized_wt), d.get('raw_description'),
          d.get('structured_description'), d.get('raw_file_path'),
          d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
-         adv_at, see_at, d.get('apply_reason', '')))
+         adv_at, see_at, d.get('apply_reason', ''), d.get('company_url')))
     conn.commit(); conn.close()
 
 
@@ -1074,6 +1074,7 @@ def process_job(pid):
                 'employment_type': analyzed_data.get('employment_type', job_data.get('employment_type', 'Full-time')),
                 'work_types': analyzed_data.get('work_types', job_data.get('work_types', [])),
                 'workflow_log': analyzed_data.get('workflow_log', '[]'),
+                'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
             })
 
             # Save updated job, summary, and resume
@@ -1200,7 +1201,7 @@ def process_job(pid):
             'domain': (extraction or {}).get('domain', ''),
             'notes': '', 'action': '', 'url': url,
             'raw_description': raw_text, 'structured_description': structured_json,
-            'apply_reason': '',
+            'apply_reason': '', 'company_url': (extraction or {}).get('company_url'),
         }
         _insert_job(job_data)
         _insert_summary({
@@ -1316,6 +1317,7 @@ def process_job(pid):
             'employment_type': analyzed_data.get('employment_type', 'Full-time'),
             'work_types': analyzed_data.get('work_types', []),
             'workflow_log': analyzed_data.get('workflow_log', '[]'),
+            'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
         })
 
         # Save final results

@@ -700,10 +700,12 @@ function App() {
                         {analysis?.created_at && <span>Last updated: {new Date(analysis.created_at).toLocaleString()}</span>}
                       </p>
                     </div>
-                    <Button onClick={refreshAnalysis} disabled={refreshing.analysis} variant={refreshing.analysis ? "secondary" : "default"}>
-                      <ArrowsClockwise className={cn("w-4 h-4", refreshing.analysis && "animate-spin")} />
-                      {refreshing.analysis ? 'Updating...' : 'Refresh Analysis'}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={refreshAnalysis} disabled={refreshing.analysis} variant={refreshing.analysis ? "secondary" : "outline"} size="sm" className="gap-1.5">
+                        <ArrowsClockwise className={cn("w-3.5 h-3.5", refreshing.analysis && "animate-spin")} />
+                        {refreshing.analysis ? 'Updating...' : 'Refresh All'}
+                      </Button>
+                    </div>
                   </div>
 
                   {!hasAnalysis && !refreshing.analysis && (
@@ -720,6 +722,12 @@ function App() {
                   {/* OVERVIEW */}
                   {dashboardSubTab === 'overview' && (
                     <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-extrabold text-sm">Overview</h3>
+                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-6 gap-3">
                         {[
                           { n: overview.totalJobs || jobs.length, l: 'Total Jobs', c: 'text-primary', icon: <Briefcase className="w-5 h-5" /> },
@@ -899,6 +907,12 @@ function App() {
                   {/* STRATEGY */}
                   {dashboardSubTab === 'strategy' && (
                     <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-extrabold text-sm">Strategy</h3>
+                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-[1fr_320px] gap-4">
                         <div className="space-y-4">
                           {/* Action Items — merged Strategy Guide + Must Improve */}
@@ -1054,6 +1068,12 @@ function App() {
                   {/* NETWORKING */}
                   {dashboardSubTab === 'networking' && (
                     <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-extrabold text-sm">Networking</h3>
+                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-[1fr_320px] gap-4">
                         <div className="space-y-4">
                           <Card className="p-4">
@@ -1084,6 +1104,12 @@ function App() {
                                       <a href={item.jobUrl} target="_blank" rel="noopener noreferrer"
                                         className="text-[0.55rem] text-primary hover:underline flex items-center gap-1">
                                         <Link className="w-3 h-3" /> View Job
+                                      </a>
+                                    )}
+                                    {item.company_url && (
+                                      <a href={item.company_url} target="_blank" rel="noopener noreferrer"
+                                        className="text-[0.55rem] text-muted-foreground hover:text-primary hover:underline flex items-center gap-1">
+                                        <Globe className="w-3 h-3" /> Website
                                       </a>
                                     )}
                                   </div>
@@ -1201,6 +1227,12 @@ function App() {
                   {/* SKILLS */}
                   {dashboardSubTab === 'skills' && (
                     <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-extrabold text-sm">Skills</h3>
+                        <Button variant="ghost" size="sm" onClick={refreshAnalysis} disabled={refreshing.analysis} className="gap-1 h-6 text-[0.55rem]">
+                          <ArrowsClockwise className={cn("w-3 h-3", refreshing.analysis && "animate-spin")} /> Refresh
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-5 gap-3">
                         {[
                           { n: techStackData.length || 0, l: 'Total Skills', c: 'text-primary', icon: <Wrench className="w-5 h-5" /> },
@@ -1363,6 +1395,9 @@ function App() {
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => rescoreJob(drawer.job.num)} title="Rescore">
                           <TrendUp className="w-3.5 h-3.5" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => requeueJob(drawer.job.num)} title="Reprocess from scratch">
+                          <Repeat className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                       <SheetTitle className="text-lg">{drawer.job.company}</SheetTitle>
                       <SheetDescription>{drawer.job.role}</SheetDescription>
@@ -1391,9 +1426,6 @@ function App() {
                   </a>
                   <Button variant="outline" onClick={() => { navigator.clipboard.writeText(drawer.job.url); setToast('Copied!'); setTimeout(() => setToast(null), 2000) }}>
                     Copy URL
-                  </Button>
-                  <Button variant="outline" className="gap-1" onClick={() => requeueJob(drawer.job.num)} title="Reprocess from scratch">
-                    <Repeat className="w-3.5 h-3.5" /> Reprocess
                   </Button>
                 </div>
 
@@ -1441,6 +1473,7 @@ function App() {
                     <div>
                       <ul className="text-sm space-y-1 mb-3 text-muted-foreground">
                         <li><b className="text-foreground">Salary:</b> {drawer.job.salary}</li>
+                        {drawer.job.company_url && <li><b className="text-foreground">Company Website:</b> <a href={drawer.job.company_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{drawer.job.company_url}</a></li>}
                         <li><b className="text-foreground">Industry:</b> {drawer.job.industry}</li>
                         <li><b className="text-foreground">Domain:</b> {drawer.job.domain}</li>
                         <li><b className="text-foreground">Posted:</b> {drawer.job.posted}</li>

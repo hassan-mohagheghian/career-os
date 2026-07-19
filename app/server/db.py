@@ -222,7 +222,7 @@ def init_db():
         c.execute("ALTER TABLE jobs ADD COLUMN structured_description TEXT")
 
     # Add adv_at, see_at, apply_reason columns if missing (for existing DBs)
-    for col in ['adv_at', 'see_at', 'apply_reason']:
+    for col in ['adv_at', 'see_at', 'apply_reason', 'company_url']:
         try:
             c.execute(f"SELECT {col} FROM jobs LIMIT 1")
         except sqlite3.OperationalError:
