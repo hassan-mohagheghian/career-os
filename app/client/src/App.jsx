@@ -607,15 +607,15 @@ function App() {
                           <div className="relative flex-1">
                             <Input value={filterTech} onChange={e => setFilterTech(e.target.value)}
                               placeholder="Search by role, company, stack, or notes..."
-                              className={cn("w-full h-7 text-xs", filterTech && "border-primary")} />
+                              className={cn("w-full h-7 text-xs", filterTech && "border-green-500 ring-1 ring-green-500/20")} />
                             {filterTech && <button onClick={() => setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem] text-muted-foreground">✕</button>}
                           </div>
-                          {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="h-7 text-[0.6rem] text-destructive hover:text-destructive" onClick={clearFilters}>Clear all</Button>}
+                          {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="h-7 text-[0.6rem] text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={clearFilters}>Clear all</Button>}
                         </div>
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="flex items-center gap-1">
                             <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setSortDir('desc') }}>
-                              <SelectTrigger className="h-7 w-auto text-[0.6rem]"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="h-7 w-auto text-[0.6rem] border-green-500/30"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="created_at">Newest first</SelectItem>
                                 <SelectItem value="posted_at">Posted date</SelectItem>
@@ -627,7 +627,7 @@ function App() {
                                 <SelectItem value="location">Location</SelectItem>
                               </SelectContent>
                             </Select>
-                            <Button variant="outline" size="sm" className="h-7 text-[0.6rem]" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
+                            <Button variant="outline" size="sm" className="h-7 text-[0.6rem] border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
                               {sortDir === 'desc' ? '↓' : '↑'}
                             </Button>
                           </div>
