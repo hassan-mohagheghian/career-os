@@ -21,6 +21,7 @@ app/client/dist/
 
 # Temporary files
 *.tmp
+tmp/
 temo.json
 .env
 

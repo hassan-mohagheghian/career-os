@@ -1,9 +1,10 @@
 """Normalize job locations - extract cities into locations array."""
+import os
 import sqlite3
 import json
 import re
 
-DB_PATH = 'jobs.db'
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
 
 # Known city patterns
 CITY_PATTERNS = [

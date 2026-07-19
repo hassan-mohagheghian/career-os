@@ -11,8 +11,8 @@ import time
 import urllib.request
 import urllib.error
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
-JOBS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'jobs')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+TEMP_DIR = os.environ.get('TEMP_DIR', '/tmp')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -54,7 +54,7 @@ def fetch_url(url, retries=2):
     return None
 
 def main():
-    os.makedirs(JOBS_DIR, exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
     conn = get_db()
 
     # Find jobs without raw_description
@@ -83,7 +83,7 @@ def main():
             date_str = '2026-01-01'
 
         filename = f"{num:03d}_{company}_{role}_{date_str}.md"
-        filepath = os.path.join(JOBS_DIR, filename)
+        filepath = os.path.join(TEMP_DIR, filename)
 
         # If file exists, read from it
         if os.path.exists(filepath):

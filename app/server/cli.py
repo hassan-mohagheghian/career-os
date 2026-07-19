@@ -3,6 +3,9 @@
 Job Search CLI — add, list, process, and manage pending jobs.
 Source tags: cli (this tool), web (dashboard), mimo (MiMo agent).
 """
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import sys
 import sqlite3
@@ -19,7 +22,7 @@ from rich.panel import Panel
 app = typer.Typer(help="Job Search CLI — manage pending jobs", no_args_is_help=True)
 console = Console()
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -71,7 +74,7 @@ def add_pending(url, source='cli', company=''):
 def reset_pending(pid):
     conn = get_db()
     conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL,
-        step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+        step_fetch=0, step_analyze=0, step_db=0, step_done=0,
         updated_at=? WHERE id=?''', (datetime.now().isoformat(), pid))
     conn.commit()
     conn.close()
@@ -160,7 +163,7 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
 
     status_colors = {'queued':'yellow','processing':'cyan','failed':'red','done':'green'}
     for r in rows:
-        steps = sum(1 for s in [r['step_fetch'],r['step_analyze'],r['step_resume'],r['step_db'],r['step_done']] if s == 1)
+        steps = sum(1 for s in [r['step_fetch'],r['step_analyze'],r['step_db'],r['step_done']] if s == 1)
         sc = status_colors.get(r['status'], 'dim')
         err = (r['error'] or '')[:30]
         table.add_row(
@@ -233,7 +236,7 @@ def rescore(num: int = typer.Argument(..., help="Job number to rescore")):
     if row:
         pid = dict(row)['id']
         conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-            company=?, step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+            company=?, step_fetch=0, step_analyze=0, step_db=0, step_done=0,
             workflow_log='[]', updated_at=? WHERE id=?''',
             (j.get('company', ''), datetime.now().isoformat(), pid))
     else:
@@ -267,7 +270,7 @@ def rescore_all():
         if row:
             pid = dict(row)['id']
             conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-                company=?, step_fetch=0, step_analyze=0, step_resume=0, step_db=0, step_done=0,
+                company=?, step_fetch=0, step_analyze=0, step_db=0, step_done=0,
                 workflow_log='[]', updated_at=? WHERE id=?''',
                 (j.get('company', ''), datetime.now().isoformat(), pid))
         else:
@@ -400,7 +403,7 @@ def _load_env():
                     k, v = line.split('=', 1)
                     os.environ.setdefault(k.strip(), v.strip())
 _load_env()
-JOBS_DIR = os.path.abspath(os.environ.get('JOBS_DIR', os.path.join(PROJECT_ROOT, 'jobs')))
+EXPORT_DIR = os.path.abspath(os.environ.get('EXPORT_DIR', os.path.join(PROJECT_ROOT, 'export')))
 
 @app.command()
 def generate_files(job_num: int = typer.Option(None, help="Generate files for a specific job number (all jobs if omitted)"),
@@ -417,8 +420,8 @@ def generate_files(job_num: int = typer.Option(None, help="Generate files for a 
         console.print("[yellow]No jobs found[/yellow]")
         return
 
-    raw_dir = os.path.join(JOBS_DIR, 'raw')
-    struct_dir = os.path.join(JOBS_DIR, 'structured')
+    raw_dir = os.path.join(EXPORT_DIR, 'raw')
+    struct_dir = os.path.join(EXPORT_DIR, 'structured')
     os.makedirs(raw_dir, exist_ok=True)
     os.makedirs(struct_dir, exist_ok=True)
 

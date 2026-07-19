@@ -1,9 +1,9 @@
-import sqlite3
+wimport sqlite3
 import json
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -66,9 +66,10 @@ def add_summary(data):
 def add_resume(data):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''INSERT OR REPLACE INTO resumes VALUES (?,?,?,?,?,?,?)''',
-        (data['id'], data['title'], data['badge'], data['badgeClass'],
-         data['company'], data['role'], data['content']))
+    c.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num) VALUES (?,?,?,?,?,?,?,?,?)''',
+        (data['id'], data.get('title'),
+         data.get('company'), data.get('role'), data.get('content'),
+         data.get('version', 1), data.get('raw_text'), data.get('created_at'), data.get('job_num')))
     conn.commit()
     conn.close()
 

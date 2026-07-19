@@ -1,7 +1,7 @@
-# Job Search Memory
+w# Job Search Memory
 
 ## Profile
-- **Name:** Hassan Mohagheghian
+
 - **Role:** Senior Software Engineer (9+ years)
 - **Location:** Isfahan, Iran → targeting Berlin, Germany
 - **Core Stack:** Python (Django, FastAPI, DRF), PostgreSQL, Docker/K8s, AWS/GCP, Terraform, Linux
@@ -14,17 +14,21 @@
 ## Constraints
 
 ### Language Preference
+
 **Use:** Python, Rust, TypeScript, C, WASM
 **Do NOT learn:** Go or other languages right now
 
 ### Visa & Relocation
+
 **Need:** Visa sponsorship for Germany + relocation from Iran
 **Strategy:** Apply to companies with visa capability. Remote-first roles allow working from Iran initially.
 
 ## CRITICAL RULES
 
 ### PRIVACY — SEVERE
+
 **NEVER send personal info to server/API.** This includes:
+
 - Full name
 - Email address
 - Phone number
@@ -32,63 +36,45 @@
 - University names
 - Any identifying information
 
-**When working with API:** Use redacted versions from `inputs/redacted/`
-**Original files:** NEVER send `inputs/original/` content to any API
+**All personal data (resume, LinkedIn) is stored in the DB `resumes` table.** PII is masked before any external API calls.
 
 ### Workflow
-**When I (AI) read/process user data via API:** Use `inputs/redacted/` files ONLY
-**When generating resumes for user:** Read from `inputs/simplified/` (local, not sent to API)
-**Original files:** Never modify files in `inputs/original/`
-**Generated resumes:** Store in `resumes/` (not in inputs/)
-**Platform display:** data/resumes.json contains real info for user's eyes only
+
+**Resume/LinkedIn data:** Stored in DB `resumes` table (raw_text column)
+**PII masking:** Applied before sending to any external API
 **Python env:** User uses `uv` with `.venv` in root folder
 
 ### Scoring
+
 **Allow same scores.** 92.5 and 92.2 both round to 92. Don't force unique scores. Scores are rounded to nearest integer.
 
 ## Project Structure
+
 ```
 Job-Search/
 ├── app/                 # Main application (SQLite + Flask + React + Tailwind)
 │   ├── server/          # Flask API + SQLite database
 │   │   ├── app.py       # Flask server with streaming support
 │   │   ├── db.py        # Database initialization
-│   │   └── jobs.db      # SQLite database
+│   │   └── db/jobs.db   # SQLite database
 │   ├── client/          # React + Tailwind frontend
 │   │   └── src/App.jsx
 │   └── start.sh         # Startup script
-├── data/                # JSON data files (source of truth for DB)
-├── inputs/              # User-provided files
-│   ├── original/        # NEVER MODIFY
-│   ├── simplified/      # Text-only versions (for local use)
-│   └── redacted/        # Personal info replaced (for API calls)
-├── resumes/             # Generated resumes (my output)
-│   ├── overall.txt      # Improved base resume
-│   └── by_job/          # Per-job tailored resumes
-├── jobs/                # Individual job analysis files
+├── .env                 # Environment config (DB_PATH, TEMP_DIR, etc.)
 └── MEMORY.md            # This file
 ```
 
 ## Workflow
+
 1. User submits LinkedIn URL via app (Add Job tab)
 2. URL saved to pending_jobs table in SQLite
-3. I fetch the job, analyze it, create resume
-4. I run process_pending.py to update the database
+3. Worker fetches the job, analyzes it, scores it
+4. All results saved to DB (jobs, summaries, resumes tables)
 5. App auto-refreshes with new data
-
-## Adding New Jobs
-When user submits a URL:
-1. Fetch job from LinkedIn
-2. Create job file in `jobs/`
-3. Create resume in `resumes/by_job/`
-4. Use `app/server/process_pending.py` to:
-   - Add to jobs table
-   - Add to summaries table
-   - Add to resumes table
-   - Mark pending as processed
-5. Update `data/` JSON files for backup
+6. Tmp files cleaned up after processing completes
 
 ## Skill Gaps
+
 - **Not learning:** Go
 - **Blocked by language:** German C1 (suena energy)
 - **Priority to learn:** TypeScript (7/19 jobs)

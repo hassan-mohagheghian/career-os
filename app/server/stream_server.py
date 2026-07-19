@@ -18,8 +18,10 @@ processes = {}  # pid -> Popen object
 
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
-TMP_DIR = os.environ.get('TEMP_DIR', '/tmp')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+_tmp = os.environ.get('TEMP_DIR', 'tmp')
+TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+os.makedirs(TMP_DIR, exist_ok=True)
 
 # --- DB helpers (async-safe: each call opens its own connection) ---
 
@@ -460,7 +462,7 @@ async def process_job_stream(pid):
     url = item['url']
     source = item.get('source', 'cli')
 
-    job_file = os.path.join('/tmp', f'job_{pid}.txt')
+    job_file = os.path.join(TMP_DIR, f'job_{pid}.txt')
 
     try:
         # === STEP 1: FETCH ===
@@ -606,10 +608,6 @@ async def process_job_stream(pid):
         await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_data['num'], 'company': job_data.get('company'), 'ts': datetime.now().strftime('%H:%M:%S')})
         print(f"[stream] Job {pid} done: {job_data.get('company')} #{job_data['num']}")
 
-        # Cleanup
-        try: os.remove(result_path)
-        except OSError: pass
-
     except Exception as e:
         msg = str(e)
         source = {'fetch':'fetch','analyze':'mimo','resume':'mimo','save':'db','done':'worker'}.get(current_step, 'worker')
@@ -618,6 +616,10 @@ async def process_job_stream(pid):
         _log(pid, 'error', msg[:200])
         _fail(pid, msg[:500], step=current_step)
         await broadcast(pid, {'type': 'error', 'pid': pid, 'msg': msg[:300], 'step': current_step, 'ts': datetime.now().strftime('%H:%M:%S')})
+    finally:
+        for f in [job_file, os.path.join(TMP_DIR, f'pending_result_{pid}.json')]:
+            try: os.remove(f)
+            except OSError: pass
 
 # --- WebSocket handler ---
 

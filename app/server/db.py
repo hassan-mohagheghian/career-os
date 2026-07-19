@@ -2,7 +2,13 @@ import json
 import os
 import sqlite3
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "jobs.db")
+from dotenv import load_dotenv
+load_dotenv()
+
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), "db", "jobs.db"))
+
+# Ensure db directory exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 def get_db():

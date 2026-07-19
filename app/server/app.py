@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from flask import Flask, jsonify, Response, send_from_directory, request
 from flask_cors import CORS
 import sqlite3
@@ -12,7 +15,8 @@ from queue_manager import init_queue_manager, get_queue_manager
 app = Flask(__name__, static_folder='../client/dist', static_url_path='')
 CORS(app)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def get_db():
     """Get database connection with retry for locked databases."""
@@ -419,6 +423,63 @@ def delete_resume_version(version):
     conn.close()
     return jsonify({'status': 'deleted', 'id': resume_id if deleted else version})
 
+# ─── LinkedIn Profile endpoints ───
+
+@app.route('/api/linkedin')
+def get_linkedin_profiles():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM resumes WHERE id LIKE 'linkedin_%' ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return stream_json(rows_to_list(rows))
+
+@app.route('/api/linkedin/latest')
+def get_latest_linkedin():
+    conn = get_db()
+    row = conn.execute("SELECT * FROM resumes WHERE id LIKE 'linkedin_%' ORDER BY version DESC LIMIT 1").fetchone()
+    conn.close()
+    if row:
+        return jsonify(row_to_dict(row))
+    return jsonify({})
+
+@app.route('/api/linkedin', methods=['POST'])
+def save_linkedin():
+    """Save a new LinkedIn profile version."""
+    data = request.get_json()
+    raw_text = data.get('raw_text', '').strip()
+    if not raw_text:
+        return jsonify({'error': 'LinkedIn profile text required'}), 400
+
+    conn = get_db()
+    row = conn.execute("SELECT MAX(version) as max_v FROM resumes WHERE id LIKE 'linkedin_%'").fetchone()
+    next_version = (dict(row)['max_v'] or 0) + 1
+
+    masked_text = _mask_pii(raw_text)
+    content_html = _text_to_html(masked_text)
+
+    profile_id = f'linkedin_{next_version}'
+    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (profile_id, f'LinkedIn Profile v{next_version}', '', '', content_html, next_version, raw_text, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'status': 'saved', 'id': profile_id, 'version': next_version,
+        'content': content_html, 'raw_text': raw_text, 'masked_text': masked_text
+    })
+
+@app.route('/api/linkedin/<version>', methods=['DELETE'])
+def delete_linkedin(version):
+    """Delete a LinkedIn profile by version or full ID."""
+    conn = get_db()
+    profile_id = f'linkedin_{version}'
+    deleted = conn.execute("DELETE FROM resumes WHERE id=?", (profile_id,)).rowcount
+    if not deleted:
+        deleted = conn.execute("DELETE FROM resumes WHERE id=?", (version,)).rowcount
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted', 'id': profile_id if deleted else version})
+
 @app.route('/api/jobs/<int:num>/generate-resume', methods=['POST'])
 def generate_resume(num):
     """Generate a tailored resume for a processed job (on-demand)."""
@@ -440,7 +501,9 @@ def generate_resume(num):
 
     # Write temp files
     import tempfile
-    tmp_dir = os.environ.get('TEMP_DIR', '/tmp')
+    _tmp = os.environ.get('TEMP_DIR', 'tmp')
+    tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+    os.makedirs(tmp_dir, exist_ok=True)
     pid = f'resume_{num}_{int(datetime.now().timestamp()*1000)}'
     job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
     resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
@@ -522,7 +585,9 @@ def generate_cover(num):
 
     # Write temp files
     import tempfile
-    tmp_dir = os.environ.get('TEMP_DIR', '/tmp')
+    _tmp = os.environ.get('TEMP_DIR', 'tmp')
+    tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+    os.makedirs(tmp_dir, exist_ok=True)
     pid = f'cover_{num}_{int(datetime.now().timestamp()*1000)}'
     job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
     resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')

@@ -9,7 +9,7 @@ import json
 import time
 import subprocess
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 

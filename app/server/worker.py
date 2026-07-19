@@ -15,10 +15,12 @@ import urllib.request
 from datetime import datetime
 from prompts import load_prompt
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'jobs.db')
+DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'db', 'jobs.db'))
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
-TMP_DIR = tempfile.gettempdir()
+_tmp = os.environ.get('TEMP_DIR', 'tmp')
+TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+os.makedirs(TMP_DIR, exist_ok=True)
 
 VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
 GRADE_RANK = {g: i for i, g in enumerate(VALID_GRADES)}
@@ -304,7 +306,7 @@ def rescore_only(num):
         conn.commit(); conn.close()
         return
 
-    job_file = os.path.join(tempfile.gettempdir(), f'rescore_{num}.txt')
+    job_file = os.path.join(TMP_DIR, f'rescore_{num}.txt')
     try:
         with open(job_file, 'w') as f:
             f.write(raw_desc)
@@ -910,7 +912,7 @@ def process_job(pid):
     url = item['url']
     source = item.get('source', 'cli')
 
-    job_file = os.path.join(tempfile.gettempdir(), f'job_{pid}.txt')
+    job_file = os.path.join(TMP_DIR, f'job_{pid}.txt')
 
     try:
         current_step = 'fetch'
@@ -995,8 +997,23 @@ def process_job(pid):
             else:
                 resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
 
+            # Load LinkedIn profile for rescore
+            linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
+            conn = _db()
+            linkedin_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'linkedin_%' ORDER BY version DESC LIMIT 1").fetchone()
+            conn.close()
+            linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
+            if linkedin_row and dict(linkedin_row).get('raw_text'):
+                with open(linkedin_file, 'w') as f:
+                    f.write(dict(linkedin_row)['raw_text'])
+                linkedin_path = linkedin_file
+            else:
+                linkedin_path = None
+                linkedin_step = "No LinkedIn profile available — skip this step"
+
             prompt = load_prompt('step8_score',
                 url=url, job_file=job_file, resume_file=resume_path,
+                linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
                 tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, preferences=preferences)
 
             returncode, output_lines = _stream_mimo_output(
@@ -1227,8 +1244,23 @@ def process_job(pid):
         else:
             resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
 
+        # Load LinkedIn profile from DB if available
+        linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
+        conn = _db()
+        linkedin_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'linkedin_%' ORDER BY version DESC LIMIT 1").fetchone()
+        conn.close()
+        linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
+        if linkedin_row and dict(linkedin_row).get('raw_text'):
+            with open(linkedin_file, 'w') as f:
+                f.write(dict(linkedin_row)['raw_text'])
+            linkedin_path = linkedin_file
+        else:
+            linkedin_path = None
+            linkedin_step = "No LinkedIn profile available — skip this step"
+
         prompt = load_prompt('step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
+            linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
             tmp_dir=TMP_DIR, pid=pid, next_num=next_num, preferences=preferences)
 
         returncode, output_lines = _stream_mimo_output(
@@ -1369,8 +1401,11 @@ def process_job(pid):
         print(f"[worker] Job {pid} FAILED: {msg}")
         _fail(pid, msg, step=current_step)
     finally:
-        try: os.remove(job_file)
-        except OSError: pass
+        for f in [job_file,
+                  os.path.join(TMP_DIR, f'resume_{pid}.txt'),
+                  os.path.join(TMP_DIR, f'linkedin_{pid}.txt')]:
+            try: os.remove(f)
+            except OSError: pass
         # Signal queue manager to pick up next job
         try:
             from queue_manager import get_queue_manager
