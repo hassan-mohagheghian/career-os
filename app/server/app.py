@@ -109,7 +109,7 @@ try:
         conn.commit()
     # Check if rules need updating (old keys vs new keys)
     existing_keys = {r[0] for r in conn.execute("SELECT key FROM preferences").fetchall()}
-    if 'python_expertise' in existing_keys or 'visa_sponsorship' not in existing_keys:
+    if 'python_expertise' in existing_keys:
         print("[migrate] Replacing old rules with unified fine-grained rules")
         conn.execute("DELETE FROM preferences")
         conn.commit()
