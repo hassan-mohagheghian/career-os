@@ -97,12 +97,12 @@ try:
 except Exception as e:
     print(f"Warning: score migration failed: {e}")
 
-# Migrate old preferences (scoring/tech/domain/visa/strategy) to new fit/success
+# Migrate old rules (scoring/tech/domain/visa/strategy) to new fit/success
 try:
     conn = sqlite3.connect(DB_PATH)
     old_cats = conn.execute("SELECT DISTINCT category FROM preferences WHERE category NOT IN ('fit','success')").fetchall()
     if old_cats:
-        print(f"[migrate] Removing old preference categories: {[r[0] for r in old_cats]}")
+        print(f"[migrate] Removing old rule categories: {[r[0] for r in old_cats]}")
         conn.execute("DELETE FROM preferences WHERE category NOT IN ('fit','success')")
         conn.commit()
     # Check if rules need updating (old keys vs new keys)
@@ -117,7 +117,7 @@ try:
     else:
         conn.close()
 except Exception as e:
-    print(f"Warning: preferences migration failed: {e}")
+    print(f"Warning: rules migration failed: {e}")
 
 # Migrate existing jobs: set success = score for jobs without success
 try:
@@ -602,16 +602,16 @@ def generate_cover(num):
         f.write(dict(resume_row)['raw_text'])
 
     try:
-        preferences = ''
+        rules_text = ''
         conn = get_db()
-        pref_rows = conn.execute("SELECT key, value, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC").fetchall()
+        rule_rows = conn.execute("SELECT key, value, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC").fetchall()
         conn.close()
-        if pref_rows:
-            preferences = '\n'.join([f"- {r['key']}: {r['value']} (priority: {r['priority']})" for r in pref_rows])
+        if rule_rows:
+            rules_text = '\n'.join([f"- {r['key']}: {r['value']} (priority: {r['priority']})" for r in rule_rows])
 
         prompt = load_prompt('step7_cover_generate',
             url=j.get('url', ''), job_file=job_file, resume_file=resume_file,
-            tmp_dir=tmp_dir, pid=pid, preferences=preferences)
+            tmp_dir=tmp_dir, pid=pid, rules=rules_text)
 
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         mimo_bin = os.path.expanduser('~/.mimocode/bin/mimo')
@@ -792,25 +792,25 @@ def update_dashboard_insights():
     conn.close()
     return jsonify({'status': 'updated', 'count': sum(len(v) for v in data.values() if isinstance(v, list))})
 
-@app.route('/api/preferences')
-def get_preferences():
+@app.route('/api/rules')
+def get_rules():
     conn = get_db()
     rows = conn.execute('SELECT * FROM preferences ORDER BY category, priority').fetchall()
     conn.close()
-    prefs = {}
+    result = {}
     for row in rows:
         r = dict(row)
         cat = r['category']
-        if cat not in prefs:
-            prefs[cat] = []
-        prefs[cat].append(r)
-    return stream_json(prefs)
+        if cat not in result:
+            result[cat] = []
+        result[cat].append(r)
+    return stream_json(result)
 
-@app.route('/api/preferences', methods=['POST'])
-def update_preferences():
+@app.route('/api/rules', methods=['POST'])
+def create_rule():
     data = request.get_json()
     conn = get_db()
-    for item in data.get('preferences', []):
+    for item in data.get('rules', []):
         conn.execute('''INSERT OR REPLACE INTO preferences (category, key, value, description, priority, enabled)
             VALUES (?, ?, ?, ?, ?, ?)''',
             (item['category'], item['key'], item['value'],
@@ -819,8 +819,8 @@ def update_preferences():
     conn.close()
     return jsonify({'status': 'updated'})
 
-@app.route('/api/preferences/<int:id>', methods=['PUT'])
-def update_preference(id):
+@app.route('/api/rules/<int:id>', methods=['PUT'])
+def update_rule(id):
     data = request.get_json()
     conn = get_db()
     fields = []
@@ -838,8 +838,8 @@ def update_preference(id):
     conn.close()
     return jsonify({'status': 'updated'})
 
-@app.route('/api/preferences/<int:id>', methods=['DELETE'])
-def delete_preference(id):
+@app.route('/api/rules/<int:id>', methods=['DELETE'])
+def delete_rule(id):
     conn = get_db()
     conn.execute('DELETE FROM preferences WHERE id=?', (id,))
     conn.commit()

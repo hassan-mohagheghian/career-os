@@ -40,13 +40,13 @@ def _log(pid, step, msg):
     conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
 
-def _load_preferences():
-    """Load all enabled preferences from DB, ordered by priority desc, formatted for prompt."""
+def _load_rules():
+    """Load all enabled scoring rules from DB, ordered by priority desc, formatted for prompt."""
     conn = _db()
     rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
     conn.close()
     if not rows:
-        return "No preferences set."
+        return "No scoring rules set."
     lines = []
     current_cat = None
     for row in rows:
@@ -523,10 +523,10 @@ async def process_job_stream(pid):
         else:
             _log(pid, 'analyze', f'New job #{next_num}...')
 
-        preferences = _load_preferences()
+        rules = _load_rules()
         prompt = load_prompt('step8_score',
             url=url, job_file=job_file, project_root=PROJECT_ROOT,
-            pid=pid, next_num=next_num, preferences=preferences)
+            pid=pid, next_num=next_num, rules=rules)
 
         returncode = await stream_mimo(pid, prompt)
 

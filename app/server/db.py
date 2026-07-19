@@ -135,7 +135,7 @@ def init_db():
                 ("fit", "ai_ml_fit", "Python ML pipelines, model serving, data processing", "AI/ML experience value", 65),
                 ("fit", "api_backend_match", "REST API design, GraphQL, gRPC — backend API work", "API design experience", 62),
                 ("fit", "no_critical_gaps", "No must-have skills that the candidate completely lacks", "Critical gaps = bad fit", 58),
-                ("fit", "tech_depth", "Job requires deep expertise, not just surface-level knowledge", "Depth over breadth preference", 55),
+                ("fit", "tech_depth", "Job requires deep expertise, not just surface-level knowledge", "Depth over breadth rule", 55),
                 ("fit", "team_composition", "Small focused teams (3-8 engineers) preferred over large orgs", "Team structure compatibility", 50),
 
                 # ═══ SUCCESS (16 rules) — Application probability ═══
@@ -146,7 +146,7 @@ def init_db():
                 ("success", "competition_level", "<50 applicants = excellent, 50-100 = good, 100-200 = moderate, 200+ = poor", "Competition thresholds", 85),
                 ("success", "posting_freshness", "<7 days = excellent, 7-30 = good, 30-90 = moderate, 90+ = stale", "Job age affects success", 82),
                 ("success", "location_match", "Berlin = best, Munich = good, Hamburg = moderate, Remote = best", "City compatibility", 80),
-                ("success", "work_arrangement", "Remote > Hybrid > On-site for visa flexibility", "Work type preference", 78),
+                ("success", "work_arrangement", "Remote > Hybrid > On-site for visa flexibility", "Work type rule", 78),
                 ("success", "company_stability", "50-500 employees, funded (Series A-C) or profitable", "Size and financial health", 75),
                 ("success", "salary_clarity", "Jobs with listed salary have higher success (clear expectations)", "Transparency helps", 70),
                 ("success", "niche_posting", "Niche/specialized roles have fewer applicants, better odds", "Avoid mass-posted jobs", 68),

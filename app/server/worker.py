@@ -311,7 +311,7 @@ def rescore_only(num):
         with open(job_file, 'w') as f:
             f.write(raw_desc)
 
-        preferences = _load_preferences()
+        rules = _load_rules()
         # Load resume from DB (latest version)
         resume_file = os.path.join(TMP_DIR, f'rescore_resume_{num}.txt')
         conn = _db()
@@ -328,7 +328,7 @@ def rescore_only(num):
         rescore_pid = f'rescore_{num}_{int(datetime.now().timestamp()*1000)}'
         prompt = load_prompt('step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
-            tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, preferences=preferences)
+            tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
 
         returncode, output_lines = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
@@ -443,13 +443,13 @@ def _log(pid, step, msg):
     conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
 
-def _load_preferences():
-    """Load all enabled preferences from DB, ordered by priority desc, formatted for prompt."""
+def _load_rules():
+    """Load all enabled scoring rules from DB, ordered by priority desc, formatted for prompt."""
     conn = _db()
     rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
     conn.close()
     if not rows:
-        return "No preferences set."
+        return "No scoring rules set."
     lines = []
     current_cat = None
     for row in rows:
@@ -984,7 +984,7 @@ def process_job(pid):
             current_step = 'score'
             _update_step(pid, 'step_analyze', 0, status='processing')
             _log(pid, 'score', f'Rescoring existing job #{existing_num}...')
-            preferences = _load_preferences()
+            rules = _load_rules()
 
             resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
             conn = _db()
@@ -1014,7 +1014,7 @@ def process_job(pid):
             prompt = load_prompt('step8_score',
                 url=url, job_file=job_file, resume_file=resume_path,
                 linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
-                tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, preferences=preferences)
+                tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, rules=rules)
 
             returncode, output_lines = _stream_mimo_output(
                 [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
@@ -1222,7 +1222,7 @@ def process_job(pid):
             _log(pid, 'score', f'Rescoring existing job #{next_num}...')
         else:
             _log(pid, 'score', f'Scoring job #{next_num}...')
-        preferences = _load_preferences()
+        rules = _load_rules()
 
         # Load resume from DB for scoring context
         resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
@@ -1253,7 +1253,7 @@ def process_job(pid):
         prompt = load_prompt('step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
             linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
-            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, preferences=preferences)
+            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
 
         returncode, output_lines = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],

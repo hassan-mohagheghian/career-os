@@ -35,7 +35,7 @@ import { CompactJobCard, JobCard, CITY_COLORS, DEFAULT_CITY_COLOR, VISA_STYLES, 
 import { TechCard, StackCard } from '@/components/TechCards'
 import ResumeTab from '@/components/ResumeTab'
 import ResumePreview from '@/components/ResumePreview'
-import PreferencesTab from '@/components/PreferencesTab'
+import RulesTab from '@/components/RulesTab'
 import { MultiSelect } from '@/components/MultiSelect'
 
 const API = '/api'
@@ -153,7 +153,7 @@ function App() {
     fetchPending(); fetchRules(); fetchAnalysis()
   }, [])
 
-  const fetchRules = () => fetch(`${API}/preferences`).then(r => r.json()).then(setRules)
+  const fetchRules = () => fetch(`${API}/rules`).then(r => r.json()).then(setRules)
   const fetchAnalysis = () => fetch(`${API}/analysis`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => setAnalysis(null))
 
   const seenDoneRef = useRef(new Set())
@@ -1335,7 +1335,7 @@ function App() {
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={() => fetch(`${API}/resumes`).then(r => r.json()).then(r => setResumes(r))} onRefreshLinkedin={() => fetch(`${API}/linkedin`).then(r => r.json()).then(r => setLinkedinProfiles(r))} />}
 
             {/* === PREFERENCES === */}
-            {tab === 'rules' && <PreferencesTab preferences={rules} onUpdate={fetchRules} />}
+            {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}
           </div>
         </div>
       </main>

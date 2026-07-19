@@ -355,13 +355,13 @@ def update_skills():
         console.print(f"[red]Failed: {e}[/red]")
 
 @app.command()
-def prefs():
-    """Show all scoring preferences."""
+def rules():
+    """Show all scoring rules."""
     conn = get_db()
     rows = conn.execute('SELECT category, key, value, description, enabled FROM preferences ORDER BY category, priority').fetchall()
     conn.close()
     if not rows:
-        console.print("[dim]No preferences set[/dim]")
+        console.print("[dim]No scoring rules set[/dim]")
         return
 
     current_cat = None
@@ -376,11 +376,11 @@ def prefs():
             console.print(f"    [dim]{r['description']}[/dim]")
 
 @app.command()
-def add_pref(category: str = typer.Argument(..., help="Category: scoring, tech, domain, visa, strategy"),
-             key: str = typer.Argument(..., help="Preference key"),
-             value: str = typer.Argument(..., help="Preference value"),
+def add_rule(category: str = typer.Argument(..., help="Category: fit or success"),
+             key: str = typer.Argument(..., help="Rule key"),
+             value: str = typer.Argument(..., help="Rule value"),
              description: str = typer.Option("", help="Description")):
-    """Add a new scoring preference."""
+    """Add a new scoring rule."""
     conn = get_db()
     try:
         conn.execute('''INSERT INTO preferences (category, key, value, description) VALUES (?, ?, ?, ?)''',
