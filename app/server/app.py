@@ -35,39 +35,15 @@ def get_db():
                 raise
 
 def _ensure_db_schema():
-    """Auto-migrate: add missing columns to jobs table."""
+    """Legacy: kept for backward compatibility. New migrations should use alembic."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute('PRAGMA table_info(jobs)')
     columns = {row[1] for row in cursor.fetchall()}
     migrations = {
-        'locations': "ALTER TABLE jobs ADD COLUMN locations TEXT DEFAULT '[]'",
-        'deleted': "ALTER TABLE jobs ADD COLUMN deleted INTEGER DEFAULT 0",
-        'employment_type': "ALTER TABLE jobs ADD COLUMN employment_type TEXT DEFAULT 'Full-time'",
-        'work_types': "ALTER TABLE jobs ADD COLUMN work_types TEXT DEFAULT '[]'",
-        'raw_description': "ALTER TABLE jobs ADD COLUMN raw_description TEXT",
-        'structured_description': "ALTER TABLE jobs ADD COLUMN structured_description TEXT",
-        'raw_file_path': "ALTER TABLE jobs ADD COLUMN raw_file_path TEXT",
-        'structured_file_path': "ALTER TABLE jobs ADD COLUMN structured_file_path TEXT",
-        'adv_at': "ALTER TABLE jobs ADD COLUMN adv_at TEXT",
-        'see_at': "ALTER TABLE jobs ADD COLUMN see_at TEXT",
-        'apply_reason': "ALTER TABLE jobs ADD COLUMN apply_reason TEXT",
         'apply_time': "ALTER TABLE jobs ADD COLUMN apply_time TEXT",
         'response_time': "ALTER TABLE jobs ADD COLUMN response_time TEXT",
         'response_status': "ALTER TABLE jobs ADD COLUMN response_status TEXT",
     }
-    # pending_jobs: add step columns if missing
-    cursor2 = conn.execute('PRAGMA table_info(pending_jobs)')
-    pending_cols = {row[1] for row in cursor2.fetchall()}
-    for col in ['step_extract_raw', 'step_extract_struct', 'step_summary', 'step_validate']:
-        if col not in pending_cols:
-            conn.execute(f"ALTER TABLE pending_jobs ADD COLUMN {col} INTEGER DEFAULT 0")
-    if 'queue_order' not in pending_cols:
-        conn.execute("ALTER TABLE pending_jobs ADD COLUMN queue_order INTEGER DEFAULT 0")
-    # jobs: add rescoring column if missing
-    if 'rescoring' not in columns:
-        conn.execute("ALTER TABLE jobs ADD COLUMN rescoring INTEGER DEFAULT 0")
-    if 'success' not in columns:
-        conn.execute("ALTER TABLE jobs ADD COLUMN success TEXT")
     for col, sql in migrations.items():
         if col not in columns:
             conn.execute(sql)
