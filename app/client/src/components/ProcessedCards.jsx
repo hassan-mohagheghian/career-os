@@ -1,6 +1,7 @@
 import {
   TrendUp, IdentificationCard, Users, HouseSimple, ArrowsClockwise,
-  Buildings, FileText, Repeat, Trash, MapPin, LinkSimple, Copy, Clock, Calendar
+  Buildings, FileText, Repeat, Trash, MapPin, LinkSimple, Copy, Clock, Calendar,
+  PaperPlaneRight, CheckCircle, XCircle
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -148,6 +149,22 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
           )}
         </div>
         <span onClick={onClick} className="cursor-pointer text-xs font-semibold text-muted-foreground shrink-0">#{rank}</span>
+        {job.apply_time && (
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-green-500/15 text-green-500 border border-green-500/30 shrink-0" title={`Applied: ${job.apply_time}`}>
+            <PaperPlaneRight className="w-2 h-2" />Applied
+          </span>
+        )}
+        {job.response_status && (
+          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold border shrink-0",
+            job.response_status === 'Interview' ? 'bg-green-500/15 text-green-500 border-green-500/30' :
+            job.response_status === 'Rejected' ? 'bg-red-500/15 text-red-500 border-red-500/30' :
+            'bg-secondary text-secondary-foreground border-transparent'
+          )} title={job.response_status}>
+            {job.response_status === 'Interview' ? <CheckCircle className="w-2 h-2" /> :
+             job.response_status === 'Rejected' ? <XCircle className="w-2 h-2" /> : null}
+            {job.response_status}
+          </span>
+        )}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           {isRescoring && <span className="text-[0.5rem] px-1.5 py-0.5 rounded bg-primary text-primary-foreground animate-pulse">Rescore</span>}
           {onRescore && (

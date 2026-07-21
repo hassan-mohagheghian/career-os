@@ -9,7 +9,7 @@ import {
   ListChecks, Star, Gift, Shield, MapPin, TreePalm, MusicNote, Bank, Factory,
   HouseSimple, Bug, Compass, ArrowRight,
   CurrencyDollar, UsersFour, HourglassHigh, Handshake, Student, Lightbulb, GraduationCap, Copy,
-  LinkedinLogo
+  LinkedinLogo, PaperPlaneRight
 } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
@@ -107,6 +107,8 @@ function App() {
   const [filterMatches, setFilterMatches] = useState([])
   const [filterWorkTypes, setFilterWorkTypes] = useState([])
   const [filterEmploymentTypes, setFilterEmploymentTypes] = useState([])
+  const [filterResponseStatus, setFilterResponseStatus] = useState([])
+  const [filterApplied, setFilterApplied] = useState(false)
   const [collapsedSections, setCollapsedSections] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dragOverCol, setDragOverCol] = useState(null)
@@ -168,6 +170,8 @@ function App() {
     if (filterWorkTypes.length) params.set('filter_work_types', filterWorkTypes.join(','))
     if (filterEmploymentTypes.length) params.set('filter_employment_types', filterEmploymentTypes.join(','))
     if (filterTech) params.set('filter_tech', filterTech)
+    if (filterResponseStatus.length) params.set('filter_response_status', filterResponseStatus.join(','))
+    if (filterApplied) params.set('filter_applied', 'true')
     fetch(`${API}/jobs?${params}`).then(r => r.json()).then(d => { setJobs(d.jobs || []); setJobsTotal(d.total || 0); setJobAgg(d.agg || {}) })
   }
 
@@ -186,10 +190,12 @@ function App() {
       if (filterWorkTypes.length) params.set('filter_work_types', filterWorkTypes.join(','))
       if (filterEmploymentTypes.length) params.set('filter_employment_types', filterEmploymentTypes.join(','))
       if (filterTech) params.set('filter_tech', filterTech)
+      if (filterResponseStatus.length) params.set('filter_response_status', filterResponseStatus.join(','))
+      if (filterApplied) params.set('filter_applied', 'true')
       const res = await fetch(`${API}/jobs?${params}`); const data = await res.json()
       setJobs(prev => [...prev, ...(data.jobs || [])]); setJobsPage(nextPage)
     } finally { setLoadingMore(false) }
-  }, [jobsPage, jobsTotal, loadingMore, sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech])
+  }, [jobsPage, jobsTotal, loadingMore, sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech, filterResponseStatus, filterApplied])
 
   useEffect(() => {
     let es
@@ -205,7 +211,7 @@ function App() {
     connect()
     const poll = setInterval(() => { fetchPending().then(checkDone); refreshJobs() }, 5000)
     return () => { es?.close(); clearInterval(poll) }
-  }, [sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech])
+  }, [sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech, filterResponseStatus, filterApplied])
 
   useEffect(() => {
     const onHash = () => { const h = window.location.hash.replace('#', ''); if (h && h !== tab) setTab(h) }
@@ -257,6 +263,15 @@ function App() {
   const requeueJob = async (num) => {
     const ok = await showConfirm('Reprocess Job', `Reprocess job #${num} from scratch? The current version will be permanently deleted.`, 'Reprocess')
     if (!ok) return; await fetch(`${API}/jobs/${num}/requeue`, { method: 'POST' }); fetchPending(); refreshJobs()
+  }
+
+  const updateJob = async (num, fields) => {
+    const res = await fetch(`${API}/jobs/${num}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) })
+    if (res.ok) {
+      const updated = await res.json()
+      setJobs(prev => prev ? prev.map(j => j.num === num ? { ...j, ...updated } : j) : prev)
+      setDrawer(prev => prev && prev.job.num === num ? { ...prev, job: { ...prev.job, ...updated } } : prev)
+    }
   }
 
   const connectWorkflowWs = (pid) => {
@@ -332,7 +347,7 @@ function App() {
         const aVal = parseInt(String(a.applicants).replace(/\D/g, '')) || 999; const bVal = parseInt(String(b.applicants).replace(/\D/g, '')) || 999
         return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
-      if (sortBy === 'created_at' || sortBy === 'posted_at') {
+      if (sortBy === 'created_at' || sortBy === 'posted_at' || sortBy === 'apply_time' || sortBy === 'response_time') {
         const field = sortBy; const aVal = a[field] ? new Date(a[field]).getTime() : 0; const bVal = b[field] ? new Date(b[field]).getTime() : 0
         return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
@@ -341,7 +356,7 @@ function App() {
     return r
   }, [jobsWithLocations, sortBy, sortDir])
 
-  const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length + filterWorkTypes.length + filterEmploymentTypes.length + (filterTech ? 1 : 0)
+  const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length + filterWorkTypes.length + filterEmploymentTypes.length + filterResponseStatus.length + (filterTech ? 1 : 0) + (filterApplied ? 1 : 0)
 
   const openDrawer = (num) => {
     if (!jobs) return
@@ -384,7 +399,7 @@ function App() {
     finally { setGeneratingCover(false) }
   }
 
-  const clearFilters = () => { setFilterCities([]); setFilterCompanies([]); setFilterTech(''); setFilterMatches([]); setFilterWorkTypes([]); setFilterEmploymentTypes([]) }
+  const clearFilters = () => { setFilterCities([]); setFilterCompanies([]); setFilterTech(''); setFilterMatches([]); setFilterWorkTypes([]); setFilterEmploymentTypes([]); setFilterResponseStatus([]); setFilterApplied(false) }
 
   const filterChangeRef = useRef(false)
   useEffect(() => {
@@ -399,8 +414,10 @@ function App() {
     if (filterWorkTypes.length) params.set('filter_work_types', filterWorkTypes.join(','))
     if (filterEmploymentTypes.length) params.set('filter_employment_types', filterEmploymentTypes.join(','))
     if (filterTech) params.set('filter_tech', filterTech)
+    if (filterResponseStatus.length) params.set('filter_response_status', filterResponseStatus.join(','))
+    if (filterApplied) params.set('filter_applied', 'true')
     fetch(`${API}/jobs?${params}`).then(r => r.json()).then(d => { setJobs(d.jobs || []); setJobsTotal(d.total || 0); setJobAgg(d.agg || {}) })
-  }, [sortBy, sortDir, filterCities, filterCompanies, filterTech, filterMatches, filterWorkTypes, filterEmploymentTypes])
+  }, [sortBy, sortDir, filterCities, filterCompanies, filterTech, filterMatches, filterWorkTypes, filterEmploymentTypes, filterResponseStatus, filterApplied])
 
   const switchTab = (t) => { setTab(t); window.location.hash = t }
 
@@ -625,6 +642,8 @@ function App() {
                                 <SelectItem value="applicants">Applicants</SelectItem>
                                 <SelectItem value="company">Company</SelectItem>
                                 <SelectItem value="location">Location</SelectItem>
+                                <SelectItem value="apply_time">Applied date</SelectItem>
+                                <SelectItem value="response_time">Response date</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button variant="outline" size="sm" className="h-7 text-[0.6rem] border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
@@ -636,7 +655,11 @@ function App() {
                             <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="Co" icon={<Buildings className="w-3 h-3" />} options={allCompanies.map(c => ({ value: c, label: c }))} />
                             <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="Match" icon={<Target className="w-3 h-3" />} options={[{ value: 'High', label: 'High' }, { value: 'Medium', label: 'Medium' }, { value: 'Low', label: 'Low' }]} />
                             <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="Work" icon={<HouseSimple className="w-3 h-3" />} options={[{ value: 'On-site', label: 'On-site' }, { value: 'Remote', label: 'Remote' }, { value: 'Hybrid', label: 'Hybrid' }]} />
-                            <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{ value: 'Full-time', label: 'Full-time' }, { value: 'Part-time', label: 'Part-time' }, { value: 'Contract', label: 'Contract' }, { value: 'Internship', label: 'Internship' }, { value: 'Temporary', label: 'Temporary' }]} alignRight />
+                            <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{ value: 'Full-time', label: 'Full-time' }, { value: 'Part-time', label: 'Part-time' }, { value: 'Contract', label: 'Contract' }, { value: 'Internship', label: 'Internship' }, { value: 'Temporary', label: 'Temporary' }]} />
+                            <MultiSelect value={filterResponseStatus} onChange={setFilterResponseStatus} placeholder="Status" icon={<CheckCircle className="w-3 h-3" />} options={[{ value: 'Interview', label: 'Interview' }, { value: 'Rejected', label: 'Rejected' }]} />
+                            <Button variant={filterApplied ? "default" : "outline"} size="sm" className={cn("h-7 text-[0.6rem]", filterApplied && "bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30")} onClick={() => setFilterApplied(f => !f)}>
+                              <PaperPlaneRight className="w-3 h-3 mr-0.5" />Applied
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -1437,6 +1460,20 @@ function App() {
                       )}
                       {drawer.job.visa && drawer.job.visa !== 'Uncertain' && <VisaBadge visa={drawer.job.visa} />}
                       {drawer.job.work_type && <Badge variant="secondary">{drawer.job.work_type}</Badge>}
+                      {drawer.job.apply_time && (
+                        <Badge variant="outline" className="text-[0.55rem] bg-green-500/10 text-green-500 border-green-500/30 gap-0.5">
+                          <PaperPlaneRight className="w-2.5 h-2.5" />Applied
+                        </Badge>
+                      )}
+                      {drawer.job.response_status && (
+                        <Badge variant="outline" className={cn("text-[0.55rem] gap-0.5",
+                          drawer.job.response_status === 'Interview' ? 'bg-green-500/10 text-green-500 border-green-500/30' :
+                          'bg-red-500/10 text-red-500 border-red-500/30'
+                        )}>
+                          {drawer.job.response_status === 'Interview' ? <CheckCircle className="w-2.5 h-2.5" /> : null}
+                          {drawer.job.response_status}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </SheetHeader>
@@ -1492,6 +1529,48 @@ function App() {
                   let sd = null; try { sd = drawer.job.structured_description ? JSON.parse(drawer.job.structured_description) : null } catch {}
                   return (
                     <div>
+                      {/* Application Tracking */}
+                      <div className="mb-3 p-3 rounded-lg border border-border/50 bg-muted/30">
+                        <h4 className="text-[0.6rem] uppercase tracking-wider mb-2 text-primary font-semibold">Application Tracking</h4>
+                        <div className="grid gap-2">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-muted-foreground w-20 shrink-0">Applied:</label>
+                            <input type="date" className="h-7 text-xs rounded border border-input bg-background px-2 flex-1"
+                              value={drawer.job.apply_time ? new Date(drawer.job.apply_time).toISOString().split('T')[0] : ''}
+                              onChange={(e) => {
+                                const val = e.target.value ? new Date(e.target.value + 'T00:00:00').toISOString() : null
+                                updateJob(drawer.job.num, { apply_time: val })
+                              }} />
+                            {drawer.job.apply_time && (
+                              <span className="text-[0.55rem] text-green-500 shrink-0">Applied</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-muted-foreground w-20 shrink-0">Status:</label>
+                            <Select value={drawer.job.response_status || 'none'} onValueChange={(val) => {
+                              updateJob(drawer.job.num, { response_status: val === 'none' ? null : val })
+                            }}>
+                              <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No Response</SelectItem>
+                                <SelectItem value="Interview">Interview</SelectItem>
+                                <SelectItem value="Rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {drawer.job.response_status && (
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-muted-foreground w-20 shrink-0">Response:</label>
+                              <input type="date" className="h-7 text-xs rounded border border-input bg-background px-2 flex-1"
+                                value={drawer.job.response_time ? new Date(drawer.job.response_time).toISOString().split('T')[0] : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value ? new Date(e.target.value + 'T00:00:00').toISOString() : null
+                                  updateJob(drawer.job.num, { response_time: val })
+                                }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <ul className="text-sm space-y-1 mb-3 text-muted-foreground">
                         <li><b className="text-foreground">Salary:</b> {drawer.job.salary}</li>
                         {drawer.job.company_url && <li><b className="text-foreground">Company Website:</b> <a href={drawer.job.company_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{drawer.job.company_url}</a></li>}

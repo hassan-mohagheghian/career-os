@@ -51,6 +51,9 @@ def _ensure_db_schema():
         'adv_at': "ALTER TABLE jobs ADD COLUMN adv_at TEXT",
         'see_at': "ALTER TABLE jobs ADD COLUMN see_at TEXT",
         'apply_reason': "ALTER TABLE jobs ADD COLUMN apply_reason TEXT",
+        'apply_time': "ALTER TABLE jobs ADD COLUMN apply_time TEXT",
+        'response_time': "ALTER TABLE jobs ADD COLUMN response_time TEXT",
+        'response_status': "ALTER TABLE jobs ADD COLUMN response_status TEXT",
     }
     # pending_jobs: add step columns if missing
     cursor2 = conn.execute('PRAGMA table_info(pending_jobs)')
@@ -188,7 +191,7 @@ def get_jobs():
     # Sorting
     sort_by = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
-    allowed_sorts = {'created_at', 'score', 'score_success', 'score_combined', 'num', 'company', 'location', 'posted_at', 'applicants', 'adv_at', 'see_at'}
+    allowed_sorts = {'created_at', 'score', 'score_success', 'score_combined', 'num', 'company', 'location', 'posted_at', 'applicants', 'adv_at', 'see_at', 'apply_time', 'response_time'}
     if sort_by not in allowed_sorts:
         sort_by = 'created_at'
     if sort_dir not in ('asc', 'desc'):
@@ -259,6 +262,20 @@ def get_jobs():
         conditions.append('(stack LIKE ? OR role LIKE ? OR company LIKE ? OR notes LIKE ?)')
         params.extend([like_param, like_param, like_param, like_param])
 
+    # Filter: response status
+    filter_response_status = request.args.get('filter_response_status', '').strip()
+    if filter_response_status:
+        statuses = [s.strip() for s in filter_response_status.split(',') if s.strip()]
+        if statuses:
+            placeholders = ','.join(['?' for _ in statuses])
+            conditions.append(f'response_status IN ({placeholders})')
+            params.extend(statuses)
+
+    # Filter: applied only (apply_time IS NOT NULL)
+    filter_applied = request.args.get('filter_applied', '').strip()
+    if filter_applied == 'true':
+        conditions.append('apply_time IS NOT NULL')
+
     where_clause = ' AND '.join(conditions)
     total = conn.execute(f'SELECT COUNT(*) FROM jobs WHERE {where_clause}', params).fetchone()[0]
 
@@ -313,6 +330,28 @@ def get_job(num):
     if row:
         return jsonify(row_to_dict(row))
     return jsonify({'error': 'Not found'}), 404
+
+@app.route('/api/jobs/<int:num>', methods=['PUT'])
+def update_job(num):
+    """Update specific fields of a job (apply_time, response_time, response_status)."""
+    conn = get_db()
+    job = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
+    if not job:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    data = request.get_json(force=True)
+    allowed_fields = {'apply_time', 'response_time', 'response_status'}
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+    if not updates:
+        conn.close()
+        return jsonify({'error': 'No valid fields to update'}), 400
+    set_clause = ', '.join(f'{k}=?' for k in updates)
+    values = list(updates.values()) + [num]
+    conn.execute(f'UPDATE jobs SET {set_clause} WHERE num=?', values)
+    conn.commit()
+    row = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
+    conn.close()
+    return jsonify(row_to_dict(row))
 
 @app.route('/api/jobs/<int:num>', methods=['DELETE'])
 def delete_job(num):

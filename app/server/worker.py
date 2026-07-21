@@ -168,7 +168,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -177,7 +177,8 @@ def _insert_job(d):
          employment_type, json.dumps(normalized_wt), d.get('raw_description'),
          d.get('structured_description'), d.get('raw_file_path'),
          d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
-         adv_at, see_at, d.get('apply_reason', ''), d.get('company_url'), d.get('linkedin_url')))
+         adv_at, see_at, d.get('apply_reason', ''), d.get('company_url'), d.get('linkedin_url'),
+         d.get('apply_time'), d.get('response_time'), d.get('response_status')))
     conn.commit(); conn.close()
 
 
