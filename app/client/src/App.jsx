@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
-  Briefcase, Gear, Target, Brain, Sun, Moon,
+  Briefcase, ChartBar, Gear, Target, Brain, Sun, Moon,
   Clock, X, CheckCircle, Buildings, ArrowsClockwise,
   Rocket, FileText, Warning,
   House, Pause, Trash, Repeat,
