@@ -222,11 +222,19 @@ class JobQueueManager:
     def _pick_and_claim(self) -> Optional[dict]:
         """Atomically pick the next queued job and mark it as processing.
 
-        Uses a DB-level atomic update to prevent two workers from
-        grabbing the same job.
+        Enforces global concurrency limit at the DB level — checks actual
+        processing count in the DB, not just in-memory counter, so the limit
+        holds across restarts and race conditions.
         """
         conn = _db()
         try:
+            # Enforce concurrency limit at DB level
+            proc_row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'"
+            ).fetchone()
+            if proc_row["cnt"] >= self._concurrency:
+                return None
+
             # Find the next queued job
             row = conn.execute(
                 """SELECT id FROM pending_jobs WHERE status='queued'
@@ -259,13 +267,24 @@ class JobQueueManager:
         """Worker thread: pick claimed job, process it, repeat."""
         while self._running:
             try:
-                # Check if we have a free slot
+                # Sync _active_count with DB to prevent drift
+                conn = _db()
+                try:
+                    row = conn.execute(
+                        "SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'"
+                    ).fetchone()
+                    db_count = row["cnt"]
+                finally:
+                    conn.close()
+
                 with self._lock:
-                    if self._active_count >= self._concurrency:
-                        # All slots full — wait
-                        self._slot_event.clear()
-                        self._slot_event.wait(timeout=2.0)
-                        continue
+                    self._active_count = db_count
+
+                if self._active_count >= self._concurrency:
+                    # All slots full — wait
+                    self._slot_event.clear()
+                    self._slot_event.wait(timeout=2.0)
+                    continue
 
                 item = self._pick_and_claim()
                 if not item:
