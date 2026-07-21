@@ -1,0 +1,30 @@
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+
+export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, onClose }) {
+  return (
+    <>
+      {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-[49] lg:hidden" onClick={onClose} />}
+      <aside className={cn(
+        "fixed lg:relative inset-y-0 left-0 z-[50] lg:z-auto border-r flex flex-col transition-all duration-200 bg-card",
+        sidebarOpen ? "w-[170px]" : "w-0 overflow-hidden"
+      )}>
+        <div className="pt-12 lg:pt-0 flex-1 overflow-y-auto">
+          {['jobs', 'analysis', 'settings'].map(section => (
+            <div key={section}>
+              <div className="px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">{section}</div>
+              {tabs.filter(t => t.section === section).map(t => (
+                <button key={t.id} onClick={() => onSwitchTab(t.id)}
+                  className={cn("flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition w-full text-left",
+                    tab === t.id ? "border-l-primary font-semibold text-primary" : "border-l-transparent text-muted-foreground")}>
+                  <span>{t.icon}</span><span>{t.label}</span>
+                  {t.badge && <Badge variant="default" className="ml-auto text-[0.55rem] h-5">{t.badge}</Badge>}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </aside>
+    </>
+  )
+}
