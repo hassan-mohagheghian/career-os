@@ -9,8 +9,8 @@ import os
 import threading
 from datetime import datetime
 from urllib.parse import urlparse
-from worker import process_job
-from queue_manager import init_queue_manager, get_queue_manager
+from services.worker import process_job
+from core.queue import init_queue_manager, get_queue_manager
 
 app = Flask(__name__, static_folder='../client/dist', static_url_path='')
 CORS(app)
@@ -81,7 +81,7 @@ queue_mgr = init_queue_manager(DB_PATH)
 
 # Migrate numeric scores to letter grades
 try:
-    from worker import normalize_score
+    from services.worker import normalize_score
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute('SELECT num, score FROM jobs WHERE deleted=0').fetchall()
     converted = 0
@@ -117,7 +117,7 @@ try:
         conn.execute("DELETE FROM preferences")
         conn.commit()
         conn.close()
-        from db import init_db
+        from core.db import init_db
         init_db()
     else:
         conn.close()
@@ -135,7 +135,7 @@ except Exception as e:
 
 # Migrate existing resume files from disk to DB on startup
 try:
-    from db import migrate_resume_files_to_db
+    from core.db import migrate_resume_files_to_db
     migrate_resume_files_to_db()
 except Exception as e:
     print(f"Warning: resume file migration failed: {e}")
@@ -1046,7 +1046,7 @@ def refresh_dashboard():
     """Manually refresh dashboard insights."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_strategy_analysis
+    from services.worker import _update_strategy_analysis
     try:
         _update_strategy_analysis(0)
         return jsonify({'status': 'updated'})
@@ -1058,7 +1058,7 @@ def refresh_networking():
     """Manually refresh networking analysis only."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_networking_analysis
+    from services.worker import _update_networking_analysis
     try:
         _update_networking_analysis(0)
         return jsonify({'status': 'updated'})
@@ -1070,7 +1070,7 @@ def refresh_skills():
     """Manually refresh skills insights."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_skills_analysis
+    from services.worker import _update_skills_analysis
     try:
         _update_skills_analysis(0)
         return jsonify({'status': 'updated'})
@@ -1082,7 +1082,7 @@ def refresh_analysis():
     """Manually refresh unified analysis (combines all tabs)."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_unified_analysis
+    from services.worker import _update_unified_analysis
     try:
         _update_unified_analysis(0)
         return jsonify({'status': 'updated'})

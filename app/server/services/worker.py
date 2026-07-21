@@ -1401,7 +1401,7 @@ def process_job(pid):
             except OSError: pass
         # Signal queue manager to pick up next job
         try:
-            from queue_manager import get_queue_manager
+            from core.queue import get_queue_manager
             get_queue_manager().signal_job_done(pid)
         except Exception:
             pass

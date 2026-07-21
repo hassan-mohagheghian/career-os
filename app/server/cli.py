@@ -90,7 +90,7 @@ def delete_pending(pid):
 def process_pending_sync(pid):
     """Run worker.process_job in current thread (blocking)."""
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import process_job
+    from services.worker import process_job
     process_job(pid)
 
 # --- Commands ---
@@ -314,7 +314,7 @@ def update_insights():
     """Update all insights (dashboard + skills) based on processed jobs."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_dashboard_insights, _update_skills_insights
+    from services.worker import _update_dashboard_insights, _update_skills_insights
 
     console.print("[cyan]Updating dashboard insights...[/cyan]")
     try:
@@ -335,7 +335,7 @@ def update_dashboard():
     """Update dashboard insights only."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_dashboard_insights
+    from services.worker import _update_dashboard_insights
     console.print("[cyan]Updating dashboard insights...[/cyan]")
     try:
         _update_dashboard_insights(0)
@@ -348,7 +348,7 @@ def update_skills():
     """Update skills insights only."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from worker import _update_skills_insights
+    from services.worker import _update_skills_insights
     console.print("[cyan]Updating skills insights...[/cyan]")
     try:
         _update_skills_insights(0)
@@ -502,7 +502,7 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
         return
 
     console.print("\n[bold]Re-processing missing jobs...[/bold]")
-    from worker import process_job
+    from services.worker import process_job
     for j in missing_raw + missing_struct:
         num = j['num']
         console.print(f"  Re-processing #{num} {j['company']}...")

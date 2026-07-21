@@ -290,7 +290,7 @@ class JobQueueManager:
                     self._reset_steps(pid)
 
                 # Run the pipeline (blocking call)
-                from worker import process_job
+                from services.worker import process_job
                 try:
                     process_job(pid)
                 except Exception as e:
