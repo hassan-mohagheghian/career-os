@@ -28,8 +28,8 @@ os.makedirs(TMP_DIR, exist_ok=True)
 VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
 GRADE_RANK = {g: i for i, g in enumerate(VALID_GRADES)}
 NUMERIC_TO_GRADE = {
-    range(0, 15): 'E', range(15, 30): 'D', range(30, 50): 'C',
-    range(50, 70): 'B', range(70, 82): 'A', range(82, 92): 'A+', range(92, 101): 'A++',
+    range(0, 30): 'D', range(30, 50): 'C', range(50, 70): 'B',
+    range(70, 80): 'A', range(80, 90): 'A+', range(90, 101): 'A++',
 }
 
 def normalize_score(score):
@@ -57,6 +57,18 @@ def _numeric_to_grade(n):
         if n in r:
             return g
     return 'P'
+
+def calculate_overall_score(fit_score, success_score):
+    """Calculate overall score as weighted average of fit and success scores."""
+    if fit_score is None or success_score is None:
+        return None
+    return round(fit_score * 0.6 + success_score * 0.4, 1)
+
+def score_to_grade(score):
+    """Convert a numeric score (0-100) to a letter grade."""
+    if score is None:
+        return 'P'
+    return _numeric_to_grade(int(score))
 
 def _load_env():
     """Read .env file from project root into os.environ."""
@@ -169,7 +181,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -179,7 +191,8 @@ def _insert_job(d):
          d.get('structured_description'), d.get('raw_file_path'),
          d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
          adv_at, see_at, d.get('apply_reason', ''), d.get('company_url'), d.get('linkedin_url'),
-         d.get('apply_time'), d.get('response_time'), d.get('response_status')))
+         d.get('apply_time'), d.get('response_time'), d.get('response_status'),
+         d.get('fit_score'), d.get('success_score'), d.get('overall_score')))
     conn.commit(); conn.close()
 
 
@@ -362,6 +375,17 @@ def rescore_only(num):
 
         analyzed_data = data['job']
 
+        # Parse numeric scores from mimo output
+        fit_score_raw = analyzed_data.get('fit_score')
+        success_score_raw = analyzed_data.get('success_score')
+        fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
+        success_score = max(0, min(100, int(success_score_raw))) if success_score_raw is not None else None
+
+        # Compute overall_score: (fit * 0.6) + (success * 0.4)
+        overall_score = None
+        if fit_score is not None and success_score is not None:
+            overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
+
         # Update the existing job with new scores
         job_data = {
             'num': num,
@@ -372,6 +396,9 @@ def rescore_only(num):
             'match': analyzed_data.get('match', j.get('match', 'Medium')),
             'score': normalize_score(analyzed_data.get('score', j.get('score', 'P'))),
             'success': normalize_score(analyzed_data.get('success', j.get('success', 'P'))),
+            'fit_score': fit_score,
+            'success_score': success_score,
+            'overall_score': overall_score,
             'salary': analyzed_data.get('salary', j.get('salary', 'Not specified')),
             'stack': analyzed_data.get('stack', j.get('stack', '')),
             'visa': analyzed_data.get('visa', j.get('visa', 'Uncertain')),
@@ -980,7 +1007,7 @@ def process_job(pid):
             # Skip to scoring step
             current_step = 'score'
             _update_step(pid, 'step_analyze', 0, status='processing')
-            _log(pid, 'score', f'Rescoring existing job #{existing_num}...')
+            _log(pid, 'analyze', f'Rescoring existing job #{existing_num}...')
             rules = _load_rules()
 
             resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
@@ -1042,9 +1069,20 @@ def process_job(pid):
             analyzed_data = data['job']
             _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
 
+            # Parse numeric scores from mimo output
+            fit_score_raw = analyzed_data.get('fit_score')
+            success_score_raw = analyzed_data.get('success_score')
+            fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
+            success_score = max(0, min(100, int(success_score_raw))) if success_score_raw is not None else None
+
+            # Compute overall_score: (fit * 0.6) + (success * 0.4)
+            overall_score = None
+            if fit_score is not None and success_score is not None:
+                overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
+
             score = normalize_score(analyzed_data.get('score', 'P'))
             match = analyzed_data.get('match', 'Medium')
-            _log(pid, 'score', f'Score: {score} — Match: {match}')
+            _log(pid, 'analyze', f'Score: {score} (fit={fit_score}) — Success: {normalize_score(analyzed_data.get("success", "P"))} (prob={success_score}) — Overall: {overall_score} — Match: {match}')
 
             job_data.update({
                 'company': analyzed_data.get('company', job_data['company']),
@@ -1054,6 +1092,9 @@ def process_job(pid):
                 'match': match,
                 'score': score,
                 'success': normalize_score(analyzed_data.get('success', 'P')),
+                'fit_score': fit_score,
+                'success_score': success_score,
+                'overall_score': overall_score,
                 'salary': analyzed_data.get('salary', job_data.get('salary', 'Not specified')),
                 'stack': analyzed_data.get('stack', job_data.get('stack', '')),
                 'visa': analyzed_data.get('visa', job_data.get('visa', 'Uncertain')),
@@ -1208,7 +1249,7 @@ def process_job(pid):
             'stack': (extraction or {}).get('stack', ''),
             'resumeFit': '', 'note': '', 'url': url,
         })
-        _log(pid, 'resume', f'Saved job #{temp_num} to DB')
+        _log(pid, 'save', f'Saved job #{temp_num} to DB')
 
         if _is_paused_or_stopped(pid):
             _log(pid, 'pause', 'Job paused/stopped after save')
@@ -1219,9 +1260,9 @@ def process_job(pid):
         _update_step(pid, 'step_analyze', 0, status='processing')
         next_num = temp_num
         if existing_num:
-            _log(pid, 'score', f'Rescoring existing job #{next_num}...')
+            _log(pid, 'analyze', f'Rescoring existing job #{next_num}...')
         else:
-            _log(pid, 'score', f'Scoring job #{next_num}...')
+            _log(pid, 'analyze', f'Scoring job #{next_num}...')
         rules = _load_rules()
 
         # Load resume from DB for scoring context
@@ -1285,10 +1326,21 @@ def process_job(pid):
         analyzed_data = data['job']
         _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
 
+        # Parse numeric scores from mimo output
+        fit_score_raw = analyzed_data.get('fit_score')
+        success_score_raw = analyzed_data.get('success_score')
+        fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
+        success_score = max(0, min(100, int(success_score_raw))) if success_score_raw is not None else None
+
+        # Compute overall_score: (fit * 0.6) + (success * 0.4)
+        overall_score = None
+        if fit_score is not None and success_score is not None:
+            overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
+
         # Log score results
         score = normalize_score(analyzed_data.get('score', 'P'))
         match = analyzed_data.get('match', 'Medium')
-        _log(pid, 'score', f'Score: {score} — Match: {match}')
+        _log(pid, 'analyze', f'Score: {score} (fit={fit_score}) — Success: {normalize_score(analyzed_data.get("success", "P"))} (prob={success_score}) — Overall: {overall_score} — Match: {match}')
 
         # Update job data with scored results
         job_data.update({
@@ -1299,6 +1351,9 @@ def process_job(pid):
             'match': match,
             'score': score,
             'success': normalize_score(analyzed_data.get('success', 'P')),
+            'fit_score': fit_score,
+            'success_score': success_score,
+            'overall_score': overall_score,
             'salary': analyzed_data.get('salary', 'Not specified'),
             'stack': analyzed_data.get('stack', ''),
             'visa': analyzed_data.get('visa', 'Uncertain'),
@@ -1337,7 +1392,7 @@ def process_job(pid):
             'content': data.get('resume_html', ''),
         }
         _insert_resume(resume_data)
-        _log(pid, 'score', f'Final score: {score} saved')
+        _log(pid, 'analyze', f'Final score: {score} saved')
         _mark(pid, 'step_analyze')
 
         if source == 'rescore':

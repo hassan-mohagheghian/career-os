@@ -35,7 +35,7 @@ def get_db():
                 raise
 
 def _ensure_db_schema():
-    """Legacy: kept for backward compatibility. New migrations should use alembic."""
+    """Add missing columns to existing tables for backward compatibility."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute('PRAGMA table_info(jobs)')
     columns = {row[1] for row in cursor.fetchall()}
@@ -77,6 +77,29 @@ try:
     conn.close()
 except Exception as e:
     print(f"Warning: score migration failed: {e}")
+
+# Backfill numeric scores (fit_score, success_score, overall_score) from letter grades
+try:
+    conn = sqlite3.connect(DB_PATH)
+    grade_to_numeric = {
+        'A++': 95, 'A+': 85, 'A': 75, 'B': 60, 'C': 40, 'D': 20, 'E': 10
+    }
+    rows = conn.execute('SELECT num, score, success FROM jobs WHERE deleted=0 AND fit_score IS NULL').fetchall()
+    backfilled = 0
+    for num, score, success in rows:
+        fit_num = grade_to_numeric.get(score)
+        success_num = grade_to_numeric.get(success) if success else fit_num
+        if fit_num is not None:
+            overall = int(round(fit_num * 0.6 + (success_num or fit_num) * 0.4))
+            conn.execute('UPDATE jobs SET fit_score=?, success_score=?, overall_score=? WHERE num=?',
+                        (fit_num, success_num, overall, num))
+            backfilled += 1
+    if backfilled:
+        conn.commit()
+        print(f"[migrate] Backfilled numeric scores for {backfilled} jobs")
+    conn.close()
+except Exception as e:
+    print(f"Warning: numeric score backfill failed: {e}")
 
 # Migrate old rules (scoring/tech/domain/visa/strategy) to new fit/success
 try:
@@ -167,7 +190,7 @@ def get_jobs():
     # Sorting
     sort_by = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
-    allowed_sorts = {'created_at', 'score', 'score_success', 'score_combined', 'num', 'company', 'location', 'posted_at', 'applicants', 'adv_at', 'see_at', 'apply_time', 'response_time'}
+    allowed_sorts = {'created_at', 'overall_score', 'fit_score', 'success_score', 'score', 'score_success', 'score_combined', 'num', 'company', 'location', 'posted_at', 'applicants', 'adv_at', 'see_at', 'apply_time', 'response_time'}
     if sort_by not in allowed_sorts:
         sort_by = 'created_at'
     if sort_dir not in ('asc', 'desc'):
@@ -272,21 +295,24 @@ def get_jobs():
     # Handle applicants sorting specially (parse numeric from text)
     if sort_by == 'applicants':
         order_clause = f"CAST(REPLACE(REPLACE(applicants, 'Not specified', '999'), '+', '') AS INTEGER) {sort_dir}"
+    elif sort_by == 'overall_score':
+        # Primary sort by overall_score numeric column
+        order_clause = f"COALESCE(overall_score, 0) {sort_dir}"
+    elif sort_by == 'fit_score':
+        # Sort by fit_score numeric column
+        order_clause = f"COALESCE(fit_score, 0) {sort_dir}"
+    elif sort_by == 'success_score':
+        # Sort by success_score numeric column
+        order_clause = f"COALESCE(success_score, 0) {sort_dir}"
     elif sort_by == 'score':
-        # Fit score primary, success score as tiebreaker
-        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        order_clause = f"{fit_rank} {sort_dir}, {success_rank} {sort_dir}"
+        # Legacy: fit score primary, success score as tiebreaker (use numeric columns)
+        order_clause = f"COALESCE(fit_score, 0) {sort_dir}, COALESCE(success_score, 0) {sort_dir}"
     elif sort_by == 'score_success':
-        # Success score primary, fit score as tiebreaker
-        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        order_clause = f"{success_rank} {sort_dir}, {fit_rank} {sort_dir}"
+        # Legacy: success score primary, fit score as tiebreaker (use numeric columns)
+        order_clause = f"COALESCE(success_score, 0) {sort_dir}, COALESCE(fit_score, 0) {sort_dir}"
     elif sort_by == 'score_combined':
-        # Combined sum of fit + success
-        fit_rank = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        success_rank = "CASE success WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        order_clause = f"({fit_rank} + {success_rank}) {sort_dir}"
+        # Legacy: combined sum (use overall_score)
+        order_clause = f"COALESCE(overall_score, 0) {sort_dir}"
     else:
         order_clause = f'{sort_by} {sort_dir}'
 

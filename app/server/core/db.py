@@ -40,7 +40,10 @@ def init_db():
         structured_description TEXT,
         adv_at TEXT,
         see_at TEXT,
-        apply_reason TEXT
+        apply_reason TEXT,
+        fit_score INTEGER,
+        success_score INTEGER,
+        overall_score INTEGER
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS summaries (

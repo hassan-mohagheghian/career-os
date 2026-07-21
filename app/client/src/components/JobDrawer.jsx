@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
-import { LocationBadge, VisaBadge, getScoreColor, getMatchClass } from '@/components/ProcessedCards'
+import { LocationBadge, VisaBadge, getScoreColor, getMatchClass, numericToGrade } from '@/components/ProcessedCards'
 import ResumePreview from '@/components/ResumePreview'
 
 export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover }) {
@@ -28,11 +28,28 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
         <SheetHeader className="mb-4">
           <div className="flex gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <div className={cn("text-4xl font-black", getScoreColor(job.score))}>{job.score}</div>
-                {job.success && (
-                  <div className={cn("text-lg font-bold opacity-80", getScoreColor(job.success))}>{job.success}</div>
-                )}
+              <div className="flex items-center gap-3 mb-1">
+                {/* Overall Score - Primary */}
+                <div className="flex flex-col items-center">
+                  <div className={cn("text-4xl font-black", getScoreColor(job.overall_score != null ? job.overall_score : job.score))}>
+                    {job.overall_score != null ? Math.round(job.overall_score) : job.score}
+                  </div>
+                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
+                </div>
+                {/* Fit Score */}
+                <div className="flex flex-col items-center">
+                  <div className={cn("text-lg font-bold", getScoreColor(job.fit_score != null ? job.fit_score : job.score))}>
+                    {job.fit_score != null ? Math.round(job.fit_score) : job.score}
+                  </div>
+                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
+                </div>
+                {/* Success Score */}
+                <div className="flex flex-col items-center">
+                  <div className={cn("text-lg font-bold", getScoreColor(job.success_score != null ? job.success_score : job.score))}>
+                    {job.success_score != null ? Math.round(job.success_score) : job.success || '?'}
+                  </div>
+                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
+                </div>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRescoreJob(job.num)} title="Rescore">
                   <TrendUp className="w-3.5 h-3.5" />
                 </Button>

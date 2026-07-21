@@ -279,21 +279,23 @@ function App() {
     if (!jobsWithLocations) return []
     let r = [...jobsWithLocations]
     r.sort((a, b) => {
-      if (sortBy === 'score') {
-        // Fit primary, success as tiebreaker
-        const fitDiff = scoreRank(b.score) - scoreRank(a.score)
-        if (fitDiff !== 0) return sortDir === 'desc' ? fitDiff : -fitDiff
-        return sortDir === 'desc' ? scoreRank(b.success) - scoreRank(a.success) : scoreRank(a.success) - scoreRank(b.success)
+      if (sortBy === 'overall_score') {
+        // Primary sort by overall_score numeric column
+        const aVal = a.overall_score ?? 0
+        const bVal = b.overall_score ?? 0
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
-      if (sortBy === 'score_success') {
-        // Success primary, fit as tiebreaker
-        const successDiff = scoreRank(b.success) - scoreRank(a.success)
-        if (successDiff !== 0) return sortDir === 'desc' ? successDiff : -successDiff
-        return sortDir === 'desc' ? scoreRank(b.score) - scoreRank(a.score) : scoreRank(a.score) - scoreRank(b.score)
+      if (sortBy === 'fit_score') {
+        // Sort by fit_score numeric column
+        const aVal = a.fit_score ?? 0
+        const bVal = b.fit_score ?? 0
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
-      if (sortBy === 'score_combined') {
-        // Combined sum of both scores
-        return sortDir === 'desc' ? (scoreRank(b.score) + scoreRank(b.success)) - (scoreRank(a.score) + scoreRank(a.success)) : (scoreRank(a.score) + scoreRank(a.success)) - (scoreRank(b.score) + scoreRank(b.success))
+      if (sortBy === 'success_score') {
+        // Sort by success_score numeric column
+        const aVal = a.success_score ?? 0
+        const bVal = b.success_score ?? 0
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
       if (sortBy === 'num') return sortDir === 'desc' ? b.num - a.num : a.num - b.num
       if (sortBy === 'company') return sortDir === 'desc' ? b.company.localeCompare(a.company) : a.company.localeCompare(b.company)
@@ -552,10 +554,10 @@ function App() {
                               <SelectTrigger className="h-7 w-auto text-[0.6rem] border-green-500/30"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="created_at">Newest first</SelectItem>
+                                <SelectItem value="overall_score">Overall Score</SelectItem>
+                                <SelectItem value="fit_score">Fit Score</SelectItem>
+                                <SelectItem value="success_score">Success Score</SelectItem>
                                 <SelectItem value="posted_at">Posted date</SelectItem>
-                                <SelectItem value="score">Score (Fit)</SelectItem>
-                                <SelectItem value="score_success">Score (Success)</SelectItem>
-                                <SelectItem value="score_combined">Score (Combined)</SelectItem>
                                 <SelectItem value="applicants">Applicants</SelectItem>
                                 <SelectItem value="company">Company</SelectItem>
                                 <SelectItem value="location">Location</SelectItem>
@@ -673,8 +675,9 @@ function App() {
 
           {/* Step progress */}
           <div className="px-4 py-2 flex gap-1 border-b bg-muted overflow-x-auto">
-            {['fetch', 'validate', 'extract_raw', 'extract_struct', 'summary', 'resume', 'score', 'done'].map((s, i) => {
-              const stepVal = workflowDrawer?.[`step_${s}`]
+            {['fetch', 'validate', 'extract_raw', 'extract_struct', 'summary', 'save', 'analyze', 'done'].map((s, i) => {
+              const stepDbCol = { save: 'step_resume', analyze: 'step_analyze' }[s] || `step_${s}`
+              const stepVal = workflowDrawer?.[stepDbCol]
               const isDone = stepVal === 1
               const isActive = !isDone && workflowLogs.some(l => l.step === s)
               return (

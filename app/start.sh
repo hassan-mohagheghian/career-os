@@ -5,10 +5,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "=== Applying database migrations ==="
-cd "$PROJECT_ROOT"
-uv run alembic upgrade head
-
 echo "=== Starting Flask API on port 5000 (auto-reload enabled) ==="
 cd "$SCRIPT_DIR/server"
 uv run python app.py &

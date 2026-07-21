@@ -7,11 +7,11 @@ STEPS
 1. Read the job posting from {job_file}
 2. Read the candidate's master resume from {resume_file} for context
 3. {linkedin_step}
-4. Score using TWO grades (see SCORING below)
+4. Score using TWO numeric scores AND TWO letter grades (see SCORING below)
 5. You MUST use the Write tool to save the result as JSON to this exact path: {tmp_dir}/pending_result_{pid}.json
 
 The file content must be valid JSON:
-{{"job": {{"num": {next_num}, "company": "...", "company_url": "Company website URL if found, else null", "linkedin_url": "Company LinkedIn page URL if found, else null", "role": "...", "location": "Berlin", "locations": ["Berlin", "Munich"], "employment_type": "Full-time|Part-time|Contract|Internship|Temporary", "work_types": ["On-site", "Remote"], "match": "High|Medium|Low", "score": "P|E|D|C|B|A|A+|A++", "success": "P|E|D|C|B|A|A+|A++", "salary": "...", "stack": "...", "visa": "BEST|Strong|Good|Moderate|Uncertain", "applicants": "...", "posted": "...", "industry": "...", "domain": "...", "notes": "...", "action": "Apply Now|Apply Soon|Consider|Skip", "apply_reason": "1-2 sentence reason why the candidate should apply or skip this job, based on scores and rules", "url": "{url}"}}, "summary": {{"summary": "...", "stack": "...", "resumeFit": "...", "note": "..."}}}}
+{{"job": {{"num": {next_num}, "company": "...", "company_url": "Company website URL if found, else null", "linkedin_url": "Company LinkedIn page URL if found, else null", "role": "...", "location": "Berlin", "locations": ["Berlin", "Munich"], "employment_type": "Full-time|Part-time|Contract|Internship|Temporary", "work_types": ["On-site", "Remote"], "match": "High|Medium|Low", "score": "P|E|D|C|B|A|A+|A++", "success": "P|E|D|C|B|A|A+|A++", "fit_score": 85, "success_score": 60, "salary": "...", "stack": "...", "visa": "BEST|Strong|Good|Moderate|Uncertain", "applicants": "...", "posted": "...", "industry": "...", "domain": "...", "notes": "...", "action": "Apply Now|Apply Soon|Consider|Skip", "apply_reason": "1-2 sentence reason why the candidate should apply or skip this job, based on scores and rules", "url": "{url}"}}, "summary": {{"summary": "...", "stack": "...", "resumeFit": "...", "note": "..."}}}}
 
 ═══════════════════════════════════════════════════════════════
 SCORING RULES
@@ -25,11 +25,21 @@ SCORING
 
 Rules are split into FIT and SUCCESS groups. Read every rule. Weight by priority — higher = more impact.
 
-"score" = FIT → Use FIT rules
+"score" = FIT letter grade → Use FIT rules ONLY
 How well does this job match the candidate's skills, experience, and career direction?
+Ignore: location, visa, competition, hiring probability, company signals.
 
-"success" = SUCCESS → Use SUCCESS rules
+"fit_score" = FIT numeric score (0-100 integer) → Use FIT rules ONLY
+The numeric representation of "score". Use the numeric scale below.
+This is the TECHNICAL FIT score.
+
+"success" = SUCCESS letter grade → Use SUCCESS rules ONLY
 What is the probability of actually getting hired? Consider visa, competition, company, logistics, and application strategy.
+Ignore: technical stack, programming languages, backend experience.
+
+"success_score" = SUCCESS numeric score (0-100 integer) → Use SUCCESS rules ONLY
+The numeric representation of "success". Use the numeric scale below.
+This is the SUCCESS PROBABILITY score.
 
 "action" = Derive from both scores:
 - score=A++ or A+ AND success=A+ or A++ → "Apply Now"
@@ -41,7 +51,7 @@ What is the probability of actually getting hired? Consider visa, competition, c
 
 "notes" = Explain reasoning using at least 2 specific rules.
 
-Grade scale (both scores):
+Grade scale (letter grades for "score" and "success"):
 - "P" = Pending (do NOT use)
 - "E" = Very poor / Very unlikely
 - "D" = Poor / Unlikely
@@ -51,8 +61,18 @@ Grade scale (both scores):
 - "A+" = Excellent / Very strong chance
 - "A++" = Perfect / Almost certain
 
+Numeric scale (for "fit_score" and "success_score"):
+- 0-29 = D (Poor)
+- 30-49 = C (Moderate)
+- 50-69 = B (Good)
+- 70-79 = A (Great)
+- 80-89 = A+ (Excellent)
+- 90-100 = A++ (Perfect)
+
 Rules:
-- score and success are INDEPENDENT
+- "score" and "success" are INDEPENDENT — use only their respective rule groups
+- "fit_score" is the numeric version of "score" — must be consistent
+- "success_score" is the numeric version of "success" — must be consistent
 - Use ALL enabled rules, weighted by priority
 - "match" = High/Medium/Low based on overall assessment
 
