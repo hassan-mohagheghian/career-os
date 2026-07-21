@@ -16,9 +16,10 @@ from datetime import datetime
 from prompts import load_prompt
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
-_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
-DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_server_dir = os.path.join(_file_dir, '..')  # services/ -> server/
+_db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
+PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..'))
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
