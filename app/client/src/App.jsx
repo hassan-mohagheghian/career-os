@@ -27,7 +27,7 @@ import {
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import JobDrawer from '@/components/JobDrawer'
-import DashboardTab from '@/components/DashboardTab'
+import IntelligenceTab from '@/components/IntelligenceTab'
 import ProcessingItem from '@/components/ProcessingItem'
 import { JobCard, getScoreColor, getMatchClass, LocationBadge, VisaBadge, WorkTypeTag, scoreRank } from '@/components/ProcessedCards'
 import ResumeTab from '@/components/ResumeTab'
@@ -81,7 +81,7 @@ function App() {
   const workflowEndRef = useRef(null)
   const [rules, setRules] = useState(null)
   const [analysis, setAnalysis] = useState(null)
-  const [dashboardSubTab, setDashboardSubTab] = useState('overview')
+  const [intelligenceSubTab, setIntelligenceSubTab] = useState('market')
   const [refreshing, setRefreshing] = useState({})
 
   // Toast listener
@@ -111,7 +111,7 @@ function App() {
   }, [])
 
   const fetchRules = () => fetch(`${API}/rules`).then(r => r.json()).then(setRules)
-  const fetchAnalysis = () => fetch(`${API}/analysis`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => setAnalysis(null))
+  const fetchAnalysis = () => fetch(`${API}/intelligence`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => setAnalysis(null))
 
   const seenDoneRef = useRef(new Set())
   const refreshJobs = () => {
@@ -381,14 +381,16 @@ function App() {
   const tabs = [
     { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
     { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
-    { id: 'dashboard', icon: <ChartBar className="w-4 h-4" />, label: 'Dashboard', section: 'analysis' },
+    { id: 'intelligence', icon: <Brain className="w-4 h-4" />, label: 'Intelligence', section: 'analysis' },
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
   ]
 
-  const refreshAnalysis = async () => { setRefreshing(r => ({ ...r, analysis: true })); try { await fetch(`${API}/refresh/analysis`, { method: 'POST' }); } catch {} refreshJobs(); await fetchAnalysis(); setRefreshing(r => ({ ...r, analysis: false })) }
-  const refreshStrategy = async () => { setRefreshing(r => ({ ...r, strategy: true })); try { await fetch(`${API}/refresh/dashboard`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, strategy: false })) }
-  const refreshNetworking = async () => { setRefreshing(r => ({ ...r, networking: true })); try { await fetch(`${API}/refresh/networking`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, networking: false })) }
-  const refreshSkillsTab = async () => { setRefreshing(r => ({ ...r, skills: true })); try { await fetch(`${API}/refresh/skills`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, skills: false })) }
+  const refreshAnalysis = async () => { setRefreshing(r => ({ ...r, analysis: true })); try { await fetch(`${API}/intelligence/refresh`, { method: 'POST' }); } catch {} refreshJobs(); await fetchAnalysis(); setRefreshing(r => ({ ...r, analysis: false })) }
+  const refreshStrategy = async () => { setRefreshing(r => ({ ...r, strategy: true })); try { await fetch(`${API}/intelligence/strategy/refresh`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, strategy: false })) }
+  const refreshNetworking = async () => { setRefreshing(r => ({ ...r, networking: true })); try { await fetch(`${API}/intelligence/networking/refresh`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, networking: false })) }
+  const refreshSkillsTab = async () => { setRefreshing(r => ({ ...r, skills: true })); try { await fetch(`${API}/intelligence/skills/refresh`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, skills: false })) }
+  const refreshMarket = async () => { setRefreshing(r => ({ ...r, market: true })); try { await fetch(`${API}/intelligence/market/refresh`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, market: false })) }
+  const refreshOpportunity = async () => { setRefreshing(r => ({ ...r, opportunity: true })); try { await fetch(`${API}/intelligence/opportunities/refresh`, { method: 'POST' }); } catch {} await fetchAnalysis(); setRefreshing(r => ({ ...r, opportunity: false })) }
 
   if (jobs === null) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>
 
@@ -597,8 +599,8 @@ function App() {
             })()}
 
             {/* === DASHBOARD TAB === */}
-            {tab === 'dashboard' && (
-              <DashboardTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} dashboardSubTab={dashboardSubTab} refreshing={refreshing} onSetDashboardSubTab={setDashboardSubTab} onRefreshAnalysis={refreshAnalysis} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkillsTab={refreshSkillsTab} onOpenDrawer={openDrawer} />
+            {tab === 'intelligence' && (
+              <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
             )}
 
             {/* === RESUME === */}

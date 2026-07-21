@@ -1091,6 +1091,78 @@ def refresh_analysis():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# --- Intelligence API endpoints ---
+
+@app.route('/api/intelligence', methods=['GET'])
+def get_intelligence():
+    """Get the latest intelligence analysis."""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id, page, created_at, analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+        ('intelligence',)
+    ).fetchone()
+    # Fallback to 'analysis' page
+    if not row:
+        row = conn.execute(
+            'SELECT id, page, created_at, analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+            ('analysis',)
+        ).fetchone()
+    conn.close()
+    if row:
+        r = dict(row)
+        r['analysis'] = json.loads(r['analysis_json'])
+        del r['analysis_json']
+        return jsonify(r)
+    return jsonify({'error': 'No intelligence found'}), 404
+
+@app.route('/api/intelligence/<section>', methods=['GET'])
+def get_intelligence_section(section):
+    """Get a specific section from the latest intelligence analysis."""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+        ('intelligence',)
+    ).fetchone()
+    if not row:
+        row = conn.execute(
+            'SELECT analysis_json FROM analysis_runs WHERE page=? ORDER BY created_at DESC LIMIT 1',
+            ('analysis',)
+        ).fetchone()
+    conn.close()
+    if row:
+        analysis = json.loads(dict(row)['analysis_json'])
+        if section in analysis:
+            return jsonify(analysis[section])
+        return jsonify({'error': f'Section "{section}" not found'}), 404
+    return jsonify({'error': 'No intelligence found'}), 404
+
+@app.route('/api/intelligence/refresh', methods=['POST'])
+def refresh_intelligence():
+    """Refresh all intelligence sections."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from services.worker import _update_unified_analysis
+    try:
+        _update_unified_analysis(0)
+        return jsonify({'status': 'updated'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/intelligence/<section>/refresh', methods=['POST'])
+def refresh_intelligence_section(section):
+    """Refresh a specific intelligence section."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from services.worker import _update_unified_analysis
+    valid_sections = ['market', 'opportunity', 'strategy', 'skills', 'company', 'networking']
+    if section not in valid_sections:
+        return jsonify({'error': f'Invalid section: {section}'}), 400
+    try:
+        _update_unified_analysis(0)
+        return jsonify({'status': 'updated', 'section': section})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analysis')
 def get_unified_analysis():
     """Get the latest unified analysis from the analysis_runs table.

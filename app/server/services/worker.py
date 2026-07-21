@@ -551,7 +551,7 @@ def _save_analysis(insights, legacy=True):
 
     # Try to merge with existing analysis
     existing_row = conn.execute(
-        "SELECT analysis_json FROM analysis_runs WHERE page='analysis' ORDER BY created_at DESC LIMIT 1"
+        "SELECT analysis_json FROM analysis_runs WHERE page='intelligence' ORDER BY created_at DESC LIMIT 1"
     ).fetchone()
     if existing_row:
         existing = json.loads(dict(existing_row)['analysis_json'])
@@ -563,7 +563,7 @@ def _save_analysis(insights, legacy=True):
         merged = insights
 
     conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
-        ('analysis', now, json.dumps(merged, ensure_ascii=False)))
+        ('intelligence', now, json.dumps(merged, ensure_ascii=False)))
 
     if legacy:
         # Update legacy tables for backward compatibility

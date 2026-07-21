@@ -12,6 +12,34 @@ Use raw_description as fallback when structured_description is not available.
 Generate analysis as JSON and save to {tmp_dir}/analysis_{pid}.json with this structure:
 
 {{
+  "market": {{
+    "jobsByCity": [{{"name": "Berlin", "count": 15, "percentage": 54}}],
+    "jobsByCountry": [{{"name": "Germany", "count": 20, "percentage": 71}}],
+    "jobsByRole": [{{"name": "Backend Engineer", "count": 12, "percentage": 43}}],
+    "techDemand": [{{"name": "Python", "count": 25, "percentage": 89}}, {{"name": "Django", "count": 18, "percentage": 64}}],
+    "visaDistribution": [{{"visa": "BEST", "count": 8, "percentage": 29}}, {{"visa": "Strong", "count": 6, "percentage": 21}}],
+    "scoreDistribution": [{{"grade": "A++", "count": 3}}, {{"grade": "A+", "count": 5}}, {{"grade": "A", "count": 8}}, {{"grade": "B", "count": 6}}, {{"grade": "C", "count": 4}}],
+    "avgFitScore": <number>,
+    "avgSuccessScore": <number>,
+    "avgOverallScore": <number>,
+    "insights": [
+      {{"observation": "...", "evidence": "...", "impact": "...", "action": "..."}}
+    ]
+  }},
+  "opportunity": {{
+    "matrix": {{
+      "highFitHighSuccess": {{"count": <number>, "jobs": [{{"company": "...", "role": "...", "location": "...", "fitScore": 85, "successScore": 78, "overallScore": 82, "action": "Apply Now"}}]}},
+      "highFitMediumSuccess": {{"count": <number>, "jobs": [...]}},
+      "mediumFitHighSuccess": {{"count": <number>, "jobs": [...]}},
+      "lowFit": {{"count": <number>, "jobs": [...]}}
+    }},
+    "topOpportunities": [
+      {{"company": "...", "role": "...", "location": "...", "fitScore": 85, "successScore": 78, "overallScore": 82, "reason": "...", "action": "Apply Now|Customize|Consider|Skip"}}
+    ],
+    "insights": [
+      {{"observation": "...", "evidence": "...", "impact": "...", "action": "..."}}
+    ]
+  }},
   "overview": {{
     "totalJobs": <number>,
     "highMatch": <number>,
@@ -170,3 +198,24 @@ RULES FOR networking:
 - The LinkedIn search URLs should use this pattern: https://www.google.com/search?q=site:linkedin.com/in+"ROLE"+"COMPANY"+Berlin
 - reason should explain why this company is a strong networking target (visa support, tech stack match, company culture, growth, etc.)
 - Include a mix of companies: some with BEST visa rating, some with highest scores, some remote-friendly
+
+RULES FOR market:
+- jobsByCity: Count jobs per city, sort by count descending, include percentage
+- jobsByCountry: Count jobs per country, sort by count descending
+- jobsByRole: Count jobs per role title, sort by count descending
+- techDemand: Count how many jobs mention each technology in stack field, sort by count descending, top 10
+- visaDistribution: Count jobs by visa status (BEST/Strong/Good/Moderate/Uncertain), include percentage
+- scoreDistribution: Count jobs by overall_score grade (A++/A+/A/B/C/D)
+- avgFitScore: Average of all fit_score values
+- avgSuccessScore: Average of all success_score values
+- avgOverallScore: Average of all overall_score values
+- insights: 3-5 market insights using Observation/Evidence/Impact/Action format
+
+RULES FOR opportunity:
+- matrix.highFitHighSuccess: Jobs with fit_score >= 70 AND success_score >= 70
+- matrix.highFitMediumSuccess: Jobs with fit_score >= 70 AND success_score < 70
+- matrix.mediumFitHighSuccess: Jobs with fit_score < 70 AND success_score >= 70
+- matrix.lowFit: Jobs with fit_score < 50
+- topOpportunities: Top 10 jobs by overall_score, include reason and recommended action
+- action: "Apply Now" for overall >= 80, "Customize" for overall 65-79, "Consider" for overall 50-64, "Skip" for overall < 50
+- insights: 3-5 opportunity insights using Observation/Evidence/Impact/Action format
