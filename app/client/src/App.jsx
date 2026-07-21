@@ -551,16 +551,17 @@ function App() {
                           { id: 'queued', count: queuedCount, label: 'Queued', icon: <Stack className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
                           { id: 'processing', count: processingCount, label: 'Processing', icon: <Gear className="w-3 h-3" />, color: 'blue', iconClass: 'text-blue-500', bgClass: 'bg-gradient-to-r from-blue-500/10 to-blue-500/5', borderClass: 'border-b border-blue-500/20', textClass: 'text-blue-600 dark:text-blue-500' },
                           { id: 'failed', count: failedCount, label: 'Failed', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
-                        ].filter(s => s.count > 0).map(s => {
-                          const isOpen = !collapsedSections[s.id]
+                        ].map(s => {
+                          const isEmpty = s.count === 0
+                          const isOpen = isEmpty ? false : !collapsedSections[s.id]
                           return (
-                            <div key={s.id} className={cn("flex flex-col rounded-lg border min-w-0 max-w-full overflow-hidden", isOpen ? "flex-1 min-h-0" : "")}>
-                              <div onClick={() => setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
-                                className={cn("px-2 py-1 flex items-center gap-1 shrink-0 cursor-pointer select-none hover:bg-muted/50 transition", s.bgClass, s.borderClass)}>
+                            <div key={s.id} className={cn("flex flex-col rounded-lg border min-w-0 max-w-full overflow-hidden", isOpen ? "flex-1 min-h-0" : "", isEmpty && "opacity-60")}>
+                              <div onClick={() => !isEmpty && setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                                className={cn("px-2 py-1 flex items-center gap-1 shrink-0 transition", !isEmpty && "cursor-pointer select-none hover:bg-muted/50", s.bgClass, s.borderClass)}>
                                 <span className={s.iconClass}>{s.icon}</span>
                                 <span className={cn("font-bold text-[0.6rem] uppercase tracking-wider", s.textClass)}>{s.label}</span>
-                                <Badge variant="secondary" className="text-[0.5rem] h-4 ml-auto">{s.count}</Badge>
-                                <span className="text-[0.5rem] text-muted-foreground">{isOpen ? '▾' : '▸'}</span>
+                                <Badge variant="secondary" className={cn("text-[0.5rem] h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
+                                {!isEmpty && <span className="text-[0.5rem] text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
                               </div>
                               {isOpen && s.id === 'pending' && (
                                 <ScrollArea className="flex-1 min-h-0 min-w-0"
