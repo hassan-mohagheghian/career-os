@@ -143,12 +143,17 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
           {isProcessing && <span className="text-blue-500">{statusKey}...</span>}
           {isPending && <span className="text-gray-400">pending</span>}
           {isPaused && <span className="text-yellow-500">paused</span>}
-          {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 30) : 'Failed'}</span>}
+          {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
           {isDone && <span className="text-green-500">done</span>}
         </span>
         {/* Action buttons — always visible, compact */}
         <div className="flex items-center gap-0 shrink-0">
+          {isFailed && item.error && (
+            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-red-400 hover:bg-red-500/10" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.error); setToast('Error copied!') }} title="Copy error message">
+              <Copy className="w-1.5 h-1.5" />
+            </Button>
+          )}
           {isQueued && onProcess && (
             <Button size="sm" onClick={handleProcess} disabled={processing} className="h-3.5 px-1 text-[0.4rem] gap-0.5 shrink-0">
               <Rocket className="w-1.5 h-1.5" /> Start

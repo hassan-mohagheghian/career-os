@@ -211,6 +211,28 @@ def init_db():
                 ("fit", "company", "candidate_company_alignment",
                  "Evaluate alignment with candidate profile. Positive: Python backend, distributed systems, cloud-native systems, AI infrastructure, developer tools, data platforms. Additional bonus: Rust usage, backend/platform teams. Negative: Pure frontend companies, mobile-only companies, hardware-only companies.",
                  "Profile match quality", 65, 60),
+
+                # ═══ RECRUITER RULES — Used for Recruiter/Staffing company scoring only ═══
+
+                # recruiter_network_value (Critical, Weight 100)
+                ("fit", "recruiter", "recruiter_network_value",
+                 "Evaluate how valuable this recruiter is as a gateway to job opportunities. Positive: Specialized in technology recruitment, backend/software engineering recruitment, works with Germany/Netherlands/EU companies, works with startups, has many active vacancies, represents multiple companies, has international candidate experience, has history hiring non-EU engineers. Negative: Generic recruitment, non-technical recruitment, low-quality staffing, no evidence of technology hiring.",
+                 "Main impact: Company Fit Score", 100, 100),
+
+                # recruiter_market_access (High, Weight 85)
+                ("success", "recruiter", "recruiter_market_access",
+                 "Evaluate recruiter access to target markets. Positive: Works with German companies, works with European startups, supports international candidates, works with English-speaking roles, understands relocation hiring. Negative: Local-only recruitment, only domestic candidates.",
+                 "Main impact: Company Success Score", 95, 85),
+
+                # recruiter_profile_alignment (High, Weight 80)
+                ("fit", "recruiter", "recruiter_profile_alignment",
+                 "Evaluate if the recruiter can help the candidate find relevant positions. Positive: Backend engineering roles, Python roles, AI engineering, cloud/platform roles, senior engineering positions, distributed systems roles. Negative: Frontend-only recruitment, junior mass recruitment, non-technical positions.",
+                 "Main impact: Company Fit Score", 85, 80),
+
+                # recruiter_activity_and_opportunity (Medium, Weight 70)
+                ("success", "recruiter", "recruiter_activity_and_opportunity",
+                 "Evaluate opportunity generation capability. Positive: Many active jobs, frequently updated vacancies, multiple relevant companies, fast communication, dedicated recruiters. Negative: No recent activity, few relevant opportunities.",
+                 "Main impact: Company Success Score", 70, 70),
             ]
         )
         conn.commit()

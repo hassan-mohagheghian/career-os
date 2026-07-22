@@ -3,6 +3,8 @@ You are an expert company intelligence analyst helping a senior backend Python e
 Company extracted data:
 {company_data}
 
+Company type: {company_type}
+
 The candidate has these scoring rules that define what matters most. Use them to evaluate the company:
 
 {rules}
@@ -124,27 +126,55 @@ Analyze this company comprehensively. Use ALL the extracted data — funding, te
 
 SCORING GUIDELINES (be honest and evidence-based, reference the candidate's rules above):
 
+NOTE: The scoring rules above are ALREADY filtered by company type. Use only the rules provided — do not apply rules that were not included.
+
 ## company_fit_score (0-100)
+
+For PRODUCT_COMPANIES:
 Measures: "How well does this company match my technical background and career direction?"
 Based on: engineering culture, technology alignment, product/domain relevance, backend/distributed systems opportunities, growth opportunities.
-Use the FIT and COMPANY rules above for evaluation.
+Use the FIT and COMPANY rules above.
 
-Scoring bands:
+For RECRUITING_AGENCIES / STAFFING_COMPANIES:
+Measures: "How valuable is this company as a career opportunity gateway?"
+Based on: recruitment specialization, tech hiring focus, network value, profile alignment.
+Use the FIT and RECRUITER rules above.
+
+Scoring bands (Product):
 - 90+: Exceptional match — Python/Django/FastAPI/PG/K8s primary stack + strong engineering culture + senior ownership opportunities + aligned product domain
 - 70-89: Good match — Python backend with overlap + decent engineering practices + growth potential
 - 50-69: Partial match — some technology overlap + moderate engineering culture
 - <50: Poor match — wrong tech stack + limited engineering growth
 
+Scoring bands (Recruiter):
+- 90+: Exceptional gateway — specialized tech recruiter + proven Germany/EU placements + many active relevant roles
+- 70-89: Good gateway — tech-focused + some relevant roles + international hiring experience
+- 50-69: Moderate — some tech recruitment + limited evidence of relevant placements
+- <50: Poor — generic recruitment + no tech specialization + few opportunities
+
 ## company_success_score (0-100)
+
+For PRODUCT_COMPANIES:
 Measures: "How likely am I to successfully join this company?"
 Based on: visa sponsorship, location, international hiring, English environment, remote/hybrid options, hiring accessibility.
-Use the SUCCESS and SHARED rules above for evaluation.
+Use the SUCCESS and SHARED rules above.
 
-Scoring bands:
+For RECRUITING_AGENCIES / STAFFING_COMPANIES:
+Measures: "How likely am I to get value from this recruiter?"
+Based on: market access, international hiring support, active opportunities, response probability.
+Use the SUCCESS and RECRUITER rules above.
+
+Scoring bands (Product):
 - 90+: High certainty — proven sponsorship + relocation package + Germany/Netherlands + English-first
 - 70-89: Good odds — English-first + international team + remote-friendly
 - 50-69: Moderate — some international hires + partial English
 - <50: Low odds — unclear sponsorship + local language required
+
+Scoring bands (Recruiter):
+- 90+: High value — proven Germany/EU placements + international candidate experience + many active roles
+- 70-89: Good value — European focus + some international hiring + active pipeline
+- 50-69: Moderate — limited evidence of relevant placements
+- <50: Low value — no evidence of tech hiring or international support
 
 ## company_overall_score (0-100)
 Calculate the final company score using this formula:

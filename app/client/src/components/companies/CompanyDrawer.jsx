@@ -47,6 +47,22 @@ function TagList({ items }) {
   )
 }
 
+const COMPANY_TYPE_LABELS = {
+  PRODUCT_COMPANY: 'Product Company',
+  RECRUITING_AGENCY: 'Recruiting Agency',
+  STAFFING_COMPANY: 'Staffing Company',
+  CONSULTING_COMPANY: 'Consulting Company',
+  UNKNOWN: 'Unknown',
+}
+
+function formatCompanyType(type) {
+  return COMPANY_TYPE_LABELS[type] || type || 'Unknown'
+}
+
+function isRecruiterType(type) {
+  return type === 'RECRUITING_AGENCY' || type === 'STAFFING_COMPANY'
+}
+
 export default function CompanyDrawer({ company, onClose, onDelete, onReprocess }) {
   const [activeTab, setActiveTab] = useState('notes')
 
@@ -106,7 +122,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
                   <Badge variant="secondary" className="text-[0.55rem]"><MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}</Badge>
                 )}
                 {company.company_size && <Badge variant="secondary" className="text-[0.55rem]"><Users className="w-2.5 h-2.5 mr-1" />{company.company_size}</Badge>}
-                {company.company_type && <Badge variant="secondary" className="text-[0.55rem]">{company.company_type}</Badge>}
+                {company.company_type && <Badge variant="secondary" className="text-[0.55rem]">{formatCompanyType(company.company_type)}</Badge>}
                 {company.job_count > 0 && (
                   <Badge variant="secondary" className="text-[0.55rem] bg-blue-500/15 text-blue-400">
                     <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
@@ -158,8 +174,58 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
               </Card>
             )}
 
-            {intel && (
+            {intel && isRecruiterType(company.company_type) ? (
               <>
+                {/* Recruiter Overview */}
+                <Section title="Recruiter Overview" icon={<Buildings className="w-4 h-4 text-primary" />}>
+                  {company.description && <p className="text-xs text-muted-foreground">{company.description}</p>}
+                  <Field label="Founded" value={overview.founded} />
+                  <Field label="Headquarters" value={overview.headquarters} />
+                  <Field label="Size" value={overview.size || company.company_size} />
+                  {overview.countries && overview.countries.length > 0 && (
+                    <div>
+                      <span className="text-xs text-muted-foreground">Countries:</span>
+                      <TagList items={overview.countries} />
+                    </div>
+                  )}
+                </Section>
+
+                {/* Recruitment Specialization */}
+                <Section title="Recruitment Specialization" icon={<Briefcase className="w-4 h-4 text-orange-400" />}>
+                  <Field label="Market Position" value={overview.market_position} />
+                  <Field label="Funding Summary" value={overview.funding_summary} />
+                  <Field label="Growth Trajectory" value={overview.growth_trajectory} />
+                </Section>
+
+                {/* International Hiring */}
+                <Section title="International Hiring" icon={<Globe className="w-4 h-4 text-emerald-400" />}>
+                  <Field label="English Usage" value={international.english_usage} />
+                  <Field label="International Employees" value={international.international_employees} />
+                  <Field label="Visa Sponsorship" value={visa.sponsorship_history} />
+                  <Field label="International Hiring" value={visa.international_hiring} />
+                  {visa.positive_signals && visa.positive_signals.length > 0 && (
+                    <div>
+                      <span className="text-xs text-green-500 font-semibold">Positive Signals:</span>
+                      {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {s}</p>)}
+                    </div>
+                  )}
+                </Section>
+
+                {/* Work Environment */}
+                <Section title="Work Environment" icon={<Briefcase className="w-4 h-4 text-green-400" />}>
+                  <Field label="Remote Policy" value={benefits.remote_policy} />
+                  <Field label="Vacation" value={benefits.vacation} />
+                  {benefits.benefits && benefits.benefits.length > 0 && (
+                    <div>
+                      <span className="text-xs text-muted-foreground">Benefits:</span>
+                      <TagList items={benefits.benefits} />
+                    </div>
+                  )}
+                </Section>
+              </>
+            ) : intel && (
+              <>
+                {/* Product Company Sections */}
                 {/* Company Overview */}
                 <Section title="Company Overview" icon={<Buildings className="w-4 h-4 text-primary" />}>
                   {company.description && <p className="text-xs text-muted-foreground">{company.description}</p>}
@@ -306,7 +372,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Fit Score</div>
-                      <div className="text-xs text-muted-foreground">How well does this company match my technical background and career direction?</div>
+                      <div className="text-xs text-muted-foreground">
+                        {isRecruiterType(company.company_type)
+                          ? 'How valuable is this company as a career opportunity gateway?'
+                          : 'How well does this company match my technical background and career direction?'}
+                      </div>
                     </div>
                   </div>
                   {scores.fit_explanation && (
@@ -335,7 +405,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Success Score</div>
-                      <div className="text-xs text-muted-foreground">How likely am I to successfully join this company?</div>
+                      <div className="text-xs text-muted-foreground">
+                        {isRecruiterType(company.company_type)
+                          ? 'How likely am I to get value from this recruiter?'
+                          : 'How likely am I to successfully join this company?'}
+                      </div>
                     </div>
                   </div>
                   {scores.success_explanation && (

@@ -117,6 +117,7 @@ def run_migrations():
     _backfill_numeric_scores()
     _migrate_rules()
     _migrate_rule_types()
+    _migrate_recruiter_rules()
     _migrate_success_field()
     _migrate_resume_files()
 
@@ -287,3 +288,37 @@ def _migrate_resume_files():
         migrate_resume_files_to_db()
     except Exception as e:
         print(f"Warning: resume file migration failed: {e}")
+
+
+def _migrate_recruiter_rules():
+    """Seed recruiter scoring rules for existing databases."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        recruiter_count = conn.execute("SELECT COUNT(*) FROM preferences WHERE rule_type='recruiter'").fetchone()[0]
+
+        if recruiter_count == 0:
+            print("[migrate] Seeding recruiter scoring rules")
+            recruiter_rules = [
+                ("fit", "recruiter", "recruiter_network_value",
+                 "Evaluate how valuable this recruiter is as a gateway to job opportunities. Positive: Specialized in technology recruitment, backend/software engineering recruitment, works with Germany/Netherlands/EU companies, works with startups, has many active vacancies, represents multiple companies, has international candidate experience, has history hiring non-EU engineers. Negative: Generic recruitment, non-technical recruitment, low-quality staffing, no evidence of technology hiring.",
+                 "Main impact: Company Fit Score", 100, 100),
+                ("success", "recruiter", "recruiter_market_access",
+                 "Evaluate recruiter access to target markets. Positive: Works with German companies, works with European startups, supports international candidates, works with English-speaking roles, understands relocation hiring. Negative: Local-only recruitment, only domestic candidates.",
+                 "Main impact: Company Success Score", 95, 85),
+                ("fit", "recruiter", "recruiter_profile_alignment",
+                 "Evaluate if the recruiter can help the candidate find relevant positions. Positive: Backend engineering roles, Python roles, AI engineering, cloud/platform roles, senior engineering positions, distributed systems roles. Negative: Frontend-only recruitment, junior mass recruitment, non-technical positions.",
+                 "Main impact: Company Fit Score", 85, 80),
+                ("success", "recruiter", "recruiter_activity_and_opportunity",
+                 "Evaluate opportunity generation capability. Positive: Many active jobs, frequently updated vacancies, multiple relevant companies, fast communication, dedicated recruiters. Negative: No recent activity, few relevant opportunities.",
+                 "Main impact: Company Success Score", 70, 70),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, key, value, description, priority, score_weight) VALUES (?,?,?,?,?,?,?)",
+                recruiter_rules
+            )
+            conn.commit()
+            print(f"[migrate] Added 4 recruiter scoring rules")
+
+        conn.close()
+    except Exception as e:
+        print(f"Warning: recruiter rules migration failed: {e}")

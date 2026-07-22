@@ -463,7 +463,20 @@ def rescore_only(num):
 
 def _fail(pid, msg, step=None):
     """Mark job as failed with error message and which step failed."""
-    error_msg = f"[{step}] {msg}" if step else msg
+    STEP_LABELS = {
+        'fetch': 'Fetching job page',
+        'validate': 'Validating content',
+        'extract_raw': 'Extracting raw info',
+        'extract_struct': 'Structuring data',
+        'summary': 'Building summary',
+        'score': 'Scoring & analyzing',
+        'resume': 'Saving results',
+        'done': 'Finalizing',
+        'mimo': 'AI analysis',
+        'worker': 'Processing',
+    }
+    label = STEP_LABELS.get(step, step) if step else 'Processing'
+    error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
 
 def _log(pid, step, msg):
@@ -784,11 +797,18 @@ def _fetch_url(url):
         with urllib.request.urlopen(req, timeout=30) as resp:
             html = resp.read().decode('utf-8', errors='replace')
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f"HTTP {e.code}: {e.reason} — LinkedIn blocked the request or URL is invalid") from None
+        if e.code == 404:
+            raise RuntimeError(f"Page not found (404) — the job posting no longer exists or the URL is incorrect: {url}") from None
+        elif e.code == 403:
+            raise RuntimeError(f"Access denied (403) — the website is blocking automated requests. The job may require login to view: {url}") from None
+        elif e.code == 503:
+            raise RuntimeError(f"Service unavailable (503) — the website is temporarily down. Try again later: {url}") from None
+        else:
+            raise RuntimeError(f"HTTP error {e.code}: {e.reason} — could not fetch job posting: {url}") from None
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Network error: {e.reason} — check internet connection") from None
+        raise RuntimeError(f"Network error — could not connect to the server. Check your internet connection and verify the URL is correct: {url}") from None
     except Exception as e:
-        raise RuntimeError(f"Fetch failed: {e}") from None
+        raise RuntimeError(f"Failed to fetch URL: {e}") from None
     text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
     text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
     text = re.sub(r'<[^>]+>', ' ', text)
@@ -799,7 +819,7 @@ def _fetch_url(url):
             text = text[idx:]
             break
     if len(text) < 100:
-        raise RuntimeError("Fetched page too short — LinkedIn may require login or the URL is invalid")
+        raise RuntimeError(f"Page content too short ({len(text)} chars) — LinkedIn may require login to view this job, or the URL is not a valid job posting: {url}")
     return text[:5000]
 
 def _validate_job_content(raw_text, pid):
@@ -1447,7 +1467,7 @@ def process_job(pid):
             meaningful = '\n'.join(out_lines[-5:])
         if not meaningful:
             meaningful = f"Process exited with code {e.returncode}"
-        msg = f"[mimo] {meaningful}"
+        msg = f"AI service error: {meaningful}"
         print(f"[worker] Job {pid} FAILED: {msg}")
         _fail(pid, msg[:500], step=current_step)
     except Exception as e:
@@ -1456,13 +1476,12 @@ def process_job(pid):
             parts = msg.split('): ', 1)
             if len(parts) > 1:
                 msg = parts[1]
-        source = {'fetch':'fetch','validate':'validate','extract':'extract','score':'mimo','resume':'db','done':'worker'}.get(current_step, 'worker')
         if not msg.startswith('['):
-            msg = f"[{source}] {msg}"
-        if len(msg) > 400:
-            break_at = msg.rfind('\n', 0, 350)
+            msg = f"{msg}"
+        if len(msg) > 500:
+            break_at = msg.rfind('\n', 0, 450)
             if break_at < 100:
-                break_at = 300
+                break_at = 400
             msg = msg[:break_at] + '...'
         print(f"[worker] Job {pid} FAILED: {msg}")
         _fail(pid, msg, step=current_step)

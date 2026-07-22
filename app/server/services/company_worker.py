@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import threading
 import urllib.request
+import urllib.error
 from datetime import datetime
 from prompts import load_prompt
 
@@ -71,7 +72,16 @@ def _log(pid, step, msg):
 
 
 def _fail(pid, msg, step=None):
-    error_msg = f"[{step}] {msg}" if step else msg
+    # Map step keys to human-readable labels
+    STEP_LABELS = {
+        'fetch': 'Fetching content',
+        'extract': 'Extracting company info',
+        'analyze': 'Analyzing company',
+        'save': 'Saving to database',
+        'pipeline': 'Processing',
+    }
+    label = STEP_LABELS.get(step, step) if step else 'Processing'
+    error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
 
 
@@ -93,14 +103,25 @@ def _fetch_url(url):
         })
         with urllib.request.urlopen(req, timeout=30) as resp:
             html = resp.read().decode('utf-8', errors='replace')
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise RuntimeError(f"Page not found (404) — the URL does not exist or has been moved: {url}") from None
+        elif e.code == 403:
+            raise RuntimeError(f"Access denied (403) — the website is blocking automated requests: {url}") from None
+        elif e.code == 503:
+            raise RuntimeError(f"Service unavailable (503) — the website is temporarily down: {url}") from None
+        else:
+            raise RuntimeError(f"HTTP error {e.code}: {e.reason} — could not fetch: {url}") from None
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Network error — could not connect to the server. Check if the URL is correct and your internet is working: {url}") from None
     except Exception as e:
-        raise RuntimeError(f"Fetch failed: {e}") from None
+        raise RuntimeError(f"Failed to fetch URL: {e}") from None
     text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
     text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     if len(text) < 50:
-        raise RuntimeError("Fetched page too short — URL may be invalid")
+        raise RuntimeError(f"Page content too short ({len(text)} chars) — the URL may require login, be a JavaScript-rendered page, or is not a valid company page: {url}")
     return text[:8000]
 
 
@@ -194,19 +215,31 @@ def _extract_company_info(input_text, input_type, pid):
     return None
 
 
-def _load_rules(context='company'):
-    """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
+def _load_rules(context='company', company_type='UNKNOWN'):
+    """Load enabled scoring rules from DB, filtered by context and company type.
 
     Args:
-        context: 'job' loads shared + job rules, 'company' loads shared + company rules.
+        context: 'job' loads shared + job rules, 'company' loads shared + type-specific company rules.
+        company_type: For 'company' context, selects type-specific rules:
+            - PRODUCT_COMPANY / CONSULTING_COMPANY / UNKNOWN -> shared + company rules
+            - RECRUITING_AGENCY / STAFFING_COMPANY -> shared + recruiter rules
     """
     conn = _db()
     if context == 'company':
-        rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
-            "ORDER BY priority DESC"
-        ).fetchall()
+        # For recruiters/staffing, load shared + recruiter rules
+        if company_type in ('RECRUITING_AGENCY', 'STAFFING_COMPANY'):
+            rows = conn.execute(
+                "SELECT category, rule_type, key, value, description, priority, score_weight "
+                "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'recruiter') "
+                "ORDER BY priority DESC"
+            ).fetchall()
+        else:
+            # For product companies, consulting, and unknown: load shared + company rules
+            rows = conn.execute(
+                "SELECT category, rule_type, key, value, description, priority, score_weight "
+                "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
+                "ORDER BY priority DESC"
+            ).fetchall()
     else:
         rows = conn.execute(
             "SELECT category, rule_type, key, value, description, priority, score_weight "
@@ -229,12 +262,13 @@ def _load_rules(context='company'):
     return '\n'.join(lines)
 
 
-def _analyze_company(company_data, pid):
+def _analyze_company(company_data, pid, company_type='UNKNOWN'):
     """Step 2: Generate full intelligence analysis using mimo."""
     output_file = os.path.join(TMP_DIR, f'company_analyze_{pid}.json')
-    rules = _load_rules()
+    rules = _load_rules(context='company', company_type=company_type)
     prompt = load_prompt('company_analyze',
         company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
+        company_type=company_type,
         rules=rules,
         output_file=output_file)
 
@@ -455,7 +489,7 @@ def process_company(pid):
         raw_content = '\n\n---\n\n'.join(all_content_parts)
 
         if not raw_content.strip():
-            raise RuntimeError("No content to process — all notes empty and all URLs failed")
+            raise RuntimeError("No content to process — all notes were empty and all URLs failed to load. Check that the URLs are accessible and try again.")
 
         if _is_paused_or_stopped(pid):
             return
@@ -468,7 +502,7 @@ def process_company(pid):
 
         company_data = _extract_company_info(raw_content, 'multi_note', pid)
         if not company_data:
-            raise RuntimeError("Failed to extract company information")
+            raise RuntimeError("Could not extract company information from the provided content. The content may be too short, in an unsupported format, or the AI service may be temporarily unavailable.")
 
         if _is_paused_or_stopped(pid):
             return
@@ -478,13 +512,17 @@ def process_company(pid):
         # Update pending item with detected company name
         _update_step(pid, 'step_extract', 1, company_name=company_data.get('name', ''))
 
+        # Detect company type for type-specific scoring
+        company_type = company_data.get('company_type', 'UNKNOWN')
+        _log(pid, 'extract', f'Company type detected: {company_type}')
+
         # ── Step 3: Analyze ──
         _update_step(pid, 'step_analyze', 0, status='processing')
-        _log(pid, 'analyze', 'Generating intelligence analysis...')
+        _log(pid, 'analyze', f'Generating intelligence analysis (rules: {company_type})...')
 
-        intelligence_data = _analyze_company(company_data, pid)
+        intelligence_data = _analyze_company(company_data, pid, company_type=company_type)
         if not intelligence_data:
-            raise RuntimeError("Failed to generate company intelligence")
+            raise RuntimeError("AI analysis failed — the analysis service may be temporarily unavailable or the company data was too complex to process. You can retry this step.")
 
         if _is_paused_or_stopped(pid):
             return
@@ -513,4 +551,21 @@ def process_company(pid):
 
     except Exception as e:
         print(f"[company_worker] FAILED (pid={pid}): {e}")
-        _fail(pid, str(e), step='pipeline')
+        # Detect which step was active when the error occurred
+        step_labels = {
+            'step_fetch': 'fetch',
+            'step_extract': 'extract',
+            'step_analyze': 'analyze',
+            'step_save': 'save',
+        }
+        failed_step = 'pipeline'
+        conn = _db()
+        row = conn.execute('SELECT step_fetch, step_extract, step_analyze, step_save FROM pending_companies WHERE id=?', (pid,)).fetchone()
+        conn.close()
+        if row:
+            row = dict(row)
+            for step_key, step_name in step_labels.items():
+                if row.get(step_key) == 0 and all(row.get(k) == 1 for k in list(step_labels.keys())[:list(step_labels.keys()).index(step_key)]):
+                    failed_step = step_name
+                    break
+        _fail(pid, str(e), step=failed_step)
