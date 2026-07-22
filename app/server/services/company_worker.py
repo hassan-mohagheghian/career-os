@@ -187,11 +187,32 @@ def _extract_company_info(input_text, input_type, pid):
     return None
 
 
+def _load_rules():
+    """Load all enabled scoring rules from DB, ordered by priority desc, formatted for prompt."""
+    conn = _db()
+    rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
+    conn.close()
+    if not rows:
+        return "No scoring rules set."
+    lines = []
+    current_cat = None
+    for row in rows:
+        r = dict(row)
+        cat = r['category']
+        if cat != current_cat:
+            current_cat = cat
+            lines.append(f"\n── {cat.upper()} {'─' * (35 - len(cat))}")
+        lines.append(f"  #{r['priority']:>3}  {r['key']}: {r['value']}")
+    return '\n'.join(lines)
+
+
 def _analyze_company(company_data, pid):
     """Step 2: Generate full intelligence analysis using mimo."""
     output_file = os.path.join(TMP_DIR, f'company_analyze_{pid}.json')
+    rules = _load_rules()
     prompt = load_prompt('company_analyze',
         company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
+        rules=rules,
         output_file=output_file)
 
     returncode, _ = _stream_mimo_output(

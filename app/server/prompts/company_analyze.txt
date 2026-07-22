@@ -3,7 +3,11 @@ You are an expert company intelligence analyst helping a senior backend Python e
 Company extracted data:
 {company_data}
 
-Analyze this company comprehensively. Use ALL the extracted data — funding, team size, tech stack, culture signals, international signals, everything. Generate a deep intelligence report and save as JSON to {output_file}.
+The candidate has these scoring rules that define what matters most. Use them to evaluate the company:
+
+{rules}
+
+Analyze this company comprehensively. Use ALL the extracted data — funding, team size, tech stack, culture signals, international signals, everything. Use the candidate's scoring rules above to evaluate how well this company matches. Generate a deep intelligence report and save as JSON to {output_file}.
 
 {{
   "overview": {{
@@ -114,12 +118,12 @@ Analyze this company comprehensively. Use ALL the extracted data — funding, te
   }}
 }}
 
-SCORING GUIDELINES (be honest and evidence-based):
-- visa_score (0-100): 90+ = proven sponsorship + relocation package; 70-89 = English-first + international team; 50-69 = some international hires; <50 = unclear or restrictive
-- tech_match (0-100): 90+ = Python/Django/FastAPI/PG/K8s primary stack; 70-89 = Python backend with some overlap; 50-69 = partial match; <50 = wrong stack
-- career_score (0-100): 90+ = senior roles + tech lead path + high autonomy; 70-89 = good growth + learning; 50-69 = moderate; <50 = limited
-- international_score (0-100): 90+ = English-only + 50%+ international + remote-friendly; 70-89 = English-first + international presence; 50-69 = some English; <50 = local language required
-- stability_score (0-100): Based on funding, revenue, employee count, market position
+SCORING GUIDELINES (be honest and evidence-based, reference the candidate's rules above):
+- visa_score (0-100): Based on the SUCCESS rules above — especially visa_requirement, visa_path_clarity, relocation_support, language_match. 90+ = proven sponsorship + relocation package; 70-89 = English-first + international team; 50-69 = some international hires; <50 = unclear or restrictive
+- tech_match (0-100): Based on the FIT rules above — especially python_primary, backend_core, database_match, infrastructure_match. 90+ = Python/Django/FastAPI/PG/K8s primary stack; 70-89 = Python backend with some overlap; 50-69 = partial match; <50 = wrong stack
+- career_score (0-100): Based on growth_opportunity, seniority_match from FIT rules. 90+ = senior roles + tech lead path + high autonomy; 70-89 = good growth + learning; 50-69 = moderate; <50 = limited
+- international_score (0-100): Based on language_match, remote_option from SUCCESS rules. 90+ = English-only + 50%+ international + remote-friendly; 70-89 = English-first + international presence; 50-69 = some English; <50 = local language required
+- stability_score (0-100): Based on company_stability, salary_clarity from SUCCESS rules + funding data
 - growth_score (0-100): Based on funding trajectory, hiring pace, market expansion
 - priority: A++ (90+ weighted average), A+ (80-89), A (70-79), B (50-69), C (<50)
 
