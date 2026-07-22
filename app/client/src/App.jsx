@@ -29,7 +29,13 @@ function App() {
   const [resumes, setResumes] = useState([])
   const [linkedinProfiles, setLinkedinProfiles] = useState([])
   const [cities, setCities] = useState([])
-  const [tab, setTab] = useState(() => window.location.hash.replace('#', '') || 'jobs')
+  const parseHash = () => {
+    const h = window.location.hash.replace('#', '') || 'jobs'
+    const parts = h.split('/')
+    return { tab: parts[0] || 'jobs', id: parts[1] ? parseInt(parts[1]) : null }
+  }
+  const [tab, setTab] = useState(() => parseHash().tab)
+  const [deepLinkId, setDeepLinkId] = useState(() => parseHash().id)
   const [drawer, setDrawer] = useState(null)
   const [drawerTab, setDrawerTab] = useState('details')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
@@ -171,10 +177,26 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const onHash = () => { const h = window.location.hash.replace('#', ''); if (h && h !== tab) setTab(h) }
+    const onHash = () => {
+      const { tab: newTab, id } = parseHash()
+      if (newTab && newTab !== tab) setTab(newTab)
+      if (id) setDeepLinkId(id)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [tab])
+
+  // Deep link: auto-open drawer when URL has an ID
+  useEffect(() => {
+    if (!deepLinkId) return
+    if (tab === 'jobs' && jobs && !drawer) {
+      openDrawer(deepLinkId)
+      setDeepLinkId(null)
+    } else if (tab === 'companies') {
+      // CompaniesPage handles its own deep linking via the prop
+      setDeepLinkId(null)
+    }
+  }, [deepLinkId, tab, jobs, drawer])
 
   useEffect(() => {
     const sentinel = jobsSentinelRef.current
@@ -303,6 +325,7 @@ function App() {
               resumes?.find(x => !x.id.startsWith('original') && !x.id.startsWith('cover_') && fullJob.company.toLowerCase().includes((x.company || '').split(' ')[0].toLowerCase().replace(/[()]/g, '')))
     const cl = resumes?.find(x => x.job_num === num && x.id.startsWith('cover_'))
     setDrawer({ job: fullJob, summary: s, resume: r, coverLetter: cl }); setDrawerTab('details')
+    window.history.replaceState(null, '', `#jobs/${num}`)
   }
 
   const [generatingResume, setGeneratingResume] = useState(false)
@@ -354,7 +377,7 @@ function App() {
     fetch(`${API}/jobs?${params}`).then(r => r.json()).then(d => { setJobs(d.jobs || []); setJobsTotal(d.total || 0); setJobAgg(d.agg || {}) })
   }, [sortBy, sortDir, filterCities, filterCompanies, filterTech, filterMatches, filterWorkTypes, filterEmploymentTypes, filterResponseStatus, filterApplied])
 
-  const switchTab = (t) => { setTab(t); window.location.hash = t }
+  const switchTab = (t) => { setTab(t); setDeepLinkId(null); window.location.hash = t }
 
   const tabs = [
     { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
@@ -409,7 +432,7 @@ function App() {
               />
             )}
             {tab === 'companies' && (
-              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
+              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
             )}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
@@ -420,7 +443,7 @@ function App() {
         </div>
       </main>
 
-      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => setDrawer(null)} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
+      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
 
       <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>
         <AlertDialogContent>

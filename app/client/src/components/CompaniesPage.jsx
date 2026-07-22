@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Buildings, Plus, X, CheckCircle, Clock, Gear, Warning, Trash,
   ArrowsClockwise, Repeat, Rocket, LinkSimple, PencilSimple, Note,
@@ -52,7 +52,7 @@ function NoteItem({ note, onRemove }) {
   )
 }
 
-export default function CompaniesPage({ companies, pendingCompanies, onRefresh }) {
+export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onRefresh }) {
   const [noteInput, setNoteInput] = useState('')
   const [notes, setNotes] = useState([])
   const [submitting, setSubmitting] = useState(false)
@@ -72,6 +72,13 @@ export default function CompaniesPage({ companies, pendingCompanies, onRefresh }
   const processingCount = pendingCompanies.filter(p => p.status === 'processing').length
   const failedCount = pendingCompanies.filter(p => p.status === 'failed').length
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
+
+  // Deep link: auto-open company drawer from URL hash
+  useEffect(() => {
+    if (deepLinkId && companies.length > 0 && !drawerCompany) {
+      openCompany(deepLinkId)
+    }
+  }, [deepLinkId, companies])
 
   const allIndustries = useMemo(() => {
     const set = new Set(companies.map(c => c.industry).filter(Boolean))
@@ -221,6 +228,7 @@ export default function CompaniesPage({ companies, pendingCompanies, onRefresh }
       const res = await fetch(`${API}/companies/${id}`)
       const data = await res.json()
       setDrawerCompany(data)
+      window.history.replaceState(null, '', `#companies/${id}`)
     } catch (e) {
       console.error('Failed to load company', e)
     }
@@ -434,7 +442,7 @@ export default function CompaniesPage({ companies, pendingCompanies, onRefresh }
         </div>
       </div>
 
-      <CompanyDrawer company={drawerCompany} onClose={() => setDrawerCompany(null)} onDelete={deleteCompany} onReprocess={reprocessCompany} />
+      <CompanyDrawer company={drawerCompany} onClose={() => { setDrawerCompany(null); window.history.replaceState(null, '', '#companies') }} onDelete={deleteCompany} onReprocess={reprocessCompany} />
 
       {/* Confirm Dialog */}
       <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>
