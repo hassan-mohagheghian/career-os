@@ -95,6 +95,14 @@ def get_jobs():
     if filter_applied == 'true':
         conditions.append('apply_time IS NOT NULL')
 
+    filter_scores = request.args.get('filter_scores', '').strip()
+    if filter_scores:
+        scores = [s.strip() for s in filter_scores.split(',') if s.strip()]
+        if scores:
+            placeholders = ','.join(['?' for _ in scores])
+            conditions.append(f'score IN ({placeholders})')
+            params.extend(scores)
+
     where_clause = ' AND '.join(conditions)
     total = conn.execute(f'SELECT COUNT(*) FROM jobs WHERE {where_clause}', params).fetchone()[0]
 

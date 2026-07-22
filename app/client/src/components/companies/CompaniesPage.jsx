@@ -200,53 +200,27 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
             body: JSON.stringify({ company_id: editingId, note: note.content, note_type: note.type })
           })
         }
-        // Add links to existing pending company
+        // Store links in pending_companies for the worker to pick up
         if (links.length > 0) {
-          const companyRes = await fetch(`${API}/pending-companies/${editingId}`)
-          const companyData = await companyRes.json()
-          if (companyData.company_id) {
-            for (const link of links) {
-              await fetch(`${API}/companies/${companyData.company_id}/links`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: link.url, title: link.title })
-              })
-            }
-          }
+          await fetch(`${API}/pending-companies/${editingId}/links`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ links })
+          })
         }
         setEditingId(null)
       } else {
-        // Create new pending company
+        // Create new pending company with links stored in pending_companies
         const res = await fetch(`${API}/companies`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes: allNotes, source: 'web' })
+          body: JSON.stringify({ notes: allNotes, links, source: 'web' })
         })
         const data = await res.json()
         if (!res.ok) {
           setError(data.error || 'Failed to add')
           setSubmitting(false)
           return
-        }
-        // Add links to the newly created company after processing starts
-        if (links.length > 0 && data.id) {
-          // Wait a moment for company to be created, then add links
-          setTimeout(async () => {
-            try {
-              const pendingRes = await fetch(`${API}/pending-companies/${data.id}`)
-              const pendingData = await pendingRes.json()
-              const companyId = pendingData.company_id
-              if (companyId) {
-                for (const link of links) {
-                  await fetch(`${API}/companies/${companyId}/links`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: link.url, title: link.title })
-                  })
-                }
-              }
-            } catch {}
-          }, 1000)
         }
         if (processImmediately && data.id) {
           await fetch(`${API}/pending-companies/${data.id}/process`, { method: 'POST' })
@@ -383,9 +357,20 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                     placeholder="URL (https://...)"
                     className="w-full h-6 rounded border text-[0.6rem] px-1.5 bg-background"
                     onKeyDown={e => e.key === 'Enter' && addLink()} />
-                  <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)}
-                    placeholder="Title (optional)"
-                    className="w-full h-5 rounded border text-[0.6rem] px-1.5 bg-background" />
+                  <div className="flex items-center gap-1">
+                    {['LinkedIn', 'Website', 'Careers', 'GitHub'].map(label => (
+                      <button key={label} type="button"
+                        onClick={() => setLinkTitle(linkTitle === label ? '' : label)}
+                        className={cn("h-5 px-1.5 rounded text-[0.5rem] border transition-colors",
+                          linkTitle === label
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-muted-foreground border-border hover:bg-muted"
+                        )}>{label}</button>
+                    ))}
+                    <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)}
+                      placeholder="Custom title"
+                      className="flex-1 h-5 rounded border text-[0.6rem] px-1.5 bg-background" />
+                  </div>
                   <div className="flex justify-end gap-1">
                     <Button onClick={addLink} disabled={!linkUrl.trim()} size="sm" variant="ghost" className="h-5 px-1.5 text-[0.5rem]">
                       <CheckCircle className="w-2 h-2 mr-0.5" /> Add

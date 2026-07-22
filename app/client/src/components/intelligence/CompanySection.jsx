@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   Buildings, IdentificationCard, Globe, ArrowsClockwise
 } from '@phosphor-icons/react'
@@ -6,13 +7,21 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 
-export default function CompanySection({ analysis, jobs, refreshing, onRefresh, onOpenDrawer }) {
+export default function CompanySection({ analysis, refreshing, onRefresh, onOpenDrawer }) {
   const visaCompanies = analysis.visa_companies || []
   const cities = analysis.cities || []
+  const [allJobs, setAllJobs] = useState([])
 
-  // Build company rankings from jobs
+  useEffect(() => {
+    fetch('/api/jobs?limit=9999&sort_by=created_at&sort_dir=desc')
+      .then(r => r.json())
+      .then(d => setAllJobs(d.jobs || []))
+      .catch(() => {})
+  }, [])
+
+  // Build company rankings from all jobs
   const companyMap = {}
-  jobs.forEach(j => {
+  allJobs.forEach(j => {
     if (!companyMap[j.company]) {
       companyMap[j.company] = { company: j.company, jobs: [], totalFit: 0, totalSuccess: 0, totalOverall: 0, visa: j.visa, location: j.location }
     }

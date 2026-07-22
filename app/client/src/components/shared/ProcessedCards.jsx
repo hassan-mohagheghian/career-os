@@ -169,7 +169,7 @@ export function CompactJobCard({ job, onClick }) {
   )
 }
 
-export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWorkflow }) {
+export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWorkflow, onOpenCompany }) {
   const locations = job.parsedLocations || (job.location ? [job.location] : [])
   const hasLogs = job.workflow_log && JSON.parse(job.workflow_log).length > 0
   const isRescoring = job.rescoring === 1
@@ -250,7 +250,16 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
       </div>
 
       {/* Row 2: Company */}
-      <div onClick={onClick} className="cursor-pointer text-sm font-bold truncate mb-0.5">{job.company}</div>
+      <div className="flex items-center gap-1 mb-0.5 min-w-0">
+        <div onClick={onClick} className="cursor-pointer text-sm font-bold truncate min-w-0 flex-1">{job.company}</div>
+        {job.company_id && onOpenCompany && (
+          <button onClick={(e) => { e.stopPropagation(); onOpenCompany(job.company_id) }}
+            className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[0.5rem] font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition"
+            title="View company intelligence">
+            <Buildings className="w-2 h-2" />Linked
+          </button>
+        )}
+      </div>
 
       {/* Row 3: Role */}
       <div onClick={onClick} className="cursor-pointer text-xs text-muted-foreground truncate mb-1.5">{job.role}</div>

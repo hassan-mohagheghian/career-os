@@ -60,13 +60,15 @@ def add_company():
     if not first_content:
         return jsonify({'error': 'Empty note'}), 400
 
+    links = data.get('links', [])
+
     conn = get_db()
-    cur = conn.execute('INSERT INTO pending_companies (input_text, notes, input_type, source, status) VALUES (?,?,?,?,?)',
-                       (first_content, json.dumps(notes, ensure_ascii=False), 'notes', source, 'pending'))
+    cur = conn.execute('INSERT INTO pending_companies (input_text, notes, links, input_type, source, status) VALUES (?,?,?,?,?,?)',
+                       (first_content, json.dumps(notes, ensure_ascii=False), json.dumps(links, ensure_ascii=False), 'notes', source, 'pending'))
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
-    return jsonify({'status': 'pending', 'id': new_id, 'notes': notes})
+    return jsonify({'status': 'pending', 'id': new_id, 'notes': notes, 'links': links})
 
 
 @bp.route('/api/companies/<int:company_id>', methods=['GET'])
@@ -355,6 +357,13 @@ def get_pending_companies():
                 d['notes'] = []
         else:
             d['notes'] = []
+        if d.get('links'):
+            try:
+                d['links'] = json.loads(d['links'])
+            except (json.JSONDecodeError, TypeError):
+                d['links'] = []
+        else:
+            d['links'] = []
         result.append(d)
     return stream_json(result)
 
@@ -398,6 +407,58 @@ def add_pending_company():
         new_id = cur.lastrowid
         conn.close()
         return jsonify({'status': 'pending', 'id': new_id, 'notes': notes})
+
+
+@bp.route('/api/pending-companies/<int:id>/links', methods=['POST'])
+def add_pending_company_links(id):
+    data = request.get_json()
+    links = data.get('links', [])
+    if not links:
+        return jsonify({'error': 'No links provided'}), 400
+    conn = get_db()
+    row = conn.execute('SELECT links FROM pending_companies WHERE id=?', (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    existing = json.loads(dict(row).get('links') or '[]')
+    existing.extend(links)
+    conn.execute('UPDATE pending_companies SET links=?, updated_at=? WHERE id=?',
+                 (json.dumps(existing, ensure_ascii=False), datetime.now().isoformat(), id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'updated', 'links': existing})
+
+
+@bp.route('/api/pending-companies/<int:id>/notes', methods=['PUT'])
+def update_pending_company_notes(id):
+    data = request.get_json()
+    notes = data.get('notes', [])
+    conn = get_db()
+    row = conn.execute('SELECT id FROM pending_companies WHERE id=?', (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    conn.execute('UPDATE pending_companies SET notes=?, updated_at=? WHERE id=?',
+                 (json.dumps(notes, ensure_ascii=False), datetime.now().isoformat(), id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'updated', 'notes': notes})
+
+
+@bp.route('/api/pending-companies/<int:id>/links', methods=['PUT'])
+def update_pending_company_links(id):
+    data = request.get_json()
+    links = data.get('links', [])
+    conn = get_db()
+    row = conn.execute('SELECT id FROM pending_companies WHERE id=?', (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    conn.execute('UPDATE pending_companies SET links=?, updated_at=? WHERE id=?',
+                 (json.dumps(links, ensure_ascii=False), datetime.now().isoformat(), id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'updated', 'links': links})
 
 
 @bp.route('/api/pending-companies/<int:id>', methods=['DELETE'])
@@ -460,6 +521,13 @@ def stream_pending_companies():
                         d['notes'] = []
                 else:
                     d['notes'] = []
+                if d.get('links'):
+                    try:
+                        d['links'] = json.loads(d['links'])
+                    except (json.JSONDecodeError, TypeError):
+                        d['links'] = []
+                else:
+                    d['links'] = []
                 result.append(d)
             data = json.dumps(result, ensure_ascii=False)
             current_hash = str(hash(data))

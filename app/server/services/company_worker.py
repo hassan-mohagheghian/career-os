@@ -443,7 +443,7 @@ def process_company(pid):
             else:
                 all_content_parts.append(f"[NOTE]\n{content}")
 
-        # Process company links (if company_id is available)
+        # Process company links (from company_links table if company_id exists)
         if company_id:
             try:
                 conn = _db()
@@ -491,6 +491,34 @@ def process_company(pid):
                                 pass
             except Exception as e:
                 _log(pid, 'fetch', f'Warning: Failed to process links: {e}')
+
+        # Also process links from pending_companies.links (for new companies without company_id yet)
+        try:
+            pending_links_raw = item.get('links') or '[]'
+            pending_links = json.loads(pending_links_raw) if isinstance(pending_links_raw, str) else pending_links_raw
+            if pending_links:
+                _log(pid, 'fetch', f'Processing {len(pending_links)} pending link(s)...')
+                for link in pending_links:
+                    link_url = link.get('url', '').strip()
+                    if not link_url:
+                        continue
+                    link_title = link.get('title', '') or ''
+                    link_desc = link.get('description', '') or ''
+                    try:
+                        _log(pid, 'fetch', f'Fetching pending link: {link_url[:60]}...')
+                        fetched = _fetch_url(link_url)
+                        header = f"[LINK: {link_url}]"
+                        if link_title:
+                            header += f" Title: {link_title}"
+                        if link_desc:
+                            header += f" - {link_desc}"
+                        all_content_parts.append(f"{header}\n{fetched}")
+                        url_count += 1
+                    except Exception as e:
+                        _log(pid, 'fetch', f'Warning: Failed to fetch pending link {link_url[:40]}: {e}')
+                        all_content_parts.append(f"[LINK: {link_url}] (fetch failed: {e})")
+        except Exception as e:
+            _log(pid, 'fetch', f'Warning: Failed to process pending links: {e}')
 
         raw_content = '\n\n---\n\n'.join(all_content_parts)
 
@@ -541,6 +569,26 @@ def process_company(pid):
         _log(pid, 'save', 'Saving to database...')
 
         company_id = _save_company(company_data, intelligence_data, raw_content, notes=notes)
+
+        # Move links from pending_companies to company_links
+        try:
+            pending_links_raw = item.get('links') or '[]'
+            pending_links = json.loads(pending_links_raw) if isinstance(pending_links_raw, str) else pending_links_raw
+            if pending_links and company_id:
+                conn = _db()
+                for link in pending_links:
+                    url = link.get('url', '').strip()
+                    if not url:
+                        continue
+                    title = link.get('title', '') or ''
+                    desc = link.get('description', '') or ''
+                    conn.execute('INSERT INTO company_links (company_id, url, title, description, status) VALUES (?,?,?,?,?)',
+                                 (company_id, url, title, desc, 'pending'))
+                conn.commit()
+                conn.close()
+                _log(pid, 'save', f'Saved {len(pending_links)} link(s) to company_links')
+        except Exception as e:
+            _log(pid, 'save', f'Warning: Failed to save pending links: {e}')
 
         if _is_paused_or_stopped(pid):
             return

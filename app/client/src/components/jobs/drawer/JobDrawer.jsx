@@ -62,7 +62,15 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
                   <Repeat className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              <SheetTitle className="text-lg">{job.company}</SheetTitle>
+              <SheetTitle className="text-lg flex items-center gap-2">
+                {job.company}
+                {job.linked_company && (
+                  <button onClick={() => onOpenCompany(job.linked_company.id)}
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.5rem] font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition">
+                    <Buildings className="w-2 h-2" />{job.linked_company.name || 'Company'}
+                  </button>
+                )}
+              </SheetTitle>
               <SheetDescription>{job.role}</SheetDescription>
               <div className="flex flex-wrap gap-1 mt-2">
                 {job.industry && <Badge variant="secondary" className="text-[0.55rem] bg-primary/10 text-primary">{job.industry}</Badge>}

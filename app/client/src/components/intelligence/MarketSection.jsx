@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 
-export default function MarketSection({ analysis, jobs, refreshing, onRefresh, onOpenDrawer }) {
+export default function MarketSection({ analysis, jobs, jobsTotal, refreshing, onRefresh, onOpenDrawer }) {
   const market = analysis.market || {}
   const jobsByCity = market.jobsByCity || []
   const techDemand = market.techDemand || []
@@ -32,7 +32,7 @@ export default function MarketSection({ analysis, jobs, refreshing, onRefresh, o
       {/* Metrics */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { n: jobs.length, l: 'Total Jobs', c: 'text-primary', icon: <Briefcase className="w-5 h-5" /> },
+          { n: jobsTotal || jobs.length, l: 'Total Jobs', c: 'text-primary', icon: <Briefcase className="w-5 h-5" /> },
           { n: highMatch, l: 'High Match', c: 'text-green-500', icon: <Target className="w-5 h-5" /> },
           { n: applyNow, l: 'Apply Now', c: 'text-yellow-500', icon: <Rocket className="w-5 h-5" /> },
           { n: remoteJobs, l: 'Remote', c: 'text-cyan-500', icon: <House className="w-5 h-5" /> },
@@ -60,11 +60,11 @@ export default function MarketSection({ analysis, jobs, refreshing, onRefresh, o
                   <div key={i} className="flex items-center gap-2">
                     <div className="w-20 text-[0.65rem] text-muted-foreground truncate">{city.name}</div>
                     <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
-                      <div className="h-full bg-primary/60 rounded flex items-center px-2" style={{ width: `${Math.max(city.percentage || (city.count / jobs.length * 100), 5)}%` }}>
+                      <div className="h-full bg-primary/60 rounded flex items-center px-2" style={{ width: `${Math.max(city.percentage || (city.count / (jobsTotal || jobs.length) * 100), 5)}%` }}>
                         <span className="text-[0.55rem] font-bold text-white">{city.count}</span>
                       </div>
                     </div>
-                    <div className="w-10 text-right text-[0.6rem] font-bold text-primary">{Math.round(city.percentage || (city.count / jobs.length * 100))}%</div>
+                    <div className="w-10 text-right text-[0.6rem] font-bold text-primary">{Math.round(city.percentage || (city.count / (jobsTotal || jobs.length) * 100))}%</div>
                   </div>
                 ))}
               </div>
@@ -83,11 +83,11 @@ export default function MarketSection({ analysis, jobs, refreshing, onRefresh, o
                   <div key={i} className="flex items-center gap-2">
                     <div className="w-24 text-[0.65rem] text-muted-foreground truncate">{tech.name}</div>
                     <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
-                      <div className="h-full bg-green-500/60 rounded flex items-center px-2" style={{ width: `${Math.max(tech.percentage || (tech.count / jobs.length * 100), 5)}%` }}>
+                      <div className="h-full bg-green-500/60 rounded flex items-center px-2" style={{ width: `${Math.max(tech.percentage || (tech.count / (jobsTotal || jobs.length) * 100), 5)}%` }}>
                         <span className="text-[0.55rem] font-bold text-white">{tech.count}</span>
                       </div>
                     </div>
-                    <div className="w-10 text-right text-[0.6rem] font-bold text-green-500">{Math.round(tech.percentage || (tech.count / jobs.length * 100))}%</div>
+                    <div className="w-10 text-right text-[0.6rem] font-bold text-green-500">{Math.round(tech.percentage || (tech.count / (jobsTotal || jobs.length) * 100))}%</div>
                   </div>
                 ))}
               </div>
@@ -135,7 +135,7 @@ export default function MarketSection({ analysis, jobs, refreshing, onRefresh, o
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-16 text-[0.6rem] text-muted-foreground">{v.visa}</div>
                       <div className="flex-1 h-4 bg-muted rounded overflow-hidden">
-                        <div className={cn("h-full rounded", colors[v.visa] || 'bg-gray-500')} style={{ width: `${v.percentage || (v.count / jobs.length * 100)}%` }} />
+                        <div className={cn("h-full rounded", colors[v.visa] || 'bg-gray-500')} style={{ width: `${v.percentage || (v.count / (jobsTotal || jobs.length) * 100)}%` }} />
                       </div>
                       <div className="w-10 text-right text-[0.6rem] font-bold">{v.count}</div>
                     </div>

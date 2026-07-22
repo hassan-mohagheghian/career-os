@@ -56,6 +56,12 @@ def ensure_db_schema():
                 notes = json.dumps([{"type": "text", "content": dict(row)["input_text"]}])
                 conn.execute("UPDATE pending_companies SET notes=? WHERE id=?", (notes, dict(row)["id"]))
 
+    # Add links column to pending_companies
+    try:
+        conn.execute("SELECT links FROM pending_companies LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE pending_companies ADD COLUMN links TEXT DEFAULT '[]'")
+
     if 'companies' not in tables:
         conn.execute("""CREATE TABLE IF NOT EXISTS companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

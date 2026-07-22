@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Spinner, ArrowSquareOut, ArrowRight } from '@phosphor-icons/react'
+import { MapPin, Spinner, ArrowSquareOut, ArrowRight, ArrowSquareRight } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-export default function CompanyJobsTab({ companyId, onOpenJob, onNavigateToJob }) {
+export default function CompanyJobsTab({ companyId, companyName, onOpenJob, onNavigateToJob, onViewAllJobs }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
 

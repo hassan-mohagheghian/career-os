@@ -41,6 +41,7 @@ function App() {
     filterEmploymentTypes, setFilterEmploymentTypes,
     filterResponseStatus, setFilterResponseStatus,
     filterApplied, setFilterApplied,
+    filterScores, setFilterScores,
     activeFilterCount,
     allCities, allCompanies, filteredJobs,
     refreshJobs, loadMoreJobs, fetchJobs, fetchSummaries,
@@ -244,20 +245,21 @@ function App() {
                 filterEmploymentTypes={filterEmploymentTypes} setFilterEmploymentTypes={setFilterEmploymentTypes}
                 filterResponseStatus={filterResponseStatus} setFilterResponseStatus={setFilterResponseStatus}
                 filterApplied={filterApplied} setFilterApplied={setFilterApplied}
+                filterScores={filterScores} setFilterScores={setFilterScores}
                 allCities={allCities} allCompanies={allCompanies} activeFilterCount={activeFilterCount}
                 collapsedSections={collapsedSections} setCollapsedSections={setCollapsedSections}
                 loadingMore={loadingMore} jobsScrollRef={jobsScrollRef} jobsSentinelRef={jobsSentinelRef}
                 submitUrl={submitUrl} deletePending={deletePending} processPending={processPending}
                 resetPending={resetPending} pausePending={pausePending} openWorkflow={openWorkflow}
                 rescoreJob={rescoreJob} deleteJob={handleDeleteJob} requeueJob={handleRequeueJob}
-                openDrawer={openDrawer} refreshJobs={refreshJobs} clearFilters={clearFilters} loadMoreJobs={loadMoreJobs}
+                openDrawer={openDrawer} refreshJobs={refreshJobs} clearFilters={clearFilters} loadMoreJobs={loadMoreJobs} onOpenCompany={openCompanyDrawer}
               />
             )}
             {tab === 'companies' && (
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
             )}
             {tab === 'intelligence' && (
-              <IntelligenceTab analysis={analysis} timestamps={timestamps} getLastUpdated={getLastUpdated} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
+              <IntelligenceTab analysis={analysis} timestamps={timestamps} getLastUpdated={getLastUpdated} jobs={jobs} jobsTotal={jobsTotal} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
             )}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={fetchResumes} onRefreshLinkedin={fetchLinkedin} />}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}

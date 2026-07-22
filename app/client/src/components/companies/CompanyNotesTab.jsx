@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Note, Plus, PencilSimple, Trash, Link, Check, X, ArrowSquareOut, Spinner } from '@phosphor-icons/react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -251,13 +252,24 @@ export default function CompanyNotesTab({ company, onUpdate }) {
               className="w-full h-6 rounded border text-xs px-2 bg-muted"
               autoFocus
             />
-            <input
-              type="text"
-              value={linkTitle}
-              onChange={e => setLinkTitle(e.target.value)}
-              placeholder="Title (optional)"
-              className="w-full h-6 rounded border text-xs px-2 bg-muted"
-            />
+            <div className="flex items-center gap-1">
+              {['LinkedIn', 'Website', 'Careers', 'GitHub'].map(label => (
+                <button key={label} type="button"
+                  onClick={() => setLinkTitle(linkTitle === label ? '' : label)}
+                  className={cn("h-5 px-1.5 rounded text-[0.5rem] border transition-colors",
+                    linkTitle === label
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:bg-muted"
+                  )}>{label}</button>
+              ))}
+              <input
+                type="text"
+                value={linkTitle}
+                onChange={e => setLinkTitle(e.target.value)}
+                placeholder="Custom title"
+                className="flex-1 h-5 rounded border text-xs px-2 bg-muted"
+              />
+            </div>
             <input
               type="text"
               value={linkDesc}

@@ -21,11 +21,11 @@ export default function JobsPage({
   filterTech, setFilterTech, filterCities, setFilterCities, filterCompanies, setFilterCompanies,
   filterMatches, setFilterMatches, filterWorkTypes, setFilterWorkTypes,
   filterEmploymentTypes, setFilterEmploymentTypes, filterResponseStatus, setFilterResponseStatus,
-  filterApplied, setFilterApplied, allCities, allCompanies, activeFilterCount,
+  filterApplied, setFilterApplied, filterScores, setFilterScores, allCities, allCompanies, activeFilterCount,
   collapsedSections, setCollapsedSections,
   loadingMore, jobsScrollRef, jobsSentinelRef,
   submitUrl, deletePending, processPending, resetPending, pausePending, openWorkflow,
-  rescoreJob, deleteJob, requeueJob, openDrawer, refreshJobs, clearFilters, loadMoreJobs
+  rescoreJob, deleteJob, requeueJob, openDrawer, refreshJobs, clearFilters, loadMoreJobs, onOpenCompany
 }) {
   const pendingCount = pending.filter(p => p.status === 'pending').length
   const queuedCount = pending.filter(p => p.status === 'queued').length
@@ -194,6 +194,7 @@ export default function JobsPage({
                 <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="Work" icon={<HouseSimple className="w-3 h-3" />} options={[{ value: 'On-site', label: 'On-site' }, { value: 'Remote', label: 'Remote' }, { value: 'Hybrid', label: 'Hybrid' }]} />
                 <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{ value: 'Full-time', label: 'Full-time' }, { value: 'Part-time', label: 'Part-time' }, { value: 'Contract', label: 'Contract' }, { value: 'Internship', label: 'Internship' }, { value: 'Temporary', label: 'Temporary' }]} />
                 <MultiSelect value={filterResponseStatus} onChange={setFilterResponseStatus} placeholder="Status" icon={<CheckCircle className="w-3 h-3" />} options={[{ value: 'Interview', label: 'Interview' }, { value: 'Rejected', label: 'Rejected' }]} />
+                <MultiSelect value={filterScores} onChange={setFilterScores} placeholder="Score" icon={<Target className="w-3 h-3" />} options={[{ value: 'A++', label: 'A++' }, { value: 'A+', label: 'A+' }, { value: 'A', label: 'A' }, { value: 'B', label: 'B' }, { value: 'C', label: 'C' }, { value: 'D', label: 'D' }, { value: 'E', label: 'E' }]} />
                 <Button variant={filterApplied ? "default" : "outline"} size="sm" className={cn("h-7 text-[0.6rem]", filterApplied && "bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30")} onClick={() => setFilterApplied(f => !f)}>
                   <PaperPlaneRight className="w-3 h-3 mr-0.5" />Applied
                 </Button>
@@ -202,7 +203,7 @@ export default function JobsPage({
           </div>
           <div className="p-2">
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-              {filteredJobs.map((j, i) => <JobCard key={j.num} job={j} rank={i + 1} onClick={() => openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} />)}
+              {filteredJobs.map((j, i) => <JobCard key={j.num} job={j} rank={i + 1} onClick={() => openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} onOpenCompany={onOpenCompany} />)}
             </div>
             <div ref={jobsSentinelRef} className="h-1" />
             {loadingMore && <div className="text-center py-2 text-[0.6rem] text-muted-foreground">Loading more...</div>}

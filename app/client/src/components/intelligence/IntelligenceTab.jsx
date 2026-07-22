@@ -44,7 +44,7 @@ function SectionTimestamp({ label, timestamp, isRefreshing }) {
   )
 }
 
-export default function IntelligenceTab({ analysis, timestamps, getLastUpdated, jobs, resumes, linkedinProfiles, cities, rules, intelligenceSubTab, refreshing, onSetIntelligenceSubTab, onRefreshAll, onRefreshMarket, onRefreshOpportunity, onRefreshStrategy, onRefreshNetworking, onRefreshSkills, onOpenDrawer }) {
+export default function IntelligenceTab({ analysis, timestamps, getLastUpdated, jobs, jobsTotal, resumes, linkedinProfiles, cities, rules, intelligenceSubTab, refreshing, onSetIntelligenceSubTab, onRefreshAll, onRefreshMarket, onRefreshOpportunity, onRefreshStrategy, onRefreshNetworking, onRefreshSkills, onOpenDrawer }) {
   const hasAnalysis = !!analysis?.analysis
   const analysisData = analysis?.analysis || {}
   const overallTimestamp = analysis?.created_at || getLastUpdated?.('all')
@@ -82,7 +82,7 @@ export default function IntelligenceTab({ analysis, timestamps, getLastUpdated, 
         <Card className="p-8 text-center border-dashed">
           <Brain className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
           <p className="text-sm font-semibold mb-1">No intelligence data yet</p>
-          <p className="text-xs text-muted-foreground mb-4">Click "Refresh All" to generate insights from your {jobs.length} processed jobs.</p>
+          <p className="text-xs text-muted-foreground mb-4">Click "Refresh All" to generate insights from your {jobsTotal || jobs.length} processed jobs.</p>
           <Button onClick={onRefreshAll} size="sm" className="gap-1.5">
             <ArrowsClockwise className="w-3.5 h-3.5" /> Generate Intelligence
           </Button>
@@ -90,7 +90,7 @@ export default function IntelligenceTab({ analysis, timestamps, getLastUpdated, 
       )}
 
       {intelligenceSubTab === 'market' && (
-        <MarketSection analysis={analysisData} jobs={jobs} refreshing={refreshing} onRefresh={onRefreshMarket} onOpenDrawer={onOpenDrawer} lastUpdated={getLastUpdated?.('market')} />
+        <MarketSection analysis={analysisData} jobs={jobs} jobsTotal={jobsTotal} refreshing={refreshing} onRefresh={onRefreshMarket} onOpenDrawer={onOpenDrawer} lastUpdated={getLastUpdated?.('market')} />
       )}
 
       {intelligenceSubTab === 'opportunity' && (
@@ -106,7 +106,7 @@ export default function IntelligenceTab({ analysis, timestamps, getLastUpdated, 
       )}
 
       {intelligenceSubTab === 'company' && (
-        <CompanySection analysis={analysisData} jobs={jobs} refreshing={refreshing} onRefresh={onRefreshAll} onOpenDrawer={onOpenDrawer} lastUpdated={getLastUpdated?.('all')} />
+        <CompanySection analysis={analysisData} refreshing={refreshing} onRefresh={onRefreshAll} onOpenDrawer={onOpenDrawer} lastUpdated={getLastUpdated?.('all')} />
       )}
 
       {intelligenceSubTab === 'networking' && (

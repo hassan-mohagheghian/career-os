@@ -23,10 +23,11 @@ export function useJobs() {
   const [filterEmploymentTypes, setFilterEmploymentTypes] = useState([])
   const [filterResponseStatus, setFilterResponseStatus] = useState([])
   const [filterApplied, setFilterApplied] = useState(false)
+  const [filterScores, setFilterScores] = useState([])
 
   const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length +
     filterWorkTypes.length + filterEmploymentTypes.length + filterResponseStatus.length +
-    (filterTech ? 1 : 0) + (filterApplied ? 1 : 0)
+    filterScores.length + (filterTech ? 1 : 0) + (filterApplied ? 1 : 0)
 
   const buildParams = useCallback((offset = 0) => {
     const params = new URLSearchParams()
@@ -42,8 +43,9 @@ export function useJobs() {
     if (filterTech) params.set('filter_tech', filterTech)
     if (filterResponseStatus.length) params.set('filter_response_status', filterResponseStatus.join(','))
     if (filterApplied) params.set('filter_applied', 'true')
+    if (filterScores.length) params.set('filter_scores', filterScores.join(','))
     return params
-  }, [sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech, filterResponseStatus, filterApplied])
+  }, [sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech, filterResponseStatus, filterApplied, filterScores])
 
   const refreshJobs = useCallback(() => {
     setJobsPage(0)
@@ -124,6 +126,7 @@ export function useJobs() {
     setFilterWorkTypes([])
     setFilterEmploymentTypes([])
     setFilterResponseStatus([])
+    setFilterScores([])
     setFilterApplied(false)
   }, [])
 
@@ -189,6 +192,7 @@ export function useJobs() {
     filterEmploymentTypes, setFilterEmploymentTypes,
     filterResponseStatus, setFilterResponseStatus,
     filterApplied, setFilterApplied,
+    filterScores, setFilterScores,
     activeFilterCount,
     jobsWithLocations, allCities, allCompanies, filteredJobs,
     refreshJobs, loadMoreJobs, fetchJobs, fetchSummaries,
