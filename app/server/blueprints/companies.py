@@ -14,7 +14,9 @@ bp = Blueprint('companies', __name__)
 @bp.route('/api/companies', methods=['GET'])
 def get_companies():
     conn = get_db()
-    rows = conn.execute('''SELECT c.*, ci.scores FROM companies c
+    rows = conn.execute('''SELECT c.*, ci.scores,
+        (SELECT COUNT(*) FROM jobs WHERE company_id = c.id AND deleted = 0) as job_count
+        FROM companies c
         LEFT JOIN company_intelligence ci ON ci.company_id = c.id
         ORDER BY c.created_at DESC''').fetchall()
     conn.close()
@@ -70,7 +72,9 @@ def add_company():
 @bp.route('/api/companies/<int:company_id>', methods=['GET'])
 def get_company(company_id):
     conn = get_db()
-    company = conn.execute('SELECT * FROM companies WHERE id=?', (company_id,)).fetchone()
+    company = conn.execute('''SELECT *,
+        (SELECT COUNT(*) FROM jobs WHERE company_id = companies.id AND deleted = 0) as job_count
+        FROM companies WHERE id=?''', (company_id,)).fetchone()
     if not company:
         conn.close()
         return jsonify({'error': 'Not found'}), 404

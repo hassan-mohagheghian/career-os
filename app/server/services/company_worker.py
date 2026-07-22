@@ -166,7 +166,12 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
 def _extract_company_info(input_text, input_type, pid):
     """Step 1: Extract structured company data using mimo."""
     output_file = os.path.join(TMP_DIR, f'company_extract_{pid}.json')
-    content = input_text[:6000] if input_type == 'manual' else f"URL: {input_text}"
+    if input_type == 'multi_note':
+        content = input_text[:8000]
+    elif input_type == 'manual':
+        content = input_text[:6000]
+    else:
+        content = f"URL: {input_text}"
     prompt = load_prompt('company_extract',
         content=content, input_type=input_type, output_file=output_file)
 
@@ -182,8 +187,10 @@ def _extract_company_info(input_text, input_type, pid):
                 data = json.load(f)
             os.remove(output_file)
             return data
-        except Exception:
-            pass
+        except Exception as e:
+            _log(pid, 'extract', f'Warning: Failed to parse extraction output: {e}')
+    else:
+        _log(pid, 'extract', f'Warning: mimo returned code {returncode}')
     return None
 
 

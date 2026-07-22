@@ -107,6 +107,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
                 )}
                 {company.company_size && <Badge variant="secondary" className="text-[0.55rem]"><Users className="w-2.5 h-2.5 mr-1" />{company.company_size}</Badge>}
                 {company.company_type && <Badge variant="secondary" className="text-[0.55rem]">{company.company_type}</Badge>}
+                {company.job_count > 0 && (
+                  <Badge variant="secondary" className="text-[0.55rem] bg-blue-500/15 text-blue-400">
+                    <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
+                  </Badge>
+                )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -134,7 +139,9 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
             <TabsTrigger value="notes" className="text-[0.6rem] gap-1"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
             <TabsTrigger value="intelligence" className="text-[0.6rem] gap-1"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
             <TabsTrigger value="scores" className="text-[0.6rem] gap-1"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
-            <TabsTrigger value="jobs" className="text-[0.6rem] gap-1"><Briefcase className="w-3 h-3" />Jobs</TabsTrigger>
+            <TabsTrigger value="jobs" className="text-[0.6rem] gap-1">
+              <Briefcase className="w-3 h-3" />Jobs{company.job_count > 0 && ` (${company.job_count})`}
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Original Notes */}

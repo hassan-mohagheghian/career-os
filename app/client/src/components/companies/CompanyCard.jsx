@@ -1,5 +1,5 @@
 import {
-  Buildings, MapPin, Trash, Repeat, Globe, Users
+  Buildings, MapPin, Trash, Repeat, Globe, Users, Briefcase
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -44,10 +44,15 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess })
         </div>
       </div>
 
-      {/* Row 2: Company name */}
-      <div onClick={onClick} className="cursor-pointer text-sm font-bold truncate mb-0.5">
-        {company.logo_url && <img src={company.logo_url} alt="" className="w-4 h-4 rounded inline-block mr-1.5 align-middle" />}
-        {company.name || 'Unknown Company'}
+      {/* Row 2: Company name + Job count */}
+      <div onClick={onClick} className="cursor-pointer text-sm font-bold truncate mb-0.5 flex items-center gap-1.5">
+        {company.logo_url && <img src={company.logo_url} alt="" className="w-4 h-4 rounded inline-block align-middle" />}
+        <span className="truncate">{company.name || 'Unknown Company'}</span>
+        {company.job_count > 0 && (
+          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[0.5rem] font-bold bg-blue-500/15 text-blue-400 shrink-0">
+            <Briefcase className="w-2 h-2" />{company.job_count}
+          </span>
+        )}
       </div>
 
       {/* Row 3: Industry + Location */}
