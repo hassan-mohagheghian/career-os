@@ -356,6 +356,17 @@ def process_company(pid):
     # Get company_id from pending item or from company_name lookup
     company_id = item.get('company_id')
 
+    # Reset link statuses for this company if company_id exists
+    if company_id:
+        try:
+            conn = _db()
+            conn.execute('UPDATE company_links SET status=?, extracted_content=?, updated_at=? WHERE company_id=?',
+                       ('pending', '', datetime.now().isoformat(), company_id))
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
     try:
         note_summary = '; '.join([n.get('content', '')[:40] for n in notes[:3]])
         _log(pid, 'start', f'Processing {len(notes)} note(s): {note_summary}...')

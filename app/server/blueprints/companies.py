@@ -241,6 +241,9 @@ def reprocess_company(company_id):
     c = dict(company)
     conn.execute('DELETE FROM company_intelligence WHERE company_id=?', (company_id,))
     conn.execute('UPDATE companies SET processing_status=? WHERE id=?', ('pending', company_id))
+    # Reset link statuses for reprocessing
+    conn.execute('UPDATE company_links SET status=?, extracted_content=?, updated_at=? WHERE company_id=?',
+                 ('pending', '', datetime.now().isoformat(), company_id))
     notes_raw = c.get('notes', '[]')
     try:
         notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
