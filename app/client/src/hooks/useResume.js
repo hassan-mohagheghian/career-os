@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
+import { toast } from 'sonner'
 
 const API = '/api'
 
-export function useResume(showToast) {
+export function useResume() {
   const [resumes, setResumes] = useState([])
   const [linkedinProfiles, setLinkedinProfiles] = useState([])
   const [generatingResume, setGeneratingResume] = useState(false)
@@ -21,32 +22,32 @@ export function useResume(showToast) {
     try {
       const res = await fetch(`${API}/jobs/${num}/generate-resume`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) { showToast?.(data.error || 'Failed'); return }
+      if (!res.ok) { toast.error(data.error || 'Failed'); return }
       setDrawer?.(prev => ({ ...prev, resume: { id: data.id, content: data.content, job_num: num } }))
       fetchResumes()
-      showToast?.('Resume generated!')
+      toast.success('Resume generated!')
     } catch (e) {
-      showToast?.('Generation failed')
+      toast.error('Generation failed')
     } finally {
       setGeneratingResume(false)
     }
-  }, [fetchResumes, showToast])
+  }, [fetchResumes])
 
   const generateCover = useCallback(async (num, setDrawer) => {
     setGeneratingCover(true)
     try {
       const res = await fetch(`${API}/jobs/${num}/generate-cover`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) { showToast?.(data.error || 'Failed'); return }
+      if (!res.ok) { toast.error(data.error || 'Failed'); return }
       setDrawer?.(prev => ({ ...prev, coverLetter: { id: data.id, content: data.content, job_num: num } }))
       fetchResumes()
-      showToast?.('Cover letter generated!')
+      toast.success('Cover letter generated!')
     } catch (e) {
-      showToast?.('Generation failed')
+      toast.error('Generation failed')
     } finally {
       setGeneratingCover(false)
     }
-  }, [fetchResumes, showToast])
+  }, [fetchResumes])
 
   return {
     resumes, setResumes, linkedinProfiles, setLinkedinProfiles,

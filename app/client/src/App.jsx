@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Briefcase, Gear, Brain, X, Check, Buildings, FileText
 } from '@phosphor-icons/react'
+import { ThemeProvider } from 'next-themes'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Toaster } from '@/components/ui/sonner'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 
 import Sidebar from '@/components/layout/Sidebar'
@@ -18,12 +21,11 @@ import JobsPage from '@/components/jobs/JobsPage'
 import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
 import DuplicateJobDialog from '@/components/shared/DuplicateJobDialog'
 
-import { useJobs, usePending, useCompanies, useWorkflow, useToast, useIntelligence, useResume } from '@/hooks'
+import { useJobs, usePending, useCompanies, useWorkflow, useIntelligence, useResume } from '@/hooks'
 
 const API = '/api'
 
 function App() {
-  const { toast, showToast } = useToast()
   const { workflowDrawer, workflowLogs, workflowEndRef, openWorkflow, closeWorkflow } = useWorkflow()
 
   const {
@@ -62,7 +64,7 @@ function App() {
     resumes, setResumes, linkedinProfiles,
     generatingResume, generatingCover,
     fetchResumes, fetchLinkedin, generateResume, generateCover
-  } = useResume(showToast)
+  } = useResume()
 
   const {
     analysis, timestamps, intelligenceSubTab, setIntelligenceSubTab, refreshing,
@@ -263,7 +265,7 @@ function App() {
         </div>
       </main>
 
-      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={handleRequeueJob} onUpdateJob={handleUpdateJob} onSetToast={showToast} onGenerateResume={(num) => generateResume(num, setDrawer)} onGenerateCover={(num) => generateCover(num, setDrawer)} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} onOpenCompany={(id) => openCompanyDrawer(id)} onNavigateToCompany={(id) => { setTab('companies'); setTimeout(() => openCompanyDrawer(id), 100) }} />
+      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={handleRequeueJob} onUpdateJob={handleUpdateJob} onSetToast={(msg) => toast.success(msg)} onGenerateResume={(num) => generateResume(num, setDrawer)} onGenerateCover={(num) => generateCover(num, setDrawer)} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} onOpenCompany={(id) => openCompanyDrawer(id)} onNavigateToCompany={(id) => { setTab('companies'); setTimeout(() => openCompanyDrawer(id), 100) }} />
 
       <CompanyDrawer
         company={companyDrawer}
@@ -288,13 +290,15 @@ function App() {
 
       <WorkflowTerminal workflowDrawer={workflowDrawer} workflowLogs={workflowLogs} workflowEndRef={workflowEndRef} onClose={closeWorkflow} />
 
-      {toast && (
-        <div className="fixed bottom-6 left-6 z-[300] px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all duration-300 bg-green-500">
-          {toast}
-        </div>
-      )}
+      <Toaster />
     </div>
   )
 }
 
-export default App
+export default function AppWithTheme() {
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <App />
+    </ThemeProvider>
+  )
+}

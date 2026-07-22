@@ -1,21 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
 
 export function useToast() {
-  const [toast, setToast] = useState(null)
-
   useEffect(() => {
     const handler = (e) => {
-      setToast(e.detail)
-      setTimeout(() => setToast(null), 2000)
+      if (e.detail) {
+        toast.success(e.detail)
+      }
     }
     window.addEventListener('toast', handler)
     return () => window.removeEventListener('toast', handler)
   }, [])
 
-  const showToast = useCallback((msg) => {
-    setToast(msg)
-    if (msg) setTimeout(() => setToast(null), 2000)
-  }, [])
-
-  return { toast, showToast }
+  return { toast }
 }
