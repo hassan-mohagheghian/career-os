@@ -232,7 +232,7 @@ def _analyze_company(company_data, pid):
     return None
 
 
-def _save_company(company_data, intelligence_data, raw_source):
+def _save_company(company_data, intelligence_data, raw_source, notes=None):
     """Step 3: Save company + intelligence to DB."""
     conn = _db()
     now = datetime.now().isoformat()
@@ -268,6 +268,7 @@ def _save_company(company_data, intelligence_data, raw_source):
             'benefits': company_data.get('benefits', {}),
             'any_other_notable_info': company_data.get('extra', {}).get('any_other_notable_info', ''),
         }, ensure_ascii=False),
+        'notes': json.dumps(notes or [], ensure_ascii=False),
     }
 
     # Insert or update company
@@ -407,7 +408,7 @@ def process_company(pid):
         _update_step(pid, 'step_save', 0, status='processing')
         _log(pid, 'save', 'Saving to database...')
 
-        company_id = _save_company(company_data, intelligence_data, raw_content)
+        company_id = _save_company(company_data, intelligence_data, raw_content, notes=notes)
 
         if _is_paused_or_stopped(pid):
             return

@@ -104,6 +104,7 @@ def _ensure_db_schema():
             tech_stack TEXT,
             work_environment TEXT,
             extra TEXT,
+            notes TEXT DEFAULT '[]',
             processing_status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -113,7 +114,7 @@ def _ensure_db_schema():
         company_cols = {row[1] for row in conn.execute('PRAGMA table_info(companies)').fetchall()}
         for col in ['founded_year', 'headquarters_full', 'countries_of_operation',
                      'funding_stage', 'funding_amount', 'products', 'tech_stack',
-                     'work_environment', 'extra']:
+                     'work_environment', 'extra', 'notes']:
             if col not in company_cols:
                 conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
     if 'company_intelligence' not in tables:
@@ -1529,7 +1530,7 @@ def get_company(company_id):
         return jsonify({'error': 'Not found'}), 404
     d = dict(company)
     # Parse JSON fields in companies table
-    for field in ['countries_of_operation', 'products', 'tech_stack', 'work_environment', 'extra']:
+    for field in ['countries_of_operation', 'products', 'tech_stack', 'work_environment', 'extra', 'notes']:
         if d.get(field):
             try:
                 d[field] = json.loads(d[field])
@@ -1592,6 +1593,95 @@ def get_company_jobs(company_id):
     conn.close()
     return stream_json(rows_to_list(rows))
 
+@app.route('/api/companies/<int:company_id>/notes', methods=['GET'])
+def get_company_notes(company_id):
+    """Get all notes for a company."""
+    conn = get_db()
+    row = conn.execute('SELECT notes FROM companies WHERE id=?', (company_id,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    notes_raw = dict(row).get('notes', '[]')
+    try:
+        notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        notes = []
+    return jsonify(notes)
+
+@app.route('/api/companies/<int:company_id>/notes', methods=['POST'])
+def add_company_note(company_id):
+    """Add a note to a company. Body: { type: 'text'|'url', content: '...' }"""
+    data = request.get_json(force=True)
+    note_type = data.get('type', 'text')
+    content = data.get('content', '').strip()
+    if not content:
+        return jsonify({'error': 'Content required'}), 400
+    if note_type == 'auto':
+        note_type = 'url' if content.startswith('http') else 'text'
+    conn = get_db()
+    row = conn.execute('SELECT notes FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    notes_raw = dict(row).get('notes', '[]')
+    try:
+        notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        notes = []
+    notes.append({"type": note_type, "content": content, "id": int(datetime.now().timestamp() * 1000)})
+    conn.execute('UPDATE companies SET notes=?, updated_at=? WHERE id=?',
+                 (json.dumps(notes, ensure_ascii=False), datetime.now().isoformat(), company_id))
+    conn.commit()
+    conn.close()
+    return jsonify(notes)
+
+@app.route('/api/companies/<int:company_id>/notes/<int:note_id>', methods=['PUT'])
+def update_company_note(company_id, note_id):
+    """Update a note. Body: { content: '...' }"""
+    data = request.get_json(force=True)
+    new_content = data.get('content', '').strip()
+    if not new_content:
+        return jsonify({'error': 'Content required'}), 400
+    conn = get_db()
+    row = conn.execute('SELECT notes FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    notes_raw = dict(row).get('notes', '[]')
+    try:
+        notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        notes = []
+    for n in notes:
+        if n.get('id') == note_id:
+            n['content'] = new_content
+            break
+    conn.execute('UPDATE companies SET notes=?, updated_at=? WHERE id=?',
+                 (json.dumps(notes, ensure_ascii=False), datetime.now().isoformat(), company_id))
+    conn.commit()
+    conn.close()
+    return jsonify(notes)
+
+@app.route('/api/companies/<int:company_id>/notes/<int:note_id>', methods=['DELETE'])
+def delete_company_note(company_id, note_id):
+    """Delete a note."""
+    conn = get_db()
+    row = conn.execute('SELECT notes FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    notes_raw = dict(row).get('notes', '[]')
+    try:
+        notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        notes = []
+    notes = [n for n in notes if n.get('id') != note_id]
+    conn.execute('UPDATE companies SET notes=?, updated_at=? WHERE id=?',
+                 (json.dumps(notes, ensure_ascii=False), datetime.now().isoformat(), company_id))
+    conn.commit()
+    conn.close()
+    return jsonify(notes)
+
 @app.route('/api/companies/<int:company_id>/reprocess', methods=['POST'])
 def reprocess_company(company_id):
     conn = get_db()
@@ -1604,16 +1694,22 @@ def reprocess_company(company_id):
     conn.execute('DELETE FROM company_intelligence WHERE company_id=?', (company_id,))
     # Update company status
     conn.execute('UPDATE companies SET processing_status=? WHERE id=?', ('pending', company_id))
-    # Create pending entry with notes from company data
-    notes = []
-    if c.get('website'):
-        notes.append({"type": "url", "content": c['website']})
-    if c.get('name'):
-        notes.append({"type": "text", "content": f"Company: {c['name']}"})
-    if c.get('industry'):
-        notes.append({"type": "text", "content": f"Industry: {c['industry']}"})
-    if c.get('description'):
-        notes.append({"type": "text", "content": c['description']})
+    # Use company notes (edited by user) + fallback to company data
+    notes_raw = c.get('notes', '[]')
+    try:
+        notes = json.loads(notes_raw) if isinstance(notes_raw, str) else (notes_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        notes = []
+    if not notes:
+        # Fallback: build notes from company data
+        if c.get('website'):
+            notes.append({"type": "url", "content": c['website']})
+        if c.get('name'):
+            notes.append({"type": "text", "content": f"Company: {c['name']}"})
+        if c.get('industry'):
+            notes.append({"type": "text", "content": f"Industry: {c['industry']}"})
+        if c.get('description'):
+            notes.append({"type": "text", "content": c['description']})
     if not notes:
         notes = [{"type": "text", "content": c.get('name', 'Unknown company')}]
     cur = conn.execute('INSERT INTO pending_companies (input_text, notes, input_type, source, company_id, company_name, status) VALUES (?,?,?,?,?,?,?)',
