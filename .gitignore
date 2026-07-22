@@ -39,9 +39,9 @@ Thumbs.db
 .mimocode/
 
 # Data folders (generated content)
-jobs/
-resumes/
-inputs/
+/jobs/
+/resumes/
+/inputs/
 
 # DB runtime files
 app/server/db/

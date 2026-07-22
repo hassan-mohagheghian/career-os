@@ -1,24 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
-  Briefcase, ChartBar, Gear, Target, Brain, Sun, Moon,
-  Clock, X, CheckCircle, Buildings, ArrowsClockwise,
-  Rocket, FileText, Warning, TrendUp, HouseSimple, PaperPlaneRight, Confetti,
-  House, Pause, Trash, Repeat,
-  Users, Spinner, Stack, Check, CaretDown, Keyboard,
-  MapPin, Copy,
-  LinkedinLogo
+  Briefcase, Gear, Brain, X, Check, Buildings, FileText
 } from '@phosphor-icons/react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
@@ -28,12 +14,12 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import JobDrawer from '@/components/JobDrawer'
 import IntelligenceTab from '@/components/IntelligenceTab'
-import ProcessingItem from '@/components/ProcessingItem'
-import { JobCard, getScoreColor, getMatchClass, LocationBadge, VisaBadge, WorkTypeTag, scoreRank } from '@/components/ProcessedCards'
 import ResumeTab from '@/components/ResumeTab'
 import RulesTab from '@/components/RulesTab'
-import { MultiSelect } from '@/components/MultiSelect'
 import CompaniesPage from '@/components/CompaniesPage'
+import JobsPage from '@/components/jobs/JobsPage'
+import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
+import DuplicateJobDialog from '@/components/shared/DuplicateJobDialog'
 
 const API = '/api'
 
@@ -67,7 +53,6 @@ function App() {
   const [filterApplied, setFilterApplied] = useState(false)
   const [collapsedSections, setCollapsedSections] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [dragOverCol, setDragOverCol] = useState(null)
   const JOBS_PAGE_SIZE = 30
   const [jobsPage, setJobsPage] = useState(0)
   const [jobsTotal, setJobsTotal] = useState(0)
@@ -75,7 +60,6 @@ function App() {
   const [loadingMore, setLoadingMore] = useState(false)
   const jobsScrollRef = useRef(null)
   const jobsSentinelRef = useRef(null)
-  const [dragId, setDragId] = useState(null)
   const [workflowDrawer, setWorkflowDrawer] = useState(null)
   const [workflowLogs, setWorkflowLogs] = useState([])
   const workflowWs = useRef(null)
@@ -217,15 +201,9 @@ function App() {
   const resetPending = async (id) => { await fetch(`${API}/pending/${id}/reset`, { method: 'PUT' }); fetchPending() }
   const pausePending = async (id) => { await fetch(`${API}/pending/${id}/pause`, { method: 'PUT' }); fetchPending() }
   const rescoreJob = async (num) => { await fetch(`${API}/jobs/${num}/rescore`, { method: 'POST' }); fetchPending(); refreshJobs() }
-  const rescoreAll = async () => { await fetch(`${API}/jobs/rescore-all`, { method: 'POST' }); fetchPending(); refreshJobs() }
 
   const showConfirm = (title, message, confirmLabel, variant = 'danger') => {
     return new Promise(resolve => { setConfirmDialog({ title, message, confirmLabel, variant, resolve }) })
-  }
-
-  const reprocessAll = async () => {
-    const ok = await showConfirm('Reprocess All', 'Reprocess ALL jobs? Every job will be re-queued for full processing from scratch.', 'Reprocess All')
-    if (!ok) return; await fetch(`${API}/jobs/reprocess-all`, { method: 'POST' }); fetchPending()
   }
 
   const deleteJob = async (num) => {
@@ -257,7 +235,7 @@ function App() {
         const evt = JSON.parse(e.data)
         if (evt.type === 'state') { setWorkflowLogs(evt.logs || []) }
         else if (evt.type === 'tool_output') {
-          const { stream, tool, data } = evt
+          const { stream, data } = evt
           if (stream === 'input') setWorkflowLogs(prev => [...prev, { step: 'cmd', msg: data, ts: evt.ts }])
           else if (stream === 'output') data.split('\n').forEach(line => { if (line.trim()) setWorkflowLogs(prev => [...prev, { step: 'out', msg: line, ts: evt.ts }]) })
           else if (stream === 'error') setWorkflowLogs(prev => [...prev, { step: 'err', msg: data, ts: evt.ts }])
@@ -275,8 +253,6 @@ function App() {
       } catch {}
     }
   }
-
-  useEffect(() => { workflowEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [workflowLogs])
 
   const openWorkflow = (item) => { setWorkflowLogs([]); setWorkflowDrawer(item); connectWorkflowWs(item.id) }
 
@@ -297,24 +273,9 @@ function App() {
     if (!jobsWithLocations) return []
     let r = [...jobsWithLocations]
     r.sort((a, b) => {
-      if (sortBy === 'overall_score') {
-        // Primary sort by overall_score numeric column
-        const aVal = a.overall_score ?? 0
-        const bVal = b.overall_score ?? 0
-        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
-      }
-      if (sortBy === 'fit_score') {
-        // Sort by fit_score numeric column
-        const aVal = a.fit_score ?? 0
-        const bVal = b.fit_score ?? 0
-        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
-      }
-      if (sortBy === 'success_score') {
-        // Sort by success_score numeric column
-        const aVal = a.success_score ?? 0
-        const bVal = b.success_score ?? 0
-        return sortDir === 'desc' ? bVal - aVal : aVal - bVal
-      }
+      if (sortBy === 'overall_score') { const aVal = a.overall_score ?? 0; const bVal = b.overall_score ?? 0; return sortDir === 'desc' ? bVal - aVal : aVal - bVal }
+      if (sortBy === 'fit_score') { const aVal = a.fit_score ?? 0; const bVal = b.fit_score ?? 0; return sortDir === 'desc' ? bVal - aVal : aVal - bVal }
+      if (sortBy === 'success_score') { const aVal = a.success_score ?? 0; const bVal = b.success_score ?? 0; return sortDir === 'desc' ? bVal - aVal : aVal - bVal }
       if (sortBy === 'num') return sortDir === 'desc' ? b.num - a.num : a.num - b.num
       if (sortBy === 'company') return sortDir === 'desc' ? b.company.localeCompare(a.company) : a.company.localeCompare(b.company)
       if (sortBy === 'location') return sortDir === 'desc' ? b.location.localeCompare(a.location) : a.location.localeCompare(b.location)
@@ -336,13 +297,8 @@ function App() {
   const openDrawer = async (num) => {
     if (!jobs) return
     const j = jobs.find(x => x.num === num); const s = summaries?.find(x => x.num === num)
-    // Fetch full job data (includes linked_company)
     let fullJob = j
-    try {
-      const res = await fetch(`${API}/jobs/${num}`)
-      if (res.ok) fullJob = await res.json()
-    } catch {}
-    // Find the tailored resume and cover letter for this job
+    try { const res = await fetch(`${API}/jobs/${num}`); if (res.ok) fullJob = await res.json() } catch {}
     const r = resumes?.find(x => x.job_num === num && !x.id.startsWith('cover_')) ||
               resumes?.find(x => !x.id.startsWith('original') && !x.id.startsWith('cover_') && fullJob.company.toLowerCase().includes((x.company || '').split(' ')[0].toLowerCase().replace(/[()]/g, '')))
     const cl = resumes?.find(x => x.job_num === num && x.id.startsWith('cover_'))
@@ -358,9 +314,7 @@ function App() {
       const res = await fetch(`${API}/jobs/${num}/generate-resume`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { setToast(data.error || 'Failed'); return }
-      // Update drawer with new resume
       setDrawer(prev => ({ ...prev, resume: { id: data.id, content: data.content, job_num: num } }))
-      // Refresh resumes list
       fetch(`${API}/resumes`).then(r => r.json()).then(r => setResumes(r))
       setToast('Resume generated!')
     } catch (e) { setToast('Generation failed') }
@@ -421,220 +375,46 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      {/* Mobile sidebar toggle */}
       <Button variant="outline" size="icon" className="fixed top-3 left-3 z-[60] lg:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
         {sidebarOpen ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
       </Button>
 
       <Sidebar sidebarOpen={sidebarOpen} tabs={tabs} tab={tab} onSwitchTab={switchTab} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header jobAgg={jobAgg} jobsTotal={jobsTotal} resumes={resumes} theme={theme} onSwitchTab={switchTab} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
 
         <div className="flex-1 overflow-y-auto p-4 pt-16">
           <div className="max-w-[1400px] mx-auto">
-
-            {/* === JOBS TAB === */}
-            {tab === 'jobs' && (() => {
-              const pendingCount = pending.filter(p => p.status === 'pending').length
-              const queuedCount = pending.filter(p => p.status === 'queued').length
-              const processingCount = pending.filter(p => p.status === 'processing').length
-              const failedCount = pending.filter(p => p.status === 'failed').length
-              const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
-
-              const handleDragStart = (e, id) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
-              const handleDragOver = (e, colId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(colId) }
-              const handleDragLeave = () => { setDragOverCol(null) }
-              const handleDrop = (e, colId) => {
-                e.preventDefault(); setDragOverCol(null)
-                if (!dragId) return
-                if (colId === 'pending') resetPending(dragId)
-                else if (colId === 'queued') processPending(dragId)
-                else if (colId === 'processing') processPending(dragId)
-                setDragId(null)
-              }
-
-              return (
-                <div className="flex gap-2 h-[calc(100vh-80px)]">
-                  {/* Processing Jobs column */}
-                  <div className="w-1/4 flex flex-col rounded-lg border overflow-hidden bg-card">
-                    <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
-                      <Gear className="w-4 h-4 text-primary" />
-                      <span className="font-bold text-xs text-primary">Processing Jobs</span>
-                      <Badge variant="default" className="ml-auto text-[0.5rem] h-4">{stackedTotal}</Badge>
-                    </div>
-                    <div className="flex flex-col flex-1 min-h-0 p-2">
-                      {/* Add URL */}
-                      <div className="rounded border p-1.5 shrink-0 mb-1 bg-muted min-w-0">
-                        <Input type="url" value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError('') }}
-                          onKeyDown={e => e.key === 'Enter' && submitUrl()}
-                          placeholder="Paste LinkedIn URL..."
-                          className={cn("w-full h-7 rounded border text-[0.6rem] min-w-0", urlError && "border-destructive")} />
-                        {urlError && <div className="text-[0.5rem] mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {urlError}</div>}
-                        <div className="flex items-center gap-1 mt-1">
-                          <Button onClick={submitUrl} disabled={submitting || !urlInput.trim()} size="sm" className="flex-1 h-6 text-[0.55rem]">
-                            {submitting ? '...' : processImmediately ? 'Add & Process' : 'Add'}
-                          </Button>
-                          <button
-                            onClick={() => setProcessImmediately(v => !v)}
-                            className={cn(
-                              "shrink-0 h-6 px-1.5 rounded text-[0.5rem] font-medium border transition-colors",
-                              processImmediately
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-muted-foreground border-border hover:bg-muted"
-                            )}
-                          >
-                            {processImmediately ? 'Auto' : 'Queue'}
-                          </button>
-                        </div>
-                      </div>
-                      {/* Stacked sections */}
-                      <div className="flex flex-col flex-1 min-h-0 gap-1">
-                        {[
-                          { id: 'pending', count: pendingCount, label: 'Pending', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
-                          { id: 'queued', count: queuedCount, label: 'Queued', icon: <Stack className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
-                          { id: 'processing', count: processingCount, label: 'Processing', icon: <Gear className="w-3 h-3" />, color: 'blue', iconClass: 'text-blue-500', bgClass: 'bg-gradient-to-r from-blue-500/10 to-blue-500/5', borderClass: 'border-b border-blue-500/20', textClass: 'text-blue-600 dark:text-blue-500' },
-                          { id: 'failed', count: failedCount, label: 'Failed', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
-                        ].map(s => {
-                          const isEmpty = s.count === 0
-                          const isOpen = isEmpty ? false : !collapsedSections[s.id]
-                          return (
-                            <div key={s.id} className={cn("flex flex-col rounded-lg border min-w-0 max-w-full overflow-hidden", isOpen ? "flex-1 min-h-0" : "", isEmpty && "opacity-60")}>
-                              <div onClick={() => !isEmpty && setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
-                                className={cn("px-2 py-1 flex items-center gap-1 shrink-0 transition", !isEmpty && "cursor-pointer select-none hover:bg-muted/50", s.bgClass, s.borderClass)}>
-                                <span className={s.iconClass}>{s.icon}</span>
-                                <span className={cn("font-bold text-[0.6rem] uppercase tracking-wider", s.textClass)}>{s.label}</span>
-                                <Badge variant="secondary" className={cn("text-[0.5rem] h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
-                                {!isEmpty && <span className="text-[0.5rem] text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
-                              </div>
-                              {isOpen && s.id === 'pending' && (
-                                <ScrollArea className="flex-1 min-h-0 min-w-0"
-                                  onDragOver={e => handleDragOver(e, 'pending')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'pending')}>
-                                  <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                                    {pending.filter(p => p.status === 'pending').map(p =>
-                                      <ProcessingItem key={p.id} item={p} onProcess={() => processPending(p.id)} onDelete={() => deletePending(p.id)} onDragStart={e => handleDragStart(e, p.id)} onViewWorkflow={openWorkflow} />)}
-                                  </div>
-                                </ScrollArea>
-                              )}
-                              {isOpen && s.id === 'queued' && (
-                                <ScrollArea className="flex-1 min-h-0 min-w-0"
-                                  onDragOver={e => handleDragOver(e, 'queued')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'queued')}>
-                                  <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                                    {pending.filter(p => p.status === 'queued').map(p =>
-                                      <ProcessingItem key={p.id} item={p} onProcess={() => processPending(p.id)} onDelete={() => deletePending(p.id)} onReset={() => resetPending(p.id)} onDragStart={e => handleDragStart(e, p.id)} onViewWorkflow={openWorkflow} />)}
-                                  </div>
-                                </ScrollArea>
-                              )}
-                              {isOpen && s.id === 'processing' && (
-                                <ScrollArea className="flex-1 min-h-0 min-w-0"
-                                  onDragOver={e => handleDragOver(e, 'processing')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'processing')}>
-                                  <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                                    {pending.filter(p => p.status === 'processing').map(p =>
-                                      <ProcessingItem key={p.id} item={p} onDragStart={e => handleDragStart(e, p.id)}
-                                        onPause={() => pausePending(p.id)} onDelete={() => deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
-                                  </div>
-                                </ScrollArea>
-                              )}
-                              {isOpen && s.id === 'failed' && (
-                                <ScrollArea className="flex-1 min-h-0 min-w-0">
-                                  <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                                    {pending.filter(p => p.status === 'failed').map(p =>
-                                      <ProcessingItem key={p.id} item={p} onDelete={() => deletePending(p.id)} onProcess={() => processPending(p.id)} onReset={() => resetPending(p.id)} onViewWorkflow={openWorkflow} />)}
-                                  </div>
-                                </ScrollArea>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                      {stackedTotal === 0 && <div className="text-center py-8 text-[0.6rem] text-muted-foreground shrink-0">All jobs processed</div>}
-                    </div>
-                  </div>
-
-                  {/* Processed Jobs column */}
-                  <div className="w-3/4 flex flex-col rounded-lg border overflow-hidden bg-card">
-                    <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-green-500/10 to-green-500/5 border-b border-green-500/20">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="font-bold text-xs text-green-500">Processed Jobs</span>
-                      <Badge variant="secondary" className="text-[0.5rem] h-4 bg-green-500/15 text-green-500">{filteredJobs.length}/{jobsTotal}</Badge>
-                      <div className="flex items-center gap-0.5 ml-auto">
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refreshJobs()} title="Refresh"><ArrowsClockwise className="w-3 h-3 text-green-500" /></Button>
-                      </div>
-                    </div>
-                    <div ref={jobsScrollRef} className="flex-1 overflow-y-auto">
-                      <div className="sticky top-0 z-10 bg-card p-2 pb-0">
-                        <div className="flex items-center gap-1 mb-2">
-                          <div className="relative flex-1">
-                            <Input value={filterTech} onChange={e => setFilterTech(e.target.value)}
-                              placeholder="Search by role, company, stack, or notes..."
-                              className={cn("w-full h-7 text-xs", filterTech && "border-green-500 ring-1 ring-green-500/20")} />
-                            {filterTech && <button onClick={() => setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem] text-muted-foreground">✕</button>}
-                          </div>
-                          {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="h-7 text-[0.6rem] text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={clearFilters}>Clear all</Button>}
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-1">
-                            <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setSortDir('desc') }}>
-                              <SelectTrigger className="h-7 w-auto text-[0.6rem] border-green-500/30"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="created_at">Newest first</SelectItem>
-                                <SelectItem value="overall_score">Overall Score</SelectItem>
-                                <SelectItem value="fit_score">Fit Score</SelectItem>
-                                <SelectItem value="success_score">Success Score</SelectItem>
-                                <SelectItem value="posted_at">Posted date</SelectItem>
-                                <SelectItem value="applicants">Applicants</SelectItem>
-                                <SelectItem value="company">Company</SelectItem>
-                                <SelectItem value="location">Location</SelectItem>
-                                <SelectItem value="apply_time">Applied date</SelectItem>
-                                <SelectItem value="response_time">Response date</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button variant="outline" size="sm" className="h-7 text-[0.6rem] border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
-                              {sortDir === 'desc' ? '↓' : '↑'}
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-1 flex-wrap justify-end">
-                            <MultiSelect value={filterCities} onChange={setFilterCities} placeholder="City" icon={<MapPin className="w-3 h-3" />} options={allCities.map(c => ({ value: c, label: c }))} />
-                            <MultiSelect value={filterCompanies} onChange={setFilterCompanies} placeholder="Co" icon={<Buildings className="w-3 h-3" />} options={allCompanies.map(c => ({ value: c, label: c }))} />
-                            <MultiSelect value={filterMatches} onChange={setFilterMatches} placeholder="Match" icon={<Target className="w-3 h-3" />} options={[{ value: 'High', label: 'High' }, { value: 'Medium', label: 'Medium' }, { value: 'Low', label: 'Low' }]} />
-                            <MultiSelect value={filterWorkTypes} onChange={setFilterWorkTypes} placeholder="Work" icon={<HouseSimple className="w-3 h-3" />} options={[{ value: 'On-site', label: 'On-site' }, { value: 'Remote', label: 'Remote' }, { value: 'Hybrid', label: 'Hybrid' }]} />
-                            <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{ value: 'Full-time', label: 'Full-time' }, { value: 'Part-time', label: 'Part-time' }, { value: 'Contract', label: 'Contract' }, { value: 'Internship', label: 'Internship' }, { value: 'Temporary', label: 'Temporary' }]} />
-                            <MultiSelect value={filterResponseStatus} onChange={setFilterResponseStatus} placeholder="Status" icon={<CheckCircle className="w-3 h-3" />} options={[{ value: 'Interview', label: 'Interview' }, { value: 'Rejected', label: 'Rejected' }]} />
-                            <Button variant={filterApplied ? "default" : "outline"} size="sm" className={cn("h-7 text-[0.6rem]", filterApplied && "bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30")} onClick={() => setFilterApplied(f => !f)}>
-                              <PaperPlaneRight className="w-3 h-3 mr-0.5" />Applied
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2">
-                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                          {filteredJobs.map((j, i) => <JobCard key={j.num} job={j} rank={i + 1} onClick={() => openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} />)}
-                        </div>
-                        <div ref={jobsSentinelRef} className="h-1" />
-                        {loadingMore && <div className="text-center py-2 text-[0.6rem] text-muted-foreground">Loading more...</div>}
-                        {!loadingMore && filteredJobs.length >= jobsTotal && filteredJobs.length > 0 && <div className="text-center py-2 text-[0.55rem] text-muted-foreground opacity-50">All {jobsTotal} jobs loaded</div>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* === COMPANIES TAB === */}
+            {tab === 'jobs' && (
+              <JobsPage
+                pending={pending} jobs={jobs} filteredJobs={filteredJobs} jobsTotal={jobsTotal} filteredJobsCount={filteredJobs.length}
+                urlInput={urlInput} setUrlInput={setUrlInput} urlError={urlError} setUrlError={setUrlError}
+                submitting={submitting} processImmediately={processImmediately} setProcessImmediately={setProcessImmediately}
+                sortBy={sortBy} setSortBy={setSortBy} sortDir={sortDir} setSortDir={setSortDir}
+                filterTech={filterTech} setFilterTech={setFilterTech} filterCities={filterCities} setFilterCities={setFilterCities}
+                filterCompanies={filterCompanies} setFilterCompanies={setFilterCompanies}
+                filterMatches={filterMatches} setFilterMatches={setFilterMatches}
+                filterWorkTypes={filterWorkTypes} setFilterWorkTypes={setFilterWorkTypes}
+                filterEmploymentTypes={filterEmploymentTypes} setFilterEmploymentTypes={setFilterEmploymentTypes}
+                filterResponseStatus={filterResponseStatus} setFilterResponseStatus={setFilterResponseStatus}
+                filterApplied={filterApplied} setFilterApplied={setFilterApplied}
+                allCities={allCities} allCompanies={allCompanies} activeFilterCount={activeFilterCount}
+                collapsedSections={collapsedSections} setCollapsedSections={setCollapsedSections}
+                loadingMore={loadingMore} jobsScrollRef={jobsScrollRef} jobsSentinelRef={jobsSentinelRef}
+                submitUrl={submitUrl} deletePending={deletePending} processPending={processPending}
+                resetPending={resetPending} pausePending={pausePending} openWorkflow={openWorkflow}
+                rescoreJob={rescoreJob} deleteJob={deleteJob} requeueJob={requeueJob}
+                openDrawer={openDrawer} refreshJobs={refreshJobs} clearFilters={clearFilters} loadMoreJobs={loadMoreJobs}
+              />
+            )}
             {tab === 'companies' && (
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
             )}
-
-            {/* === DASHBOARD TAB === */}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
             )}
-
-            {/* === RESUME === */}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={() => fetch(`${API}/resumes`).then(r => r.json()).then(r => setResumes(r))} onRefreshLinkedin={() => fetch(`${API}/linkedin`).then(r => r.json()).then(r => setLinkedinProfiles(r))} />}
-
-            {/* === PREFERENCES === */}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}
           </div>
         </div>
@@ -642,7 +422,6 @@ function App() {
 
       <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => setDrawer(null)} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
 
-      {/* Confirm Dialog */}
       <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -659,114 +438,13 @@ function App() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Duplicate Job Dialog */}
-      <Dialog open={!!duplicateJob} onOpenChange={(open) => !open && setDuplicateJob(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Warning className="w-5 h-5 text-yellow-500" />
-              Job Already Exists
-            </DialogTitle>
-            <DialogDescription>How would you like to update this job?</DialogDescription>
-          </DialogHeader>
-          <Card className="p-3 bg-muted">
-            <div className="text-sm font-bold">#{duplicateJob?.num} {duplicateJob?.company}</div>
-            <div className="text-xs mt-1 text-muted-foreground">
-              Score: <span className="font-bold" style={{ color: ['A','A+','A++'].includes(duplicateJob?.score) ? '#22c55e' : ['B','C'].includes(duplicateJob?.score) ? '#eab308' : '#ef4444' }}>{duplicateJob?.score}</span>
-              {' · '}
-              Match: <span className="font-bold text-primary">{duplicateJob?.match}</span>
-            </div>
-          </Card>
-          <DialogFooter className="flex-row gap-2">
-            <Button className="flex-1 gap-1" onClick={async () => { await fetch(`${API}/jobs/${duplicateJob.num}/rescore`, { method: 'POST' }); fetchPending(); refreshJobs(); setDuplicateJob(null) }}>
-              <TrendUp className="w-3.5 h-3.5" /> Rescore
-            </Button>
-            <Button variant="outline" className="flex-1 gap-1" onClick={async () => { await fetch(`${API}/jobs/${duplicateJob.num}/requeue`, { method: 'POST' }); fetchPending(); refreshJobs(); setDuplicateJob(null) }}>
-              <Repeat className="w-3.5 h-3.5" /> Reprocess
-            </Button>
-            <Button variant="ghost" onClick={() => setDuplicateJob(null)}>Cancel</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DuplicateJobDialog duplicateJob={duplicateJob} setDuplicateJob={setDuplicateJob}
+        onRescore={async (num) => { await fetch(`${API}/jobs/${num}/rescore`, { method: 'POST' }); fetchPending(); refreshJobs(); setDuplicateJob(null) }}
+        onReprocess={async (num) => { await fetch(`${API}/jobs/${num}/requeue`, { method: 'POST' }); fetchPending(); refreshJobs(); setDuplicateJob(null) }} />
 
-      {/* Workflow Terminal Drawer */}
-      <Sheet open={!!workflowDrawer} onOpenChange={(open) => { if (!open) { workflowWs.current?.close(); setWorkflowDrawer(null); setWorkflowLogs([]) } }}>
-        <SheetContent className="w-[min(600px,92vw)] sm:max-w-[600px] flex flex-col p-0">
-          <SheetHeader className="px-4 py-2.5 border-b">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">💻</span>
-              <SheetTitle className="text-sm">Workflow Terminal</SheetTitle>
-              <Badge variant="secondary" className="text-[0.6rem]">{workflowDrawer?.company || 'Job'} #{workflowDrawer?.job_num || '?'}</Badge>
-              {workflowDrawer?.status === 'processing' && (
-                <Badge variant="default" className="text-[0.55rem] animate-pulse">● LIVE</Badge>
-              )}
-            </div>
-          </SheetHeader>
+      <WorkflowTerminal workflowDrawer={workflowDrawer} workflowLogs={workflowLogs} workflowEndRef={workflowEndRef}
+        onClose={() => { workflowWs.current?.close(); setWorkflowDrawer(null); setWorkflowLogs([]) }} />
 
-          {/* Step progress */}
-          <div className="px-4 py-2 flex gap-1 border-b bg-muted overflow-x-auto">
-            {['fetch', 'validate', 'extract_raw', 'extract_struct', 'summary', 'save', 'analyze', 'done'].map((s, i) => {
-              const stepDbCol = { save: 'step_resume', analyze: 'step_analyze' }[s] || `step_${s}`
-              const stepVal = workflowDrawer?.[stepDbCol]
-              const isDone = stepVal === 1
-              const isActive = !isDone && workflowLogs.some(l => l.step === s)
-              return (
-                <div key={s} className="flex items-center gap-0.5 shrink-0">
-                  <div className={cn(
-                    "w-4 h-4 rounded-full flex items-center justify-center text-[0.45rem] font-bold transition-all border",
-                    isDone ? "bg-green-500 text-white border-green-500" :
-                    isActive ? "bg-primary text-primary-foreground border-primary" :
-                    "bg-background text-muted-foreground border-border"
-                  )}>
-                    {isDone ? <Check className="w-2.5 h-2.5" /> : isActive ? <Spinner className="w-2.5 h-2.5 animate-spin" /> : i + 1}
-                  </div>
-                  {i < 7 && <div className={cn("h-[1px] w-3 rounded-full", isDone ? "bg-green-500" : "bg-border")} />}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Terminal output */}
-          <ScrollArea ref={workflowEndRef} className="flex-1 font-mono text-[0.7rem] leading-relaxed bg-[#0d1117] text-[#c9d1d9]">
-            <div className="p-3">
-              {workflowLogs.length === 0 && (
-                <div className="text-center py-12 text-[#484f58]">
-                  <Spinner className="w-8 h-8 animate-spin mx-auto mb-2" />
-                  <div>Waiting for workflow output...</div>
-                  <div className="text-[0.6rem] mt-1 text-[#21262d]">WebSocket connecting to stream server...</div>
-                </div>
-              )}
-              {workflowLogs.map((log, i) => {
-                const isCmd = log.step === 'cmd'; const isOut = log.step === 'out'; const isErr = log.step === 'err'
-                const isMimo = log.step === 'mimo'; const isStep = log.step === 'step'; const isError = log.step === 'error'; const isDone = log.step === 'done'
-                return (
-                  <div key={i} className={cn("mb-0.5", isError || isErr ? "bg-red-500/10 -mx-3 px-3 py-0.5 rounded" : "")}>
-                    {isCmd ? <div className="flex gap-2"><span className="text-[#484f58] shrink-0">{log.ts}</span><span className="text-[#58a6ff]">$</span><span className="text-[#58a6ff]">{log.msg}</span></div> :
-                     isOut ? <div className="pl-[70px] text-[#8b949e]">{log.msg}</div> :
-                     isErr ? <div className="flex gap-2"><span className="text-[#484f58] shrink-0">{log.ts}</span><span className="text-[#f85149]">✗</span><span className="text-[#f85149]">{log.msg}</span></div> :
-                     <div className="flex gap-2">
-                       <span className="text-[#484f58] shrink-0">{log.ts}</span>
-                       {!isMimo && !isStep && <span className="font-bold uppercase shrink-0 text-[#58a6ff]" style={{ minWidth: '50px' }}>[{log.step}]</span>}
-                       <span className={isMimo ? 'whitespace-pre-wrap' : ''} style={{ color: isError ? '#f85149' : isDone || isStep ? '#3fb950' : '#c9d1d9' }}>
-                         {isStep ? <><span className="text-[#3fb950]">✓</span> {log.msg}</> : isDone ? <><Confetti className="w-4 h-4 inline text-[#3fb950]" /> {log.msg}</> : log.msg}
-                       </span>
-                     </div>}
-                  </div>
-                )
-              })}
-              {workflowDrawer?.status === 'processing' && (
-                <div className="flex gap-2 mt-1">
-                  <span className="text-[#484f58]">{new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                  <span className="text-[#22c55e]">$</span>
-                  <span className="animate-pulse text-[#22c55e]">█</span>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all duration-300 bg-green-500">
           {toast}
