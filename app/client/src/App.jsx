@@ -10,6 +10,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import JobDrawer from '@/components/JobDrawer'
+import CompanyDrawer from '@/components/companies/CompanyDrawer'
 import IntelligenceTab from '@/components/intelligence/IntelligenceTab'
 import ResumeTab from '@/components/ResumeTab'
 import RulesTab from '@/components/RulesTab'
@@ -35,6 +36,7 @@ function App() {
   const [deepLinkId, setDeepLinkId] = useState(() => parseHash().id)
   const [drawer, setDrawer] = useState(null)
   const [drawerTab, setDrawerTab] = useState('details')
+  const [companyDrawer, setCompanyDrawer] = useState(null)
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
   const [pending, setPending] = useState([])
   const [urlInput, setUrlInput] = useState('')
@@ -193,6 +195,21 @@ function App() {
     // companies deep linking is handled by CompaniesPage itself
   }, [deepLinkId, tab, jobs, drawer])
 
+  // Listen for cross-entity navigation events (e.g. from CompanyDrawer -> JobDrawer)
+  useEffect(() => {
+    const handleOpenJob = (e) => {
+      const num = e.detail
+      if (num && tab !== 'jobs') {
+        setTab('jobs')
+      }
+      if (num) {
+        setTimeout(() => openDrawer(num), 100)
+      }
+    }
+    window.addEventListener('openJob', handleOpenJob)
+    return () => window.removeEventListener('openJob', handleOpenJob)
+  }, [tab, jobs])
+
   useEffect(() => {
     const sentinel = jobsSentinelRef.current
     if (!sentinel) return
@@ -323,6 +340,28 @@ function App() {
     window.history.replaceState(null, '', `#jobs/${num}`)
   }
 
+  const openCompanyDrawer = async (id) => {
+    try {
+      const res = await fetch(`${API}/companies/${id}`)
+      const data = await res.json()
+      setCompanyDrawer(data)
+    } catch (e) {
+      console.error('Failed to load company', e)
+    }
+  }
+
+  const deleteCompany = async (id) => {
+    await fetch(`${API}/companies/${id}`, { method: 'DELETE' })
+    setCompanyDrawer(null)
+    fetchCompanies()
+  }
+
+  const reprocessCompany = async (id) => {
+    await fetch(`${API}/companies/${id}/reprocess`, { method: 'POST' })
+    setCompanyDrawer(null)
+    fetchCompanies()
+  }
+
   const [generatingResume, setGeneratingResume] = useState(false)
   const [generatingCover, setGeneratingCover] = useState(false)
 
@@ -427,7 +466,7 @@ function App() {
               />
             )}
             {tab === 'companies' && (
-              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
+              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
             )}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
@@ -438,7 +477,9 @@ function App() {
         </div>
       </main>
 
-      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
+      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} onOpenCompany={(id) => openCompanyDrawer(id)} onNavigateToCompany={(id) => { setTab('companies'); setTimeout(() => openCompanyDrawer(id), 100) }} />
+
+      <CompanyDrawer company={companyDrawer} onClose={() => { setCompanyDrawer(null); window.history.replaceState(null, '', tab === 'companies' ? '#companies' : `#${tab}`) }} onDelete={deleteCompany} onReprocess={reprocessCompany} onOpenJob={(num) => openDrawer(num)} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} />
 
       <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
 

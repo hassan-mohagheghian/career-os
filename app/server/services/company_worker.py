@@ -219,31 +219,37 @@ def _load_rules(context='company', company_type='UNKNOWN'):
     """Load enabled scoring rules from DB, filtered by context and company type.
 
     Args:
-        context: 'job' loads shared + job rules, 'company' loads shared + type-specific company rules.
-        company_type: For 'company' context, selects type-specific rules:
-            - PRODUCT_COMPANY / CONSULTING_COMPANY / UNKNOWN -> shared + company rules
-            - RECRUITING_AGENCY / STAFFING_COMPANY -> shared + recruiter rules
+        context: 'company' loads SHARED + type-specific company rules.
+        company_type: For 'company' context, selects type-specific rules by scope:
+            - PRODUCT_COMPANY -> SHARED + COMPANY_PRODUCT rules
+            - RECRUITING_AGENCY -> SHARED + COMPANY_RECRUITING rules
+            - STAFFING_COMPANY -> SHARED + COMPANY_RECRUITING rules (merged)
+            - CONSULTING_COMPANY / UNKNOWN -> SHARED + COMPANY_PRODUCT rules (default)
+
+    Validation: Company processor must NEVER load JOB rules.
     """
     conn = _db()
     if context == 'company':
-        # For recruiters/staffing, load shared + recruiter rules
-        if company_type in ('RECRUITING_AGENCY', 'STAFFING_COMPANY'):
-            rows = conn.execute(
-                "SELECT category, rule_type, key, value, description, priority, score_weight "
-                "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'recruiter') "
-                "ORDER BY priority DESC"
-            ).fetchall()
-        else:
-            # For product companies, consulting, and unknown: load shared + company rules
-            rows = conn.execute(
-                "SELECT category, rule_type, key, value, description, priority, score_weight "
-                "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
-                "ORDER BY priority DESC"
-            ).fetchall()
-    else:
+        # Map company_type to entity scope (new rule groups)
+        scope_map = {
+            'PRODUCT_COMPANY': 'COMPANY_PRODUCT',
+            'RECRUITING_AGENCY': 'COMPANY_RECRUITING',
+            'STAFFING_COMPANY': 'COMPANY_RECRUITING',
+            'CONSULTING_COMPANY': 'COMPANY_PRODUCT',
+            'UNKNOWN': 'COMPANY_PRODUCT',
+        }
+        entity_scope = scope_map.get(company_type, 'COMPANY_PRODUCT')
         rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'job') "
+            "SELECT category, scope, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', ?) "
+            "ORDER BY priority DESC",
+            (entity_scope,)
+        ).fetchall()
+    else:
+        # Fallback: load SHARED + JOB (should not be used for company processing)
+        rows = conn.execute(
+            "SELECT category, scope, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
             "ORDER BY priority DESC"
         ).fetchall()
     conn.close()

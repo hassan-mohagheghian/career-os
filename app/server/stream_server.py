@@ -46,19 +46,19 @@ def _load_rules(context='job'):
     """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
 
     Args:
-        context: 'job' loads shared + job rules, 'company' loads shared + company rules.
+        context: 'job' loads SHARED + JOB rules, 'company' loads SHARED + company-type rules.
     """
     conn = _db()
     if context == 'company':
         rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
+            "SELECT category, scope, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'COMPANY_PRODUCT', 'COMPANY_RECRUITING') "
             "ORDER BY priority DESC"
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'job') "
+            "SELECT category, scope, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
             "ORDER BY priority DESC"
         ).fetchall()
     conn.close()

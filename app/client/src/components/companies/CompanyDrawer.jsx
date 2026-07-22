@@ -63,7 +63,7 @@ function isRecruiterType(type) {
   return type === 'RECRUITING_AGENCY' || type === 'STAFFING_COMPANY'
 }
 
-export default function CompanyDrawer({ company, onClose, onDelete, onReprocess }) {
+export default function CompanyDrawer({ company, onClose, onDelete, onReprocess, onOpenJob, onNavigateToJob }) {
   const [activeTab, setActiveTab] = useState('notes')
 
   if (!company) return null
@@ -434,7 +434,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
 
           {/* Tab 4: Jobs */}
           <TabsContent value="jobs" className="mt-3">
-            <CompanyJobsTab companyId={company.id} />
+            <CompanyJobsTab companyId={company.id} onOpenJob={onOpenJob} onNavigateToJob={onNavigateToJob} />
           </TabsContent>
         </Tabs>
       </SheetContent>

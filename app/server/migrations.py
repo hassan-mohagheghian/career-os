@@ -118,6 +118,8 @@ def run_migrations():
     _migrate_rules()
     _migrate_rule_types()
     _migrate_recruiter_rules()
+    _migrate_scope_column()
+    _migrate_rule_groups()  # New: migrate to entity-based rule groups
     _migrate_success_field()
     _migrate_resume_files()
 
@@ -322,3 +324,236 @@ def _migrate_recruiter_rules():
         conn.close()
     except Exception as e:
         print(f"Warning: recruiter rules migration failed: {e}")
+
+
+def _migrate_scope_column():
+    """Add scope column to preferences table and migrate existing rule_type values."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute('PRAGMA table_info(preferences)')
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if 'scope' not in columns:
+            print("[migrate] Adding scope column to preferences")
+            conn.execute("ALTER TABLE preferences ADD COLUMN scope TEXT NOT NULL DEFAULT 'JOB'")
+
+            # Map rule_type to scope
+            type_to_scope = {
+                'shared': 'ALL',
+                'job': 'JOB',
+                'company': 'PRODUCT_COMPANY',
+                'recruiter': 'RECRUITING_AGENCY',
+            }
+            for rule_type, scope in type_to_scope.items():
+                conn.execute("UPDATE preferences SET scope=? WHERE rule_type=?", (scope, rule_type))
+
+            # Also add scope for staffing company rules (copy from RECRUITING_AGENCY)
+            staffing_rules = conn.execute(
+                "SELECT category, rule_type, key, value, description, priority, score_weight, enabled "
+                "FROM preferences WHERE rule_type='recruiter'"
+            ).fetchall()
+            for row in staffing_rules:
+                row = dict(row)
+                conn.execute(
+                    "INSERT OR IGNORE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight, enabled) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (row['category'], row['rule_type'], 'STAFFING_COMPANY', row['key'],
+                     row['value'], row['description'], row['priority'], row['score_weight'], row['enabled'])
+                )
+
+            conn.commit()
+            print(f"[migrate] Migrated {type_to_scope} rules to scope column")
+
+        conn.close()
+    except Exception as e:
+        print(f"Warning: scope migration failed: {e}")
+
+
+def _migrate_rule_groups():
+    """Migrate scope values to the new entity-based rule groups.
+
+    Mapping:
+      ALL              -> SHARED
+      JOB              -> JOB
+      PRODUCT_COMPANY  -> COMPANY_PRODUCT
+      RECRUITING_AGENCY -> COMPANY_RECRUITING
+      STAFFING_COMPANY -> COMPANY_RECRUITING  (merged)
+      CONSULTING_COMPANY -> COMPANY_RECRUITING (merged)
+
+    Also removes duplicate rules (e.g. market_accessibility vs market_and_location_accessibility).
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute('PRAGMA table_info(preferences)')
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if 'scope' not in columns:
+            conn.close()
+            return
+
+        # Check if migration already done by looking for new values
+        existing_scopes = {r[0] for r in conn.execute("SELECT DISTINCT scope FROM preferences").fetchall()}
+        if 'SHARED' in existing_scopes or 'COMPANY_PRODUCT' in existing_scopes:
+            print("[migrate] Rule groups already migrated")
+            conn.close()
+            return
+
+        print("[migrate] Migrating scope values to entity-based rule groups...")
+
+        # Map old scope values to new
+        scope_map = {
+            'ALL': 'SHARED',
+            'JOB': 'JOB',
+            'PRODUCT_COMPANY': 'COMPANY_PRODUCT',
+            'RECRUITING_AGENCY': 'COMPANY_RECRUITING',
+            'STAFFING_COMPANY': 'COMPANY_RECRUITING',
+            'CONSULTING_COMPANY': 'COMPANY_RECRUITING',
+        }
+
+        for old_scope, new_scope in scope_map.items():
+            conn.execute("UPDATE preferences SET scope=? WHERE scope=?", (new_scope, old_scope))
+
+        # Remove duplicate rules (STAFFING_COMPANY and CONSULTING_COMPANY copies that
+        # now have the same scope as RECRUITING_AGENCY). Keep the original RECRUITING_AGENCY rows.
+        # Delete all COMPANY_RECRUITING rules, then re-insert the canonical set.
+        conn.execute("DELETE FROM preferences WHERE scope='COMPANY_RECRUITING'")
+
+        # Re-insert the 4 canonical recruiting company rules
+        recruiting_rules = [
+            ("fit", "recruiter", "COMPANY_RECRUITING", "recruiter_network_value",
+             "Evaluate how valuable this recruiter is as a gateway to job opportunities. Positive: Specialized in technology recruitment, backend/software engineering recruitment, works with Germany/Netherlands/EU companies, works with startups, has many active vacancies, represents multiple companies, has international candidate experience, has history hiring non-EU engineers. Negative: Generic recruitment, non-technical recruitment, low-quality staffing, no evidence of technology hiring.",
+             "Main impact: Company Fit Score", 100, 100),
+            ("success", "recruiter", "COMPANY_RECRUITING", "recruiter_market_access",
+             "Evaluate recruiter access to target markets. Positive: Works with German companies, works with European startups, supports international candidates, works with English-speaking roles, understands relocation hiring. Negative: Local-only recruitment, only domestic candidates.",
+             "Main impact: Company Success Score", 95, 85),
+            ("fit", "recruiter", "COMPANY_RECRUITING", "recruiter_profile_alignment",
+             "Evaluate if the recruiter can help the candidate find relevant positions. Positive: Backend engineering roles, Python roles, AI engineering, cloud/platform roles, senior engineering positions, distributed systems roles. Negative: Frontend-only recruitment, junior mass recruitment, non-technical positions.",
+             "Main impact: Company Fit Score", 85, 80),
+            ("success", "recruiter", "COMPANY_RECRUITING", "recruiter_activity_and_opportunity",
+             "Evaluate opportunity generation capability. Positive: Many active jobs, frequently updated vacancies, multiple relevant companies, fast communication, dedicated recruiters. Negative: No recent activity, few relevant opportunities.",
+             "Main impact: Company Success Score", 70, 70),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            recruiting_rules
+        )
+
+        # Now trim job rules down to the 6 canonical ones per the spec.
+        # Get existing JOB scope rules
+        job_rules = conn.execute(
+            "SELECT id, key FROM preferences WHERE scope='JOB'"
+        ).fetchall()
+        # Keep only these 6 keys
+        keep_job_keys = {
+            'python_backend_core', 'role_alignment', 'hiring_probability',
+            'technical_synergy', 'engineering_depth', 'work_and_communication_fit'
+        }
+        # If the current DB has old keys like 'python_primary', 'backend_core', etc.,
+        # we need to rename and consolidate. The simplest approach: clear and re-seed.
+        existing_job_keys = {dict(r)['key'] for r in job_rules}
+        if existing_job_keys != keep_job_keys:
+            print(f"[migrate] Replacing job rules: {existing_job_keys} -> {keep_job_keys}")
+            conn.execute("DELETE FROM preferences WHERE scope='JOB'")
+            job_rules_data = [
+                ("fit", "job", "JOB", "python_backend_core",
+                 "Python must be the primary language with Django, FastAPI, Flask, or SQLAlchemy. Rust/Axum as secondary is a plus.",
+                 "Core Python backend requirement", 100, 100),
+                ("fit", "job", "JOB", "role_alignment",
+                 "Backend engineer, Platform engineer, Systems engineer, Data engineer, SRE — title patterns that match the candidate's profile.",
+                 "Title patterns that match", 85, 85),
+                ("success", "job", "JOB", "hiring_probability",
+                 "Assess hiring likelihood: company is actively hiring (multiple open roles), has funding, growing team, fast hiring process, responds to applications.",
+                 "Application success likelihood", 80, 80),
+                ("fit", "job", "JOB", "technical_synergy",
+                 "Evaluate technical synergy: Docker, Kubernetes, CI/CD, Linux, AWS/GCP, PostgreSQL, Redis, REST API design, GraphQL.",
+                 "Cloud and backend infrastructure overlap", 75, 75),
+                ("fit", "job", "JOB", "engineering_depth",
+                 "Evaluate engineering depth: senior-level role (9+ years), small focused teams (3-8), complex technical challenges, depth over breadth.",
+                 "Seniority and depth match", 70, 70),
+                ("fit", "job", "JOB", "work_and_communication_fit",
+                 "Evaluate work arrangement and culture: remote/hybrid preferred, English-only workplace, async communication culture, international teams.",
+                 "Work culture compatibility", 65, 65),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                job_rules_data
+            )
+
+        # Trim shared rules to the 4 canonical ones
+        shared_rules = conn.execute(
+            "SELECT id, key FROM preferences WHERE scope='SHARED'"
+        ).fetchall()
+        keep_shared_keys = {
+            'visa_and_relocation_compatibility',
+            'market_and_location_accessibility',
+            'communication_and_work_culture',
+            'sensitive_industry_penalty'
+        }
+        existing_shared_keys = {dict(r)['key'] for r in shared_rules}
+        # Remove old 'market_accessibility' duplicate if present
+        if 'market_accessibility' in existing_shared_keys:
+            conn.execute("DELETE FROM preferences WHERE scope='SHARED' AND key='market_accessibility'")
+            existing_shared_keys.discard('market_accessibility')
+
+        if existing_shared_keys != keep_shared_keys:
+            print(f"[migrate] Replacing shared rules: {existing_shared_keys} -> {keep_shared_keys}")
+            conn.execute("DELETE FROM preferences WHERE scope='SHARED'")
+            shared_rules_data = [
+                ("success", "shared", "SHARED", "visa_and_relocation_compatibility",
+                 "Evaluate visa sponsorship and relocation support. Positive: Work visa sponsorship, EU Blue Card support, history of hiring non-EU engineers, relocation support. Negative: EU work authorization required, local candidates only.",
+                 "Main impact: Success Score", 100, 100),
+                ("success", "shared", "SHARED", "market_and_location_accessibility",
+                 "Evaluate location accessibility. Highest priority: Germany (Berlin, Munich, Hamburg), Netherlands (Amsterdam, Eindhoven). Other positive: Spain, Sweden, Denmark, Switzerland, Austria. Negative: Local-only markets.",
+                 "Main impact: Success Score", 95, 90),
+                ("success", "shared", "SHARED", "communication_and_work_culture",
+                 "Evaluate work culture and communication. Positive: English-first workplace, international teams, remote/hybrid, distributed teams, async communication. Negative: German/French mandatory, local-only communication.",
+                 "Main impact: Success Score", 80, 70),
+                ("success", "shared", "SHARED", "sensitive_industry_penalty",
+                 "Reduce score for sensitive industries: defense/military, weapons, intelligence, surveillance, gambling, alcohol/tobacco, adult content, fraud-related. Apply stronger penalties when core business is related.",
+                 "Main impact: Success Score", 60, 50),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                shared_rules_data
+            )
+
+        # Trim product company rules to the 4 canonical ones
+        product_rules = conn.execute(
+            "SELECT id, key FROM preferences WHERE scope='COMPANY_PRODUCT'"
+        ).fetchall()
+        keep_product_keys = {
+            'company_quality', 'engineering_culture',
+            'growth_and_career_potential', 'candidate_company_alignment'
+        }
+        existing_product_keys = {dict(r)['key'] for r in product_rules}
+        if existing_product_keys != keep_product_keys:
+            print(f"[migrate] Replacing product company rules: {existing_product_keys} -> {keep_product_keys}")
+            conn.execute("DELETE FROM preferences WHERE scope='COMPANY_PRODUCT'")
+            product_rules_data = [
+                ("fit", "company", "COMPANY_PRODUCT", "company_quality",
+                 "Evaluate company quality. Positive: Strong product company, SaaS, developer tools, AI infrastructure, FinTech, HealthTech, good funding, product maturity. Negative: Weak product signals, unclear business model.",
+                 "Core company evaluation", 100, 100),
+                ("fit", "company", "COMPANY_PRODUCT", "engineering_culture",
+                 "Evaluate engineering culture. Positive: Strong engineering team, technical blog, open source, modern stack, testing culture, CI/CD, code review, architecture ownership.",
+                 "Engineering team quality", 90, 85),
+                ("fit", "company", "COMPANY_PRODUCT", "growth_and_career_potential",
+                 "Evaluate growth opportunities. Positive: Senior ownership, technical leadership path, mentorship, complex challenges, international growth. Negative: Maintenance-only products.",
+                 "Career advancement potential", 80, 75),
+                ("fit", "company", "COMPANY_PRODUCT", "candidate_company_alignment",
+                 "Evaluate alignment with candidate profile. Positive: Python backend, distributed systems, cloud-native, AI infrastructure, developer tools. Negative: Pure frontend, mobile-only, hardware-only.",
+                 "Profile match quality", 65, 60),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                product_rules_data
+            )
+
+        conn.commit()
+        conn.close()
+        print("[migrate] Rule groups migration complete: SHARED(4) JOB(6) COMPANY_PRODUCT(4) COMPANY_RECRUITING(4)")
+    except Exception as e:
+        print(f"Warning: rule groups migration failed: {e}")

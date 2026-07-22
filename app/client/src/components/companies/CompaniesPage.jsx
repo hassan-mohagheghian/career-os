@@ -64,7 +64,7 @@ function LinkItem({ link, onRemove }) {
   )
 }
 
-export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onClearDeepLink, onRefresh }) {
+export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onClearDeepLink, onRefresh, onOpenJob, onNavigateToJob, onOpenCompany }) {
   const [noteInput, setNoteInput] = useState('')
   const [notes, setNotes] = useState([])
   const [links, setLinks] = useState([])
@@ -75,7 +75,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const [error, setError] = useState('')
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
-  const [drawerCompany, setDrawerCompany] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [processImmediately, setProcessImmediately] = useState(true)
   const [search, setSearch] = useState('')
@@ -90,11 +89,21 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
   useEffect(() => {
-    if (deepLinkId && companies.length > 0 && !drawerCompany) {
-      openCompany(deepLinkId)
+    if (deepLinkId && companies.length > 0) {
+      onOpenCompany?.(deepLinkId)
       onClearDeepLink?.()
     }
-  }, [deepLinkId, companies, drawerCompany])
+  }, [deepLinkId, companies])
+
+  // Listen for cross-entity navigation (e.g. from JobDrawer -> CompanyDrawer)
+  useEffect(() => {
+    const handleOpenCompany = (e) => {
+      const id = e.detail
+      if (id) onOpenCompany?.(id)
+    }
+    window.addEventListener('openCompany', handleOpenCompany)
+    return () => window.removeEventListener('openCompany', handleOpenCompany)
+  }, [companies])
 
   const allIndustries = useMemo(() => {
     const set = new Set(companies.map(c => c.industry).filter(Boolean))
@@ -273,25 +282,16 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
     const ok = await showConfirm('Delete Company', 'Permanently delete this company and all its intelligence data?', 'Delete')
     if (!ok) return
     await fetch(`${API}/companies/${id}`, { method: 'DELETE' })
-    setDrawerCompany(null)
     onRefresh?.()
   }
 
   const reprocessCompany = async (id) => {
     await fetch(`${API}/companies/${id}/reprocess`, { method: 'POST' })
-    setDrawerCompany(null)
     onRefresh?.()
   }
 
   const openCompany = async (id) => {
-    try {
-      const res = await fetch(`${API}/companies/${id}`)
-      const data = await res.json()
-      setDrawerCompany(data)
-      window.history.replaceState(null, '', `#companies/${id}`)
-    } catch (e) {
-      console.error('Failed to load company', e)
-    }
+    onOpenCompany?.(id)
   }
 
   const startEditing = (pendingId) => {
@@ -546,7 +546,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         </div>
       </div>
 
-      <CompanyDrawer company={drawerCompany} onClose={() => { setDrawerCompany(null); window.history.replaceState(null, '', '#companies') }} onDelete={deleteCompany} onReprocess={reprocessCompany} />
+      {/* CompanyDrawer is now rendered in App.jsx for cross-page navigation */}
 
       <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
     </div>

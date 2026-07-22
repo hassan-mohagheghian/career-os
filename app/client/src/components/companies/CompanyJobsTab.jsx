@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Spinner } from '@phosphor-icons/react'
+import { MapPin, Spinner, ArrowSquareOut, ArrowRight } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
-export default function CompanyJobsTab({ companyId }) {
+export default function CompanyJobsTab({ companyId, onOpenJob, onNavigateToJob }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -24,15 +25,24 @@ export default function CompanyJobsTab({ companyId }) {
         <div className="text-center py-6 text-xs text-muted-foreground">No jobs linked to this company yet.</div>
       )}
       {jobs.map(j => (
-        <a key={j.num} href={`#jobs`} onClick={() => window.dispatchEvent(new CustomEvent('openJob', { detail: j.num }))}
-          className="block p-2 rounded border border-border/50 hover:bg-muted/50 transition">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold">#{j.num}</span>
-            <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled'}</span>
-            {j.score && <Badge variant="secondary" className="text-[0.5rem]">{j.score}</Badge>}
+        <div key={j.num} className="flex items-center gap-1 p-2 rounded border border-border/50 hover:bg-muted/50 transition group">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenJob?.(j.num)}>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold">#{j.num}</span>
+              <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled'}</span>
+              {j.score && <Badge variant="secondary" className="text-[0.5rem]">{j.score}</Badge>}
+            </div>
+            {j.location && <div className="text-[0.55rem] text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
           </div>
-          {j.location && <div className="text-[0.55rem] text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
-        </a>
+          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onOpenJob?.(j.num)} title="Open job drawer">
+              <ArrowSquareOut className="w-3 h-3" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onNavigateToJob?.(j.num)} title="Go to Jobs page">
+              <ArrowRight className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
       ))}
     </div>
   )

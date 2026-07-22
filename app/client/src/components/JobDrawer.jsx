@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   TrendUp, Repeat, Link, Lightning, ListChecks, Star, Gift, Shield,
-  FileText, Spinner, PaperPlaneRight, CheckCircle, Buildings, MapPin, X
+  FileText, Spinner, PaperPlaneRight, CheckCircle, Buildings, MapPin, X, ArrowSquareOut, ArrowRight
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { LocationBadge, VisaBadge, getScoreColor, getMatchClass, numericToGrade } from '@/components/ProcessedCards'
 import ResumePreview from '@/components/ResumePreview'
 
-export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onLinkCompany }) {
+export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onLinkCompany, onOpenCompany, onNavigateToCompany }) {
   if (!drawer) return null
 
   const job = drawer.job
@@ -120,33 +120,15 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
             <TabsTrigger value="structured">Structured</TabsTrigger>
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
-            <TabsTrigger value="resume">Resume</TabsTrigger>
-            <TabsTrigger value="cover">Cover Letter</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
-          {drawerTab === 'resume' && (
-            <div className="flex justify-end mt-2">
-              <Button variant={drawer.resume ? "outline" : "default"} size="sm" onClick={() => onGenerateResume(job.num)} disabled={generatingResume} className="gap-1.5 h-7 text-xs">
-                {generatingResume ? <Spinner className="w-3 h-3 animate-spin" /> : <Repeat className="w-3 h-3" />}
-                {generatingResume ? 'Generating...' : drawer.resume ? 'Regenerate Resume' : 'Generate Resume'}
-              </Button>
-            </div>
-          )}
-          {drawerTab === 'cover' && (
-            <div className="flex justify-end mt-2">
-              <Button variant={drawer.coverLetter ? "outline" : "default"} size="sm" onClick={() => onGenerateCover(job.num)} disabled={generatingCover} className="gap-1.5 h-7 text-xs">
-                {generatingCover ? <Spinner className="w-3 h-3 animate-spin" /> : <Repeat className="w-3 h-3" />}
-                {generatingCover ? 'Generating...' : drawer.coverLetter ? 'Regenerate Cover' : 'Generate Cover Letter'}
-              </Button>
-            </div>
-          )}
         </Tabs>
 
         {drawerTab === 'details' && <DetailsTab job={job} onUpdateJob={onUpdateJob} />}
         {drawerTab === 'structured' && <StructuredTab job={job} />}
         {drawerTab === 'summary' && <SummaryTab summary={drawer.summary} />}
-        {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} />}
-        {drawerTab === 'resume' && <ResumeTabContent resume={drawer.resume} />}
-        {drawerTab === 'cover' && <CoverTabContent coverLetter={drawer.coverLetter} />}
+        {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} onOpenCompany={onOpenCompany} onNavigateToCompany={onNavigateToCompany} onClose={onClose} />}
+        {drawerTab === 'documents' && <DocumentsTab job={job} resume={drawer.resume} coverLetter={drawer.coverLetter} generatingResume={generatingResume} generatingCover={generatingCover} onGenerateResume={onGenerateResume} onGenerateCover={onGenerateCover} />}
       </SheetContent>
     </Sheet>
   )
@@ -281,38 +263,98 @@ function SummaryTab({ summary }) {
   )
 }
 
-function ResumeTabContent({ resume }) {
+function DocumentSection({ title, content, isGenerating, hasContent, onGenerate, emptyLabel }) {
   return (
-    <div>
-      {resume && <ResumePreview html={resume.content} />}
-      {!resume && (
-        <div className="flex flex-col items-center justify-center py-12 gap-4">
-          <FileText className="w-12 h-12 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No tailored resume generated yet</p>
+    <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-[0.6rem] uppercase tracking-wider text-primary font-semibold flex items-center gap-1.5">
+          <FileText className="w-3 h-3" /> {title}
+        </h4>
+        <Button
+          size="sm"
+          onClick={onGenerate}
+          disabled={isGenerating}
+          className="gap-1.5 h-6 text-[0.55rem] bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30"
+        >
+          {isGenerating ? <Spinner className="w-2.5 h-2.5 animate-spin" /> : <Repeat className="w-2.5 h-2.5" />}
+          {isGenerating ? 'Generating...' : hasContent ? 'Regenerate' : 'Generate'}
+        </Button>
+      </div>
+      {hasContent ? (
+        <div className="rounded-lg border border-primary/20 overflow-hidden bg-background">
+          <ResumePreview html={content} />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-lg border border-dashed border-primary/30 bg-background">
+          <FileText className="w-6 h-6 text-primary/40" />
+          <p className="text-[0.6rem] text-muted-foreground">{emptyLabel}</p>
         </div>
       )}
     </div>
   )
 }
 
-function CoverTabContent({ coverLetter }) {
+function DocumentsTab({ job, resume, coverLetter, generatingResume, generatingCover, onGenerateResume, onGenerateCover }) {
+  const [activeDoc, setActiveDoc] = useState('resume')
+
   return (
     <div>
-      {coverLetter && <ResumePreview html={coverLetter.content} />}
-      {!coverLetter && (
-        <div className="flex flex-col items-center justify-center py-12 gap-4">
-          <FileText className="w-12 h-12 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No cover letter generated yet</p>
-        </div>
+      {/* Document sub-tabs */}
+      <div className="flex gap-1 mb-3">
+        <button
+          onClick={() => setActiveDoc('resume')}
+          className={cn(
+            "px-3 py-1.5 rounded-md text-[0.6rem] font-semibold transition",
+            activeDoc === 'resume'
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Resume {resume && <span className="ml-1 opacity-70">✓</span>}
+        </button>
+        <button
+          onClick={() => setActiveDoc('cover')}
+          className={cn(
+            "px-3 py-1.5 rounded-md text-[0.6rem] font-semibold transition",
+            activeDoc === 'cover'
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Cover Letter {coverLetter && <span className="ml-1 opacity-70">✓</span>}
+        </button>
+      </div>
+
+      {activeDoc === 'resume' && (
+        <DocumentSection
+          title="Tailored Resume"
+          content={resume?.content}
+          isGenerating={generatingResume}
+          hasContent={!!resume}
+          onGenerate={() => onGenerateResume(job.num)}
+          emptyLabel="No resume generated yet"
+        />
+      )}
+
+      {activeDoc === 'cover' && (
+        <DocumentSection
+          title="Cover Letter"
+          content={coverLetter?.content}
+          isGenerating={generatingCover}
+          hasContent={!!coverLetter}
+          onGenerate={() => onGenerateCover(job.num)}
+          emptyLabel="No cover letter generated yet"
+        />
       )}
     </div>
   )
 }
 
-function CompanyTab({ job, companies, onLinkCompany, onSetToast }) {
+function CompanyTab({ job, companies, onLinkCompany, onSetToast, onOpenCompany, onNavigateToCompany, onClose }) {
   const linkedCompany = job.linked_company || null
   const [search, setSearch] = useState('')
   const [linking, setLinking] = useState(false)
+  const [showSelector, setShowSelector] = useState(false)
 
   const filtered = companies.filter(c => {
     if (!search) return true
@@ -368,9 +410,18 @@ function CompanyTab({ job, companies, onLinkCompany, onSetToast }) {
               <Buildings className="w-4 h-4 text-green-500" />
               <span className="text-xs font-semibold text-green-500">Linked Company</span>
             </div>
-            <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:bg-destructive/10" onClick={handleUnlink} disabled={linking} title="Unlink">
-              <X className="w-3 h-3" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {onOpenCompany && (
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-primary hover:bg-primary/10" onClick={() => { onClose?.(); onOpenCompany(linkedCompany.id) }} title="Open company drawer">
+                  <ArrowSquareOut className="w-3 h-3" />
+                </Button>
+              )}
+              {onNavigateToCompany && (
+                <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:bg-muted" onClick={() => { onClose?.(); onNavigateToCompany(linkedCompany.id) }} title="Go to Companies page">
+                  <ArrowRight className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
           </div>
           <div className="text-sm font-bold">{linkedCompany.name}</div>
           <div className="flex flex-wrap gap-1 mt-1">
@@ -455,41 +506,66 @@ function CompanyTab({ job, companies, onLinkCompany, onSetToast }) {
         </div>
       )}
 
-      {/* Company selector */}
-      <div>
-        <div className="text-xs font-semibold mb-1.5 text-muted-foreground">
-          {linkedCompany ? 'Change Company' : 'Link to Company'}
-        </div>
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search companies..."
-          className="w-full h-7 rounded border text-xs px-2 bg-muted mb-1.5"
-        />
-        <div className="max-h-48 overflow-y-auto space-y-1">
-          {filtered.length === 0 && (
-            <div className="text-[0.6rem] text-muted-foreground text-center py-2">No companies found</div>
-          )}
-          {filtered.map(c => (
-            <div key={c.id}
-              onClick={() => !linking && handleLink(c.id)}
-              className={cn(
-                "flex items-center gap-2 p-1.5 rounded border cursor-pointer transition text-xs",
-                linkedCompany?.id === c.id
-                  ? "border-green-500/30 bg-green-500/5"
-                  : "border-border/50 hover:bg-muted/50"
-              )}>
-              {c.logo_url && <img src={c.logo_url} alt="" className="w-4 h-4 rounded" />}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">{c.name}</div>
-                <div className="text-[0.55rem] text-muted-foreground truncate">{c.industry || ''} {c.city ? `· ${c.city}` : ''}</div>
-              </div>
-              {linkedCompany?.id === c.id && <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />}
-            </div>
-          ))}
-        </div>
+      {/* Company action buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-1.5 h-7 text-[0.55rem]"
+          onClick={() => setShowSelector(!showSelector)}
+        >
+          <Buildings className="w-3 h-3" />
+          {linkedCompany ? 'Change Company' : 'Link Company'}
+        </Button>
+        {linkedCompany && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-7 text-[0.55rem] text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+            onClick={handleUnlink}
+            disabled={linking}
+          >
+            <X className="w-3 h-3" />
+            Disconnect
+          </Button>
+        )}
       </div>
+
+      {/* Company selector (hidden by default) */}
+      {showSelector && (
+        <div className="p-3 rounded-lg border border-border/50 bg-muted/30">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search companies..."
+            className="w-full h-7 rounded border text-xs px-2 bg-background mb-2"
+            autoFocus
+          />
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {filtered.length === 0 && (
+              <div className="text-[0.6rem] text-muted-foreground text-center py-2">No companies found</div>
+            )}
+            {filtered.map(c => (
+              <div key={c.id}
+                onClick={() => { if (!linking) { handleLink(c.id); setShowSelector(false) } }}
+                className={cn(
+                  "flex items-center gap-2 p-1.5 rounded border cursor-pointer transition text-xs",
+                  linkedCompany?.id === c.id
+                    ? "border-green-500/30 bg-green-500/5"
+                    : "border-border/50 hover:bg-muted/50"
+                )}>
+                {c.logo_url && <img src={c.logo_url} alt="" className="w-4 h-4 rounded" />}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{c.name}</div>
+                  <div className="text-[0.55rem] text-muted-foreground truncate">{c.industry || ''} {c.city ? `· ${c.city}` : ''}</div>
+                </div>
+                {linkedCompany?.id === c.id && <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

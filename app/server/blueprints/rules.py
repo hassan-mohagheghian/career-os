@@ -13,15 +13,15 @@ bp = Blueprint('rules', __name__)
 @bp.route('/api/rules')
 def get_rules():
     conn = get_db()
-    rows = conn.execute('SELECT * FROM preferences ORDER BY rule_type, category, priority').fetchall()
+    rows = conn.execute('SELECT * FROM preferences ORDER BY scope, category, priority').fetchall()
     conn.close()
     result = {}
     for row in rows:
         r = dict(row)
-        rt = r.get('rule_type', 'job')
-        if rt not in result:
-            result[rt] = []
-        result[rt].append(r)
+        scope = r.get('scope', 'JOB')
+        if scope not in result:
+            result[scope] = []
+        result[scope].append(r)
     return stream_json(result)
 
 
@@ -30,9 +30,10 @@ def create_rule():
     data = request.get_json()
     conn = get_db()
     for item in data.get('rules', []):
-        conn.execute('''INSERT OR REPLACE INTO preferences (category, rule_type, key, value, description, priority, score_weight, enabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (item['category'], item.get('rule_type', 'job'), item['key'], item['value'],
+        scope = item.get('scope', item.get('rule_type', 'JOB'))
+        conn.execute('''INSERT OR REPLACE INTO preferences (category, rule_type, scope, key, value, description, priority, score_weight, enabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (item['category'], item.get('rule_type', 'job'), scope, item['key'], item['value'],
              item.get('description', ''), item.get('priority', 0),
              item.get('score_weight', 0), item.get('enabled', 1)))
     conn.commit()
@@ -46,7 +47,7 @@ def update_rule(id):
     conn = get_db()
     fields = []
     values = []
-    for key in ['value', 'description', 'priority', 'enabled', 'rule_type', 'score_weight']:
+    for key in ['value', 'description', 'priority', 'enabled', 'rule_type', 'scope', 'score_weight']:
         if key in data:
             fields.append(f'{key}=?')
             values.append(data[key])

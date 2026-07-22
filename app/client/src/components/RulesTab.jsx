@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PencilSimple, Trash, Check, X, Plus, ArrowUp, ArrowDown, Wrench, Target, DotsSixVertical, Users, Buildings, Briefcase } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Check, X, Plus, ArrowUp, ArrowDown, Target, DotsSixVertical, Users, Buildings, Briefcase, Handshake } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,11 +14,20 @@ import { CSS } from '@dnd-kit/utilities'
 
 const API = '/api'
 
-const RULE_TYPES = {
-  shared: { label: 'Shared', color: 'bg-purple-500/15 text-purple-500 border-purple-500/30', icon: <Users className="w-4 h-4" />, header: 'text-purple-500', headerBg: 'bg-purple-500/5', headerBorder: 'border-purple-500/20', desc: 'Used for both Job and Company processing' },
-  job: { label: 'Job', color: 'bg-blue-500/15 text-blue-500 border-blue-500/30', icon: <Briefcase className="w-4 h-4" />, header: 'text-blue-500', headerBg: 'bg-blue-500/5', headerBorder: 'border-blue-500/20', desc: 'Only used for Job scoring' },
-  company: { label: 'Company', color: 'bg-green-500/15 text-green-500 border-green-500/30', icon: <Buildings className="w-4 h-4" />, header: 'text-green-500', headerBg: 'bg-green-500/5', headerBorder: 'border-green-500/20', desc: 'Only used for Company scoring' },
+const SCOPE_CONFIG = {
+  SHARED: { label: 'Shared', color: 'bg-purple-500/15 text-purple-500 border-purple-500/30', icon: <Users className="w-4 h-4" />, header: 'text-purple-500', headerBg: 'bg-purple-500/5', headerBorder: 'border-purple-500/20', desc: 'Applied to all entity types' },
+  JOB: { label: 'Job', color: 'bg-blue-500/15 text-blue-500 border-blue-500/30', icon: <Briefcase className="w-4 h-4" />, header: 'text-blue-500', headerBg: 'bg-blue-500/5', headerBorder: 'border-blue-500/20', desc: 'Applied only to job scoring' },
+  COMPANY_PRODUCT: { label: 'Product Company', color: 'bg-green-500/15 text-green-500 border-green-500/30', icon: <Buildings className="w-4 h-4" />, header: 'text-green-500', headerBg: 'bg-green-500/5', headerBorder: 'border-green-500/20', desc: 'Applied to product/engineering companies' },
+  COMPANY_RECRUITING: { label: 'Recruiting', color: 'bg-orange-500/15 text-orange-500 border-orange-500/30', icon: <Handshake className="w-4 h-4" />, header: 'text-orange-500', headerBg: 'bg-orange-500/5', headerBorder: 'border-orange-500/20', desc: 'Applied to recruiting/staffing companies' },
 }
+
+const FILTER_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'SHARED', label: 'Shared' },
+  { id: 'JOB', label: 'Jobs' },
+  { id: 'COMPANY_PRODUCT', label: 'Product Company' },
+  { id: 'COMPANY_RECRUITING', label: 'Recruiting' },
+]
 
 function PriorityBadge({ p }) {
   if (p >= 90) return <Badge className="text-[0.45rem] px-1 h-3.5 bg-red-500/15 text-red-500 border-red-500/30 shrink-0">Critical</Badge>
@@ -27,17 +36,23 @@ function PriorityBadge({ p }) {
   return <Badge variant="outline" className="text-[0.45rem] px-1 h-3.5 shrink-0">Low</Badge>
 }
 
+function ScopeBadge({ scope }) {
+  const config = SCOPE_CONFIG[scope] || SCOPE_CONFIG.SHARED
+  return <Badge variant="outline" className={cn("text-[0.4rem] px-0.5 h-2.5 shrink-0", config.color)}>{config.label}</Badge>
+}
+
 function RuleForm({ initial, onSave, onCancel }) {
-  const [f, setF] = useState(initial || { category: 'fit', rule_type: 'job', key: '', value: '', description: '', priority: 50, score_weight: 50 })
+  const [f, setF] = useState(initial || { category: 'fit', scope: 'JOB', key: '', value: '', description: '', priority: 50, score_weight: 50 })
   return (
     <div className="p-3 rounded-lg border border-dashed bg-muted/30 space-y-2">
       <div className="grid grid-cols-4 gap-2">
-        <Select value={f.rule_type} onValueChange={(v) => setF({ ...f, rule_type: v })}>
+        <Select value={f.scope} onValueChange={(v) => setF({ ...f, scope: v })}>
           <SelectTrigger className="h-7 text-[0.65rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="shared">Shared rule</SelectItem>
-            <SelectItem value="job">Job rule</SelectItem>
-            <SelectItem value="company">Company rule</SelectItem>
+            <SelectItem value="SHARED">Shared (ALL)</SelectItem>
+            <SelectItem value="JOB">Job</SelectItem>
+            <SelectItem value="COMPANY_PRODUCT">Product Company</SelectItem>
+            <SelectItem value="COMPANY_RECRUITING">Recruiting</SelectItem>
           </SelectContent>
         </Select>
         <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
@@ -89,6 +104,7 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
               <span className="text-[0.5rem] text-muted-foreground w-3 text-right shrink-0">{idx + 1}.</span>
               <span className="text-[0.7rem] font-semibold truncate">{pref.key}</span>
               <Badge variant="outline" className="text-[0.4rem] px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
+              <ScopeBadge scope={pref.scope} />
               <PriorityBadge p={pref.priority} />
               <span className="text-[0.45rem] text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
             </div>
@@ -107,8 +123,8 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
   )
 }
 
-function RuleColumn({ type, prefs, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority, onAdd, onReorder, showAdd, setShowAdd }) {
-  const meta = RULE_TYPES[type]
+function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority, onAdd, onReorder, showAdd, setShowAdd }) {
+  const meta = SCOPE_CONFIG[scope]
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const ids = prefs.map(p => p.id)
 
@@ -118,29 +134,24 @@ function RuleColumn({ type, prefs, editing, onEdit, onSave, onCancel, onToggle, 
     const oldIndex = prefs.findIndex(p => p.id === active.id)
     const newIndex = prefs.findIndex(p => p.id === over.id)
     const reordered = arrayMove(prefs, oldIndex, newIndex)
-    onReorder(type, reordered)
+    onReorder(scope, reordered)
   }
 
   return (
     <div className="flex flex-col min-w-0">
-      {/* Column header */}
       <div className={cn("flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0", meta.headerBg, meta.headerBorder)}>
         <span className={meta.header}>{meta.icon}</span>
         <span className={cn("text-sm font-bold", meta.header)}>{meta.label} Rules</span>
         <Badge variant="secondary" className="text-[0.5rem] ml-auto">{prefs.filter(p => p.enabled).length}/{prefs.length}</Badge>
       </div>
-      {/* Column body */}
       <div className={cn("rounded-b-lg border p-2 space-y-0.5 max-h-[600px] overflow-y-auto", meta.headerBorder)}>
         <div className="text-[0.5rem] text-muted-foreground mb-1">{meta.desc}</div>
-        {/* Add button */}
-        <Button variant="ghost" size="sm" className="h-6 text-[0.55rem] gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : type)}>
+        <Button variant="ghost" size="sm" className="h-6 text-[0.55rem] gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : scope)}>
           <Plus className="w-2.5 h-2.5" /> Add rule
         </Button>
-        {/* Add form */}
-        {showAdd === type && (
-          <RuleForm initial={{ category: 'fit', rule_type: type, key: '', value: '', description: '', priority: 50, score_weight: 50 }} onSave={(form) => { onAdd(form); setShowAdd(null) }} onCancel={() => setShowAdd(null)} />
+        {showAdd === scope && (
+          <RuleForm initial={{ category: 'fit', scope: scope, key: '', value: '', description: '', priority: 50, score_weight: 50 }} onSave={(form) => { onAdd(form); setShowAdd(null) }} onCancel={() => setShowAdd(null)} />
         )}
-        {/* Rules list — sortable */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             {prefs.map((pref, idx) => (
@@ -158,19 +169,20 @@ function RuleColumn({ type, prefs, editing, onEdit, onSave, onCancel, onToggle, 
 export default function RulesTab({ rules, onUpdate }) {
   const [editing, setEditing] = useState(null)
   const [showAdd, setShowAdd] = useState(null)
+  const [filter, setFilter] = useState('all')
 
   const api = async (method, path, body) => {
     await fetch(`${API}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
     onUpdate()
   }
 
-  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight }); setEditing(null) }
+  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight, scope: form.scope }); setEditing(null) }
   const handleToggle = async (id, enabled) => api('PUT', `/rules/${id}`, { enabled: enabled ? 1 : 0 })
   const handleDelete = async (id) => api('DELETE', `/rules/${id}`)
-  const handleAdd = async (form) => { await api('POST', '/rules', { rules: [form] }) }
+  const handleAdd = async (form) => { await api('POST', '/rules', { rules: [{ ...form, rule_type: form.scope === 'SHARED' ? 'shared' : form.scope === 'JOB' ? 'job' : form.scope === 'COMPANY_PRODUCT' ? 'company' : 'recruiter' }] }) }
   const handlePriority = async (id, delta, current) => api('PUT', `/rules/${id}`, { priority: Math.max(0, Math.min(100, current + delta)) })
 
-  const handleReorder = async (type, reordered) => {
+  const handleReorder = async (scope, reordered) => {
     const total = reordered.length
     const updates = reordered.map((rule, i) => {
       const newPriority = Math.max(1, Math.round(100 - (i / Math.max(total - 1, 1)) * 99))
@@ -181,32 +193,61 @@ export default function RulesTab({ rules, onUpdate }) {
 
   if (!rules) return <div className="text-center py-12 text-muted-foreground">Loading rules...</div>
 
-  const sharedRules = (rules.shared || []).sort((a, b) => b.priority - a.priority)
-  const jobRules = (rules.job || []).sort((a, b) => b.priority - a.priority)
-  const companyRules = (rules.company || []).sort((a, b) => b.priority - a.priority)
-  const total = sharedRules.length + jobRules.length + companyRules.length
-  const enabled = sharedRules.filter(r => r.enabled).length + jobRules.filter(r => r.enabled).length + companyRules.filter(r => r.enabled).length
+  // Group rules by scope
+  const allRules = []
+  const scopeGroups = {}
+  for (const [scope, items] of Object.entries(rules)) {
+    const sorted = (items || []).sort((a, b) => b.priority - a.priority)
+    scopeGroups[scope] = sorted
+    allRules.push(...sorted)
+  }
+
+  const total = allRules.length
+  const enabled = allRules.filter(r => r.enabled).length
+
+  // Filter rules based on active filter
+  const getFilteredScopes = () => {
+    if (filter === 'all') return Object.keys(SCOPE_CONFIG)
+    return [filter]
+  }
+
+  const filteredScopes = getFilteredScopes().filter(s => scopeGroups[s]?.length > 0)
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-extrabold">Scoring Rules</h2>
-          <p className="text-[0.65rem] text-muted-foreground">{enabled}/{total} active — Shared rules apply to both Job and Company scoring</p>
+          <p className="text-[0.65rem] text-muted-foreground">{enabled}/{total} active — Shared rules apply to all entity types</p>
         </div>
       </div>
 
-      {/* Three columns */}
-      <div className="grid grid-cols-3 gap-3">
-        <RuleColumn type="shared" prefs={sharedRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
-          onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
-          onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
-        <RuleColumn type="job" prefs={jobRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
-          onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
-          onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
-        <RuleColumn type="company" prefs={companyRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
-          onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
-          onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-1">
+        {FILTER_TABS.map(tab => {
+          const count = tab.id === 'all' ? total : (scopeGroups[tab.id]?.length || 0)
+          return (
+            <Button
+              key={tab.id}
+              variant={filter === tab.id ? 'default' : 'outline'}
+              size="sm"
+              className={cn("h-6 text-[0.55rem] gap-1", filter === tab.id && "bg-primary text-primary-foreground")}
+              onClick={() => setFilter(tab.id)}
+            >
+              {tab.label}
+              <span className="text-[0.45rem] opacity-70">({count})</span>
+            </Button>
+          )
+        })}
+      </div>
+
+      {/* Rule columns */}
+      <div className={cn("gap-3", filteredScopes.length <= 3 ? "grid grid-cols-3" : filteredScopes.length <= 4 ? "grid grid-cols-4" : "grid grid-cols-3")}>
+        {filteredScopes.map(scope => (
+          <RuleColumn key={scope} scope={scope} prefs={scopeGroups[scope] || []} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
+            onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
+            onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
+        ))}
       </div>
     </div>
   )

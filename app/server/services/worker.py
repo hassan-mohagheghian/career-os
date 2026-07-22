@@ -492,21 +492,18 @@ def _load_rules(context='job'):
     """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
 
     Args:
-        context: 'job' loads shared + job rules, 'company' loads shared + company rules.
+        context: 'job' loads SHARED + JOB rules only.
+                 'company' loads SHARED + company-type rules (caller must pass correct scopes).
+
+    Validation: Job processor must NEVER load COMPANY_PRODUCT or COMPANY_RECRUITING rules.
     """
     conn = _db()
-    if context == 'company':
-        rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
-            "ORDER BY priority DESC"
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT category, rule_type, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'job') "
-            "ORDER BY priority DESC"
-        ).fetchall()
+    # Only load SHARED and JOB rules for job processing — never company rules
+    rows = conn.execute(
+        "SELECT category, scope, key, value, description, priority, score_weight "
+        "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
+        "ORDER BY priority DESC"
+    ).fetchall()
     conn.close()
     if not rows:
         return "No scoring rules set."

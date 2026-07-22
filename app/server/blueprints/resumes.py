@@ -244,7 +244,7 @@ def generate_cover(num):
         conn = get_db()
         rule_rows = conn.execute(
             "SELECT key, value, priority, score_weight FROM preferences "
-            "WHERE enabled=1 AND rule_type IN ('shared', 'job') "
+            "WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
             "ORDER BY priority DESC"
         ).fetchall()
         conn.close()
