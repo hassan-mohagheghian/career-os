@@ -65,8 +65,9 @@ function App() {
   } = useResume(showToast)
 
   const {
-    analysis, intelligenceSubTab, setIntelligenceSubTab, refreshing,
-    fetchAnalysis, refreshAnalysis, refreshStrategy, refreshNetworking,
+    analysis, timestamps, intelligenceSubTab, setIntelligenceSubTab, refreshing,
+    fetchAnalysis, fetchTimestamps, getLastUpdated,
+    refreshAnalysis, refreshStrategy, refreshNetworking,
     refreshSkills, refreshMarket, refreshOpportunity
   } = useIntelligence(refreshJobs)
 
@@ -98,6 +99,7 @@ function App() {
     fetchPending()
     fetchRules()
     fetchAnalysis()
+    fetchTimestamps()
     fetchCompanies()
     fetchPendingCompanies()
   }, [])
@@ -253,7 +255,7 @@ function App() {
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
             )}
             {tab === 'intelligence' && (
-              <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
+              <IntelligenceTab analysis={analysis} timestamps={timestamps} getLastUpdated={getLastUpdated} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
             )}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={fetchResumes} onRefreshLinkedin={fetchLinkedin} />}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}

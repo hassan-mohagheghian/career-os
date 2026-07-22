@@ -571,8 +571,13 @@ def _update_skills_insights(pid):
     """Legacy wrapper — delegates to _update_skills_analysis."""
     _update_skills_analysis(pid)
 
-def _save_analysis(insights, legacy=True):
-    """Save analysis to DB. Merge with existing if partial update."""
+def _save_analysis(insights, section=None):
+    """Save analysis to DB. Merge with existing. Track per-section timestamps.
+
+    Args:
+        insights: dict of analysis data to save
+        section: optional section name (e.g., 'market', 'strategy') to track timestamp
+    """
     conn = _db()
     now = datetime.now().isoformat()
 
@@ -589,34 +594,21 @@ def _save_analysis(insights, legacy=True):
     else:
         merged = insights
 
+    # Ensure metadata structure exists
+    if 'metadata' not in merged:
+        merged['metadata'] = {}
+    if 'lastUpdated' not in merged['metadata']:
+        merged['metadata']['lastUpdated'] = {}
+
+    # Update per-section timestamp
+    if section:
+        merged['metadata']['lastUpdated'][section] = now
+
+    # Update overall timestamp
+    merged['metadata']['lastUpdated']['all'] = now
+
     conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
         ('intelligence', now, json.dumps(merged, ensure_ascii=False)))
-
-    if legacy:
-        # Update legacy tables for backward compatibility
-        conn.execute('DELETE FROM dashboard_insights')
-        for item_type in ['strategy', 'strengths', 'weaknesses', 'visa_companies', 'apply_urgency']:
-            items = merged.get(item_type, [])
-            if isinstance(items, list):
-                for i, item in enumerate(items):
-                    conn.execute('''INSERT INTO dashboard_insights (type, icon, title, description, priority)
-                        VALUES (?, ?, ?, ?, ?)''',
-                        (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
-                         item.get('description', item.get('detail', item.get('note', ''))), i))
-        if 'techLearning' in merged:
-            conn.execute('DELETE FROM tech_learning')
-            for t in merged['techLearning']:
-                conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-                    (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
-                     t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
-                     t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
-        if 'techStack' in merged:
-            conn.execute('DELETE FROM tech_stack')
-            for t in merged['techStack']:
-                conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
-                    (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
-                     t.get('roles', ''), t.get('path', '')))
 
     conn.commit(); conn.close()
     return merged
@@ -646,7 +638,7 @@ def _update_strategy_analysis(pid):
         sections = ['overview', 'strategy', 'strengths', 'weaknesses', 'visa_companies',
                      'apply_urgency', 'goals', 'improvements', 'searchSummary', 'cities']
         filtered = {k: v for k, v in result.items() if k in sections}
-        _save_analysis(filtered, legacy=False)
+        _save_analysis(filtered, section='strategy')
         print(f"[worker] Strategy analysis updated")
     else:
         print(f"[worker] Strategy analysis failed")
@@ -656,7 +648,7 @@ def _update_networking_analysis(pid):
     result = _run_analysis_prompt('analysis_update', pid=pid)
     if result:
         filtered = {'networking': result.get('networking', [])}
-        _save_analysis(filtered, legacy=False)
+        _save_analysis(filtered, section='networking')
         print(f"[worker] Networking analysis updated")
     else:
         print(f"[worker] Networking analysis failed")
@@ -667,33 +659,38 @@ def _update_skills_analysis(pid):
     if result:
         sections = ['techStack', 'techLearning', 'skillJobFit', 'learningROI']
         filtered = {k: v for k, v in result.items() if k in sections}
-        _save_analysis(filtered, legacy=False)
-        # Also update legacy tables
-        conn = _db()
-        if 'techLearning' in result:
-            conn.execute('DELETE FROM tech_learning')
-            for t in result['techLearning']:
-                conn.execute('''INSERT INTO tech_learning (name,priority,pl,pc,sc,dc,usage,uc,jobs,jd,reason,action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-                    (t['name'], t.get('priority', 1), t.get('pl', ''), t.get('pc', 'p3'),
-                     t.get('sc', ''), t.get('dc', ''), t.get('usage', 0), t.get('uc', ''),
-                     t.get('jobs', ''), t.get('jd', ''), t.get('reason', ''), t.get('action', '')))
-        if 'techStack' in result:
-            conn.execute('DELETE FROM tech_stack')
-            for t in result['techStack']:
-                conn.execute('''INSERT INTO tech_stack (name,level,ml,mc,roles,path) VALUES (?,?,?,?,?,?)''',
-                    (t['name'], t.get('level', 3), t.get('ml', ''), t.get('mc', 'p3'),
-                     t.get('roles', ''), t.get('path', '')))
-        conn.commit(); conn.close()
+        _save_analysis(filtered, section='skills')
         print(f"[worker] Skills analysis updated")
     else:
         print(f"[worker] Skills analysis failed")
+
+def _update_market_analysis(pid):
+    """Refresh market tab only."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        sections = ['market', 'searchSummary', 'cities']
+        filtered = {k: v for k, v in result.items() if k in sections}
+        _save_analysis(filtered, section='market')
+        print(f"[worker] Market analysis updated")
+    else:
+        print(f"[worker] Market analysis failed")
+
+def _update_opportunity_analysis(pid):
+    """Refresh opportunity tab only."""
+    result = _run_analysis_prompt('analysis_update', pid=pid)
+    if result:
+        sections = ['opportunity', 'apply_urgency', 'visa_companies']
+        filtered = {k: v for k, v in result.items() if k in sections}
+        _save_analysis(filtered, section='opportunity')
+        print(f"[worker] Opportunity analysis updated")
+    else:
+        print(f"[worker] Opportunity analysis failed")
 
 def _update_unified_analysis(pid):
     """Refresh All: regenerate everything."""
     result = _run_analysis_prompt('analysis_update', pid=pid)
     if result:
-        _save_analysis(result, legacy=True)
+        _save_analysis(result, section='all')
         print(f"[worker] Unified analysis updated")
     else:
         print(f"[worker] Unified analysis failed")
