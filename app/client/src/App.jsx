@@ -289,7 +289,7 @@ function App() {
       <WorkflowTerminal workflowDrawer={workflowDrawer} workflowLogs={workflowLogs} workflowEndRef={workflowEndRef} onClose={closeWorkflow} />
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all duration-300 bg-green-500">
+        <div className="fixed bottom-6 left-6 z-[300] px-4 py-2 rounded-lg text-sm font-bold text-white shadow-lg transition-all duration-300 bg-green-500">
           {toast}
         </div>
       )}

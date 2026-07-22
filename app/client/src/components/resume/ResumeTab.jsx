@@ -12,8 +12,11 @@ import ResumePreview from '@/components/shared/ResumePreview'
 
 const API = '/api'
 
+function showToast(msg) {
+  window.dispatchEvent(new CustomEvent('toast', { detail: msg }))
+}
+
 export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes, onRefreshLinkedin }) {
-  const [toast, setToast] = useState(null)
   const [viewingItem, setViewingItem] = useState(null)
   const [subTab, setSubTab] = useState('resume')
 
@@ -32,8 +35,6 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
 
   const sortedProfiles = linkedinProfiles.filter(p => p.id?.startsWith('linkedin_')).sort((a, b) => (b.version || 0) - (a.version || 0))
   const latestProfile = sortedProfiles[0]
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2000) }
 
   // ─── Resume handlers ───
   const handleResumeUpload = async () => {
@@ -99,8 +100,6 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
 
   return (
     <div className="space-y-4">
-      {toast && <div className="fixed top-14 right-4 z-[200] px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground">{toast}</div>}
-
       <div className="flex items-center gap-3">
         <FileText className="w-5 h-5 text-primary" />
         <h2 className="text-xl font-extrabold">Profile & Resume</h2>
