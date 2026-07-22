@@ -33,6 +33,7 @@ import { JobCard, getScoreColor, getMatchClass, LocationBadge, VisaBadge, WorkTy
 import ResumeTab from '@/components/ResumeTab'
 import RulesTab from '@/components/RulesTab'
 import { MultiSelect } from '@/components/MultiSelect'
+import CompaniesPage from '@/components/CompaniesPage'
 
 const API = '/api'
 
@@ -83,6 +84,8 @@ function App() {
   const [analysis, setAnalysis] = useState(null)
   const [intelligenceSubTab, setIntelligenceSubTab] = useState('market')
   const [refreshing, setRefreshing] = useState({})
+  const [companies, setCompanies] = useState([])
+  const [pendingCompanies, setPendingCompanies] = useState([])
 
   // Toast listener
   useEffect(() => {
@@ -107,11 +110,13 @@ function App() {
       setJobs(jobsData.jobs || []); setJobsTotal(jobsData.total || 0); setJobAgg(jobsData.agg || {}); setJobsPage(0)
       setSummaries(sums); setResumes(res); setLinkedinProfiles(linkedin); setCities(cits)
     })
-    fetchPending(); fetchRules(); fetchAnalysis()
+    fetchPending(); fetchRules(); fetchAnalysis(); fetchCompanies(); fetchPendingCompanies()
   }, [])
 
   const fetchRules = () => fetch(`${API}/rules`).then(r => r.json()).then(setRules)
   const fetchAnalysis = () => fetch(`${API}/intelligence`).then(r => r.ok ? r.json() : null).then(data => setAnalysis(data)).catch(() => setAnalysis(null))
+  const fetchCompanies = () => fetch(`${API}/companies`).then(r => r.json()).then(setCompanies)
+  const fetchPendingCompanies = () => fetch(`${API}/pending-companies`).then(r => r.json()).then(setPendingCompanies)
 
   const seenDoneRef = useRef(new Set())
   const refreshJobs = () => {
@@ -167,6 +172,19 @@ function App() {
     const poll = setInterval(() => { fetchPending().then(checkDone); refreshJobs() }, 5000)
     return () => { es?.close(); clearInterval(poll) }
   }, [sortBy, sortDir, filterCities, filterCompanies, filterMatches, filterWorkTypes, filterEmploymentTypes, filterTech, filterResponseStatus, filterApplied])
+
+  // Pending companies SSE stream
+  useEffect(() => {
+    let es
+    const connect = () => {
+      es = new EventSource(`${API}/pending-companies/stream`)
+      es.onmessage = (e) => { try { const list = JSON.parse(e.data); setPendingCompanies(list); if (list.some(p => p.status === 'done')) fetchCompanies() } catch {} }
+      es.onerror = () => { es.close(); setTimeout(connect, 5000) }
+    }
+    connect()
+    const poll = setInterval(() => { fetchPendingCompanies(); fetchCompanies() }, 5000)
+    return () => { es?.close(); clearInterval(poll) }
+  }, [])
 
   useEffect(() => {
     const onHash = () => { const h = window.location.hash.replace('#', ''); if (h && h !== tab) setTab(h) }
@@ -315,14 +333,20 @@ function App() {
 
   const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length + filterWorkTypes.length + filterEmploymentTypes.length + filterResponseStatus.length + (filterTech ? 1 : 0) + (filterApplied ? 1 : 0)
 
-  const openDrawer = (num) => {
+  const openDrawer = async (num) => {
     if (!jobs) return
     const j = jobs.find(x => x.num === num); const s = summaries?.find(x => x.num === num)
+    // Fetch full job data (includes linked_company)
+    let fullJob = j
+    try {
+      const res = await fetch(`${API}/jobs/${num}`)
+      if (res.ok) fullJob = await res.json()
+    } catch {}
     // Find the tailored resume and cover letter for this job
     const r = resumes?.find(x => x.job_num === num && !x.id.startsWith('cover_')) ||
-              resumes?.find(x => !x.id.startsWith('original') && !x.id.startsWith('cover_') && j.company.toLowerCase().includes((x.company || '').split(' ')[0].toLowerCase().replace(/[()]/g, '')))
+              resumes?.find(x => !x.id.startsWith('original') && !x.id.startsWith('cover_') && fullJob.company.toLowerCase().includes((x.company || '').split(' ')[0].toLowerCase().replace(/[()]/g, '')))
     const cl = resumes?.find(x => x.job_num === num && x.id.startsWith('cover_'))
-    setDrawer({ job: j, summary: s, resume: r, coverLetter: cl }); setDrawerTab('details')
+    setDrawer({ job: fullJob, summary: s, resume: r, coverLetter: cl }); setDrawerTab('details')
   }
 
   const [generatingResume, setGeneratingResume] = useState(false)
@@ -380,6 +404,7 @@ function App() {
 
   const tabs = [
     { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
+    { id: 'companies', icon: <Buildings className="w-4 h-4" />, label: 'Companies', badge: companies.length, section: 'jobs' },
     { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
     { id: 'intelligence', icon: <Brain className="w-4 h-4" />, label: 'Intelligence', section: 'analysis' },
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
@@ -535,8 +560,6 @@ function App() {
                       <Badge variant="secondary" className="text-[0.5rem] h-4 bg-green-500/15 text-green-500">{filteredJobs.length}/{jobsTotal}</Badge>
                       <div className="flex items-center gap-0.5 ml-auto">
                         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refreshJobs()} title="Refresh"><ArrowsClockwise className="w-3 h-3 text-green-500" /></Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => rescoreAll()} title="Rescore all"><TrendUp className="w-3 h-3 text-primary" /></Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => reprocessAll()} title="Reprocess all"><Repeat className="w-3 h-3 text-yellow-500" /></Button>
                       </div>
                     </div>
                     <div ref={jobsScrollRef} className="flex-1 overflow-y-auto">
@@ -598,6 +621,11 @@ function App() {
               )
             })()}
 
+            {/* === COMPANIES TAB === */}
+            {tab === 'companies' && (
+              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
+            )}
+
             {/* === DASHBOARD TAB === */}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
@@ -612,7 +640,7 @@ function App() {
         </div>
       </main>
 
-      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} onClose={() => setDrawer(null)} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} />
+      <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => setDrawer(null)} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
 
       {/* Confirm Dialog */}
       <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>

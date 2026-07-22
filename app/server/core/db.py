@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
-_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, "db", "jobs.db"))
-# Resolve relative paths against the file's own directory, not CWD
-DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
+_server_dir = os.path.join(_file_dir, '..')
+_db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, "db", "jobs.db"))
+# Resolve relative paths against the server directory
+DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
 
 # Ensure db directory exists
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -43,7 +44,8 @@ def init_db():
         apply_reason TEXT,
         fit_score INTEGER,
         success_score INTEGER,
-        overall_score INTEGER
+        overall_score INTEGER,
+        company_id INTEGER
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS summaries (
@@ -179,6 +181,74 @@ def init_db():
     c.execute(
         "CREATE INDEX IF NOT EXISTS idx_analysis_runs_page_created ON analysis_runs(page, created_at DESC)"
     )
+
+    # --- Company Intelligence tables ---
+    c.execute("""CREATE TABLE IF NOT EXISTS pending_companies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        input_text TEXT NOT NULL,
+        notes TEXT DEFAULT '[]',
+        input_type TEXT DEFAULT 'url',
+        source TEXT DEFAULT 'web',
+        status TEXT DEFAULT 'pending',
+        step_fetch INTEGER DEFAULT 0,
+        step_extract INTEGER DEFAULT 0,
+        step_analyze INTEGER DEFAULT 0,
+        step_save INTEGER DEFAULT 0,
+        step_done INTEGER DEFAULT 0,
+        company_id INTEGER,
+        company_name TEXT,
+        error TEXT,
+        workflow_log TEXT DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS companies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        website TEXT,
+        domain TEXT,
+        industry TEXT,
+        country TEXT,
+        city TEXT,
+        description TEXT,
+        company_size TEXT,
+        company_type TEXT,
+        logo_url TEXT,
+        founded_year TEXT,
+        headquarters_full TEXT,
+        countries_of_operation TEXT,
+        funding_stage TEXT,
+        funding_amount TEXT,
+        products TEXT,
+        tech_stack TEXT,
+        work_environment TEXT,
+        extra TEXT,
+        processing_status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS company_intelligence (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER NOT NULL,
+        overview TEXT,
+        culture_analysis TEXT,
+        international_analysis TEXT,
+        career_analysis TEXT,
+        benefits_analysis TEXT,
+        visa_analysis TEXT,
+        technology_analysis TEXT,
+        recommendation TEXT,
+        scores TEXT,
+        raw_source_data TEXT,
+        generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (company_id) REFERENCES companies(id)
+    )""")
+
+    c.execute("CREATE INDEX IF NOT EXISTS idx_pending_companies_status ON pending_companies(status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_company_intelligence_company_id ON company_intelligence(company_id)")
 
     # Add workflow_log column if missing (for existing DBs)
     try:

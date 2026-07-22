@@ -35,18 +35,107 @@ def get_db():
                 raise
 
 def _ensure_db_schema():
-    """Add missing columns to existing tables for backward compatibility."""
+    """Add missing columns/tables to existing databases for backward compatibility."""
     conn = sqlite3.connect(DB_PATH)
+    # Jobs columns
     cursor = conn.execute('PRAGMA table_info(jobs)')
     columns = {row[1] for row in cursor.fetchall()}
     migrations = {
         'apply_time': "ALTER TABLE jobs ADD COLUMN apply_time TEXT",
         'response_time': "ALTER TABLE jobs ADD COLUMN response_time TEXT",
         'response_status': "ALTER TABLE jobs ADD COLUMN response_status TEXT",
+        'company_id': "ALTER TABLE jobs ADD COLUMN company_id INTEGER",
     }
     for col, sql in migrations.items():
         if col not in columns:
             conn.execute(sql)
+    # Company tables
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if 'pending_companies' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS pending_companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            input_text TEXT NOT NULL,
+            notes TEXT DEFAULT '[]',
+            input_type TEXT DEFAULT 'url',
+            source TEXT DEFAULT 'web',
+            status TEXT DEFAULT 'pending',
+            step_fetch INTEGER DEFAULT 0,
+            step_extract INTEGER DEFAULT 0,
+            step_analyze INTEGER DEFAULT 0,
+            step_save INTEGER DEFAULT 0,
+            step_done INTEGER DEFAULT 0,
+            company_id INTEGER,
+            company_name TEXT,
+            error TEXT,
+            workflow_log TEXT DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+    else:
+        # Add notes column if missing
+        try:
+            conn.execute("SELECT notes FROM pending_companies LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE pending_companies ADD COLUMN notes TEXT DEFAULT '[]'")
+            # Backfill: migrate existing input_text into notes array
+            rows = conn.execute("SELECT id, input_text FROM pending_companies WHERE notes='[]' OR notes IS NULL").fetchall()
+            for row in rows:
+                notes = json.dumps([{"type": "text", "content": dict(row)["input_text"]}])
+                conn.execute("UPDATE pending_companies SET notes=? WHERE id=?", (notes, dict(row)["id"]))
+    if 'companies' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            website TEXT,
+            domain TEXT,
+            industry TEXT,
+            country TEXT,
+            city TEXT,
+            description TEXT,
+            company_size TEXT,
+            company_type TEXT,
+            logo_url TEXT,
+            founded_year TEXT,
+            headquarters_full TEXT,
+            countries_of_operation TEXT,
+            funding_stage TEXT,
+            funding_amount TEXT,
+            products TEXT,
+            tech_stack TEXT,
+            work_environment TEXT,
+            extra TEXT,
+            processing_status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+    else:
+        # Add new columns to existing companies table
+        company_cols = {row[1] for row in conn.execute('PRAGMA table_info(companies)').fetchall()}
+        for col in ['founded_year', 'headquarters_full', 'countries_of_operation',
+                     'funding_stage', 'funding_amount', 'products', 'tech_stack',
+                     'work_environment', 'extra']:
+            if col not in company_cols:
+                conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
+    if 'company_intelligence' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS company_intelligence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER NOT NULL,
+            overview TEXT,
+            culture_analysis TEXT,
+            international_analysis TEXT,
+            career_analysis TEXT,
+            benefits_analysis TEXT,
+            visa_analysis TEXT,
+            technology_analysis TEXT,
+            recommendation TEXT,
+            scores TEXT,
+            raw_source_data TEXT,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id)
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_pending_companies_status ON pending_companies(status)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_company_intelligence_company_id ON company_intelligence(company_id)")
     conn.commit()
     conn.close()
 
@@ -328,10 +417,17 @@ def get_jobs():
 def get_job(num):
     conn = get_db()
     row = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    d = dict(row)
+    # Include linked company info
+    if d.get('company_id'):
+        company = conn.execute('SELECT id, name, industry, city, country, logo_url FROM companies WHERE id=?', (d['company_id'],)).fetchone()
+        if company:
+            d['linked_company'] = dict(company)
     conn.close()
-    if row:
-        return jsonify(row_to_dict(row))
-    return jsonify({'error': 'Not found'}), 404
+    return jsonify(d)
 
 @app.route('/api/jobs/<int:num>', methods=['PUT'])
 def update_job(num):
@@ -1357,6 +1453,308 @@ def reprocess_all():
     if pending_ids:
         get_queue_manager().enqueue_bulk(pending_ids)
     return jsonify({'status': 'reprocessing', 'count': len(pending_ids)})
+
+
+# ─── Company Intelligence API ────────────────────────────────────────
+
+@app.route('/api/companies', methods=['GET'])
+def get_companies():
+    conn = get_db()
+    rows = conn.execute('''SELECT c.*, ci.scores FROM companies c
+        LEFT JOIN company_intelligence ci ON ci.company_id = c.id
+        ORDER BY c.created_at DESC''').fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        d = dict(row)
+        if d.get('scores'):
+            try:
+                d['scores'] = json.loads(d['scores'])
+            except (json.JSONDecodeError, TypeError):
+                d['scores'] = {}
+        else:
+            d['scores'] = {}
+        # Parse JSON fields
+        for field in ['countries_of_operation', 'products', 'tech_stack', 'work_environment', 'extra']:
+            if d.get(field):
+                try:
+                    d[field] = json.loads(d[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        result.append(d)
+    return stream_json(result)
+
+@app.route('/api/companies', methods=['POST'])
+def add_company():
+    """Create a new pending company with initial notes.
+    Accepts: { "notes": [{"type": "url", "content": "..."}, {"type": "text", "content": "..."}] }
+    Or legacy: { "input": "..." } which wraps as a single text note.
+    """
+    data = request.get_json()
+    source = data.get('source', 'web')
+
+    # Build notes array
+    notes = data.get('notes', [])
+    if not notes:
+        # Legacy single-input fallback
+        input_text = data.get('input', '').strip()
+        if not input_text:
+            return jsonify({'error': 'Input required'}), 400
+        # Auto-detect URL vs text
+        note_type = 'url' if input_text.startswith('http') else 'text'
+        notes = [{"type": note_type, "content": input_text}]
+
+    if not notes:
+        return jsonify({'error': 'At least one note required'}), 400
+
+    # Use first note as input_text for dedup/backward compat
+    first_content = notes[0].get('content', '').strip()
+    if not first_content:
+        return jsonify({'error': 'Empty note'}), 400
+
+    conn = get_db()
+    cur = conn.execute('INSERT INTO pending_companies (input_text, notes, input_type, source, status) VALUES (?,?,?,?,?)',
+                       (first_content, json.dumps(notes, ensure_ascii=False), 'notes', source, 'pending'))
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return jsonify({'status': 'pending', 'id': new_id, 'notes': notes})
+
+@app.route('/api/companies/<int:company_id>', methods=['GET'])
+def get_company(company_id):
+    conn = get_db()
+    company = conn.execute('SELECT * FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not company:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    d = dict(company)
+    # Parse JSON fields in companies table
+    for field in ['countries_of_operation', 'products', 'tech_stack', 'work_environment', 'extra']:
+        if d.get(field):
+            try:
+                d[field] = json.loads(d[field])
+            except (json.JSONDecodeError, TypeError):
+                pass
+    intel = conn.execute('SELECT * FROM company_intelligence WHERE company_id=? ORDER BY generated_at DESC LIMIT 1',
+                         (company_id,)).fetchone()
+    if intel:
+        i = dict(intel)
+        for field in ['overview', 'culture_analysis', 'international_analysis', 'career_analysis',
+                       'benefits_analysis', 'visa_analysis', 'technology_analysis', 'recommendation', 'scores', 'raw_source_data']:
+            if i.get(field):
+                try:
+                    i[field] = json.loads(i[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        d['intelligence'] = i
+    else:
+        d['intelligence'] = None
+    conn.close()
+    return jsonify(d)
+
+@app.route('/api/companies/<int:company_id>', methods=['DELETE'])
+def delete_company(company_id):
+    conn = get_db()
+    conn.execute('DELETE FROM company_intelligence WHERE company_id=?', (company_id,))
+    conn.execute('DELETE FROM companies WHERE id=?', (company_id,))
+    # Unlink any jobs
+    conn.execute('UPDATE jobs SET company_id=NULL WHERE company_id=?', (company_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted', 'id': company_id})
+
+@app.route('/api/jobs/<int:num>/link-company', methods=['POST'])
+def link_job_to_company(num):
+    """Link a job to a company. Body: { company_id: int } or { company_id: null } to unlink."""
+    data = request.get_json(force=True)
+    company_id = data.get('company_id')
+    conn = get_db()
+    job = conn.execute('SELECT num FROM jobs WHERE num=? AND deleted=0', (num,)).fetchone()
+    if not job:
+        conn.close()
+        return jsonify({'error': 'Job not found'}), 404
+    if company_id is not None:
+        company = conn.execute('SELECT id, name FROM companies WHERE id=?', (company_id,)).fetchone()
+        if not company:
+            conn.close()
+            return jsonify({'error': 'Company not found'}), 404
+    conn.execute('UPDATE jobs SET company_id=? WHERE num=?', (company_id, num))
+    conn.commit()
+    row = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
+    conn.close()
+    return jsonify({'status': 'linked', 'num': num, 'company_id': company_id})
+
+@app.route('/api/companies/<int:company_id>/jobs', methods=['GET'])
+def get_company_jobs(company_id):
+    """Get all jobs linked to a company."""
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM jobs WHERE company_id=? AND deleted=0 ORDER BY created_at DESC', (company_id,)).fetchall()
+    conn.close()
+    return stream_json(rows_to_list(rows))
+
+@app.route('/api/companies/<int:company_id>/reprocess', methods=['POST'])
+def reprocess_company(company_id):
+    conn = get_db()
+    company = conn.execute('SELECT * FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not company:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    c = dict(company)
+    # Delete old intelligence
+    conn.execute('DELETE FROM company_intelligence WHERE company_id=?', (company_id,))
+    # Update company status
+    conn.execute('UPDATE companies SET processing_status=? WHERE id=?', ('pending', company_id))
+    # Create pending entry with notes from company data
+    notes = []
+    if c.get('website'):
+        notes.append({"type": "url", "content": c['website']})
+    if c.get('name'):
+        notes.append({"type": "text", "content": f"Company: {c['name']}"})
+    if c.get('industry'):
+        notes.append({"type": "text", "content": f"Industry: {c['industry']}"})
+    if c.get('description'):
+        notes.append({"type": "text", "content": c['description']})
+    if not notes:
+        notes = [{"type": "text", "content": c.get('name', 'Unknown company')}]
+    cur = conn.execute('INSERT INTO pending_companies (input_text, notes, input_type, source, company_id, company_name, status) VALUES (?,?,?,?,?,?,?)',
+                       (notes[0]['content'], json.dumps(notes, ensure_ascii=False), 'notes', 'reprocess', company_id, c.get('name', ''), 'pending'))
+    conn.commit()
+    pid = cur.lastrowid
+    conn.close()
+    # Don't auto-queue — stays in pending for user to process manually
+    return jsonify({'status': 'pending', 'pending_id': pid})
+
+@app.route('/api/pending-companies', methods=['GET'])
+def get_pending_companies():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM pending_companies ORDER BY created_at DESC').fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        d = dict(row)
+        # Parse notes JSON
+        if d.get('notes'):
+            try:
+                d['notes'] = json.loads(d['notes'])
+            except (json.JSONDecodeError, TypeError):
+                d['notes'] = []
+        else:
+            d['notes'] = []
+        result.append(d)
+    return stream_json(result)
+
+@app.route('/api/pending-companies', methods=['POST'])
+def add_pending_company():
+    """Add a note to an existing pending company, or create a new one."""
+    data = request.get_json()
+    company_id = data.get('company_id')
+    note_content = data.get('note', '').strip()
+    note_type = data.get('note_type', 'text')
+
+    if not note_content:
+        return jsonify({'error': 'Note content required'}), 400
+
+    conn = get_db()
+
+    if company_id:
+        # Add note to existing pending company
+        row = conn.execute('SELECT id, notes, status FROM pending_companies WHERE id=? AND company_id=? AND status NOT IN (?,?)',
+                           (company_id, company_id, 'done', 'failed')).fetchone()
+        if not row:
+            # Try finding by company_id in pending
+            row = conn.execute('SELECT id, notes, status FROM pending_companies WHERE company_id=? AND status NOT IN (?,?)',
+                               (company_id, 'done', 'failed')).fetchone()
+        if row:
+            r = dict(row)
+            notes = json.loads(r['notes'] or '[]')
+            notes.append({"type": note_type, "content": note_content})
+            conn.execute('UPDATE pending_companies SET notes=?, input_text=?, updated_at=? WHERE id=?',
+                         (json.dumps(notes, ensure_ascii=False), note_content, datetime.now().isoformat(), r['id']))
+            conn.commit()
+            conn.close()
+            return jsonify({'status': 'updated', 'id': r['id'], 'notes': notes})
+        else:
+            conn.close()
+            return jsonify({'error': 'Pending company not found'}), 404
+    else:
+        # Create new pending company with single note
+        note_type = 'url' if note_content.startswith('http') else 'text'
+        notes = [{"type": note_type, "content": note_content}]
+        cur = conn.execute('INSERT INTO pending_companies (input_text, notes, input_type, source, status) VALUES (?,?,?,?,?)',
+                           (note_content, json.dumps(notes, ensure_ascii=False), 'notes', 'web', 'pending'))
+        conn.commit()
+        new_id = cur.lastrowid
+        conn.close()
+        return jsonify({'status': 'pending', 'id': new_id, 'notes': notes})
+
+@app.route('/api/pending-companies/<int:id>', methods=['DELETE'])
+def delete_pending_company(id):
+    conn = get_db()
+    conn.execute('DELETE FROM pending_companies WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted'})
+
+@app.route('/api/pending-companies/<int:id>/process', methods=['POST'])
+def process_pending_company(id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pending_companies WHERE id=?', (id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    item = dict(row)
+    if item['status'] in ('done', 'processing', 'queued'):
+        conn.close()
+        return jsonify({'error': f'Cannot process: {item["status"]}'}), 400
+    if item['status'] == 'failed':
+        conn.execute('UPDATE pending_companies SET error=NULL, step_fetch=0, step_extract=0, step_analyze=0, step_save=0, step_done=0, updated_at=? WHERE id=?',
+                     (datetime.now().isoformat(), id))
+        conn.commit()
+    conn.close()
+    get_queue_manager().enqueue(id, table='pending_companies')
+    return jsonify({'status': 'queued', 'id': id})
+
+@app.route('/api/pending-companies/<int:id>/reset', methods=['PUT'])
+def reset_pending_company(id):
+    conn = get_db()
+    conn.execute('''UPDATE pending_companies SET status='pending', error=NULL,
+        step_fetch=0, step_extract=0, step_analyze=0, step_save=0, step_done=0,
+        updated_at=? WHERE id=?''', (datetime.now().isoformat(), id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'pending', 'id': id})
+
+@app.route('/api/pending-companies/stream')
+def stream_pending_companies():
+    """SSE endpoint for real-time pending company updates."""
+    import time
+    def generate():
+        last_hash = ''
+        while True:
+            conn = get_db()
+            rows = conn.execute('SELECT * FROM pending_companies ORDER BY created_at DESC').fetchall()
+            conn.close()
+            result = []
+            for row in rows:
+                d = dict(row)
+                # Parse notes JSON
+                if d.get('notes'):
+                    try:
+                        d['notes'] = json.loads(d['notes'])
+                    except (json.JSONDecodeError, TypeError):
+                        d['notes'] = []
+                else:
+                    d['notes'] = []
+                result.append(d)
+            data = json.dumps(result, ensure_ascii=False)
+            current_hash = str(hash(data))
+            if current_hash != last_hash:
+                last_hash = current_hash
+                yield f'data: {data}\n\n'
+            time.sleep(2)
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
 
 def static_proxy(path):
     file_path = os.path.join(app.static_folder, path)

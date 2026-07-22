@@ -73,22 +73,30 @@ class JobQueueManager:
         self._running = False
         self._slot_event.set()  # wake all workers so they can exit
 
-    def enqueue(self, pending_id: int):
-        """Move a pending job to queued status with the next queue_order."""
+    def enqueue(self, pending_id: int, table: str = 'pending_jobs'):
+        """Move a pending job/company to queued status."""
         conn = _db()
         try:
-            row = conn.execute(
-                "SELECT MAX(queue_order) as max_q FROM pending_jobs WHERE status='queued'"
-            ).fetchone()
-            next_order = (dict(row)["max_q"] or 0) + 1
-
-            conn.execute(
-                """UPDATE pending_jobs SET status='queued', queue_order=?, error=NULL,
-                   updated_at=? WHERE id=?""",
-                (next_order, datetime.now().isoformat(), pending_id),
-            )
-            conn.commit()
-            logger.info(f"[queue] Enqueued job {pending_id} (order={next_order})")
+            if table == 'pending_companies':
+                conn.execute(
+                    """UPDATE pending_companies SET status='queued', error=NULL,
+                       updated_at=? WHERE id=?""",
+                    (datetime.now().isoformat(), pending_id),
+                )
+                conn.commit()
+                logger.info(f"[queue] Enqueued company {pending_id}")
+            else:
+                row = conn.execute(
+                    "SELECT MAX(queue_order) as max_q FROM pending_jobs WHERE status='queued'"
+                ).fetchone()
+                next_order = (dict(row)["max_q"] or 0) + 1
+                conn.execute(
+                    """UPDATE pending_jobs SET status='queued', queue_order=?, error=NULL,
+                       updated_at=? WHERE id=?""",
+                    (next_order, datetime.now().isoformat(), pending_id),
+                )
+                conn.commit()
+                logger.info(f"[queue] Enqueued job {pending_id} (order={next_order})")
         finally:
             conn.close()
 
@@ -154,11 +162,24 @@ class JobQueueManager:
             pending_count = conn.execute(
                 "SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='pending'"
             ).fetchone()["cnt"]
+            # Company stats
+            company_processing = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_companies WHERE status='processing'"
+            ).fetchone()["cnt"]
+            company_queued = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_companies WHERE status='queued'"
+            ).fetchone()["cnt"]
+            company_pending = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_companies WHERE status='pending'"
+            ).fetchone()["cnt"]
             return {
                 "processing": [dict(r) for r in processing_rows],
                 "processing_count": len(processing_rows),
                 "queued_count": queued_count,
                 "pending_count": pending_count,
+                "company_processing_count": company_processing,
+                "company_queued_count": company_queued,
+                "company_pending_count": company_pending,
                 "concurrency": self._concurrency,
                 "running": self._running,
             }
@@ -168,9 +189,10 @@ class JobQueueManager:
     # ── Internal methods ──────────────────────────────────────────
 
     def _reset_processing_orphans(self):
-        """On startup: reset any orphaned 'processing' jobs to 'queued'."""
+        """On startup: reset any orphaned 'processing' jobs/companies to 'queued'."""
         conn = _db()
         try:
+            # Jobs
             row = conn.execute(
                 "SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'"
             ).fetchone()
@@ -180,7 +202,6 @@ class JobQueueManager:
                     "SELECT MAX(queue_order) as max_q FROM pending_jobs WHERE status='queued'"
                 ).fetchone()
                 next_order = (dict(max_row)["max_q"] or 0) + 1
-
                 conn.execute(
                     """UPDATE pending_jobs SET status='queued', queue_order=?, error=NULL,
                        updated_at=? WHERE status='processing'""",
@@ -188,6 +209,20 @@ class JobQueueManager:
                 )
                 conn.commit()
                 logger.info(f"[queue] Recovered {count} orphaned processing job(s) → queued")
+
+            # Companies
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_companies WHERE status='processing'"
+            ).fetchone()
+            count = row["cnt"]
+            if count > 0:
+                conn.execute(
+                    """UPDATE pending_companies SET status='queued', error=NULL,
+                       updated_at=? WHERE status='processing'""",
+                    (datetime.now().isoformat(),),
+                )
+                conn.commit()
+                logger.info(f"[queue] Recovered {count} orphaned processing company/companies → queued")
         finally:
             conn.close()
 
@@ -220,7 +255,7 @@ class JobQueueManager:
         return any_done and not all_done
 
     def _pick_and_claim(self) -> Optional[dict]:
-        """Atomically pick the next queued job and mark it as processing.
+        """Atomically pick the next queued job/company and mark it as processing.
 
         Enforces global concurrency limit at the DB level — checks actual
         processing count in the DB, not just in-memory counter, so the limit
@@ -228,14 +263,39 @@ class JobQueueManager:
         """
         conn = _db()
         try:
-            # Enforce concurrency limit at DB level
+            # Enforce concurrency limit at DB level (count both job and company processing)
             proc_row = conn.execute(
                 "SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'"
             ).fetchone()
-            if proc_row["cnt"] >= self._concurrency:
+            proc_company_row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM pending_companies WHERE status='processing'"
+            ).fetchone()
+            total_processing = (proc_row["cnt"] or 0) + (proc_company_row["cnt"] or 0)
+            if total_processing >= self._concurrency:
                 return None
 
-            # Find the next queued job
+            # Try pending_companies first
+            row = conn.execute(
+                """SELECT id, input_text, company_name FROM pending_companies WHERE status='queued'
+                   ORDER BY created_at ASC LIMIT 1"""
+            ).fetchone()
+            if row:
+                pid = dict(row)["id"]
+                updated = conn.execute(
+                    """UPDATE pending_companies SET status='processing', updated_at=?
+                       WHERE id=? AND status='queued'""",
+                    (datetime.now().isoformat(), pid),
+                ).rowcount
+                conn.commit()
+                if updated == 0:
+                    return None
+                full_row = conn.execute("SELECT * FROM pending_companies WHERE id=?", (pid,)).fetchone()
+                result = dict(full_row) if full_row else None
+                if result:
+                    result['table'] = 'pending_companies'
+                return result
+
+            # Fall back to pending_jobs
             row = conn.execute(
                 """SELECT id FROM pending_jobs WHERE status='queued'
                    ORDER BY queue_order ASC, created_at ASC LIMIT 1"""
@@ -259,7 +319,10 @@ class JobQueueManager:
 
             # Re-read the full row
             row = conn.execute("SELECT * FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-            return dict(row) if row else None
+            result = dict(row) if row else None
+            if result:
+                result['table'] = 'pending_jobs'
+            return result
         finally:
             conn.close()
 
@@ -310,10 +373,15 @@ class JobQueueManager:
 
                 # Run the pipeline (blocking call)
                 from services.worker import process_job
+                from services.company_worker import process_company
                 try:
-                    process_job(pid)
+                    if item.get('input_text'):
+                        # This is a pending_companies item
+                        process_company(pid)
+                    else:
+                        process_job(pid)
                 except Exception as e:
-                    logger.error(f"[queue] Job {pid} raised exception: {e}")
+                    logger.error(f"[queue] {item.get('table', 'job')} {pid} raised exception: {e}")
 
                 # Signal done — frees a slot
                 self.signal_job_done(pid)

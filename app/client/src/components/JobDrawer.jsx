@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import {
   TrendUp, Repeat, Link, Lightning, ListChecks, Star, Gift, Shield,
-  FileText, Spinner, PaperPlaneRight, CheckCircle
+  FileText, Spinner, PaperPlaneRight, CheckCircle, Buildings, MapPin, X
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { LocationBadge, VisaBadge, getScoreColor, getMatchClass, numericToGrade } from '@/components/ProcessedCards'
 import ResumePreview from '@/components/ResumePreview'
 
-export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover }) {
+export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onLinkCompany }) {
   if (!drawer) return null
 
   const job = drawer.job
@@ -118,6 +119,7 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="structured">Structured</TabsTrigger>
             <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="company">Company</TabsTrigger>
             <TabsTrigger value="resume">Resume</TabsTrigger>
             <TabsTrigger value="cover">Cover Letter</TabsTrigger>
           </TabsList>
@@ -142,6 +144,7 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
         {drawerTab === 'details' && <DetailsTab job={job} onUpdateJob={onUpdateJob} />}
         {drawerTab === 'structured' && <StructuredTab job={job} />}
         {drawerTab === 'summary' && <SummaryTab summary={drawer.summary} />}
+        {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} />}
         {drawerTab === 'resume' && <ResumeTabContent resume={drawer.resume} />}
         {drawerTab === 'cover' && <CoverTabContent coverLetter={drawer.coverLetter} />}
       </SheetContent>
@@ -302,6 +305,111 @@ function CoverTabContent({ coverLetter }) {
           <p className="text-sm text-muted-foreground">No cover letter generated yet</p>
         </div>
       )}
+    </div>
+  )
+}
+
+function CompanyTab({ job, companies, onLinkCompany, onSetToast }) {
+  const linkedCompany = job.linked_company || null
+  const [search, setSearch] = useState('')
+  const [linking, setLinking] = useState(false)
+
+  const filtered = companies.filter(c => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (c.name || '').toLowerCase().includes(q) ||
+           (c.industry || '').toLowerCase().includes(q) ||
+           (c.city || '').toLowerCase().includes(q)
+  })
+
+  const handleLink = async (companyId) => {
+    setLinking(true)
+    try {
+      await onLinkCompany?.(job.num, companyId)
+      onSetToast?.('Company linked!')
+    } catch (e) {
+      onSetToast?.('Failed to link')
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  const handleUnlink = async () => {
+    setLinking(true)
+    try {
+      await onLinkCompany?.(job.num, null)
+      onSetToast?.('Company unlinked')
+    } catch (e) {
+      onSetToast?.('Failed to unlink')
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Linked company */}
+      {linkedCompany ? (
+        <div className="p-3 rounded-lg border border-green-500/30 bg-green-500/5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Buildings className="w-4 h-4 text-green-500" />
+              <span className="text-xs font-semibold text-green-500">Linked Company</span>
+            </div>
+            <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:bg-destructive/10" onClick={handleUnlink} disabled={linking} title="Unlink">
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+          <div className="text-sm font-bold">{linkedCompany.name}</div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {linkedCompany.industry && <Badge variant="secondary" className="text-[0.55rem]">{linkedCompany.industry}</Badge>}
+            {(linkedCompany.city || linkedCompany.country) && (
+              <Badge variant="secondary" className="text-[0.55rem]"><MapPin className="w-2.5 h-2.5 mr-0.5" />{[linkedCompany.city, linkedCompany.country].filter(Boolean).join(', ')}</Badge>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 rounded-lg border border-dashed text-center">
+          <Buildings className="w-6 h-6 mx-auto mb-1 text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">No company linked</p>
+        </div>
+      )}
+
+      {/* Company selector */}
+      <div>
+        <div className="text-xs font-semibold mb-1.5 text-muted-foreground">
+          {linkedCompany ? 'Change Company' : 'Link to Company'}
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search companies..."
+          className="w-full h-7 rounded border text-xs px-2 bg-muted mb-1.5"
+        />
+        <div className="max-h-48 overflow-y-auto space-y-1">
+          {filtered.length === 0 && (
+            <div className="text-[0.6rem] text-muted-foreground text-center py-2">No companies found</div>
+          )}
+          {filtered.map(c => (
+            <div key={c.id}
+              onClick={() => !linking && handleLink(c.id)}
+              className={cn(
+                "flex items-center gap-2 p-1.5 rounded border cursor-pointer transition text-xs",
+                linkedCompany?.id === c.id
+                  ? "border-green-500/30 bg-green-500/5"
+                  : "border-border/50 hover:bg-muted/50"
+              )}>
+              {c.logo_url && <img src={c.logo_url} alt="" className="w-4 h-4 rounded" />}
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold truncate">{c.name}</div>
+                <div className="text-[0.55rem] text-muted-foreground truncate">{c.industry || ''} {c.city ? `· ${c.city}` : ''}</div>
+              </div>
+              {linkedCompany?.id === c.id && <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
