@@ -108,23 +108,57 @@ Analyze this company comprehensively. Use ALL the extracted data — funding, te
   }},
 
   "scores": {{
-    "visa_score": 0,
-    "tech_match": 0,
-    "career_score": 0,
-    "international_score": 0,
-    "stability_score": 0,
-    "growth_score": 0,
-    "priority": "A++/A+/A/B/C"
+    "company_fit_score": 0,
+    "company_success_score": 0,
+    "company_overall_score": 0,
+    "fit_grade": "A++/A+/A/B/C/D",
+    "fit_explanation": "Brief explanation of why this fit score was given",
+    "fit_positive_factors": ["Main positive factors for company fit"],
+    "fit_negative_factors": ["Main negative factors for company fit"],
+    "success_explanation": "Brief explanation of why this success score was given",
+    "success_positive_factors": ["Main positive factors for joining success"],
+    "success_negative_factors": ["Main negative factors for joining success"],
+    "overall_grade": "A++/A+/A/B/C/D"
   }}
 }}
 
 SCORING GUIDELINES (be honest and evidence-based, reference the candidate's rules above):
-- visa_score (0-100): Based on the SUCCESS rules above — especially visa_requirement, visa_path_clarity, relocation_support, language_match. 90+ = proven sponsorship + relocation package; 70-89 = English-first + international team; 50-69 = some international hires; <50 = unclear or restrictive
-- tech_match (0-100): Based on the FIT rules above — especially python_primary, backend_core, database_match, infrastructure_match. 90+ = Python/Django/FastAPI/PG/K8s primary stack; 70-89 = Python backend with some overlap; 50-69 = partial match; <50 = wrong stack
-- career_score (0-100): Based on growth_opportunity, seniority_match from FIT rules. 90+ = senior roles + tech lead path + high autonomy; 70-89 = good growth + learning; 50-69 = moderate; <50 = limited
-- international_score (0-100): Based on language_match, remote_option from SUCCESS rules. 90+ = English-only + 50%+ international + remote-friendly; 70-89 = English-first + international presence; 50-69 = some English; <50 = local language required
-- stability_score (0-100): Based on company_stability, salary_clarity from SUCCESS rules + funding data
-- growth_score (0-100): Based on funding trajectory, hiring pace, market expansion
-- priority: A++ (90+ weighted average), A+ (80-89), A (70-79), B (50-69), C (<50)
+
+## company_fit_score (0-100)
+Measures: "How well does this company match my technical background and career direction?"
+Based on: engineering culture, technology alignment, product/domain relevance, backend/distributed systems opportunities, growth opportunities.
+Use the FIT and COMPANY rules above for evaluation.
+
+Scoring bands:
+- 90+: Exceptional match — Python/Django/FastAPI/PG/K8s primary stack + strong engineering culture + senior ownership opportunities + aligned product domain
+- 70-89: Good match — Python backend with overlap + decent engineering practices + growth potential
+- 50-69: Partial match — some technology overlap + moderate engineering culture
+- <50: Poor match — wrong tech stack + limited engineering growth
+
+## company_success_score (0-100)
+Measures: "How likely am I to successfully join this company?"
+Based on: visa sponsorship, location, international hiring, English environment, remote/hybrid options, hiring accessibility.
+Use the SUCCESS and SHARED rules above for evaluation.
+
+Scoring bands:
+- 90+: High certainty — proven sponsorship + relocation package + Germany/Netherlands + English-first
+- 70-89: Good odds — English-first + international team + remote-friendly
+- 50-69: Moderate — some international hires + partial English
+- <50: Low odds — unclear sponsorship + local language required
+
+## company_overall_score (0-100)
+Calculate the final company score using this formula:
+company_overall_score = (company_fit_score * 0.5) + (company_success_score * 0.5)
+
+## Grade Calculation
+- A++: 90+
+- A+: 80-89
+- A: 70-79
+- B: 50-69
+- C: 30-49
+- D: <30
+
+Calculate fit_grade, overall_grade from the respective scores.
+Provide explanations and positive/negative factors for both fit and success scores.
 
 Save the complete JSON to {output_file} using the write tool. Return the JSON result.
