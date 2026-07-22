@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Note, Plus, PencilSimple, Trash, Link, Check, X } from '@phosphor-icons/react'
+import { useState, useEffect } from 'react'
+import { Note, Plus, PencilSimple, Trash, Link, Check, X, ArrowSquareOut, Spinner } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 
 export default function CompanyNotesTab({ company, onUpdate }) {
   const [notes, setNotes] = useState(() => {
@@ -9,41 +10,60 @@ export default function CompanyNotesTab({ company, onUpdate }) {
     if (typeof company.notes === 'string') { try { return JSON.parse(company.notes) } catch { return [] } }
     return []
   })
-  const [input, setInput] = useState('')
-  const [editingId, setEditingId] = useState(null)
-  const [editContent, setEditContent] = useState('')
+  const [links, setLinks] = useState(company.links || [])
+  const [noteInput, setNoteInput] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState(null)
+  const [editNoteContent, setEditNoteContent] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Link form state
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkTitle, setLinkTitle] = useState('')
+  const [linkDesc, setLinkDesc] = useState('')
+  const [editingLinkId, setEditingLinkId] = useState(null)
+
+  const fetchLinks = async () => {
+    try {
+      const res = await fetch(`/api/companies/${company.id}/links`)
+      const data = await res.json()
+      setLinks(data)
+    } catch {}
+  }
+
+  useEffect(() => { fetchLinks() }, [company.id])
+
+  // Notes CRUD
   const addNote = async () => {
-    if (!input.trim()) return
+    if (!noteInput.trim()) return
     setSaving(true)
     try {
       const res = await fetch(`/api/companies/${company.id}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'auto', content: input.trim() })
+        body: JSON.stringify({ type: 'text', content: noteInput.trim() })
       })
       const data = await res.json()
       setNotes(data)
       onUpdate?.(data)
-      setInput('')
+      setNoteInput('')
     } finally { setSaving(false) }
   }
 
   const updateNote = async (noteId) => {
-    if (!editContent.trim()) return
+    if (!editNoteContent.trim()) return
     setSaving(true)
     try {
       const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editContent.trim() })
+        body: JSON.stringify({ content: editNoteContent.trim() })
       })
       const data = await res.json()
       setNotes(data)
       onUpdate?.(data)
-      setEditingId(null)
-      setEditContent('')
+      setEditingNoteId(null)
+      setEditNoteContent('')
     } finally { setSaving(false) }
   }
 
@@ -57,84 +77,242 @@ export default function CompanyNotesTab({ company, onUpdate }) {
     } finally { setSaving(false) }
   }
 
+  // Links CRUD
+  const addLink = async () => {
+    if (!linkUrl.trim()) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setLinks(prev => [data, ...prev])
+        setLinkUrl('')
+        setLinkTitle('')
+        setLinkDesc('')
+        setShowLinkForm(false)
+      }
+    } finally { setSaving(false) }
+  }
+
+  const updateLink = async (linkId) => {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/links/${linkId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setLinks(prev => prev.map(l => l.id === linkId ? { ...l, url: data.url, title: data.title, description: data.description } : l))
+        setEditingLinkId(null)
+        setLinkUrl('')
+        setLinkTitle('')
+        setLinkDesc('')
+      }
+    } finally { setSaving(false) }
+  }
+
+  const deleteLink = async (linkId) => {
+    setSaving(true)
+    try {
+      await fetch(`/api/companies/${company.id}/links/${linkId}`, { method: 'DELETE' })
+      setLinks(prev => prev.filter(l => l.id !== linkId))
+    } finally { setSaving(false) }
+  }
+
+  const startEditLink = (link) => {
+    setEditingLinkId(link.id)
+    setLinkUrl(link.url)
+    setLinkTitle(link.title || '')
+    setLinkDesc(link.description || '')
+    setShowLinkForm(true)
+  }
+
+  const cancelLinkForm = () => {
+    setEditingLinkId(null)
+    setLinkUrl('')
+    setLinkTitle('')
+    setLinkDesc('')
+    setShowLinkForm(false)
+  }
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Note className="w-4 h-4 text-primary" />
-        <span className="text-xs font-semibold">Company Notes</span>
-        <Badge variant="secondary" className="text-[0.5rem]">{notes.length}</Badge>
-      </div>
-      <p className="text-[0.6rem] text-muted-foreground">
-        Add notes about this company. These are used when reprocessing to generate better intelligence.
-      </p>
+    <div className="space-y-4">
+      {/* Section 1: Notes */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <Note className="w-4 h-4 text-primary" />
+          <span className="text-xs font-semibold">Company Notes</span>
+          <Badge variant="secondary" className="text-[0.5rem]">{notes.length}</Badge>
+        </div>
+        <p className="text-[0.6rem] text-muted-foreground mb-2">
+          Add notes about this company — research, observations, interview notes, culture info.
+        </p>
 
-      {/* Add note input */}
-      <div className="flex gap-1">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addNote()}
-          placeholder="Add a note (URL, description, anything)..."
-          className="flex-1 h-7 rounded border text-xs px-2 bg-muted"
-        />
-        <Button onClick={addNote} disabled={saving || !input.trim()} size="sm" className="h-7 px-2">
-          <Plus className="w-3 h-3" />
-        </Button>
+        {/* Add note */}
+        <div className="flex gap-1 mb-2">
+          <textarea
+            value={noteInput}
+            onChange={e => setNoteInput(e.target.value)}
+            placeholder="Add a note (any information about the company)..."
+            rows={2}
+            className="flex-1 rounded border text-xs px-2 py-1.5 bg-muted resize-none"
+          />
+        </div>
+        <div className="flex justify-end mb-2">
+          <Button onClick={addNote} disabled={saving || !noteInput.trim()} size="sm" className="h-6 px-2 text-[0.6rem]">
+            <Plus className="w-2.5 h-2.5 mr-1" /> Add Note
+          </Button>
+        </div>
+
+        {/* Notes list */}
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {notes.length === 0 && (
+            <div className="text-center py-3 text-[0.6rem] text-muted-foreground">No notes yet.</div>
+          )}
+          {notes.map((n) => {
+            const isEditing = editingNoteId === n.id
+            return (
+              <div key={n.id} className="group rounded border bg-muted/50 px-2 py-1.5 text-xs">
+                {isEditing ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={editNoteContent}
+                      onChange={e => setEditNoteContent(e.target.value)}
+                      rows={3}
+                      className="w-full rounded border text-xs px-2 py-1.5 bg-background resize-none"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={() => updateNote(n.id)}>
+                        <Check className="w-2.5 h-2.5 mr-0.5" /> Save
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={() => { setEditingNoteId(null); setEditNoteContent('') }}>
+                        <X className="w-2.5 h-2.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-1">
+                    <Note className="w-2.5 h-2.5 text-muted-foreground mt-0.5 shrink-0" />
+                    <span className="flex-1 min-w-0 whitespace-pre-wrap break-all">{n.content}</span>
+                    <div className="flex items-center gap-0 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                      <button onClick={() => { setEditingNoteId(n.id); setEditNoteContent(n.content) }}
+                        className="p-0.5 text-muted-foreground hover:text-foreground">
+                        <PencilSimple className="w-2.5 h-2.5" />
+                      </button>
+                      <button onClick={() => deleteNote(n.id)}
+                        className="p-0.5 text-muted-foreground hover:text-destructive">
+                        <Trash className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Notes list */}
-      <div className="space-y-1 max-h-60 overflow-y-auto">
-        {notes.length === 0 && (
-          <div className="text-center py-4 text-xs text-muted-foreground">No notes yet. Add one above.</div>
-        )}
-        {notes.map((n) => {
-          const isUrl = n.type === 'url' || (n.content || '').startsWith('http')
-          const isEditing = editingId === n.id
-          return (
-            <div key={n.id} className="group flex items-start gap-1 rounded border bg-muted/50 px-2 py-1.5 text-xs">
-              <span className="shrink-0 mt-0.5">
-                {isUrl ? <Link className="w-2.5 h-2.5 text-primary" /> : <Note className="w-2.5 h-2.5 text-muted-foreground" />}
-              </span>
-              {isEditing ? (
-                <div className="flex-1 flex gap-1">
-                  <input
-                    type="text"
-                    value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && updateNote(n.id)}
-                    className="flex-1 h-6 rounded border text-xs px-1.5"
-                    autoFocus
-                  />
-                  <Button size="sm" variant="ghost" className="h-6 w-6 px-0" onClick={() => updateNote(n.id)}>
-                    <Check className="w-3 h-3 text-green-500" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-6 w-6 px-0" onClick={() => { setEditingId(null); setEditContent('') }}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ) : (
-                <span className="flex-1 min-w-0 break-all">
-                  {isUrl ? (
-                    <a href={n.content} target="_blank" rel="noreferrer" className="text-primary hover:underline">{n.content}</a>
-                  ) : n.content}
-                </span>
-              )}
-              {!isEditing && (
-                <div className="flex items-center gap-0 shrink-0 opacity-0 group-hover:opacity-100 transition">
-                  <button onClick={() => { setEditingId(n.id); setEditContent(n.content) }}
-                    className="p-0.5 text-muted-foreground hover:text-foreground">
-                    <PencilSimple className="w-2.5 h-2.5" />
-                  </button>
-                  <button onClick={() => deleteNote(n.id)}
-                    className="p-0.5 text-muted-foreground hover:text-destructive">
-                    <Trash className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              )}
+      {/* Divider */}
+      <div className="border-t" />
+
+      {/* Section 2: Links */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Link className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold">Company Links</span>
+            <Badge variant="secondary" className="text-[0.5rem]">{links.length}</Badge>
+          </div>
+          {!showLinkForm && (
+            <Button onClick={() => setShowLinkForm(true)} size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]">
+              <Plus className="w-2.5 h-2.5 mr-0.5" /> Add Link
+            </Button>
+          )}
+        </div>
+        <p className="text-[0.6rem] text-muted-foreground mb-2">
+          Add company pages, careers, blog posts, documentation, LinkedIn profiles.
+        </p>
+
+        {/* Add/Edit Link Form */}
+        {showLinkForm && (
+          <Card className="p-2 mb-2 space-y-1.5">
+            <input
+              type="url"
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+              placeholder="URL (https://...)"
+              className="w-full h-6 rounded border text-xs px-2 bg-muted"
+              autoFocus
+            />
+            <input
+              type="text"
+              value={linkTitle}
+              onChange={e => setLinkTitle(e.target.value)}
+              placeholder="Title (optional)"
+              className="w-full h-6 rounded border text-xs px-2 bg-muted"
+            />
+            <input
+              type="text"
+              value={linkDesc}
+              onChange={e => setLinkDesc(e.target.value)}
+              placeholder="Description (optional)"
+              className="w-full h-6 rounded border text-xs px-2 bg-muted"
+            />
+            <div className="flex justify-end gap-1">
+              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]"
+                onClick={() => editingLinkId ? updateLink(editingLinkId) : addLink()}
+                disabled={saving || !linkUrl.trim()}>
+                <Check className="w-2.5 h-2.5 mr-0.5" /> {editingLinkId ? 'Update' : 'Add'}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={cancelLinkForm}>
+                <X className="w-2.5 h-2.5" />
+              </Button>
             </div>
-          )
-        })}
+          </Card>
+        )}
+
+        {/* Links list */}
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {links.length === 0 && !showLinkForm && (
+            <div className="text-center py-3 text-[0.6rem] text-muted-foreground">No links yet.</div>
+          )}
+          {links.map((link) => (
+            <div key={link.id} className="group flex items-start gap-1.5 rounded border bg-muted/50 px-2 py-1.5 text-xs">
+              <Link className="w-2.5 h-2.5 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <a href={link.url} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{link.url}</a>
+                {link.title && <div className="text-muted-foreground truncate">{link.title}</div>}
+                {link.description && <div className="text-[0.55rem] text-muted-foreground truncate">{link.description}</div>}
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Badge variant={link.status === 'processed' ? 'default' : link.status === 'failed' ? 'destructive' : 'secondary'}
+                    className="text-[0.45rem] px-1 py-0">
+                    {link.status === 'processed' ? 'Processed' : link.status === 'failed' ? 'Failed' : 'Pending'}
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex items-center gap-0 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                <a href={link.url} target="_blank" rel="noreferrer" className="p-0.5 text-muted-foreground hover:text-foreground">
+                  <ArrowSquareOut className="w-2.5 h-2.5" />
+                </a>
+                <button onClick={() => startEditLink(link)}
+                  className="p-0.5 text-muted-foreground hover:text-foreground">
+                  <PencilSimple className="w-2.5 h-2.5" />
+                </button>
+                <button onClick={() => deleteLink(link.id)}
+                  className="p-0.5 text-muted-foreground hover:text-destructive">
+                  <Trash className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

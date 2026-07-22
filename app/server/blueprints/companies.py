@@ -95,6 +95,8 @@ def get_company(company_id):
         d['intelligence'] = i
     else:
         d['intelligence'] = None
+    links = conn.execute('SELECT * FROM company_links WHERE company_id=? ORDER BY created_at DESC', (company_id,)).fetchall()
+    d['links'] = rows_to_list(links)
     conn.close()
     return jsonify(d)
 
@@ -103,6 +105,7 @@ def get_company(company_id):
 def delete_company(company_id):
     conn = get_db()
     conn.execute('DELETE FROM company_intelligence WHERE company_id=?', (company_id,))
+    conn.execute('DELETE FROM company_links WHERE company_id=?', (company_id,))
     conn.execute('DELETE FROM companies WHERE id=?', (company_id,))
     conn.execute('UPDATE jobs SET company_id=NULL WHERE company_id=?', (company_id,))
     conn.commit()
@@ -260,6 +263,74 @@ def reprocess_company(company_id):
     pid = cur.lastrowid
     conn.close()
     return jsonify({'status': 'pending', 'pending_id': pid})
+
+
+# Company Links CRUD routes
+
+@bp.route('/api/companies/<int:company_id>/links', methods=['GET'])
+def get_company_links(company_id):
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM company_links WHERE company_id=? ORDER BY created_at DESC', (company_id,)).fetchall()
+    conn.close()
+    return jsonify(rows_to_list(rows))
+
+
+@bp.route('/api/companies/<int:company_id>/links', methods=['POST'])
+def add_company_link(company_id):
+    data = request.get_json(force=True)
+    url = data.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'URL required'}), 400
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+    conn = get_db()
+    company = conn.execute('SELECT id FROM companies WHERE id=?', (company_id,)).fetchone()
+    if not company:
+        conn.close()
+        return jsonify({'error': 'Company not found'}), 404
+    now = datetime.now().isoformat()
+    cur = conn.execute('INSERT INTO company_links (company_id, url, title, description, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+                       (company_id, url, title, description, 'pending', now, now))
+    conn.commit()
+    link_id = cur.lastrowid
+    conn.close()
+    return jsonify({'status': 'created', 'id': link_id, 'url': url, 'title': title, 'description': description, 'status': 'pending'})
+
+
+@bp.route('/api/companies/<int:company_id>/links/<int:link_id>', methods=['PUT'])
+def update_company_link(company_id, link_id):
+    data = request.get_json(force=True)
+    conn = get_db()
+    row = conn.execute('SELECT * FROM company_links WHERE id=? AND company_id=?', (link_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    url = data.get('url', '').strip() or dict(row)['url']
+    if url and not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    title = data.get('title', '').strip() if 'title' in data else dict(row)['title']
+    description = data.get('description', '').strip() if 'description' in data else dict(row)['description']
+    now = datetime.now().isoformat()
+    conn.execute('UPDATE company_links SET url=?, title=?, description=?, updated_at=? WHERE id=?',
+                 (url, title, description, now, link_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'updated', 'id': link_id, 'url': url, 'title': title, 'description': description})
+
+
+@bp.route('/api/companies/<int:company_id>/links/<int:link_id>', methods=['DELETE'])
+def delete_company_link(company_id, link_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM company_links WHERE id=? AND company_id=?', (link_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    conn.execute('DELETE FROM company_links WHERE id=?', (link_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted', 'id': link_id})
 
 
 @bp.route('/api/pending-companies', methods=['GET'])

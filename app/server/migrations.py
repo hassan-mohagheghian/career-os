@@ -89,9 +89,24 @@ def ensure_db_schema():
             FOREIGN KEY (company_id) REFERENCES companies(id)
         )""")
 
+    if 'company_links' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS company_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            title TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            extracted_content TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id)
+        )""")
+
     conn.execute("CREATE INDEX IF NOT EXISTS idx_pending_companies_status ON pending_companies(status)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_company_intelligence_company_id ON company_intelligence(company_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_company_links_company_id ON company_links(company_id)")
     conn.commit()
     conn.close()
 

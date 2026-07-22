@@ -327,7 +327,7 @@ def _save_company(company_data, intelligence_data, raw_source, notes=None):
 def process_company(pid):
     """
     Full pipeline for company processing:
-    1. Fetch     — fetch URL content from notes, combine all text
+    1. Fetch     — fetch URL content from notes and links, combine all text
     2. Extract   — extract structured company data via mimo
     3. Analyze   — generate intelligence analysis via mimo
     4. Save      — write to DB (companies, company_intelligence)
@@ -353,6 +353,9 @@ def process_company(pid):
         note_type = 'url' if input_text.startswith('http') else 'text'
         notes = [{"type": note_type, "content": input_text}]
 
+    # Get company_id from pending item or from company_name lookup
+    company_id = item.get('company_id')
+
     try:
         note_summary = '; '.join([n.get('content', '')[:40] for n in notes[:3]])
         _log(pid, 'start', f'Processing {len(notes)} note(s): {note_summary}...')
@@ -363,6 +366,8 @@ def process_company(pid):
 
         all_content_parts = []
         url_count = 0
+
+        # Process notes (text content and inline URLs)
         for note in notes:
             ntype = note.get('type', 'text')
             content = note.get('content', '').strip()
@@ -379,6 +384,55 @@ def process_company(pid):
                     all_content_parts.append(f"[URL: {content}] (fetch failed: {e})")
             else:
                 all_content_parts.append(f"[NOTE]\n{content}")
+
+        # Process company links (if company_id is available)
+        if company_id:
+            try:
+                conn = _db()
+                links = conn.execute('SELECT * FROM company_links WHERE company_id=?', (company_id,)).fetchall()
+                conn.close()
+                if links:
+                    _log(pid, 'fetch', f'Processing {len(links)} company link(s)...')
+                    for link in links:
+                        link_dict = dict(link)
+                        link_url = link_dict.get('url', '').strip()
+                        if not link_url:
+                            continue
+                        link_title = link_dict.get('title', '') or ''
+                        link_desc = link_dict.get('description', '') or ''
+                        try:
+                            _log(pid, 'fetch', f'Fetching link: {link_url[:60]}...')
+                            fetched = _fetch_url(link_url)
+                            header = f"[LINK: {link_url}]"
+                            if link_title:
+                                header += f" Title: {link_title}"
+                            if link_desc:
+                                header += f" - {link_desc}"
+                            all_content_parts.append(f"{header}\n{fetched}")
+                            url_count += 1
+                            # Update link status to processed
+                            try:
+                                conn = _db()
+                                conn.execute('UPDATE company_links SET status=?, extracted_content=?, updated_at=? WHERE id=?',
+                                           ('processed', fetched[:5000], datetime.now().isoformat(), link_dict['id']))
+                                conn.commit()
+                                conn.close()
+                            except:
+                                pass
+                        except Exception as e:
+                            _log(pid, 'fetch', f'Warning: Failed to fetch link {link_url[:40]}: {e}')
+                            all_content_parts.append(f"[LINK: {link_url}] (fetch failed: {e})")
+                            # Update link status to failed
+                            try:
+                                conn = _db()
+                                conn.execute('UPDATE company_links SET status=?, updated_at=? WHERE id=?',
+                                           ('failed', datetime.now().isoformat(), link_dict['id']))
+                                conn.commit()
+                                conn.close()
+                            except:
+                                pass
+            except Exception as e:
+                _log(pid, 'fetch', f'Warning: Failed to process links: {e}')
 
         raw_content = '\n\n---\n\n'.join(all_content_parts)
 
@@ -418,7 +472,7 @@ def process_company(pid):
             return
         _mark(pid, 'step_analyze')
         scores = intelligence_data.get('scores', {})
-        _log(pid, 'analyze', f'Visa: {scores.get("visa_score", "?")} | Tech: {scores.get("tech_match", "?")} | Career: {scores.get("career_score", "?")} | Priority: {scores.get("priority", "?")}')
+        _log(pid, 'analyze', f'Fit: {scores.get("company_fit_score", "?")} | Success: {scores.get("company_success_score", "?")} | Overall: {scores.get("company_overall_score", "?")} | Grade: {scores.get("overall_grade", "?")}')
 
         # ── Step 4: Save ──
         _update_step(pid, 'step_save', 0, status='processing')
