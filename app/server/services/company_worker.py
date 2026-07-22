@@ -187,10 +187,25 @@ def _extract_company_info(input_text, input_type, pid):
     return None
 
 
-def _load_rules():
-    """Load all enabled scoring rules from DB, ordered by priority desc, formatted for prompt."""
+def _load_rules(context='company'):
+    """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
+
+    Args:
+        context: 'job' loads shared + job rules, 'company' loads shared + company rules.
+    """
     conn = _db()
-    rows = conn.execute('SELECT category, key, value, description, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC').fetchall()
+    if context == 'company':
+        rows = conn.execute(
+            "SELECT category, rule_type, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'company') "
+            "ORDER BY priority DESC"
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT category, rule_type, key, value, description, priority, score_weight "
+            "FROM preferences WHERE enabled=1 AND rule_type IN ('shared', 'job') "
+            "ORDER BY priority DESC"
+        ).fetchall()
     conn.close()
     if not rows:
         return "No scoring rules set."
@@ -202,7 +217,8 @@ def _load_rules():
         if cat != current_cat:
             current_cat = cat
             lines.append(f"\n── {cat.upper()} {'─' * (35 - len(cat))}")
-        lines.append(f"  #{r['priority']:>3}  {r['key']}: {r['value']}")
+        weight = r.get('score_weight') or r['priority']
+        lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
     return '\n'.join(lines)
 
 

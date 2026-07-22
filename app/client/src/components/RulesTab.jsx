@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PencilSimple, Trash, Check, X, Plus, ArrowUp, ArrowDown, Wrench, Target, DotsSixVertical } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Check, X, Plus, ArrowUp, ArrowDown, Wrench, Target, DotsSixVertical, Users, Buildings, Briefcase } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,10 @@ import { CSS } from '@dnd-kit/utilities'
 
 const API = '/api'
 
-const SCORE_TYPES = {
-  fit: { label: 'Fit', color: 'bg-blue-500/15 text-blue-500 border-blue-500/30', icon: <Wrench className="w-4 h-4" />, header: 'text-blue-500', headerBg: 'bg-blue-500/5', headerBorder: 'border-blue-500/20', desc: 'Technical match with skills and experience' },
-  success: { label: 'Success', color: 'bg-green-500/15 text-green-500 border-green-500/30', icon: <Target className="w-4 h-4" />, header: 'text-green-500', headerBg: 'bg-green-500/5', headerBorder: 'border-green-500/20', desc: 'Probability of getting hired' },
+const RULE_TYPES = {
+  shared: { label: 'Shared', color: 'bg-purple-500/15 text-purple-500 border-purple-500/30', icon: <Users className="w-4 h-4" />, header: 'text-purple-500', headerBg: 'bg-purple-500/5', headerBorder: 'border-purple-500/20', desc: 'Used for both Job and Company processing' },
+  job: { label: 'Job', color: 'bg-blue-500/15 text-blue-500 border-blue-500/30', icon: <Briefcase className="w-4 h-4" />, header: 'text-blue-500', headerBg: 'bg-blue-500/5', headerBorder: 'border-blue-500/20', desc: 'Only used for Job scoring' },
+  company: { label: 'Company', color: 'bg-green-500/15 text-green-500 border-green-500/30', icon: <Buildings className="w-4 h-4" />, header: 'text-green-500', headerBg: 'bg-green-500/5', headerBorder: 'border-green-500/20', desc: 'Only used for Company scoring' },
 }
 
 function PriorityBadge({ p }) {
@@ -27,21 +28,29 @@ function PriorityBadge({ p }) {
 }
 
 function RuleForm({ initial, onSave, onCancel }) {
-  const [f, setF] = useState(initial || { category: 'fit', key: '', value: '', description: '', priority: 50 })
+  const [f, setF] = useState(initial || { category: 'fit', rule_type: 'job', key: '', value: '', description: '', priority: 50, score_weight: 50 })
   return (
     <div className="p-3 rounded-lg border border-dashed bg-muted/30 space-y-2">
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
+        <Select value={f.rule_type} onValueChange={(v) => setF({ ...f, rule_type: v })}>
+          <SelectTrigger className="h-7 text-[0.65rem]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="shared">Shared rule</SelectItem>
+            <SelectItem value="job">Job rule</SelectItem>
+            <SelectItem value="company">Company rule</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
           <SelectTrigger className="h-7 text-[0.65rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="fit">Fit score rule</SelectItem>
-            <SelectItem value="success">Success score rule</SelectItem>
+            <SelectItem value="fit">Fit score</SelectItem>
+            <SelectItem value="success">Success score</SelectItem>
           </SelectContent>
         </Select>
         <Input value={f.key} onChange={e => setF({ ...f, key: e.target.value })} placeholder="Key name" className="h-7 text-[0.65rem]" />
         <div className="flex items-center gap-1">
-          <span className="text-[0.55rem] text-muted-foreground shrink-0">Priority:</span>
-          <Input type="number" min="0" max="100" value={f.priority} onChange={e => setF({ ...f, priority: parseInt(e.target.value) || 0 })} className="h-7 text-[0.65rem] flex-1" />
+          <span className="text-[0.55rem] text-muted-foreground shrink-0">W:</span>
+          <Input type="number" min="0" max="100" value={f.score_weight} onChange={e => setF({ ...f, score_weight: parseInt(e.target.value) || 0 })} className="h-7 text-[0.65rem] flex-1" />
         </div>
       </div>
       <Textarea value={f.value} onChange={e => setF({ ...f, value: e.target.value })} placeholder="Value / rule" className="text-[0.65rem] min-h-[48px]" />
@@ -79,8 +88,9 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
             <div className="flex items-center gap-1 flex-wrap">
               <span className="text-[0.5rem] text-muted-foreground w-3 text-right shrink-0">{idx + 1}.</span>
               <span className="text-[0.7rem] font-semibold truncate">{pref.key}</span>
+              <Badge variant="outline" className="text-[0.4rem] px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
               <PriorityBadge p={pref.priority} />
-              <span className="text-[0.45rem] text-muted-foreground">#{pref.priority}</span>
+              <span className="text-[0.45rem] text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
             </div>
             <div className="text-[0.6rem] text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
             {pref.description && <div className="text-[0.5rem] text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
@@ -98,7 +108,7 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
 }
 
 function RuleColumn({ type, prefs, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority, onAdd, onReorder, showAdd, setShowAdd }) {
-  const meta = SCORE_TYPES[type]
+  const meta = RULE_TYPES[type]
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const ids = prefs.map(p => p.id)
 
@@ -120,14 +130,15 @@ function RuleColumn({ type, prefs, editing, onEdit, onSave, onCancel, onToggle, 
         <Badge variant="secondary" className="text-[0.5rem] ml-auto">{prefs.filter(p => p.enabled).length}/{prefs.length}</Badge>
       </div>
       {/* Column body */}
-      <div className={cn("rounded-b-lg border p-2 space-y-0.5", meta.headerBorder)}>
+      <div className={cn("rounded-b-lg border p-2 space-y-0.5 max-h-[600px] overflow-y-auto", meta.headerBorder)}>
+        <div className="text-[0.5rem] text-muted-foreground mb-1">{meta.desc}</div>
         {/* Add button */}
         <Button variant="ghost" size="sm" className="h-6 text-[0.55rem] gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : type)}>
           <Plus className="w-2.5 h-2.5" /> Add rule
         </Button>
         {/* Add form */}
         {showAdd === type && (
-          <RuleForm initial={{ category: type, key: '', value: '', description: '', priority: 50 }} onSave={(form) => { onAdd(form); setShowAdd(null) }} onCancel={() => setShowAdd(null)} />
+          <RuleForm initial={{ category: 'fit', rule_type: type, key: '', value: '', description: '', priority: 50, score_weight: 50 }} onSave={(form) => { onAdd(form); setShowAdd(null) }} onCancel={() => setShowAdd(null)} />
         )}
         {/* Rules list — sortable */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -153,14 +164,13 @@ export default function RulesTab({ rules, onUpdate }) {
     onUpdate()
   }
 
-  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description }); setEditing(null) }
+  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight }); setEditing(null) }
   const handleToggle = async (id, enabled) => api('PUT', `/rules/${id}`, { enabled: enabled ? 1 : 0 })
   const handleDelete = async (id) => api('DELETE', `/rules/${id}`)
   const handleAdd = async (form) => { await api('POST', '/rules', { rules: [form] }) }
   const handlePriority = async (id, delta, current) => api('PUT', `/rules/${id}`, { priority: Math.max(0, Math.min(100, current + delta)) })
 
   const handleReorder = async (type, reordered) => {
-    // Assign new priorities based on position: top = 100, bottom = decreasing
     const total = reordered.length
     const updates = reordered.map((rule, i) => {
       const newPriority = Math.max(1, Math.round(100 - (i / Math.max(total - 1, 1)) * 99))
@@ -171,26 +181,30 @@ export default function RulesTab({ rules, onUpdate }) {
 
   if (!rules) return <div className="text-center py-12 text-muted-foreground">Loading rules...</div>
 
-  const fitRules = (rules.fit || []).sort((a, b) => b.priority - a.priority)
-  const succRules = (rules.success || []).sort((a, b) => b.priority - a.priority)
-  const total = fitRules.length + succRules.length
-  const enabled = fitRules.filter(r => r.enabled).length + succRules.filter(r => r.enabled).length
+  const sharedRules = (rules.shared || []).sort((a, b) => b.priority - a.priority)
+  const jobRules = (rules.job || []).sort((a, b) => b.priority - a.priority)
+  const companyRules = (rules.company || []).sort((a, b) => b.priority - a.priority)
+  const total = sharedRules.length + jobRules.length + companyRules.length
+  const enabled = sharedRules.filter(r => r.enabled).length + jobRules.filter(r => r.enabled).length + companyRules.filter(r => r.enabled).length
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-extrabold">Scoring Rules</h2>
-          <p className="text-[0.65rem] text-muted-foreground">{enabled}/{total} active — drag to reorder priority, top = highest</p>
+          <p className="text-[0.65rem] text-muted-foreground">{enabled}/{total} active — Shared rules apply to both Job and Company scoring</p>
         </div>
       </div>
 
-      {/* Two columns */}
-      <div className="grid grid-cols-2 gap-3">
-        <RuleColumn type="fit" prefs={fitRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
+      {/* Three columns */}
+      <div className="grid grid-cols-3 gap-3">
+        <RuleColumn type="shared" prefs={sharedRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
           onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
           onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
-        <RuleColumn type="success" prefs={succRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
+        <RuleColumn type="job" prefs={jobRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
+          onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
+          onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
+        <RuleColumn type="company" prefs={companyRules} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
           onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
           onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
       </div>

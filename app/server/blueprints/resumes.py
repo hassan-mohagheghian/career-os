@@ -242,10 +242,14 @@ def generate_cover(num):
     try:
         rules_text = ''
         conn = get_db()
-        rule_rows = conn.execute("SELECT key, value, priority FROM preferences WHERE enabled=1 ORDER BY priority DESC").fetchall()
+        rule_rows = conn.execute(
+            "SELECT key, value, priority, score_weight FROM preferences "
+            "WHERE enabled=1 AND rule_type IN ('shared', 'job') "
+            "ORDER BY priority DESC"
+        ).fetchall()
         conn.close()
         if rule_rows:
-            rules_text = '\n'.join([f"- {r['key']}: {r['value']} (priority: {r['priority']})" for r in rule_rows])
+            rules_text = '\n'.join([f"- {r['key']} (weight:{r.get('score_weight') or r['priority']}): {r['value']}" for r in rule_rows])
 
         prompt = load_prompt('step7_cover_generate',
             url=j.get('url', ''), job_file=job_file, resume_file=resume_file,

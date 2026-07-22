@@ -101,6 +101,7 @@ def run_migrations():
     _migrate_numeric_scores()
     _backfill_numeric_scores()
     _migrate_rules()
+    _migrate_rule_types()
     _migrate_success_field()
     _migrate_resume_files()
 
@@ -173,6 +174,86 @@ def _migrate_rules():
             conn.close()
     except Exception as e:
         print(f"Warning: rules migration failed: {e}")
+
+
+def _migrate_rule_types():
+    """Add rule_type and score_weight columns to preferences table for backward compatibility."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        # Check if rule_type column exists
+        cursor = conn.execute('PRAGMA table_info(preferences)')
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if 'rule_type' not in columns:
+            print("[migrate] Adding rule_type column to preferences")
+            conn.execute("ALTER TABLE preferences ADD COLUMN rule_type TEXT NOT NULL DEFAULT 'job'")
+            # Mark all existing rules as 'job' type (backward compatible)
+            conn.execute("UPDATE preferences SET rule_type='job' WHERE rule_type IS NULL")
+
+        if 'score_weight' not in columns:
+            print("[migrate] Adding score_weight column to preferences")
+            conn.execute("ALTER TABLE preferences ADD COLUMN score_weight INTEGER DEFAULT 0")
+            # Copy priority to score_weight for existing rules
+            conn.execute("UPDATE preferences SET score_weight=priority WHERE score_weight=0 OR score_weight IS NULL")
+
+        # Check if shared/company rules exist by rule_type
+        shared_count = conn.execute("SELECT COUNT(*) FROM preferences WHERE rule_type='shared'").fetchone()[0]
+        company_count = conn.execute("SELECT COUNT(*) FROM preferences WHERE rule_type='company'").fetchone()[0]
+
+        if shared_count == 0 or company_count == 0:
+            print("[migrate] Seeding default shared and company rules")
+
+            # Convert existing matching rules to shared type
+            shared_keys = ['visa_and_relocation_compatibility', 'market_accessibility',
+                          'communication_and_work_culture', 'sensitive_industry_penalty']
+            for key in shared_keys:
+                conn.execute("UPDATE preferences SET rule_type='shared' WHERE key=? AND rule_type='job'", (key,))
+
+            # Add shared rules that don't exist yet
+            shared_rules = [
+                ("success", "shared", "visa_and_relocation_compatibility",
+                 "Evaluate visa sponsorship and relocation support. Positive: Work visa sponsorship, EU Blue Card support, history of hiring non-EU engineers, relocation support, international hiring process. Negative: EU work authorization required, local candidates only, no relocation support.",
+                 "Main impact: Success Score", 100, 100),
+                ("success", "shared", "market_and_location_accessibility",
+                 "Evaluate location accessibility. Highest priority: Germany (Berlin, Munich, Hamburg), Netherlands (Amsterdam, Eindhoven, Rotterdam). Other positive: Spain, Sweden, Denmark, Switzerland, Austria. Negative: Local-only markets, difficult immigration countries.",
+                 "Main impact: Success Score", 95, 90),
+                ("success", "shared", "communication_and_work_culture",
+                 "Evaluate work culture and communication. Positive: English-first workplace, international teams, remote/hybrid options, distributed teams, async communication culture. Negative: German/French/etc mandatory, local-only communication.",
+                 "Main impact: Success Score", 80, 70),
+                ("success", "shared", "sensitive_industry_penalty",
+                 "Reduce score for sensitive industries: defense/military, weapons systems, intelligence agencies, surveillance platforms, gambling/betting, alcohol/tobacco, adult content, fraud-related industries, highly controversial industries. Apply stronger penalties when core business is related. Do not heavily penalize normal tech companies that only serve these industries.",
+                 "Main impact: Success Score", 60, 50),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, key, value, description, priority, score_weight) VALUES (?,?,?,?,?,?,?)",
+                shared_rules
+            )
+
+            # Add company rules
+            company_rules = [
+                ("fit", "company", "company_quality",
+                 "Evaluate company quality. Positive: Strong product company, SaaS, developer tools, AI infrastructure, FinTech, HealthTech, B2B platforms, good funding/revenue signals, product maturity, market presence. Negative: Weak product signals, unclear business model, very unstable companies.",
+                 "Core company evaluation", 100, 100),
+                ("fit", "company", "engineering_culture",
+                 "Evaluate engineering culture. Positive: Strong engineering team, technical blog, open source activity, modern tech stack, testing culture, CI/CD practices, code review, architecture ownership, senior engineering environment, backend/platform engineering teams.",
+                 "Engineering team quality", 90, 85),
+                ("fit", "company", "growth_and_career_potential",
+                 "Evaluate growth opportunities. Positive: Senior ownership opportunities, technical leadership path, mentorship, learning culture, complex technical challenges, international growth opportunities. Negative: Maintenance-only products, limited engineering growth.",
+                 "Career advancement potential", 80, 75),
+                ("fit", "company", "candidate_company_alignment",
+                 "Evaluate alignment with candidate profile. Positive: Python backend, distributed systems, cloud-native systems, AI infrastructure, developer tools, data platforms. Additional bonus: Rust usage, backend/platform teams. Negative: Pure frontend companies, mobile-only companies, hardware-only companies.",
+                 "Profile match quality", 65, 60),
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO preferences (category, rule_type, key, value, description, priority, score_weight) VALUES (?,?,?,?,?,?,?)",
+                company_rules
+            )
+            print(f"[migrate] Added shared and company rules")
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: rule_types migration failed: {e}")
 
 
 def _migrate_success_field():

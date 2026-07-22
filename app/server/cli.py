@@ -360,20 +360,27 @@ def update_skills():
 def rules():
     """Show all scoring rules."""
     conn = get_db()
-    rows = conn.execute('SELECT category, key, value, description, enabled FROM preferences ORDER BY category, priority').fetchall()
+    rows = conn.execute('SELECT category, rule_type, key, value, description, priority, score_weight, enabled FROM preferences ORDER BY rule_type, category, priority').fetchall()
     conn.close()
     if not rows:
         console.print("[dim]No scoring rules set[/dim]")
         return
 
+    current_type = None
     current_cat = None
     for row in rows:
         r = dict(row)
+        rt = r.get('rule_type', 'job')
+        if rt != current_type:
+            current_type = rt
+            console.print(f"\n[bold magenta]═══ {current_type.upper()} RULES ═══[/bold magenta]")
+            current_cat = None
         if r['category'] != current_cat:
             current_cat = r['category']
             console.print(f"\n[bold cyan]{current_cat.upper()}[/bold cyan]")
         status = "[green]ON[/green]" if r['enabled'] else "[red]OFF[/red]"
-        console.print(f"  {status} {r['key']} = {r['value']}")
+        weight = r.get('score_weight') or r['priority']
+        console.print(f"  {status} {r['key']} (w:{weight}) = {r['value']}")
         if r['description']:
             console.print(f"    [dim]{r['description']}[/dim]")
 
@@ -381,14 +388,16 @@ def rules():
 def add_rule(category: str = typer.Argument(..., help="Category: fit or success"),
              key: str = typer.Argument(..., help="Rule key"),
              value: str = typer.Argument(..., help="Rule value"),
-             description: str = typer.Option("", help="Description")):
+             rule_type: str = typer.Option("job", help="Rule type: shared, job, or company"),
+             description: str = typer.Option("", help="Description"),
+             score_weight: int = typer.Option(0, help="Score weight (0 = use priority)")):
     """Add a new scoring rule."""
     conn = get_db()
     try:
-        conn.execute('''INSERT INTO preferences (category, key, value, description) VALUES (?, ?, ?, ?)''',
-            (category, key, value, description))
+        conn.execute('''INSERT INTO preferences (category, rule_type, key, value, description, score_weight) VALUES (?, ?, ?, ?, ?, ?)''',
+            (category, rule_type, key, value, description, score_weight))
         conn.commit()
-        console.print(f"[green]Added: {category}/{key} = {value}[/green]")
+        console.print(f"[green]Added: {rule_type}/{category}/{key} = {value} (weight: {score_weight})[/green]")
     except Exception as e:
         console.print(f"[red]Failed: {e}[/red]")
     finally:
