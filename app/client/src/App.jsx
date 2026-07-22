@@ -263,7 +263,20 @@ function App() {
 
       <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={handleRequeueJob} onUpdateJob={handleUpdateJob} onSetToast={showToast} onGenerateResume={(num) => generateResume(num, setDrawer)} onGenerateCover={(num) => generateCover(num, setDrawer)} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} onOpenCompany={(id) => openCompanyDrawer(id)} onNavigateToCompany={(id) => { setTab('companies'); setTimeout(() => openCompanyDrawer(id), 100) }} />
 
-      <CompanyDrawer company={companyDrawer} onClose={() => { setCompanyDrawer(null); window.history.replaceState(null, '', tab === 'companies' ? '#companies' : `#${tab}`) }} onDelete={handleDeleteCompany} onReprocess={handleReprocessCompany} onOpenJob={(num) => openDrawer(num)} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} />
+      <CompanyDrawer
+        company={companyDrawer}
+        onClose={() => { setCompanyDrawer(null); window.history.replaceState(null, '', tab === 'companies' ? '#companies' : `#${tab}`) }}
+        onDelete={handleDeleteCompany}
+        onReprocess={handleReprocessCompany}
+        onOpenJob={(num) => openDrawer(num)}
+        onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }}
+        onViewAllJobs={(companyName) => {
+          setCompanyDrawer(null)
+          setFilterCompanies([companyName])
+          setTab('jobs')
+          window.location.hash = 'jobs'
+        }}
+      />
 
       <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
 

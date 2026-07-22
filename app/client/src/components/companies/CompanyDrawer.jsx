@@ -30,7 +30,7 @@ function isRecruiterType(type) {
   return type === 'RECRUITING_AGENCY' || type === 'STAFFING_COMPANY'
 }
 
-export default function CompanyDrawer({ company, onClose, onDelete, onReprocess, onOpenJob, onNavigateToJob }) {
+export default function CompanyDrawer({ company, onClose, onDelete, onReprocess, onOpenJob, onNavigateToJob, onViewAllJobs }) {
   const [activeTab, setActiveTab] = useState('notes')
 
   if (!company) return null
@@ -98,6 +98,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {company.job_count > 0 && onViewAllJobs && (
+                <Button variant="outline" size="sm" className="gap-1 h-7 text-[0.6rem]" onClick={() => onViewAllJobs(company.name)}>
+                  <Briefcase className="w-3 h-3" /> View All Jobs
+                </Button>
+              )}
               {company.website && (
                 <a href={company.website} target="_blank" rel="noreferrer">
                   <Button variant="outline" size="sm" className="gap-1 h-7 text-[0.6rem]"><Link className="w-3 h-3" /> Website</Button>
