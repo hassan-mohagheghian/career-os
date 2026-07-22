@@ -1,5 +1,5 @@
 import {
-  Buildings, MapPin, Trash, Repeat, TrendUp, Globe, Users
+  Buildings, MapPin, Trash, Repeat, Globe, Users
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -11,21 +11,6 @@ const PRIORITY_STYLES = {
   'A': { bg: 'rgba(34,197,94,0.12)', text: '#22c55e', border: 'border-green-500/30' },
   'B': { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6', border: 'border-blue-500/30' },
   'C': { bg: 'rgba(234,179,8,0.12)', text: '#eab308', border: 'border-yellow-500/30' },
-}
-
-function ScoreBadge({ label, value, color }) {
-  if (value == null) return null
-  const v = typeof value === 'number' ? value : parseInt(value)
-  if (isNaN(v)) return null
-  const bg = v >= 80 ? 'bg-emerald-500/15 text-emerald-400' :
-             v >= 60 ? 'bg-blue-500/15 text-blue-400' :
-             v >= 40 ? 'bg-yellow-500/15 text-yellow-400' :
-             'bg-red-500/15 text-red-400'
-  return (
-    <span className={cn("inline-flex items-center px-1 py-0.5 rounded text-[0.55rem] font-bold", bg)} title={`${label}: ${v}`}>
-      {label.slice(0, 1)}:{v}
-    </span>
-  )
 }
 
 export default function CompanyCard({ company, onClick, onDelete, onReprocess }) {
@@ -42,9 +27,9 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess })
           style={{ background: ps.bg, color: ps.text, borderColor: ps.border }}>
           {priority}
         </span>
-        <ScoreBadge label="Visa" value={scores.visa_score} />
-        <ScoreBadge label="Tech" value={scores.tech_match} />
-        <ScoreBadge label="Career" value={scores.career_score} />
+        {scores.visa_score != null && <ScoreBadge label="Visa" value={scores.visa_score} />}
+        {scores.tech_match != null && <ScoreBadge label="Tech" value={scores.tech_match} />}
+        {scores.career_score != null && <ScoreBadge label="Career" value={scores.career_score} />}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           {onReprocess && (
             <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-blue-500" onClick={(e) => { e.stopPropagation(); onReprocess(company.id) }} title="Reprocess">
@@ -98,5 +83,20 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess })
         </div>
       )}
     </Card>
+  )
+}
+
+function ScoreBadge({ label, value }) {
+  if (value == null) return null
+  const v = typeof value === 'number' ? value : parseInt(value)
+  if (isNaN(v)) return null
+  const bg = v >= 80 ? 'bg-emerald-500/15 text-emerald-400' :
+             v >= 60 ? 'bg-blue-500/15 text-blue-400' :
+             v >= 40 ? 'bg-yellow-500/15 text-yellow-400' :
+             'bg-red-500/15 text-red-400'
+  return (
+    <span className={cn("inline-flex items-center px-1 py-0.5 rounded text-[0.55rem] font-bold", bg)} title={`${label}: ${v}`}>
+      {label.slice(0, 1)}:{v}
+    </span>
   )
 }

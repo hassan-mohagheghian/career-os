@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Buildings, MapPin, Globe, Users, Repeat, Trash, Link, Lightbulb,
-  Shield, Briefcase, Star, Cpu, Rocket, TrendUp, Spinner, Note, Plus, PencilSimple, X, Check
+  Shield, Briefcase, Star, Cpu, Rocket, Spinner, Note, Plus, PencilSimple, X, Check
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -9,22 +9,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Progress } from '@/components/ui/progress'
-
-function ScoreBar({ label, value, max = 100 }) {
-  const pct = Math.min(100, Math.max(0, (value || 0) / max * 100))
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-blue-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground w-20 shrink-0">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs font-bold w-8 text-right">{value ?? '?'}</span>
-    </div>
-  )
-}
+import ScoreBar from './ScoreBar'
+import CompanyJobsTab from './CompanyJobsTab'
+import CompanyNotesTab from './CompanyNotesTab'
 
 function Section({ title, icon, children }) {
   return (
@@ -314,186 +301,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess 
 
             {/* Notes Tab */}
             <TabsContent value="notes" className="mt-3">
-              <CompanyNotesTab company={company} onUpdate={(notes) => {
-                setCompany(prev => prev ? { ...prev, notes } : prev)
-              }} />
+              <CompanyNotesTab company={company} />
             </TabsContent>
           </Tabs>
         )}
       </SheetContent>
     </Sheet>
-  )
-}
-
-function CompanyJobsTab({ companyId }) {
-  const [jobs, setJobs] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch(`/api/companies/${companyId}/jobs`)
-      .then(r => r.json())
-      .then(data => { setJobs(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [companyId])
-
-  if (loading) return <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground"><Spinner className="w-3 h-3 animate-spin" /> Loading jobs...</div>
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">{jobs.length} linked job{jobs.length !== 1 ? 's' : ''}</span>
-      </div>
-      {jobs.length === 0 && (
-        <div className="text-center py-6 text-xs text-muted-foreground">No jobs linked to this company yet.</div>
-      )}
-      {jobs.map(j => (
-        <a key={j.num} href={`#jobs`} onClick={() => window.dispatchEvent(new CustomEvent('openJob', { detail: j.num }))}
-          className="block p-2 rounded border border-border/50 hover:bg-muted/50 transition">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold">#{j.num}</span>
-            <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled'}</span>
-            {j.score && <Badge variant="secondary" className="text-[0.5rem]">{j.score}</Badge>}
-          </div>
-          {j.location && <div className="text-[0.55rem] text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
-        </a>
-      ))}
-    </div>
-  )
-}
-
-function CompanyNotesTab({ company, onUpdate }) {
-  const [notes, setNotes] = useState(() => {
-    if (Array.isArray(company.notes)) return company.notes
-    if (typeof company.notes === 'string') { try { return JSON.parse(company.notes) } catch { return [] } }
-    return []
-  })
-  const [input, setInput] = useState('')
-  const [editingId, setEditingId] = useState(null)
-  const [editContent, setEditContent] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const addNote = async () => {
-    if (!input.trim()) return
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/companies/${company.id}/notes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'auto', content: input.trim() })
-      })
-      const data = await res.json()
-      setNotes(data)
-      onUpdate?.(data)
-      setInput('')
-    } finally { setSaving(false) }
-  }
-
-  const updateNote = async (noteId) => {
-    if (!editContent.trim()) return
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editContent.trim() })
-      })
-      const data = await res.json()
-      setNotes(data)
-      onUpdate?.(data)
-      setEditingId(null)
-      setEditContent('')
-    } finally { setSaving(false) }
-  }
-
-  const deleteNote = async (noteId) => {
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, { method: 'DELETE' })
-      const data = await res.json()
-      setNotes(data)
-      onUpdate?.(data)
-    } finally { setSaving(false) }
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Note className="w-4 h-4 text-primary" />
-        <span className="text-xs font-semibold">Company Notes</span>
-        <Badge variant="secondary" className="text-[0.5rem]">{notes.length}</Badge>
-      </div>
-      <p className="text-[0.6rem] text-muted-foreground">
-        Add notes about this company. These are used when reprocessing to generate better intelligence.
-      </p>
-
-      {/* Add note input */}
-      <div className="flex gap-1">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addNote()}
-          placeholder="Add a note (URL, description, anything)..."
-          className="flex-1 h-7 rounded border text-xs px-2 bg-muted"
-        />
-        <Button onClick={addNote} disabled={saving || !input.trim()} size="sm" className="h-7 px-2">
-          <Plus className="w-3 h-3" />
-        </Button>
-      </div>
-
-      {/* Notes list */}
-      <div className="space-y-1 max-h-60 overflow-y-auto">
-        {notes.length === 0 && (
-          <div className="text-center py-4 text-xs text-muted-foreground">No notes yet. Add one above.</div>
-        )}
-        {notes.map((n) => {
-          const isUrl = n.type === 'url' || (n.content || '').startsWith('http')
-          const isEditing = editingId === n.id
-          return (
-            <div key={n.id} className="group flex items-start gap-1 rounded border bg-muted/50 px-2 py-1.5 text-xs">
-              <span className="shrink-0 mt-0.5">
-                {isUrl ? <Link className="w-2.5 h-2.5 text-primary" /> : <Note className="w-2.5 h-2.5 text-muted-foreground" />}
-              </span>
-              {isEditing ? (
-                <div className="flex-1 flex gap-1">
-                  <input
-                    type="text"
-                    value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && updateNote(n.id)}
-                    className="flex-1 h-6 rounded border text-xs px-1.5"
-                    autoFocus
-                  />
-                  <Button size="sm" variant="ghost" className="h-6 w-6 px-0" onClick={() => updateNote(n.id)}>
-                    <Check className="w-3 h-3 text-green-500" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-6 w-6 px-0" onClick={() => { setEditingId(null); setEditContent('') }}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ) : (
-                <span className="flex-1 min-w-0 break-all">
-                  {isUrl ? (
-                    <a href={n.content} target="_blank" rel="noreferrer" className="text-primary hover:underline">{n.content}</a>
-                  ) : n.content}
-                </span>
-              )}
-              {!isEditing && (
-                <div className="flex items-center gap-0 shrink-0 opacity-0 group-hover:opacity-100 transition">
-                  <button onClick={() => { setEditingId(n.id); setEditContent(n.content) }}
-                    className="p-0.5 text-muted-foreground hover:text-foreground">
-                    <PencilSimple className="w-2.5 h-2.5" />
-                  </button>
-                  <button onClick={() => deleteNote(n.id)}
-                    className="p-0.5 text-muted-foreground hover:text-destructive">
-                    <Trash className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
   )
 }

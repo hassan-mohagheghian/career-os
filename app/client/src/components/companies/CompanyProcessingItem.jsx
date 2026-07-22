@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  Rocket, Pause, Repeat, Trash, FileText, ArrowBendUpLeft,
-  Check, Spinner, Globe, CheckCircle, Brain, Warning, LinkSimple, Copy
+  Rocket, Pause, Repeat, Trash, ArrowBendUpLeft,
+  Check, Globe, CheckCircle, Brain, Warning, LinkSimple
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,14 +18,6 @@ const STEPS = [
 
 const STEP_KEYS = ['step_fetch', 'step_extract', 'step_analyze', 'step_save', 'step_done']
 
-const STATUS_CONFIG = {
-  pending: { label: 'Pending', color: 'text-gray-400' },
-  queued: { label: 'Queued', color: 'text-yellow-500' },
-  processing: { label: 'Processing', color: 'text-blue-500' },
-  done: { label: 'Done', color: 'text-green-500' },
-  failed: { label: 'Failed', color: 'text-red-500' },
-}
-
 function getStatus(item) {
   if (item.status === 'done') return 'done'
   if (item.status === 'failed') return 'failed'
@@ -37,10 +29,6 @@ function getStatus(item) {
   }
   if (item.status === 'queued') return 'Queued'
   return 'Pending'
-}
-
-function setToast(msg) {
-  window.dispatchEvent(new CustomEvent('toast', { detail: msg }))
 }
 
 export default function CompanyProcessingItem({ item, onDelete, onProcess, onReset, onPause, onReprocess }) {

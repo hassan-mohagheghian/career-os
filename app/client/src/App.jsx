@@ -5,18 +5,15 @@ import {
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
-} from '@/components/ui/alert-dialog'
+import ConfirmDialog from '@/components/shared/ConfirmDialog'
 
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import JobDrawer from '@/components/JobDrawer'
-import IntelligenceTab from '@/components/IntelligenceTab'
+import IntelligenceTab from '@/components/intelligence/IntelligenceTab'
 import ResumeTab from '@/components/ResumeTab'
 import RulesTab from '@/components/RulesTab'
-import CompaniesPage from '@/components/CompaniesPage'
+import CompaniesPage from '@/components/companies/CompaniesPage'
 import JobsPage from '@/components/jobs/JobsPage'
 import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
 import DuplicateJobDialog from '@/components/shared/DuplicateJobDialog'
@@ -192,10 +189,8 @@ function App() {
     if (tab === 'jobs' && jobs && !drawer) {
       openDrawer(deepLinkId)
       setDeepLinkId(null)
-    } else if (tab === 'companies') {
-      // CompaniesPage handles its own deep linking via the prop
-      setDeepLinkId(null)
     }
+    // companies deep linking is handled by CompaniesPage itself
   }, [deepLinkId, tab, jobs, drawer])
 
   useEffect(() => {
@@ -432,7 +427,7 @@ function App() {
               />
             )}
             {tab === 'companies' && (
-              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
+              <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} />
             )}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} jobs={jobs} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={cities} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkillsTab} onOpenDrawer={openDrawer} />
@@ -445,21 +440,7 @@ function App() {
 
       <JobDrawer drawer={drawer} drawerTab={drawerTab} generatingResume={generatingResume} generatingCover={generatingCover} companies={companies} onClose={() => { setDrawer(null); window.history.replaceState(null, '', '#jobs') }} onSetDrawerTab={setDrawerTab} onRescoreJob={rescoreJob} onRequeueJob={requeueJob} onUpdateJob={updateJob} onSetToast={(msg) => { setToast(msg); if (msg) setTimeout(() => setToast(null), 2000) }} onGenerateResume={generateResume} onGenerateCover={generateCover} onLinkCompany={async (num, companyId) => { await fetch(`${API}/jobs/${num}/link-company`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company_id: companyId }) }); const res = await fetch(`${API}/jobs/${num}`); const updated = await res.json(); setDrawer(prev => prev ? { ...prev, job: updated } : null) }} />
 
-      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmDialog?.title}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { confirmDialog?.resolve(false); setConfirmDialog(null) }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { confirmDialog?.resolve(true); setConfirmDialog(null) }}
-              className={cn(confirmDialog?.variant === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600' : confirmDialog?.variant === 'info' ? '' : 'bg-destructive hover:bg-destructive/90')}>
-              {confirmDialog?.confirmLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
 
       <DuplicateJobDialog duplicateJob={duplicateJob} setDuplicateJob={setDuplicateJob}
         onRescore={async (num) => { await fetch(`${API}/jobs/${num}/rescore`, { method: 'POST' }); fetchPending(); refreshJobs(); setDuplicateJob(null) }}

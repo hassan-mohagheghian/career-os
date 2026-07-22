@@ -1,24 +1,19 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  Buildings, Plus, X, CheckCircle, Clock, Gear, Warning, Trash,
-  ArrowsClockwise, Repeat, Rocket, LinkSimple, PencilSimple, Note,
-  MagnifyingGlass, Funnel, SortAscending
+  Buildings, Plus, X, CheckCircle, Clock, Gear, Warning,
+  ArrowsClockwise, MagnifyingGlass, Note, LinkSimple
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import CompanyProcessingItem from '@/components/CompanyProcessingItem'
-import CompanyCard from '@/components/CompanyCard'
-import CompanyDrawer from '@/components/CompanyDrawer'
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
-} from '@/components/ui/alert-dialog'
+import CompanyProcessingItem from './CompanyProcessingItem'
+import CompanyCard from './CompanyCard'
+import CompanyDrawer from './CompanyDrawer'
+import ConfirmDialog from '@/components/shared/ConfirmDialog'
 
 const API = '/api'
 
@@ -52,7 +47,7 @@ function NoteItem({ note, onRemove }) {
   )
 }
 
-export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onRefresh }) {
+export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onClearDeepLink, onRefresh }) {
   const [noteInput, setNoteInput] = useState('')
   const [notes, setNotes] = useState([])
   const [submitting, setSubmitting] = useState(false)
@@ -60,7 +55,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
   const [drawerCompany, setDrawerCompany] = useState(null)
-  const [editingId, setEditingId] = useState(null) // pending company id being edited
+  const [editingId, setEditingId] = useState(null)
   const [processImmediately, setProcessImmediately] = useState(true)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
@@ -73,12 +68,12 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const failedCount = pendingCompanies.filter(p => p.status === 'failed').length
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
-  // Deep link: auto-open company drawer from URL hash
   useEffect(() => {
     if (deepLinkId && companies.length > 0 && !drawerCompany) {
       openCompany(deepLinkId)
+      onClearDeepLink?.()
     }
-  }, [deepLinkId, companies])
+  }, [deepLinkId, companies, drawerCompany])
 
   const allIndustries = useMemo(() => {
     const set = new Set(companies.map(c => c.industry).filter(Boolean))
@@ -89,7 +84,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
 
   const filteredCompanies = useMemo(() => {
     let r = [...companies]
-    // Search filter
     if (search) {
       const q = search.toLowerCase()
       r = r.filter(c =>
@@ -100,11 +94,9 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         (c.description || '').toLowerCase().includes(q)
       )
     }
-    // Industry filter
     if (filterIndustry) {
       r = r.filter(c => c.industry === filterIndustry)
     }
-    // Sort
     r.sort((a, b) => {
       let aVal, bVal
       if (sortBy === 'name') {
@@ -120,7 +112,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
       } else if (sortBy === 'career_score') {
         aVal = a.scores?.career_score || 0; bVal = b.scores?.career_score || 0
       } else {
-        // created_at
         aVal = a.created_at ? new Date(a.created_at).getTime() : 0
         bVal = b.created_at ? new Date(b.created_at).getTime() : 0
       }
@@ -148,19 +139,15 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const handleSubmit = async () => {
     if (notes.length === 0 && !noteInput.trim()) return
     setError('')
-
-    // If there's unsubmitted text in the input, add it as a note first
     let allNotes = [...notes]
     if (noteInput.trim()) {
       const type = noteInput.trim().startsWith('http') ? 'url' : 'text'
       allNotes = [...allNotes, { type, content: noteInput.trim() }]
     }
     if (allNotes.length === 0) return
-
     setSubmitting(true)
     try {
       if (editingId) {
-        // Adding notes to existing pending company
         for (const note of allNotes) {
           await fetch(`${API}/pending-companies`, {
             method: 'POST',
@@ -170,7 +157,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         }
         setEditingId(null)
       } else {
-        // Create new pending company
         const res = await fetch(`${API}/companies`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -182,7 +168,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
           setSubmitting(false)
           return
         }
-        // Auto-process if enabled
         if (processImmediately && data.id) {
           await fetch(`${API}/pending-companies/${data.id}/process`, { method: 'POST' })
         }
@@ -339,7 +324,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                               onDelete={() => deletePending(p.id)}
                               onReset={() => resetPending(p.id)}
                               onReprocess={async () => { await resetPending(p.id); await processCompany(p.id) }} />
-                            {/* Show notes for pending items */}
                             {(() => {
                               const pNotes = parseNotes(p.notes)
                               return s.id === 'pending' && pNotes.length > 0 && (
@@ -444,22 +428,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
 
       <CompanyDrawer company={drawerCompany} onClose={() => { setDrawerCompany(null); window.history.replaceState(null, '', '#companies') }} onDelete={deleteCompany} onReprocess={reprocessCompany} />
 
-      {/* Confirm Dialog */}
-      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open && confirmDialog) { confirmDialog.resolve(false); setConfirmDialog(null) } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmDialog?.title}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmDialog?.message}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { confirmDialog?.resolve(false); setConfirmDialog(null) }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { confirmDialog?.resolve(true); setConfirmDialog(null) }}
-              className={cn(confirmDialog?.variant === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600' : confirmDialog?.variant === 'info' ? '' : 'bg-destructive hover:bg-destructive/90')}>
-              {confirmDialog?.confirmLabel}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
     </div>
   )
 }
