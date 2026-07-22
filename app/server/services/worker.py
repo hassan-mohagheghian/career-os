@@ -181,7 +181,7 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (d['num'], d['company'], d['role'], d['location'], d['match'],
          d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
          d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
@@ -192,7 +192,8 @@ def _insert_job(d):
          d.get('structured_file_path'), d.get('rescoring', 0), d.get('success'),
          adv_at, see_at, d.get('apply_reason', ''), d.get('company_url'), d.get('linkedin_url'),
          d.get('apply_time'), d.get('response_time'), d.get('response_status'),
-         d.get('fit_score'), d.get('success_score'), d.get('overall_score')))
+         d.get('fit_score'), d.get('success_score'), d.get('overall_score'),
+         d.get('company_id')))
     conn.commit(); conn.close()
 
 
