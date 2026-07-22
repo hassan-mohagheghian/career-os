@@ -7,13 +7,13 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
-import JobDrawer from '@/components/JobDrawer'
+import Sidebar from '@/components/layout/Sidebar'
+import Header from '@/components/layout/Header'
+import JobDrawer from '@/components/jobs/drawer/JobDrawer'
 import CompanyDrawer from '@/components/companies/CompanyDrawer'
 import IntelligenceTab from '@/components/intelligence/IntelligenceTab'
-import ResumeTab from '@/components/ResumeTab'
-import RulesTab from '@/components/RulesTab'
+import ResumeTab from '@/components/resume/ResumeTab'
+import RulesTab from '@/components/rules/RulesTab'
 import CompaniesPage from '@/components/companies/CompaniesPage'
 import JobsPage from '@/components/jobs/JobsPage'
 import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
@@ -439,7 +439,7 @@ function App() {
       <Sidebar sidebarOpen={sidebarOpen} tabs={tabs} tab={tab} onSwitchTab={switchTab} onClose={() => setSidebarOpen(false)} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <Header jobAgg={jobAgg} jobsTotal={jobsTotal} resumes={resumes} theme={theme} onSwitchTab={switchTab} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
+        <Header jobAgg={jobAgg} jobsTotal={jobsTotal} resumes={resumes} companies={companies} theme={theme} tab={tab} onSwitchTab={switchTab} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
 
         <div className="flex-1 overflow-y-auto p-4 pt-16">
           <div className="max-w-[1400px] mx-auto">

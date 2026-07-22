@@ -10,9 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import ProcessingItem from '@/components/ProcessingItem'
-import { JobCard } from '@/components/ProcessedCards'
-import { MultiSelect } from '@/components/MultiSelect'
+import ProcessingItem from '@/components/shared/ProcessingItem'
+import { JobCard } from '@/components/shared/ProcessedCards'
+import { MultiSelect } from '@/components/shared/MultiSelect'
 
 export default function JobsPage({
   pending, jobs, filteredJobs, jobsTotal, filteredJobsCount,

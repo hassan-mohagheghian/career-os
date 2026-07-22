@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import ResumePreview from '@/components/ResumePreview'
+import ResumePreview from '@/components/shared/ResumePreview'
 
 const API = '/api'
 

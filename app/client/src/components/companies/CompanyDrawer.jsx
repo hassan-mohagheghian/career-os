@@ -9,43 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Section, Field, TagList } from '@/components/DrawerComponents'
 import ScoreBar from './ScoreBar'
 import CompanyJobsTab from './CompanyJobsTab'
 import CompanyNotesTab from './CompanyNotesTab'
-
-function Section({ title, icon, children }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        {icon}{title}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, value }) {
-  if (!value) return null
-  return (
-    <div className="flex gap-2">
-      <span className="text-xs text-muted-foreground shrink-0">{label}:</span>
-      <span className="text-xs">{value}</span>
-    </div>
-  )
-}
-
-function TagList({ items }) {
-  if (!items || !items.length) return null
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((item, i) => (
-        <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-secondary text-secondary-foreground">
-          {item}
-        </span>
-      ))}
-    </div>
-  )
-}
 
 const COMPANY_TYPE_LABELS = {
   PRODUCT_COMPANY: 'Product Company',
@@ -98,19 +65,19 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 </div>
                 {companyFitScore !== null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-blue-400">{companyFitScore}</div>
+                    <div className="text-lg font-bold text-primary">{companyFitScore}</div>
                     <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
                   </div>
                 )}
                 {companySuccessScore !== null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-emerald-400">{companySuccessScore}</div>
+                    <div className="text-lg font-bold text-primary">{companySuccessScore}</div>
                     <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
                   </div>
                 )}
                 {companyOverallScore !== null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-purple-400">{companyOverallScore}</div>
+                    <div className="text-lg font-bold text-primary">{companyOverallScore}</div>
                     <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
                   </div>
                 )}
@@ -124,7 +91,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 {company.company_size && <Badge variant="secondary" className="text-[0.55rem]"><Users className="w-2.5 h-2.5 mr-1" />{company.company_size}</Badge>}
                 {company.company_type && <Badge variant="secondary" className="text-[0.55rem]">{formatCompanyType(company.company_type)}</Badge>}
                 {company.job_count > 0 && (
-                  <Badge variant="secondary" className="text-[0.55rem] bg-blue-500/15 text-blue-400">
+                  <Badge variant="secondary" className="text-[0.55rem] bg-primary/10 text-primary">
                     <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
                   </Badge>
                 )}
@@ -150,8 +117,8 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
           </div>
         </SheetHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-muted w-full justify-start flex-wrap h-auto gap-1 p-1">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-3">
+          <TabsList className="w-full justify-start">
             <TabsTrigger value="notes" className="text-[0.6rem] gap-1"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
             <TabsTrigger value="intelligence" className="text-[0.6rem] gap-1"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
             <TabsTrigger value="scores" className="text-[0.6rem] gap-1"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
@@ -178,13 +145,13 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               <>
                 {/* Recruiter Overview */}
                 <Section title="Recruiter Overview" icon={<Buildings className="w-4 h-4 text-primary" />}>
-                  {company.description && <p className="text-xs text-muted-foreground">{company.description}</p>}
+                  {company.description && <p className="text-sm text-muted-foreground">{company.description}</p>}
                   <Field label="Founded" value={overview.founded} />
                   <Field label="Headquarters" value={overview.headquarters} />
                   <Field label="Size" value={overview.size || company.company_size} />
                   {overview.countries && overview.countries.length > 0 && (
                     <div>
-                      <span className="text-xs text-muted-foreground">Countries:</span>
+                      <span className="text-sm text-muted-foreground">Countries:</span>
                       <TagList items={overview.countries} />
                     </div>
                   )}
@@ -205,8 +172,8 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <Field label="International Hiring" value={visa.international_hiring} />
                   {visa.positive_signals && visa.positive_signals.length > 0 && (
                     <div>
-                      <span className="text-xs text-green-500 font-semibold">Positive Signals:</span>
-                      {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {s}</p>)}
+                      <span className="text-sm text-green-500 font-semibold">Positive Signals:</span>
+                      {visa.positive_signals.map((s, i) => <p key={i} className="text-sm mt-0.5">- {s}</p>)}
                     </div>
                   )}
                 </Section>
@@ -217,7 +184,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <Field label="Vacation" value={benefits.vacation} />
                   {benefits.benefits && benefits.benefits.length > 0 && (
                     <div>
-                      <span className="text-xs text-muted-foreground">Benefits:</span>
+                      <span className="text-sm text-muted-foreground">Benefits:</span>
                       <TagList items={benefits.benefits} />
                     </div>
                   )}
@@ -228,14 +195,14 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 {/* Product Company Sections */}
                 {/* Company Overview */}
                 <Section title="Company Overview" icon={<Buildings className="w-4 h-4 text-primary" />}>
-                  {company.description && <p className="text-xs text-muted-foreground">{company.description}</p>}
+                  {company.description && <p className="text-sm text-muted-foreground">{company.description}</p>}
                   <Field label="Products" value={overview.products} />
                   <Field label="Founded" value={overview.founded} />
                   <Field label="Headquarters" value={overview.headquarters} />
                   <Field label="Size" value={overview.size || company.company_size} />
                   {overview.countries && overview.countries.length > 0 && (
                     <div>
-                      <span className="text-xs text-muted-foreground">Countries:</span>
+                      <span className="text-sm text-muted-foreground">Countries:</span>
                       <TagList items={overview.countries} />
                     </div>
                   )}
@@ -262,13 +229,13 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 {/* Technology Stack */}
                 <Section title="Technology Stack" icon={<Cpu className="w-4 h-4 text-cyan-400" />}>
                   {tech.backend && tech.backend.length > 0 && (
-                    <div><span className="text-xs text-muted-foreground">Backend:</span><TagList items={tech.backend} /></div>
+                    <div><span className="text-sm text-muted-foreground">Backend:</span><TagList items={tech.backend} /></div>
                   )}
                   {tech.frontend && tech.frontend.length > 0 && (
-                    <div><span className="text-xs text-muted-foreground">Frontend:</span><TagList items={tech.frontend} /></div>
+                    <div><span className="text-sm text-muted-foreground">Frontend:</span><TagList items={tech.frontend} /></div>
                   )}
                   {tech.infrastructure && tech.infrastructure.length > 0 && (
-                    <div><span className="text-xs text-muted-foreground">Infrastructure:</span><TagList items={tech.infrastructure} /></div>
+                    <div><span className="text-sm text-muted-foreground">Infrastructure:</span><TagList items={tech.infrastructure} /></div>
                   )}
                   <Field label="Tech Match Score" value={tech.tech_match_score} />
                   <Field label="Matches Profile" value={tech.matches_profile} />
@@ -284,7 +251,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <Field label="Equipment" value={benefits.equipment} />
                   {benefits.benefits && benefits.benefits.length > 0 && (
                     <div>
-                      <span className="text-xs text-muted-foreground">Benefits:</span>
+                      <span className="text-sm text-muted-foreground">Benefits:</span>
                       <TagList items={benefits.benefits} />
                     </div>
                   )}
@@ -293,9 +260,9 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 {/* Visa & Relocation Signals */}
                 <Section title="Visa & Relocation Signals" icon={<Shield className="w-4 h-4 text-emerald-400" />}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-muted-foreground">Relocation:</span>
+                    <span className="text-sm text-muted-foreground">Relocation:</span>
                     <Badge variant={visa.relocation_recommendation === 'HIGH' ? 'default' : visa.relocation_recommendation === 'MEDIUM' ? 'secondary' : 'outline'}
-                      className={cn("text-[0.55rem]",
+                      className={cn("text-xs",
                         visa.relocation_recommendation === 'HIGH' ? 'bg-emerald-500/15 text-emerald-400' :
                         visa.relocation_recommendation === 'MEDIUM' ? 'bg-yellow-500/15 text-yellow-400' :
                         'bg-red-500/15 text-red-400'
@@ -308,20 +275,20 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <Field label="English First" value={visa.english_first} />
                   {visa.positive_signals && visa.positive_signals.length > 0 && (
                     <div>
-                      <span className="text-xs text-green-500 font-semibold">Positive Signals:</span>
-                      {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {s}</p>)}
+                      <span className="text-sm text-green-500 font-semibold">Positive Signals:</span>
+                      {visa.positive_signals.map((s, i) => <p key={i} className="text-sm mt-0.5">- {s}</p>)}
                     </div>
                   )}
                   {visa.risks && visa.risks.length > 0 && (
                     <div>
-                      <span className="text-xs text-red-400 font-semibold">Risks:</span>
-                      {visa.risks.map((r, i) => <p key={i} className="text-xs mt-0.5">- {r}</p>)}
+                      <span className="text-sm text-red-400 font-semibold">Risks:</span>
+                      {visa.risks.map((r, i) => <p key={i} className="text-sm mt-0.5">- {r}</p>)}
                     </div>
                   )}
                 </Section>
 
                 {/* Growth Opportunities */}
-                <Section title="Growth Opportunities" icon={<TrendUp className="w-4 h-4 text-blue-400" />}>
+                <Section title="Growth Opportunities" icon={<TrendUp className="w-4 h-4 text-primary" />}>
                   <Field label="Senior Opportunities" value={career.senior_opportunities} />
                   <Field label="Technical Challenges" value={career.technical_challenges} />
                   <Field label="Growth Potential" value={career.growth_potential} />
@@ -333,7 +300,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 {/* Risks and Concerns */}
                 {(visa.risks && visa.risks.length > 0) || (tech.missing_tech) ? (
                   <Section title="Risks & Concerns" icon={<Shield className="w-4 h-4 text-red-400" />}>
-                    {visa.risks && visa.risks.map((r, i) => <p key={i} className="text-xs text-red-400 mt-0.5">- {r}</p>)}
+                    {visa.risks && visa.risks.map((r, i) => <p key={i} className="text-sm text-red-400 mt-0.5">- {r}</p>)}
                     <Field label="Missing Technologies" value={tech.missing_tech} />
                   </Section>
                 ) : null}
@@ -367,12 +334,12 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 <Card className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex flex-col items-center">
-                      <div className="text-3xl font-black text-blue-400">{companyFitScore ?? '?'}</div>
+                      <div className="text-3xl font-black text-primary">{companyFitScore ?? '?'}</div>
                       <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit Score</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Fit Score</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         {isRecruiterType(company.company_type)
                           ? 'How valuable is this company as a career opportunity gateway?'
                           : 'How well does this company match my technical background and career direction?'}
@@ -380,18 +347,18 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                     </div>
                   </div>
                   {scores.fit_explanation && (
-                    <p className="text-xs text-muted-foreground mb-2">{scores.fit_explanation}</p>
+                    <p className="text-sm text-muted-foreground mb-2">{scores.fit_explanation}</p>
                   )}
                   {scores.fit_positive_factors && scores.fit_positive_factors.length > 0 && (
                     <div className="mb-2">
-                      <span className="text-xs text-green-500 font-semibold">Positive Factors:</span>
-                      {scores.fit_positive_factors.map((f, i) => <p key={i} className="text-xs text-green-400 mt-0.5">+ {f}</p>)}
+                      <span className="text-sm text-green-500 font-semibold">Positive Factors:</span>
+                      {scores.fit_positive_factors.map((f, i) => <p key={i} className="text-sm text-green-400 mt-0.5">+ {f}</p>)}
                     </div>
                   )}
                   {scores.fit_negative_factors && scores.fit_negative_factors.length > 0 && (
                     <div>
-                      <span className="text-xs text-red-400 font-semibold">Negative Factors:</span>
-                      {scores.fit_negative_factors.map((f, i) => <p key={i} className="text-xs text-red-400 mt-0.5">- {f}</p>)}
+                      <span className="text-sm text-red-400 font-semibold">Negative Factors:</span>
+                      {scores.fit_negative_factors.map((f, i) => <p key={i} className="text-sm text-red-400 mt-0.5">- {f}</p>)}
                     </div>
                   )}
                 </Card>
@@ -400,12 +367,12 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                 <Card className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex flex-col items-center">
-                      <div className="text-3xl font-black text-emerald-400">{companySuccessScore ?? '?'}</div>
+                      <div className="text-3xl font-black text-primary">{companySuccessScore ?? '?'}</div>
                       <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success Score</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Success Score</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         {isRecruiterType(company.company_type)
                           ? 'How likely am I to get value from this recruiter?'
                           : 'How likely am I to successfully join this company?'}
@@ -413,18 +380,18 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                     </div>
                   </div>
                   {scores.success_explanation && (
-                    <p className="text-xs text-muted-foreground mb-2">{scores.success_explanation}</p>
+                    <p className="text-sm text-muted-foreground mb-2">{scores.success_explanation}</p>
                   )}
                   {scores.success_positive_factors && scores.success_positive_factors.length > 0 && (
                     <div className="mb-2">
-                      <span className="text-xs text-green-500 font-semibold">Positive Factors:</span>
-                      {scores.success_positive_factors.map((f, i) => <p key={i} className="text-xs text-green-400 mt-0.5">+ {f}</p>)}
+                      <span className="text-sm text-green-500 font-semibold">Positive Factors:</span>
+                      {scores.success_positive_factors.map((f, i) => <p key={i} className="text-sm text-green-400 mt-0.5">+ {f}</p>)}
                     </div>
                   )}
                   {scores.success_negative_factors && scores.success_negative_factors.length > 0 && (
                     <div>
-                      <span className="text-xs text-red-400 font-semibold">Negative Factors:</span>
-                      {scores.success_negative_factors.map((f, i) => <p key={i} className="text-xs text-red-400 mt-0.5">- {f}</p>)}
+                      <span className="text-sm text-red-400 font-semibold">Negative Factors:</span>
+                      {scores.success_negative_factors.map((f, i) => <p key={i} className="text-sm text-red-400 mt-0.5">- {f}</p>)}
                     </div>
                   )}
                 </Card>

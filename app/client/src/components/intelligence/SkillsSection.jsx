@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { TechCard, StackCard } from '@/components/TechCards'
+import { TechCard, StackCard } from '@/components/shared/TechCards'
 
 export default function SkillsSection({ analysis, refreshing, onRefresh }) {
   const techStackData = analysis.techStack || []

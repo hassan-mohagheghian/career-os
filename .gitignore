@@ -38,6 +38,9 @@ Thumbs.db
 # MimoCode
 .mimocode/
 
+# Third-party SDKs
+.sentry-native/
+
 # Data folders (generated content)
 /jobs/
 /resumes/
