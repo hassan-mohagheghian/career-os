@@ -13,7 +13,6 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import JobDrawer from '@/components/jobs/drawer/JobDrawer'
 import CompanyDrawer from '@/components/companies/CompanyDrawer'
-import IntelligenceTab from '@/components/intelligence/IntelligenceTab'
 import CareerIntelTab from '@/components/career-intel/CareerIntelTab'
 import ResumeTab from '@/components/resume/ResumeTab'
 import RulesTab from '@/components/rules/RulesTab'
@@ -22,7 +21,7 @@ import JobsPage from '@/components/jobs/JobsPage'
 import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
 import DuplicateJobDialog from '@/components/shared/DuplicateJobDialog'
 
-import { useJobs, usePending, useCompanies, useWorkflow, useIntelligence, useResume, useCareerIntel } from '@/hooks'
+import { useJobs, usePending, useCompanies, useWorkflow, useResume, useCareerIntel } from '@/hooks'
 
 const API = '/api'
 
@@ -69,13 +68,6 @@ function App() {
   } = useResume()
 
   const {
-    analysis, timestamps, intelligenceSubTab, setIntelligenceSubTab, refreshing,
-    fetchAnalysis, fetchTimestamps, getLastUpdated,
-    refreshAnalysis, refreshStrategy, refreshNetworking,
-    refreshSkills, refreshMarket, refreshOpportunity
-  } = useIntelligence(refreshJobs)
-
-  const {
     data: careerData, status: careerStatus, progress: careerProgress,
     activeTab: careerSubTab, setActiveTab: setCareerSubTab, refreshing: careerRefreshing,
     error: careerError,
@@ -110,8 +102,6 @@ function App() {
     Promise.all([fetchJobs(), fetchSummaries(), fetchResumes(), fetchLinkedin()])
     fetchPending()
     fetchRules()
-    fetchAnalysis()
-    fetchTimestamps()
     fetchCompanies()
     fetchPendingCompanies()
     fetchCareerData()
@@ -226,7 +216,6 @@ function App() {
     { id: 'companies', icon: <Buildings className="w-4 h-4" />, label: 'Companies', badge: companies.length, section: 'jobs' },
     { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
     { id: 'career-intel', icon: <Lightbulb className="w-4 h-4" />, label: 'Career Intel', section: 'analysis' },
-    { id: 'intelligence', icon: <Brain className="w-4 h-4" />, label: 'Intelligence', section: 'analysis' },
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
   ]
 
@@ -273,9 +262,6 @@ function App() {
             )}
             {tab === 'career-intel' && (
               <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onCancel={cancelCareerRun} />
-            )}
-            {tab === 'intelligence' && (
-              <IntelligenceTab analysis={analysis} timestamps={timestamps} getLastUpdated={getLastUpdated} jobs={jobs} jobsTotal={jobsTotal} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
             )}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={fetchResumes} onRefreshLinkedin={fetchLinkedin} />}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}

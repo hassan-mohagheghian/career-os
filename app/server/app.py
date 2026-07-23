@@ -37,7 +37,6 @@ from blueprints.jobs import bp as jobs_bp
 from blueprints.resumes import bp as resumes_bp
 from blueprints.pending import bp as pending_bp
 from blueprints.companies import bp as companies_bp
-from blueprints.intelligence import bp as intelligence_bp
 from blueprints.career_intel import bp as career_intel_bp
 from blueprints.rules import bp as rules_bp
 from blueprints.dashboard import bp as dashboard_bp
@@ -47,7 +46,6 @@ app.register_blueprint(jobs_bp)
 app.register_blueprint(resumes_bp)
 app.register_blueprint(pending_bp)
 app.register_blueprint(companies_bp)
-app.register_blueprint(intelligence_bp)
 app.register_blueprint(career_intel_bp)
 app.register_blueprint(rules_bp)
 app.register_blueprint(dashboard_bp)

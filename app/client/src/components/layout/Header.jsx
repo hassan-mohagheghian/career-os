@@ -1,4 +1,4 @@
-import { Briefcase, Target, Rocket, House, FileText, Sun, Moon, Buildings, Brain, Gear } from '@phosphor-icons/react'
+import { Briefcase, Target, Rocket, House, FileText, Sun, Moon, Buildings, Brain, Gear, Lightbulb } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -7,7 +7,7 @@ const FEATURES = [
   { id: 'jobs', icon: Briefcase, label: 'Jobs', color: 'text-blue-500' },
   { id: 'companies', icon: Buildings, label: 'Companies', color: 'text-emerald-500' },
   { id: 'resume', icon: FileText, label: 'Resume', color: 'text-purple-500' },
-  { id: 'intelligence', icon: Brain, label: 'Intelligence', color: 'text-amber-500' },
+  { id: 'career-intel', icon: Lightbulb, label: 'Career Intel', color: 'text-amber-500' },
   { id: 'rules', icon: Gear, label: 'Rules', color: 'text-cyan-500' },
 ]
 

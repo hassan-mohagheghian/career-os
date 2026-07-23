@@ -108,39 +108,47 @@ def get_cities():
 
 @bp.route('/api/refresh/dashboard', methods=['POST'])
 def refresh_dashboard():
-    from services.worker import _update_strategy_analysis
-    try:
-        _update_strategy_analysis(0)
-        return jsonify({'status': 'updated'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Refresh dashboard — now delegates to career intelligence."""
+    from services.career_intel import generate_all, is_running
+    running, _ = is_running()
+    if running:
+        return jsonify({'status': 'already_running'}), 409
+    import threading
+    threading.Thread(target=generate_all, daemon=True).start()
+    return jsonify({'status': 'started'})
 
 
 @bp.route('/api/refresh/networking', methods=['POST'])
 def refresh_networking():
-    from services.worker import _update_networking_analysis
-    try:
-        _update_networking_analysis(0)
-        return jsonify({'status': 'updated'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Refresh networking — now delegates to career intelligence."""
+    from services.career_intel import generate_section, is_running
+    running, _ = is_running()
+    if running:
+        return jsonify({'status': 'already_running'}), 409
+    import threading
+    threading.Thread(target=generate_section, args=('networking',), daemon=True).start()
+    return jsonify({'status': 'started'})
 
 
 @bp.route('/api/refresh/skills', methods=['POST'])
 def refresh_skills():
-    from services.worker import _update_skills_analysis
-    try:
-        _update_skills_analysis(0)
-        return jsonify({'status': 'updated'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Refresh skills — now delegates to career intelligence."""
+    from services.career_intel import generate_section, is_running
+    running, _ = is_running()
+    if running:
+        return jsonify({'status': 'already_running'}), 409
+    import threading
+    threading.Thread(target=generate_section, args=('skills',), daemon=True).start()
+    return jsonify({'status': 'started'})
 
 
 @bp.route('/api/refresh/analysis', methods=['POST'])
 def refresh_analysis():
-    from services.worker import _update_unified_analysis
-    try:
-        _update_unified_analysis(0)
-        return jsonify({'status': 'updated'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Refresh all analysis — now delegates to career intelligence."""
+    from services.career_intel import generate_all, is_running
+    running, _ = is_running()
+    if running:
+        return jsonify({'status': 'already_running'}), 409
+    import threading
+    threading.Thread(target=generate_all, daemon=True).start()
+    return jsonify({'status': 'started'})

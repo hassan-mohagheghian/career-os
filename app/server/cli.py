@@ -311,48 +311,39 @@ def status():
 
 @app.command()
 def update_insights():
-    """Update all insights (dashboard + skills) based on processed jobs."""
+    """Update all career intelligence insights based on processed jobs."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from services.worker import _update_dashboard_insights, _update_skills_insights
+    from services.career_intel import generate_all
 
-    console.print("[cyan]Updating dashboard insights...[/cyan]")
+    console.print("[cyan]Generating career intelligence...[/cyan]")
     try:
-        _update_dashboard_insights(0)
-        console.print("[green]Dashboard insights updated![/green]")
-    except Exception as e:
-        console.print(f"[red]Dashboard failed: {e}[/red]")
-
-    console.print("[cyan]Updating skills insights...[/cyan]")
-    try:
-        _update_skills_insights(0)
-        console.print("[green]Skills insights updated![/green]")
-    except Exception as e:
-        console.print(f"[red]Skills failed: {e}[/red]")
-
-@app.command()
-def update_dashboard():
-    """Update dashboard insights only."""
-    import sys
-    sys.path.insert(0, os.path.dirname(__file__))
-    from services.worker import _update_dashboard_insights
-    console.print("[cyan]Updating dashboard insights...[/cyan]")
-    try:
-        _update_dashboard_insights(0)
-        console.print("[green]Dashboard insights updated![/green]")
+        result = generate_all()
+        if result:
+            console.print("[green]Career intelligence updated![/green]")
+        else:
+            console.print("[red]Generation returned no result[/red]")
     except Exception as e:
         console.print(f"[red]Failed: {e}[/red]")
 
 @app.command()
+def update_dashboard():
+    """Update career intelligence (alias for update-insights)."""
+    update_insights()
+
+@app.command()
 def update_skills():
-    """Update skills insights only."""
+    """Update skills section only."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from services.worker import _update_skills_insights
-    console.print("[cyan]Updating skills insights...[/cyan]")
+    from services.career_intel import generate_section
+    console.print("[cyan]Updating skills intelligence...[/cyan]")
     try:
-        _update_skills_insights(0)
-        console.print("[green]Skills insights updated![/green]")
+        result = generate_section('skills')
+        if result:
+            console.print("[green]Skills intelligence updated![/green]")
+        else:
+            console.print("[red]Generation returned no result[/red]")
     except Exception as e:
         console.print(f"[red]Failed: {e}[/red]")
 

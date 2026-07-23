@@ -313,44 +313,6 @@ def _normalize_job_data(d):
 
     return d
 
-async def _update_dashboard_insights(pid):
-    """Update dashboard insights based on all processed jobs."""
-    prompt = load_prompt('dashboard_update',
-        project_root=PROJECT_ROOT, pid=pid)
-    result_file = os.path.join(PROJECT_ROOT, 'data', f'dashboard_insights_{pid}.json')
-
-    proc = await asyncio.create_subprocess_exec(
-        MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions',
-        cwd=PROJECT_ROOT, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
-    await proc.wait()
-
-    if proc.returncode == 0 and os.path.exists(result_file):
-        with open(result_file) as f:
-            insights = json.load(f)
-
-        # Save to analysis_runs table
-        conn = _db()
-        from datetime import datetime
-        now = datetime.now().isoformat()
-        conn.execute('INSERT INTO analysis_runs (page, created_at, analysis_json) VALUES (?, ?, ?)',
-            ('dashboard', now, json.dumps(insights, ensure_ascii=False)))
-
-        # Also update legacy table for backward compatibility
-        conn.execute('DELETE FROM dashboard_insights')
-        for item_type, items in insights.items():
-            if isinstance(items, list):
-                for i, item in enumerate(items):
-                    conn.execute('''INSERT INTO dashboard_insights (type, icon, title, description, priority)
-                        VALUES (?, ?, ?, ?, ?)''',
-                        (item_type, item.get('icon', ''), item.get('title', item.get('name', '')),
-                         item.get('description', item.get('detail', item.get('note', ''))), i))
-        conn.commit(); conn.close()
-        try: os.remove(result_file)
-        except OSError: pass
-        print(f"[stream] Dashboard insights updated")
-
 # --- Broadcast to all connected clients for a job ---
 
 async def broadcast(pid, event):
