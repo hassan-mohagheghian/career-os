@@ -13,7 +13,7 @@ import SkillRoadmapDrawer from './SkillRoadmapDrawer'
 
 const API = '/api'
 
-function SkillRow({ skill, type, onClick, topicProgress }) {
+function SkillRow({ skill, type, onClick, roadmapProgress }) {
   const levelColors = {
     expert: 'bg-green-500/15 text-green-500',
     advanced: 'bg-blue-500/15 text-blue-500',
@@ -21,7 +21,7 @@ function SkillRow({ skill, type, onClick, topicProgress }) {
     beginner: 'bg-orange-500/15 text-orange-500',
     none: 'bg-red-500/15 text-red-500',
   }
-  const prog = topicProgress?.[skill.skill]
+  const prog = roadmapProgress?.[skill.skill]
   const hasProgress = prog && prog.total > 0
   return (
     <div
@@ -66,8 +66,8 @@ function SkillRow({ skill, type, onClick, topicProgress }) {
   )
 }
 
-function RecommendationCard({ rec, onClick, topicProgress }) {
-  const prog = topicProgress?.[rec.skill]
+function RecommendationCard({ rec, onClick, roadmapProgress }) {
+  const prog = roadmapProgress?.[rec.skill]
   const hasProgress = prog && prog.total > 0
   return (
     <div
@@ -105,7 +105,7 @@ function RecommendationCard({ rec, onClick, topicProgress }) {
   )
 }
 
-export default function SkillsIntelSection({ data, refreshing, onRefresh, topicProgress, onRefreshProgress, genJobs = [] }) {
+export default function SkillsIntelSection({ data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [] }) {
   const skills = data?.skills || {}
   const strengths = skills.strengths || []
   const gaps = skills.gaps || []
@@ -120,7 +120,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
       .then(r => r.json())
       .then(list => setTechStackSkills(Array.isArray(list) ? list : []))
       .catch(() => {})
-  }, [topicProgress])
+  }, [roadmapProgress])
 
   // All skills from AI results
   const aiSkills = [...new Set([...strengths, ...gaps, ...recommendations.map(r => r.skill)].map(s => s.skill || s))]
@@ -176,7 +176,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
         <div className="flex items-center gap-2 mb-3">
           <TreeStructure className="w-5 h-5 text-emerald-500" />
           <h4 className="font-extrabold text-sm">Skill Roadmaps</h4>
-          <Badge variant="secondary" className="text-[0.5rem] bg-emerald-500/15 text-emerald-500">{allSkillNames.filter(s => topicProgress[s]?.total > 0).length}</Badge>
+          <Badge variant="secondary" className="text-[0.5rem] bg-emerald-500/15 text-emerald-500">{allSkillNames.filter(s => roadmapProgress[s]?.total > 0).length}</Badge>
         </div>
 
         {/* Generation progress banners — only under this section */}
@@ -211,7 +211,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
 
         <div className="space-y-2">
           {allSkillNames.map(skill => {
-            const prog = topicProgress[skill]
+            const prog = roadmapProgress[skill]
             const hasRoadmap = prog && prog.total > 0
             const isUser = techStackSkills.some(s => s.name === skill && s.source === 'user')
             if (!hasRoadmap) return null
@@ -265,7 +265,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
 
       {/* Custom Skills — user-added, no roadmap yet */}
       {allSkillNames.filter(s => {
-        const prog = topicProgress[s]
+        const prog = roadmapProgress[s]
         return !prog || prog.total === 0
       }).length > 0 && (
         <Card className="p-4">
@@ -274,14 +274,14 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
             <h4 className="font-extrabold text-sm">Custom Skills</h4>
             <Badge variant="secondary" className="text-[0.5rem] bg-purple-500/15 text-purple-500">
               {allSkillNames.filter(s => {
-                const prog = topicProgress[s]
+                const prog = roadmapProgress[s]
                 return !prog || prog.total === 0
               }).length}
             </Badge>
           </div>
           <div className="space-y-2">
             {allSkillNames.filter(s => {
-              const prog = topicProgress[s]
+              const prog = roadmapProgress[s]
               return !prog || prog.total === 0
             }).map(skill => {
               const isUser = techStackSkills.some(s => s.name === skill && s.source === 'user')
@@ -327,7 +327,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
             </div>
             <div className="space-y-1">
               {strengths.length > 0 ? strengths.map((s, i) => (
-                <SkillRow key={i} skill={s} type="strength" onClick={setSelectedSkill} topicProgress={topicProgress} />
+                <SkillRow key={i} skill={s} type="strength" onClick={setSelectedSkill} roadmapProgress={roadmapProgress} />
               )) : (
                 <div className="text-xs text-muted-foreground">No strengths identified yet</div>
               )}
@@ -343,7 +343,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
             </div>
             <div className="space-y-1">
               {gaps.length > 0 ? gaps.map((g, i) => (
-                <SkillRow key={i} skill={g} type="gap" onClick={setSelectedSkill} topicProgress={topicProgress} />
+                <SkillRow key={i} skill={g} type="gap" onClick={setSelectedSkill} roadmapProgress={roadmapProgress} />
               )) : (
                 <div className="text-xs text-muted-foreground">No major gaps identified</div>
               )}
@@ -360,7 +360,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
             </div>
             <div className="space-y-2">
               {recommendations.length > 0 ? recommendations.map((r, i) => (
-                <RecommendationCard key={i} rec={r} onClick={setSelectedSkill} topicProgress={topicProgress} />
+                <RecommendationCard key={i} rec={r} onClick={setSelectedSkill} roadmapProgress={roadmapProgress} />
               )) : (
                 <div className="text-xs text-muted-foreground text-center py-4">No recommendations yet</div>
               )}

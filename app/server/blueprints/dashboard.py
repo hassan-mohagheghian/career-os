@@ -263,7 +263,7 @@ def refresh_analysis():
 # ═══════════════════════════════════════════════════════
 
 def _build_roadmap_tree(rows):
-    """Build a nested tree from flat topic rows."""
+    """Build a nested tree from flat roadmap rows."""
     by_id = {}
     roots = []
     for r in rows:
@@ -280,7 +280,7 @@ def _build_roadmap_tree(rows):
 
 @bp.route('/api/skill-roadmaps')
 def get_skill_roadmaps():
-    """Get topic tree for a skill. Query param: ?skill=<name>"""
+    """Get roadmap tree for a skill. Query param: ?skill=<name>"""
     skill = request.args.get('skill', '')
     if not skill:
         return jsonify({'error': 'skill param required'}), 400
@@ -290,20 +290,20 @@ def get_skill_roadmaps():
         (skill,)
     ).fetchall()
     conn.close()
-    topics = [dict(r) for r in rows]
+    rows_data = [dict(r) for r in rows]
     # Get latest version
-    if topics:
-        max_version = max(t['version'] for t in topics)
-        topics = [t for t in topics if t['version'] == max_version]
-    tree = _build_roadmap_tree(topics)
+    if rows_data:
+        max_version = max(t['version'] for t in rows_data)
+        rows_data = [t for t in rows_data if t['version'] == max_version]
+    tree = _build_roadmap_tree(rows_data)
     # Get latest created_at from this version
-    updated_at = topics[0]['created_at'] if topics else None
-    return jsonify({'skill': skill, 'version': topics[0]['version'] if topics else 0, 'topics': tree, 'updated_at': updated_at})
+    updated_at = rows_data[0]['created_at'] if rows_data else None
+    return jsonify({'skill': skill, 'version': rows_data[0]['version'] if rows_data else 0, 'roadmap': tree, 'updated_at': updated_at})
 
 
 @bp.route('/api/skill-roadmaps', methods=['POST'])
 def create_skill_roadmap():
-    """Create a topic. Accepts single or batch."""
+    """Create a roadmap item. Accepts single or batch."""
     data = request.get_json()
     conn = get_db()
     created = []
@@ -360,10 +360,10 @@ def delete_skill_roadmap(id):
 
 @bp.route('/api/skill-roadmaps/bulk', methods=['POST'])
 def bulk_create_skill_roadmaps():
-    """Replace all topics for a skill with a new set. Used by AI generation."""
+    """Replace all roadmap items for a skill with a new set. Used by AI generation."""
     data = request.get_json()
     skill = data.get('skill_name')
-    topics = data.get('topics', [])
+    roadmap_items = data.get('roadmap', data.get('topics', []))
     version = data.get('version', 1)
     if not skill:
         return jsonify({'error': 'skill_name required'}), 400
@@ -377,19 +377,19 @@ def bulk_create_skill_roadmaps():
     old_progress = {}
     for pr in progress_rows:
         topic = conn.execute('SELECT title FROM skill_roadmaps WHERE id=?', (pr[0],)).fetchone()
-        if topic:
-            old_progress[topic[0]] = pr[1]
-    # Delete old topics for this skill+version
+        if roadmap_item:
+            old_progress[roadmap_item[0]] = pr[1]
+    # Delete old roadmap items for this skill+version
     old_ids = [r[0] for r in conn.execute(
         'SELECT id FROM skill_roadmaps WHERE skill_name=? AND version=?', (skill, version)
     ).fetchall()]
     for oid in old_ids:
         conn.execute('DELETE FROM skill_roadmap_progress WHERE roadmap_id=?', (oid,))
     conn.execute('DELETE FROM skill_roadmaps WHERE skill_name=? AND version=?', (skill, version))
-    # Insert new topics
+    # Insert new roadmap items
     id_map = {}  # old client_id → new db_id
     created = []
-    for i, t in enumerate(topics):
+    for i, t in enumerate(roadmap_items):
         cur = conn.execute(
             'INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)',
             (skill, None, t['title'], t.get('description', ''), t.get('level', 0), i, version)
@@ -422,18 +422,18 @@ def bulk_create_skill_roadmaps():
 
 @bp.route('/api/skill-roadmap-progress/<int:roadmap_id>', methods=['PUT'])
 def update_topic_progress(roadmap_id):
-    """Toggle topic completion."""
+    """Toggle roadmap item completion."""
     data = request.get_json() or {}
     completed = data.get('completed', 1)
     conn = get_db()
-    # Get skill_name from topic
-    topic = conn.execute('SELECT skill_name FROM skill_roadmaps WHERE id=?', (roadmap_id,)).fetchone()
-    if not topic:
+    # Get skill_name from roadmap item
+    roadmap_item = conn.execute('SELECT skill_name FROM skill_roadmaps WHERE id=?', (roadmap_id,)).fetchone()
+    if not roadmap_item:
         conn.close()
         return jsonify({'error': 'Topic not found'}), 404
     conn.execute(
         'INSERT OR REPLACE INTO skill_roadmap_progress (roadmap_id, skill_name, completed, updated_at) VALUES (?, ?, ?, datetime("now"))',
-        (roadmap_id, topic[0], completed)
+        (roadmap_id, roadmap_item[0], completed)
     )
     conn.commit()
     conn.close()
@@ -452,7 +452,7 @@ def get_skill_progress():
     if max_ver == 0:
         conn.close()
         return jsonify({})
-    # Only return progress for topics in latest version
+    # Only return progress for roadmap items in latest version
     rows = conn.execute(
         '''SELECT tp.roadmap_id, tp.completed FROM skill_roadmap_progress tp
            JOIN skill_roadmaps st ON st.id = tp.roadmap_id
@@ -473,14 +473,14 @@ def get_all_skill_progress():
         max_ver = conn.execute('SELECT MAX(version) FROM skill_roadmaps WHERE skill_name=?', (skill_name,)).fetchone()[0]
         if not max_ver:
             continue
-        # Get all topic IDs in latest version
-        all_topics = conn.execute(
+        # Get all roadmap IDs in latest version
+        all_roadmap_items = conn.execute(
             'SELECT id, parent_id FROM skill_roadmaps WHERE skill_name=? AND version=?',
             (skill_name, max_ver)
         ).fetchall()
-        parent_ids = {t[1] for t in all_topics if t[1] is not None}
-        # Leaf nodes = topics whose id is NOT a parent_id of any other topic
-        leaf_ids = [t[0] for t in all_topics if t[0] not in parent_ids]
+        parent_ids = {t[1] for t in all_roadmap_items if t[1] is not None}
+        # Leaf nodes = items whose id is NOT a parent_id of any other item
+        leaf_ids = [t[0] for t in all_roadmap_items if t[0] not in parent_ids]
         total = len(leaf_ids)
         if total == 0:
             continue
@@ -563,15 +563,16 @@ def _parse_mimo_session_id(stdout):
 def _get_skill_progress(skill):
     """Get latest job progress for a skill from DB. Prioritize active/failed jobs."""
     conn = get_db()
+    cols = 'status, step, total_steps, message, version, count, error, session_id, pid, started_at, completed_at'
     # First check for active or failed jobs (these need to be shown ASAP)
     row = conn.execute(
-        "SELECT status, step, total_steps, message, version, count, error, started_at, completed_at FROM skill_roadmap_jobs WHERE skill_name=? AND status IN ('queued','running','failed') ORDER BY id DESC LIMIT 1",
+        f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? AND status IN ('queued','running','failed') ORDER BY id DESC LIMIT 1",
         (skill,)
     ).fetchone()
     if not row:
         # Fall back to latest completed job
         row = conn.execute(
-            "SELECT status, step, total_steps, message, version, count, error, started_at, completed_at FROM skill_roadmap_jobs WHERE skill_name=? ORDER BY id DESC LIMIT 1",
+            f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? ORDER BY id DESC LIMIT 1",
             (skill,)
         ).fetchone()
     conn.close()
@@ -579,13 +580,14 @@ def _get_skill_progress(skill):
         return {
             'status': row[0], 'step': row[1], 'total_steps': row[2],
             'message': row[3], 'version': row[4], 'count': row[5],
-            'error': row[6], 'started_at': row[7], 'completed_at': row[8]
+            'error': row[6], 'session_id': row[7], 'pid': row[8],
+            'started_at': row[9], 'completed_at': row[10]
         }
     return {'status': 'idle', 'step': 0, 'total_steps': 4, 'message': ''}
 
 
 def _run_generate_worker(skill):
-    """Background worker for topic generation."""
+    """Background worker for roadmap generation."""
     from prompts import load_prompt
     from config import PROJECT_ROOT
     _tmp = _os.environ.get('TEMP_DIR', 'tmp')
@@ -608,29 +610,29 @@ def _run_generate_worker(skill):
                              task_instruction='Generate a comprehensive learning outline for this skill, ordered from basic to advanced.')
         result_file = _os.path.join(TMP_DIR, 'skill_roadmaps_0.json')
         # Step 3: Run AI
-        _update_skill_progress(skill, step=3, message='AI is generating topics...')
+        _update_skill_progress(skill, step=3, message='AI is generating roadmap...')
         proc = _subprocess.Popen(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT, stdout=_subprocess.PIPE, stderr=_subprocess.PIPE,
             env={**_os.environ, 'NO_COLOR': '1'}
         )
         # Save process ID for cancellation
-        _update_skill_progress(skill, job_type=mode, pid=proc.pid)
+        _update_skill_progress(skill, job_type='generate', pid=proc.pid)
         stdout, stderr = proc.communicate(timeout=180)
         # Parse session ID from output
         session_id = _parse_mimo_session_id(stdout)
         if session_id:
-            _update_skill_progress(skill, job_type=mode, session_id=session_id)
+            _update_skill_progress(skill, job_type='generate', session_id=session_id)
         if proc.returncode == 0 and _os.path.exists(result_file):
             with open(result_file) as f:
-                topics = _json.load(f)
+                roadmap_data = _json.load(f)
             _os.remove(result_file)
             # Step 4: Save to DB
-            _update_skill_progress(skill, step=4, message='Saving topics to database')
+            _update_skill_progress(skill, step=4, message='Saving roadmap to database')
             conn = get_db()
             max_ver = conn.execute('SELECT COALESCE(MAX(version),0) FROM skill_roadmaps WHERE skill_name=?', (skill,)).fetchone()[0]
             new_version = max_ver + 1
-            for i, t in enumerate(topics):
+            for i, t in enumerate(roadmap_data):
                 cur = conn.execute(
                     'INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)',
                     (skill, None, t['title'], t.get('description', ''), t.get('level', 0), i, new_version)
@@ -644,7 +646,7 @@ def _run_generate_worker(skill):
             conn.commit()
             conn.close()
             _update_skill_progress(skill, status='completed', step=4, message='Done',
-                                   completed_at=_datetime.now().isoformat(), version=new_version, count=len(topics))
+                                   completed_at=_datetime.now().isoformat(), version=new_version, count=len(roadmap_data))
         else:
             err = stderr[:500].decode('utf-8', errors='replace') if stderr else 'Generation failed'
             _update_skill_progress(skill, status='failed', error=err, completed_at=_datetime.now().isoformat())
@@ -653,7 +655,7 @@ def _run_generate_worker(skill):
 
 
 def _run_grow_worker(skill, mode='extend'):
-    """Background worker for topic extending or fine-graining."""
+    """Background worker for roadmap extending or fine-graining."""
     from prompts import load_prompt
     from config import PROJECT_ROOT
     _tmp = _os.environ.get('TEMP_DIR', 'tmp')
@@ -663,16 +665,16 @@ def _run_grow_worker(skill, mode='extend'):
     _update_skill_progress(skill, job_type=mode, status='running', step=1, message=f'Preparing {action_label.lower()}', started_at=_datetime.now().isoformat(), error=None)
     try:
         # Step 1: Get current tree + progress
-        _update_skill_progress(skill, step=1, message='Reading current topics')
+        _update_skill_progress(skill, step=1, message='Reading current roadmap')
         conn = get_db()
         rows = conn.execute(
             'SELECT * FROM skill_roadmaps WHERE skill_name=? ORDER BY version DESC, sort_order, id', (skill,)
         ).fetchall()
-        topics = [dict(r) for r in rows]
-        if topics:
-            max_version = max(t['version'] for t in topics)
-            topics = [t for t in topics if t['version'] == max_version]
-        tree = _build_roadmap_tree_for_prompt(topics)
+        roadmap_rows = [dict(r) for r in rows]
+        if roadmap_rows:
+            max_version = max(t['version'] for t in roadmap_rows)
+            roadmap_rows = [t for t in roadmap_rows if t['version'] == max_version]
+        tree = _build_roadmap_tree_for_prompt(roadmap_rows)
         progress = conn.execute(
             'SELECT tp.roadmap_id, tp.completed, st.title FROM skill_roadmap_progress tp JOIN skill_roadmaps st ON st.id=tp.roadmap_id WHERE tp.skill_name=?',
             (skill,)
@@ -684,13 +686,13 @@ def _run_grow_worker(skill, mode='extend'):
         current_level = level_map.get(row[0], 'intermediate') if row else 'intermediate'
         # Step 2: Build prompt
         _update_skill_progress(skill, job_type=mode, step=2, message='Building AI prompt')
-        growth_ctx = f"Existing topic tree:\n{_json.dumps(tree, indent=2)}\n\nUser has completed: {_json.dumps(checked_titles)}"
+        growth_ctx = f"Existing roadmap tree:\n{_json.dumps(tree, indent=2)}\n\nUser has completed: {_json.dumps(checked_titles)}"
         if mode == 'extend':
-            task_instruction = 'EXTEND this topic tree: Add NEW topics that go beyond the current level range (add more advanced topics at 80-100 if not covered). Also fill any important coverage gaps. Keep ALL existing topics and their levels unchanged. The result should be a SUPERSET of the original.'
-            ai_msg = 'AI is extending topics...'
+            task_instruction = 'EXTEND this roadmap: Add NEW items that go beyond the current level range (add more advanced items at 80-100 if not covered). Also fill any important coverage gaps. Keep ALL existing items and their levels unchanged. The result should be a SUPERSET of the original.'
+            ai_msg = 'AI is extending roadmap...'
         else:
-            task_instruction = 'FINE-GRAIN this topic tree: Split each broad topic into 2-4 more specific child topics. Keep ALL existing topic titles as parents. Children should have sub-levels within the parent level. Make each topic more specific and actionable for interview preparation.'
-            ai_msg = 'AI is fine-graining topics...'
+            task_instruction = 'FINE-GRAIN this roadmap: Split each broad item into 2-4 more specific child items. Keep ALL existing item titles as parents. Children should have sub-levels within the parent level. Make each item more specific and actionable for interview preparation.'
+            ai_msg = 'AI is fine-graining roadmap...'
         prompt = load_prompt('skill_roadmaps', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=0,
                              skill_name=skill, current_level=current_level,
                              checked_topics=_json.dumps(checked_titles),
@@ -713,14 +715,14 @@ def _run_grow_worker(skill, mode='extend'):
             _update_skill_progress(skill, job_type=mode, session_id=session_id)
         if proc.returncode == 0 and _os.path.exists(result_file):
             with open(result_file) as f:
-                new_topics = _json.load(f)
+                new_roadmap_data = _json.load(f)
             _os.remove(result_file)
             # Step 4: Save with progress preservation
-            _update_skill_progress(skill, job_type=mode, step=4, message=f'Saving {action_label.lower()}ed topics')
+            _update_skill_progress(skill, job_type=mode, step=4, message=f'Saving {action_label.lower()}ed roadmap')
             conn = get_db()
             max_ver = conn.execute('SELECT COALESCE(MAX(version),0) FROM skill_roadmaps WHERE skill_name=?', (skill,)).fetchone()[0]
             new_version = max_ver + 1
-            for i, t in enumerate(new_topics):
+            for i, t in enumerate(new_roadmap_data):
                 cur = conn.execute(
                     'INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)',
                     (skill, None, t['title'], t.get('description', ''), t.get('level', 0), i, new_version)
@@ -744,7 +746,7 @@ def _run_grow_worker(skill, mode='extend'):
             conn.commit()
             conn.close()
             _update_skill_progress(skill, job_type=mode, status='completed', step=4, message='Done',
-                                   completed_at=_datetime.now().isoformat(), version=new_version, count=len(new_topics))
+                                   completed_at=_datetime.now().isoformat(), version=new_version, count=len(new_roadmap_data))
         else:
             err = stderr[:500].decode('utf-8', errors='replace') if stderr else f'{action_label} failed'
             _update_skill_progress(skill, job_type=mode, status='failed', error=err, completed_at=_datetime.now().isoformat())
@@ -754,7 +756,7 @@ def _run_grow_worker(skill, mode='extend'):
 
 @bp.route('/api/skill-roadmaps/generate', methods=['POST'])
 def generate_skill_roadmaps():
-    """Start background topic generation for a skill."""
+    """Start background roadmap generation for a skill."""
     data = request.get_json() or {}
     skill = data.get('skill_name', '')
     if not skill:
@@ -771,7 +773,7 @@ def generate_skill_roadmaps():
 
 @bp.route('/api/skill-roadmaps/extend', methods=['POST'])
 def extend_skill_roadmaps():
-    """Start background topic extension — adds more topics beyond current range."""
+    """Start background roadmap extension — adds more items beyond current range."""
     data = request.get_json() or {}
     skill = data.get('skill_name', '')
     if not skill:
@@ -787,7 +789,7 @@ def extend_skill_roadmaps():
 
 @bp.route('/api/skill-roadmaps/finegrain', methods=['POST'])
 def finegrain_skill_roadmaps():
-    """Start background fine-graining — splits existing topics into more specific ones."""
+    """Start background fine-graining — splits existing roadmap items into more specific ones."""
     data = request.get_json() or {}
     skill = data.get('skill_name', '')
     if not skill:

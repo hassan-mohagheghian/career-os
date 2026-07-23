@@ -100,21 +100,21 @@ function TopicNode({ topic, checked, onToggle, depth = 0 }) {
   )
 }
 
-function countLeafTopics(topics) {
+function countLeafItems(roadmapItems) {
   let total = 0
-  for (const t of topics) {
+  for (const t of roadmapItems) {
     if (!t.children || t.children.length === 0) {
       total += 1
     } else {
-      total += countLeafTopics(t.children)
+      total += countLeafItems(t.children)
     }
   }
   return total
 }
 
-function countCheckedLeaves(topics, checked) {
+function countCheckedLeaves(roadmapItems, checked) {
   let total = 0
-  for (const t of topics) {
+  for (const t of roadmapItems) {
     if (!t.children || t.children.length === 0) {
       if (checked[t.id] === 1) total += 1
     } else {
@@ -124,8 +124,8 @@ function countCheckedLeaves(topics, checked) {
   return total
 }
 
-export default function SkillTopicDrawer({ skillName, open, onOpenChange, onRefreshProgress }) {
-  const [topics, setTopics] = useState([])
+export default function SkillRoadmapDrawer({ skillName, open, onOpenChange, onRefreshProgress }) {
+  const [roadmapItems, setRoadmapItems] = useState([])
   const [checked, setChecked] = useState({})
   const [version, setVersion] = useState(0)
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -137,18 +137,18 @@ export default function SkillTopicDrawer({ skillName, open, onOpenChange, onRefr
     if (!skillName || !open) return
     setLoading(true)
     try {
-      const [topicsRes, progressRes] = await Promise.all([
+      const [roadmapItemsRes, progressRes] = await Promise.all([
         fetch(`${API}/skill-roadmaps?skill=${encodeURIComponent(skillName)}`),
         fetch(`${API}/skill-roadmap-progress?skill=${encodeURIComponent(skillName)}`)
       ])
-      const topicsData = await topicsRes.json()
+      const roadmapItemsData = await roadmapItemsRes.json()
       const progressData = await progressRes.json()
-      setTopics(topicsData.topics || [])
-      setVersion(topicsData.version || 0)
-      setUpdatedAt(topicsData.updated_at || null)
+      setRoadmapItems(roadmapItemsData.roadmap || [])
+      setVersion(roadmapItemsData.version || 0)
+      setUpdatedAt(roadmapItemsData.updated_at || null)
       setChecked(progressData || {})
     } catch {
-      setTopics([])
+      setRoadmapItems([])
       setChecked({})
     } finally {
       setLoading(false)
@@ -192,7 +192,7 @@ export default function SkillTopicDrawer({ skillName, open, onOpenChange, onRefr
 
   useEffect(() => {
     if (!open) {
-      setTopics([])
+      setRoadmapItems([])
       setChecked({})
       setVersion(0)
       setUpdatedAt(null)
@@ -285,10 +285,10 @@ export default function SkillTopicDrawer({ skillName, open, onOpenChange, onRefr
     } catch {}
   }
 
-  const total = countLeafTopics(topics)
-  const done = countCheckedLeaves(topics, checked)
+  const total = countLeafTopics(roadmapItems)
+  const done = countCheckedLeaves(roadmapItems, checked)
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
-  const isEmpty = topics.length === 0 && !loading
+  const isEmpty = roadmapItems.length === 0 && !loading
   const isRunning = genProgress?.status === 'running' || genProgress?.status === 'queued'
   const isFailed = genProgress?.status === 'failed'
   const genPct = genProgress ? Math.round(((genProgress.step || 0) / (genProgress.total_steps || 4)) * 100) : 0
@@ -464,7 +464,7 @@ export default function SkillTopicDrawer({ skillName, open, onOpenChange, onRefr
             </div>
           ) : (
             <div className="space-y-0.5">
-              {topics.map(topic => (
+              {roadmapItems.map(topic => (
                 <TopicNode key={topic.id} topic={topic} checked={checked} onToggle={handleToggle} />
               ))}
             </div>

@@ -182,7 +182,7 @@ function formatTimestamp(ts) {
   return date.toLocaleDateString()
 }
 
-export default function CareerIntelTab({ data, status, progress, activeTab, setActiveTab, refreshing, error, onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany, onCancel, skillTopicProgress, onRefreshSkillProgress, skillGenJobs }) {
+export default function CareerIntelTab({ data, status, progress, activeTab, setActiveTab, refreshing, error, onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany, onCancel, skillRoadmapProgress, onRefreshSkillProgress, skillGenJobs }) {
   // Wrap setActiveTab to also update URL hash
   const switchSubTab = (sub) => {
     setActiveTab(sub)
@@ -316,7 +316,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
         <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} />
       )}
       {hasData && activeTab === 'skills' && (
-        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} topicProgress={skillTopicProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} />
+        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} roadmapProgress={skillRoadmapProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} />
       )}
       {hasData && activeTab === 'market' && (
         <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} />

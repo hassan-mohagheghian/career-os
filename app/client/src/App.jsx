@@ -94,7 +94,7 @@ function App() {
   const [collapsedSections, setCollapsedSections] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
   // Global skill topic progress (shared between SkillsIntelSection and SkillTopicDrawer)
-  const [skillTopicProgress, setSkillTopicProgress] = useState({})
+  const [skillRoadmapProgress, setSkillRoadmapProgress] = useState({})
   const [skillGenJobs, setSkillGenJobs] = useState([]) // active/failed generation jobs
   const skillProgressPollRef = useRef(null)
 
@@ -123,7 +123,7 @@ function App() {
     try {
       const res = await fetch(`${API}/skill-roadmap-progress/all`)
       const data = await res.json()
-      setSkillTopicProgress(data)
+      setSkillRoadmapProgress(data)
     } catch {}
   }, [])
 
@@ -346,7 +346,7 @@ function App() {
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
             )}
             {tab === 'career-intel' && (
-              <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onOpenCompany={openCompanyDrawer} onAddCompany={handleAddCompany} onCancel={cancelCareerRun} skillTopicProgress={skillTopicProgress} onRefreshSkillProgress={fetchSkillProgress} skillGenJobs={skillGenJobs} />
+              <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onOpenCompany={openCompanyDrawer} onAddCompany={handleAddCompany} onCancel={cancelCareerRun} skillRoadmapProgress={skillRoadmapProgress} onRefreshSkillProgress={fetchSkillProgress} skillGenJobs={skillGenJobs} />
             )}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={fetchResumes} onRefreshLinkedin={fetchLinkedin} />}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}
