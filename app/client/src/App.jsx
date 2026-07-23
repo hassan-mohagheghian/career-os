@@ -121,7 +121,7 @@ function App() {
   // Skill topic progress — polled globally so all views stay in sync
   const fetchSkillProgress = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/skill-topic-progress/all`)
+      const res = await fetch(`${API}/skill-roadmap-progress/all`)
       const data = await res.json()
       setSkillTopicProgress(data)
     } catch {}
@@ -138,7 +138,7 @@ function App() {
       for (const skill of skills.slice(0, 20)) {
         if (seen.has(skill)) continue
         seen.add(skill)
-        const res = await fetch(`${API}/skill-topics/progress?skill=${encodeURIComponent(skill)}`)
+        const res = await fetch(`${API}/skill-roadmaps/progress?skill=${encodeURIComponent(skill)}`)
         const p = await res.json()
         if (p.status === 'running' || p.status === 'queued') {
           jobs.push({ skill, ...p })

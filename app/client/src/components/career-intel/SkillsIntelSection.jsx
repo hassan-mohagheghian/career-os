@@ -176,7 +176,7 @@ export default function SkillsIntelSection({ data, refreshing, onRefresh, topicP
         <div className="flex items-center gap-2 mb-3">
           <TreeStructure className="w-5 h-5 text-emerald-500" />
           <h4 className="font-extrabold text-sm">Skill Roadmaps</h4>
-          <Badge variant="secondary" className="text-[0.5rem] bg-emerald-500/15 text-emerald-500">{skillsWithProgress.length + customSkills.length}</Badge>
+          <Badge variant="secondary" className="text-[0.5rem] bg-emerald-500/15 text-emerald-500">{allSkillNames.filter(s => topicProgress[s]?.total > 0).length}</Badge>
         </div>
 
         {/* Generation progress banners — only under this section */}

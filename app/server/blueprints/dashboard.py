@@ -302,7 +302,7 @@ def get_skill_roadmaps():
 
 
 @bp.route('/api/skill-roadmaps', methods=['POST'])
-def create_skill_topic():
+def create_skill_roadmap():
     """Create a topic. Accepts single or batch."""
     data = request.get_json()
     conn = get_db()
@@ -323,7 +323,7 @@ def create_skill_topic():
 
 
 @bp.route('/api/skill-roadmaps/<int:id>', methods=['PUT'])
-def update_skill_topic(id):
+def update_skill_roadmap(id):
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data'}), 400
@@ -343,7 +343,7 @@ def update_skill_topic(id):
 
 
 @bp.route('/api/skill-roadmaps/<int:id>', methods=['DELETE'])
-def delete_skill_topic(id):
+def delete_skill_roadmap(id):
     conn = get_db()
     # Delete children recursively
     def _delete_children(parent_id):
@@ -420,7 +420,7 @@ def bulk_create_skill_roadmaps():
     return jsonify({'created': len(created), 'version': version})
 
 
-@bp.route('/api/skill-topic-progress/<int:roadmap_id>', methods=['PUT'])
+@bp.route('/api/skill-roadmap-progress/<int:roadmap_id>', methods=['PUT'])
 def update_topic_progress(roadmap_id):
     """Toggle topic completion."""
     data = request.get_json() or {}
@@ -440,7 +440,7 @@ def update_topic_progress(roadmap_id):
     return jsonify({'status': 'updated', 'roadmap_id': roadmap_id, 'completed': completed})
 
 
-@bp.route('/api/skill-topic-progress')
+@bp.route('/api/skill-roadmap-progress')
 def get_skill_progress():
     """Get progress for a skill's LATEST version only. Query: ?skill=<name>"""
     skill = request.args.get('skill', '')
@@ -463,7 +463,7 @@ def get_skill_progress():
     return jsonify({str(r[0]): r[1] for r in rows})
 
 
-@bp.route('/api/skill-topic-progress/all')
+@bp.route('/api/skill-roadmap-progress/all')
 def get_all_skill_progress():
     """Get progress summary for all skills — LATEST version only."""
     conn = get_db()
