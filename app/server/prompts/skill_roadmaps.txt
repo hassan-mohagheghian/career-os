@@ -5,7 +5,7 @@ Generate a learning roadmap for ONE specific skill: {skill_name}
 Context:
 - User's current level: {current_level}
 - Target: backend engineer roles in European companies
-- Already completed items: {checked_topics}
+- Already completed items: {checked_items}
 
 {growth_context}
 
