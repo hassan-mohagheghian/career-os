@@ -516,5 +516,62 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
         # Note: this needs the URL — we can't re-process without it
         console.print(f"  [yellow]Skipped #{num} — URL not available in DB for re-processing[/yellow]")
 
+@app.command()
+def cleanup(
+    kill_mimo: bool = typer.Option(False, "--kill-mimo", "-m", help="Kill all mimo processes"),
+    reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck career intel jobs"),
+    reset_roadmaps: bool = typer.Option(False, "--reset-roadmaps", "-r", help="Reset stuck roadmap generation jobs"),
+    all: bool = typer.Option(False, "--all", "-a", help="Run all cleanup actions"),
+):
+    """Clean up stuck processes and reset failed jobs."""
+    import signal as _signal
+
+    if all:
+        kill_mimo = reset_jobs = reset_roadmaps = True
+
+    console.print(Panel("[bold]Cleanup[/bold]", title="Job Search CLI"))
+
+    if kill_mimo:
+        console.print("\n[bold]Killing mimo processes...[/bold]")
+        import subprocess
+        result = subprocess.run(["pgrep", "-f", "mimo run"], capture_output=True, text=True)
+        pids = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        if pids:
+            for pid in pids:
+                if pid:
+                    try:
+                        _signal.signal(int(pid), _signal.SIGTERM)
+                        console.print(f"  [green]Sent SIGTERM to PID {pid}[/green]")
+                    except Exception as e:
+                        console.print(f"  [red]Failed to kill PID {pid}: {e}[/red]")
+        else:
+            console.print("  [dim]No mimo processes found[/dim]")
+
+    if reset_jobs:
+        console.print("\n[bold]Resetting stuck career intel jobs...[/bold]")
+        conn = get_db()
+        count = conn.execute(
+            "UPDATE career_insight_runs SET status='failed', error_message='Reset by CLI' WHERE status IN ('processing','queued')"
+        ).rowcount
+        conn.commit()
+        conn.close()
+        console.print(f"  [green]Reset {count} jobs[/green]")
+
+    if reset_roadmaps:
+        console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
+        conn = get_db()
+        count = conn.execute(
+            "UPDATE skill_roadmap_jobs SET status='failed', error='Reset by CLI' WHERE status IN ('running','queued')"
+        ).rowcount
+        conn.commit()
+        conn.close()
+        console.print(f"  [green]Reset {count} jobs[/green]")
+
+    if not (kill_mimo or reset_jobs or reset_roadmaps):
+        console.print("[dim]No cleanup actions specified. Use --all or individual flags.[/dim]")
+
+    console.print("\n[green]Done.[/green]")
+
+
 if __name__ == '__main__':
     app()

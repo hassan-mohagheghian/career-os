@@ -657,15 +657,22 @@ def _parse_mimo_session_id(stdout):
     """Extract sessionID from Mimo JSON stream output."""
     if not stdout:
         return None
-    for line in stdout.decode("utf-8", errors="replace").split("\n"):
+    decoded = stdout.decode("utf-8", errors="replace")
+    for line in decoded.split("\n"):
         line = line.strip()
         if not line:
             continue
         try:
             obj = _json.loads(line)
-            sid = obj.get("sessionID")
+            # Try multiple possible keys
+            sid = obj.get("sessionID") or obj.get("session_id") or obj.get("sessionId")
             if sid:
                 return sid
+            # Also check nested objects
+            if "session" in obj and isinstance(obj["session"], dict):
+                sid = obj["session"].get("id") or obj["session"].get("ID")
+                if sid:
+                    return sid
         except (_json.JSONDecodeError, AttributeError):
             continue
     return None
@@ -766,9 +773,19 @@ def _run_generate_worker(skill):
             stderr=_subprocess.PIPE,
             env={**_os.environ, "NO_COLOR": "1"},
         )
-        # Save process ID for cancellation
+        # Save process ID for cancellation and register for cleanup
         _update_skill_progress(skill, job_type="generate", pid=proc.pid)
+        try:
+            from app import register_process, unregister_process
+            register_process(proc)
+        except ImportError:
+            pass
         stdout, stderr = proc.communicate(timeout=180)
+        try:
+            from app import unregister_process
+            unregister_process(proc)
+        except ImportError:
+            pass
         # Parse session ID from output
         session_id = _parse_mimo_session_id(stdout)
         if session_id:
@@ -931,9 +948,19 @@ def _run_grow_worker(skill, mode="extend"):
             stderr=_subprocess.PIPE,
             env={**_os.environ, "NO_COLOR": "1"},
         )
-        # Save process ID for cancellation
+        # Save process ID for cancellation and register for cleanup
         _update_skill_progress(skill, job_type=mode, pid=proc.pid)
+        try:
+            from app import register_process, unregister_process
+            register_process(proc)
+        except ImportError:
+            pass
         stdout, stderr = proc.communicate(timeout=180)
+        try:
+            from app import unregister_process
+            unregister_process(proc)
+        except ImportError:
+            pass
         # Parse session ID from output
         session_id = _parse_mimo_session_id(stdout)
         if session_id:

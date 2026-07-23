@@ -69,10 +69,12 @@ export default function GenerationProgressCard({
           <Progress value={totalSteps ? (displayStep / totalSteps) * 100 : 0} className="h-1" />
         </div>
         <span className="text-[0.55rem] text-muted-foreground shrink-0">{displayStep}/{totalSteps}</span>
-        {session_id && (
+        {session_id ? (
           <button onClick={handleCopySession} className="text-[0.5rem] text-muted-foreground hover:text-foreground font-mono truncate max-w-[80px] shrink-0" title={`Click to copy: ${session_id}`}>
             {session_id.slice(0, 8)}...
           </button>
+        ) : (
+          <span className="text-[0.5rem] text-muted-foreground/50 shrink-0">session pending</span>
         )}
       </div>
     )
@@ -93,10 +95,12 @@ export default function GenerationProgressCard({
         {isRunning && <Badge variant="default" className="text-[0.5rem] animate-pulse">LIVE</Badge>}
         <div className="ml-auto flex items-center gap-2">
           {type && <span className="text-[0.55rem] text-muted-foreground">{type}</span>}
-          {session_id && (
+          {session_id ? (
             <button onClick={handleCopySession} className="text-[0.55rem] text-muted-foreground hover:text-foreground font-mono flex items-center gap-1" title={`Click to copy: ${session_id}`}>
               <Copy className="w-3 h-3" /> {session_id.slice(0, 8)}...
             </button>
+          ) : isRunning && (
+            <span className="text-[0.55rem] text-muted-foreground/50 font-mono">session pending</span>
           )}
           {isRunning && onCancel && (
             <Button variant="destructive" size="sm" onClick={onCancel} className="h-6 gap-1 text-[0.55rem]">

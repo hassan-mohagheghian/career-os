@@ -50,42 +50,69 @@ function IntelProgressCard({ progress, elapsed, onCancel }) {
   )
 }
 
-function HistoryDrawer({ runs, open, onOpenChange }) {
+function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
+  // Combine career intel runs and roadmap jobs into a unified history
+  const allHistory = [
+    ...runs.map(r => ({ ...r, source: 'career-intel' })),
+    ...roadmapJobs.map(j => ({
+      id: j.id || `roadmap-${j.skill_name}`,
+      insight_type: `roadmap: ${j.skill_name}`,
+      status: j.status,
+      version: j.version,
+      started_at: j.started_at,
+      completed_at: j.completed_at,
+      error_message: j.error,
+      session_id: j.session_id,
+      source: 'roadmap'
+    }))
+  ].sort((a, b) => {
+    const dateA = a.started_at ? new Date(a.started_at) : new Date(0)
+    const dateB = b.started_at ? new Date(b.started_at) : new Date(0)
+    return dateB - dateA
+  })
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:w-[500px] p-0">
         <SheetHeader className="p-6 pb-4">
           <SheetTitle className="flex items-center gap-2">
             <List className="w-5 h-5" />
-            Analysis History
+            Generation History
           </SheetTitle>
           <SheetDescription>
-            {runs.length} recent analysis runs
+            {allHistory.length} recent generation runs
           </SheetDescription>
         </SheetHeader>
         <div className="px-6 pb-6 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
-          {runs.map((run, i) => (
+          {allHistory.map((run, i) => (
             <div key={run.id || i} className="flex items-center gap-2 text-xs p-2 rounded hover:bg-muted transition">
               <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
                 run.status === 'completed' ? "bg-green-500" :
                 run.status === 'failed' ? "bg-red-500" :
                 run.status === 'cancelled' ? "bg-yellow-500" :
-                run.status === 'processing' ? "bg-blue-500 animate-pulse" : "bg-gray-400"
+                run.status === 'processing' || run.status === 'running' ? "bg-blue-500 animate-pulse" : "bg-gray-400"
               )} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold capitalize">{run.insight_type}</span>
-                  <span className="text-muted-foreground text-[0.6rem]">v{run.version}</span>
+                  {run.version && <span className="text-muted-foreground text-[0.6rem]">v{run.version}</span>}
                   <span className={cn("font-semibold text-[0.6rem]",
                     run.status === 'completed' ? "text-green-500" :
                     run.status === 'failed' ? "text-red-500" :
                     run.status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
                   )}>{run.status}</span>
+                  <Badge variant="secondary" className={cn("text-[0.4rem] h-3",
+                    run.source === 'roadmap' ? "bg-purple-500/15 text-purple-500" : "bg-blue-500/15 text-blue-500"
+                  )}>
+                    {run.source === 'roadmap' ? 'Roadmap' : 'Intel'}
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-muted-foreground text-[0.6rem]">{formatTimestamp(run.started_at)}</span>
-                  {run.session_id && (
-                    <span className="text-muted-foreground text-[0.5rem] truncate max-w-[140px]" title={run.session_id}>{run.session_id}</span>
+                  {run.session_id ? (
+                    <span className="text-muted-foreground text-[0.5rem] font-mono truncate max-w-[140px]" title={run.session_id}>{run.session_id}</span>
+                  ) : (
+                    <span className="text-muted-foreground/50 text-[0.5rem]">session pending</span>
                   )}
                 </div>
                 {run.error_message && (
@@ -97,9 +124,9 @@ function HistoryDrawer({ runs, open, onOpenChange }) {
               </div>
             </div>
           ))}
-          {runs.length === 0 && (
+          {allHistory.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              No analysis runs yet
+              No generation runs yet
             </div>
           )}
         </div>
@@ -143,6 +170,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
   const hasData = unwrappedData && Object.keys(unwrappedData).length > 0
   const isRunning = progress?.running || refreshing.all
   const [runs, setRuns] = useState([])
+  const [roadmapJobs, setRoadmapJobs] = useState([])
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const fetchRuns = useCallback(() => {
@@ -152,7 +180,26 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
       .catch(() => setRuns([]))
   }, [])
 
-  useEffect(() => { fetchRuns() }, [fetchRuns])
+  const fetchRoadmapJobs = useCallback(() => {
+    fetch('/api/skill-roadmap-progress/all')
+      .then(r => r.ok ? r.json() : {})
+      .then(data => {
+        // Convert progress data to job-like format for display
+        const jobs = Object.entries(data).map(([skill, info]) => ({
+          skill_name: skill,
+          status: info.status || 'completed',
+          version: info.version,
+          started_at: info.started_at,
+          completed_at: info.completed_at,
+          error: info.error,
+          session_id: info.session_id
+        }))
+        setRoadmapJobs(jobs)
+      })
+      .catch(() => setRoadmapJobs([]))
+  }, [])
+
+  useEffect(() => { fetchRuns(); fetchRoadmapJobs() }, [fetchRuns, fetchRoadmapJobs])
   // Refresh runs when analysis completes
   useEffect(() => { if (!isRunning) fetchRuns() }, [isRunning, fetchRuns])
   const [elapsed, setElapsed] = useState(0)
@@ -232,7 +279,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
       )}
 
       {/* History Drawer */}
-      <HistoryDrawer runs={runs} open={historyOpen} onOpenChange={setHistoryOpen} />
+      <HistoryDrawer runs={runs} roadmapJobs={roadmapJobs} open={historyOpen} onOpenChange={setHistoryOpen} />
 
       {/* Empty State */}
       {!hasData && !isRunning && (

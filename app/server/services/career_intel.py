@@ -183,15 +183,22 @@ def _parse_session_id(stdout):
     """Extract sessionID from Mimo JSON stream output."""
     if not stdout:
         return None
-    for line in stdout.decode('utf-8', errors='replace').split('\n'):
+    decoded = stdout.decode('utf-8', errors='replace')
+    for line in decoded.split('\n'):
         line = line.strip()
         if not line:
             continue
         try:
             obj = json.loads(line)
-            sid = obj.get('sessionID')
+            # Try multiple possible keys
+            sid = obj.get('sessionID') or obj.get('session_id') or obj.get('sessionId')
             if sid:
                 return sid
+            # Also check nested objects
+            if 'session' in obj and isinstance(obj['session'], dict):
+                sid = obj['session'].get('id') or obj['session'].get('ID')
+                if sid:
+                    return sid
         except (json.JSONDecodeError, AttributeError):
             continue
     return None
@@ -346,6 +353,7 @@ def generate_all(pid=0):
         run_id = _start_run('all')
         _current_run['run_id'] = run_id
         result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
+        _current_run['session_id'] = session_id
         if _cancel_requested:
             print(f"[career_intel] All sections generation cancelled")
             return None

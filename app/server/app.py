@@ -9,6 +9,8 @@ load_dotenv()
 
 import os
 import sys
+import signal
+import atexit
 
 from flask import Flask
 from flask_cors import CORS
@@ -52,6 +54,64 @@ app.register_blueprint(dashboard_bp)
 app.register_blueprint(static_bp)
 
 init_static(app)
+
+# ── Graceful Shutdown ─────────────────────────────────────────────
+
+_running_processes = []
+
+def _cleanup_processes(signum=None, frame=None):
+    """Terminate all running background processes gracefully."""
+    print("\n[app] Shutting down — terminating background processes...")
+    for proc in _running_processes:
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+                print(f"[app] Terminated process {proc.pid}")
+            except Exception:
+                try:
+                    proc.kill()
+                    print(f"[app] Killed process {proc.pid}")
+                except Exception:
+                    pass
+    # Mark any active career intel runs as cancelled
+    try:
+        from services.career_intel import cancel_run
+        cancel_run()
+    except Exception:
+        pass
+    # Mark any active skill roadmap jobs as cancelled
+    try:
+        from database import get_db
+        conn = get_db()
+        conn.execute(
+            "UPDATE skill_roadmap_jobs SET status='cancelled', error='Server shutting down' WHERE status IN ('running','queued')"
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    print("[app] Cleanup complete.")
+    if signum:
+        sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGTERM, _cleanup_processes)
+signal.signal(signal.SIGINT, _cleanup_processes)
+
+# Register atexit handler as backup
+atexit.register(_cleanup_processes)
+
+def register_process(proc):
+    """Register a subprocess for cleanup on shutdown."""
+    _running_processes.append(proc)
+
+def unregister_process(proc):
+    """Unregister a completed subprocess."""
+    try:
+        _running_processes.remove(proc)
+    except ValueError:
+        pass
 
 # ── Run ────────────────────────────────────────────────────────────
 
