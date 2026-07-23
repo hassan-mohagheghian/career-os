@@ -72,6 +72,13 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
 
   const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.queued
 
+  const handleCopySession = () => {
+    if (item.session_id) {
+      navigator.clipboard.writeText(item.session_id)
+      setToast('Session ID copied')
+    }
+  }
+
   const handleProcess = async () => {
     if (!onProcess || processing) return
     setProcessing(true)
@@ -294,6 +301,11 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
           {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
           {isDone && <span className="text-green-500">done</span>}
+          {item.session_id && !isDone && (
+            <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-[0.4rem] text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
+              {item.session_id.slice(0, 6)}...
+            </button>
+          )}
         </span>
         {/* Action buttons — always visible, compact */}
         <div className="flex items-center gap-0 shrink-0">
