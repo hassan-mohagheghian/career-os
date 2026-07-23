@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import GenerationProgressCard from "@/components/shared/GenerationProgressCard";
 import SkillRoadmapDrawer from "./SkillRoadmapDrawer";
 
 const API = "/api";
@@ -284,42 +285,13 @@ export default function SkillsIntelSection({
         {/* Generation progress banners — only under this section */}
         {genJobs.length > 0 &&
           genJobs.map((job) => (
-            <div
-              key={job.skill}
-              className="mb-2 p-2 rounded-lg border border-primary/30 bg-primary/5 flex items-center gap-2 cursor-pointer hover:border-primary/50 transition"
-              onClick={() => setSelectedSkill(job.skill)}
-            >
-              <Spinner className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
-              <span className="text-xs font-semibold">{job.skill}</span>
-              <span className="text-[0.6rem] text-muted-foreground">
-                {job.message || "Working..."}
-              </span>
-              <div className="flex-1">
-                <Progress
-                  value={
-                    job.total_steps
-                      ? ((job.step || 0) / job.total_steps) * 100
-                      : 0
-                  }
-                  className="h-1"
-                />
-              </div>
-              <span className="text-[0.55rem] text-muted-foreground shrink-0">
-                {job.step || 0}/{job.total_steps || 4}
-              </span>
-              {job.session_id && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(job.session_id);
-                    toast.success("Session ID copied");
-                  }}
-                  className="text-[0.5rem] text-muted-foreground hover:text-foreground font-mono truncate max-w-[80px] shrink-0"
-                  title={`Click to copy: ${job.session_id}`}
-                >
-                  {job.session_id.slice(0, 8)}...
-                </button>
-              )}
+            <div key={job.skill} className="cursor-pointer" onClick={() => setSelectedSkill(job.skill)}>
+              <GenerationProgressCard
+                title={job.skill}
+                progress={{ running: true, ...job }}
+                compact
+                className="mb-2"
+              />
             </div>
           ))}
 

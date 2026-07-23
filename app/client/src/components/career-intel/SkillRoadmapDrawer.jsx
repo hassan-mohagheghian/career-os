@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import GenerationProgressCard from "@/components/shared/GenerationProgressCard";
 import { Progress } from "@/components/ui/progress";
 import {
   Sheet,
@@ -22,6 +23,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 const API = "/api";
 
@@ -385,72 +387,19 @@ export default function SkillRoadmapDrawer({
         </SheetHeader>
 
         {/* Progress bar — roadmap generation */}
-        {isRunning && (
-          <div className="px-6 pb-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Progress value={genPct} className="h-1.5 flex-1" />
-              <span className="text-[0.6rem] text-muted-foreground font-semibold shrink-0">
-                {genProgress.step}/{genProgress.total_steps}
-              </span>
-            </div>
-            <div className="flex gap-1">
-              {["Preparing", "Prompt", "AI", "Saving"].map((label, i) => (
-                <div
-                  key={label}
-                  className={cn(
-                    "flex-1 text-center text-[0.5rem] rounded py-0.5",
-                    i < (genProgress.step || 0)
-                      ? "bg-green-500/15 text-green-500"
-                      : i === (genProgress.step || 0)
-                        ? "bg-primary/15 text-primary font-semibold"
-                        : "text-muted-foreground",
-                  )}
-                >
-                  {i < (genProgress.step || 0) ? "✓ " : ""}
-                  {label}
-                </div>
-              ))}
-            </div>
-            {genProgress.session_id && (
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(genProgress.session_id);
-                  toast.success("Session ID copied");
-                }}
-                className="text-[0.55rem] text-muted-foreground hover:text-foreground font-mono truncate"
-                title={`Click to copy: ${genProgress.session_id}`}
-              >
-                Session: {genProgress.session_id.slice(0, 10)}...
-              </button>
-            )}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={async () => {
-                  try {
-                    await fetch(
-                      `${API}/skill-roadmaps/cancel?skill=${encodeURIComponent(skillName)}`,
-                      { method: "POST" },
-                    );
-                    setGenProgress({
-                      status: "cancelled",
-                      step: 0,
-                      total_steps: 4,
-                      message: "Cancelled",
-                    });
-                  } catch {}
-                }}
-                className="h-6 text-[0.6rem] gap-1"
-              >
-                <X className="w-3 h-3" /> Cancel
-              </Button>
-              <span className="text-[0.55rem] text-muted-foreground">
-                Generation may take a moment
-              </span>
-            </div>
-          </div>
-        )}
+        <div className="px-6 pb-3">
+          <GenerationProgressCard
+            title={skillName}
+            progress={isRunning ? { running: true, ...genProgress } : genProgress}
+            onCancel={isRunning ? async () => {
+              try {
+                await fetch(`${API}/skill-roadmaps/cancel?skill=${encodeURIComponent(skillName)}`, { method: "POST" });
+                setGenProgress({ status: "cancelled", step: 0, total_steps: 4, message: "Cancelled" });
+              } catch {}
+            } : undefined}
+            onRetry={!isRunning && (isFailed || genProgress?.status === "cancelled") ? handleGenerate : undefined}
+          />
+        </div>
 
         {/* Failed state */}
         {(isFailed || genProgress?.status === "cancelled") && (

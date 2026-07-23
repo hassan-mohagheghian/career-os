@@ -26,7 +26,7 @@ CURRENT_VERSION = 1
 
 # Concurrency lock — only one analysis at a time
 _analysis_lock = threading.Lock()
-_current_run = {'active': False, 'type': None, 'started_at': None, 'run_id': None, 'process': None}
+_current_run = {'active': False, 'type': None, 'started_at': None, 'run_id': None, 'process': None, 'session_id': None}
 _cancel_requested = False
 
 
@@ -56,6 +56,7 @@ def is_running():
             'type': _current_run['type'],
             'started_at': _current_run['started_at'],
             'run_id': _current_run['run_id'],
+            'session_id': _current_run.get('session_id'),
             'cancellable': _current_run['process'] is not None
         }
     # Clean up stale processing records from crashed sessions
@@ -98,6 +99,7 @@ def get_progress():
         'started_at': info['started_at'],
         'elapsed_seconds': elapsed,
         'run_id': info['run_id'],
+        'session_id': info.get('session_id'),
         'cancellable': info.get('cancellable', False)
     }
 

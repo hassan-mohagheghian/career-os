@@ -434,7 +434,7 @@ def bulk_create_skill_roadmaps():
     """Replace all roadmap items for a skill with a new set. Used by AI generation."""
     data = request.get_json()
     skill = data.get("skill_name")
-    roadmap_items = data.get("roadmap", data.get("topics", []))
+    roadmap_items = data.get("roadmap", data.get("roadmap", []))
     version = data.get("version", 1)
     if not skill:
         return jsonify({"error": "skill_name required"}), 400
@@ -516,7 +516,7 @@ def bulk_create_skill_roadmaps():
 
 
 @bp.route("/api/skill-roadmap-progress/<int:roadmap_id>", methods=["PUT"])
-def update_topic_progress(roadmap_id):
+def update_roadmap_progress(roadmap_id):
     """Toggle roadmap item completion."""
     data = request.get_json() or {}
     completed = data.get("completed", 1)

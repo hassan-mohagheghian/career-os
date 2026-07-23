@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { toast } from 'sonner'
+import GenerationProgressCard from '@/components/shared/GenerationProgressCard'
 
 import OverviewSection from './OverviewSection'
 import OpportunitiesSection from './OpportunitiesSection'
@@ -37,75 +38,15 @@ function formatElapsed(seconds) {
 
 function IntelProgressCard({ progress, elapsed, onCancel }) {
   if (!progress.running) return null
-  const elapsedSec = elapsed || progress.elapsed_seconds || 0
-
-  // Simulate step progression based on elapsed time
-  const getStepIndex = (secs) => {
-    if (secs < 10) return 0
-    if (secs < 30) return 1
-    if (secs < 60) return 2
-    if (secs < 90) return 3
-    return 4
-  }
-  const currentStep = getStepIndex(elapsedSec)
 
   return (
-    <Card className="p-4 border-primary/30 bg-primary/5">
-      <div className="flex items-center gap-2 mb-3">
-        <Spinner className="w-4 h-4 text-primary animate-spin" />
-        <span className="text-sm font-bold">Generating Career Intelligence</span>
-        <Badge variant="default" className="text-[0.5rem] animate-pulse">LIVE</Badge>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[0.55rem] text-muted-foreground">{progress.type === 'all' ? 'All sections' : progress.type}</span>
-          {onCancel && (
-            <Button variant="destructive" size="sm" onClick={onCancel} className="h-6 gap-1 text-[0.55rem]">
-              <X className="w-3 h-3" /> Terminate
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Step progress bar */}
-      <div className="flex gap-1 mb-3">
-        {INTEL_STEPS.map((step, i) => {
-          const isDone = i < currentStep
-          const isActive = i === currentStep
-          return (
-            <div key={step.key} className="flex items-center gap-0.5 flex-1">
-              <div className={cn(
-                "w-5 h-5 rounded-full flex items-center justify-center text-[0.45rem] font-bold transition-all border shrink-0",
-                isDone ? "bg-green-500 text-white border-green-500" :
-                isActive ? "bg-primary text-primary-foreground border-primary animate-pulse" :
-                "bg-background text-muted-foreground border-border"
-              )}>
-                {isDone ? <Check className="w-3 h-3" /> : isActive ? <Spinner className="w-3 h-3 animate-spin" /> : i + 1}
-              </div>
-              {i < INTEL_STEPS.length - 1 && <div className={cn("h-[1px] flex-1 rounded-full", isDone ? "bg-green-500" : "bg-border")} />}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Step labels */}
-      <div className="flex gap-1 mb-2">
-        {INTEL_STEPS.map((step, i) => (
-          <div key={step.key} className="flex-1 text-center">
-            <span className={cn("text-[0.5rem]",
-              i < currentStep ? "text-green-500 font-semibold" :
-              i === currentStep ? "text-primary font-semibold" : "text-muted-foreground"
-            )}>
-              {i < currentStep ? '✓ ' : i === currentStep ? '● ' : ''}{step.label}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Progress + elapsed */}
-      <div className="flex items-center gap-2">
-        <Progress value={(currentStep / (INTEL_STEPS.length - 1)) * 100} className="h-1 flex-1" />
-        <span className="text-[0.55rem] text-muted-foreground shrink-0">{formatElapsed(elapsedSec)}</span>
-      </div>
-    </Card>
+    <GenerationProgressCard
+      title="Generating Career Intelligence"
+      type={progress.type === 'all' ? 'All sections' : progress.type}
+      progress={{ ...progress, elapsed_seconds: elapsed || progress.elapsed_seconds }}
+      steps={INTEL_STEPS.map(s => ({ key: s.key, label: s.label }))}
+      onCancel={onCancel}
+    />
   )
 }
 
