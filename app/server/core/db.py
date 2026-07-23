@@ -301,6 +301,32 @@ def init_db():
         FOREIGN KEY (company_id) REFERENCES companies(id)
     )""")
 
+    # --- Career Intelligence tables ---
+    c.execute("""CREATE TABLE IF NOT EXISTS career_insight_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        insight_type TEXT NOT NULL,
+        version INTEGER DEFAULT 1,
+        status TEXT DEFAULT 'pending',
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP,
+        error_message TEXT,
+        metadata TEXT DEFAULT '{}',
+        session_id TEXT
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS career_insights (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        insight_type TEXT NOT NULL,
+        version INTEGER DEFAULT 1,
+        score REAL,
+        summary TEXT,
+        data_json TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    c.execute("CREATE INDEX IF NOT EXISTS idx_career_insight_runs_type ON career_insight_runs(insight_type, status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_career_insights_type ON career_insights(insight_type, version, created_at DESC)")
+
     c.execute("CREATE INDEX IF NOT EXISTS idx_pending_companies_status ON pending_companies(status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_company_intelligence_company_id ON company_intelligence(company_id)")

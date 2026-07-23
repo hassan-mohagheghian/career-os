@@ -109,10 +109,41 @@ def ensure_db_schema():
             FOREIGN KEY (company_id) REFERENCES companies(id)
         )""")
 
+    if 'career_insight_runs' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS career_insight_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            insight_type TEXT NOT NULL,
+            version INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'pending',
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            error_message TEXT,
+            metadata TEXT DEFAULT '{}',
+            session_id TEXT
+        )""")
+    else:
+        try:
+            conn.execute("SELECT session_id FROM career_insight_runs LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE career_insight_runs ADD COLUMN session_id TEXT")
+
+    if 'career_insights' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS career_insights (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            insight_type TEXT NOT NULL,
+            version INTEGER DEFAULT 1,
+            score REAL,
+            summary TEXT,
+            data_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+
     conn.execute("CREATE INDEX IF NOT EXISTS idx_pending_companies_status ON pending_companies(status)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_company_intelligence_company_id ON company_intelligence(company_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_company_links_company_id ON company_links(company_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_career_insight_runs_type ON career_insight_runs(insight_type, status)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_career_insights_type ON career_insights(insight_type, version, created_at DESC)")
     conn.commit()
     conn.close()
 

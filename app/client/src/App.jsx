@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Briefcase, Gear, Brain, X, Check, Buildings, FileText
+  Briefcase, Gear, Brain, X, Check, Buildings, FileText, Lightbulb
 } from '@phosphor-icons/react'
 import { ThemeProvider } from 'next-themes'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ import Header from '@/components/layout/Header'
 import JobDrawer from '@/components/jobs/drawer/JobDrawer'
 import CompanyDrawer from '@/components/companies/CompanyDrawer'
 import IntelligenceTab from '@/components/intelligence/IntelligenceTab'
+import CareerIntelTab from '@/components/career-intel/CareerIntelTab'
 import ResumeTab from '@/components/resume/ResumeTab'
 import RulesTab from '@/components/rules/RulesTab'
 import CompaniesPage from '@/components/companies/CompaniesPage'
@@ -21,7 +22,7 @@ import JobsPage from '@/components/jobs/JobsPage'
 import WorkflowTerminal from '@/components/shared/WorkflowTerminal'
 import DuplicateJobDialog from '@/components/shared/DuplicateJobDialog'
 
-import { useJobs, usePending, useCompanies, useWorkflow, useIntelligence, useResume } from '@/hooks'
+import { useJobs, usePending, useCompanies, useWorkflow, useIntelligence, useResume, useCareerIntel } from '@/hooks'
 
 const API = '/api'
 
@@ -74,6 +75,14 @@ function App() {
     refreshSkills, refreshMarket, refreshOpportunity
   } = useIntelligence(refreshJobs)
 
+  const {
+    data: careerData, status: careerStatus, progress: careerProgress,
+    activeTab: careerSubTab, setActiveTab: setCareerSubTab, refreshing: careerRefreshing,
+    error: careerError,
+    fetchData: fetchCareerData, fetchStatus: fetchCareerStatus, fetchProgress: fetchCareerProgress,
+    refreshSection: refreshCareerSection, refreshAll: refreshCareerAll, cancelRun: cancelCareerRun
+  } = useCareerIntel()
+
   const [rules, setRules] = useState(null)
   const [tab, setTab] = useState(() => {
     const h = window.location.hash.replace('#', '') || 'jobs'
@@ -105,6 +114,9 @@ function App() {
     fetchTimestamps()
     fetchCompanies()
     fetchPendingCompanies()
+    fetchCareerData()
+    fetchCareerStatus()
+    fetchCareerProgress()
   }, [])
 
   const fetchRules = () => fetch(`${API}/rules`).then(r => r.json()).then(setRules)
@@ -213,6 +225,7 @@ function App() {
     { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
     { id: 'companies', icon: <Buildings className="w-4 h-4" />, label: 'Companies', badge: companies.length, section: 'jobs' },
     { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
+    { id: 'career-intel', icon: <Lightbulb className="w-4 h-4" />, label: 'Career Intel', section: 'analysis' },
     { id: 'intelligence', icon: <Brain className="w-4 h-4" />, label: 'Intelligence', section: 'analysis' },
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
   ]
@@ -257,6 +270,9 @@ function App() {
             )}
             {tab === 'companies' && (
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
+            )}
+            {tab === 'career-intel' && (
+              <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onCancel={cancelCareerRun} />
             )}
             {tab === 'intelligence' && (
               <IntelligenceTab analysis={analysis} timestamps={timestamps} getLastUpdated={getLastUpdated} jobs={jobs} jobsTotal={jobsTotal} resumes={resumes} linkedinProfiles={linkedinProfiles} cities={[]} rules={rules} intelligenceSubTab={intelligenceSubTab} refreshing={refreshing} onSetIntelligenceSubTab={setIntelligenceSubTab} onRefreshAll={refreshAnalysis} onRefreshMarket={refreshMarket} onRefreshOpportunity={refreshOpportunity} onRefreshStrategy={refreshStrategy} onRefreshNetworking={refreshNetworking} onRefreshSkills={refreshSkills} onOpenDrawer={openDrawer} />
