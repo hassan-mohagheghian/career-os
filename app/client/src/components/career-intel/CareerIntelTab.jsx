@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
 import OverviewSection from './OverviewSection'
@@ -108,44 +109,61 @@ function IntelProgressCard({ progress, elapsed, onCancel }) {
   )
 }
 
-function HistoryList({ runs }) {
-  const [expanded, setExpanded] = useState(false)
-  if (!runs || runs.length === 0) return null
+function HistoryDrawer({ runs, open, onOpenChange }) {
   return (
-    <Card className="p-3">
-      <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-2 w-full text-left">
-        <List className="w-4 h-4 text-muted-foreground" />
-        <span className="text-xs font-bold">Analysis History</span>
-        <Badge variant="secondary" className="text-[0.5rem] ml-auto">{runs.length}</Badge>
-        <span className="text-[0.5rem] text-muted-foreground">{expanded ? '▲' : '▼'}</span>
-      </button>
-      {expanded && (
-        <div className="mt-2 space-y-1 max-h-[200px] overflow-y-auto">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[400px] sm:w-[500px] p-0">
+        <SheetHeader className="p-6 pb-4">
+          <SheetTitle className="flex items-center gap-2">
+            <List className="w-5 h-5" />
+            Analysis History
+          </SheetTitle>
+          <SheetDescription>
+            {runs.length} recent analysis runs
+          </SheetDescription>
+        </SheetHeader>
+        <div className="px-6 pb-6 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
           {runs.map((run, i) => (
-            <div key={run.id || i} className="flex items-center gap-2 text-[0.6rem] p-1.5 rounded hover:bg-muted transition">
-              <div className={cn("w-2 h-2 rounded-full shrink-0",
+            <div key={run.id || i} className="flex items-center gap-2 text-xs p-2 rounded hover:bg-muted transition">
+              <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
                 run.status === 'completed' ? "bg-green-500" :
                 run.status === 'failed' ? "bg-red-500" :
                 run.status === 'cancelled' ? "bg-yellow-500" :
                 run.status === 'processing' ? "bg-blue-500 animate-pulse" : "bg-gray-400"
               )} />
-              <span className="font-semibold capitalize w-16">{run.insight_type}</span>
-              <span className="text-muted-foreground">v{run.version}</span>
-              <span className={cn("font-semibold",
-                run.status === 'completed' ? "text-green-500" :
-                run.status === 'failed' ? "text-red-500" :
-                run.status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
-              )}>{run.status}</span>
-              {run.session_id && (
-                <span className="text-muted-foreground text-[0.5rem] truncate max-w-[120px]" title={run.session_id}>{run.session_id}</span>
-              )}
-              <span className="text-muted-foreground ml-auto">{formatTimestamp(run.started_at)}</span>
-              {run.error_message && <Warning className="w-3 h-3 text-red-500 shrink-0" title={run.error_message} />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold capitalize">{run.insight_type}</span>
+                  <span className="text-muted-foreground text-[0.6rem]">v{run.version}</span>
+                  <span className={cn("font-semibold text-[0.6rem]",
+                    run.status === 'completed' ? "text-green-500" :
+                    run.status === 'failed' ? "text-red-500" :
+                    run.status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
+                  )}>{run.status}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-muted-foreground text-[0.6rem]">{formatTimestamp(run.started_at)}</span>
+                  {run.session_id && (
+                    <span className="text-muted-foreground text-[0.5rem] truncate max-w-[140px]" title={run.session_id}>{run.session_id}</span>
+                  )}
+                </div>
+                {run.error_message && (
+                  <div className="text-red-500 text-[0.6rem] mt-0.5 flex items-center gap-1">
+                    <Warning className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{run.error_message}</span>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
+          {runs.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No analysis runs yet
+            </div>
+          )}
         </div>
-      )}
-    </Card>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -164,7 +182,12 @@ function formatTimestamp(ts) {
   return date.toLocaleDateString()
 }
 
-export default function CareerIntelTab({ data, status, progress, activeTab, setActiveTab, refreshing, error, onRefreshAll, onRefreshSection, onOpenDrawer, onCancel }) {
+export default function CareerIntelTab({ data, status, progress, activeTab, setActiveTab, refreshing, error, onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany, onCancel, skillTopicProgress, onRefreshSkillProgress, skillGenJobs }) {
+  // Wrap setActiveTab to also update URL hash
+  const switchSubTab = (sub) => {
+    setActiveTab(sub)
+    window.location.hash = `career-intel/${sub}`
+  }
   // Unwrap data: API returns { overview: { id, data: {...} }, ... } → sections expect { overview: {...}, ... }
   const unwrappedData = {}
   if (data) {
@@ -179,6 +202,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
   const hasData = unwrappedData && Object.keys(unwrappedData).length > 0
   const isRunning = progress?.running || refreshing.all
   const [runs, setRuns] = useState([])
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const fetchRuns = useCallback(() => {
     fetch('/api/career-intelligence/runs?limit=20')
@@ -217,7 +241,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-extrabold">Career Intelligence</h2>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={switchSubTab}>
             <TabsList className="bg-muted">
               <TabsTrigger value="overview"><Lightbulb className="w-4 h-4 mr-1.5" />Overview</TabsTrigger>
               <TabsTrigger value="opportunities"><Target className="w-4 h-4 mr-1.5" />Opportunities</TabsTrigger>
@@ -234,6 +258,11 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
               <Clock className="w-3 h-3" /> {formatTimestamp(overallTimestamp)}
             </span>
           )}
+          <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 h-8">
+            <List className="w-3.5 h-3.5" />
+            History
+            {runs.length > 0 && <Badge variant="secondary" className="text-[0.5rem] h-4 ml-0.5">{runs.length}</Badge>}
+          </Button>
           <Button onClick={onRefreshAll} disabled={isRunning} variant={isRunning ? "secondary" : "outline"} size="sm" className="gap-1.5">
             <ArrowsClockwise className={cn("w-3.5 h-3.5", isRunning && "animate-spin")} />
             {isRunning ? 'Generating...' : 'Generate All'}
@@ -261,39 +290,8 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
         </Card>
       )}
 
-      {/* Workflow Status Cards — shown when data exists and not running */}
-      {hasData && !isRunning && (
-        <div className="grid grid-cols-6 gap-2">
-          {['overview', 'opportunities', 'companies', 'skills', 'market', 'networking'].map(s => (
-            <div key={s} className={cn(
-              "p-2 rounded-lg border text-center transition cursor-pointer hover:border-primary",
-              status[s]?.status === 'completed' ? "border-green-500/30 bg-green-500/5" :
-              status[s]?.status === 'failed' ? "border-red-500/30 bg-red-500/5" :
-              "border-border"
-            )} onClick={() => setActiveTab(s)}>
-              <div className={cn("text-[0.55rem] font-bold capitalize mb-0.5", s)}>{s}</div>
-              <div className={cn("text-[0.5rem]",
-                status[s]?.status === 'completed' ? "text-green-500" :
-                status[s]?.status === 'failed' ? "text-red-500" :
-                status[s]?.status === 'processing' ? "text-primary" :
-                "text-muted-foreground"
-              )}>
-                {status[s]?.status === 'completed' ? '✓ Done' :
-                 status[s]?.status === 'failed' ? '✗ Failed' :
-                 status[s]?.status === 'processing' ? '● Running' :
-                 status[s]?.status === 'never' ? 'Never run' :
-                 status[s]?.status || 'Unknown'}
-              </div>
-              {status[s]?.error && (
-                <div className="text-[0.45rem] text-red-500 mt-0.5 truncate" title={status[s].error}>{status[s].error.slice(0, 30)}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* History List */}
-      {!isRunning && <HistoryList runs={runs} />}
+      {/* History Drawer */}
+      <HistoryDrawer runs={runs} open={historyOpen} onOpenChange={setHistoryOpen} />
 
       {/* Empty State */}
       {!hasData && !isRunning && (
@@ -315,10 +313,10 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
         <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} />
       )}
       {hasData && activeTab === 'companies' && (
-        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} />
+        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} />
       )}
       {hasData && activeTab === 'skills' && (
-        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} />
+        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} topicProgress={skillTopicProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} />
       )}
       {hasData && activeTab === 'market' && (
         <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} />

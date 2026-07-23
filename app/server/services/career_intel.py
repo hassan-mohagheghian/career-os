@@ -21,7 +21,7 @@ _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
 os.makedirs(TMP_DIR, exist_ok=True)
 
-INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking']
+INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking', 'skills_intel']
 CURRENT_VERSION = 1
 
 # Concurrency lock — only one analysis at a time
@@ -195,11 +195,12 @@ def _parse_session_id(stdout):
     return None
 
 
-def _run_mimo_prompt(prompt_name, pid=0, timeout=300, **kwargs):
+def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs):
     """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
     prompt = load_prompt(prompt_name, project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
-    result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
+    if result_file is None:
+        result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
     proc = None
     session_id = None
     try:
@@ -278,6 +279,56 @@ def _collect_skills_data():
     }
 
 
+def generate_skills_intel(pid=0):
+    """Generate the Skills Intelligence Report using the dedicated prompt. Only one run at a time."""
+    global _cancel_requested
+    if not _analysis_lock.acquire(blocking=False):
+        running, info = is_running()
+        print(f"[career_intel] Analysis already running: {info}")
+        return {'error': 'Analysis already running', 'running': info}
+    try:
+        _cancel_requested = False
+        _current_run['active'] = True
+        _current_run['type'] = 'skills_intel'
+        _current_run['started_at'] = datetime.now().isoformat()
+        run_id = _start_run('skills_intel')
+        _current_run['run_id'] = run_id
+        result_file = os.path.join(TMP_DIR, f'skills_intelligence_{pid}.json')
+        result, error_msg, session_id = _run_mimo_prompt('skills_intelligence', pid=pid, result_file=result_file)
+        if _cancel_requested:
+            print("[career_intel] Skills intelligence generation cancelled")
+            return None
+        if result:
+            score = result.get('summary', {}).get('career_readiness_score')
+            summary_parts = []
+            if result.get('summary', {}).get('main_strength'):
+                summary_parts.append(f"Strength: {result['summary']['main_strength']}")
+            if result.get('summary', {}).get('biggest_gap'):
+                summary_parts.append(f"Gap: {result['summary']['biggest_gap']}")
+            summary = '; '.join(summary_parts) if summary_parts else f"Readiness: {score}/100"
+            _save_insight('skills_intel', result, score, summary)
+            _complete_run(run_id, 'completed', session_id=session_id)
+            print(f"[career_intel] Skills intelligence generated successfully (session: {session_id})")
+            return result
+        else:
+            _complete_run(run_id, 'failed', error_msg or 'Mimo analysis returned no result', session_id=session_id)
+            print(f"[career_intel] Skills intelligence generation failed: {error_msg}")
+            return None
+    except Exception as e:
+        if not _cancel_requested:
+            _complete_run(run_id, 'failed', str(e))
+        print(f"[career_intel] Error: {e}")
+        traceback.print_exc()
+        return None
+    finally:
+        _current_run['active'] = False
+        _current_run['type'] = None
+        _current_run['started_at'] = None
+        _current_run['run_id'] = None
+        _current_run['process'] = None
+        _analysis_lock.release()
+
+
 def generate_all(pid=0):
     """Generate all career intelligence sections at once. Only one run at a time."""
     global _cancel_requested
@@ -330,6 +381,8 @@ def generate_all(pid=0):
 
 def generate_section(section, pid=0):
     """Generate a single career intelligence section. Only one run at a time."""
+    if section == 'skills_intel':
+        return generate_skills_intel(pid)
     global _cancel_requested
     if section not in INSIGHT_TYPES:
         return None

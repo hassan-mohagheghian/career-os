@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  Briefcase, Gear, Brain, X, Check, Buildings, FileText, Lightbulb
+  Briefcase, Gear, Brain, X, Check, Buildings, FileText, Lightbulb, Spinner, TreeStructure
 } from '@phosphor-icons/react'
 import { ThemeProvider } from 'next-themes'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
+import { Progress } from '@/components/ui/progress'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
 
 import Sidebar from '@/components/layout/Sidebar'
@@ -92,6 +93,10 @@ function App() {
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Global skill topic progress (shared between SkillsIntelSection and SkillTopicDrawer)
+  const [skillTopicProgress, setSkillTopicProgress] = useState({})
+  const [skillGenJobs, setSkillGenJobs] = useState([]) // active/failed generation jobs
+  const skillProgressPollRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -107,18 +112,73 @@ function App() {
     fetchCareerData()
     fetchCareerStatus()
     fetchCareerProgress()
+    fetchSkillProgress()
+    pollSkillGenJobs()
   }, [])
 
   const fetchRules = () => fetch(`${API}/rules`).then(r => r.json()).then(setRules)
+
+  // Skill topic progress — polled globally so all views stay in sync
+  const fetchSkillProgress = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/skill-topic-progress/all`)
+      const data = await res.json()
+      setSkillTopicProgress(data)
+    } catch {}
+  }, [])
+
+  // Poll skill generation jobs — deduplicated by skill name
+  const pollSkillGenJobs = useCallback(async () => {
+    try {
+      const stackRes = await fetch(`${API}/tech-stack`)
+      const stack = await stackRes.json()
+      const skills = [...new Set(stack.map(s => s.name))] // deduplicate names
+      const jobs = []
+      const seen = new Set()
+      for (const skill of skills.slice(0, 20)) {
+        if (seen.has(skill)) continue
+        seen.add(skill)
+        const res = await fetch(`${API}/skill-topics/progress?skill=${encodeURIComponent(skill)}`)
+        const p = await res.json()
+        if (p.status === 'running' || p.status === 'queued') {
+          jobs.push({ skill, ...p })
+        }
+      }
+      setSkillGenJobs(jobs)
+    } catch {}
+  }, [])
+
+  // Start polling when there are active jobs, stop when done
+  useEffect(() => {
+    if (skillGenJobs.length > 0) {
+      skillProgressPollRef.current = setInterval(async () => {
+        await pollSkillGenJobs()
+        await fetchSkillProgress()
+      }, 2000)
+    } else {
+      if (skillProgressPollRef.current) {
+        clearInterval(skillProgressPollRef.current)
+        skillProgressPollRef.current = null
+      }
+    }
+    return () => {
+      if (skillProgressPollRef.current) clearInterval(skillProgressPollRef.current)
+    }
+  }, [skillGenJobs.length, pollSkillGenJobs, fetchSkillProgress])
 
   useEffect(() => {
     const onHash = () => {
       const h = window.location.hash.replace('#', '') || 'jobs'
       const parts = h.split('/')
       const newTab = parts[0] || 'jobs'
-      const id = parts[1] ? parseInt(parts[1]) : null
+      const second = parts[1] || null
       if (newTab && newTab !== tab) setTab(newTab)
-      if (id) setDeepLinkId(id)
+      // For career-intel, second part is sub-tab (e.g. #career-intel/skills)
+      if (newTab === 'career-intel' && second && !parseInt(second)) {
+        setCareerSubTab(second)
+      } else if (second) {
+        setDeepLinkId(parseInt(second))
+      }
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
@@ -199,6 +259,13 @@ function App() {
     }
   }
 
+  // Navigate to Companies page to add a new company
+  const handleAddCompany = (companyName) => {
+    setTab('companies')
+    window.location.hash = 'companies'
+    // The CompaniesPage has an add flow triggered via pending companies
+  }
+
   const handleDeleteCompany = async (id) => {
     await deleteCompany(id)
     setCompanyDrawer(null)
@@ -209,13 +276,31 @@ function App() {
     setCompanyDrawer(null)
   }
 
-  const switchTab = (t) => { setTab(t); setDeepLinkId(null); window.location.hash = t }
+  const switchTab = (t, sub) => {
+    setTab(t)
+    setDeepLinkId(null)
+    if (sub) {
+      setCareerSubTab(sub)
+      window.location.hash = `${t}/${sub}`
+    } else {
+      window.location.hash = t
+    }
+  }
 
   const tabs = [
     { id: 'jobs', icon: <Briefcase className="w-4 h-4" />, label: 'Jobs', badge: jobsTotal, section: 'jobs' },
     { id: 'companies', icon: <Buildings className="w-4 h-4" />, label: 'Companies', badge: companies.length, section: 'jobs' },
-    { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'jobs' },
-    { id: 'career-intel', icon: <Lightbulb className="w-4 h-4" />, label: 'Career Intel', section: 'analysis' },
+    { id: 'resume', icon: <FileText className="w-4 h-4" />, label: 'Resume', section: 'settings' },
+    { id: 'career-intel', icon: <Lightbulb className="w-4 h-4" />, label: 'Career Intel', section: 'analysis',
+      children: [
+        { id: 'overview', label: 'Overview' },
+        { id: 'opportunities', label: 'Opportunities' },
+        { id: 'companies', label: 'Companies' },
+        { id: 'skills', label: 'Skills' },
+        { id: 'market', label: 'Market' },
+        { id: 'networking', label: 'Networking' },
+      ]
+    },
     { id: 'rules', icon: <Gear className="w-4 h-4" />, label: 'Rules', section: 'settings' },
   ]
 
@@ -227,7 +312,7 @@ function App() {
         {sidebarOpen ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
       </Button>
 
-      <Sidebar sidebarOpen={sidebarOpen} tabs={tabs} tab={tab} onSwitchTab={switchTab} onClose={() => setSidebarOpen(false)} />
+      <Sidebar sidebarOpen={sidebarOpen} tabs={tabs} tab={tab} onSwitchTab={switchTab} subTab={careerSubTab} onSwitchSubTab={setCareerSubTab} onClose={() => setSidebarOpen(false)} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header jobAgg={jobAgg} jobsTotal={jobsTotal} resumes={resumes} companies={companies} theme={theme} tab={tab} onSwitchTab={switchTab} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
@@ -261,7 +346,7 @@ function App() {
               <CompaniesPage companies={companies} pendingCompanies={pendingCompanies} deepLinkId={deepLinkId} onClearDeepLink={() => setDeepLinkId(null)} onRefresh={() => { fetchCompanies(); fetchPendingCompanies() }} onOpenJob={openDrawer} onNavigateToJob={(num) => { setTab('jobs'); setTimeout(() => openDrawer(num), 100) }} onOpenCompany={openCompanyDrawer} />
             )}
             {tab === 'career-intel' && (
-              <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onCancel={cancelCareerRun} />
+              <CareerIntelTab data={careerData} status={careerStatus} progress={careerProgress} activeTab={careerSubTab} setActiveTab={setCareerSubTab} refreshing={careerRefreshing} error={careerError} onRefreshAll={refreshCareerAll} onRefreshSection={refreshCareerSection} onOpenDrawer={openDrawer} onOpenCompany={openCompanyDrawer} onAddCompany={handleAddCompany} onCancel={cancelCareerRun} skillTopicProgress={skillTopicProgress} onRefreshSkillProgress={fetchSkillProgress} skillGenJobs={skillGenJobs} />
             )}
             {tab === 'resume' && <ResumeTab resumes={resumes} linkedinProfiles={linkedinProfiles} onRefreshResumes={fetchResumes} onRefreshLinkedin={fetchLinkedin} />}
             {tab === 'rules' && <RulesTab rules={rules} onUpdate={fetchRules} />}

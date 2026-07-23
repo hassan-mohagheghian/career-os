@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request
 
 bp = Blueprint('career_intel', __name__)
 
-INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking']
+INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking', 'skills_intel']
 
 
 @bp.route('/api/career-intelligence', methods=['GET'])
@@ -103,6 +103,34 @@ def get_status():
         else:
             status[section] = {'status': 'never', 'lastRun': None}
     return jsonify(status)
+
+
+@bp.route('/api/career-intelligence/skills-intel', methods=['GET'])
+def get_skills_intel():
+    """Get the latest Skills Intelligence Report."""
+    from services.career_intel import get_latest
+    data = get_latest('skills_intel')
+    if data:
+        return jsonify(data)
+    return jsonify({'error': 'No skills intelligence found. Run refresh first.'}), 404
+
+
+@bp.route('/api/career-intelligence/skills-intel/refresh', methods=['POST'])
+def refresh_skills_intel():
+    """Generate the Skills Intelligence Report in background."""
+    from services.career_intel import generate_skills_intel, is_running
+    running, info = is_running()
+    if running:
+        return jsonify({
+            'status': 'already_running',
+            'message': f'Analysis already in progress ({info["type"]})',
+            'running': info
+        }), 409
+    def _run():
+        generate_skills_intel()
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return jsonify({'status': 'started', 'message': 'Skills intelligence generation started'})
 
 
 @bp.route('/api/career-intelligence/cancel', methods=['POST'])

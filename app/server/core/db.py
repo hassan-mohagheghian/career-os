@@ -74,7 +74,46 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
-        roles TEXT, path TEXT
+        roles TEXT, path TEXT, source TEXT DEFAULT 'service'
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmaps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_name TEXT NOT NULL,
+        parent_id INTEGER REFERENCES skill_roadmaps(id),
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        level INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        version INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmap_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        roadmap_id INTEGER NOT NULL REFERENCES skill_roadmaps(id) ON DELETE CASCADE,
+        skill_name TEXT NOT NULL,
+        completed INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(roadmap_id)
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmap_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_name TEXT NOT NULL,
+        job_type TEXT NOT NULL DEFAULT 'generate',
+        status TEXT NOT NULL DEFAULT 'queued',
+        step INTEGER DEFAULT 0,
+        total_steps INTEGER DEFAULT 4,
+        message TEXT DEFAULT '',
+        version INTEGER,
+        count INTEGER,
+        error TEXT,
+        session_id TEXT,
+        pid INTEGER,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS cities (

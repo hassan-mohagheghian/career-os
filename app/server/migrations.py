@@ -144,6 +144,68 @@ def ensure_db_schema():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_company_links_company_id ON company_links(company_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_career_insight_runs_type ON career_insight_runs(insight_type, status)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_career_insights_type ON career_insights(insight_type, version, created_at DESC)")
+
+    # Skill topics tables
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if 'skill_roadmaps' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS skill_roadmaps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            skill_name TEXT NOT NULL,
+            parent_id INTEGER REFERENCES skill_roadmaps(id),
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            level INTEGER DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            version INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+    else:
+        # Add level column if missing
+        topic_cols = {row[1] for row in conn.execute('PRAGMA table_info(skill_roadmaps)').fetchall()}
+        if 'level' not in topic_cols:
+            conn.execute("ALTER TABLE skill_roadmaps ADD COLUMN level INTEGER DEFAULT 0")
+
+    # Add source column to tech_stack if missing
+    try:
+        conn.execute("SELECT source FROM tech_stack LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE tech_stack ADD COLUMN source TEXT DEFAULT 'service'")
+    if 'skill_roadmap_progress' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS skill_roadmap_progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            roadmap_id INTEGER NOT NULL REFERENCES skill_roadmaps(id) ON DELETE CASCADE,
+            skill_name TEXT NOT NULL,
+            completed INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(roadmap_id)
+        )""")
+    if 'skill_roadmap_jobs' not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS skill_roadmap_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            skill_name TEXT NOT NULL,
+            job_type TEXT NOT NULL DEFAULT 'generate',
+            status TEXT NOT NULL DEFAULT 'queued',
+            step INTEGER DEFAULT 0,
+            total_steps INTEGER DEFAULT 4,
+            message TEXT DEFAULT '',
+            version INTEGER,
+            count INTEGER,
+            error TEXT,
+            session_id TEXT,
+            pid INTEGER,
+            started_at TIMESTAMP,
+            completed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+    else:
+        job_cols = {row[1] for row in conn.execute('PRAGMA table_info(skill_roadmap_jobs)').fetchall()}
+        if 'session_id' not in job_cols:
+            conn.execute("ALTER TABLE skill_roadmap_jobs ADD COLUMN session_id TEXT")
+        if 'pid' not in job_cols:
+            conn.execute("ALTER TABLE skill_roadmap_jobs ADD COLUMN pid INTEGER")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_skill_roadmaps_skill ON skill_roadmaps(skill_name, parent_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_skill_roadmap_progress_skill ON skill_roadmap_progress(skill_name)")
+
     conn.commit()
     conn.close()
 

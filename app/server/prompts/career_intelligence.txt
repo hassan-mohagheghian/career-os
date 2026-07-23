@@ -105,17 +105,7 @@ Generate career intelligence as JSON and save to {tmp_dir}/career_intelligence_{
         "impact": "<how many jobs this unlocks>"
       }}
     ],
-    "learningRecommendations": [
-      {{
-        "skill": "<name>",
-        "demandPercentage": <number>,
-        "candidateLevel": "<level>",
-        "learningEffort": "<hours/days/weeks>",
-        "careerImpact": "<description>",
-        "roi": <number 1-10>,
-        "reason": "<why this ROI score>"
-      }}
-    ]
+    "_note": "Full skills intelligence (learning roadmap, readiness score, recommendations) available via /api/career-intelligence/skills-intel"
   }},
   "market": {{
     "countries": [
@@ -187,8 +177,7 @@ RULES FOR companies:
 RULES FOR skills:
 - strengths: Skills the candidate has that appear in 30%+ of jobs
 - gaps: Skills appearing in 20%+ jobs but candidate has low/no proficiency
-- learningRecommendations: Only include skills with ROI >= 6 (high career impact)
-- ROI calculation: demand_percentage * career_impact / learning_effort
+- Keep this section minimal — full skills intelligence (learning roadmap, readiness score, scoring, recommendations) is generated separately by the skills_intel endpoint using the dedicated skills_intelligence prompt
 
 RULES FOR market:
 - countries: Count jobs per country, include percentage
