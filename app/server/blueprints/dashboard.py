@@ -138,8 +138,15 @@ def get_tech_stack():
         rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 AND category=? ORDER BY level DESC", (category,)).fetchall()
     else:
         rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 ORDER BY level DESC").fetchall()
+    # Attach aliases to each skill
+    result = []
+    for row in rows:
+        skill_dict = dict(row)
+        aliases = conn.execute("SELECT alias_name FROM skill_aliases WHERE skill_id=?", (row['id'],)).fetchall()
+        skill_dict['aliases'] = [a[0] for a in aliases]
+        result.append(skill_dict)
     conn.close()
-    return stream_json([dict(r) for r in rows])
+    return stream_json(result)
 
 
 @bp.route("/api/tech-stack", methods=["POST"])
@@ -199,13 +206,58 @@ def update_tech_stack(id):
     return jsonify({"error": "Not found"}), 404
 
 
+@bp.route("/api/tech-stack/<int:id>/rename", methods=["PATCH"])
+def rename_skill(id):
+    """Rename a skill and update all references."""
+    data = request.get_json() or {}
+    new_name = data.get("name", "").strip()
+    if not new_name:
+        return jsonify({"error": "name is required"}), 400
+    conn = get_db()
+    old = conn.execute("SELECT name FROM tech_stack WHERE id=?", (id,)).fetchone()
+    if not old:
+        conn.close()
+        return jsonify({"error": "Not found"}), 404
+    old_name = old[0]
+    if old_name == new_name:
+        conn.close()
+        return jsonify({"status": "unchanged"})
+    # Check for duplicates
+    exists = conn.execute("SELECT id FROM tech_stack WHERE name=? AND id!=?", (new_name, id)).fetchone()
+    if exists:
+        conn.close()
+        return jsonify({"error": f'Skill "{new_name}" already exists'}), 409
+    # Rename across all tables
+    conn.execute("UPDATE tech_stack SET name=? WHERE id=?", (new_name, id))
+    conn.execute("UPDATE skill_roadmaps SET skill_name=? WHERE skill_name=?", (new_name, old_name))
+    conn.execute("UPDATE skill_roadmap_progress SET skill_name=? WHERE skill_name=?", (new_name, old_name))
+    conn.execute("UPDATE skill_roadmap_jobs SET skill_name=? WHERE skill_name=?", (new_name, old_name))
+    # Update aliases pointing to this skill
+    conn.execute("UPDATE skill_aliases SET alias_name=? WHERE alias_name=? AND skill_id=?", (new_name, old_name, id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (id,)).fetchone()
+    conn.close()
+    return jsonify(dict(row))
+
+
 @bp.route("/api/tech-stack/<int:id>", methods=["DELETE"])
 def delete_tech_stack(id):
+    """Delete a skill and all its aliases."""
     conn = get_db()
+    skill = conn.execute("SELECT name FROM tech_stack WHERE id=?", (id,)).fetchone()
+    if not skill:
+        conn.close()
+        return jsonify({"error": "Not found"}), 404
+    skill_name = skill[0]
+    # Delete aliases pointing to this skill
+    aliases = conn.execute("SELECT alias_name FROM skill_aliases WHERE skill_id=?", (id,)).fetchall()
+    alias_names = [a[0] for a in aliases]
+    conn.execute("DELETE FROM skill_aliases WHERE skill_id=?", (id,))
+    # Delete the skill itself
     conn.execute("DELETE FROM tech_stack WHERE id=?", (id,))
     conn.commit()
     conn.close()
-    return jsonify({"status": "deleted"})
+    return jsonify({"status": "deleted", "name": skill_name, "aliases_deleted": alias_names})
 
 
 @bp.route("/api/tech-stack/<int:id>/hide", methods=["PATCH"])
@@ -227,7 +279,7 @@ def toggle_hide_skill(id):
 def merge_skills():
     """Merge source skills into target skill.
 
-    Target keeps its name. Source skills are renamed everywhere then deleted.
+    Target stays in tech_stack as canonical. Source skills become aliases in skill_aliases.
     """
     data = request.get_json() or {}
     target_id = data.get("target_id")
@@ -252,14 +304,24 @@ def merge_skills():
         conn.execute("UPDATE skill_roadmaps SET skill_name=? WHERE skill_name=?", (target_name, source_name))
         conn.execute("UPDATE skill_roadmap_progress SET skill_name=? WHERE skill_name=?", (target_name, source_name))
         conn.execute("UPDATE skill_roadmap_jobs SET skill_name=? WHERE skill_name=?", (target_name, source_name))
-        # Delete absorbed skill from tech_stack
-        conn.execute("DELETE FROM tech_stack WHERE id=?", (sid,))
+        # Create alias record
+        existing = conn.execute("SELECT id FROM skill_aliases WHERE skill_id=? AND alias_name=?", (target_id, source_name)).fetchone()
+        if not existing:
+            conn.execute("INSERT INTO skill_aliases (skill_id, alias_name, normalized_name) VALUES (?, ?, ?)",
+                (target_id, source_name, source_name.lower()))
+        # Hide the source skill (keep it but don't show in main list)
+        conn.execute("UPDATE tech_stack SET hidden=1 WHERE id=?", (sid,))
         merged.append(source_name)
 
     conn.commit()
+    # Get all aliases for this skill
+    aliases = conn.execute("SELECT alias_name FROM skill_aliases WHERE skill_id=?", (target_id,)).fetchall()
     row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (target_id,)).fetchone()
     conn.close()
-    return jsonify({"status": "merged", "target": dict(row) if row else None, "merged": merged})
+    return jsonify({
+        "status": "merged", "target": dict(row) if row else None,
+        "merged": merged, "aliases": [a[0] for a in aliases]
+    })
 
 
 @bp.route("/api/tech-stack/hidden")

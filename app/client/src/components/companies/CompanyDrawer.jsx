@@ -123,11 +123,11 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
         </SheetHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-3">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="notes" className="text-[0.6rem] gap-1"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
-            <TabsTrigger value="intelligence" className="text-[0.6rem] gap-1"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
-            <TabsTrigger value="scores" className="text-[0.6rem] gap-1"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
-            <TabsTrigger value="jobs" className="text-[0.6rem] gap-1">
+          <TabsList className="bg-muted">
+            <TabsTrigger value="notes" className="gap-1.5 text-[0.6rem]"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
+            <TabsTrigger value="intelligence" className="gap-1.5 text-[0.6rem]"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
+            <TabsTrigger value="scores" className="gap-1.5 text-[0.6rem]"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
+            <TabsTrigger value="jobs" className="gap-1.5 text-[0.6rem]">
               <Briefcase className="w-3 h-3" />Jobs{company.job_count > 0 && ` (${company.job_count})`}
             </TabsTrigger>
           </TabsList>

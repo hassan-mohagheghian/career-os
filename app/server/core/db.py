@@ -99,6 +99,15 @@ def init_db():
         UNIQUE(skill_name, related_name, relation_type)
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS skill_aliases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_id INTEGER NOT NULL,
+        alias_name TEXT NOT NULL,
+        normalized_name TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (skill_id) REFERENCES tech_stack(id)
+    )""")
+
     c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmaps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         skill_name TEXT NOT NULL,

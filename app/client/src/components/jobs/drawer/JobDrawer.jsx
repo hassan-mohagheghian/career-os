@@ -127,7 +127,7 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
         )}
 
         <Tabs value={drawerTab} onValueChange={onSetDrawerTab} className="mb-3">
-          <TabsList className="w-full justify-start">
+          <TabsList className="bg-muted">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="structured">Structured</TabsTrigger>
             <TabsTrigger value="summary">Summary</TabsTrigger>

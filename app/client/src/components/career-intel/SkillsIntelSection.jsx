@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   TrendUp, Brain, BookOpen, Wrench, ArrowsClockwise, Target,
   TreeStructure, Plus, User, EyeSlash, DotsSixVertical, GitMerge,
-  Eye, CaretDown, CaretRight, Link,
+  Eye, CaretDown, CaretRight, Link, Lightbulb, Trash,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -21,7 +22,6 @@ import SkillDetailDrawer from "./SkillDetailDrawer";
 const API = "/api";
 
 const CATEGORIES = [
-  { id: "all", label: "All", icon: <Wrench className="w-3 h-3" /> },
   { id: "technical", label: "Technical", icon: <Wrench className="w-3 h-3" />, color: "text-blue-500" },
   { id: "engineering", label: "Engineering", icon: <Target className="w-3 h-3" />, color: "text-green-500" },
   { id: "professional", label: "Professional", icon: <User className="w-3 h-3" />, color: "text-purple-500" },
@@ -46,7 +46,7 @@ const SOURCE_COLORS = {
 };
 
 // ── Sortable skill row (works in any section) ──────────────────────
-function SortableSkillRow({ id, name, category, confidence, source, marketDemand, onClick, onHide, mergeMode, extra }) {
+function SortableSkillRow({ id, name, category, confidence, source, marketDemand, onClick, onHide, onRemove, mergeMode, extra, aliases = [], skillId }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -56,6 +56,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
   };
 
   return (
+    <>
     <div
       ref={setNodeRef}
       style={style}
@@ -77,6 +78,11 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
           {category}
         </Badge>
       )}
+      <Badge variant="secondary" className={cn("text-[0.35rem] h-2 shrink-0",
+        source === "user" ? "bg-purple-500/15 text-purple-500" : "bg-blue-500/15 text-blue-500"
+      )}>
+        {source === "user" ? "Custom" : "AI"}
+      </Badge>
       {marketDemand > 0 && (
         <>
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -93,16 +99,38 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
         </div>
       )}
       {extra}
-      {!mergeMode && onHide && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onHide(name); }}
-          className="shrink-0 p-0.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition"
-          title="Hide"
-        >
-          <EyeSlash className="w-2.5 h-2.5" />
-        </button>
+      {!mergeMode && (
+        <div className="flex items-center gap-0.5 shrink-0">
+          {onHide && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onHide(name); }}
+              className="p-0.5 rounded hover:bg-yellow-500/10 text-muted-foreground hover:text-yellow-500 transition"
+              title="Hide"
+            >
+              <EyeSlash className="w-2.5 h-2.5" />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemove(name, skillId); }}
+              className="p-0.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition"
+              title="Remove"
+            >
+              <Trash className="w-2.5 h-2.5" />
+            </button>
+          )}
+        </div>
       )}
     </div>
+    {aliases.length > 0 && (
+      <div className="flex items-center gap-1 ml-6 pl-2 border-l-2 border-muted">
+        <Badge variant="secondary" className="text-[0.35rem] h-2 bg-amber-500/15 text-amber-600 shrink-0">Variant</Badge>
+        <span className="text-[0.5rem] text-muted-foreground truncate">
+          {aliases.join(", ")}
+        </span>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -120,8 +148,9 @@ export default function SkillsIntelSection({
   const [techStackSkills, setTechStackSkills] = useState([]);
   const [hiddenSkills, setHiddenSkills] = useState([]);
   const [mergeMode, setMergeMode] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("technical");
   const [showHidden, setShowHidden] = useState(false);
+  const [showAddSkill, setShowAddSkill] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -135,7 +164,15 @@ export default function SkillsIntelSection({
 
   useEffect(() => { fetchTechStack(); fetchHidden(); }, [fetchTechStack, fetchHidden, roadmapProgress]);
 
-  // Skill categorization
+  // Build alias map from API data: primary_name -> [alias1, alias2, ...]
+  const aliasMap = {};
+  for (const s of techStackSkills) {
+    if (s.aliases && s.aliases.length > 0) {
+      aliasMap[s.name] = s.aliases;
+    }
+  }
+
+  // Skill categorization — exclude hidden skills
   const analyzedSkillNames = new Set([...strengths, ...gaps, ...recommendations.map((r) => r.skill)].map((s) => s.skill || s));
   const customSkillNames = techStackSkills.filter((s) => s.source === "user").map((s) => s.name);
   const derivedSkillNames = techStackSkills.filter((s) => s.source !== "user" && !analyzedSkillNames.has(s.name)).map((s) => s.name);
@@ -144,17 +181,18 @@ export default function SkillsIntelSection({
   const categoryCounts = {};
   for (const s of techStackSkills) { const cat = s.category || "technical"; categoryCounts[cat] = (categoryCounts[cat] || 0) + 1; }
 
-  const filteredSkills = activeCategory === "all" ? allSkillNames : activeCategory === "custom" ? customSkillNames : activeCategory === "hidden" ? [] : allSkillNames.filter((name) => {
+  const filteredSkills = allSkillNames.filter((name) => {
     const item = techStackSkills.find((s) => s.name === name);
     return item?.category === activeCategory;
   });
 
   const getSkillMeta = (name) => techStackSkills.find((s) => s.name === name) || {};
+  const getSkillId = (name) => techStackSkills.find((s) => s.name === name)?.id;
 
   // Filter strengths/gaps/recommendations by active category
-  const filteredStrengths = activeCategory === "all" || activeCategory === "strengths" ? strengths : strengths.filter((s) => { const meta = getSkillMeta(s.skill); return meta.category === activeCategory; });
-  const filteredGaps = activeCategory === "all" || activeCategory === "gaps" ? gaps : gaps.filter((g) => { const meta = getSkillMeta(g.skill); return meta.category === activeCategory; });
-  const filteredRecs = activeCategory === "all" || activeCategory === "recommendations" ? recommendations : recommendations.filter((r) => { const meta = getSkillMeta(r.skill); return meta.category === activeCategory; });
+  const filteredStrengths = strengths.filter((s) => { const meta = getSkillMeta(s.skill); return meta.category === activeCategory; });
+  const filteredGaps = gaps.filter((g) => { const meta = getSkillMeta(g.skill); return meta.category === activeCategory; });
+  const filteredRecs = recommendations.filter((r) => { const meta = getSkillMeta(r.skill); return meta.category === activeCategory; });
 
   const handleAddCustomSkill = async () => {
     const name = customSkillInput.trim();
@@ -162,9 +200,10 @@ export default function SkillsIntelSection({
     try {
       await fetch(`${API}/tech-stack`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, level: 1, source: "user", source_type: "user_input" }),
+        body: JSON.stringify({ name, level: 1, source: "user", source_type: "user_input", category: activeCategory }),
       });
-      setCustomSkillInput(""); fetchTechStack(); if (onRefreshProgress) onRefreshProgress(); setSelectedSkill(name);
+      setCustomSkillInput(""); fetchTechStack(); if (onRefreshProgress) onRefreshProgress();
+      toast.success(`"${name}" added to ${activeCategory}`);
     } catch {}
   };
 
@@ -175,6 +214,25 @@ export default function SkillsIntelSection({
       await fetch(`${API}/tech-stack/${item.id}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
       toast.success(`"${skillName}" hidden`); fetchTechStack(); fetchHidden();
     } catch { toast.error("Failed to hide skill"); }
+  };
+
+  const handleRemoveSkill = async (skillName, skillId) => {
+    if (!skillId) return;
+    const aliases = aliasMap[skillName] || [];
+    const msg = aliases.length > 0
+      ? `Remove "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})?`
+      : `Remove "${skillName}"?`;
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await fetch(`${API}/tech-stack/${skillId}`, { method: "DELETE" });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success(`"${skillName}" removed${result.aliases_deleted?.length ? ` with ${result.aliases_deleted.length} alias${result.aliases_deleted.length > 1 ? "es" : ""}` : ""}`);
+        fetchTechStack(); fetchHidden(); if (onRefreshProgress) onRefreshProgress();
+      } else {
+        toast.error(result.error || "Failed to remove");
+      }
+    } catch { toast.error("Failed to remove skill"); }
   };
 
   const handleRestoreSkill = async (skillName) => {
@@ -202,7 +260,12 @@ export default function SkillsIntelSection({
       });
       const result = await res.json();
       if (result.status === "merged") {
-        toast.success(`Merged "${sourceItem.name}" → "${targetItem.name}"`);
+        const aliasCount = result.aliases?.length || 0;
+        toast.success(
+          aliasCount > 0
+            ? `Merged "${sourceItem.name}" → "${targetItem.name}" (${aliasCount} alias${aliasCount > 1 ? "es" : ""})`
+            : `Merged "${sourceItem.name}" → "${targetItem.name}"`
+        );
         fetchTechStack(); fetchHidden(); if (onRefreshProgress) onRefreshProgress();
       }
     } catch { toast.error("Failed to merge skills"); }
@@ -234,42 +297,66 @@ export default function SkillsIntelSection({
         </div>
       )}
 
-      {/* Overview Stats — clickable to filter */}
-      <div className="grid grid-cols-5 gap-2">
-        {[
-          { n: customSkillNames.length, l: "Custom", c: "text-purple-500", icon: <User className="w-4 h-4" />, filter: "custom" },
-          { n: strengths.length, l: "Strengths", c: "text-green-500", icon: <TrendUp className="w-4 h-4" />, filter: "strengths" },
-          { n: gaps.length, l: "Gaps", c: "text-red-500", icon: <BookOpen className="w-4 h-4" />, filter: "gaps" },
-          { n: recommendations.length, l: "Recommendations", c: "text-blue-500", icon: <Brain className="w-4 h-4" />, filter: "recommendations" },
-          { n: hiddenSkills.length, l: "Hidden", c: "text-gray-500", icon: <EyeSlash className="w-4 h-4" />, filter: "hidden" },
-        ].map((s, i) => (
-          <Card key={i} className="p-2 text-center transition hover:border-primary cursor-pointer"
-            onClick={() => setActiveCategory(s.filter === activeCategory ? "all" : s.filter)}>
-            <div className={cn("mb-0.5", s.c)}>{s.icon}</div>
-            <div className={cn("text-lg font-extrabold", s.c)}>{s.n}</div>
-            <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground">{s.l}</div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Category Navigation */}
-      <div className="flex gap-1 flex-wrap">
-        {CATEGORIES.map((cat) => (
-          <Button key={cat.id} variant={activeCategory === cat.id ? "default" : "ghost"} size="sm"
-            onClick={() => setActiveCategory(cat.id)}
-            className={cn("h-6 text-[0.55rem] gap-1", activeCategory === cat.id && "bg-primary/20")}>
-            {cat.icon} {cat.label}
-            {cat.id !== "all" && categoryCounts[cat.id] > 0 && (
-              <Badge variant="secondary" className="text-[0.4rem] h-3 ml-0.5">{categoryCounts[cat.id]}</Badge>
-            )}
+      {/* Category Navigation + Add Custom Skill toggle */}
+      <div className="flex items-center gap-2">
+        <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
+          <TabsList className="bg-muted">
+            {CATEGORIES.map((cat) => (
+              <TabsTrigger key={cat.id} value={cat.id} className="gap-1.5 text-[0.6rem]">
+                {cat.icon} {cat.label}
+                {categoryCounts[cat.id] > 0 && (
+                  <Badge variant="secondary" className="text-[0.4rem] h-3 ml-0.5">{categoryCounts[cat.id]}</Badge>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {showAddSkill && (
+            <>
+              <Input value={customSkillInput} onChange={(e) => setCustomSkillInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCustomSkill()}
+                placeholder={`Skill name for ${activeCategory}...`} className="h-7 text-[0.65rem] w-56" autoFocus />
+              <Button size="sm" variant="default" onClick={handleAddCustomSkill} disabled={!customSkillInput.trim()}
+                className="h-7 gap-1 text-[0.6rem] shrink-0 bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-3 h-3" /> Add
+              </Button>
+            </>
+          )}
+          <Button size="sm" variant={showAddSkill ? "ghost" : "outline"} onClick={() => { setShowAddSkill(!showAddSkill); if (showAddSkill) setCustomSkillInput(""); }}
+            className="h-7 gap-1 text-[0.6rem] shrink-0">
+            <Plus className="w-3 h-3" /> {showAddSkill ? "Close" : "Add Skill"}
           </Button>
-        ))}
+        </div>
       </div>
 
       {/* ═══ Global DnD Context — wraps ALL sections ═══ */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
 
-        {/* ═══ Top row: Roadmaps + AI-Detected (two columns) ═══ */}
+        {/* ═══ Strengths — top, prominent ═══ */}
+        <Card className="p-4 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendUp className="w-5 h-5 text-green-500" />
+            <h4 className="font-extrabold text-sm">Strengths</h4>
+            <Badge variant="secondary" className="text-[0.5rem] bg-green-500/15 text-green-500">{filteredStrengths.length}</Badge>
+          </div>
+          <SortableContext items={filteredStrengths.map((s) => s.skill)} strategy={verticalListSortingStrategy}>
+            <div className="grid grid-cols-2 gap-1 max-h-[200px] overflow-y-auto">
+              {filteredStrengths.length > 0 ? filteredStrengths.map((s) => {
+                const meta = getSkillMeta(s.skill);
+                return (
+                  <SortableSkillRow key={s.skill} id={s.skill} name={s.skill}
+                    category={s.category || meta.category} confidence={s.confidence || meta.confidence}
+                    source={meta.source || "service"} marketDemand={s.market_demand}
+                    onClick={(n) => setDetailSkill(n)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
+                    mergeMode={mergeMode} aliases={aliasMap[s.skill] || []} skillId={getSkillId(s.skill)} />
+                );
+              }) : <div className="text-xs text-muted-foreground col-span-2">No strengths in this category</div>}
+            </div>
+          </SortableContext>
+        </Card>
+
+        {/* ═══ Roadmaps + Gaps (two columns) ═══ */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Skill Roadmaps */}
           <Card className="p-4">
@@ -291,7 +378,8 @@ export default function SkillsIntelSection({
                   return (
                     <SortableSkillRow key={skill} id={skill} name={skill}
                       category={meta.category} confidence={meta.confidence} source={meta.source}
-                      onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} mergeMode={mergeMode}
+                      onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
+                      mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
                       extra={<>
                         <div className="flex-1"><Progress value={prog.pct} className="h-1.5" /></div>
                         <span className="text-[0.6rem] text-muted-foreground w-12 text-right shrink-0">{prog.completed}/{prog.total}</span>
@@ -304,14 +392,6 @@ export default function SkillsIntelSection({
                 })}
               </div>
             </SortableContext>
-            <div className="flex items-center gap-2 pt-2 border-t mt-2">
-              <Input value={customSkillInput} onChange={(e) => setCustomSkillInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddCustomSkill()}
-                placeholder="Add custom skill..." className="h-7 text-xs flex-1" />
-              <Button size="sm" variant="outline" onClick={handleAddCustomSkill} disabled={!customSkillInput.trim()} className="h-7 gap-1 text-[0.6rem]">
-                <Plus className="w-3 h-3" /> Add
-              </Button>
-            </div>
           </Card>
 
           {/* AI-Detected + Custom without roadmap */}
@@ -322,14 +402,15 @@ export default function SkillsIntelSection({
                   <Brain className="w-4 h-4 text-blue-500" />
                   <h4 className="font-extrabold text-sm">AI-Detected Skills</h4>
                 </div>
-                <SortableContext items={derivedSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={derivedSkillNames.filter((s) => (!roadmapProgress[s] || roadmapProgress[s].total === 0) && getSkillMeta(s).category === activeCategory)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {derivedSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0).map((skill) => {
+                    {derivedSkillNames.filter((s) => (!roadmapProgress[s] || roadmapProgress[s].total === 0) && getSkillMeta(s).category === activeCategory).map((skill) => {
                       const meta = getSkillMeta(skill);
                       return (
                         <SortableSkillRow key={skill} id={skill} name={skill}
                           category={meta.category} confidence={meta.confidence} source={meta.source}
-                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} mergeMode={mergeMode}
+                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
+                          mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
                           extra={<>
                             <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
                             <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill); }}
@@ -356,7 +437,8 @@ export default function SkillsIntelSection({
                       return (
                         <SortableSkillRow key={skill} id={skill} name={skill}
                           category={meta.category} confidence={meta.confidence} source={meta.source}
-                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} mergeMode={mergeMode}
+                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
+                          mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
                           extra={<>
                             <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
                             <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill); }}
@@ -387,6 +469,8 @@ export default function SkillsIntelSection({
                   {hiddenSkills.map((skill) => (
                     <SortableSkillRow key={skill.name} id={skill.name} name={skill.name}
                       category={skill.category} mergeMode={mergeMode}
+                      aliases={aliasMap[skill.name] || []} skillId={skill.id}
+                      onRemove={handleRemoveSkill}
                       extra={<>
                         <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
                         <button onClick={(e) => { e.stopPropagation(); handleRestoreSkill(skill.name); }}
@@ -402,30 +486,8 @@ export default function SkillsIntelSection({
           </Card>
         )}
 
-        {/* ═══ Strengths / Gaps / Recommendations — two-columnar, filtered by category ═══ */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Strengths */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendUp className="w-4 h-4 text-green-500" />
-              <h4 className="font-extrabold text-sm">Strengths</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-green-500/15 text-green-500">{filteredStrengths.length}</Badge>
-            </div>
-            <SortableContext items={filteredStrengths.map((s) => s.skill)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                {filteredStrengths.length > 0 ? filteredStrengths.map((s) => {
-                  const meta = getSkillMeta(s.skill);
-                  return (
-                    <SortableSkillRow key={s.skill} id={s.skill} name={s.skill}
-                      category={s.category || meta.category} confidence={s.confidence || meta.confidence}
-                      marketDemand={s.market_demand} onClick={(n) => setDetailSkill(n)}
-                      onHide={handleHideSkill} mergeMode={mergeMode} />
-                  );
-                }) : <div className="text-xs text-muted-foreground">No strengths in this category</div>}
-              </div>
-            </SortableContext>
-          </Card>
-
+        {/* ═══ Gaps + Recommendations (two columns) ═══ */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Gaps */}
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -434,22 +496,23 @@ export default function SkillsIntelSection({
               <Badge variant="secondary" className="text-[0.5rem] bg-red-500/15 text-red-500">{filteredGaps.length}</Badge>
             </div>
             <SortableContext items={filteredGaps.map((g) => g.skill)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              <div className="space-y-1 max-h-[250px] overflow-y-auto">
                 {filteredGaps.length > 0 ? filteredGaps.map((g) => {
                   const meta = getSkillMeta(g.skill);
                   return (
                     <SortableSkillRow key={g.skill} id={g.skill} name={g.skill}
                       category={g.category || meta.category} confidence={g.confidence || meta.confidence}
-                      marketDemand={g.market_demand} onClick={(n) => setDetailSkill(n)}
-                      onHide={handleHideSkill} mergeMode={mergeMode} />
+                      source={meta.source || "service"} marketDemand={g.market_demand}
+                      onClick={(n) => setDetailSkill(n)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
+                      mergeMode={mergeMode} aliases={aliasMap[g.skill] || []} skillId={getSkillId(g.skill)} />
                   );
                 }) : <div className="text-xs text-muted-foreground">No gaps in this category</div>}
               </div>
             </SortableContext>
           </Card>
 
-          {/* Recommendations — spans full width below */}
-          <Card className="p-4 col-span-2">
+          {/* Recommendations */}
+          <Card className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Brain className="w-4 h-4 text-primary" />
               <h4 className="font-extrabold text-sm">Recommendations</h4>

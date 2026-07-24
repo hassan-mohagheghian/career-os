@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   X, TrendUp, Brain, BookOpen, EyeSlash, GitMerge, TreeStructure,
-  Link, Target, Lightbulb, Spinner,
+  Link, Target, Lightbulb, Spinner, CaretDown, CaretRight, Check, PencilSimple,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -31,14 +32,83 @@ const RELATION_LABELS = {
   alternative: { label: "Alternative", color: "bg-cyan-500/15 text-cyan-500" },
 };
 
+function RoadmapItem({ item, checked, onToggle, depth = 0 }) {
+  const [expanded, setExpanded] = useState(depth < 2);
+  const hasChildren = item.children && item.children.length > 0;
+  const isComplete = checked[item.id] === 1;
+
+  const handleToggle = () => {
+    const newVal = isComplete ? 0 : 1;
+    // Toggle all children too
+    const childIds = [];
+    const collectChildren = (node) => {
+      if (node.children) {
+        for (const child of node.children) {
+          childIds.push(child.id);
+          collectChildren(child);
+        }
+      }
+    };
+    collectChildren(item);
+    onToggle(item.id, newVal, childIds);
+  };
+
+  return (
+    <div className={cn("select-none", depth > 0 && "ml-3")}>
+      <div className={cn("flex items-center gap-1.5 py-1 px-1 rounded hover:bg-muted/50 transition text-[0.6rem]",
+        isComplete && "bg-green-500/5"
+      )}>
+        <button className="shrink-0 w-3 h-3 flex items-center justify-center" onClick={() => hasChildren && setExpanded(!expanded)}>
+          {hasChildren ? (expanded ? <CaretDown className="w-2.5 h-2.5" /> : <CaretRight className="w-2.5 h-2.5" />) : <span className="w-2.5" />}
+        </button>
+        <button onClick={handleToggle} className={cn("shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition",
+          isComplete ? "bg-green-500 border-green-500 text-white" : "border-border hover:border-primary"
+        )}>
+          {isComplete && <Check className="w-2 h-2" />}
+        </button>
+        <span className={cn("truncate", isComplete && "line-through text-muted-foreground")}>{item.title}</span>
+      </div>
+      {hasChildren && expanded && item.children.map((child) => (
+        <RoadmapItem key={child.id} item={child} checked={checked} onToggle={onToggle} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+
 export default function SkillDetailDrawer({
   skillName, open, onOpenChange, techStackSkills = [],
   roadmapProgress = {}, onHide, onGenerate,
 }) {
   const [relationships, setRelationships] = useState([]);
+  const [aliases, setVariantes] = useState([]);
+  const [roadmapItems, setRoadmapItems] = useState([]);
+  const [roadmapExpanded, setRoadmapExpanded] = useState(false);
+  const [checked, setChecked] = useState({});
   const [loading, setLoading] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   const skill = techStackSkills.find((s) => s.name === skillName) || {};
+
+  const handleRename = async () => {
+    const newName = renameValue.trim();
+    if (!newName || newName === skillName || !skill.id) return;
+    try {
+      const res = await fetch(`${API}/tech-stack/${skill.id}/rename`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success(`Renamed "${skillName}" → "${newName}"`);
+        setRenaming(false);
+        setRenameValue("");
+        onOpenChange?.(false);
+      } else {
+        toast.error(result.error || "Rename failed");
+      }
+    } catch { toast.error("Rename failed"); }
+  };
 
   const fetchRelationships = useCallback(async () => {
     if (!skillName || !open) return;
@@ -51,7 +121,67 @@ export default function SkillDetailDrawer({
     setLoading(false);
   }, [skillName, open]);
 
-  useEffect(() => { fetchRelationships(); }, [fetchRelationships]);
+  const fetchVariantes = useCallback(() => {
+    if (!skillName || !open) return;
+    // Aliases come from the API via techStackSkills
+    const found = techStackSkills.find((s) => s.name === skillName);
+    setVariantes(found?.aliases || []);
+  }, [skillName, open, techStackSkills]);
+
+  const fetchRoadmap = useCallback(async () => {
+    if (!skillName || !open) return;
+    try {
+      const res = await fetch(`${API}/skill-roadmaps?skill=${encodeURIComponent(skillName)}`);
+      const data = await res.json();
+      setRoadmapItems(data.roadmap || []);
+    } catch { setRoadmapItems([]); }
+  }, [skillName, open]);
+
+  // Load checked state from roadmapProgress
+  useEffect(() => {
+    if (skillName && open) {
+      const prog = roadmapProgress[skillName];
+      if (prog?.checked) {
+        setChecked(prog.checked);
+      } else {
+        // Fetch checked state from API
+        fetch(`${API}/skill-roadmap-progress?skill=${encodeURIComponent(skillName)}`)
+          .then(r => r.json())
+          .then(data => setChecked(data || {}))
+          .catch(() => setChecked({}));
+      }
+    }
+  }, [skillName, open, roadmapProgress]);
+
+  const handleToggle = useCallback(async (itemId, newVal, childIds) => {
+    // Optimistic update
+    setChecked(prev => {
+      const next = { ...prev, [itemId]: newVal };
+      for (const cid of childIds) next[cid] = newVal;
+      return next;
+    });
+    try {
+      await fetch(`${API}/skill-roadmap-progress/${itemId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: newVal }),
+      });
+      for (const cid of childIds) {
+        await fetch(`${API}/skill-roadmap-progress/${cid}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed: newVal }),
+        });
+      }
+    } catch {
+      // Revert on error
+      setChecked(prev => {
+        const next = { ...prev, [itemId]: newVal ? 0 : 1 };
+        for (const cid of childIds) next[cid] = newVal ? 0 : 1;
+        return next;
+      });
+    }
+  }, []);
+
+  useEffect(() => { fetchRelationships(); fetchVariantes(); fetchRoadmap(); }, [fetchRelationships, fetchVariantes, fetchRoadmap]);
 
   if (!skillName) return null;
 
@@ -64,11 +194,27 @@ export default function SkillDetailDrawer({
       <SheetContent side="right" className="w-[400px] sm:w-[450px] p-0 flex flex-col">
         <SheetHeader className="p-6 pb-3">
           <SheetTitle className="flex items-center gap-2 text-base">
-            {skillName}
-            {skill.category && (
-              <Badge variant="secondary" className={cn("text-[0.5rem]", CATEGORY_COLORS[skill.category] || "bg-gray-500/15 text-gray-400")}>
-                {skill.category}
-              </Badge>
+            {renaming ? (
+              <div className="flex items-center gap-1.5 flex-1">
+                <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setRenaming(false); }}
+                  className="h-7 text-sm flex-1" autoFocus />
+                <Button size="sm" variant="ghost" onClick={handleRename} className="h-7 text-[0.6rem]">Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setRenaming(false)} className="h-7 text-[0.6rem]">Cancel</Button>
+              </div>
+            ) : (
+              <>
+                {skillName}
+                {skill.category && (
+                  <Badge variant="secondary" className={cn("text-[0.5rem]", CATEGORY_COLORS[skill.category] || "bg-gray-500/15 text-gray-400")}>
+                    {skill.category}
+                  </Badge>
+                )}
+                <Button size="ghost" variant="ghost" onClick={() => { setRenaming(true); setRenameValue(skillName); }}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground">
+                  <PencilSimple className="w-3 h-3" />
+                </Button>
+              </>
             )}
           </SheetTitle>
           <SheetDescription className="flex items-center gap-2">
@@ -128,18 +274,51 @@ export default function SkillDetailDrawer({
             </Card>
           )}
 
-          {/* Roadmap Progress */}
-          {hasRoadmap && (
+          {/* Merged Variantes */}
+          {aliases.length > 0 && (
             <Card className="p-3">
               <div className="flex items-center gap-2 mb-2">
+                <GitMerge className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-bold">Merged Skills</span>
+                <Badge variant="secondary" className="text-[0.4rem] h-2.5 bg-amber-500/15 text-amber-600">{aliases.length}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {aliases.map((alias) => (
+                  <Badge key={alias} variant="secondary" className="text-[0.5rem] h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                    {alias}
+                  </Badge>
+                ))}
+              </div>
+              <div className="text-[0.5rem] text-muted-foreground mt-1.5">
+                These skills are variants of {skillName} — they were merged into this skill.
+              </div>
+            </Card>
+          )}
+
+          {/* Learning Roadmap — collapsible with items */}
+          {hasRoadmap && (
+            <Card className="p-3">
+              <button onClick={() => setRoadmapExpanded(!roadmapExpanded)}
+                className="flex items-center gap-2 mb-2 w-full text-left">
+                {roadmapExpanded ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
                 <TreeStructure className="w-4 h-4 text-emerald-500" />
                 <span className="text-xs font-bold">Learning Roadmap</span>
+                <Badge variant="secondary" className="text-[0.4rem] h-2.5 bg-emerald-500/15 text-emerald-500">
+                  {prog.completed}/{prog.total}
+                </Badge>
+                <div className="flex-1" />
+                <span className="text-[0.5rem] text-muted-foreground">{prog.pct}%</span>
+              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <Progress value={prog.pct} className="h-1.5 flex-1" />
               </div>
-              <div className="flex items-center gap-2">
-                <Progress value={prog.pct} className="h-2 flex-1" />
-                <span className="text-sm font-extrabold">{prog.completed}/{prog.total}</span>
-              </div>
-              <div className="text-[0.55rem] text-muted-foreground mt-1">{prog.pct}% complete</div>
+              {roadmapExpanded && roadmapItems.length > 0 && (
+                <div className="space-y-1 mt-2 border-t pt-2 max-h-[200px] overflow-y-auto">
+                  {roadmapItems.map((item) => (
+                    <RoadmapItem key={item.id} item={item} checked={checked} onToggle={handleToggle} />
+                  ))}
+                </div>
+              )}
             </Card>
           )}
 

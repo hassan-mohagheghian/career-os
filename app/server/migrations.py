@@ -281,6 +281,8 @@ def run_migrations():
     _migrate_pending_session_id()
     _migrate_skill_management()
     _migrate_skill_taxonomy()
+    _migrate_skill_aliases()
+    _categorize_existing_skills()
 
 
 def _migrate_roadmap_numbering_column():
@@ -377,6 +379,228 @@ def _migrate_skill_taxonomy():
                 UNIQUE(skill_name, related_name, relation_type)
             )""")
         conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_skill_aliases():
+    """Create skill_aliases table for merged skills."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        if 'skill_aliases' not in tables:
+            log.info("migrate.creating_skill_aliases")
+            conn.execute("""CREATE TABLE IF NOT EXISTS skill_aliases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill_id INTEGER NOT NULL,
+                alias_name TEXT NOT NULL,
+                normalized_name TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (skill_id) REFERENCES tech_stack(id)
+            )""")
+        # Migrate existing merged_into data to skill_aliases
+        rows = conn.execute("SELECT id, name, merged_into FROM tech_stack WHERE merged_into != '' AND merged_into IS NOT NULL").fetchall()
+        for skill_id, name, merged_into in rows:
+            # Find the canonical skill
+            canonical = conn.execute("SELECT id FROM tech_stack WHERE name=?", (merged_into,)).fetchone()
+            if canonical:
+                # Check if alias already exists
+                existing = conn.execute("SELECT id FROM skill_aliases WHERE skill_id=? AND alias_name=?", (canonical[0], name)).fetchone()
+                if not existing:
+                    conn.execute("INSERT INTO skill_aliases (skill_id, alias_name, normalized_name) VALUES (?, ?, ?)",
+                        (canonical[0], name, name.lower()))
+                    log.info(f"migrate.migrating_alias {name} -> {merged_into}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+# Skill categorization map — maps skill name patterns to categories
+_SKILL_CATEGORIES = {
+    # Technical
+    'python': 'technical', 'javascript': 'technical', 'typescript': 'technical',
+    'java': 'technical', 'go': 'technical', 'rust': 'technical', 'c++': 'technical',
+    'c#': 'technical', 'ruby': 'technical', 'php': 'technical', 'swift': 'technical',
+    'kotlin': 'technical', 'scala': 'technical', 'elixir': 'technical',
+    'sql': 'technical', 'nosql': 'technical', 'graphql': 'technical', 'rest': 'technical',
+    'html': 'technical', 'css': 'technical', 'scss': 'technical', 'sass': 'technical',
+    'react': 'technical', 'angular': 'technical', 'vue': 'technical', 'svelte': 'technical',
+    'next.js': 'technical', 'nextjs': 'technical', 'nuxt': 'technical',
+    'node.js': 'technical', 'nodejs': 'technical', 'deno': 'technical', 'bun': 'technical',
+    'django': 'technical', 'flask': 'technical', 'fastapi': 'technical', 'fastapi': 'technical',
+    'express': 'technical', 'spring': 'technical', 'rails': 'technical', 'laravel': 'technical',
+    'asp.net': 'technical', 'dotnet': 'technical',
+    'docker': 'technical', 'kubernetes': 'technical', 'k8s': 'technical',
+    'aws': 'technical', 'azure': 'technical', 'gcp': 'technical', 'cloud': 'technical',
+    'terraform': 'technical', 'ansible': 'technical', 'puppet': 'technical',
+    'jenkins': 'technical', 'ci/cd': 'technical', 'github actions': 'technical',
+    'gitlab': 'technical', 'github': 'technical',
+    'postgresql': 'technical', 'postgres': 'technical', 'mysql': 'technical',
+    'mongodb': 'technical', 'redis': 'technical', 'elasticsearch': 'technical',
+    'kafka': 'technical', 'rabbitmq': 'technical', 'cassandra': 'technical',
+    'sqlite': 'technical', 'dynamodb': 'technical', 'cosmosdb': 'technical',
+    'linux': 'technical', 'bash': 'technical', 'shell': 'technical', 'powershell': 'technical',
+    'nginx': 'technical', 'apache': 'technical', 'haproxy': 'technical',
+    'prometheus': 'technical', 'grafana': 'technical', 'datadog': 'technical',
+    'splunk': 'technical', 'elk': 'technical',
+    'machine learning': 'technical', 'ml': 'technical', 'ai': 'technical',
+    'deep learning': 'technical', 'nlp': 'technical', 'computer vision': 'technical',
+    'pytorch': 'technical', 'tensorflow': 'technical', 'scikit-learn': 'technical',
+    'pandas': 'technical', 'numpy': 'technical', 'jupyter': 'technical',
+    'spark': 'technical', 'hadoop': 'technical', 'airflow': 'technical',
+    'dbt': 'technical', 'snowflake': 'technical', 'bigquery': 'technical',
+    'redshift': 'technical', 'etl': 'technical', 'data engineering': 'technical',
+    'api': 'technical', 'microservices': 'technical', 'serverless': 'technical',
+    'websockets': 'technical', 'grpc': 'technical', 'protobuf': 'technical',
+    'oauth': 'technical', 'jwt': 'technical', 'saml': 'technical',
+    'cryptography': 'technical', 'encryption': 'technical', 'security': 'technical',
+    'penetration testing': 'technical', 'owasp': 'technical',
+    'blockchain': 'technical', 'web3': 'technical', 'solidity': 'technical',
+    'regex': 'technical', 'json': 'technical', 'xml': 'technical', 'yaml': 'technical',
+    'vim': 'technical', 'vscode': 'technical', 'intellij': 'technical',
+    'postman': 'technical', 'swagger': 'technical', 'openapi': 'technical',
+    # Engineering
+    'agile': 'engineering', 'scrum': 'engineering', 'kanban': 'engineering',
+    'sprint': 'engineering', 'standup': 'engineering', 'retrospective': 'engineering',
+    'tdd': 'engineering', 'test driven': 'engineering', 'unit testing': 'engineering',
+    'integration testing': 'engineering', 'e2e testing': 'engineering',
+    'ci/cd': 'engineering', 'code review': 'engineering', 'pull request': 'engineering',
+    'pair programming': 'engineering', 'mob programming': 'engineering',
+    'refactoring': 'engineering', 'clean code': 'engineering', 'solid': 'engineering',
+    'design patterns': 'engineering', 'architecture': 'engineering',
+    'microservices': 'engineering', 'monolith': 'engineering', 'soa': 'engineering',
+    'ddd': 'engineering', 'domain driven': 'engineering',
+    'event driven': 'engineering', 'cqrs': 'engineering', 'event sourcing': 'engineering',
+    'load testing': 'engineering', 'performance testing': 'engineering',
+    'chaos engineering': 'engineering', 'observability': 'engineering',
+    'monitoring': 'engineering', 'logging': 'engineering', 'tracing': 'engineering',
+    'technical debt': 'engineering', 'code quality': 'engineering',
+    'documentation': 'engineering', 'adr': 'engineering',
+    'feature flags': 'engineering', 'canary': 'engineering', 'blue green': 'engineering',
+    'rolling deployment': 'engineering', 'gitops': 'engineering',
+    'infrastructure as code': 'engineering', 'containerization': 'engineering',
+    'orchestration': 'engineering', 'service mesh': 'engineering',
+    'api design': 'engineering', 'system design': 'engineering',
+    'database design': 'engineering', 'data modeling': 'engineering',
+    # Professional
+    'communication': 'professional', 'presentation': 'professional',
+    'public speaking': 'professional', 'writing': 'professional',
+    'technical writing': 'professional', 'storytelling': 'professional',
+    'collaboration': 'professional', 'teamwork': 'professional',
+    'leadership': 'professional', 'mentoring': 'professional', 'coaching': 'professional',
+    'management': 'professional', 'delegation': 'professional',
+    'stakeholder management': 'professional', 'expectation management': 'professional',
+    'conflict resolution': 'professional', 'negotiation': 'professional',
+    'influence': 'professional', 'persuasion': 'professional',
+    'empathy': 'professional', 'emotional intelligence': 'professional',
+    'adaptability': 'professional', 'flexibility': 'professional',
+    'problem solving': 'professional', 'critical thinking': 'professional',
+    'analytical thinking': 'professional', 'creative thinking': 'professional',
+    'decision making': 'professional', 'judgment': 'professional',
+    'time management': 'professional', 'prioritization': 'professional',
+    'organization': 'professional', 'planning': 'professional',
+    'ownership': 'professional', 'accountability': 'professional',
+    'initiative': 'professional', 'proactive': 'professional',
+    'attention to detail': 'professional', 'quality focus': 'professional',
+    'continuous learning': 'professional', 'curiosity': 'professional',
+    'feedback': 'professional', 'self-awareness': 'professional',
+    'resilience': 'professional', 'stress management': 'professional',
+    'work life balance': 'professional',
+    # Domain
+    'fintech': 'domain', 'banking': 'domain', 'payments': 'domain',
+    'trading': 'domain', 'quantitative': 'domain', 'risk management': 'domain',
+    'compliance': 'domain', 'regulatory': 'domain', 'kyc': 'domain', 'aml': 'domain',
+    'healthcare': 'domain', 'medical': 'domain', 'pharma': 'domain',
+    'hipaa': 'domain', 'ehr': 'domain', 'clinical': 'domain',
+    'ecommerce': 'domain', 'retail': 'domain', 'supply chain': 'domain',
+    'logistics': 'domain', 'inventory': 'domain', 'warehouse': 'domain',
+    'edtech': 'domain', 'education': 'domain', 'lms': 'domain',
+    'gaming': 'domain', 'game development': 'domain', 'unity': 'domain', 'unreal': 'domain',
+    'automotive': 'domain', 'manufacturing': 'domain', 'iot': 'domain',
+    'telecommunications': 'domain', 'telco': 'domain',
+    'energy': 'domain', 'renewable': 'domain', 'utilities': 'domain',
+    'real estate': 'domain', 'proptech': 'domain',
+    'legal': 'domain', 'regtech': 'domain', 'insurtech': 'domain',
+    'saas': 'domain', 'paas': 'domain', 'iaas': 'domain',
+    'product management': 'domain', 'agile product': 'domain',
+    'user research': 'domain', 'ux research': 'domain',
+    'market analysis': 'domain', 'competitive analysis': 'domain',
+    'business strategy': 'domain', 'go to market': 'domain',
+    # Career
+    'networking': 'career', 'professional networking': 'career',
+    'linkedin': 'career', 'personal branding': 'career',
+    'resume': 'career', 'cover letter': 'career',
+    'interviewing': 'career', 'technical interview': 'career',
+    'behavioral interview': 'career', 'system design interview': 'career',
+    'salary negotiation': 'career', 'career planning': 'career',
+    'career development': 'career', 'career growth': 'career',
+    'job search': 'career', 'job hunting': 'career',
+    'portfolio': 'career', 'github portfolio': 'career',
+    'open source': 'career', 'blogging': 'career', 'tech blogging': 'career',
+    'speaking': 'career', 'conference speaking': 'career', 'meetup': 'career',
+    'mentoring': 'career', 'coaching': 'career',
+    'certification': 'career', 'aws certification': 'career',
+    'gcp certification': 'career', 'azure certification': 'career',
+    'pmp': 'career', 'scrum master': 'career',
+    'visa': 'career', 'work permit': 'career', 'relocation': 'career',
+    'german': 'career', 'english': 'career', 'language': 'career',
+    'multilingual': 'career', 'bilingual': 'career',
+}
+
+
+def _categorize_existing_skills():
+    """Categorize uncategorized skills based on name matching."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute("SELECT id, name FROM tech_stack WHERE category='' OR category IS NULL").fetchall()
+        if not rows:
+            conn.close()
+            return
+        categorized = 0
+        for skill_id, name in rows:
+            name_lower = name.lower().strip()
+            # Direct match
+            cat = _SKILL_CATEGORIES.get(name_lower)
+            # Partial match
+            if not cat:
+                for key, category in _SKILL_CATEGORIES.items():
+                    if key in name_lower or name_lower in key:
+                        cat = category
+                        break
+            # Default to technical if no match found
+            if not cat:
+                cat = 'technical'
+            conn.execute("UPDATE tech_stack SET category=? WHERE id=?", (cat, skill_id))
+            categorized += 1
+        conn.commit()
+        conn.close()
+        if categorized:
+            log.info(f"migrate.categorized {categorized} skills")
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+    try:
+        from services.worker import normalize_score
+
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute("SELECT num, score FROM jobs WHERE deleted=0").fetchall()
+        converted = 0
+        for num, score in rows:
+            if isinstance(score, (int, float)):
+                new_grade = normalize_score(int(score))
+                conn.execute("UPDATE jobs SET score=? WHERE num=?", (new_grade, num))
+                converted += 1
+        rows2 = conn.execute("SELECT num, score FROM summaries").fetchall()
+        for num, score in rows2:
+            if isinstance(score, (int, float)):
+                new_grade = normalize_score(int(score))
+                conn.execute(
+                    "UPDATE summaries SET score=? WHERE num=?", (new_grade, num)
+                )
+        if converted:
+            conn.commit()
+            log.info("migrate.converted_scores", count=converted)
         conn.close()
     except Exception as e:
         log.warning("migrate.failed", error=str(e))

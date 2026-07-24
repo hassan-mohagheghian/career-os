@@ -106,13 +106,13 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
       </div>
 
       <Tabs value={subTab} onValueChange={(v) => { setSubTab(v); setViewingItem(null) }}>
-        <TabsList>
-          <TabsTrigger value="resume" className="gap-1.5">
+        <TabsList className="bg-muted">
+          <TabsTrigger value="resume" className="gap-1.5 text-[0.6rem]">
             <Star className="w-3.5 h-3.5" />
             Resumes
             {originalResumes.length > 0 && <Badge variant="outline" className="ml-1 text-[0.5rem] h-4">{originalResumes.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="linkedin" className="gap-1.5">
+          <TabsTrigger value="linkedin" className="gap-1.5 text-[0.6rem]">
             <LinkedinLogo className="w-3.5 h-3.5" />
             LinkedIn Profile
             {sortedProfiles.length > 0 && <Badge variant="outline" className="ml-1 text-[0.5rem] h-4">{sortedProfiles.length}</Badge>}
