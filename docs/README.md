@@ -19,17 +19,11 @@ docs/
     └── NEXT_STEPS.md            — Future work
 ```
 
-## Quick Start
-
-```bash
-./app/start.sh  # Starts Flask + WebSocket + React dev server
-```
-
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python Flask, SQLite (raw SQL), Typer CLI |
+| Layer    | Technology                                    |
+| -------- | --------------------------------------------- |
+| Backend  | Python Flask, SQLite (raw SQL), Typer CLI     |
 | Frontend | React 18 (JSX), Vite, shadcn/ui, Tailwind CSS |
-| AI | Mimo CLI subprocess |
-| Realtime | WebSocket (8765) + SSE |
+| AI       | Mimo CLI subprocess                           |
+| Realtime | WebSocket (8765) + SSE                        |
