@@ -194,3 +194,65 @@ class TestMimoPromptSessionDiscovery:
         assert 'MimoRunner' in source or 'mimo_runner' in source or 'ProcessManager' in source, (
             "_run_mimo_prompt should use the existing MimoRunner domain service"
         )
+
+
+class TestSectionPromptRouting:
+    """Domain: each section should route to its own prompt, not the full prompt."""
+
+    def test_section_prompts_mapping_exists(self):
+        """SECTION_PROMPTS maps each section to its own prompt name."""
+        from services.career_intel import SECTION_PROMPTS
+        assert 'overview' in SECTION_PROMPTS
+        assert 'opportunities' in SECTION_PROMPTS
+        assert 'companies' in SECTION_PROMPTS
+        assert 'skills' in SECTION_PROMPTS
+        assert 'market' in SECTION_PROMPTS
+        assert 'networking' in SECTION_PROMPTS
+
+    def test_skills_section_maps_to_skills_intelligence(self):
+        """'skills' section should map to skills_intelligence prompt (full report)."""
+        from services.career_intel import SECTION_PROMPTS
+        assert SECTION_PROMPTS['skills'] == 'skills_intelligence'
+
+    def test_section_prompts_values_are_prompt_names(self):
+        """SECTION_PROMPTS values are prompt file names (no career_intel/ prefix)."""
+        from services.career_intel import SECTION_PROMPTS
+        for section, prompt_name in SECTION_PROMPTS.items():
+            assert '/' not in prompt_name, f"{section} prompt name should not contain /"
+            assert prompt_name.endswith('_intelligence'), f"{section} prompt should end with _intelligence"
+
+    def test_generate_section_uses_section_prompt(self):
+        """generate_section should route to the section-specific prompt, not career_intelligence."""
+        import inspect
+        from services.career_intel import generate_section
+        source = inspect.getsource(generate_section)
+
+        # Should reference SECTION_PROMPTS for per-section routing
+        assert 'SECTION_PROMPTS' in source, (
+            "generate_section should use SECTION_PROMPTS for per-section prompt routing"
+        )
+
+    def test_generate_all_still_uses_combined_prompt(self):
+        """generate_all should still use the combined career_intelligence prompt."""
+        import inspect
+        from services.career_intel import generate_all
+        source = inspect.getsource(generate_all)
+
+        # Should still call _run_mimo_prompt with 'career_intelligence'
+        assert "'career_intelligence'" in source or '"career_intelligence"' in source, (
+            "generate_all should still use the combined 'career_intelligence' prompt"
+        )
+
+    def test_per_section_result_is_flat_json(self):
+        """
+        When using per-section prompts, the result is flat JSON (not wrapped in a section key).
+        generate_section should use result directly, not result[section].
+        """
+        import inspect
+        from services.career_intel import generate_section
+        source = inspect.getsource(generate_section)
+
+        # Should have logic for flat vs wrapped results
+        assert 'SECTION_PROMPTS' in source
+        # The flat path should use result directly
+        assert 'section_data = result' in source or 'section_data =result' in source

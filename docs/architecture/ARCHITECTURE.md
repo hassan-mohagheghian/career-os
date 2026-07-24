@@ -83,7 +83,7 @@ tech_stack ── skill_aliases (merged variants)
 
 | Directory | Prompts |
 |-----------|---------|
-| `career_intel/` | career_intelligence.txt, skills_intelligence.txt |
+| `career_intel/` | career_intelligence.txt (combined), overview_intelligence.txt, opportunities_intelligence.txt, companies_intelligence.txt, skills_intelligence.txt, market_intelligence.txt, networking_intelligence.txt |
 | `skill_roadmaps/` | skill_roadmaps.txt, extend, finegrain, generate |
 | `job_processing/` | step2_validate, step3_extract_raw, step4_extract_struct, step8_score |
 | `company/` | company_extract.txt, company_analyze.txt |
@@ -133,7 +133,12 @@ tests/
 URL → pending_jobs → Fetch → Extract Raw → Extract Structured → Analyze & Score → Summary → Save to DB → WebSocket `pending:update`/`pending:log`/`pending:complete` streams to frontend
 
 ### Career Intelligence (concurrency-locked, one at a time)
-User clicks Generate → Lock acquired → Collect data (jobs, companies, skills, preferences) → Mimo CLI generates JSON → Save each section to career_insights → Lock released → WebSocket `career_intel:progress` with session_id
+
+**Generate All:** User clicks Generate → Lock acquired → Combined prompt (`career_intelligence.txt`) runs → All 6 sections saved to `career_insights` (skills saved as `skills_intel`) → Lock released → WebSocket `career_intel:progress` with session_id
+
+**Single Section Refresh:** User clicks Refresh on tab → Lock acquired → Section-specific prompt runs (e.g. `overview_intelligence.txt`) → Only that section saved → Lock released → WebSocket `career_intel:progress`
+
+**Skills Tab:** Uses dedicated `skills_intelligence.txt` prompt (full report with learning roadmap, readiness score, recommendations) — same prompt for both single refresh and Generate All
 
 ### Skill Management
 User adds/merges/hides/renames skills → tech_stack updated → skill_aliases created for merges → skill_roadmaps renamed → WebSocket `skill_roadmap:update` broadcasts

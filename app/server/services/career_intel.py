@@ -33,6 +33,18 @@ os.makedirs(TMP_DIR, exist_ok=True)
 INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking', 'skills_intel']
 CURRENT_VERSION = 1
 
+# Per-section prompt mapping
+# Values are prompt names WITHOUT the career_intel/ prefix (added by _run_mimo_prompt)
+# 'skills' maps to skills_intelligence (full report), not the minimal skills section in the combined prompt
+SECTION_PROMPTS = {
+    'overview': 'overview_intelligence',
+    'opportunities': 'opportunities_intelligence',
+    'companies': 'companies_intelligence',
+    'skills': 'skills_intelligence',
+    'market': 'market_intelligence',
+    'networking': 'networking_intelligence',
+}
+
 # Concurrency lock — only one analysis at a time
 _analysis_lock = threading.Lock()
 _current_run = {'active': False, 'type': None, 'started_at': None, 'run_id': None, 'process': None, 'session_id': None}
@@ -414,7 +426,10 @@ def generate_all(pid=0):
                     if section == 'overview':
                         score = section_data.get('careerHealthScore', {}).get('overall')
                         summary = f"Career readiness: {score}/100"
-                    _save_insight(section, section_data, score, summary)
+                    # The combined prompt outputs 'skills' (minimal), but the frontend
+                    # and skills_intel endpoint expect it under 'skills_intel'
+                    save_type = 'skills_intel' if section == 'skills' else section
+                    _save_insight(save_type, section_data, score, summary)
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'all', 'run_id': run_id})
             print(f"[career_intel] All sections generated successfully (session: {session_id})")
@@ -441,7 +456,8 @@ def generate_all(pid=0):
 
 def generate_section(section, pid=0):
     """Generate a single career intelligence section. Only one run at a time."""
-    if section == 'skills_intel':
+    # 'skills' tab uses the dedicated skills_intel generation (full report, not minimal)
+    if section in ('skills', 'skills_intel'):
         return generate_skills_intel(pid)
     global _cancel_requested
     if section not in INSIGHT_TYPES:
@@ -462,27 +478,44 @@ def generate_section(section, pid=0):
             'running': True, 'status': 'processing', 'type': section,
             'started_at': _current_run['started_at'], 'run_id': run_id
         })
-        result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
+
+        # Use per-section prompt if available, otherwise fall back to full prompt
+        if section in SECTION_PROMPTS:
+            result_file = os.path.join(TMP_DIR, f'{section}_intelligence_{pid}.json')
+            result, error_msg, session_id = _run_mimo_prompt(
+                SECTION_PROMPTS[section], pid=pid, result_file=result_file,
+            )
+        else:
+            result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
+
         if _cancel_requested:
             print(f"[career_intel] {section} generation cancelled")
             _emit_progress({'running': False, 'status': 'cancelled', 'type': section})
             return None
-        if result and section in result:
-            section_data = result[section]
-            score = None
-            summary = None
-            if section == 'overview':
-                score = section_data.get('careerHealthScore', {}).get('overall')
-                summary = f"Career readiness: {score}/100"
-            _save_insight(section, section_data, score, summary)
-            _complete_run(run_id, 'completed', session_id=session_id)
-            _emit_progress({'running': False, 'status': 'completed', 'type': section, 'run_id': run_id})
-            print(f"[career_intel] {section} generated successfully (session: {session_id})")
-            return section_data
-        else:
-            _complete_run(run_id, 'failed', error_msg or f'Mimo analysis failed for {section}', session_id=session_id)
-            _emit_progress({'running': False, 'status': 'failed', 'type': section, 'error': error_msg, 'run_id': run_id})
-            return None
+
+        # Extract section data: per-section prompts output flat JSON,
+        # full prompt outputs wrapped JSON with section key
+        if result:
+            if section in SECTION_PROMPTS:
+                section_data = result  # flat JSON from per-section prompt
+            else:
+                section_data = result.get(section)  # extract from full prompt wrapper
+
+            if section_data:
+                score = None
+                summary = None
+                if section == 'overview':
+                    score = section_data.get('careerHealthScore', {}).get('overall')
+                    summary = f"Career readiness: {score}/100"
+                _save_insight(section, section_data, score, summary)
+                _complete_run(run_id, 'completed', session_id=session_id)
+                _emit_progress({'running': False, 'status': 'completed', 'type': section, 'run_id': run_id})
+                print(f"[career_intel] {section} generated successfully (session: {session_id})")
+                return section_data
+
+        _complete_run(run_id, 'failed', error_msg or f'Mimo analysis failed for {section}', session_id=session_id)
+        _emit_progress({'running': False, 'status': 'failed', 'type': section, 'error': error_msg, 'run_id': run_id})
+        return None
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
