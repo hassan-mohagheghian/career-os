@@ -153,6 +153,18 @@ def cancel_run():
     if _current_run['active']:
         run_id = _current_run.get('run_id')
         _cancel_requested = True
+        # Try to kill via ProcessManager (MimoRunner manages processes here)
+        try:
+            from services.process.process_manager import ProcessManager
+            proc_type = _current_run.get('type', '')
+            proc_key = _current_run.get('process_key')
+            if proc_key:
+                handle = ProcessManager().get(proc_key)
+                if handle:
+                    ProcessManager().cancel(handle)
+        except Exception:
+            pass
+        # Fallback: kill raw process if stored
         proc = _current_run.get('process')
         if proc and proc.poll() is None:
             try:
@@ -255,6 +267,8 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs
     if result_file is None:
         result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
     session_id = None
+    job_key = f'career_intel_{prompt_name}_{pid}'
+    _current_run['process_key'] = job_key
     try:
         from services.process.mimo_runner import MimoRunner
         from services.process.process_manager import ProcessManager
@@ -296,6 +310,7 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs
         return None, str(e), session_id
     finally:
         _current_run['process'] = None
+        _current_run['process_key'] = None
 
 
 def _collect_jobs_data():
