@@ -44,7 +44,8 @@ export function useCareerIntel() {
     if (!socket) return
 
     const handleProgress = (data) => {
-      setProgress(data)
+      // Merge progress updates so session_id and other fields persist across events
+      setProgress(prev => ({ ...prev, ...data }))
       // When analysis completes/fails/cancels, refresh all data
       if (!data.running) {
         setRefreshing({})
