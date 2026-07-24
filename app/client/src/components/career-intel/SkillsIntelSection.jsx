@@ -5,6 +5,7 @@ import {
   Eye, CaretDown, CaretRight, Link, Lightbulb, Trash,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { resolveSkillCategory, filterByCategory } from "@/lib/skills";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -186,13 +187,20 @@ export default function SkillsIntelSection({
     return item?.category === activeCategory;
   });
 
-  const getSkillMeta = (name) => techStackSkills.find((s) => s.name === name) || {};
+  const aiReport = { strengths, gaps, learningRecommendations: recommendations };
+
+  const getSkillMeta = (name) => {
+    const fromStack = techStackSkills.find((s) => s.name === name);
+    if (fromStack) return fromStack;
+    const category = resolveSkillCategory(name, techStackSkills, aiReport);
+    return category ? { category } : {};
+  };
   const getSkillId = (name) => techStackSkills.find((s) => s.name === name)?.id;
 
   // Filter strengths/gaps/recommendations by active category
-  const filteredStrengths = strengths.filter((s) => { const meta = getSkillMeta(s.skill); return meta.category === activeCategory; });
-  const filteredGaps = gaps.filter((g) => { const meta = getSkillMeta(g.skill); return meta.category === activeCategory; });
-  const filteredRecs = recommendations.filter((r) => { const meta = getSkillMeta(r.skill); return meta.category === activeCategory; });
+  const filteredStrengths = filterByCategory(strengths, activeCategory, techStackSkills, aiReport);
+  const filteredGaps = filterByCategory(gaps, activeCategory, techStackSkills, aiReport);
+  const filteredRecs = filterByCategory(recommendations, activeCategory, techStackSkills, aiReport);
 
   const handleAddCustomSkill = async () => {
     const name = customSkillInput.trim();
@@ -454,38 +462,6 @@ export default function SkillsIntelSection({
           </div>
         </div>
 
-        {/* Hidden Skills */}
-        {hiddenSkills.length > 0 && (
-          <Card className="p-4 mb-4">
-            <button onClick={() => setShowHidden(!showHidden)} className="flex items-center gap-2 mb-2 w-full text-left">
-              {showHidden ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
-              <EyeSlash className="w-4 h-4 text-gray-500" />
-              <h4 className="font-extrabold text-sm">Hidden Skills</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-gray-500/15 text-gray-500">{hiddenSkills.length}</Badge>
-            </button>
-            {showHidden && (
-              <SortableContext items={hiddenSkills.map((s) => s.name)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
-                  {hiddenSkills.map((skill) => (
-                    <SortableSkillRow key={skill.name} id={skill.name} name={skill.name}
-                      category={skill.category} mergeMode={mergeMode}
-                      aliases={aliasMap[skill.name] || []} skillId={skill.id}
-                      onRemove={handleRemoveSkill}
-                      extra={<>
-                        <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
-                        <button onClick={(e) => { e.stopPropagation(); handleRestoreSkill(skill.name); }}
-                          className="shrink-0 p-0.5 rounded hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition" title="Restore">
-                          <Eye className="w-2.5 h-2.5" />
-                        </button>
-                      </>}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            )}
-          </Card>
-        )}
-
         {/* ═══ Gaps + Recommendations (two columns) ═══ */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Gaps */}
@@ -535,6 +511,38 @@ export default function SkillsIntelSection({
             </div>
           </Card>
         </div>
+
+        {/* Hidden Skills — collapsed, at the end */}
+        {hiddenSkills.length > 0 && (
+          <Card className="p-4 mb-4">
+            <button onClick={() => setShowHidden(!showHidden)} className="flex items-center gap-2 mb-2 w-full text-left">
+              {showHidden ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
+              <EyeSlash className="w-4 h-4 text-gray-500" />
+              <h4 className="font-extrabold text-sm">Hidden Skills</h4>
+              <Badge variant="secondary" className="text-[0.5rem] bg-gray-500/15 text-gray-500">{hiddenSkills.length}</Badge>
+            </button>
+            {showHidden && (
+              <SortableContext items={hiddenSkills.map((s) => s.name)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {hiddenSkills.map((skill) => (
+                    <SortableSkillRow key={skill.name} id={skill.name} name={skill.name}
+                      category={skill.category} mergeMode={mergeMode}
+                      aliases={aliasMap[skill.name] || []} skillId={skill.id}
+                      onRemove={handleRemoveSkill}
+                      extra={<>
+                        <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
+                        <button onClick={(e) => { e.stopPropagation(); handleRestoreSkill(skill.name); }}
+                          className="shrink-0 p-0.5 rounded hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition" title="Restore">
+                          <Eye className="w-2.5 h-2.5" />
+                        </button>
+                      </>}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            )}
+          </Card>
+        )}
 
       </DndContext>
       {/* ═══ End global DnD context ═══ */}

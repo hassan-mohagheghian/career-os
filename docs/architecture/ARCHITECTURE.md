@@ -150,3 +150,47 @@ Job + Company data → SHARED rules → JOB rules → COMPANY_PRODUCT rules → 
 6. Broadcaster pattern for SocketIO event delivery with `[ws]` logging
 7. Skill aliases via `skill_aliases` table (canonical + variant records)
 8. Category taxonomy: technical, engineering, professional, domain, career
+
+## Coding Standards
+
+### Backend (Python / Flask)
+
+All backend code follows **OOP, SOLID, Design Patterns, System Design, DDD, and TDD**.
+
+| Principle | How We Apply It |
+|-----------|-----------------|
+| **OOP** | Entities are modeled as classes or typed dicts. Services are instantiated, not a bag of functions. |
+| **SOLID — SRP** | Each module has one reason to change: `blueprints/` handles HTTP, `services/` handles business logic, `core/` handles DB/queue. |
+| **SOLID — OCP** | New insight types or pipeline steps are added by extending, not modifying existing code. |
+| **SOLID — LSP** | Interfaces (`IMimoRunner`, `IProcessManager`, `IBroadcaster`) are implemented by concrete classes that are interchangeable. |
+| **SOLID — ISP** | Interfaces are narrow: `IPendingRepository` vs `IJobRepository` — callers depend only on what they use. |
+| **SOLID — DIP** | Workers depend on abstractions (`interfaces.py`), not on SQLite or SocketIO directly. |
+| **Design Patterns** | Strategy (process managers), Repository (DB access), Observer/Broadcaster (WebSocket events), Singleton (ProcessManager), Factory (prompt loading). |
+| **System Design** | Concurrency locks for single-run enforcement, process groups for clean subprocess cancellation, thread-safe timeouts, room-based SocketIO broadcasting. |
+| **DDD** | Domain logic lives in service modules (`career_intel.py`, `mimo_runner.py`), not in blueprints. Bounded contexts: Job Processing, Company Intelligence, Career Intelligence, Skill Management. Repository pattern abstracts persistence. |
+| **TDD** | Tests written before implementation. Domain logic extracted into testable pure functions. Test structure mirrors source: `tests/test_services/`, `tests/test_blueprints/`, `tests/test_core/`. |
+
+**Rule**: Never use raw `subprocess.Popen` when `MimoRunner` exists. Never put business logic in blueprints. Never skip tests for domain logic.
+
+### Frontend (React / JSX)
+
+All frontend code follows **feature-based architecture**.
+
+| Principle | How We Apply It |
+|-----------|-----------------|
+| **Feature-based structure** | Each feature is a directory: `components/career-intel/`, `components/shared/`. Components, hooks, and domain logic co-locate by feature. |
+| **Domain logic in `lib/`** | Pure functions extracted from components live in `lib/skills.js`, `lib/utils.js` — testable without React. |
+| **Hooks for state** | Each feature has a dedicated hook (`useCareerIntel`, `useCompanies`, `usePending`) that encapsulates API calls, WebSocket listeners, and state. |
+| **Single responsibility** | Components do one thing: `SkillsIntelSection` displays skills, `SkillRoadmapDrawer` shows roadmaps, `SkillDetailDrawer` shows detail. |
+| **Shared components** | Cross-feature UI lives in `components/shared/`: `GenerationProgressCard`, `ProcessedCards`. |
+
+**Rule**: Never put API calls or WebSocket logic inside components. Never create monolithic page components — split by feature. Always extract pure domain logic into `lib/` for testability.
+
+### Test Conventions
+
+| Layer | Framework | Location | Convention |
+|-------|-----------|----------|------------|
+| Backend unit | pytest | `tests/test_services/` | Mirror source structure. Mock external deps (mimo, DB). |
+| Backend integration | pytest | `tests/test_blueprints/` | Use `test_db` fixture (temp SQLite). Test HTTP endpoints. |
+| Frontend unit | vitest | `src/__tests__/` or `__tests__/` co-located | Test pure domain functions. Test component rendering. |
+| Domain logic | Both | Extracted to `lib/` (FE) or service modules (BE) | Must be testable without infrastructure. |

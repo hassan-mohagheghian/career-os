@@ -242,35 +242,34 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs
     prompt = load_prompt(f'career_intel/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
     if result_file is None:
         result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
-    proc = None
     session_id = None
     try:
-        proc = subprocess.Popen(
-            [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-            cwd=PROJECT_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env={**os.environ, 'NO_COLOR': '1'}
-        )
-        _current_run['process'] = proc
-        # Use thread-safe timeout (communicate(timeout=) uses signal.alarm which fails in threads)
-        timed_out = threading.Event()
-        def _watchdog():
-            timed_out.wait(timeout)
-            if not timed_out.is_set():
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-        timer = threading.Thread(target=_watchdog, daemon=True)
-        timer.start()
-        stdout, stderr = proc.communicate()
-        timed_out.set()
+        from services.process.mimo_runner import MimoRunner
+        from services.process.process_manager import ProcessManager
+        mimo = MimoRunner(ProcessManager())
 
-        session_id = _parse_session_id(stdout)
+        def _on_session_id(sid):
+            nonlocal session_id
+            session_id = sid
+            _current_run['session_id'] = sid
+            _emit_progress({'running': True, 'status': 'processing', 'session_id': sid})
+
+        def _on_event(evt):
+            etype = evt.get('type', '')
+            if etype == 'text':
+                text = evt.get('part', {}).get('text', '')
+                if text:
+                    _emit_progress({'running': True, 'status': 'processing', 'message': f"AI: {text[:120]}"})
+
+        returncode, output_lines, session_id = mimo.run(
+            prompt, timeout=timeout, key=f'career_intel_{prompt_name}_{pid}',
+            on_event=_on_event, on_session_id=_on_session_id,
+        )
 
         if _cancel_requested:
-            return None, None, session_id  # None error = cancelled, not failed
+            return None, None, session_id
 
-        if proc.returncode == 0 and os.path.exists(result_file):
+        if returncode == 0 and os.path.exists(result_file):
             with open(result_file) as f:
                 result = json.load(f)
             try:
@@ -279,9 +278,7 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs
                 pass
             return result, None, session_id
         else:
-            err = stderr[:500].strip() if stderr else 'Mimo returned non-zero exit code'
-            if proc.returncode != 0:
-                err = f'Exit code {proc.returncode}: {err}'
+            err = f'Exit code {returncode}' if returncode != 0 else 'Mimo returned no result file'
             return None, err, session_id
     except Exception as e:
         return None, str(e), session_id

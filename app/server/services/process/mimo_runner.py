@@ -56,7 +56,7 @@ class MimoRunner(IMimoRunner):
         )
 
         all_lines = []
-        discovered_session_id = session_id or f"mimo_{uuid.uuid4().hex[:12]}"
+        discovered_session_id = session_id  # None until discovered from stream or passed in
         timed_out = threading.Event()
 
         def _watchdog():
