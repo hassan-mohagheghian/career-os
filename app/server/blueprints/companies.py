@@ -493,13 +493,20 @@ def process_pending_company(id):
 
 @bp.route('/api/pending-companies/<int:id>/reset', methods=['PUT'])
 def reset_pending_company(id):
-    conn = get_db()
-    conn.execute('''UPDATE pending_companies SET status='pending', error=NULL,
-        step_fetch=0, step_extract=0, step_analyze=0, step_save=0, step_done=0,
-        updated_at=? WHERE id=?''', (datetime.now().isoformat(), id))
-    conn.commit()
-    conn.close()
+    from core.queue import get_queue_manager
+    ok = get_queue_manager().reset_job(id, table='pending_companies')
+    if not ok:
+        return jsonify({'error': 'Not found'}), 404
     return jsonify({'status': 'pending', 'id': id})
+
+
+@bp.route('/api/pending-companies/<int:id>/cancel', methods=['PUT'])
+def cancel_pending_company(id):
+    from core.queue import get_queue_manager
+    ok = get_queue_manager().cancel_job(id, table='pending_companies')
+    if not ok:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify({'status': 'paused', 'id': id})
 
 
 @bp.route('/api/pending-companies/stream')

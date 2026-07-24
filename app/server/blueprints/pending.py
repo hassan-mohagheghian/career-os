@@ -91,39 +91,25 @@ def delete_pending(id):
 
 @bp.route('/api/pending/<int:id>/reset', methods=['PUT'])
 def reset_pending(id):
-    conn = get_db()
-    conn.execute('''UPDATE pending_jobs SET status='pending', error=NULL, queue_order=0,
-                    step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-                    step_analyze=0, step_summary=0, step_db=0, step_done=0,
-                    updated_at=? WHERE id=?''',
-                 (datetime.now().isoformat(), id))
-    conn.commit()
-    conn.close()
+    ok = get_queue_manager().reset_job(id, table='pending_jobs')
+    if not ok:
+        return jsonify({'error': 'Not found'}), 404
     return jsonify({'status': 'pending', 'id': id})
+
+
+@bp.route('/api/pending/<int:id>/cancel', methods=['PUT'])
+def cancel_pending(id):
+    ok = get_queue_manager().cancel_job(id, table='pending_jobs')
+    if not ok:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify({'status': 'paused', 'id': id})
 
 
 @bp.route('/api/pending/<int:id>/pause', methods=['PUT'])
 def pause_pending(id):
-    conn = get_db()
-    row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (id,)).fetchone()
-    if not row:
-        conn.close()
+    ok = get_queue_manager().cancel_job(id, table='pending_jobs')
+    if not ok:
         return jsonify({'error': 'Not found'}), 404
-    item = dict(row)
-    step_cols = ['step_fetch', 'step_validate', 'step_extract_raw', 'step_extract_struct', 'step_summary', 'step_analyze']
-    reset_col = None
-    for col in step_cols:
-        if item.get(col) == 0:
-            reset_col = col
-            break
-    if reset_col:
-        conn.execute(f'UPDATE pending_jobs SET status="paused", error=NULL, {reset_col}=0, updated_at=? WHERE id=?',
-                     (datetime.now().isoformat(), id))
-    else:
-        conn.execute('UPDATE pending_jobs SET status="paused", updated_at=? WHERE id=?',
-                     (datetime.now().isoformat(), id))
-    conn.commit()
-    conn.close()
     return jsonify({'status': 'paused', 'id': id})
 
 

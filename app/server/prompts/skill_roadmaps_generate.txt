@@ -1,0 +1,48 @@
+Generate a learning roadmap for ONE specific skill: {skill_name}
+
+Context:
+- User's current level: {current_level}
+- Target: backend engineer roles in European companies
+- Already completed items: {checked_items}
+
+{growth_context}
+
+RULES:
+1. FOCUS ONLY ON THIS ONE SKILL: {skill_name}
+   - Do NOT include other technologies, tools, or frameworks
+   - The roadmap must be about MASTERING {skill_name} itself
+
+2. INTERVIEW-PASSING DEPTH
+   - Each item must be something a European tech company would ask in an interview
+   - Completing ALL items should make the user able to answer ANY interview question
+   - Think: "If I ask this candidate about [item], can they give a confident, detailed answer?"
+
+3. EUROPEAN MARKET FOCUS
+   - Prioritize what German/Dutch/British companies actually test
+   - Focus on production-quality knowledge, not academic theory
+   - Emphasize: clean code, testing, debugging, performance, real-world patterns
+
+4. STRUCTURE
+   - 15-20 root items, each with 2-4 children
+   - Max 2 levels of nesting
+   - Levels 000-1000, ordered ascending
+   - Every item must be specific: "{skill_name} list comprehensions with conditional logic" NOT "Lists"
+   - Description hints at the interview question
+
+LEVEL SYSTEM (000-1000):
+- 000-200: "What is X?" — definitions, basic syntax, first steps
+- 200-400: "How do I use X?" — core features, common patterns
+- 400-600: "How do I use X well?" — best practices, idioms, common mistakes
+- 600-800: "How does X work internally?" — internals, advanced patterns
+- 800-1000: "How would I use X in production at scale?" — architecture, edge cases
+
+OUTPUT: Reply with ONLY a valid JSON array. No markdown, no explanation, no code fences.
+
+[
+  {{
+    "title": "Specific Item Title",
+    "description": "What this covers and what interview question it answers",
+    "level": 250,
+    "children": []
+  }}
+]

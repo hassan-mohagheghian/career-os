@@ -1,0 +1,1001 @@
+[
+  {
+    "title": "CASE WHEN expressions — conditional logic in SQL",
+    "description": "Branching logic inside queries for categorization, pivoting, and conditional aggregation. Interview: 'Write a query that labels orders as Small/Medium/Large based on total amount.'",
+    "level": 220,
+    "children": [
+      {
+        "title": "Simple and searched CASE expressions",
+        "description": "CASE value WHEN ... THEN ... vs CASE WHEN condition THEN ...; order matters for overlapping conditions. Interview: 'What's the difference between simple and searched CASE? When do you need each?'"
+      },
+      {
+        "title": "Nested CASE and COALESCE/NULLIF alternatives",
+        "description": "When CASE can be replaced by COALESCE or NULLIF for simpler expressions. Interview: 'Rewrite this nested CASE using COALESCE — is it always equivalent?'"
+      },
+      {
+        "title": "Conditional aggregation with CASE inside SUM/COUNT",
+        "description": "COUNT(CASE WHEN ... THEN 1 END) for pivoting without GROUP BY extension. Interview: 'Count active and inactive users per month in a single query using CASE inside aggregate.'"
+      }
+    ]
+  },
+  {
+    "title": "Set operations — UNION, INTERSECT, EXCEPT",
+    "description": "Combining result sets from multiple queries; UNION ALL vs UNION (deduplicating), INTERSECT for common rows, EXCEPT for set difference. Interview: 'Find customers who purchased in both January and February using set operations.'",
+    "level": 240,
+    "children": [
+      {
+        "title": "UNION ALL vs UNION — performance and correctness",
+        "description": "UNION ALL preserves duplicates and is faster; UNION deduplicates which requires a sort or hash. Interview: 'When would UNION be slower than UNION ALL? How do you decide?'"
+      },
+      {
+        "title": "INTERSECT and EXCEPT — set membership and difference",
+        "description": "INTERSECT returns rows present in both; EXCEPT returns rows in first but not second. Interview: 'Find products that were ordered last year but not this year using EXCEPT.'"
+      },
+      {
+        "title": "Column compatibility rules and ORDER BY placement",
+        "description": "Same number of columns, compatible types; ORDER BY applies to the final result only. Interview: 'Can you UNION a VARCHAR column with an INTEGER column? What about ORDER BY on the second SELECT?'"
+      }
+    ]
+  },
+  {
+    "title": "NULL semantics — three-valued logic in SQL",
+    "description": "NULL = NULL is NULL (not TRUE), NULL in aggregates, COALESCE/NULLIF. Interview: 'Why does WHERE col = NULL return no rows? How do you properly check for NULLs?'",
+    "level": 250,
+    "children": [
+      {
+        "title": "Three-valued logic — TRUE, FALSE, UNKNOWN in comparisons",
+        "description": "NULL propagates through most expressions; only IS NULL/IS NOT NULL test it directly. Interview: 'What is the result of NULL AND TRUE, NULL OR FALSE, NOT NULL?'"
+      },
+      {
+        "title": "COALESCE, NULLIF, and GREATEST — working with NULLs in expressions",
+        "description": "COALESCE returns first non-null; NULLIF returns null on equality; GREATEST skips nulls. Interview: 'Use COALESCE to provide default values and NULLIF to convert zero to null for division.'"
+      },
+      {
+        "title": "NULL handling in DISTINCT, ORDER BY, and UNIQUE constraints",
+        "description": "NULLs are considered distinct for DISTINCT, sorted at end in ASC. Interview: 'Does a UNIQUE constraint allow multiple NULLs? Does it depend on the database?'"
+      }
+    ]
+  },
+  {
+    "title": "GROUP BY with HAVING — aggregation filtering",
+    "description": "Filtering grouped results vs WHERE filtering. Interview: 'Find all customers who placed more than 5 orders in the last 30 days — explain your WHERE vs HAVING logic.'",
+    "level": 270,
+    "children": [
+      {
+        "title": "WHERE vs HAVING — filtering before vs after aggregation",
+        "description": "WHERE filters rows before grouping; HAVING filters groups after aggregation. Interview: 'Can you use aggregate functions in WHERE? Why or why not?'"
+      },
+      {
+        "title": "GROUPING SETS, ROLLUP, and CUBE for multi-level summaries",
+        "description": "Generating subtotals and grand totals in a single query. Interview: 'Write a query that produces a sales summary with subtotals per region and a grand total.'"
+      },
+      {
+        "title": "GROUP BY ordinal position and column alias usage",
+        "description": "Using column positions or aliases in GROUP BY. Interview: 'Is SELECT a, b, SUM(c) FROM t GROUP BY 1, 2 equivalent to GROUP BY a, b? Are there caveats?'"
+      },
+      {
+        "title": "FILTER clause — conditional aggregation within a single query",
+        "description": "Apply aggregate functions to subsets of rows without subqueries. Interview: 'Count total orders and count orders over $100 in a single query using FILTER.'"
+      }
+    ]
+  },
+  {
+    "title": "Database constraints — PRIMARY KEY, UNIQUE, CHECK, EXCLUDE",
+    "description": "Enforcing data integrity at the database level. Interview: 'How would you prevent overlapping time ranges for a resource booking system at the DB level?'",
+    "level": 280,
+    "children": [
+      {
+        "title": "PRIMARY KEY and UNIQUE constraints — enforcement and index creation",
+        "description": "Both create unique indexes; PK is NOT NULL + UNIQUE; multiple UNIQUE constraints allowed. Interview: 'What indexes are automatically created when you define a PRIMARY KEY vs a UNIQUE constraint?'"
+      },
+      {
+        "title": "CHECK constraints — custom business rules at the database level",
+        "description": "Enforce value ranges, cross-column logic, and format requirements. Interview: 'Write a CHECK constraint ensuring end_date is always after start_date.'"
+      },
+      {
+        "title": "EXCLUDE constraints — preventing overlapping ranges",
+        "description": "Uses GiST index to enforce non-overlapping geometric or range types. Interview: 'Use an EXCLUDE constraint to prevent double-booking a room in a reservation system.'"
+      },
+      {
+        "title": "Deferrable constraints and ON CONFLICT (UPSERT) patterns",
+        "description": "INSERT ... ON CONFLICT DO UPDATE, constraint deferral within transactions. Interview: 'Write an upsert that inserts or updates depending on a unique constraint conflict.'"
+      }
+    ]
+  },
+  {
+    "title": "Foreign key cascades — ON DELETE/UPDATE actions",
+    "description": "CASCADE, SET NULL, SET DEFAULT, RESTRICT, NO ACTION. Interview: 'What happens when you delete a parent row with ON DELETE CASCADE vs RESTRICT? Which do you prefer in production?'",
+    "level": 300,
+    "children": [
+      {
+        "title": "ON DELETE CASCADE — automatic child deletion and its risks",
+        "description": "Deletes propagate to children; can cause unintended mass deletions. Interview: 'When is CASCADE dangerous? Give an example where it caused a production incident.'"
+      },
+      {
+        "title": "ON DELETE SET NULL vs SET DEFAULT — preserving child records",
+        "description": "Nullifies or resets FK columns instead of deleting; requires nullable or default column. Interview: 'When would you choose SET NULL over CASCADE for a foreign key?'"
+      },
+      {
+        "title": "RESTRICT vs NO ACTION — blocking parent deletion",
+        "description": "Both prevent deletion of referenced parents; RESTRICT checks immediately, NO ACTION at commit. Interview: 'What's the difference between RESTRICT and NO ACTION? When does it matter?'"
+      }
+    ]
+  },
+  {
+    "title": "Schema design — normalization (1NF through 3NF) and when to denormalize",
+    "description": "Knowing normal forms and when production systems deviate for performance. Interview: 'When would you denormalize a 3NF schema? Give a concrete example.'",
+    "level": 320,
+    "children": [
+      {
+        "title": "1NF, 2NF, 3NF — progressive normalization rules",
+        "description": "Atomic values, no partial dependencies, no transitive dependencies. Interview: 'Explain each normal form with a concrete example. What anomalies does each prevent?'"
+      },
+      {
+        "title": "When to denormalize — read-heavy workloads and query simplification",
+        "description": "Materializing computed columns, pre-joining for dashboards, controlled redundancy. Interview: 'Your dashboard query joins 6 tables and is slow — how do you denormalize to fix it?'"
+      },
+      {
+        "title": "Star schema and snowflake schema for analytical workloads",
+        "description": "Fact tables, dimension tables, and query patterns. Interview: 'Design a star schema for an e-commerce order analytics system.'"
+      },
+      {
+        "title": "Choice between JSONB columns vs relational normalization",
+        "description": "When semi-structured storage makes sense vs strict normalization. Interview: 'Your client sends varying payload shapes — when would you use JSONB columns instead of separate tables?'"
+      }
+    ]
+  },
+  {
+    "title": "SQL injection prevention and parameterized queries",
+    "description": "Understanding how injection works and defense-in-depth strategies. Interview: 'How does parameterized query execution prevent SQL injection? What about dynamic identifiers?'",
+    "level": 330,
+    "children": [
+      {
+        "title": "Parameterized queries — how binding prevents injection",
+        "description": "Separating SQL structure from data at the protocol level; no string interpolation. Interview: 'Why does a parameterized query prevent injection even if the parameter contains SQL syntax?'"
+      },
+      {
+        "title": "Stored procedures as a defense layer — and their limitations",
+        "description": "Procedures can restrict direct table access but don't prevent injection if they use dynamic SQL internally. Interview: 'Does using stored procedures automatically prevent SQL injection? Why or why not?'"
+      }
+    ]
+  },
+  {
+    "title": "Data types and their performance implications",
+    "description": "INTEGER vs BIGINT vs SMALLINT, VARCHAR vs TEXT, TIMESTAMP vs TIMESTAMPTZ, SERIAL vs GENERATED ALWAYS AS IDENTITY. Interview: 'Why does choosing the wrong data type hurt performance? Give two examples.'",
+    "level": 340,
+    "children": [
+      {
+        "title": "Integer types — SMALLINT, INTEGER, BIGINT and when each is appropriate",
+        "description": "Storage size, index efficiency, and overflow risks. Interview: 'When would SMALLINT be insufficient? What's the max value for INTEGER?'"
+      },
+      {
+        "title": "Character types — CHAR vs VARCHAR vs TEXT and collation effects",
+        "description": "Fixed vs variable length, performance implications for indexing and comparisons. Interview: 'Is VARCHAR(255) faster than TEXT? Does it matter for indexes?'"
+      },
+      {
+        "title": "UUID vs serial/identity for primary keys — tradeoffs",
+        "description": "Index fragmentation, insert performance, distribution. Interview: 'Why are random UUIDs bad for B-tree primary keys? What alternatives exist?'"
+      },
+      {
+        "title": "Date/time timezone handling and interval arithmetic",
+        "description": "TIMESTAMPTZ storage, session timezone, date_trunc, age(). Interview: 'Two users in Berlin and Tokyo insert the same timestamp — is it stored the same? How do you compare across timezones?'"
+      }
+    ]
+  },
+  {
+    "title": "FULL JOIN, CROSS JOIN, and non-equi joins",
+    "description": "Completing the join vocabulary beyond INNER and LEFT/RIGHT. FULL JOIN for symmetric set comparisons, CROSS JOIN for cartesian products, theta joins for range-based matching. Interview: 'Write a FULL JOIN to compare this quarter vs last quarter revenue side-by-side.'",
+    "level": 350,
+    "children": [
+      {
+        "title": "FULL JOIN — symmetric comparison of two result sets",
+        "description": "Returns all rows from both sides; NULLs fill gaps. Interview: 'Find customers who ordered in January but not February, and vice versa, in a single query.'"
+      },
+      {
+        "title": "Non-equi joins — joining on ranges, inequalities, and complex conditions",
+        "description": "JOIN ON a.start < b.end AND a.end > b.start for overlapping ranges. Interview: 'Write a non-equi join to find all booking overlaps for a given room.'"
+      },
+      {
+        "title": "NATURAL JOIN and USING — shorthand and their pitfalls",
+        "description": "NATURAL JOIN auto-matches on all same-named columns; USING simplifies syntax but hides which columns joined. Interview: 'Why do many style guides forbid NATURAL JOIN?'"
+      }
+    ]
+  },
+  {
+    "title": "Common SQL anti-patterns and how to fix them",
+    "description": "SELECT *, excessive JOINs, N+1 queries, SELECT in SELECT, missing WHERE on UPDATE/DELETE. Interview: 'Here are 5 queries — identify the anti-patterns and propose fixes.'",
+    "level": 360,
+    "children": [
+      {
+        "title": "SELECT * — why explicit column lists are always preferred",
+        "description": "Prevents index-only scans, wastes I/O, breaks on schema changes. Interview: 'Why is SELECT * harmful? Give three concrete consequences.'"
+      },
+      {
+        "title": "Missing WHERE on UPDATE/DELETE — the accidental full-table mutation",
+        "description": "Without WHERE, every row is affected; can lock the table for minutes. Interview: 'A developer ran UPDATE without WHERE — what's the immediate damage and recovery plan?'"
+      },
+      {
+        "title": "Over-normalization and over-normalized schemas causing join-heavy queries",
+        "description": "Identifying when a schema is too normalized for its workload. Interview: 'Your query joins 8 tables to render a single page — how do you address this architecturally?'"
+      },
+      {
+        "title": "Subqueries in SELECT (scalar subqueries) — N+1 disguised as SQL",
+        "description": "Each row triggers a separate subquery execution; replace with JOIN or window function. Interview: 'Rewrite this SELECT with correlated subqueries as a single JOIN.'"
+      }
+    ]
+  },
+  {
+    "title": "Correlated subqueries vs JOINs — performance and correctness",
+    "description": "When a correlated subquery executes per-row vs a single JOIN pass. Interview: 'Rewrite this correlated subquery as a JOIN. When would you NOT want to?'",
+    "level": 380,
+    "children": [
+      {
+        "title": "How correlated subqueries execute — per-row evaluation cost",
+        "description": "The inner query runs once per outer row; planner may not always decorrelate. Interview: 'Why is a correlated subquery sometimes slower than a JOIN? When is it actually better?'"
+      },
+      {
+        "title": "EXISTS vs IN vs ANY/ALL — semantics and planner behavior",
+        "description": "NULL handling differences, how the planner optimizes each. Interview: 'Why can EXISTS return different results than IN when dealing with NULLs?'"
+      },
+      {
+        "title": "Rewriting correlated subqueries as JOINs or lateral joins",
+        "description": "When the planner can decorrelate vs when manual rewrite is needed. Interview: 'Rewrite this correlated subquery as a JOIN — what conditions need to hold for correctness?'"
+      }
+    ]
+  },
+  {
+    "title": "Query optimization — rewriting for better performance",
+    "description": "Replacing OR with UNION ALL, avoiding SELECT *, LIMIT without ORDER BY, using EXISTS instead of COUNT. Interview: 'Here's a slow query — rewrite it to be faster without changing the schema.'",
+    "level": 400,
+    "children": [
+      {
+        "title": "Replacing OR conditions with UNION ALL for index efficiency",
+        "description": "OR on different columns prevents index use; UNION ALL with separate index-friendly predicates. Interview: 'Rewrite this OR query to use indexes on both columns.'"
+      },
+      {
+        "title": "Avoiding SELECT * — why explicit column lists matter",
+        "description": "Wasted I/O, preventing index-only scans, network overhead. Interview: 'Why is SELECT * harmful on a table with a covering index?'"
+      },
+      {
+        "title": "Avoiding the n+1 query problem in application code",
+        "description": "Eager loading, batch fetching, and how ORMs generate queries. Interview: 'Your ORM is generating 1 query per row — how do you fix it?'"
+      },
+      {
+        "title": "Pagination strategies — OFFSET/LIMIT vs keyset pagination",
+        "description": "OFFSET degrades at high page numbers, keyset uses WHERE on indexed column. Interview: 'Why is OFFSET 1000000 slow? How does keyset pagination solve it?'"
+      }
+    ]
+  },
+  {
+    "title": "Window Functions — ROW_NUMBER, RANK, DENSE_RANK, NTILE",
+    "description": "Understand the differences between row numbering and ranking semantics, when to use each, and how OVER clause partitioning works. Interview: 'Find the second highest salary per department — write two solutions using different window functions.'",
+    "level": 420,
+    "children": [
+      {
+        "title": "ROW_NUMBER vs RANK vs DENSE_RANK — when to use each",
+        "description": "Distinguish when rows need unique assignment vs handling ties. Interview: 'Find the second highest salary per department using both RANK and DENSE_RANK — what's the difference in result?'"
+      },
+      {
+        "title": "NTILE for percentile and quartile splitting",
+        "description": "Divide ordered rows into N equal buckets for statistical analysis. Interview: 'Split users into quartiles by revenue and label each quartile.'"
+      },
+      {
+        "title": "OVER clause with PARTITION BY — row numbering per group",
+        "description": "How partitioning scopes window function results to logical groups. Interview: 'Rank employees within each department by salary — explain how PARTITION BY interacts with ORDER BY.'"
+      },
+      {
+        "title": "Window functions with FETCH/NEXT clauses and frame specifications",
+        "description": "ROWS BETWEEN, RANGE BETWEEN, UNBOUNDED PRECEDING/FOLLOWING, CURRENT ROW. Interview: 'What's the difference between ROWS and RANGE frames? When would a range frame give a different result?'"
+      }
+    ]
+  },
+  {
+    "title": "CTEs (WITH clause) and Recursive CTEs",
+    "description": "Non-recursive CTEs for readability and decomposition; recursive CTEs for hierarchical/graph traversal. Interview: 'Write a recursive CTE to find all subordinates under a manager in an org chart table.'",
+    "level": 440,
+    "children": [
+      {
+        "title": "Non-recursive CTEs — breaking complex queries into readable blocks",
+        "description": "Use WITH to decompose multi-step logic, referencing prior CTEs sequentially. Interview: 'Rewrite this nested subquery as a CTE — explain how readability and maintainability improve.'"
+      },
+      {
+        "title": "Recursive CTEs — anchor member, recursive member, and UNION ALL",
+        "description": "Structure the base case and recursive step for tree/graph traversal. Interview: 'Write a recursive CTE to traverse an org chart and return each employee with their hierarchy level.'"
+      },
+      {
+        "title": "Recursive CTE termination conditions and cycle detection",
+        "description": "Preventing infinite recursion using SEARCH or CYCLE clauses (PostgreSQL 14+). Interview: 'How do you prevent infinite loops in a recursive CTE? What happens if you omit the termination condition?'"
+      },
+      {
+        "title": "CTEs vs subqueries vs temp tables — performance implications",
+        "description": "Materialization behavior differs across databases (PostgreSQL inlines CTEs by default, SQL Server materializes). Interview: 'When would you choose a CTE over a subquery? When would you choose a temp table?'"
+      }
+    ]
+  },
+  {
+    "title": "Window functions for deduplication and gaps-and-islands",
+    "description": "Using ROW_NUMBER to find duplicates, LAG to detect gaps in sequences. Interview: 'Find all consecutive date gaps in a bookings table where a room is unoccupied.'",
+    "level": 450,
+    "children": [
+      {
+        "title": "Deduplication with ROW_NUMBER — keeping first or last occurrence",
+        "description": "Partition by key, order by timestamp, filter where rn = 1. Interview: 'Write a query that keeps only the most recent record per user from a table with duplicates.'"
+      },
+      {
+        "title": "LAG/LEAD/FIRST_VALUE/LAST_VALUE for time-series comparisons",
+        "description": "Accessing values across rows without self-joins. Interview: 'Calculate month-over-month revenue growth rate from a transactions table.'"
+      },
+      {
+        "title": "Gaps-and-islands: contiguous range detection",
+        "description": "Subtract row_number from date to identify islands of consecutive values. Interview: 'Find all periods where a server was down continuously, given a table of incident timestamps.'"
+      }
+    ]
+  },
+  {
+    "title": "Cumulative sums and moving averages with window functions",
+    "description": "Running totals, rolling windows, cumulative distributions. Interview: 'Write a query that returns a 7-day moving average of daily active users.'",
+    "level": 460,
+    "children": [
+      {
+        "title": "Running totals with SUM() OVER (ORDER BY ... ROWS UNBOUNDED PRECEDING)",
+        "description": "Accumulate values row-by-row within a partition. Interview: 'Calculate a running total of daily sales partitioned by store.'"
+      },
+      {
+        "title": "Moving averages with frame specifications — ROWS BETWEEN N PRECEDING AND CURRENT ROW",
+        "description": "Rolling windows over N rows; handles gaps with RANGE for date-based windows. Interview: 'Write a 7-day moving average that handles missing dates gracefully.'"
+      },
+      {
+        "title": "Cumulative distribution and percent_rank for statistical analysis",
+        "description": "CUME_DIST, PERCENT_RANK, NTILE for relative positioning. Interview: 'Rank customers by lifetime value and assign percentile labels.'"
+      }
+    ]
+  },
+  {
+    "title": "Cartesian products, self-joins, and lateral joins (PostgreSQL)",
+    "description": "Recognizing accidental cross joins, using LATERAL for row-by-row subquery evaluation. Interview: 'What's a lateral join? Give a use case where it's essential.'",
+    "level": 470,
+    "children": [
+      {
+        "title": "Accidental Cartesian products — detecting and preventing cross joins",
+        "description": "Missing JOIN condition produces m×n rows; EXPLAIN shows nested loop with no join filter. Interview: 'Your query returned 100M rows instead of 1000 — what likely went wrong?'"
+      },
+      {
+        "title": "Self-joins — joining a table to itself for comparisons",
+        "description": "Finding pairs, hierarchies, or gaps within the same table. Interview: 'Write a self-join to find all employees who earn more than their manager.'"
+      },
+      {
+        "title": "LATERAL joins — row-by-row subquery evaluation",
+        "description": "Subquery references outer columns; enables top-N-per-group without window functions. Interview: 'Use LATERAL to find the 3 most recent orders per customer.'"
+      }
+    ]
+  },
+  {
+    "title": "Pivot and unpivot patterns — crosstab aggregations",
+    "description": "Transforming rows to columns and back for reporting. Interview: 'Write a query that produces a monthly revenue pivot table with months as columns.'",
+    "level": 480,
+    "children": [
+      {
+        "title": "Manual pivot with CASE and GROUP BY",
+        "description": "Use CASE inside SUM/COUNT to transform row values into columns. Interview: 'Pivot a sales table so each product category becomes a column with total revenue.'"
+      },
+      {
+        "title": "PostgreSQL crosstab() from tablefunc extension",
+        "description": "Built-in pivot function requiring tablefunc; row/column specification. Interview: 'When would you use crosstab() instead of manual CASE-based pivot?'"
+      },
+      {
+        "title": "Unpivoting — converting columns back to rows with UNNEST or LATERAL",
+        "description": "Expand JSON arrays or multiple columns into rows. Interview: 'Unpivot a table with columns mon, tue, wed into day/value rows.'"
+      }
+    ]
+  },
+  {
+    "title": "Materialized views — creation, REFRESH, and invalidation",
+    "description": "Precomputed query results for dashboards and analytics. Interview: 'When would you use a materialized view instead of a regular view? How do you handle stale data?'",
+    "level": 500,
+    "children": [
+      {
+        "title": "Creating materialized views — syntax, indexes, and refresh on first use",
+        "description": "CREATE MATERIALIZED VIEW AS SELECT ...; data is snapshot at creation time. Interview: 'How does a materialized view differ from a regular view in PostgreSQL?'"
+      },
+      {
+        "title": "REFRESH strategies — full refresh vs incremental approaches",
+        "description": "REFRESH MATERIALIZED VIEW rebuilds entirely; custom incremental refresh via triggers or logic. Interview: 'Your materialized view takes 30 minutes to refresh — how do you reduce downtime?'"
+      },
+      {
+        "title": "Concurrent REFRESH and REFRESH strategies for live systems",
+        "description": "REFRESH MATERIALIZED VIEW CONCURRENTLY requires unique index. Interview: 'How do you refresh a materialized view without blocking reads on a production system?'"
+      }
+    ]
+  },
+  {
+    "title": "Stored procedures, functions, and triggers in PostgreSQL",
+    "description": "PL/pgSQL basics, when to use server-side logic vs application logic. Interview: 'When would you put business logic in a stored procedure versus the application layer?'",
+    "level": 520,
+    "children": [
+      {
+        "title": "PL/pgSQL basics — variables, loops, conditionals, and error handling",
+        "description": "Declaring variables, FOR loops, IF/ELSE, BEGIN/EXCEPTION blocks. Interview: 'Write a stored procedure that loops through rows and performs conditional updates.'"
+      },
+      {
+        "title": "Functions vs procedures — volatility categories and calling conventions",
+        "description": "VOLATILE, STABLE, IMMUTABLE; functions return values, procedures use CALL. Interview: 'What's the difference between a function and a procedure in PostgreSQL? When use each?'"
+      },
+      {
+        "title": "Trigger design — BEFORE/AFTER INSERT/UPDATE/DELETE patterns",
+        "description": "Audit logging, cascading updates, data validation at DB level. Interview: 'Design an audit trail using triggers that captures who changed what and when.'"
+      },
+      {
+        "title": "Security — GRANT/REVOKE, row-level security (RLS)",
+        "description": "Principle of least privilege, policies that filter rows per user. Interview: 'How would you implement row-level security so each tenant only sees their own data?'"
+      }
+    ]
+  },
+  {
+    "title": "Dynamic SQL safely — pg_ident_quote, identifier quoting",
+    "description": "When you must interpolate identifiers (not values) and how to do it safely. Interview: 'You need a query with dynamic table names — how do you prevent injection when you can't parameterize identifiers?'",
+    "level": 540,
+    "children": [
+      {
+        "title": "Identifier quoting with quote_ident() — preventing injection in DDL",
+        "description": "Use quote_ident() for dynamic table/column names; parameterize values separately. Interview: 'Write a dynamic SQL query that safely interpolates a user-supplied table name.'"
+      },
+      {
+        "title": "Dynamic SQL in PL/pgSQL — EXECUTE with USING for parameterized values",
+        "description": "Build dynamic queries with EXECUTE ... USING to pass parameters safely. Interview: 'When would you use EXECUTE in PL/pgSQL vs a static query?'"
+      }
+    ]
+  },
+  {
+    "title": "Prepared statements and plan caching",
+    "description": "PREPARE/EXECUTE in PostgreSQL, prepared statement protocols in drivers, plan cache invalidation. Interview: 'How do prepared statements improve performance? When can they hurt?'",
+    "level": 550,
+    "children": [
+      {
+        "title": "PREPARE and EXECUTE in PostgreSQL — syntax and lifecycle",
+        "description": "Server-side plan caching with parameter types; DEALLOCATE to free. Interview: 'Write a prepared statement for a parameterized SELECT and explain when the plan is reused.'"
+      },
+      {
+        "title": "Plan cache invalidation — when prepared statements re-optimize",
+        "description": "Schema changes, ANALYZE, and pg_stat_statements tracking. Interview: 'Your prepared statement suddenly got slow — what could have caused plan invalidation?'"
+      },
+      {
+        "title": "Extended query protocol in PostgreSQL wire protocol",
+        "description": "How drivers (libpq, JDBC) use Parse/Bind/Execute for parameterized queries. Interview: 'What happens at the protocol level when you run a parameterized query from a driver?'"
+      }
+    ]
+  },
+  {
+    "title": "JOIN algorithms — Nested Loop, Hash Join, Merge Join",
+    "description": "Understand how the query planner chooses join strategies and when each is optimal. Interview: 'Explain when a hash join outperforms a merge join. What conditions favor a nested loop?'",
+    "level": 560,
+    "children": [
+      {
+        "title": "Nested Loop Join — when small tables meet indexed lookups",
+        "description": "Planner uses nested loop for small result sets or when inner table has an index on the join key. Interview: 'Under what conditions does the planner pick a nested loop over a hash join?'"
+      },
+      {
+        "title": "Hash Join — building and probing for equi-joins on large tables",
+        "description": "Planner builds hash table from smaller input, probes with larger. Memory spills to disk if needed. Interview: 'Explain the two phases of a hash join. When does it spill to temp files?'"
+      },
+      {
+        "title": "Merge Join — sorted inputs and efficiency on pre-sorted data",
+        "description": "Both inputs must be sorted on join key; efficient when indexes or ORDER BY already provide order. Interview: 'Why does merge join require sorted inputs? How does this affect index design?'"
+      },
+      {
+        "title": "Index design for optimal JOIN performance",
+        "description": "B-tree indexes on join columns, covering indexes, composite index column order. Interview: 'You have a slow JOIN between two million-row tables. Walk me through your index strategy.'"
+      }
+    ]
+  },
+  {
+    "title": "EXPLAIN ANALYZE — reading and interpreting query plans",
+    "description": "Seq Scan vs Index Scan, cost estimates, actual vs estimated rows, filter selectivity. Interview: 'Here's an EXPLAIN output — where is the bottleneck and how would you fix it?'",
+    "level": 580,
+    "children": [
+      {
+        "title": "Seq Scan vs Index Scan vs Index Only Scan — choosing the right scan type",
+        "description": "When the planner falls back to sequential scan vs using an index vs returning directly from the index. Interview: 'Your EXPLAIN shows a Seq Scan on a 50M row table — what's your first move?'"
+      },
+      {
+        "title": "Reading cost estimates and actual vs predicted row counts",
+        "description": "How startup and total costs relate to I/O and CPU, when estimated rows diverge from actual. Interview: 'Your plan shows estimated 100 rows but actual is 500K — what went wrong?'"
+      },
+      {
+        "title": "Identifying missing indexes from execution plans",
+        "description": "Look for Seq Scan on large tables, Hash Join on large unindexed sets, Sort operations that could use an index. Interview: 'Your query plan shows a sequential scan on a 50M row table — what's your first move?'"
+      },
+      {
+        "title": "Understanding cost units, buffer hits, and I/O in plans",
+        "description": "How PostgreSQL reports shared buffers, temp files, and WAL. Interview: 'What does \"Buffers: shared hit=1234\" tell you about query performance?'"
+      }
+    ]
+  },
+  {
+    "title": "Index types — B-tree, GIN, GiST, BRIN, Hash",
+    "description": "Know which index type fits which workload (B-tree for equality/range, GIN for full-text/arrays, BRIN for append-only time-series). Interview: 'When would you choose a BRIN index over a B-tree? What are the tradeoffs?'",
+    "level": 600,
+    "children": [
+      {
+        "title": "B-tree index — default workhorse for equality, range, and ORDER BY",
+        "description": "Supports =, <, >, <=, >=, BETWEEN, LIKE 'abc%' patterns. Interview: 'What query patterns can a B-tree index accelerate? Which can it not?'"
+      },
+      {
+        "title": "GIN index — full-text search, arrays, and JSONB containment",
+        "description": "Inverted index for composite types; supports @>, tsvector/tsquery operators. Interview: 'When would you use a GIN index on a JSONB column vs a B-tree on a key path?'"
+      },
+      {
+        "title": "GiST index — spatial data, range types, and nearest-neighbor searches",
+        "description": "Generalized search tree for geometric, geographic, and range containment. Interview: 'How does a GiST index support KNN (nearest-neighbor) queries?'"
+      },
+      {
+        "title": "BRIN index — block-range for append-only and time-series data",
+        "description": "Stores min/max per block range; tiny size for naturally ordered data. Interview: 'Why is a BRIN index only 1KB on a 100M row table? When does it fail?'"
+      }
+    ]
+  },
+  {
+    "title": "Full-text search — tsvector, tsquery, and GIN indexes",
+    "description": "PostgreSQL's built-in text search with lexeme matching, ranking, and language support. Interview: 'Implement full-text search with relevance ranking on a products table.'",
+    "level": 620,
+    "children": [
+      {
+        "title": "tsvector and tsquery — tokenization and query construction",
+        "description": "Converting text to lexemes, building boolean queries with AND/OR/NOT. Interview: 'What is a tsvector? How does to_tsvector differ from simple tokenization?'"
+      },
+      {
+        "title": "Ranking with ts_rank and ts_rank_cd — relevance scoring",
+        "description": "Cover density ranking, normalization flags, and custom weighting. Interview: 'How does ts_rank_cd differ from ts_rank? When would you prefer cover density?'"
+      },
+      {
+        "title": "GIN vs GiST indexes for full-text search performance",
+        "description": "GIN is faster for read-heavy workloads; GiST is smaller and faster to update. Interview: 'When would you choose GiST over GIN for full-text search indexing?'"
+      },
+      {
+        "title": "phraseto_tsquery and websearch_to_tsquery — modern search syntax",
+        "description": "Google-style query syntax, phrase matching, and prefix search. Interview: 'How does websearch_to_tsquery differ from plainto_tsquery? Give an example.'"
+      }
+    ]
+  },
+  {
+    "title": "Array operations and unnesting in PostgreSQL",
+    "description": "Storing and querying array columns, unnesting to rows, array aggregation. Interview: 'How would you find all users who have a specific tag stored in an array column?'",
+    "level": 630,
+    "children": [
+      {
+        "title": "Array column operations — containment, overlap, and indexing",
+        "description": "@>, &&, <@ operators; GIN indexes on array columns. Interview: 'Write a query to find all products that contain both \"organic\" and \"gluten-free\" tags in an array column.'"
+      },
+      {
+        "title": "UNNEST and LATERAL — expanding arrays into rows",
+        "description": "Convert array elements to rows for joins and aggregation. Interview: 'Unnest a tags array column into individual rows and count occurrences of each tag.'"
+      },
+      {
+        "title": "Array aggregation with array_agg and string_agg",
+        "description": "Collecting grouped values into arrays or delimited strings. Interview: 'Aggregate all order IDs per customer into a single array column.'"
+      }
+    ]
+  },
+  {
+    "title": "JSONB operations — querying, indexing, and path extraction",
+    "description": "Storing, querying, and indexing semi-structured JSON data in PostgreSQL. Interview: 'Write a query that finds all users where profile->>'age' > 30 using a GIN index.'",
+    "level": 640,
+    "children": [
+      {
+        "title": "JSONB operators — ->, ->>, #>, #>>, @>, ?, and contains",
+        "description": "Path extraction, containment checks, and key existence testing. Interview: 'What's the difference between -> and ->>? When would you use #> vs ->>'"
+      },
+      {
+        "title": "GIN indexes on JSONB — containment and key/path indexing",
+        "description": "jsonb_ops vs jsonb_path_ops; which supports which operators. Interview: 'When would you use jsonb_path_ops over the default jsonb GIN operator class?'"
+      },
+      {
+        "title": "JSONB aggregation and transformation — jsonb_build_object, jsonb_agg",
+        "description": "Building JSON from relational data, aggregating rows into JSON arrays. Interview: 'Convert a relational result set into a JSON array of objects for an API response.'"
+      },
+      {
+        "title": "JSONB vs JSONB[] vs hstore — choosing the right semi-structured type",
+        "description": "Performance, indexing, and query capability differences. Interview: 'When would you choose hstore over JSONB? What about JSONB[]?'"
+      }
+    ]
+  },
+  {
+    "title": "Transaction isolation levels — Read Uncommitted through Serializable",
+    "description": "Understand dirty reads, non-repeatable reads, phantom reads, and the practical tradeoffs. Interview: 'What isolation level does your application use and why? What problems does READ COMMITTED not protect against?'",
+    "level": 650,
+    "children": [
+      {
+        "title": "Dirty reads, non-repeatable reads, phantom reads — defining anomalies",
+        "description": "Each anomaly type and which isolation levels prevent them. Interview: 'Explain the three read anomalies. Which isolation level prevents each?'"
+      },
+      {
+        "title": "READ COMMITTED vs REPEATABLE READ vs SERIALIZABLE — practical tradeoffs",
+        "description": "Default PostgreSQL is READ COMMITTED; when to escalate and performance cost. Interview: 'Why does PostgreSQL default to READ COMMITTED? When should you use SERIALIZABLE?'"
+      },
+      {
+        "title": "MVCC internals — how PostgreSQL implements isolation",
+        "description": "Tuple versioning, visibility checks, vacuum, wraparound. Interview: 'Explain how MVCC avoids locks for readers. What is transaction ID wraparound?'"
+      },
+      {
+        "title": "SELECT FOR UPDATE / FOR SHARE — pessimistic locking patterns",
+        "description": "Row-level locking to prevent lost updates. Interview: 'Write a query that atomically increments a counter while preventing concurrent lost updates.'"
+      }
+    ]
+  },
+  {
+    "title": "Index maintenance — REINDEX, fillfactor, and index-only scans",
+    "description": "Keeping indexes healthy: bloat detection, REINDEX strategies, covering indexes for index-only scans. Interview: 'Your indexes are bloated — how do you detect and fix it without downtime?'",
+    "level": 660,
+    "children": [
+      {
+        "title": "Index bloat detection — pg_stat_user_indexes and btree_check",
+        "description": "Identifying bloated indexes using statistics and page-level inspection. Interview: 'How do you measure index bloat in PostgreSQL?'"
+      },
+      {
+        "title": "REINDEX vs CREATE INDEX CONCURRENTLY — online rebuild strategies",
+        "description": "REINDEX locks the index; CREATE INDEX CONCURRENTLY allows reads during build. Interview: 'How do you rebuild a bloated index on a production table without blocking reads?'"
+      },
+      {
+        "title": "Covering indexes and INCLUDE clause for index-only scans",
+        "description": "Add non-key columns to indexes to avoid heap fetches. Interview: 'Your query only needs columns a and b — how do you create a covering index for it?'"
+      },
+      {
+        "title": "Fillfactor and page-level dead space for update-heavy workloads",
+        "description": "Lower fillfactor leaves room for HOT updates; reduces bloat on frequently updated tables. Interview: 'When would you set fillfactor below 100 on a table? What's the tradeoff?'"
+      }
+    ]
+  },
+  {
+    "title": "VACUUM, ANALYZE, and PostgreSQL autovacuum configuration",
+    "description": "Dead tuple accumulation, bloat, and why vacuuming matters. Interview: 'Your table is 3x its expected size — walk me through diagnosing and fixing bloat.'",
+    "level": 680,
+    "children": [
+      {
+        "title": "Dead tuples and bloat — why updates create invisible row versions",
+        "description": "MVCC creates dead tuples on UPDATE/DELETE; bloat degrades scan and index performance. Interview: 'Why does a table with many UPDATEs grow larger than its logical data size?'"
+      },
+      {
+        "title": "VACUUM basics — manual vs autovacuum, what vacuum actually reclaims",
+        "description": "Marks dead tuples as reusable; does not return disk space unless followed by VACUUM FULL. Interview: 'What's the difference between VACUUM and VACUUM FULL? When would you use each?'"
+      },
+      {
+        "title": "ANALYZE and statistics — keeping the planner informed",
+        "description": "pg_stats, default_statistics_target, when stale stats cause bad plans. Interview: 'Your query suddenly got slow after a data load — how do you check if ANALYZE ran?'"
+      },
+      {
+        "title": "autovacuum tuning — thresholds, scale factors, cost limits",
+        "description": "Per-table autovacuum settings, when to increase frequency for high-update tables. Interview: 'A table with heavy UPDATE traffic is experiencing performance degradation. What autovacuum knobs do you adjust?'"
+      }
+    ]
+  },
+  {
+    "title": "Advisory locks — application-level locking in PostgreSQL",
+    "description": "Explicit lock management for coordinating concurrent processes without table locks. Interview: 'How would you ensure only one background job processes a queue at a time?'",
+    "level": 700,
+    "children": [
+      {
+        "title": "Session-level vs transaction-level advisory locks",
+        "description": "pg_advisory_lock (session) vs pg_advisory_xact_lock (transaction); explicit release vs auto-release. Interview: 'What happens if you acquire a session advisory lock and forget to release it?'"
+      },
+      {
+        "title": "Advisory lock patterns — idempotent job processing",
+        "description": "Use lock ID derived from job key for safe concurrent job assignment. Interview: 'Design a distributed job queue using advisory locks to prevent double-processing.'"
+      }
+    ]
+  },
+  {
+    "title": "Partitioning — range, list, and hash partitioning",
+    "description": "Splitting large tables for query performance and maintenance. Interview: 'How would you partition a 500M row events table? What query patterns benefit?'",
+    "level": 710,
+    "children": [
+      {
+        "title": "Range partitioning — splitting by date or numeric ranges",
+        "description": "Create partitions by month/year for time-series data; automatic partition creation. Interview: 'Set up range partitioning on an events table by month — what SQL is needed?'"
+      },
+      {
+        "title": "List partitioning — splitting by discrete values",
+        "description": "Partitions by category, region, or status; each partition holds specific values. Interview: 'When would list partitioning outperform range partitioning?'"
+      },
+      {
+        "title": "Hash partitioning — distributing data evenly across partitions",
+        "description": "Modular hash on a column; useful for even distribution without natural range. Interview: 'Why would you hash-partition a table that has no natural range key?'"
+      },
+      {
+        "title": "Partition pruning and how the planner uses partition bounds",
+        "description": "Ensuring queries hit only relevant partitions. Interview: 'Your partitioned table isn't pruning — how do you debug it?'"
+      }
+    ]
+  },
+  {
+    "title": "Partition maintenance — detach, attach, and reindex",
+    "description": "Managing partitions for time-series: creating future partitions, archiving old ones. Interview: 'Design a partitioning strategy for a table that grows 10M rows/month and needs 2-year retention.'",
+    "level": 720,
+    "children": [
+      {
+        "title": "Creating and attaching new partitions for upcoming time periods",
+        "description": "CREATE TABLE ... PARTITION OF for new months; ATTACH PARTITION for data migration. Interview: 'How do you add a partition for next month without locking the main table?'"
+      },
+      {
+        "title": "Detaching and archiving old partitions for retention policies",
+        "description": "DETACH PARTITION for read-only archives; DROP or move to cheaper storage. Interview: 'How do you drop partitions older than 2 years while keeping the table online?'"
+      }
+    ]
+  },
+  {
+    "title": "Schema migration strategies — versioned migrations and zero-downtime changes",
+    "description": "Flyway, Liquibase, and safe DDL change patterns. Interview: 'How do you add a NOT NULL column to a 50M row table without locking it?'",
+    "level": 740,
+    "children": [
+      {
+        "title": "Online DDL — adding columns, constraints, and indexes without locks",
+        "description": "PostgreSQL supports ADD COLUMN (fast default), CREATE INDEX CONCURRENTLY, and NOT VALID constraints. Interview: 'Walk me through adding a NOT NULL column with a DEFAULT to a large table without downtime.'"
+      },
+      {
+        "title": "Backward-compatible schema changes — expand-and-contract pattern",
+        "description": "Add new column, migrate data, switch reads, drop old column. Interview: 'How do you rename a column in production without breaking running application instances?'"
+      },
+      {
+        "title": "Migration versioning and rollback strategies",
+        "description": "Why every migration needs a down path; testing migrations against production-like data. Interview: 'A migration failed in production — how do you safely rollback?'"
+      }
+    ]
+  },
+  {
+    "title": "Logical replication — publications and subscriptions",
+    "description": "PostgreSQL's built-in logical replication for selective table replication. Interview: 'How would you set up logical replication to replicate specific tables to a reporting server?'",
+    "level": 750,
+    "children": [
+      {
+        "title": "Publications and subscriptions — setup and replication slots",
+        "description": "CREATE PUBLICATION for specific tables; CREATE SUBSCRIPTION to consume. Interview: 'What's the difference between logical and physical replication? When use each?'"
+      },
+      {
+        "title": "Replication slot management — preventing WAL accumulation",
+        "description": "Slots retain WAL until consumed; monitoring pg_replication_slots for lag. Interview: 'Your replication slot is causing disk to fill up — what's happening and how do you fix it?'"
+      },
+      {
+        "title": "Conflict resolution and replication of DDL changes",
+        "description": "Logical replication doesn't replicate DDL; handling conflicting writes. Interview: 'You alter a table on the publisher — what happens on the subscriber?'"
+      }
+    ]
+  },
+  {
+    "title": "pg_stat_statements and query performance monitoring",
+    "description": "Identifying slow queries, tracking query statistics, and performance baselines. Interview: 'How do you find the top 10 slowest queries in your database?'",
+    "level": 760,
+    "children": [
+      {
+        "title": "pg_stat_statements — installation, configuration, and key columns",
+        "description": "Enable in postgresql.conf, track calls/time/plans, reset periodically. Interview: 'What columns in pg_stat_statements help you identify problematic queries?'"
+      },
+      {
+        "title": "auto_explain — automatic slow query logging",
+        "description": "Log execution plans for queries exceeding a time threshold. Interview: 'How do you set up automatic EXPLAIN logging for queries over 500ms?'"
+      },
+      {
+        "title": "pg_stat_user_tables and pg_stat_user_indexes — table and index statistics",
+        "description": "Sequential vs index scans, n_tup_ins/upd/del, dead tuples, idx_scan. Interview: 'How do you identify an unused index using pg_stat_user_indexes?'"
+      }
+    ]
+  },
+  {
+    "title": "Connection pooling — PgBouncer, connection management, and pooling modes",
+    "description": "Managing database connections efficiently in high-concurrency applications. Interview: 'Why is connection pooling essential? What happens if you exhaust max_connections?'",
+    "level": 780,
+    "children": [
+      {
+        "title": "PgBouncer pooling modes — session, transaction, and statement",
+        "description": "Session mode: connection per client; transaction mode: connection per transaction; statement: single query. Interview: 'What are the tradeoffs between session and transaction pooling modes?'"
+      },
+      {
+        "title": "Connection pool sizing — pgbouncer pool_size and default_pool_size",
+        "description": "Matching pool size to database capacity; avoiding connection storms. Interview: 'How do you determine the right pool_size for a PgBouncer instance?'"
+      },
+      {
+        "title": "Connection lifecycle — idle timeout, server_reset_query, and client-side pooling",
+        "description": "Cleaning up session state between clients; application-level vs infrastructure pooling. Interview: 'Why does transaction pooling mode require server_reset_queryDISCARD ALL?'"
+      }
+    ]
+  },
+  {
+    "title": "Backup and recovery — WAL archiving, PITR, and pg_basebackup",
+    "description": "Physical and logical backups, point-in-time recovery, and disaster preparedness. Interview: 'Walk me through setting up point-in-time recovery for a PostgreSQL instance.'",
+    "level": 800,
+    "children": [
+      {
+        "title": "Logical backups — pg_dump, pg_dumpall, and pg_restore",
+        "description": "Custom format (-Fc) for selective restore, plain SQL for portability, parallel restore. Interview: 'When would you use pg_dump -Fc vs plain SQL output?'"
+      },
+      {
+        "title": "Physical backups — pg_basebackup and continuous WAL archiving",
+        "description": "Base backup plus WAL segments enable PITR; archive_command configuration. Interview: 'How does WAL archiving enable point-in-time recovery?'"
+      },
+      {
+        "title": "Point-in-time recovery — recovery.conf, restore_command, and timeline",
+        "description": "Recovery to a specific timestamp or transaction ID; managing timelines. Interview: 'A table was accidentally dropped at 14:30 — how do you recover to 14:29?'"
+      },
+      {
+        "title": "Backup testing — verifying restore integrity and RPO/RTO targets",
+        "description": "Regular restore tests, measuring recovery time, backup validation. Interview: 'How do you test that your backup can actually be restored? How often should you test?'"
+      }
+    ]
+  },
+  {
+    "title": "Scaling reads — replicas, read replicas, and query routing",
+    "description": "Streaming replication for read scaling, routing queries to replicas. Interview: 'How do you set up a read replica and route analytics queries to it?'",
+    "level": 820,
+    "children": [
+      {
+        "title": "Streaming replication setup — synchronous vs asynchronous",
+        "description": "Primary-standby configuration; sync rep for zero data loss vs async for performance. Interview: 'What's the tradeoff between synchronous and asynchronous streaming replication?'"
+      },
+      {
+        "title": "Replica lag monitoring and impact on query routing",
+        "description": "pg_stat_replication, lag tracking, stale read handling. Interview: 'How do you monitor replication lag? What happens if a replica falls behind?'"
+      },
+      {
+        "title": "Hot standby and replica-only features — conflict resolution",
+        "description": "Hot standby feedback, recovery target settings, query cancel on standby. Interview: 'Can you run pg_stat_statements on a hot standby? What are the limitations?'"
+      }
+    ]
+  },
+  {
+    "title": "Data warehousing patterns — SCD, slowly changing dimensions",
+    "description": "Type 1/2/3 SCD handling, fact table design, and ETL patterns. Interview: 'Implement a Type 2 slowly changing dimension for a customer dimension table.'",
+    "level": 850,
+    "children": [
+      {
+        "title": "Type 1, 2, 3 SCD — overwrite, version rows, and previous value columns",
+        "description": "Type 1: overwrites history; Type 2: adds new row with validity dates; Type 3: stores previous value in a column. Interview: 'When would you use Type 2 vs Type 1 for a customer address change?'"
+      },
+      {
+        "title": "SCD Type 2 implementation — valid_from, valid_to, and current flag",
+        "description": "Temporal columns, merge/upsert patterns for dimension updates. Interview: 'Write a merge query that implements SCD Type 2 for a products dimension.'"
+      },
+      {
+        "title": "Fact table design — grain, additive measures, and degenerate dimensions",
+        "description": "Determining grain, additive vs semi-additive vs non-additive measures. Interview: 'What is the grain of a fact table? Why does it matter for query correctness?'"
+      }
+    ]
+  },
+  {
+    "title": "PostgreSQL extensions ecosystem — practical extensions",
+    "description": "Key extensions: pg_trgm, btree_gist, pg_stat_statements, uuid-ossp, and more. Interview: 'Which PostgreSQL extensions have you used? How did they solve a specific problem?'",
+    "level": 880,
+    "children": [
+      {
+        "title": "pg_trgm — trigram indexes for fuzzy text matching",
+        "description": "Trigram similarity for LIKE '%term%' queries; GIN/GiST index support. Interview: 'How do you create a trigram index to speed up fuzzy name searches?'"
+      },
+      {
+        "title": "btree_gist — GiST indexes for scalar types and exclusion constraints",
+        "description": "Enables GiST indexes on integer/date/timestamp ranges for EXCLUDE constraints. Interview: 'Why does the EXCLUDE constraint require btree_gist for range types?'"
+      },
+      {
+        "title": "pgcrypto — cryptographic functions for hashing and encryption",
+        "description": "pgp_sym_encrypt, gen_salt, crypt for application-level encryption. Interview: 'How do you store salted password hashes in PostgreSQL using pgcrypto?'"
+      },
+      {
+        "title": "PostGIS — spatial data types and geographic queries",
+        "description": "Geometry/geography types, spatial indexes, distance queries. Interview: 'Write a query to find all stores within 5km of a given coordinate using PostGIS.'"
+      }
+    ]
+  },
+  {
+    "title": "Query plan caching and prepared statement optimization",
+    "description": "How PostgreSQL caches query plans, generic vs custom plans, and plan instability. Interview: 'Why does a prepared statement sometimes get a worse plan than the original query?'",
+    "level": 900,
+    "children": [
+      {
+        "title": "Generic plans vs custom plans — planner threshold",
+        "description": "After 5 executions, PostgreSQL may switch to generic plan; pg_stat_statements tracks plan type. Interview: 'How does PostgreSQL decide between generic and custom plans for prepared statements?'"
+      },
+      {
+        "title": "Plan instability and parameter sensitivity",
+        "description": "Different parameter values can yield vastly different plans; histograms and extended statistics help. Interview: 'Your query is fast with one parameter value but slow with another — why?'"
+      },
+      {
+        "title": "Extended statistics — multi-column and expression statistics",
+        "description": "CREATE STATISTICS for correlated columns; helps planner estimate selectivity. Interview: 'How do you help the planner when WHERE a=1 AND b=1 produces a bad estimate?'"
+      }
+    ]
+  },
+  {
+    "title": "PostgreSQL performance at scale — shared buffers, work_mem, and configuration",
+    "description": "Tuning PostgreSQL for high-throughput workloads. Interview: 'How do you tune work_mem for a system with complex sorts and limited RAM?'",
+    "level": 920,
+    "children": [
+      {
+        "title": "shared_buffers vs OS page cache — memory allocation strategy",
+        "description": "PostgreSQL relies on OS cache for disk reads; shared_buffers for shared cache. Interview: 'Why is shared_buffers typically set to 25% of RAM, not higher?'"
+      },
+      {
+        "title": "work_mem and hash/multiply operations — per-operation memory",
+        "description": "Each sort/hash operation gets work_mem; too high causes OOM with many concurrent queries. Interview: 'Your query uses 3 sort operations — how much work_mem does it consume?'"
+      },
+      {
+        "title": "effective_cache_size and random_page_cost — planner cost knobs",
+        "description": "Hints to planner about available cache and I/O cost model. Interview: 'How do random_page_cost and effective_cache_size affect index vs seq scan decisions?'"
+      },
+      {
+        "title": "Huge pages, huge_pages setting, and memory-mapped I/O",
+        "description": "Using huge pages to reduce TLB misses for large shared_buffers. Interview: 'When should you enable huge_pages=try in PostgreSQL configuration?'"
+      }
+    ]
+  },
+  {
+    "title": "Advanced PostgreSQL concurrency — predicate locking and serializable anomalies",
+    "description": "Serializable isolation internals, predicate locks, and write skew anomalies. Interview: 'What is write skew? Why doesn't REPEATABLE READ prevent it?'",
+    "level": 940,
+    "children": [
+      {
+        "title": "Write skew anomaly — the gap between REPEATABLE READ and SERIALIZABLE",
+        "description": "Two transactions read overlapping data and write non-overlapping rows; can produce inconsistent state. Interview: 'Give an example of write skew that REPEATABLE READ allows but SERIALIZABLE prevents.'"
+      },
+      {
+        "title": "Serializable Snapshot Isolation (SSI) — how PostgreSQL detects conflicts",
+        "description": "Predicate locks on read sets; serialization failure on dangerous patterns. Interview: 'How does PostgreSQL's SSI detect serializability violations without full locking?'"
+      },
+      {
+        "title": "Handling serialization failures — retry logic and exponential backoff",
+        "description": "Applications must catch serialization errors and retry. Interview: 'Your application uses SERIALIZABLE isolation — how do you handle serialization failures gracefully?'"
+      }
+    ]
+  },
+  {
+    "title": "Database observability and performance baselining",
+    "description": "Establishing performance baselines, continuous monitoring, and anomaly detection. Interview: 'How do you establish a performance baseline for a PostgreSQL database?'",
+    "level": 960,
+    "children": [
+      {
+        "title": "pgBadger and log analysis — slow query reports and trends",
+        "description": "Parse PostgreSQL logs for query analysis, timing distributions, and error rates. Interview: 'How do you use pgBadger to identify query performance degradation over time?'"
+      },
+      {
+        "title": "Prometheus + pg_exporter — infrastructure monitoring",
+        "description": "Key metrics: connections, transactions per second, cache hit ratio, replication lag. Interview: 'What are the top 5 PostgreSQL metrics you monitor in production?'"
+      },
+      {
+        "title": "Query plan regression detection and plan forcing",
+        "description": "pg_hint_plan for plan forcing; tracking plan changes over time. Interview: 'A query's plan regressed after an upgrade — how do you force the old plan?'"
+      }
+    ]
+  },
+  {
+    "title": "Disaster recovery and multi-region PostgreSQL",
+    "description": "Cross-region replication, failover strategies, and data residency. Interview: 'How do you set up a cross-region PostgreSQL deployment for disaster recovery?'",
+    "level": 980,
+    "children": [
+      {
+        "title": "Physical replication across data centers — latency and WAL transport",
+        "description": "Synchronous vs async cross-DC replication; WAL compression and bandwidth. Interview: 'What challenges arise with synchronous replication across regions?'"
+      },
+      {
+        "title": "Logical replication for multi-region — selective table replication",
+        "description": "Replicating only needed tables across regions; conflict resolution. Interview: 'How would you use logical replication to serve reads from a regional replica?'"
+      },
+      {
+        "title": "Failover orchestration — Patroni, repmgr, and automatic failover",
+        "description": "Consensus-based failover, leader election, split-brain prevention. Interview: 'Compare Patroni and repmgr for automatic failover. What are the tradeoffs?'"
+      }
+    ]
+  },
+  {
+    "title": "PostgreSQL at architecture scale — patterns for large systems",
+    "description": "CQRS, event sourcing, and architectural patterns using PostgreSQL as a foundation. Interview: 'How would you implement an event sourcing pattern using PostgreSQL?'",
+    "level": 1000,
+    "children": [
+      {
+        "title": "CQRS with PostgreSQL — read and write model separation",
+        "description": "Separate write model (normalized) from read model (denormalized/materialized). Interview: 'How do you implement CQRS using PostgreSQL materialized views and logical replication?'"
+      },
+      {
+        "title": "Event sourcing with PostgreSQL — append-only event tables",
+        "description": "Storing state changes as events; rebuilding current state from event history. Interview: 'Design an event store using PostgreSQL with efficient projection queries.'"
+      },
+      {
+        "title": "Multi-tenancy patterns — schema-per-tenant, row-level security, and citus",
+        "description": "Isolation tradeoffs, per-tenant schemas, shared tables with tenant_id. Interview: 'Compare schema-per-tenant vs row-level security for a SaaS application.'"
+      }
+    ]
+  }
+]

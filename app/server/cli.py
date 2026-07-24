@@ -540,7 +540,7 @@ def cleanup(
             for pid in pids:
                 if pid:
                     try:
-                        _signal.signal(int(pid), _signal.SIGTERM)
+                        os.kill(int(pid), _signal.SIGTERM)
                         console.print(f"  [green]Sent SIGTERM to PID {pid}[/green]")
                     except Exception as e:
                         console.print(f"  [red]Failed to kill PID {pid}: {e}[/red]")

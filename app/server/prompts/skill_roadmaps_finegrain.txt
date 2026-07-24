@@ -1,0 +1,32 @@
+Fine-grain this {skill_name} roadmap. Split each broad item into specific sub-items.
+
+EXISTING TREE:
+{existing_tree_json}
+
+User has completed: {checked_items}
+
+RULES:
+1. Keep ALL existing parent titles as parents
+2. Each parent gets 2-4 children with specific, actionable titles
+3. Children have sub-levels within the parent's level range (e.g. parent at 400 → children at 350, 420, 480)
+4. Make each item more specific and actionable for interview preparation
+5. Max 2 levels of nesting
+6. ONLY items about {skill_name} — nothing else
+7. Levels 000-1000, ordered ascending
+
+OUTPUT: Reply with ONLY a valid JSON array containing the COMPLETE fine-grained roadmap. No markdown, no explanation, no code fences.
+
+[
+  {{
+    "title": "Specific Item Title",
+    "description": "What this covers and what interview question it answers",
+    "level": 400,
+    "children": [
+      {{
+        "title": "Specific Sub-Item Title",
+        "description": "What this covers and what interview question it answers",
+        "level": 380
+      }}
+    ]
+  }}
+]

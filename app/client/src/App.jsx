@@ -39,6 +39,7 @@ import {
   useResume,
   useCareerIntel,
 } from "@/hooks";
+import { useSocketIO, watchSkills, unwatchSkills } from "@/hooks/useSocketIO";
 
 const API = "/api";
 
@@ -176,7 +177,7 @@ function App() {
   // Global skill roadmap progress (shared between SkillsIntelSection and SkillRoadmapDrawer)
   const [skillRoadmapProgress, setSkillRoadmapProgress] = useState({});
   const [skillGenJobs, setSkillGenJobs] = useState([]); // active/failed generation jobs
-  const skillProgressPollRef = useRef(null);
+  const socket = useSocketIO();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -198,7 +199,6 @@ function App() {
     fetchCareerStatus();
     fetchCareerProgress();
     fetchSkillProgress();
-    pollSkillGenJobs();
   }, []);
 
   const fetchRules = () =>
@@ -215,12 +215,12 @@ function App() {
     } catch {}
   }, []);
 
-  // Poll skill generation jobs — deduplicated by skill name
-  const pollSkillGenJobs = useCallback(async () => {
+  // Fetch active generation jobs (running/queued) for the top bar
+  const pollActiveSkillJobs = useCallback(async () => {
     try {
       const stackRes = await fetch(`${API}/tech-stack`);
       const stack = await stackRes.json();
-      const skills = [...new Set(stack.map((s) => s.name))]; // deduplicate names
+      const skills = [...new Set(stack.map((s) => s.name))];
       const jobs = [];
       const seen = new Set();
       for (const skill of skills.slice(0, 20)) {
@@ -238,24 +238,52 @@ function App() {
     } catch {}
   }, []);
 
-  // Start polling when there are active jobs, stop when done
+  // SocketIO: watch skill roadmap progress (replaces per-skill polling)
   useEffect(() => {
-    if (skillGenJobs.length > 0) {
-      skillProgressPollRef.current = setInterval(async () => {
-        await pollSkillGenJobs();
-        await fetchSkillProgress();
-      }, 2000);
-    } else {
-      if (skillProgressPollRef.current) {
-        clearInterval(skillProgressPollRef.current);
-        skillProgressPollRef.current = null;
-      }
-    }
-    return () => {
-      if (skillProgressPollRef.current)
-        clearInterval(skillProgressPollRef.current);
+    const handleSkillUpdate = (data) => {
+      const { skill } = data;
+      if (!skill) return;
+      // Update global progress map
+      setSkillRoadmapProgress((prev) => ({
+        ...prev,
+        [skill]: { ...prev[skill], ...data },
+      }));
+      // Track active generation jobs for the top bar
+      setSkillGenJobs((prev) => {
+        const idx = prev.findIndex((j) => j.skill === skill);
+        if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
+          return idx >= 0 ? prev.filter((_, i) => i !== idx) : prev;
+        }
+        const job = { skill, ...data };
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = job;
+          return next;
+        }
+        return [...prev, job];
+      });
     };
-  }, [skillGenJobs.length, pollSkillGenJobs, fetchSkillProgress]);
+    socket.on("skill_roadmap:update", handleSkillUpdate);
+
+    // On (re)connect: re-fetch all active jobs so we never miss session_id or status
+    const handleConnect = () => {
+      watchSkills();
+      fetchSkillProgress();
+      pollActiveSkillJobs();
+    };
+    socket.on("connect", handleConnect);
+
+    // If already connected, join immediately
+    if (socket.connected) {
+      watchSkills();
+    }
+
+    return () => {
+      unwatchSkills();
+      socket.off("skill_roadmap:update", handleSkillUpdate);
+      socket.off("connect", handleConnect);
+    };
+  }, [socket, fetchSkillProgress]);
 
   useEffect(() => {
     const onHash = () => {
