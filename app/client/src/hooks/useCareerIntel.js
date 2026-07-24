@@ -71,8 +71,9 @@ export function useCareerIntel() {
         setError(body.message || 'Analysis already in progress')
         return false
       }
+      // Optimistically show progress bar immediately (WebSocket will update with real data)
+      setProgress(p => ({ ...p, running: true, type: section }))
       setRefreshing(r => ({ ...r, [section]: true }))
-      // WebSocket will handle completion — no polling needed
       return true
     } catch (e) {
       setError('Failed to start analysis')
@@ -89,8 +90,9 @@ export function useCareerIntel() {
         setError(body.message || 'Analysis already in progress')
         return false
       }
+      // Optimistically show progress bar immediately (WebSocket will update with real data)
+      setProgress(p => ({ ...p, running: true, type: 'all' }))
       setRefreshing(r => ({ ...r, all: true }))
-      // WebSocket will handle completion — no polling needed
       return true
     } catch (e) {
       setError('Failed to start analysis')
