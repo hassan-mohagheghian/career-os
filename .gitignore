@@ -51,3 +51,17 @@ app/server/db/
 
 # Temp files
 exp-file.txt
+
+# Test/coverage
+.coverage
+.pytest_cache/
+
+# Server logs
+app/server/logs/
+
+# Runtime process IDs
+.client.pid
+.server.pid
+
+# Generated schema
+sql_roadmap.json
