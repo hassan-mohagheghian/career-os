@@ -1,6 +1,7 @@
 """Dashboard insights and refresh routes."""
 
 import json
+import sqlite3
 
 from database import get_db
 from flask import Blueprint, jsonify, request
@@ -130,8 +131,13 @@ def delete_tech_learning(id):
 
 @bp.route("/api/tech-stack")
 def get_tech_stack():
+    """Get visible skills. Optional query: ?category=technical"""
     conn = get_db()
-    rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 ORDER BY level DESC").fetchall()
+    category = request.args.get("category", "")
+    if category:
+        rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 AND category=? ORDER BY level DESC", (category,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 ORDER BY level DESC").fetchall()
     conn.close()
     return stream_json([dict(r) for r in rows])
 
@@ -254,6 +260,74 @@ def merge_skills():
     row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (target_id,)).fetchone()
     conn.close()
     return jsonify({"status": "merged", "target": dict(row) if row else None, "merged": merged})
+
+
+@bp.route("/api/tech-stack/hidden")
+def get_hidden_skills():
+    """List all hidden skills."""
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=1 ORDER BY name").fetchall()
+    conn.close()
+    return stream_json([dict(r) for r in rows])
+
+
+@bp.route("/api/tech-stack/<int:id>/restore", methods=["PATCH"])
+def restore_skill(id):
+    """Restore a hidden skill (unhide it)."""
+    conn = get_db()
+    conn.execute("UPDATE tech_stack SET hidden=0 WHERE id=?", (id,))
+    conn.commit()
+    row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (id,)).fetchone()
+    conn.close()
+    if row:
+        return jsonify(dict(row))
+    return jsonify({"error": "Not found"}), 404
+
+
+@bp.route("/api/skill-relationships/<skill_name>")
+def get_skill_relationships(skill_name):
+    """Get all relationships for a skill."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM skill_relationships WHERE skill_name=? OR related_name=?",
+        (skill_name, skill_name)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@bp.route("/api/skill-relationships", methods=["POST"])
+def create_skill_relationship():
+    """Create a skill relationship."""
+    data = request.get_json() or {}
+    skill = data.get("skill_name")
+    related = data.get("related_name")
+    rel_type = data.get("relation_type")
+    confidence = data.get("confidence", 0)
+    if not skill or not related or not rel_type:
+        return jsonify({"error": "skill_name, related_name, relation_type required"}), 400
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+            (skill, related, rel_type, confidence)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({"error": "Relationship already exists"}), 409
+    conn.close()
+    return jsonify({"status": "created"}), 201
+
+
+@bp.route("/api/skill-relationships/<int:id>", methods=["DELETE"])
+def delete_skill_relationship(id):
+    """Delete a skill relationship."""
+    conn = get_db()
+    conn.execute("DELETE FROM skill_relationships WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "deleted"})
 
 
 @bp.route("/api/cities")
@@ -994,7 +1068,7 @@ def _run_generate_worker(skill):
         # Step 2: Build prompt
         _update_skill_progress(skill, step=2, message="Building AI prompt")
         prompt = load_prompt(
-            "skill_roadmaps_generate",
+            "skill_roadmaps/skill_roadmaps_generate",
             skill_name=skill,
             current_level=current_level,
             checked_items="none",
@@ -1072,7 +1146,7 @@ def _run_grow_worker(skill, mode="extend"):
     from prompts import load_prompt
 
     action_label = "Extending" if mode == "extend" else "Fine-graining"
-    prompt_name = f"skill_roadmaps_{mode}"
+    prompt_name = f"skill_roadmaps/skill_roadmaps_{mode}"
     _update_skill_progress(
         skill, job_type=mode, status="running", step=1,
         message=f"Preparing {action_label.lower()}",

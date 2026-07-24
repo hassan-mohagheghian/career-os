@@ -239,7 +239,7 @@ def _parse_session_id(stdout):
 def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs):
     """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
-    prompt = load_prompt(prompt_name, project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
+    prompt = load_prompt(f'career_intel/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
     if result_file is None:
         result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
     proc = None

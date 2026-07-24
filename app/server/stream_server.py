@@ -504,7 +504,7 @@ async def process_job_stream(pid):
             _log(pid, 'analyze', f'New job #{next_num}...')
 
         rules = _load_rules()
-        prompt = load_prompt('step8_score',
+        prompt = load_prompt('job_processing/step8_score',
             url=url, job_file=job_file, project_root=PROJECT_ROOT,
             pid=pid, next_num=next_num, rules=rules)
 

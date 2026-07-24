@@ -94,3 +94,115 @@ class TestMergeSkills:
         assert len(tech) == 1
         assert tech[0][0] == 'React'
         conn.close()
+
+    def test_merge_user_into_service(self, test_db):
+        """User-input skill can merge with service-detected skill and vice versa."""
+        conn = sqlite3.connect(test_db)
+        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
+        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
+        conn.commit()
+
+        merged = _merge(conn, 1, [2])
+        assert merged == ['postgres']
+        assert conn.execute("SELECT source FROM tech_stack WHERE id=1").fetchone()[0] == 'user'
+        conn.close()
+
+
+class TestSkillTaxonomy:
+    def test_category_filter(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute("INSERT INTO tech_stack (name, level, category) VALUES (?, ?, ?)", ('Python', 4, 'technical'))
+        conn.execute("INSERT INTO tech_stack (name, level, category) VALUES (?, ?, ?)", ('Leadership', 3, 'professional'))
+        conn.commit()
+
+        tech = conn.execute("SELECT name FROM tech_stack WHERE category='technical'").fetchall()
+        assert len(tech) == 1
+        assert tech[0][0] == 'Python'
+
+        prof = conn.execute("SELECT name FROM tech_stack WHERE category='professional'").fetchall()
+        assert len(prof) == 1
+        assert prof[0][0] == 'Leadership'
+        conn.close()
+
+    def test_hidden_skills_list(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('CSS', 1, 0))
+        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
+        conn.commit()
+
+        hidden = conn.execute("SELECT name FROM tech_stack WHERE hidden=1").fetchall()
+        assert len(hidden) == 1
+        assert hidden[0][0] == 'jQuery'
+        conn.close()
+
+    def test_restore_hidden_skill(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
+        conn.commit()
+
+        conn.execute("UPDATE tech_stack SET hidden=0 WHERE id=1")
+        conn.commit()
+
+        row = conn.execute("SELECT hidden FROM tech_stack WHERE id=1").fetchone()
+        assert row[0] == 0
+        conn.close()
+
+
+class TestSkillRelationships:
+    def test_create_relationship(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute(
+            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+            ('React', 'ReactJS', 'similar', 0.9)
+        )
+        conn.commit()
+
+        row = conn.execute("SELECT * FROM skill_relationships WHERE skill_name='React'").fetchone()
+        assert row is not None
+        assert row[3] == 'similar'
+        conn.close()
+
+    def test_query_relationships_bidirectional(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute(
+            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+            ('React', 'ReactJS', 'similar', 0.9)
+        )
+        conn.commit()
+
+        rows = conn.execute(
+            "SELECT * FROM skill_relationships WHERE skill_name=? OR related_name=?",
+            ('React', 'React')
+        ).fetchall()
+        assert len(rows) == 1
+        conn.close()
+
+    def test_delete_relationship(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute(
+            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+            ('React', 'ReactJS', 'similar', 0.9)
+        )
+        conn.commit()
+
+        conn.execute("DELETE FROM skill_relationships WHERE id=1")
+        conn.commit()
+
+        rows = conn.execute("SELECT * FROM skill_relationships").fetchall()
+        assert len(rows) == 0
+        conn.close()
+
+    def test_unique_constraint(self, test_db):
+        conn = sqlite3.connect(test_db)
+        conn.execute(
+            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+            ('React', 'ReactJS', 'similar', 0.9)
+        )
+        conn.commit()
+
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+                ('React', 'ReactJS', 'similar', 0.8)
+            )
+        conn.close()

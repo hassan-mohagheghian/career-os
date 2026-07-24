@@ -280,6 +280,7 @@ def run_migrations():
     _migrate_roadmap_numbering_column()
     _migrate_pending_session_id()
     _migrate_skill_management()
+    _migrate_skill_taxonomy()
 
 
 def _migrate_roadmap_numbering_column():
@@ -345,6 +346,36 @@ def _migrate_skill_management():
         if 'merged_into' not in cols:
             log.info("migrate.adding_tech_stack_merged_into")
             conn.execute("ALTER TABLE tech_stack ADD COLUMN merged_into TEXT DEFAULT ''")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_skill_taxonomy():
+    """Add skill taxonomy columns and skill_relationships table."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(tech_stack)").fetchall()}
+        for col, default in [
+            ('category', "''"), ('confidence', '0'), ('market_relevance', '0'),
+            ('evidence', "'[]'"), ('source_type', "'service'"),
+        ]:
+            if col not in cols:
+                log.info(f"migrate.adding_tech_stack_{col}")
+                conn.execute(f"ALTER TABLE tech_stack ADD COLUMN {col} TEXT DEFAULT {default}" if col == 'category' or col == 'evidence' or col == 'source_type' else f"ALTER TABLE tech_stack ADD COLUMN {col} REAL DEFAULT {default}")
+        # Create skill_relationships table if not exists
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        if 'skill_relationships' not in tables:
+            log.info("migrate.creating_skill_relationships")
+            conn.execute("""CREATE TABLE IF NOT EXISTS skill_relationships (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill_name TEXT NOT NULL,
+                related_name TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                confidence REAL DEFAULT 0,
+                UNIQUE(skill_name, related_name, relation_type)
+            )""")
         conn.commit()
         conn.close()
     except Exception as e:

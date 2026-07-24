@@ -31,7 +31,7 @@ export default function MarketIntelSection({ data, refreshing, onRefresh }) {
               <MapPin className="w-5 h-5 text-primary" />
               <h4 className="font-extrabold text-sm">Cities</h4>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {cities.map((city, i) => (
                 <div key={i} className="p-2 rounded-lg border border-muted hover:border-primary transition">
                   <div className="flex items-center justify-between">

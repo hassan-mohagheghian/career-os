@@ -163,7 +163,7 @@ def generate_resume(num):
         f.write(dict(resume_row)['raw_text'])
 
     try:
-        prompt = load_prompt('step_resume_generate',
+        prompt = load_prompt('resume/step_resume_generate',
             job_file=job_file, resume_file=resume_file,
             tmp_dir=tmp_dir, pid=pid)
 
@@ -251,7 +251,7 @@ def generate_cover(num):
         if rule_rows:
             rules_text = '\n'.join([f"- {r['key']} (weight:{r.get('score_weight') or r['priority']}): {r['value']}" for r in rule_rows])
 
-        prompt = load_prompt('step7_cover_generate',
+        prompt = load_prompt('resume/step7_cover_generate',
             url=j.get('url', ''), job_file=job_file, resume_file=resume_file,
             tmp_dir=tmp_dir, pid=pid, rules=rules_text)
 

@@ -82,8 +82,11 @@ Save the result to {tmp_dir}/skills_intelligence_{pid}.json with this exact stru
     "strengths": [
       {{
         "skill": "<name>",
+        "category": "<technical|engineering|professional|domain|career>",
         "level": "<expert|advanced|intermediate|beginner>",
         "market_demand": <number 0-100>,
+        "confidence": <number 0-1 how confident you are in this assessment>,
+        "evidence": ["<evidence1>", "<evidence2>"],
         "job_relevance": "<how many jobs require this>",
         "status": "maintain"
       }}
@@ -91,23 +94,32 @@ Save the result to {tmp_dir}/skills_intelligence_{pid}.json with this exact stru
     "maintain": [
       {{
         "skill": "<name>",
+        "category": "<category>",
         "level": "<level>",
         "market_demand": <number>,
+        "confidence": <number>,
+        "evidence": ["<evidence>"],
         "note": "<why maintain but not prioritize>"
       }}
     ],
     "gaps": [
       {{
         "skill": "<name>",
+        "category": "<category>",
         "current_level": "<level>",
         "market_demand": <number>,
+        "confidence": <number>,
+        "evidence": ["<evidence>"],
         "impact": "<how many jobs this affects>"
       }}
     ],
     "missing": [
       {{
         "skill": "<name>",
+        "category": "<category>",
         "demand_percentage": <number>,
+        "confidence": <number>,
+        "evidence": ["<evidence>"],
         "required_by": "<which job categories>"
       }}
     ]
@@ -121,15 +133,26 @@ Save the result to {tmp_dir}/skills_intelligence_{pid}.json with this exact stru
   "recommendations": [
     {{
       "skill": "<name>",
+      "category": "<technical|engineering|professional|domain|career>",
       "priority": "P1|P2|P3",
       "roi_score": <number 0-100>,
       "current_level": "<level>",
       "target_level": "<level>",
       "market_demand": <number 0-100>,
+      "confidence": <number 0-1>,
       "career_impact": "<description>",
       "reasoning": "<evidence-based explanation of why learn this>",
+      "evidence": ["<evidence1>", "<evidence2>"],
       "learning_path": ["<step1>", "<step2>", "<step3>"],
       "estimated_effort": "<time estimate>"
+    }}
+  ],
+  "relationships": [
+    {{
+      "skill": "<name>",
+      "related": "<related_skill_name>",
+      "type": "<related|similar|parent|child|alternative>",
+      "confidence": <number 0-1>
     }}
   ],
   "roadmap": {{
@@ -148,3 +171,8 @@ RULES:
 - ROI scoring must use real demand percentages from the jobs table.
 - Learning path steps should be concrete and actionable (not vague advice).
 - Estimated effort should be realistic (hours for quick wins, weeks for deeper skills).
+- Every skill MUST have a category: technical, engineering, professional, domain, or career.
+- Every skill MUST have a confidence score (0-1) and evidence array.
+- Include skill relationships: related, similar, parent, child, alternative types.
+- Do not create duplicate skills. Normalize synonyms and abbreviations.
+- Professional skills (communication, leadership) are as important as technical skills.

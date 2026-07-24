@@ -246,7 +246,7 @@ def _extract_company_info(input_text, input_type, pid):
         content = input_text[:6000]
     else:
         content = f"URL: {input_text}"
-    prompt = load_prompt('company_extract',
+    prompt = load_prompt('company/company_extract',
         content=content, input_type=input_type, output_file=output_file)
 
     returncode, _, sid = _stream_mimo_output(
@@ -325,7 +325,7 @@ def _analyze_company(company_data, pid, company_type='UNKNOWN'):
     """Step 2: Generate full intelligence analysis using mimo."""
     output_file = os.path.join(TMP_DIR, f'company_analyze_{pid}.json')
     rules = _load_rules(context='company', company_type=company_type)
-    prompt = load_prompt('company_analyze',
+    prompt = load_prompt('company/company_analyze',
         company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
         company_type=company_type,
         rules=rules,

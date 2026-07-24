@@ -353,7 +353,7 @@ def rescore_only(num):
 
         # Use a unique pid per rescore run to avoid file conflicts
         rescore_pid = f'rescore_{num}_{int(datetime.now().timestamp()*1000)}'
-        prompt = load_prompt('step8_score',
+        prompt = load_prompt('job_processing/step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
 
@@ -537,7 +537,7 @@ def _load_rules(context='job'):
 def _extract_structured_description(raw_text, num):
     """Extract structured job info from raw description using mimo."""
     output_file = os.path.join(TMP_DIR, f'structured_{num}.json')
-    prompt = load_prompt('step4_extract_struct',
+    prompt = load_prompt('job_processing/step4_extract_struct',
         raw_content=raw_text[:5000], output_file=output_file)
 
     proc = subprocess.run(
@@ -559,7 +559,7 @@ def _extract_structured_description(raw_text, num):
 def _extract_all(raw_text, pid):
     """Combined extraction: validate + structured + summary in one mimo call."""
     output_file = os.path.join(TMP_DIR, f'extract_{pid}.json')
-    prompt = load_prompt('step3_extract_raw',
+    prompt = load_prompt('job_processing/step3_extract_raw',
         content=raw_text[:5000], output_file=output_file)
 
     proc = subprocess.run(
@@ -702,7 +702,7 @@ def _fetch_url(url):
 def _validate_job_content(raw_text, pid):
     """Validate and extract main job section from fetched content using mimo."""
     result_file = os.path.join(TMP_DIR, f'validate_{pid}.json')
-    prompt = load_prompt('step2_validate', content=raw_text[:3000], result_file=result_file)
+    prompt = load_prompt('job_processing/step2_validate', content=raw_text[:3000], result_file=result_file)
 
     proc = subprocess.run(
         [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
@@ -966,7 +966,7 @@ def process_job(pid):
                 linkedin_path = None
                 linkedin_step = "No LinkedIn profile available — skip this step"
 
-            prompt = load_prompt('step8_score',
+            prompt = load_prompt('job_processing/step8_score',
                 url=url, job_file=job_file, resume_file=resume_path,
                 linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
                 tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, rules=rules)
@@ -1225,7 +1225,7 @@ def process_job(pid):
             linkedin_path = None
             linkedin_step = "No LinkedIn profile available — skip this step"
 
-        prompt = load_prompt('step8_score',
+        prompt = load_prompt('job_processing/step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
             linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
             tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
