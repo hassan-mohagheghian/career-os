@@ -57,6 +57,7 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
     ...roadmapJobs.map(j => ({
       id: j.id || `roadmap-${j.skill_name}`,
       insight_type: `roadmap: ${j.skill_name}`,
+      job_type: j.job_type,
       status: j.status,
       version: j.version,
       started_at: j.started_at,
@@ -94,7 +95,9 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
               )} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold capitalize">{run.insight_type}</span>
+                  <span className="font-semibold capitalize">
+                    {run.source === 'roadmap' ? `${run.job_type || 'generate'}: ${run.insight_type.replace('roadmap: ', '')}` : run.insight_type}
+                  </span>
                   {run.version && <span className="text-muted-foreground text-[0.6rem]">v{run.version}</span>}
                   <span className={cn("font-semibold text-[0.6rem]",
                     run.status === 'completed' ? "text-green-500" :
