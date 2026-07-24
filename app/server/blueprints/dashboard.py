@@ -1428,6 +1428,21 @@ def get_skill_gen_progress():
     return jsonify(_get_skill_progress(skill))
 
 
+@bp.route("/api/skill-roadmap-jobs")
+def get_roadmap_jobs():
+    """Get recent roadmap generation jobs for history display."""
+    limit = request.args.get("limit", 20, type=int)
+    conn = get_db()
+    cols = ["id", "skill_name", "job_type", "status", "version", "count",
+            "error", "session_id", "started_at", "completed_at", "created_at"]
+    rows = conn.execute(
+        f"SELECT {', '.join(cols)} FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(zip(cols, r)) for r in rows] if rows else [])
+
+
 def _build_roadmap_tree_for_prompt(rows):
     """Build tree for prompt context (simplified)."""
     by_id = {}

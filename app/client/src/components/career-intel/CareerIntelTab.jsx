@@ -181,21 +181,9 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
   }, [])
 
   const fetchRoadmapJobs = useCallback(() => {
-    fetch('/api/skill-roadmap-progress/all')
-      .then(r => r.ok ? r.json() : {})
-      .then(data => {
-        // Convert progress data to job-like format for display
-        const jobs = Object.entries(data).map(([skill, info]) => ({
-          skill_name: skill,
-          status: info.status || 'completed',
-          version: info.version,
-          started_at: info.started_at,
-          completed_at: info.completed_at,
-          error: info.error,
-          session_id: info.session_id
-        }))
-        setRoadmapJobs(jobs)
-      })
+    fetch('/api/skill-roadmap-jobs?limit=20')
+      .then(r => r.ok ? r.json() : [])
+      .then(jobs => setRoadmapJobs(Array.isArray(jobs) ? jobs : []))
       .catch(() => setRoadmapJobs([]))
   }, [])
 
