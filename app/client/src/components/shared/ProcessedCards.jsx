@@ -171,7 +171,7 @@ export function CompactJobCard({ job, onClick }) {
 
 export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWorkflow, onOpenCompany }) {
   const locations = job.parsedLocations || (job.location ? [job.location] : [])
-  const hasLogs = job.workflow_log && JSON.parse(job.workflow_log).length > 0
+  const hasLogs = job.workflow_log && (Array.isArray(job.workflow_log) ? job.workflow_log : JSON.parse(job.workflow_log || '[]')).length > 0
   const isRescoring = job.rescoring === 1
   const overallGrade = job.overall_score != null ? numericToGrade(job.overall_score) : job.score
   const borderColor = getScoreBorder(overallGrade)

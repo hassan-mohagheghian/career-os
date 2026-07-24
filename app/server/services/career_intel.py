@@ -5,13 +5,22 @@ Only one analysis can run at a time (concurrency lock).
 """
 import json
 import os
+import sqlite3
 import subprocess
 import threading
+import time
 import traceback
 from datetime import datetime
 
 from core.db import get_db
 from prompts import load_prompt
+
+_socketio = None  # set by app.py after SocketIO init
+
+
+def set_socketio(sio):
+    global _socketio
+    _socketio = sio
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
@@ -36,17 +45,38 @@ def _db():
     return conn
 
 
+def _emit_progress(progress_data):
+    """Emit progress update via SocketIO to the career_intel room."""
+    if _socketio is not None:
+        try:
+            # Always include session_id if available
+            sid = _current_run.get('session_id')
+            if sid:
+                progress_data['session_id'] = sid
+            _socketio.emit('career_intel:progress', progress_data, room='career_intel')
+        except Exception:
+            pass
+
+
 def _cleanup_stale_runs():
     """Mark any processing runs older than 5 minutes as failed (stale from crashed sessions)."""
     from datetime import timedelta
-    conn = _db()
-    cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
-    conn.execute(
-        "UPDATE career_insight_runs SET status='failed', error_message='Stale run cleaned up', completed_at=? WHERE status='processing' AND started_at < ?",
-        (datetime.now().isoformat(), cutoff)
-    )
-    conn.commit()
-    conn.close()
+    for attempt in range(3):
+        try:
+            conn = _db()
+            cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
+            conn.execute(
+                "UPDATE career_insight_runs SET status='failed', error_message='Stale run cleaned up', completed_at=? WHERE status='processing' AND started_at < ?",
+                (datetime.now().isoformat(), cutoff)
+            )
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 2:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                return  # non-fatal, just skip cleanup
 
 
 def is_running():
@@ -123,6 +153,7 @@ def cancel_run():
                     pass
         if run_id:
             _complete_run(run_id, 'cancelled', 'Cancelled by user')
+        _emit_progress({'running': False, 'status': 'cancelled', 'type': _current_run.get('type'), 'run_id': run_id})
         print(f"[career_intel] Run {run_id} cancelled")
         return True
     # Also handle stale DB records (from crashed sessions)
@@ -132,6 +163,7 @@ def cancel_run():
     ).fetchone()
     if row:
         _complete_run(row[0], 'cancelled', 'Cancelled by user (stale)')
+        _emit_progress({'running': False, 'status': 'cancelled', 'run_id': row[0]})
         conn.close()
         print(f"[career_intel] Stale run {row[0]} cancelled")
         return True
@@ -219,12 +251,19 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs
             env={**os.environ, 'NO_COLOR': '1'}
         )
         _current_run['process'] = proc
-        try:
-            stdout, stderr = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-            return None, 'Analysis timed out after {} seconds'.format(timeout), None
+        # Use thread-safe timeout (communicate(timeout=) uses signal.alarm which fails in threads)
+        timed_out = threading.Event()
+        def _watchdog():
+            timed_out.wait(timeout)
+            if not timed_out.is_set():
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+        timer = threading.Thread(target=_watchdog, daemon=True)
+        timer.start()
+        stdout, stderr = proc.communicate()
+        timed_out.set()
 
         session_id = _parse_session_id(stdout)
 
@@ -302,10 +341,15 @@ def generate_skills_intel(pid=0):
         _current_run['started_at'] = datetime.now().isoformat()
         run_id = _start_run('skills_intel')
         _current_run['run_id'] = run_id
+        _emit_progress({
+            'running': True, 'status': 'processing', 'type': 'skills_intel',
+            'started_at': _current_run['started_at'], 'run_id': run_id
+        })
         result_file = os.path.join(TMP_DIR, f'skills_intelligence_{pid}.json')
         result, error_msg, session_id = _run_mimo_prompt('skills_intelligence', pid=pid, result_file=result_file)
         if _cancel_requested:
             print("[career_intel] Skills intelligence generation cancelled")
+            _emit_progress({'running': False, 'status': 'cancelled', 'type': 'skills_intel'})
             return None
         if result:
             score = result.get('summary', {}).get('career_readiness_score')
@@ -317,10 +361,12 @@ def generate_skills_intel(pid=0):
             summary = '; '.join(summary_parts) if summary_parts else f"Readiness: {score}/100"
             _save_insight('skills_intel', result, score, summary)
             _complete_run(run_id, 'completed', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'completed', 'type': 'skills_intel', 'run_id': run_id})
             print(f"[career_intel] Skills intelligence generated successfully (session: {session_id})")
             return result
         else:
             _complete_run(run_id, 'failed', error_msg or 'Mimo analysis returned no result', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'failed', 'type': 'skills_intel', 'error': error_msg, 'run_id': run_id})
             print(f"[career_intel] Skills intelligence generation failed: {error_msg}")
             return None
     except Exception as e:
@@ -352,10 +398,15 @@ def generate_all(pid=0):
         _current_run['started_at'] = datetime.now().isoformat()
         run_id = _start_run('all')
         _current_run['run_id'] = run_id
+        _emit_progress({
+            'running': True, 'status': 'processing', 'type': 'all',
+            'started_at': _current_run['started_at'], 'run_id': run_id
+        })
         result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
         _current_run['session_id'] = session_id
         if _cancel_requested:
             print(f"[career_intel] All sections generation cancelled")
+            _emit_progress({'running': False, 'status': 'cancelled', 'type': 'all'})
             return None
         if result:
             for section in INSIGHT_TYPES:
@@ -368,10 +419,12 @@ def generate_all(pid=0):
                         summary = f"Career readiness: {score}/100"
                     _save_insight(section, section_data, score, summary)
             _complete_run(run_id, 'completed', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'completed', 'type': 'all', 'run_id': run_id})
             print(f"[career_intel] All sections generated successfully (session: {session_id})")
             return result
         else:
             _complete_run(run_id, 'failed', error_msg or 'Mimo analysis returned no result', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'failed', 'type': 'all', 'error': error_msg, 'run_id': run_id})
             print(f"[career_intel] All sections generation failed: {error_msg}")
             return None
     except Exception as e:
@@ -408,9 +461,14 @@ def generate_section(section, pid=0):
         _current_run['started_at'] = datetime.now().isoformat()
         run_id = _start_run(section)
         _current_run['run_id'] = run_id
+        _emit_progress({
+            'running': True, 'status': 'processing', 'type': section,
+            'started_at': _current_run['started_at'], 'run_id': run_id
+        })
         result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
         if _cancel_requested:
             print(f"[career_intel] {section} generation cancelled")
+            _emit_progress({'running': False, 'status': 'cancelled', 'type': section})
             return None
         if result and section in result:
             section_data = result[section]
@@ -421,10 +479,12 @@ def generate_section(section, pid=0):
                 summary = f"Career readiness: {score}/100"
             _save_insight(section, section_data, score, summary)
             _complete_run(run_id, 'completed', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'completed', 'type': section, 'run_id': run_id})
             print(f"[career_intel] {section} generated successfully (session: {session_id})")
             return section_data
         else:
             _complete_run(run_id, 'failed', error_msg or f'Mimo analysis failed for {section}', session_id=session_id)
+            _emit_progress({'running': False, 'status': 'failed', 'type': section, 'error': error_msg, 'run_id': run_id})
             return None
     except Exception as e:
         if not _cancel_requested:

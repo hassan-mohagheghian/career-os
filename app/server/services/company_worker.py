@@ -8,11 +8,17 @@ import re
 import json
 import sqlite3
 import subprocess
+import uuid
 import threading
 import urllib.request
 import urllib.error
 from datetime import datetime
 from prompts import load_prompt
+from services.process.logging_config import get_logger
+from services.process_utils import broadcaster
+from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
+
+log = get_logger('company_worker')
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
@@ -56,10 +62,35 @@ def _update_step(pid, step, val, status=None, company_name=None, company_id=None
     values.append(pid)
     conn.execute(f'UPDATE pending_companies SET {",".join(fields)} WHERE id=?', values)
     conn.commit(); conn.close()
+    # Emit real-time update for step progress
+    extra = {}
+    if status:
+        extra['status'] = status
+    if company_name:
+        extra['company_name'] = company_name
+    if company_id:
+        extra['company_id'] = company_id
+    if error:
+        extra['error'] = error
+    broadcaster.step_update(StatusUpdate(
+        table='pending_companies', pid=pid, step=step, val=val,
+        extra=extra or None,
+    ))
 
 
 def _mark(pid, step):
     _update_step(pid, step, 1)
+
+
+def _save_session_id(pid, session_id):
+    """Save mimo session_id to pending_companies."""
+    conn = _db()
+    conn.execute("UPDATE pending_companies SET session_id=? WHERE id=?", (session_id, pid))
+    conn.commit(); conn.close()
+    broadcaster.step_update(StatusUpdate(
+        table='pending_companies', pid=pid, step='session_id', val=0,
+        extra={'session_id': session_id},
+    ))
 
 
 def _log(pid, step, msg):
@@ -69,6 +100,9 @@ def _log(pid, step, msg):
     logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
     conn.execute('UPDATE pending_companies SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
+    broadcaster.log(LogEntry(
+        table='pending_companies', pid=pid, step=step, msg=msg,
+    ))
 
 
 def _fail(pid, msg, step=None):
@@ -83,6 +117,9 @@ def _fail(pid, msg, step=None):
     label = STEP_LABELS.get(step, step) if step else 'Processing'
     error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
+    broadcaster.error(ProcessingError(
+        table='pending_companies', pid=pid, msg=error_msg, step=step,
+    ))
 
 
 def _is_paused_or_stopped(pid):
@@ -132,6 +169,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
         text=True, env=env,
     )
     all_lines = []
+    session_id = None
     timed_out = threading.Event()
 
     def watchdog():
@@ -153,6 +191,15 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
             all_lines.append(line)
             try:
                 evt = json.loads(line)
+                # Extract session_id from mimo output — broadcast immediately
+                if not session_id:
+                    sid = (evt.get('sessionID') or evt.get('session_id')
+                           or evt.get('sessionId'))
+                    if not sid and 'session' in evt and isinstance(evt['session'], dict):
+                        sid = evt['session'].get('id') or evt['session'].get('ID')
+                    if sid:
+                        session_id = sid
+                        _save_session_id(pid, sid)
                 event_type = evt.get('type', '')
                 if event_type == 'text':
                     text = evt.get('part', {}).get('text', '')
@@ -171,9 +218,15 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
 
         timed_out.set()
         proc.wait()
+
+        # Generate fallback session_id if mimo didn't provide one
+        if not session_id:
+            session_id = f"mimo_{uuid.uuid4().hex[:12]}"
+            _save_session_id(pid, session_id)
+
         if proc.returncode == -9:
             raise RuntimeError(f"mimo timed out after {timeout}s")
-        return proc.returncode, all_lines
+        return proc.returncode, all_lines, session_id
     except:
         timed_out.set()
         try:
@@ -196,7 +249,7 @@ def _extract_company_info(input_text, input_type, pid):
     prompt = load_prompt('company_extract',
         content=content, input_type=input_type, output_file=output_file)
 
-    returncode, _ = _stream_mimo_output(
+    returncode, _, sid = _stream_mimo_output(
         [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
         cwd=PROJECT_ROOT, env={**os.environ, 'NO_COLOR': '1'},
         timeout=180, pid=pid,
@@ -278,7 +331,7 @@ def _analyze_company(company_data, pid, company_type='UNKNOWN'):
         rules=rules,
         output_file=output_file)
 
-    returncode, _ = _stream_mimo_output(
+    returncode, _, sid = _stream_mimo_output(
         [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
         cwd=PROJECT_ROOT, env={**os.environ, 'NO_COLOR': '1'},
         timeout=300, pid=pid,
@@ -600,11 +653,14 @@ def process_company(pid):
         _mark(pid, 'step_done')
         _update_step(pid, 'step_done', 1, status='done')
         _log(pid, 'done', f'Company intelligence complete: {company_data.get("name", "Unknown")}')
+        broadcaster.complete(ProcessingComplete(
+            table='pending_companies', pid=pid, result={'company_id': company_id, 'name': company_data.get('name')},
+        ))
 
-        print(f"[company_worker] Done: {company_data.get('name', 'Unknown')} (id={company_id})")
+        log.info("company_worker.done", name=company_data.get('name', 'Unknown'), company_id=company_id)
 
     except Exception as e:
-        print(f"[company_worker] FAILED (pid={pid}): {e}")
+        log.error("company_worker.failed", pid=pid, error=str(e))
         # Detect which step was active when the error occurred
         step_labels = {
             'step_fetch': 'fetch',

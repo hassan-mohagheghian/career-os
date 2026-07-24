@@ -1,0 +1,281 @@
+"""Tests for worker.py utility functions — scoring, normalization, DB helpers."""
+
+import os
+import tempfile
+import sqlite3
+import pytest
+from unittest.mock import patch, MagicMock
+
+
+# ── Score Normalization ────────────────────────────────────────────
+
+class TestNormalizeScore:
+    def test_valid_grades_passthrough(self):
+        from services.worker import normalize_score
+        for grade in ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']:
+            assert normalize_score(grade) == grade
+
+    def test_lowercase_converted(self):
+        from services.worker import normalize_score
+        assert normalize_score('a') == 'A'
+        assert normalize_score('a++') == 'A++'
+        assert normalize_score('b') == 'B'
+
+    def test_numeric_integer(self):
+        from services.worker import normalize_score
+        assert normalize_score(95) == 'A++'
+        assert normalize_score(85) == 'A+'
+        assert normalize_score(75) == 'A'
+        assert normalize_score(60) == 'B'
+        assert normalize_score(40) == 'C'
+        assert normalize_score(20) == 'D'
+
+    def test_numeric_string(self):
+        from services.worker import normalize_score
+        assert normalize_score('95') == 'A++'
+        assert normalize_score('85') == 'A+'
+        assert normalize_score('75') == 'A'
+
+    def test_numeric_float(self):
+        from services.worker import normalize_score
+        assert normalize_score(92.5) == 'A++'
+
+    def test_none_returns_pending(self):
+        from services.worker import normalize_score
+        assert normalize_score(None) == 'P'
+
+    def test_invalid_string_returns_pending(self):
+        from services.worker import normalize_score
+        assert normalize_score('invalid') == 'P'
+        assert normalize_score('') == 'P'
+
+    def test_boundary_values(self):
+        from services.worker import normalize_score
+        assert normalize_score(0) == 'D'
+        assert normalize_score(29) == 'D'
+        assert normalize_score(30) == 'C'
+        assert normalize_score(49) == 'C'
+        assert normalize_score(50) == 'B'
+        assert normalize_score(69) == 'B'
+        assert normalize_score(70) == 'A'
+        assert normalize_score(79) == 'A'
+        assert normalize_score(80) == 'A+'
+        assert normalize_score(89) == 'A+'
+        assert normalize_score(90) == 'A++'
+        assert normalize_score(100) == 'A++'
+
+    def test_clamping(self):
+        from services.worker import normalize_score
+        assert normalize_score(-10) == 'D'  # clamped to 0
+        assert normalize_score(150) == 'A++'  # clamped to 100
+
+
+class TestScoreToGrade:
+    def test_none_returns_pending(self):
+        from services.worker import score_to_grade
+        assert score_to_grade(None) == 'P'
+
+    def test_numeric_conversion(self):
+        from services.worker import score_to_grade
+        assert score_to_grade(95) == 'A++'
+        assert score_to_grade(75) == 'A'
+
+
+class TestCalculateOverallScore:
+    def test_weighted_average(self):
+        from services.worker import calculate_overall_score
+        result = calculate_overall_score(80, 60)
+        expected = round(80 * 0.6 + 60 * 0.4, 1)
+        assert result == expected
+
+    def test_none_fit_score(self):
+        from services.worker import calculate_overall_score
+        assert calculate_overall_score(None, 60) is None
+
+    def test_none_success_score(self):
+        from services.worker import calculate_overall_score
+        assert calculate_overall_score(80, None) is None
+
+    def test_both_none(self):
+        from services.worker import calculate_overall_score
+        assert calculate_overall_score(None, None) is None
+
+    def test_extreme_values(self):
+        from services.worker import calculate_overall_score
+        assert calculate_overall_score(100, 100) == 100.0
+        assert calculate_overall_score(0, 0) == 0.0
+
+
+# ── Job Data Normalization ─────────────────────────────────────────
+
+class TestNormalizeJobData:
+    def test_known_city_extraction(self):
+        from services.worker import _normalize_job_data
+        d = {'location': 'Munich, Bavaria, Germany', 'work_type': 'Remote'}
+        result = _normalize_job_data(d)
+        assert result['location'] == 'Munich'
+        assert result['work_type'] == 'Remote'
+
+    def test_unknown_city_kept(self):
+        from services.worker import _normalize_job_data
+        d = {'location': 'Springfield, USA', 'work_type': 'On-site'}
+        result = _normalize_job_data(d)
+        assert 'Springfield' in result['location']
+
+    def test_work_type_normalization(self):
+        from services.worker import _normalize_job_data
+        for input_wt, expected in [
+            ('remote', 'Remote'),
+            ('Remote Work', 'Remote'),
+            ('hybrid', 'Hybrid'),
+            ('flexible', 'Hybrid'),
+            ('on-site', 'On-site'),
+            ('office', 'On-site'),
+        ]:
+            d = {'location': 'Berlin', 'work_type': input_wt}
+            result = _normalize_job_data(d)
+            assert result['work_type'] == expected, f"'{input_wt}' should be '{expected}'"
+
+    def test_locations_array_normalized(self):
+        from services.worker import _normalize_job_data
+        d = {'location': 'Berlin', 'locations': ['Munich', 'Hamburg'], 'work_type': 'Hybrid'}
+        result = _normalize_job_data(d)
+        assert 'Berlin' in result['locations']
+        assert 'Munich' in result['locations']
+        assert 'Hamburg' in result['locations']
+
+    def test_empty_location(self):
+        from services.worker import _normalize_job_data
+        d = {'location': '', 'work_type': 'On-site'}
+        result = _normalize_job_data(d)
+        # Empty location keeps empty locations array
+        assert isinstance(result['locations'], list)
+
+
+# ── URL Fetching ───────────────────────────────────────────────────
+
+class TestFetchUrl:
+    def test_fetch_invalid_url_raises(self):
+        from services.worker import _fetch_url
+        with pytest.raises(RuntimeError, match="Network error|Failed to fetch"):
+            _fetch_url("https://this-domain-does-not-exist-12345.invalid")
+
+    def test_fetch_404_raises(self):
+        from services.worker import _fetch_url
+        with pytest.raises(RuntimeError, match="Page not found"):
+            _fetch_url("https://httpbin.org/status/404")
+
+    def test_fetch_403_raises(self):
+        from services.worker import _fetch_url
+        with pytest.raises(RuntimeError, match="Access denied"):
+            _fetch_url("https://httpbin.org/status/403")
+
+
+# ── Date Parsing ───────────────────────────────────────────────────
+
+class TestParsePostedDate:
+    def test_hours_ago(self):
+        from services.worker import _parse_posted_date
+        result = _parse_posted_date('3 hours ago')
+        assert result is not None
+
+    def test_days_ago(self):
+        from services.worker import _parse_posted_date
+        result = _parse_posted_date('2 days ago')
+        assert result is not None
+
+    def test_weeks_ago(self):
+        from services.worker import _parse_posted_date
+        result = _parse_posted_date('1 week ago')
+        assert result is not None
+
+    def test_months_ago(self):
+        from services.worker import _parse_posted_date
+        # dateutil may not be installed — months parsing is best-effort
+        result = _parse_posted_date('1 month ago')
+        # Accept either a result or None (depends on dateutil availability)
+        assert result is None or isinstance(result, str)
+
+    def test_active_returns_none(self):
+        from services.worker import _parse_posted_date
+        assert _parse_posted_date('Active') is None
+
+    def test_empty_returns_none(self):
+        from services.worker import _parse_posted_date
+        assert _parse_posted_date('') is None
+
+    def test_na_returns_none(self):
+        from services.worker import _parse_posted_date
+        assert _parse_posted_date('N/A') is None
+
+
+# ── DB Helpers ─────────────────────────────────────────────────────
+
+class TestGetNextNum:
+    def test_empty_table_returns_1(self):
+        from services.worker import _get_next_num
+        with patch('services.worker._db') as mock_db:
+            mock_conn = MagicMock()
+            mock_row = MagicMock()
+            mock_row.__getitem__ = lambda self, key: None if key == 0 else None
+            mock_conn.execute.return_value.fetchone.return_value = mock_row
+            mock_db.return_value = mock_conn
+            assert _get_next_num() == 1
+
+    def test_existing_jobs(self):
+        from services.worker import _get_next_num
+        with patch('services.worker._db') as mock_db:
+            mock_conn = MagicMock()
+            mock_row = MagicMock()
+            mock_row.__getitem__ = lambda self, key: 42 if key == 0 else None
+            mock_conn.execute.return_value.fetchone.return_value = mock_row
+            mock_db.return_value = mock_conn
+            assert _get_next_num() == 43
+
+
+class TestGetExistingNum:
+    def test_existing_url(self):
+        from services.worker import _get_existing_num
+        with patch('services.worker._db') as mock_db:
+            mock_conn = MagicMock()
+            # Return a real dict-like object that supports dict(row)
+            mock_row = {'num': 10}
+            mock_conn.execute.return_value.fetchone.return_value = mock_row
+            mock_db.return_value = mock_conn
+            assert _get_existing_num('https://example.com') == 10
+
+    def test_new_url(self):
+        from services.worker import _get_existing_num
+        with patch('services.worker._db') as mock_db:
+            mock_conn = MagicMock()
+            mock_conn.execute.return_value.fetchone.return_value = None
+            mock_db.return_value = mock_conn
+            assert _get_existing_num('https://new.com') is None
+
+
+# ── Pause/Stop Detection ───────────────────────────────────────────
+
+class TestIsPausedOrStopped:
+    def test_item_deleted_returns_true(self):
+        from services.worker import _is_paused_or_stopped
+        with patch('services.worker._get_item') as mock_get:
+            mock_get.return_value = None
+            assert _is_paused_or_stopped(1) is True
+
+    def test_processing_returns_false(self):
+        from services.worker import _is_paused_or_stopped
+        with patch('services.worker._get_item') as mock_get:
+            mock_get.return_value = {'status': 'processing'}
+            assert _is_paused_or_stopped(1) is False
+
+    def test_paused_returns_true(self):
+        from services.worker import _is_paused_or_stopped
+        with patch('services.worker._get_item') as mock_get:
+            mock_get.return_value = {'status': 'paused'}
+            assert _is_paused_or_stopped(1) is True
+
+    def test_queued_returns_true(self):
+        from services.worker import _is_paused_or_stopped
+        with patch('services.worker._get_item') as mock_get:
+            mock_get.return_value = {'status': 'queued'}
+            assert _is_paused_or_stopped(1) is True

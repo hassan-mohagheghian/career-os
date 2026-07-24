@@ -74,7 +74,7 @@ export default function GenerationProgressCard({
             {session_id.slice(0, 8)}...
           </button>
         ) : (
-          <span className="text-[0.5rem] text-muted-foreground/50 shrink-0">session pending</span>
+          <span className="text-[0.5rem] text-muted-foreground/50 shrink-0">no_session_id</span>
         )}
       </div>
     )
@@ -100,7 +100,7 @@ export default function GenerationProgressCard({
               <Copy className="w-3 h-3" /> {session_id.slice(0, 8)}...
             </button>
           ) : isRunning && (
-            <span className="text-[0.55rem] text-muted-foreground/50 font-mono">session pending</span>
+            <span className="text-[0.55rem] text-muted-foreground/50 font-mono">no_session_id</span>
           )}
           {isRunning && onCancel && (
             <Button variant="destructive" size="sm" onClick={onCancel} className="h-6 gap-1 text-[0.55rem]">

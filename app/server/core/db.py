@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import time
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,9 +17,17 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    for attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5)
+            conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA journal_mode=WAL')
+            return conn
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e) and attempt < 4:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise
 
 
 def init_db():
@@ -74,7 +83,8 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
-        roles TEXT, path TEXT, source TEXT DEFAULT 'service'
+        roles TEXT, path TEXT, source TEXT DEFAULT 'service',
+        hidden INTEGER DEFAULT 0, merged_into TEXT DEFAULT ''
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmaps (

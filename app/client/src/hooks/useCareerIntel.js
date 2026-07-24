@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSocketIO, watchCareerIntel, unwatchCareerIntel } from './useSocketIO'
 
 const API = '/api'
 
@@ -9,7 +10,7 @@ export function useCareerIntel() {
   const [activeTab, setActiveTab] = useState('overview')
   const [refreshing, setRefreshing] = useState({})
   const [error, setError] = useState(null)
-  const pollRef = useRef(null)
+  const socket = useSocketIO()
 
   const fetchData = useCallback(() => {
     return fetch(`${API}/career-intelligence`)
@@ -32,25 +33,34 @@ export function useCareerIntel() {
       .catch(() => setProgress({ running: false }))
   }, [])
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
-  }, [])
-
-  const startPolling = useCallback(() => {
-    stopPolling()
-    pollRef.current = setInterval(async () => {
-      await fetchProgress()
-      await fetchStatus()
-      await fetchData()
-    }, 2000)
-  }, [fetchProgress, fetchStatus, fetchData, stopPolling])
+  // Initial load + WebSocket for real-time updates
+  useEffect(() => {
+    fetchData()
+    fetchStatus()
+    fetchProgress()
+  }, [fetchData, fetchStatus, fetchProgress])
 
   useEffect(() => {
-    return () => stopPolling()
-  }, [stopPolling])
+    if (!socket) return
+
+    const handleProgress = (data) => {
+      setProgress(data)
+      // When analysis completes/fails/cancels, refresh all data
+      if (!data.running) {
+        setRefreshing({})
+        fetchStatus()
+        fetchData()
+      }
+    }
+
+    socket.on('career_intel:progress', handleProgress)
+    watchCareerIntel()
+
+    return () => {
+      socket.off('career_intel:progress', handleProgress)
+      unwatchCareerIntel()
+    }
+  }, [socket, fetchStatus, fetchData])
 
   const refreshSection = useCallback(async (section) => {
     setError(null)
@@ -62,30 +72,13 @@ export function useCareerIntel() {
         return false
       }
       setRefreshing(r => ({ ...r, [section]: true }))
-      startPolling()
-      // Wait for completion
-      let attempts = 0
-      const wait = async () => {
-        await new Promise(res => setTimeout(res, 2000))
-        const p = await fetch(`${API}/career-intelligence/progress`).then(r => r.json()).catch(() => ({ running: false }))
-        if (p.running && attempts < 60) {
-          attempts++
-          wait()
-        } else {
-          stopPolling()
-          setRefreshing(r => ({ ...r, [section]: false }))
-          await fetchProgress()
-          await fetchStatus()
-          await fetchData()
-        }
-      }
-      wait()
+      // WebSocket will handle completion — no polling needed
       return true
     } catch (e) {
       setError('Failed to start analysis')
       return false
     }
-  }, [fetchData, fetchStatus, fetchProgress, startPolling, stopPolling])
+  }, [])
 
   const refreshAll = useCallback(async () => {
     setError(null)
@@ -97,47 +90,30 @@ export function useCareerIntel() {
         return false
       }
       setRefreshing(r => ({ ...r, all: true }))
-      startPolling()
-      let attempts = 0
-      const wait = async () => {
-        await new Promise(res => setTimeout(res, 3000))
-        const p = await fetch(`${API}/career-intelligence/progress`).then(r => r.json()).catch(() => ({ running: false }))
-        if (p.running && attempts < 60) {
-          attempts++
-          wait()
-        } else {
-          stopPolling()
-          setRefreshing(r => ({ ...r, all: false }))
-          await fetchProgress()
-          await fetchStatus()
-          await fetchData()
-        }
-      }
-      wait()
+      // WebSocket will handle completion — no polling needed
       return true
     } catch (e) {
       setError('Failed to start analysis')
       return false
     }
-  }, [fetchData, fetchStatus, fetchProgress, startPolling, stopPolling])
+  }, [])
 
   const cancelRun = useCallback(async () => {
     try {
       const res = await fetch(`${API}/career-intelligence/cancel`, { method: 'POST' })
       const body = await res.json()
       if (body.status === 'cancelled') {
-        stopPolling()
         setRefreshing({})
-        await fetchProgress()
-        await fetchStatus()
-        await fetchData()
+        fetchProgress()
+        fetchStatus()
+        fetchData()
         return true
       }
     } catch (e) {
       setError('Failed to cancel analysis')
     }
     return false
-  }, [fetchData, fetchStatus, fetchProgress, stopPolling])
+  }, [fetchData, fetchStatus, fetchProgress])
 
   return {
     data, setData,

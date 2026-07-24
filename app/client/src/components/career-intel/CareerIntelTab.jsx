@@ -112,7 +112,7 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
                   {run.session_id ? (
                     <span className="text-muted-foreground text-[0.5rem] font-mono truncate max-w-[140px]" title={run.session_id}>{run.session_id}</span>
                   ) : (
-                    <span className="text-muted-foreground/50 text-[0.5rem]">session pending</span>
+                    <span className="text-muted-foreground/50 text-[0.5rem]">no_session_id</span>
                   )}
                 </div>
                 {run.error_message && (

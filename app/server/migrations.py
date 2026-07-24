@@ -4,6 +4,9 @@ import json
 import sqlite3
 
 from config import DB_PATH
+from services.process.logging_config import get_logger
+
+log = get_logger('migrate')
 
 
 def ensure_db_schema():
@@ -273,6 +276,79 @@ def run_migrations():
     _migrate_rule_groups()  # New: migrate to entity-based rule groups
     _migrate_success_field()
     _migrate_resume_files()
+    _migrate_roadmap_progress_column()
+    _migrate_roadmap_numbering_column()
+    _migrate_pending_session_id()
+    _migrate_skill_management()
+
+
+def _migrate_roadmap_numbering_column():
+    """Add numbering column to skill_roadmaps for hierarchical display."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute("PRAGMA table_info(skill_roadmaps)")
+        columns = {row[1] for row in cursor.fetchall()}
+        if 'numbering' not in columns:
+            log.info("migrate.adding_numbering_column")
+            conn.execute("ALTER TABLE skill_roadmaps ADD COLUMN numbering TEXT DEFAULT ''")
+            conn.commit()
+        else:
+            log.info("migrate.numbering_column_exists")
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_roadmap_progress_column():
+    """Rename topic_id -> roadmap_id in skill_roadmap_progress if needed."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute("PRAGMA table_info(skill_roadmap_progress)")
+        columns = {row[1] for row in cursor.fetchall()}
+        if 'topic_id' in columns and 'roadmap_id' not in columns:
+            log.info("migrate.renaming_roadmap_progress_column")
+            conn.execute("ALTER TABLE skill_roadmap_progress RENAME COLUMN topic_id TO roadmap_id")
+            conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_pending_session_id():
+    """Add session_id column to pending_jobs and pending_companies."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        # pending_jobs
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(pending_jobs)").fetchall()}
+        if 'session_id' not in cols:
+            log.info("migrate.adding_pending_jobs_session_id")
+            conn.execute("ALTER TABLE pending_jobs ADD COLUMN session_id TEXT")
+        # pending_companies
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(pending_companies)").fetchall()}
+        if 'session_id' not in cols:
+            log.info("migrate.adding_pending_companies_session_id")
+            conn.execute("ALTER TABLE pending_companies ADD COLUMN session_id TEXT")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_skill_management():
+    """Add hidden and merged_into columns to tech_stack."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(tech_stack)").fetchall()}
+        if 'hidden' not in cols:
+            log.info("migrate.adding_tech_stack_hidden")
+            conn.execute("ALTER TABLE tech_stack ADD COLUMN hidden INTEGER DEFAULT 0")
+        if 'merged_into' not in cols:
+            log.info("migrate.adding_tech_stack_merged_into")
+            conn.execute("ALTER TABLE tech_stack ADD COLUMN merged_into TEXT DEFAULT ''")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_numeric_scores():
@@ -296,10 +372,10 @@ def _migrate_numeric_scores():
                 )
         if converted:
             conn.commit()
-            print(f"[migrate] Converted {converted} numeric scores to letter grades")
+            log.info("migrate.converted_scores", count=converted)
         conn.close()
     except Exception as e:
-        print(f"Warning: score migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _backfill_numeric_scores():
@@ -330,10 +406,10 @@ def _backfill_numeric_scores():
                 backfilled += 1
         if backfilled:
             conn.commit()
-            print(f"[migrate] Backfilled numeric scores for {backfilled} jobs")
+            log.info("migrate.backfilled_numeric_scores", count=backfilled)
         conn.close()
     except Exception as e:
-        print(f"Warning: numeric score backfill failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_rules():
@@ -343,7 +419,7 @@ def _migrate_rules():
             "SELECT DISTINCT category FROM preferences WHERE category NOT IN ('fit','success')"
         ).fetchall()
         if old_cats:
-            print(f"[migrate] Removing old rule categories: {[r[0] for r in old_cats]}")
+            log.info("migrate.Removing old rule categories: {[r[0] for r in old_cats]}")
             conn.execute(
                 "DELETE FROM preferences WHERE category NOT IN ('fit','success')"
             )
@@ -352,7 +428,7 @@ def _migrate_rules():
             r[0] for r in conn.execute("SELECT key FROM preferences").fetchall()
         }
         if "python_expertise" in existing_keys:
-            print("[migrate] Replacing old rules with unified fine-grained rules")
+            log.info("migrate.replacing_rules")
             conn.execute("DELETE FROM preferences")
             conn.commit()
             conn.close()
@@ -362,7 +438,7 @@ def _migrate_rules():
         else:
             conn.close()
     except Exception as e:
-        print(f"Warning: rules migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_rule_types():
@@ -374,7 +450,7 @@ def _migrate_rule_types():
         columns = {row[1] for row in cursor.fetchall()}
 
         if "rule_type" not in columns:
-            print("[migrate] Adding rule_type column to preferences")
+            log.info("migrate.adding_rule_type_column")
             conn.execute(
                 "ALTER TABLE preferences ADD COLUMN rule_type TEXT NOT NULL DEFAULT 'job'"
             )
@@ -384,7 +460,7 @@ def _migrate_rule_types():
             )
 
         if "score_weight" not in columns:
-            print("[migrate] Adding score_weight column to preferences")
+            log.info("migrate.adding_score_weight_column")
             conn.execute(
                 "ALTER TABLE preferences ADD COLUMN score_weight INTEGER DEFAULT 0"
             )
@@ -402,7 +478,7 @@ def _migrate_rule_types():
         ).fetchone()[0]
 
         if shared_count == 0 or company_count == 0:
-            print("[migrate] Seeding default shared and company rules")
+            log.info("migrate.seeding_shared_company_rules")
 
             # Convert existing matching rules to shared type
             shared_keys = [
@@ -504,12 +580,12 @@ def _migrate_rule_types():
                 "INSERT OR IGNORE INTO preferences (category, rule_type, key, value, description, priority, score_weight) VALUES (?,?,?,?,?,?,?)",
                 company_rules,
             )
-            print(f"[migrate] Added shared and company rules")
+            log.info("migrate.seeded_shared_company_rules")
 
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Warning: rule_types migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_success_field():
@@ -521,7 +597,7 @@ def _migrate_success_field():
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Warning: success migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_resume_files():
@@ -530,7 +606,7 @@ def _migrate_resume_files():
 
         migrate_resume_files_to_db()
     except Exception as e:
-        print(f"Warning: resume file migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_recruiter_rules():
@@ -542,7 +618,7 @@ def _migrate_recruiter_rules():
         ).fetchone()[0]
 
         if recruiter_count == 0:
-            print("[migrate] Seeding recruiter scoring rules")
+            log.info("migrate.seeding_recruiter_rules")
             recruiter_rules = [
                 (
                     "fit",
@@ -586,11 +662,11 @@ def _migrate_recruiter_rules():
                 recruiter_rules,
             )
             conn.commit()
-            print(f"[migrate] Added 4 recruiter scoring rules")
+            log.info("migrate.seeded_recruiter_rules")
 
         conn.close()
     except Exception as e:
-        print(f"Warning: recruiter rules migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_scope_column():
@@ -601,7 +677,7 @@ def _migrate_scope_column():
         columns = {row[1] for row in cursor.fetchall()}
 
         if "scope" not in columns:
-            print("[migrate] Adding scope column to preferences")
+            log.info("migrate.adding_scope_column")
             conn.execute(
                 "ALTER TABLE preferences ADD COLUMN scope TEXT NOT NULL DEFAULT 'JOB'"
             )
@@ -643,11 +719,11 @@ def _migrate_scope_column():
                 )
 
             conn.commit()
-            print(f"[migrate] Migrated {type_to_scope} rules to scope column")
+            log.info("migrate.migrated_scope_column")
 
         conn.close()
     except Exception as e:
-        print(f"Warning: scope migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))
 
 
 def _migrate_rule_groups():
@@ -678,11 +754,11 @@ def _migrate_rule_groups():
             for r in conn.execute("SELECT DISTINCT scope FROM preferences").fetchall()
         }
         if "SHARED" in existing_scopes or "COMPANY_PRODUCT" in existing_scopes:
-            print("[migrate] Rule groups already migrated")
+            log.info("migrate.rule_groups_already_migrated")
             conn.close()
             return
 
-        print("[migrate] Migrating scope values to entity-based rule groups...")
+        log.info("migrate.migrating_rule_groups")
 
         # Map old scope values to new
         scope_map = {
@@ -771,9 +847,7 @@ def _migrate_rule_groups():
         # we need to rename and consolidate. The simplest approach: clear and re-seed.
         existing_job_keys = {dict(r)["key"] for r in job_rules}
         if existing_job_keys != keep_job_keys:
-            print(
-                f"[migrate] Replacing job rules: {existing_job_keys} -> {keep_job_keys}"
-            )
+            log.info("migrate.replacing_job_rules", old=existing_job_keys, new=keep_job_keys)
             conn.execute("DELETE FROM preferences WHERE scope='JOB'")
             job_rules_data = [
                 (
@@ -862,9 +936,7 @@ def _migrate_rule_groups():
             existing_shared_keys.discard("market_accessibility")
 
         if existing_shared_keys != keep_shared_keys:
-            print(
-                f"[migrate] Replacing shared rules: {existing_shared_keys} -> {keep_shared_keys}"
-            )
+            log.info("migrate.replacing_shared_rules", old=existing_shared_keys, new=keep_shared_keys)
             conn.execute("DELETE FROM preferences WHERE scope='SHARED'")
             shared_rules_data = [
                 (
@@ -926,9 +998,7 @@ def _migrate_rule_groups():
         }
         existing_product_keys = {dict(r)["key"] for r in product_rules}
         if existing_product_keys != keep_product_keys:
-            print(
-                f"[migrate] Replacing product company rules: {existing_product_keys} -> {keep_product_keys}"
-            )
+            log.info("migrate.replacing_product_rules", old=existing_product_keys, new=keep_product_keys)
             conn.execute("DELETE FROM preferences WHERE scope='COMPANY_PRODUCT'")
             product_rules_data = [
                 (
@@ -980,8 +1050,6 @@ def _migrate_rule_groups():
 
         conn.commit()
         conn.close()
-        print(
-            "[migrate] Rule groups migration complete: SHARED(4) JOB(6) COMPANY_PRODUCT(4) COMPANY_RECRUITING(4)"
-        )
+        log.info("migrate.rule_groups_complete", counts="SHARED(4) JOB(6) COMPANY_PRODUCT(4) COMPANY_RECRUITING(4)")
     except Exception as e:
-        print(f"Warning: rule groups migration failed: {e}")
+        log.warning("migrate.failed", error=str(e))

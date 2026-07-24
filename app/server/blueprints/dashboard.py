@@ -8,6 +8,12 @@ from utils import stream_json
 
 bp = Blueprint("dashboard", __name__)
 
+_socketio = None  # set by app.py after SocketIO init
+
+def set_socketio(sio):
+    global _socketio
+    _socketio = sio
+
 
 @bp.route("/api/dashboard-insights")
 def get_dashboard_insights():
@@ -125,7 +131,7 @@ def delete_tech_learning(id):
 @bp.route("/api/tech-stack")
 def get_tech_stack():
     conn = get_db()
-    rows = conn.execute("SELECT * FROM tech_stack ORDER BY level DESC").fetchall()
+    rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=0 ORDER BY level DESC").fetchall()
     conn.close()
     return stream_json([dict(r) for r in rows])
 
@@ -194,6 +200,60 @@ def delete_tech_stack(id):
     conn.commit()
     conn.close()
     return jsonify({"status": "deleted"})
+
+
+@bp.route("/api/tech-stack/<int:id>/hide", methods=["PATCH"])
+def toggle_hide_skill(id):
+    """Toggle hidden flag on a skill."""
+    data = request.get_json() or {}
+    hidden = data.get("hidden", 1)
+    conn = get_db()
+    conn.execute("UPDATE tech_stack SET hidden=? WHERE id=?", (hidden, id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (id,)).fetchone()
+    conn.close()
+    if row:
+        return jsonify(dict(row))
+    return jsonify({"error": "Not found"}), 404
+
+
+@bp.route("/api/tech-stack/merge", methods=["POST"])
+def merge_skills():
+    """Merge source skills into target skill.
+
+    Target keeps its name. Source skills are renamed everywhere then deleted.
+    """
+    data = request.get_json() or {}
+    target_id = data.get("target_id")
+    source_ids = data.get("source_ids", [])
+    if not target_id or not source_ids:
+        return jsonify({"error": "target_id and source_ids required"}), 400
+
+    conn = get_db()
+    target = conn.execute("SELECT name FROM tech_stack WHERE id=?", (target_id,)).fetchone()
+    if not target:
+        conn.close()
+        return jsonify({"error": "Target skill not found"}), 404
+    target_name = target[0]
+
+    merged = []
+    for sid in source_ids:
+        source = conn.execute("SELECT name FROM tech_stack WHERE id=?", (sid,)).fetchone()
+        if not source or source[0] == target_name:
+            continue
+        source_name = source[0]
+        # Rename across all tables
+        conn.execute("UPDATE skill_roadmaps SET skill_name=? WHERE skill_name=?", (target_name, source_name))
+        conn.execute("UPDATE skill_roadmap_progress SET skill_name=? WHERE skill_name=?", (target_name, source_name))
+        conn.execute("UPDATE skill_roadmap_jobs SET skill_name=? WHERE skill_name=?", (target_name, source_name))
+        # Delete absorbed skill from tech_stack
+        conn.execute("DELETE FROM tech_stack WHERE id=?", (sid,))
+        merged.append(source_name)
+
+    conn.commit()
+    row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (target_id,)).fetchone()
+    conn.close()
+    return jsonify({"status": "merged", "target": dict(row) if row else None, "merged": merged})
 
 
 @bp.route("/api/cities")
@@ -652,6 +712,18 @@ def _update_skill_progress(skill, job_type="generate", **kwargs):
     conn.commit()
     conn.close()
 
+    # Broadcast via SocketIO so connected clients get real-time updates
+    try:
+        if _socketio is not None:
+            payload = {
+                'skill': skill,
+                'job_type': job_type,
+                **{k: v for k, v in kwargs.items() if v is not None},
+            }
+            _socketio.emit('skill_roadmap:update', payload)
+    except Exception:
+        pass
+
 
 def _parse_mimo_session_id(stdout):
     """Extract sessionID from Mimo JSON stream output."""
@@ -679,18 +751,24 @@ def _parse_mimo_session_id(stdout):
 
 
 def _get_skill_progress(skill):
-    """Get latest job progress for a skill from DB. Prioritize active/failed jobs."""
+    """Get latest job progress for a skill from DB. Prioritize active jobs, then completed, then recent failed."""
     conn = get_db()
     cols = "status, step, total_steps, message, version, count, error, session_id, pid, started_at, completed_at"
-    # First check for active or failed jobs (these need to be shown ASAP)
+    # First check for active jobs (queued/running)
     row = conn.execute(
-        f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? AND status IN ('queued','running','failed') ORDER BY id DESC LIMIT 1",
+        f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? AND status IN ('queued','running') ORDER BY id DESC LIMIT 1",
         (skill,),
     ).fetchone()
     if not row:
         # Fall back to latest completed job
         row = conn.execute(
-            f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? ORDER BY id DESC LIMIT 1",
+            f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? AND status='completed' ORDER BY id DESC LIMIT 1",
+            (skill,),
+        ).fetchone()
+    if not row:
+        # Only show failed if no completed job exists, and only from last hour
+        row = conn.execute(
+            f"SELECT {cols} FROM skill_roadmap_jobs WHERE skill_name=? AND status='failed' AND completed_at > datetime('now', '-1 hour') ORDER BY id DESC LIMIT 1",
             (skill,),
         ).fetchone()
     conn.close()
@@ -711,14 +789,189 @@ def _get_skill_progress(skill):
     return {"status": "idle", "step": 0, "total_steps": 4, "message": ""}
 
 
+def _parse_roadmap_json(output_lines):
+    """Extract roadmap JSON array from Mimo JSON event stream.
+
+    Looks for a JSON array in the last assistant text message.
+    Returns (parsed_list, error_string_or_none).
+    """
+    # Collect all assistant text chunks
+    text_chunks = []
+    for line in output_lines:
+        if not isinstance(line, str):
+            continue
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            evt = _json.loads(line)
+        except (_json.JSONDecodeError, ValueError):
+            continue
+        if evt.get("type") == "text":
+            text = evt.get("part", {}).get("text", "")
+            if text:
+                text_chunks.append(text)
+
+    if not text_chunks:
+        return None, "No text output from AI"
+
+    # Try to find a JSON array in the combined text
+    combined = "\n".join(text_chunks)
+
+    # Strip markdown code fences if present
+    stripped = combined.strip()
+    if stripped.startswith("```"):
+        # Remove first and last lines (```json ... ```)
+        lines = stripped.split("\n")
+        if lines[-1].strip() == "```":
+            lines = lines[1:-1]
+        elif lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        stripped = "\n".join(lines)
+
+    # Try parsing the whole stripped text as JSON array
+    try:
+        result = _json.loads(stripped)
+        if isinstance(result, list):
+            return result, None
+    except (_json.JSONDecodeError, ValueError):
+        pass
+
+    # Try to find a JSON array substring
+    start = combined.find("[")
+    end = combined.rfind("]")
+    if start != -1 and end > start:
+        candidate = combined[start : end + 1]
+        try:
+            result = _json.loads(candidate)
+            if isinstance(result, list):
+                return result, None
+        except (_json.JSONDecodeError, ValueError):
+            pass
+
+    return None, f"Could not parse JSON array from AI output ({len(combined)} chars)"
+
+
+def _validate_roadmap(roadmap_data, skill_name=None):
+    """Validate roadmap JSON structure. Returns (is_valid, errors_list)."""
+    errors = []
+
+    if not isinstance(roadmap_data, list):
+        return False, ["Root must be a JSON array"]
+
+    if len(roadmap_data) == 0:
+        return False, ["Roadmap is empty"]
+
+    if len(roadmap_data) > 30:
+        errors.append(f"Too many root items ({len(roadmap_data)}), expected 15-20")
+
+    seen_titles = set()
+
+    def _validate_item(item, path, depth):
+        if not isinstance(item, dict):
+            errors.append(f"{path}: must be an object")
+            return
+
+        title = item.get("title", "")
+        if not title:
+            errors.append(f"{path}: missing title")
+        elif title in seen_titles:
+            errors.append(f"{path}: duplicate title '{title}'")
+        else:
+            seen_titles.add(title)
+
+        level = item.get("level")
+        if level is None:
+            errors.append(f"{path}: missing level")
+        elif not isinstance(level, (int, float)):
+            errors.append(f"{path}: level must be a number, got {type(level).__name__}")
+        elif level < 0 or level > 1000:
+            errors.append(f"{path}: level {level} out of range 0-1000")
+
+        desc = item.get("description", "")
+        if not desc:
+            errors.append(f"{path}: missing description")
+
+        children = item.get("children", [])
+        if not isinstance(children, list):
+            errors.append(f"{path}: children must be an array")
+            return
+
+        if children and depth >= 1:
+            errors.append(f"{path}: max nesting is 2 levels (root + children), item at depth {depth} has {len(children)} children")
+            return
+
+        for j, child in enumerate(children):
+            _validate_item(child, f"{path}[{j}]", depth + 1)
+
+    for i, item in enumerate(roadmap_data):
+        _validate_item(item, f"[{i}]", 0)
+
+    return len(errors) == 0, errors
+
+
+def _save_roadmap_to_db(skill, roadmap_data, checked_titles=None):
+    """Save validated roadmap to DB. Returns (version, count) or raises."""
+    conn = get_db()
+    max_ver = conn.execute(
+        "SELECT COALESCE(MAX(version),0) FROM skill_roadmaps WHERE skill_name=?",
+        (skill,),
+    ).fetchone()[0]
+    new_version = max_ver + 1
+    checked = set(checked_titles or [])
+
+    for i, t in enumerate(roadmap_data):
+        parent_num = str(i + 1)
+        cur = conn.execute(
+            "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version, numbering) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                skill,
+                None,
+                t["title"],
+                t.get("description", ""),
+                t.get("level", 0),
+                i,
+                new_version,
+                parent_num,
+            ),
+        )
+        parent_id = cur.lastrowid
+        if t["title"] in checked:
+            conn.execute(
+                "INSERT OR REPLACE INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, 1)",
+                (parent_id, skill),
+            )
+        for j, child in enumerate(t.get("children", [])):
+            child_num = f"{parent_num}.{j + 1}"
+            cur2 = conn.execute(
+                "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version, numbering) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    skill,
+                    parent_id,
+                    child["title"],
+                    child.get("description", ""),
+                    child.get("level", t.get("level", 0)),
+                    j,
+                    new_version,
+                    child_num,
+                ),
+            )
+            if child["title"] in checked:
+                conn.execute(
+                    "INSERT OR REPLACE INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, 1)",
+                    (cur2.lastrowid, skill),
+                )
+
+    conn.commit()
+    conn.close()
+    return new_version, len(roadmap_data)
+
+
 def _run_generate_worker(skill):
     """Background worker for roadmap generation."""
     from config import PROJECT_ROOT
     from prompts import load_prompt
 
-    _tmp = _os.environ.get("TEMP_DIR", "tmp")
-    TMP_DIR = _tmp if _os.path.isabs(_tmp) else _os.path.join(PROJECT_ROOT, _tmp)
-    MIMO_BIN = _os.path.expanduser("~/.mimocode/bin/mimo")
     _update_skill_progress(
         skill,
         status="running",
@@ -728,135 +981,87 @@ def _run_generate_worker(skill):
         error=None,
     )
     try:
-        # Step 1: Get level
+        # Step 1: Get skill level
         _update_skill_progress(skill, step=1, message="Reading skill level")
         conn = get_db()
         row = conn.execute(
             "SELECT level FROM tech_stack WHERE name=?", (skill,)
         ).fetchone()
         conn.close()
-        level_map = {
-            1: "beginner",
-            2: "beginner",
-            3: "intermediate",
-            4: "advanced",
-            5: "expert",
-        }
+        level_map = {1: "beginner", 2: "beginner", 3: "intermediate", 4: "advanced", 5: "expert"}
         current_level = level_map.get(row[0], "intermediate") if row else "intermediate"
+
         # Step 2: Build prompt
         _update_skill_progress(skill, step=2, message="Building AI prompt")
         prompt = load_prompt(
-            "skill_roadmaps",
-            project_root=PROJECT_ROOT,
-            tmp_dir=TMP_DIR,
-            pid=0,
+            "skill_roadmaps_generate",
             skill_name=skill,
             current_level=current_level,
             checked_items="none",
             growth_context="",
-            task_instruction="Generate a comprehensive learning outline for this skill, ordered from basic to advanced.",
         )
-        result_file = _os.path.join(TMP_DIR, "skill_roadmaps_0.json")
+
         # Step 3: Run AI
         _update_skill_progress(skill, step=3, message="AI is generating roadmap...")
-        proc = _subprocess.Popen(
-            [
-                MIMO_BIN,
-                "run",
-                prompt,
-                "--format",
-                "json",
-                "--dangerously-skip-permissions",
-            ],
-            cwd=PROJECT_ROOT,
-            stdout=_subprocess.PIPE,
-            stderr=_subprocess.PIPE,
-            env={**_os.environ, "NO_COLOR": "1"},
+        from services.process.mimo_runner import MimoRunner
+        from services.process.process_manager import ProcessManager
+        mimo = MimoRunner(ProcessManager())
+        job_key = f"roadmap_{skill}_generate"
+
+        def _on_mimo_event(evt):
+            etype = evt.get('type', '')
+            if etype == 'text':
+                text = evt.get('part', {}).get('text', '')
+                if text:
+                    _update_skill_progress(skill, message=f"AI: {text[:100]}")
+            elif etype == 'tool_use':
+                tool = evt.get('part', {}).get('tool', 'unknown')
+                _update_skill_progress(skill, message=f"Using tool: {tool}")
+
+        def _on_session_id(sid):
+            _update_skill_progress(skill, job_type="generate", session_id=sid)
+
+        returncode, output_lines, session_id = mimo.run(
+            prompt, timeout=300, key=job_key,
+            on_event=_on_mimo_event, on_session_id=_on_session_id,
         )
-        # Save process ID for cancellation and register for cleanup
-        _update_skill_progress(skill, job_type="generate", pid=proc.pid)
-        try:
-            from app import register_process, unregister_process
-            register_process(proc)
-        except ImportError:
-            pass
-        stdout, stderr = proc.communicate(timeout=180)
-        try:
-            from app import unregister_process
-            unregister_process(proc)
-        except ImportError:
-            pass
-        # Parse session ID from output
-        session_id = _parse_mimo_session_id(stdout)
+
+        # Final save if discovered after streaming ended
         if session_id:
             _update_skill_progress(skill, job_type="generate", session_id=session_id)
-        if proc.returncode == 0 and _os.path.exists(result_file):
-            with open(result_file) as f:
-                roadmap_data = _json.load(f)
-            _os.remove(result_file)
-            # Step 4: Save to DB
-            _update_skill_progress(skill, step=4, message="Saving roadmap to database")
-            conn = get_db()
-            max_ver = conn.execute(
-                "SELECT COALESCE(MAX(version),0) FROM skill_roadmaps WHERE skill_name=?",
-                (skill,),
-            ).fetchone()[0]
-            new_version = max_ver + 1
-            for i, t in enumerate(roadmap_data):
-                cur = conn.execute(
-                    "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        skill,
-                        None,
-                        t["title"],
-                        t.get("description", ""),
-                        t.get("level", 0),
-                        i,
-                        new_version,
-                    ),
-                )
-                parent_id = cur.lastrowid
-                for j, child in enumerate(t.get("children", [])):
-                    conn.execute(
-                        "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (
-                            skill,
-                            parent_id,
-                            child["title"],
-                            child.get("description", ""),
-                            child.get("level", t.get("level", 0)),
-                            j,
-                            new_version,
-                        ),
-                    )
-            conn.commit()
-            conn.close()
+
+        # Step 4: Parse JSON from output
+        _update_skill_progress(skill, step=4, message="Parsing AI output")
+        roadmap_data, parse_err = _parse_roadmap_json(output_lines)
+
+        if parse_err:
             _update_skill_progress(
-                skill,
-                status="completed",
-                step=4,
-                message="Done",
-                completed_at=_datetime.now().isoformat(),
-                version=new_version,
-                count=len(roadmap_data),
-            )
-        else:
-            err = (
-                stderr[:500].decode("utf-8", errors="replace")
-                if stderr
-                else "Generation failed"
-            )
-            _update_skill_progress(
-                skill,
-                status="failed",
-                error=err,
+                skill, status="failed", error=parse_err,
                 completed_at=_datetime.now().isoformat(),
             )
+            return
+
+        # Validate
+        is_valid, val_errors = _validate_roadmap(roadmap_data, skill)
+        if not is_valid:
+            _update_skill_progress(
+                skill, status="failed",
+                error=f"Validation failed: {'; '.join(val_errors[:5])}",
+                completed_at=_datetime.now().isoformat(),
+            )
+            return
+
+        # Save to DB
+        _update_skill_progress(skill, step=4, message="Saving roadmap to database")
+        new_version, count = _save_roadmap_to_db(skill, roadmap_data)
+        _update_skill_progress(
+            skill, status="completed", step=4, message="Done",
+            completed_at=_datetime.now().isoformat(),
+            version=new_version, count=count,
+        )
     except Exception as e:
         _update_skill_progress(
-            skill,
-            status="failed",
-            error=str(e),
+            skill, status="failed", error=str(e),
             completed_at=_datetime.now().isoformat(),
         )
 
@@ -866,18 +1071,12 @@ def _run_grow_worker(skill, mode="extend"):
     from config import PROJECT_ROOT
     from prompts import load_prompt
 
-    _tmp = _os.environ.get("TEMP_DIR", "tmp")
-    TMP_DIR = _tmp if _os.path.isabs(_tmp) else _os.path.join(PROJECT_ROOT, _tmp)
-    MIMO_BIN = _os.path.expanduser("~/.mimocode/bin/mimo")
     action_label = "Extending" if mode == "extend" else "Fine-graining"
+    prompt_name = f"skill_roadmaps_{mode}"
     _update_skill_progress(
-        skill,
-        job_type=mode,
-        status="running",
-        step=1,
+        skill, job_type=mode, status="running", step=1,
         message=f"Preparing {action_label.lower()}",
-        started_at=_datetime.now().isoformat(),
-        error=None,
+        started_at=_datetime.now().isoformat(), error=None,
     )
     try:
         # Step 1: Get current tree + progress
@@ -897,158 +1096,82 @@ def _run_grow_worker(skill, mode="extend"):
             (skill,),
         ).fetchall()
         checked_titles = [p[2] for p in progress if p[1] == 1]
-        row = conn.execute(
-            "SELECT level FROM tech_stack WHERE name=?", (skill,)
-        ).fetchone()
         conn.close()
-        level_map = {
-            1: "beginner",
-            2: "beginner",
-            3: "intermediate",
-            4: "advanced",
-            5: "expert",
-        }
-        current_level = level_map.get(row[0], "intermediate") if row else "intermediate"
+
         # Step 2: Build prompt
-        _update_skill_progress(
-            skill, job_type=mode, step=2, message="Building AI prompt"
-        )
-        growth_ctx = f"Existing roadmap tree:\n{_json.dumps(tree, indent=2)}\n\nUser has completed: {_json.dumps(checked_titles)}"
-        if mode == "extend":
-            task_instruction = "EXTEND this roadmap: Add NEW items that go beyond the current level range (add more advanced items at 80-100 if not covered). Also fill any important coverage gaps. Keep ALL existing items and their levels unchanged. The result should be a SUPERSET of the original."
-            ai_msg = "AI is extending roadmap..."
-        else:
-            task_instruction = "FINE-GRAIN this roadmap: Split each broad item into 2-4 more specific child items. Keep ALL existing item titles as parents. Children should have sub-levels within the parent level. Make each item more specific and actionable for interview preparation."
-            ai_msg = "AI is fine-graining roadmap..."
+        _update_skill_progress(skill, job_type=mode, step=2, message="Building AI prompt")
         prompt = load_prompt(
-            "skill_roadmaps",
-            project_root=PROJECT_ROOT,
-            tmp_dir=TMP_DIR,
-            pid=0,
+            prompt_name,
             skill_name=skill,
-            current_level=current_level,
+            existing_tree_json=_json.dumps(tree, indent=2),
             checked_items=_json.dumps(checked_titles),
-            growth_context=growth_ctx,
-            task_instruction=task_instruction,
         )
-        result_file = _os.path.join(TMP_DIR, "skill_roadmaps_0.json")
+
         # Step 3: Run AI
+        ai_msg = f"AI is {'extending' if mode == 'extend' else 'fine-graining'} roadmap..."
         _update_skill_progress(skill, job_type=mode, step=3, message=ai_msg)
-        proc = _subprocess.Popen(
-            [
-                MIMO_BIN,
-                "run",
-                prompt,
-                "--format",
-                "json",
-                "--dangerously-skip-permissions",
-            ],
-            cwd=PROJECT_ROOT,
-            stdout=_subprocess.PIPE,
-            stderr=_subprocess.PIPE,
-            env={**_os.environ, "NO_COLOR": "1"},
+        from services.process.mimo_runner import MimoRunner
+        from services.process.process_manager import ProcessManager
+        mimo = MimoRunner(ProcessManager())
+        job_key = f"roadmap_{skill}_{mode}"
+
+        def _on_grow_event(evt):
+            etype = evt.get('type', '')
+            if etype == 'text':
+                text = evt.get('part', {}).get('text', '')
+                if text:
+                    _update_skill_progress(skill, job_type=mode, message=f"AI: {text[:100]}")
+            elif etype == 'tool_use':
+                tool = evt.get('part', {}).get('tool', 'unknown')
+                _update_skill_progress(skill, job_type=mode, message=f"Using tool: {tool}")
+
+        def _on_session_id(sid):
+            _update_skill_progress(skill, job_type=mode, session_id=sid)
+
+        returncode, output_lines, session_id = mimo.run(
+            prompt, timeout=300, key=job_key,
+            on_event=_on_grow_event, on_session_id=_on_session_id,
         )
-        # Save process ID for cancellation and register for cleanup
-        _update_skill_progress(skill, job_type=mode, pid=proc.pid)
-        try:
-            from app import register_process, unregister_process
-            register_process(proc)
-        except ImportError:
-            pass
-        stdout, stderr = proc.communicate(timeout=180)
-        try:
-            from app import unregister_process
-            unregister_process(proc)
-        except ImportError:
-            pass
-        # Parse session ID from output
-        session_id = _parse_mimo_session_id(stdout)
+
+        # Final save if discovered after streaming ended
         if session_id:
             _update_skill_progress(skill, job_type=mode, session_id=session_id)
-        if proc.returncode == 0 and _os.path.exists(result_file):
-            with open(result_file) as f:
-                new_roadmap_data = _json.load(f)
-            _os.remove(result_file)
-            # Step 4: Save with progress preservation
+
+        # Step 4: Parse JSON from output
+        _update_skill_progress(skill, job_type=mode, step=4, message="Parsing AI output")
+        roadmap_data, parse_err = _parse_roadmap_json(output_lines)
+
+        if parse_err:
             _update_skill_progress(
-                skill,
-                job_type=mode,
-                step=4,
-                message=f"Saving {action_label.lower()}ed roadmap",
-            )
-            conn = get_db()
-            max_ver = conn.execute(
-                "SELECT COALESCE(MAX(version),0) FROM skill_roadmaps WHERE skill_name=?",
-                (skill,),
-            ).fetchone()[0]
-            new_version = max_ver + 1
-            for i, t in enumerate(new_roadmap_data):
-                cur = conn.execute(
-                    "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        skill,
-                        None,
-                        t["title"],
-                        t.get("description", ""),
-                        t.get("level", 0),
-                        i,
-                        new_version,
-                    ),
-                )
-                parent_id = cur.lastrowid
-                if t["title"] in checked_titles:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, 1)",
-                        (parent_id, skill),
-                    )
-                for j, child in enumerate(t.get("children", [])):
-                    cur2 = conn.execute(
-                        "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (
-                            skill,
-                            parent_id,
-                            child["title"],
-                            child.get("description", ""),
-                            child.get("level", t.get("level", 0)),
-                            j,
-                            new_version,
-                        ),
-                    )
-                    if child["title"] in checked_titles:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, 1)",
-                            (cur2.lastrowid, skill),
-                        )
-            conn.commit()
-            conn.close()
-            _update_skill_progress(
-                skill,
-                job_type=mode,
-                status="completed",
-                step=4,
-                message="Done",
-                completed_at=_datetime.now().isoformat(),
-                version=new_version,
-                count=len(new_roadmap_data),
-            )
-        else:
-            err = (
-                stderr[:500].decode("utf-8", errors="replace")
-                if stderr
-                else f"{action_label} failed"
-            )
-            _update_skill_progress(
-                skill,
-                job_type=mode,
-                status="failed",
-                error=err,
+                skill, job_type=mode, status="failed", error=parse_err,
                 completed_at=_datetime.now().isoformat(),
             )
+            return
+
+        # Validate
+        is_valid, val_errors = _validate_roadmap(roadmap_data, skill)
+        if not is_valid:
+            _update_skill_progress(
+                skill, job_type=mode, status="failed",
+                error=f"Validation failed: {'; '.join(val_errors[:5])}",
+                completed_at=_datetime.now().isoformat(),
+            )
+            return
+
+        # Save to DB with progress preservation
+        _update_skill_progress(
+            skill, job_type=mode, step=4,
+            message=f"Saving {action_label.lower()}ed roadmap",
+        )
+        new_version, count = _save_roadmap_to_db(skill, roadmap_data, checked_titles)
+        _update_skill_progress(
+            skill, job_type=mode, status="completed", step=4, message="Done",
+            completed_at=_datetime.now().isoformat(),
+            version=new_version, count=count,
+        )
     except Exception as e:
         _update_skill_progress(
-            skill,
-            status="failed",
-            error=str(e),
+            skill, job_type=mode, status="failed", error=str(e),
             completed_at=_datetime.now().isoformat(),
         )
 

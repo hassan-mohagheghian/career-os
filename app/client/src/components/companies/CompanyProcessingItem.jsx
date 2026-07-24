@@ -279,11 +279,13 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
           {isDone && <span className="text-green-500">done</span>}
-          {item.session_id && !isDone && (
+          {item.session_id ? (
             <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-[0.4rem] text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
               {item.session_id.slice(0, 6)}...
             </button>
-          )}
+          ) : !isDone ? (
+            <span className="text-[0.4rem] text-muted-foreground/50 font-mono ml-1">no_session_id</span>
+          ) : null}
         </span>
         <div className="flex items-center gap-0 shrink-0">
           {isFailed && item.error && (

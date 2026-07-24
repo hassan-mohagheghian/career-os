@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { useSocketIO, watchSkills, unwatchSkills } from "@/hooks/useSocketIO";
 
 const API = "/api";
 
@@ -102,6 +103,9 @@ function RoadmapNode({ item, checked, onToggle, depth = 0 }) {
               isComplete && "line-through text-muted-foreground",
             )}
           >
+            {item.numbering && (
+              <span className="text-muted-foreground font-normal mr-1.5">{item.numbering}</span>
+            )}
             {item.title}
           </div>
           {item.description && (
@@ -164,7 +168,7 @@ export default function SkillRoadmapDrawer({
   const [updatedAt, setUpdatedAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [genProgress, setGenProgress] = useState(null);
-  const pollRef = useRef(null);
+  const socket = useSocketIO();
 
   const fetchRoadmap = useCallback(async () => {
     if (!skillName || !open) return;
@@ -204,29 +208,23 @@ export default function SkillRoadmapDrawer({
     }
   }, [skillName]);
 
-  // Poll for progress while generation is running
+  // SocketIO: real-time progress updates (replaces 1.5s polling)
   useEffect(() => {
     if (!skillName || !open) return;
-    const isRunning =
-      genProgress?.status === "running" || genProgress?.status === "queued";
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    if (isRunning) {
-      pollRef.current = setInterval(async () => {
-        const p = await fetchGenProgress();
-        if (p && (p.status === "completed" || p.status === "failed")) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-          await fetchRoadmap();
-        }
-      }, 1500);
-    }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+    watchSkills();
+    const handleUpdate = (data) => {
+      if (data.skill !== skillName) return;
+      setGenProgress((prev) => ({ ...prev, ...data }));
+      if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
+        fetchRoadmap();
+      }
     };
-  }, [genProgress?.status, skillName, open, fetchGenProgress, fetchRoadmap]);
+    socket.on("skill_roadmap:update", handleUpdate);
+    return () => {
+      unwatchSkills();
+      socket.off("skill_roadmap:update", handleUpdate);
+    };
+  }, [skillName, open, socket, fetchRoadmap]);
 
   useEffect(() => {
     if (!open) {

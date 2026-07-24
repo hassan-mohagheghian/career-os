@@ -9,21 +9,20 @@ import json
 import sqlite3
 import subprocess
 import threading
-import tempfile
-import traceback
 import urllib.request
+import uuid
 from datetime import datetime
 from prompts import load_prompt
+from services.process.logging_config import get_logger
 
-_file_dir = os.path.dirname(os.path.abspath(__file__))
-_server_dir = os.path.join(_file_dir, '..')  # services/ -> server/
-_db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
-DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
-PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..', '..'))
-MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-os.makedirs(TMP_DIR, exist_ok=True)
+from services.process_utils import (
+    DB_PATH, PROJECT_ROOT, MIMO_BIN, TMP_DIR,
+    ProcessManager, TempFileManager, MimoRunner, StatusBroadcaster, _db,
+    broadcaster,
+)
+from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
+
+log = get_logger('worker')
 
 VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
 GRADE_RANK = {g: i for i, g in enumerate(VALID_GRADES)}
@@ -84,20 +83,6 @@ _load_env()
 
 # --- DB helpers ---
 
-def _db():
-    import time
-    for attempt in range(5):
-        try:
-            conn = sqlite3.connect(DB_PATH, timeout=5)
-            conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA journal_mode=WAL')
-            return conn
-        except sqlite3.OperationalError as e:
-            if 'locked' in str(e) and attempt < 4:
-                time.sleep(0.5 * (attempt + 1))
-            else:
-                raise
-
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     conn = _db()
     fields = [f'{step}=?']
@@ -114,6 +99,30 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
     values.append(pid)
     conn.execute(f'UPDATE pending_jobs SET {",".join(fields)} WHERE id=?', values)
     conn.commit(); conn.close()
+    # Emit real-time update for step progress
+    extra = {}
+    if status:
+        extra['status'] = status
+    if company:
+        extra['company'] = company
+    if job_num:
+        extra['job_num'] = job_num
+    if error:
+        extra['error'] = error
+    broadcaster.step_update(StatusUpdate(
+        table='pending_jobs', pid=pid, step=step, val=val,
+        extra=extra or None,
+    ))
+
+def _save_session_id(pid, session_id):
+    """Save mimo session_id to pending_jobs."""
+    conn = _db()
+    conn.execute("UPDATE pending_jobs SET session_id=? WHERE id=?", (session_id, pid))
+    conn.commit(); conn.close()
+    broadcaster.step_update(StatusUpdate(
+        table='pending_jobs', pid=pid, step='session_id', val=0,
+        extra={'session_id': session_id},
+    ))
 
 def _get_next_num():
     conn = _db()
@@ -305,7 +314,7 @@ def rescore_only(num):
     job = conn.execute('SELECT * FROM jobs WHERE num=?', (num,)).fetchone()
     conn.close()
     if not job:
-        print(f"[worker] Rescore: job #{num} not found")
+        log.warning("worker.rescore_not_found", num=num)
         return
 
     j = dict(job)
@@ -318,7 +327,7 @@ def rescore_only(num):
             with open(raw_path) as f:
                 raw_desc = f.read()
     if not raw_desc:
-        print(f"[worker] Rescore: no raw description for job #{num}")
+        log.warning("worker.rescore_no_raw", num=num)
         conn = _db()
         conn.execute('UPDATE jobs SET rescoring=0 WHERE num=?', (num,))
         conn.commit(); conn.close()
@@ -348,7 +357,7 @@ def rescore_only(num):
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
 
-        returncode, output_lines = _stream_mimo_output(
+        returncode, output_lines, _ = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
@@ -449,10 +458,10 @@ def rescore_only(num):
 
         try: os.remove(result_path)
         except OSError: pass
-        print(f"[worker] Rescore #{num} done: {job_data['company']} (score: {job_data['score']})")
+        log.info("worker.rescore_done", num=num, company=job_data['company'], score=job_data['score'])
 
     except Exception as e:
-        print(f"[worker] Rescore #{num} FAILED: {e}")
+        log.error("worker.rescore_failed", num=num, error=str(e))
         # Clear rescoring flag on failure
         conn = _db()
         conn.execute('UPDATE jobs SET rescoring=0 WHERE num=?', (num,))
@@ -478,6 +487,9 @@ def _fail(pid, msg, step=None):
     label = STEP_LABELS.get(step, step) if step else 'Processing'
     error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
+    broadcaster.error(ProcessingError(
+        table='pending_jobs', pid=pid, msg=error_msg, step=step,
+    ))
 
 def _log(pid, step, msg):
     """Append a workflow log entry."""
@@ -487,6 +499,9 @@ def _log(pid, step, msg):
     logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
     conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
     conn.commit(); conn.close()
+    broadcaster.log(LogEntry(
+        table='pending_jobs', pid=pid, step=step, msg=msg,
+    ))
 
 def _load_rules(context='job'):
     """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
@@ -723,7 +738,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
     before the child process exits — so the frontend can pick it up
     via SSE polling or WebSocket with no additional delay.
 
-    Returns (returncode, all_lines).
+    Returns (returncode, all_lines, session_id).
     Raises RuntimeError on timeout.
     """
     proc = subprocess.Popen(
@@ -736,6 +751,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
     )
 
     all_lines = []
+    session_id = None
     timed_out = threading.Event()
 
     def watchdog():
@@ -762,6 +778,17 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
             # ── Process each event IMMEDIATELY ──
             try:
                 evt = json.loads(line)
+                # Extract session_id from mimo output — broadcast immediately
+                if not session_id:
+                    sid = (evt.get('sessionID') or evt.get('session_id')
+                           or evt.get('sessionId'))
+                    if not sid and 'session' in evt and isinstance(evt['session'], dict):
+                        sid = evt['session'].get('id') or evt['session'].get('ID')
+                    if sid:
+                        session_id = sid
+                        _save_session_id(pid, sid)
+                    elif not session_id and evt.get('type') in (None, 'session'):
+                        log.info(f"[worker] pid={pid} evt keys={list(evt.keys())}")
                 _handle_mimo_event(pid, evt)
             except json.JSONDecodeError:
                 _log(pid, 'mimo', f'[raw] {line[:200]}')
@@ -769,10 +796,15 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
         timed_out.set()        # cancel watchdog
         proc.wait()
 
+        # Generate fallback session_id if mimo didn't provide one
+        if not session_id:
+            session_id = f"mimo_{uuid.uuid4().hex[:12]}"
+            _save_session_id(pid, session_id)
+
         if proc.returncode == -9:   # SIGKILL from watchdog
             raise RuntimeError(f"mimo timed out after {timeout}s")
 
-        return proc.returncode, all_lines
+        return proc.returncode, all_lines, session_id
 
     except:
         timed_out.set()
@@ -939,7 +971,7 @@ def process_job(pid):
                 linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
                 tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, rules=rules)
 
-            returncode, output_lines = _stream_mimo_output(
+            returncode, output_lines, sid = _stream_mimo_output(
                 [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
                 cwd=PROJECT_ROOT,
                 env={**os.environ, 'NO_COLOR': '1'},
@@ -1033,6 +1065,9 @@ def process_job(pid):
             # Mark pending done
             _update_step(pid, 'step_done', 0, status='done')
             _mark(pid, 'step_done')
+            broadcaster.complete(ProcessingComplete(
+                table='pending_jobs', pid=pid, result={'num': job_data['num'], 'company': job_data['company']},
+            ))
 
             # Save workflow_log to jobs table
             conn = _db()
@@ -1195,7 +1230,7 @@ def process_job(pid):
             linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
             tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
 
-        returncode, output_lines = _stream_mimo_output(
+        returncode, output_lines, sid = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
@@ -1310,6 +1345,9 @@ def process_job(pid):
         current_step = 'done'
         _update_step(pid, 'step_done', 0, status='done')
         _mark(pid, 'step_done')
+        broadcaster.complete(ProcessingComplete(
+            table='pending_jobs', pid=pid, result={'num': job_data['num'], 'company': job_data.get('company')},
+        ))
         conn = _db()
         row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
         conn.close()
@@ -1317,7 +1355,7 @@ def process_job(pid):
             _save_job_workflow_log(job_data['num'], dict(row)['workflow_log'] or '[]')
         try: os.remove(result_path)
         except OSError: pass
-        print(f"[worker] Job {pid} done: {job_data.get('company')} #{job_data['num']}")
+        log.info("worker.job_done", pid=pid, company=job_data.get('company'), num=job_data['num'])
 
     except subprocess.CalledProcessError as e:
         stderr = (e.stderr or '').strip()
@@ -1330,7 +1368,7 @@ def process_job(pid):
         if not meaningful:
             meaningful = f"Process exited with code {e.returncode}"
         msg = f"AI service error: {meaningful}"
-        print(f"[worker] Job {pid} FAILED: {msg}")
+        log.error("worker.job_failed", pid=pid, error=msg, step=current_step)
         _fail(pid, msg[:500], step=current_step)
     except Exception as e:
         msg = str(e)
@@ -1345,7 +1383,7 @@ def process_job(pid):
             if break_at < 100:
                 break_at = 400
             msg = msg[:break_at] + '...'
-        print(f"[worker] Job {pid} FAILED: {msg}")
+        log.error("worker.job_failed", pid=pid, error=msg, step=current_step)
         _fail(pid, msg, step=current_step)
     finally:
         for f in [job_file,
