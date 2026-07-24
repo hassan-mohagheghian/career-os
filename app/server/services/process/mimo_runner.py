@@ -79,7 +79,8 @@ class MimoRunner(IMimoRunner):
                     if on_event:
                         on_event(evt)
                     if not discovered_session_id:
-                        sid = evt.get('sessionId') or evt.get('session_id')
+                        sid = (evt.get('sessionID') or evt.get('sessionId')
+                               or evt.get('session_id'))
                         if sid:
                             discovered_session_id = sid
                             logger.info(f"[mimo] Discovered session_id={sid}")

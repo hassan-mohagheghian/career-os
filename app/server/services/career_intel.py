@@ -248,7 +248,7 @@ def _parse_session_id(stdout):
     return None
 
 
-def _run_mimo_prompt(prompt_name, pid=0, timeout=300, result_file=None, **kwargs):
+def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs):
     """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
     prompt = load_prompt(f'career_intel/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
@@ -411,7 +411,7 @@ def generate_all(pid=0):
             'running': True, 'status': 'processing', 'type': 'all',
             'started_at': _current_run['started_at'], 'run_id': run_id
         })
-        result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
+        result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid, timeout=900)
         _current_run['session_id'] = session_id
         if _cancel_requested:
             print(f"[career_intel] All sections generation cancelled")
@@ -419,17 +419,32 @@ def generate_all(pid=0):
             return None
         if result:
             for section in INSIGHT_TYPES:
-                if section in result:
+                if section in result and section != 'skills':
                     section_data = result[section]
                     score = None
                     summary = None
                     if section == 'overview':
                         score = section_data.get('careerHealthScore', {}).get('overall')
                         summary = f"Career readiness: {score}/100"
-                    # The combined prompt outputs 'skills' (minimal), but the frontend
-                    # and skills_intel endpoint expect it under 'skills_intel'
-                    save_type = 'skills_intel' if section == 'skills' else section
-                    _save_insight(save_type, section_data, score, summary)
+                    _save_insight(section, section_data, score, summary)
+            # Run dedicated skills_intelligence prompt for the full report
+            # (combined prompt only produces minimal skills data)
+            try:
+                skills_file = os.path.join(TMP_DIR, f'skills_intelligence_{pid}.json')
+                skills_result, skills_err, _ = _run_mimo_prompt(
+                    'skills_intelligence', pid=pid, result_file=skills_file,
+                )
+                if skills_result:
+                    score = skills_result.get('summary', {}).get('career_readiness_score')
+                    parts = []
+                    if skills_result.get('summary', {}).get('main_strength'):
+                        parts.append(f"Strength: {skills_result['summary']['main_strength']}")
+                    if skills_result.get('summary', {}).get('biggest_gap'):
+                        parts.append(f"Gap: {skills_result['summary']['biggest_gap']}")
+                    summary = '; '.join(parts) if parts else f"Readiness: {score}/100"
+                    _save_insight('skills_intel', skills_result, score, summary)
+            except Exception as e:
+                print(f"[career_intel] Skills intel failed during generate_all: {e}")
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'all', 'run_id': run_id})
             print(f"[career_intel] All sections generated successfully (session: {session_id})")
@@ -486,7 +501,7 @@ def generate_section(section, pid=0):
                 SECTION_PROMPTS[section], pid=pid, result_file=result_file,
             )
         else:
-            result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid)
+            result, error_msg, session_id = _run_mimo_prompt('career_intelligence', pid=pid, timeout=900)
 
         if _cancel_requested:
             print(f"[career_intel] {section} generation cancelled")
