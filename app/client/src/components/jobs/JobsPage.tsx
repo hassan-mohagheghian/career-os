@@ -29,7 +29,7 @@ export default function JobsPage({
 }) {
   const pendingCount = pending.filter(p => p.status === 'pending').length
   const queuedCount = pending.filter(p => p.status === 'queued').length
-  const processingCount = pending.filter(p => p.status === 'processing' || p.status === 'done').length
+  const processingCount = pending.filter(p => p.status === 'processing').length
   const failedCount = pending.filter(p => p.status === 'failed').length
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
@@ -123,7 +123,7 @@ export default function JobsPage({
                     <ScrollArea className="flex-1 min-h-0 min-w-0"
                       onDragOver={e => handleDragOver(e, 'processing')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'processing')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pending.filter(p => p.status === 'processing' || p.status === 'done').map(p =>
+                        {pending.filter(p => p.status === 'processing').map(p =>
                           <ProcessingItem key={p.id} item={p} onDragStart={e => handleDragStart(e, p.id)}
                             onPause={() => pausePending(p.id)} onDelete={() => deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
                       </div>
