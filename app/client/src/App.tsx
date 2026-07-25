@@ -24,7 +24,6 @@ import Header from "@/layout/Header";
 import JobDrawer from "@/features/jobs/components/drawer/JobDrawer";
 import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
 import InsightsTab from "@/features/insights/components/InsightsTab";
-import SkillsTab from "@/features/skills/components/SkillsTab";
 import ResumeTab from "@/features/resume/components/ResumeTab";
 import RulesTab from "@/features/rules/components/RulesTab";
 import CompaniesPage from "@/features/companies/components/CompaniesPage";
@@ -375,24 +374,19 @@ function App() {
       section: "jobs",
     },
     {
-      id: "skills",
-      icon: <Brain className="w-4 h-4" />,
-      label: "Skills",
-      section: "analysis",
-    },
-    {
       id: "resume",
       icon: <FileText className="w-4 h-4" />,
       label: "Resume",
-      section: "settings",
+      section: "growth hub",
     },
     {
       id: "insights",
       icon: <Lightbulb className="w-4 h-4" />,
       label: "Insights",
-      section: "analysis",
+      section: "growth hub",
       children: [
         { id: "overview", label: "Overview" },
+        { id: "skills", label: "Skills" },
         { id: "opportunities", label: "Opportunities" },
         { id: "companies", label: "Companies" },
         { id: "market", label: "Market" },
@@ -403,7 +397,7 @@ function App() {
       id: "rules",
       icon: <Gear className="w-4 h-4" />,
       label: "Rules",
-      section: "settings",
+      section: "growth hub",
     },
   ];
 
@@ -549,9 +543,6 @@ function App() {
                 onAddCompany={handleAddCompany}
                 onCancel={cancelCareerRun}
               />
-            )}
-            {tab === "skills" && (
-              <SkillsTab />
             )}
             {tab === "resume" && (
               <ResumeTab

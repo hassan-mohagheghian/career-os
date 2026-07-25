@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  ChartBar, Target, Buildings, Users, Lightbulb, ArrowsClockwise,
+  ChartBar, Target, Brain, Buildings, Users, Lightbulb, ArrowsClockwise,
   Warning, Globe, MagnifyingGlass, Clipboard, CheckCircle, Clock,
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
@@ -13,6 +13,7 @@ import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
 import OverviewSection from './OverviewSection'
 import OpportunitiesSection from './OpportunitiesSection'
 import CompaniesSection from './CompaniesSection'
+import SkillsIntelSection from './SkillsIntelSection'
 import MarketIntelSection from './MarketIntelSection'
 import NetworkingIntelSection from './NetworkingIntelSection'
 
@@ -101,14 +102,6 @@ export default function InsightsTab({
     window.location.hash = `insights/${sub}`
   }
 
-  // Redirect if user somehow lands on skills sub-tab (now a top-level tab)
-  useEffect(() => {
-    if (activeTab === 'skills') {
-      setActiveTab('overview')
-      window.location.hash = 'insights/overview'
-    }
-  }, [activeTab, setActiveTab])
-
   const unwrappedData: Record<string, any> = {}
   if (data) {
     for (const [key, val] of Object.entries(data)) {
@@ -145,10 +138,11 @@ export default function InsightsTab({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-extrabold">Insightsligence</h2>
-          <Tabs value={activeTab === 'skills' ? 'overview' : activeTab} onValueChange={switchSubTab}>
+          <h2 className="text-xl font-extrabold">Insights</h2>
+          <Tabs value={activeTab} onValueChange={switchSubTab}>
             <TabsList className="bg-muted">
               <TabsTrigger value="overview" className="gap-1"><Lightbulb className="w-4 h-4" />Overview<SectionTimestamp status={status} sectionKey="overview" /></TabsTrigger>
+              <TabsTrigger value="skills" className="gap-1"><Brain className="w-4 h-4" />Skills<SectionTimestamp status={status} sectionKey="skills_intel" /></TabsTrigger>
               <TabsTrigger value="opportunities" className="gap-1"><Target className="w-4 h-4" />Opportunities<SectionTimestamp status={status} sectionKey="opportunities" /></TabsTrigger>
               <TabsTrigger value="companies" className="gap-1"><Buildings className="w-4 h-4" />Companies<SectionTimestamp status={status} sectionKey="companies" /></TabsTrigger>
               <TabsTrigger value="market" className="gap-1"><ChartBar className="w-4 h-4" />Market<SectionTimestamp status={status} sectionKey="market" /></TabsTrigger>
@@ -204,6 +198,9 @@ export default function InsightsTab({
       {/* Sections */}
       {hasData && activeTab === 'overview' && (
         <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status} />
+      )}
+      {hasData && activeTab === 'skills' && (
+        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} status={status} />
       )}
       {hasData && activeTab === 'opportunities' && (
         <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status} />
