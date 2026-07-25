@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 
 const API = '/api'
-const PAGE_SIZE = 30
+const PAGE_SIZE = 100
 
 interface HistoryItemData {
   source: 'career-intel' | 'roadmap' | 'job-processing' | 'company-processing'
