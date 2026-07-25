@@ -131,7 +131,7 @@ export default function SkillsTab() {
         </Card>
       )}
 
-      {/* Skills Content */}
+      {/* Skills Content — hide individual genJob cards when main generation is running */}
       {hasData && (
         <SkillsIntelSection
           data={unwrappedData}
@@ -139,7 +139,7 @@ export default function SkillsTab() {
           onRefresh={refresh}
           roadmapProgress={skillRoadmapProgress}
           onRefreshProgress={() => {}}
-          genJobs={skillGenJobs}
+          genJobs={(refreshing || progress.running) ? [] : skillGenJobs}
           status={status}
         />
       )}
