@@ -65,7 +65,7 @@ from blueprints.pending import bp as pending_bp
 from blueprints.companies import bp as companies_bp
 from blueprints.career_intel import bp as career_intel_bp
 from blueprints.rules import bp as rules_bp
-from blueprints.dashboard import bp as dashboard_bp
+from blueprints.misc import bp as misc_bp
 from blueprints.tech_stack import bp as tech_stack_bp
 from blueprints.skill_roadmaps import bp as skill_roadmaps_bp, set_socketio as set_roadmap_socketio
 from blueprints.static import bp as static_bp, init_static
@@ -76,7 +76,7 @@ app.register_blueprint(pending_bp)
 app.register_blueprint(companies_bp)
 app.register_blueprint(career_intel_bp)
 app.register_blueprint(rules_bp)
-app.register_blueprint(dashboard_bp)
+app.register_blueprint(misc_bp)
 app.register_blueprint(tech_stack_bp)
 app.register_blueprint(skill_roadmaps_bp)
 app.register_blueprint(static_bp)

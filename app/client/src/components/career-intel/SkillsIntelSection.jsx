@@ -179,6 +179,7 @@ export default function SkillsIntelSection({
   const [roleFilter, setRoleFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [roadmapFilter, setRoadmapFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState(new Set());
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -299,6 +300,9 @@ export default function SkillsIntelSection({
     if (roadmapFilter === "yes") result = result.filter((s) => s.hasRoadmap);
     else if (roadmapFilter === "no") result = result.filter((s) => !s.hasRoadmap);
 
+    // Level filter (multi-select)
+    if (levelFilter.size > 0) result = result.filter((s) => levelFilter.has(s.level));
+
     // Sort
     result = [...result].sort((a, b) => {
       switch (sortBy) {
@@ -312,7 +316,7 @@ export default function SkillsIntelSection({
     });
 
     return result;
-  }, [unifiedSkills, activeCategory, sourceFilter, roleFilter, roadmapFilter, sortBy]);
+  }, [unifiedSkills, activeCategory, sourceFilter, roleFilter, roadmapFilter, levelFilter, sortBy]);
 
   // ── Handlers ──
   const handleAddCustomSkill = async () => {
@@ -519,6 +523,29 @@ export default function SkillsIntelSection({
             {ROADMAP_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        {/* Level filter — multi-select toggle buttons */}
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((lvl) => {
+            const labels = { 1: "Beg", 2: "Bas", 3: "Int", 4: "Adv", 5: "Exp" };
+            const isActive = levelFilter.has(lvl);
+            return (
+              <button key={lvl} onClick={() => {
+                setLevelFilter(prev => {
+                  const next = new Set(prev);
+                  if (next.has(lvl)) next.delete(lvl); else next.add(lvl);
+                  return next;
+                });
+              }} className={cn("px-1.5 py-0.5 rounded text-[0.5rem] font-semibold border transition",
+                isActive ? "bg-indigo-500/15 text-indigo-500 border-indigo-500/30" : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+              )}>
+                {labels[lvl]}
+              </button>
+            );
+          })}
+          {levelFilter.size > 0 && (
+            <button onClick={() => setLevelFilter(new Set())} className="text-[0.5rem] text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+          )}
+        </div>
         <Badge variant="secondary" className="text-[0.5rem] h-4">{displayedSkills.length} skills</Badge>
       </div>
 
