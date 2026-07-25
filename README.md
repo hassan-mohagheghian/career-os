@@ -18,7 +18,7 @@ Opens Flask API (port 5000) + React dev server (port 5173).
 | Frontend | React 18, TypeScript, Vite 6, shadcn/ui, Tailwind CSS |
 | AI | Mimo CLI subprocess |
 | Realtime | WebSocket (SocketIO, threading mode) |
-| Testing | pytest (267 tests), vitest (23 tests) |
+| Testing | pytest (306 tests), vitest (23 tests) |
 | API Docs | Swagger UI (`/api/docs/`), ReDoc (`/api/redoc/`) |
 
 ## Architecture
@@ -46,6 +46,24 @@ Opens Flask API (port 5000) + React dev server (port 5173).
               └───────────────────────┘
 ```
 
+## Navigation
+
+```
+Jobs              Job processing queue + processed cards
+Companies         Company intelligence + processing
+Skills            Skill management, roadmaps, progress tracking
+Insights          Career intelligence analysis
+  ├── Overview    Career health score, next actions
+  ├── Skills      Skills analysis (extracted skills, fill into DB)
+  ├── Opportunities  Job funnel, best jobs, missed opportunities
+  ├── Companies   Company scoring, top targets
+  ├── Market      Countries, cities, remote opportunities
+  └── Networking  Connection strategy, LinkedIn targets
+Settings
+  ├── Resume      Resume/cover letter generation
+  └── Rules       Scoring rules configuration
+```
+
 ## Features
 
 ### Job Processing
@@ -60,13 +78,12 @@ Opens Flask API (port 5000) + React dev server (port 5173).
 - Visa friendliness assessment
 - Fit/Success/Overall scoring
 
-### Skills Intelligence
+### Skills Management
 - **5 Categories**: Technical, Engineering, Professional, Domain, Career
 - **Skill Aliases**: Merge duplicate skills (e.g., Postgres → PostgreSQL)
 - **Drag-and-Drop Merge**: Combine skills across all sections
 - **Checkable Roadmaps**: Track learning progress per skill
 - **Auto-categorization**: AI categorizes skills from job analysis
-- Independent generation (separate from Insights)
 
 ### Insights (Career Intelligence)
 - Career health score (0-100)
@@ -80,7 +97,8 @@ Opens Flask API (port 5000) + React dev server (port 5173).
 - Cover letter generation
 - LinkedIn profile integration
 
-### API Documentation
+## API Documentation
+
 - **Swagger UI**: `http://localhost:5000/api/docs/`
 - **ReDoc**: `http://localhost:5000/api/redoc/`
 - **OpenAPI Spec**: `http://localhost:5000/api/swagger.json`
@@ -115,17 +133,17 @@ Opens Flask API (port 5000) + React dev server (port 5173).
 app/
 ├── server/
 │   ├── app.py                    # Flask entry point
-│   ├── blueprints/               # API routes (jobs, companies, insights, tech_stack, etc.)
+│   ├── blueprints/               # API routes (10 blueprints)
 │   ├── services/                 # Business logic (worker, company_worker, insights)
 │   │   └── process/              # Broadcaster, models, mimo_runner, process_manager
 │   ├── core/                     # DB schema, queue manager
 │   ├── prompts/                  # AI prompt templates (organized by feature)
-│   │   ├── insights/             # Career intelligence prompts
-│   │   ├── skill_roadmaps/       # Skill roadmap prompts
-│   │   ├── job_processing/       # Job processing prompts
-│   │   ├── company/              # Company analysis prompts
-│   │   └── resume/               # Resume generation prompts
-│   └── tests/                    # Mirror server structure
+│   │   ├── insights/             # Career intelligence prompts (7)
+│   │   ├── skill_roadmaps/       # Skill roadmap prompts (4)
+│   │   ├── job_processing/       # Job processing prompts (4)
+│   │   ├── company/              # Company analysis prompts (2)
+│   │   └── resume/               # Resume generation prompts (2)
+│   └── tests/                    # 306 tests mirroring server structure
 │       ├── test_blueprints/
 │       ├── test_services/
 │       ├── test_core/
@@ -133,17 +151,17 @@ app/
 └── client/
     └── src/
         ├── features/             # Feature-based architecture
-        │   ├── jobs/             # Job processing (components, hooks)
+        │   ├── jobs/             # Job processing (components, hooks, tests)
         │   ├── companies/        # Company intelligence
-        │   ├── insights/         # Career insights (formerly career-intel)
-        │   ├── skills/           # Skills intelligence (standalone)
+        │   ├── insights/         # Career insights
+        │   ├── skills/           # Skills management + roadmaps
         │   ├── resume/           # Resume generation
         │   └── rules/            # Scoring rules
         ├── shared/               # Shared components, hooks, UI, lib
-        │   ├── components/       # ProcessingItem, GenerationProgressCard, etc.
+        │   ├── components/       # ProcessingItem, GenerationProgressCard, NotesLinksInput
         │   ├── hooks/            # useSocketIO, usePending, useWorkflow, useToast
         │   ├── lib/              # utils, skills helpers
-        │   └── ui/               # shadcn/ui components
+        │   └── ui/               # shadcn/ui components (15 primitives)
         ├── layout/               # Header, Sidebar
         ├── App.tsx               # Root app
         └── main.tsx              # Entry point
@@ -152,18 +170,16 @@ app/
 ## Testing
 
 ```bash
-# Backend
+# Backend (306 tests)
 cd app/server && python -m pytest tests/ -v
 
-# Frontend
+# Frontend (23 tests)
 cd app/client && npx vitest run
 ```
 
-267 backend + 23 frontend tests covering: broadcaster, worker, company_worker, skill management, models, process_manager, queue, repository, roadmaps, blueprints, career insights.
-
 ## Documentation
 
-- `docs/ARCHITECTURE.md` — System design, entities, data flows
+- `docs/README.md` — Documentation index
+- `docs/architecture/ARCHITECTURE.md` — System design, entities, data flows
 - `docs/CHANGELOG.md` — Version history
-- `docs/ROADMAP.md` — Completed features and future plans
 - API docs at runtime: `/api/docs/` (Swagger UI), `/api/redoc/` (ReDoc)

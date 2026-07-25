@@ -33,6 +33,7 @@ def swagger_ui():
 <body>
   <div id="swagger-ui"></div>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
   <script>
     SwaggerUIBundle({
       url: '/api/swagger.json',

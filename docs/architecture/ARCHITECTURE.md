@@ -60,25 +60,27 @@ tech_stack ── skill_aliases
   └── skill_roadmap_jobs
 ```
 
-## Feature-Based Frontend Architecture
+## Navigation Structure
 
 ```
-src/
-├── features/
-│   ├── jobs/           Job processing (components, hooks, tests)
-│   ├── companies/      Company intelligence
-│   ├── insights/       Career insights (formerly career-intel)
-│   ├── skills/         Skills intelligence (standalone)
-│   ├── resume/         Resume generation
-│   └── rules/          Scoring rules
-├── shared/
-│   ├── components/     Shared UI (ProcessingItem, GenerationProgressCard, etc.)
-│   ├── hooks/          Shared hooks (useSocketIO, usePending, useWorkflow, useToast)
-│   ├── lib/            Utilities (cn, resolveSkillCategory)
-│   └── ui/             shadcn/ui components (15 primitives)
-├── layout/             Header, Sidebar
-├── App.tsx             Root app
-└── main.tsx            Entry point
+JOBS
+  ├── Jobs           Job processing queue + processed cards
+  └── Companies      Company intelligence + processing
+
+GROWTH PATH
+  └── Skills         Skill management, roadmaps, progress tracking
+
+INSIGHTS
+  ├── Overview       Career health score, next actions
+  ├── Skills         Skills analysis (extracted skills, fill into DB)
+  ├── Opportunities  Job funnel, best jobs, missed opportunities
+  ├── Companies      Company scoring, top targets
+  ├── Market         Countries, cities, remote opportunities
+  └── Networking     Connection strategy, LinkedIn targets
+
+SETTINGS
+  ├── Resume         Resume/cover letter generation
+  └── Rules          Scoring rules configuration
 ```
 
 ## Backend Structure
@@ -91,7 +93,7 @@ app/server/
 ├── migrations.py       Schema + data migrations
 ├── blueprints/         API routes (10 blueprints)
 │   ├── jobs.py         Job CRUD, scoring
-│   ├── pending.py      Processing queue
+│   ├── pending.py      Processing queue (accepts notes+links)
 │   ├── companies.py    Company CRUD, intelligence
 │   ├── insights.py     Career intelligence endpoints
 │   ├── tech_stack.py   Skills CRUD, merge, taxonomy
@@ -102,45 +104,32 @@ app/server/
 │   ├── api_docs.py     Swagger UI + ReDoc
 │   └── static.py       SPA static serving
 ├── services/
-│   ├── worker.py       Job processing pipeline
+│   ├── worker.py       Job processing pipeline (supports notes+links)
 │   ├── company_worker.py  Company processing
-│   ├── insights.py     Career intelligence (concurrency-locked)
+│   ├── insights.py     Career intelligence (concurrency-locked, fills skills into DB)
 │   └── process/        Broadcaster, models, mimo_runner, process_manager
 ├── core/
 │   ├── db.py           DB schema, migrations
-│   └── queue.py        Job queue manager
+│   └── queue.py        Job queue manager (shared for jobs + companies)
 ├── prompts/            AI prompt templates
 │   ├── insights/       Career intelligence (7 prompts)
 │   ├── skill_roadmaps/ Skill roadmap generation
 │   ├── job_processing/ Job processing steps
 │   ├── company/        Company analysis
 │   └── resume/         Resume generation
-└── tests/              267 tests mirroring server structure
+└── tests/              306 tests mirroring server structure
 ```
 
-## Navigation Tabs
-
-| Tab | Section | Sub-tabs | Description |
-|-----|---------|----------|-------------|
-| Jobs | jobs | — | Job processing queue + processed cards |
-| Companies | jobs | — | Company intelligence + processing |
-| **Skills** | analysis | — | Skills intelligence (standalone) |
-| Resume | settings | — | Resume/cover letter generation |
-| Insights | analysis | overview, opportunities, companies, market, networking | Career intelligence analysis |
-| Rules | settings | — | Scoring rules configuration |
-
-**Note**: Skills is a top-level tab, separate from Insights. Career Intel was renamed to Insights.
-
-## Data Flow
+## Data Flows
 
 ### Job Processing
 ```
-URL → pending_jobs → worker.py → fetch → extract → analyze → score → save to jobs
+URL/Notes/Links → pending_jobs → worker.py → fetch → validate → extract → score → save to jobs
 ```
 
 ### Company Processing
 ```
-Notes/URLs → pending_companies → company_worker.py → fetch → extract → analyze → save to companies
+Notes/Links → pending_companies → company_worker.py → fetch → extract → analyze → save to companies
 ```
 
 ### Insights Generation
@@ -150,8 +139,25 @@ Click Generate → insights.py → per-section prompts → mimo CLI → save to 
 
 ### Skills Intelligence
 ```
-Click Generate → insights.py → skills_intelligence prompt → mimo CLI → save to career_insights (skills_intel)
+Click Generate → insights.py → skills_intelligence prompt → mimo CLI → save to career_insights + fill tech_stack
 ```
+
+### Skill Roadmap Generation
+```
+Click Generate → skill_roadmaps.py → mimo CLI → save to skill_roadmaps + emit progress
+```
+
+## Design Decisions
+
+- **No ORM**: Raw SQL for full control over queries and schema
+- **Feature-based frontend**: Each feature owns its components, hooks, and types
+- **Concurrency lock**: Only one insights generation at a time
+- **Version tracking**: `version` column on pending_jobs/companies for retry counting
+- **Session resumption**: Mimo `--session` flag enables continuing interrupted AI sessions
+- **Stale run recovery**: On startup, stuck `processing` jobs marked `failed`
+- **Font size system**: Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for dense dashboard UI
+- **API docs**: Static OpenAPI 3.0 spec served via Swagger UI (`/api/docs/`) and ReDoc (`/api/redoc/`)
+- **Notes+Links input**: Both jobs and companies accept multi-source input (URL + text notes + labeled links)
 
 ## WebSocket Events
 
@@ -164,12 +170,55 @@ Click Generate → insights.py → skills_intelligence prompt → mimo CLI → s
 | `insights:progress` | insights | Insights generation progress |
 | `skill_roadmap:update` | skills | Per-skill roadmap generation |
 
-## Design Decisions
+## API Endpoints
 
-- **No ORM**: Raw SQL for full control over queries and schema
-- **Feature-based frontend**: Each feature owns its components, hooks, and types
-- **Concurrency lock**: Only one insights generation at a time
-- **Version tracking**: `version` column on pending_jobs/companies for retry counting
-- **Stale run recovery**: On startup, stuck `processing` jobs are marked `failed`
-- **Font size system**: Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for dense dashboard UI
-- **API docs**: Static OpenAPI 3.0 spec served via Swagger UI (`/api/docs/`) and ReDoc (`/api/redoc/`)
+### Jobs
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/jobs` | GET | Paginated job list |
+| `/api/jobs/:num` | GET/PUT/DELETE | Job CRUD |
+| `/api/jobs/:num/requeue` | POST | Re-queue for processing |
+| `/api/jobs/:num/rescore` | POST | Rescore existing job |
+
+### Companies
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/companies` | GET/POST | Company CRUD |
+| `/api/companies/:id` | GET/DELETE | Company details/delete |
+| `/api/pending-companies` | GET/POST | Company processing queue |
+
+### Skills
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/tech-stack` | GET/POST | Skills CRUD |
+| `/api/tech-stack/:id` | PUT/DELETE | Update/delete skill |
+| `/api/tech-stack/:id/hide` | PATCH | Soft-delete |
+| `/api/tech-stack/:id/restore` | PATCH | Restore hidden |
+| `/api/tech-stack/:id/rename` | PATCH | Rename skill |
+| `/api/tech-stack/merge` | POST | Merge skills |
+| `/api/skill-roadmaps` | GET | Roadmap tree |
+| `/api/skill-roadmaps/generate` | POST | AI roadmap generation |
+| `/api/skill-roadmaps/extend` | POST | Extend roadmap |
+| `/api/skill-roadmaps/finegrain` | POST | Fine-grain roadmap |
+| `/api/skill-roadmap-progress/all` | GET | All progress summary |
+
+### Insights
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/insights` | GET | All insights |
+| `/api/insights/:section` | GET | Section data |
+| `/api/insights/refresh` | POST | Generate all sections |
+| `/api/insights/:section/refresh` | POST | Generate single section |
+| `/api/insights/progress` | GET | Real-time progress |
+| `/api/insights/status` | GET | Section statuses |
+| `/api/insights/skills-intel` | GET | Skills intelligence |
+| `/api/insights/cancel` | POST | Cancel generation |
+
+### System
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/pending` | GET/POST | Job queue |
+| `/api/rules` | GET/PUT | Scoring rules |
+| `/api/generation-history` | GET | Unified history |
+| `/api/docs/` | GET | Swagger UI |
+| `/api/redoc` | GET | ReDoc |
