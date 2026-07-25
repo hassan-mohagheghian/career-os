@@ -59,10 +59,10 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
   const tech = intel?.technology_analysis || {}
   const recommendation = intel?.recommendation || {}
 
-  const priority = scores.priority || 'B'
-  const visaScore = scores.visa_score ?? null
-  const techMatch = scores.tech_match ?? null
-  const careerScore = scores.career_score ?? null
+  const fitScore = scores.company_fit_score ?? null
+  const successScore = scores.company_success_score ?? null
+  const overallScore = scores.company_overall_score ?? null
+  const overallGrade = scores.overall_grade || scores.fit_grade || '—'
 
   return (
     <Sheet open={!!company} onOpenChange={(open) => !open && onClose()}>
@@ -72,25 +72,25 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
                 <div className="flex flex-col items-center">
-                  <div className="text-4xl font-black text-primary">{priority}</div>
-                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Priority</div>
+                  <div className="text-4xl font-black text-primary">{overallGrade}</div>
+                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Grade</div>
                 </div>
-                {visaScore != null && (
+                {fitScore != null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-primary">{visaScore}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Visa</div>
+                    <div className="text-lg font-bold text-primary">{fitScore}</div>
+                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
                   </div>
                 )}
-                {techMatch != null && (
+                {successScore != null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-primary">{techMatch}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Tech</div>
+                    <div className="text-lg font-bold text-primary">{successScore}</div>
+                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
                   </div>
                 )}
-                {careerScore != null && (
+                {overallScore != null && (
                   <div className="flex flex-col items-center">
-                    <div className="text-lg font-bold text-primary">{careerScore}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Career</div>
+                    <div className="text-lg font-bold text-primary">{overallScore}</div>
+                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
                   </div>
                 )}
               </div>
@@ -336,42 +336,86 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
 
             {intel && (
               <>
-                {/* Priority */}
+                {/* Overall Grade */}
                 <Card className="p-4 bg-primary/5 border-primary/20">
                   <div className="text-center">
-                    <div className="text-5xl font-black text-primary mb-1">{priority}</div>
-                    <div className="text-sm font-semibold text-muted-foreground">Priority</div>
+                    <div className="text-5xl font-black text-primary mb-1">{overallGrade}</div>
+                    <div className="text-sm font-semibold text-muted-foreground">Overall Grade</div>
+                    {overallScore != null && (
+                      <div className="text-lg font-bold text-primary mt-1">{overallScore}/100</div>
+                    )}
                   </div>
                 </Card>
 
-                {/* Score Breakdown */}
+                {/* Fit Score */}
                 <Card className="p-4">
-                  <div className="text-sm font-semibold mb-3">Score Breakdown</div>
-                  <div className="space-y-3">
-                    {visaScore != null && <ScoreRow label="Visa Sponsorship" value={visaScore} />}
-                    {techMatch != null && <ScoreRow label="Tech Match" value={techMatch} />}
-                    {careerScore != null && <ScoreRow label="Career Score" value={careerScore} />}
-                    {scores.international_score != null && <ScoreRow label="International" value={scores.international_score} />}
-                    {scores.stability_score != null && <ScoreRow label="Stability" value={scores.stability_score} />}
-                    {scores.growth_score != null && <ScoreRow label="Growth" value={scores.growth_score} />}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex flex-col items-center">
+                      <div className="text-3xl font-black text-primary">{fitScore ?? '?'}</div>
+                      <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit Score</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold">Company Fit Score</div>
+                      <div className="text-sm text-muted-foreground">
+                        How well does this company match your technical background and career direction?
+                      </div>
+                    </div>
                   </div>
+                  {scores.fit_explanation && (
+                    <p className="text-sm text-muted-foreground mb-2">{scores.fit_explanation}</p>
+                  )}
+                  {scores.fit_positive_factors && scores.fit_positive_factors.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-sm text-green-500 font-semibold">Positive Factors:</span>
+                      {scores.fit_positive_factors.map((f: string, i: number) => <p key={i} className="text-sm text-green-400 mt-0.5">+ {f}</p>)}
+                    </div>
+                  )}
+                  {scores.fit_negative_factors && scores.fit_negative_factors.length > 0 && (
+                    <div>
+                      <span className="text-sm text-red-400 font-semibold">Negative Factors:</span>
+                      {scores.fit_negative_factors.map((f: string, i: number) => <p key={i} className="text-sm text-red-400 mt-0.5">- {f}</p>)}
+                    </div>
+                  )}
                 </Card>
 
-                {/* Explanation */}
-                {(scores.fit_explanation || scores.success_explanation) && (
+                {/* Success Score */}
+                <Card className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex flex-col items-center">
+                      <div className="text-3xl font-black text-primary">{successScore ?? '?'}</div>
+                      <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success Score</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold">Company Success Score</div>
+                      <div className="text-sm text-muted-foreground">
+                        How likely are you to successfully join this company?
+                      </div>
+                    </div>
+                  </div>
+                  {scores.success_explanation && (
+                    <p className="text-sm text-muted-foreground mb-2">{scores.success_explanation}</p>
+                  )}
+                  {scores.success_positive_factors && scores.success_positive_factors.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-sm text-green-500 font-semibold">Positive Factors:</span>
+                      {scores.success_positive_factors.map((f: string, i: number) => <p key={i} className="text-sm text-green-400 mt-0.5">+ {f}</p>)}
+                    </div>
+                  )}
+                  {scores.success_negative_factors && scores.success_negative_factors.length > 0 && (
+                    <div>
+                      <span className="text-sm text-red-400 font-semibold">Negative Factors:</span>
+                      {scores.success_negative_factors.map((f: string, i: number) => <p key={i} className="text-sm text-red-400 mt-0.5">- {f}</p>)}
+                    </div>
+                  )}
+                </Card>
+
+                {/* Overall Calculation */}
+                {fitScore != null && successScore != null && (
                   <Card className="p-4">
-                    {scores.fit_explanation && (
-                      <div className="mb-2">
-                        <span className="text-sm text-green-500 font-semibold">Positive Factors:</span>
-                        {scores.fit_positive_factors?.map((f: string, i: number) => <p key={i} className="text-sm text-green-400 mt-0.5">+ {f}</p>)}
-                      </div>
-                    )}
-                    {scores.fit_negative_factors && scores.fit_negative_factors.length > 0 && (
-                      <div>
-                        <span className="text-sm text-red-400 font-semibold">Negative Factors:</span>
-                        {scores.fit_negative_factors.map((f: string, i: number) => <p key={i} className="text-sm text-red-400 mt-0.5">- {f}</p>)}
-                      </div>
-                    )}
+                    <div className="text-sm font-semibold mb-2">Score Calculation</div>
+                    <div className="text-sm text-muted-foreground">
+                      Overall = Fit ({fitScore}) × 0.5 + Success ({successScore}) × 0.5 = <span className="font-bold text-primary">{overallScore ?? '?'}</span>
+                    </div>
                   </Card>
                 )}
               </>

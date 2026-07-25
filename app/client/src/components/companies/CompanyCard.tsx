@@ -5,31 +5,42 @@ import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
-const PRIORITY_STYLES = {
+const PRIORITY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   'A++': { bg: 'rgba(16,185,129,0.2)', text: '#10b981', border: 'border-emerald-400/30' },
   'A+': { bg: 'rgba(16,185,129,0.15)', text: '#34d399', border: 'border-emerald-500/30' },
   'A': { bg: 'rgba(34,197,94,0.12)', text: '#22c55e', border: 'border-green-500/30' },
+  'A-': { bg: 'rgba(34,197,94,0.1)', text: '#4ade80', border: 'border-green-400/30' },
+  'B+': { bg: 'rgba(59,130,246,0.15)', text: '#60a5fa', border: 'border-blue-400/30' },
   'B': { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6', border: 'border-blue-500/30' },
   'C': { bg: 'rgba(234,179,8,0.12)', text: '#eab308', border: 'border-yellow-500/30' },
+  'D': { bg: 'rgba(239,68,68,0.12)', text: '#ef4444', border: 'border-red-500/30' },
 }
 
-export default function CompanyCard({ company, onClick, onDelete, onReprocess }) {
+export default function CompanyCard({ company, onClick, onDelete, onReprocess }: {
+  company: any
+  onClick: () => void
+  onDelete?: (id: number) => void
+  onReprocess?: (id: number) => void
+}) {
   const scores = company.scores || {}
-  const priority = scores.priority || 'B'
-  const ps = PRIORITY_STYLES[priority] || PRIORITY_STYLES['B']
+  const fitScore = scores.company_fit_score ?? null
+  const successScore = scores.company_success_score ?? null
+  const overallScore = scores.company_overall_score ?? null
+  const overallGrade = scores.overall_grade || scores.fit_grade || '—'
+  const ps = PRIORITY_STYLES[overallGrade] || PRIORITY_STYLES['B']
 
   return (
-    <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px]", `border-l-[${ps.text}]`)}
+    <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px]")}
       style={{ borderLeftColor: ps.text }}>
-      {/* Row 1: Priority + Scores */}
+      {/* Row 1: Grade + Scores */}
       <div className="flex items-center gap-2 mb-1.5">
         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.6rem] font-black border"
           style={{ background: ps.bg, color: ps.text, borderColor: ps.border }}>
-          {priority}
+          {overallGrade}
         </span>
-        {scores.visa_score != null && <ScoreBadge label="Visa" value={scores.visa_score} />}
-        {scores.tech_match != null && <ScoreBadge label="Tech" value={scores.tech_match} />}
-        {scores.career_score != null && <ScoreBadge label="Career" value={scores.career_score} />}
+        {fitScore != null && <ScoreBadge label="Fit" value={fitScore} />}
+        {successScore != null && <ScoreBadge label="Success" value={successScore} />}
+        {overallScore != null && <ScoreBadge label="Overall" value={overallScore} />}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           {onReprocess && (
             <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-blue-500" onClick={(e) => { e.stopPropagation(); onReprocess(company.id) }} title="Reprocess">
@@ -91,17 +102,17 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess })
   )
 }
 
-function ScoreBadge({ label, value }) {
+function ScoreBadge({ label, value }: { label: string; value: number }) {
   if (value == null) return null
-  const v = typeof value === 'number' ? value : parseInt(value)
+  const v = typeof value === 'number' ? value : parseInt(String(value))
   if (isNaN(v)) return null
   const bg = v >= 80 ? 'bg-emerald-500/15 text-emerald-400' :
-             v >= 60 ? 'bg-blue-500/15 text-blue-400' :
-             v >= 40 ? 'bg-yellow-500/15 text-yellow-400' :
-             'bg-red-500/15 text-red-400'
+    v >= 60 ? 'bg-blue-500/15 text-blue-400' :
+    v >= 40 ? 'bg-yellow-500/15 text-yellow-400' :
+    'bg-red-500/15 text-red-400'
   return (
     <span className={cn("inline-flex items-center px-1 py-0.5 rounded text-[0.55rem] font-bold", bg)} title={`${label}: ${v}`}>
-      {label.slice(0, 1)}:{v}
+      {label.slice(0, 3)}:{v}
     </span>
   )
 }
