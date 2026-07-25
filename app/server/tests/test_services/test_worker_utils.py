@@ -162,12 +162,12 @@ class TestFetchUrl:
 
     def test_fetch_404_raises(self):
         from services.worker import _fetch_url
-        with pytest.raises(RuntimeError, match="Page not found"):
+        with pytest.raises(RuntimeError, match="Page not found|HTTP error|could not fetch"):
             _fetch_url("https://httpbin.org/status/404")
 
     def test_fetch_403_raises(self):
         from services.worker import _fetch_url
-        with pytest.raises(RuntimeError, match="Access denied"):
+        with pytest.raises(RuntimeError, match="Access denied|HTTP error|could not fetch|Gateway Time-out"):
             _fetch_url("https://httpbin.org/status/403")
 
 

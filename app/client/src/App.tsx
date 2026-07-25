@@ -24,6 +24,7 @@ import Header from "@/layout/Header";
 import JobDrawer from "@/features/jobs/components/drawer/JobDrawer";
 import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
 import CareerIntelTab from "@/features/career-intel/components/CareerIntelTab";
+import SkillsTab from "@/features/skills/components/SkillsTab";
 import ResumeTab from "@/features/resume/components/ResumeTab";
 import RulesTab from "@/features/rules/components/RulesTab";
 import CompaniesPage from "@/features/companies/components/CompaniesPage";
@@ -39,7 +40,7 @@ import {
   useResume,
   useCareerIntel,
 } from "@/shared/hooks";
-import { useSocketIO, watchSkills, unwatchSkills } from "@/shared/hooks/useSocketIO";
+import { useSocketIO } from "@/shared/hooks/useSocketIO";
 
 const API = "/api";
 
@@ -174,9 +175,6 @@ function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  // Global skill roadmap progress (shared between SkillsIntelSection and SkillRoadmapDrawer)
-  const [skillRoadmapProgress, setSkillRoadmapProgress] = useState({});
-  const [skillGenJobs, setSkillGenJobs] = useState([]); // active/failed generation jobs
   const socket = useSocketIO();
 
   useEffect(() => {
@@ -198,92 +196,12 @@ function App() {
     fetchCareerData();
     fetchCareerStatus();
     fetchCareerProgress();
-    fetchSkillProgress();
   }, []);
 
   const fetchRules = () =>
     fetch(`${API}/rules`)
       .then((r) => r.json())
       .then(setRules);
-
-  // Skill roadmap progress — polled globally so all views stay in sync
-  const fetchSkillProgress = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/skill-roadmap-progress/all`);
-      const data = await res.json();
-      setSkillRoadmapProgress(data);
-    } catch {}
-  }, []);
-
-  // Fetch active generation jobs (running/queued) for the top bar
-  const pollActiveSkillJobs = useCallback(async () => {
-    try {
-      const stackRes = await fetch(`${API}/tech-stack`);
-      const stack = await stackRes.json();
-      const skills = [...new Set(stack.map((s) => s.name))];
-      const jobs = [];
-      const seen = new Set();
-      for (const skill of skills.slice(0, 20)) {
-        if (seen.has(skill)) continue;
-        seen.add(skill);
-        const res = await fetch(
-          `${API}/skill-roadmaps/progress?skill=${encodeURIComponent(skill)}`,
-        );
-        const p = await res.json();
-        if (p.status === "running" || p.status === "queued") {
-          jobs.push({ skill, ...p });
-        }
-      }
-      setSkillGenJobs(jobs);
-    } catch {}
-  }, []);
-
-  // SocketIO: watch skill roadmap progress (replaces per-skill polling)
-  useEffect(() => {
-    const handleSkillUpdate = (data) => {
-      const { skill } = data;
-      if (!skill) return;
-      // Update global progress map
-      setSkillRoadmapProgress((prev) => ({
-        ...prev,
-        [skill]: { ...prev[skill], ...data },
-      }));
-      // Track active generation jobs for the top bar
-      setSkillGenJobs((prev) => {
-        const idx = prev.findIndex((j) => j.skill === skill);
-        if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
-          return idx >= 0 ? prev.filter((_, i) => i !== idx) : prev;
-        }
-        const job = { skill, ...data };
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = job;
-          return next;
-        }
-        return [...prev, job];
-      });
-    };
-    socket.on("skill_roadmap:update", handleSkillUpdate);
-
-    // On (re)connect: re-fetch all active jobs so we never miss session_id or status
-    const handleConnect = () => {
-      watchSkills();
-      fetchSkillProgress();
-      pollActiveSkillJobs();
-    };
-    socket.on("connect", handleConnect);
-
-    // If already connected, join immediately
-    if (socket.connected) {
-      watchSkills();
-    }
-
-    return () => {
-      unwatchSkills();
-      socket.off("skill_roadmap:update", handleSkillUpdate);
-      socket.off("connect", handleConnect);
-    };
-  }, [socket, fetchSkillProgress]);
 
   useEffect(() => {
     const onHash = () => {
@@ -457,6 +375,12 @@ function App() {
       section: "jobs",
     },
     {
+      id: "skills",
+      icon: <Brain className="w-4 h-4" />,
+      label: "Skills",
+      section: "analysis",
+    },
+    {
       id: "resume",
       icon: <FileText className="w-4 h-4" />,
       label: "Resume",
@@ -471,7 +395,6 @@ function App() {
         { id: "overview", label: "Overview" },
         { id: "opportunities", label: "Opportunities" },
         { id: "companies", label: "Companies" },
-        { id: "skills", label: "Skills" },
         { id: "market", label: "Market" },
         { id: "networking", label: "Networking" },
       ],
@@ -625,10 +548,10 @@ function App() {
                 onOpenCompany={openCompanyDrawer}
                 onAddCompany={handleAddCompany}
                 onCancel={cancelCareerRun}
-                skillRoadmapProgress={skillRoadmapProgress}
-                onRefreshSkillProgress={fetchSkillProgress}
-                skillGenJobs={skillGenJobs}
               />
+            )}
+            {tab === "skills" && (
+              <SkillsTab />
             )}
             {tab === "resume" && (
               <ResumeTab

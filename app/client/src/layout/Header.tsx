@@ -8,6 +8,7 @@ import GenerationHistoryDrawer from '@/shared/components/GenerationHistoryDrawer
 const FEATURES = [
   { id: 'jobs', icon: Briefcase, label: 'Jobs', color: 'text-blue-500' },
   { id: 'companies', icon: Buildings, label: 'Companies', color: 'text-emerald-500' },
+  { id: 'skills', icon: Brain, label: 'Skills', color: 'text-rose-500' },
   { id: 'resume', icon: FileText, label: 'Resume', color: 'text-purple-500' },
   { id: 'career-intel', icon: Lightbulb, label: 'Career Intel', color: 'text-amber-500' },
   { id: 'rules', icon: Gear, label: 'Rules', color: 'text-cyan-500' },

@@ -350,7 +350,9 @@ class TestGenerateAll:
         assert result is None
 
     @patch.object(ci, '_run_mimo_prompt')
-    def test_saves_skills_as_skills_intel(self, mock_run, db):
+    def test_generate_all_excludes_skills_intel(self, mock_run, db):
+        """generate_all() runs 5 sections (overview, opportunities, companies, market, networking).
+        Skills is now independent — generate_all does NOT include skills_intel."""
         mock_run.return_value = (
             {'overview': {'position': {}}, 'skills': {'strengths': []}},
             None, None
@@ -359,8 +361,13 @@ class TestGenerateAll:
         conn = sqlite3.connect(db)
         types = {r[0] for r in conn.execute("SELECT insight_type FROM career_insights").fetchall()}
         conn.close()
-        assert 'skills_intel' in types
-        assert 'skills' not in types  # minimal skills not saved as 'skills'
+        assert 'overview' in types
+        assert 'opportunities' in types
+        assert 'companies' in types
+        assert 'market' in types
+        assert 'networking' in types
+        assert 'skills_intel' not in types  # skills is now independent
+        assert 'skills' not in types
 
 
 # ── generate_section ────────────────────────────────────────────

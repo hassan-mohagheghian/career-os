@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
-  ChartBar, Target, Brain, Buildings, Users, Lightbulb, ArrowsClockwise,
-  Check, Warning, Globe, MagnifyingGlass, Clipboard, CheckCircle, Clock,
+  ChartBar, Target, Buildings, Users, Lightbulb, ArrowsClockwise,
+  Warning, Globe, MagnifyingGlass, Clipboard, CheckCircle, Clock,
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -13,15 +13,14 @@ import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
 import OverviewSection from './OverviewSection'
 import OpportunitiesSection from './OpportunitiesSection'
 import CompaniesSection from './CompaniesSection'
-import SkillsIntelSection from './SkillsIntelSection'
 import MarketIntelSection from './MarketIntelSection'
 import NetworkingIntelSection from './NetworkingIntelSection'
 
 const INTEL_STEPS = [
   { key: 'collect', icon: <Globe className="w-3 h-3" />, label: 'Collecting data' },
-  { key: 'analyze', icon: <Brain className="w-3 h-3" />, label: 'AI analysis' },
-  { key: 'metrics', icon: <MagnifyingGlass className="w-3 h-3" />, label: 'Calculating metrics' },
-  { key: 'save', icon: <Clipboard className="w-3 h-3" />, label: 'Saving results' },
+  { key: 'analyze', icon: <MagnifyingGlass className="w-3 h-3" />, label: 'AI analysis' },
+  { key: 'metrics', icon: <Clipboard className="w-3 h-3" />, label: 'Calculating metrics' },
+  { key: 'save', icon: <CheckCircle className="w-3 h-3" />, label: 'Saving results' },
   { key: 'done', icon: <CheckCircle className="w-3 h-3" />, label: 'Complete' },
 ]
 
@@ -90,20 +89,25 @@ interface CareerIntelTabProps {
   onOpenCompany: (id: number) => void
   onAddCompany: (text: string) => void
   onCancel: () => void
-  skillRoadmapProgress: Record<string, any>
-  onRefreshSkillProgress: () => void
-  skillGenJobs: any[]
 }
 
 export default function CareerIntelTab({
   data, status, progress, activeTab, setActiveTab, refreshing, error,
   onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany,
-  onCancel, skillRoadmapProgress, onRefreshSkillProgress, skillGenJobs,
+  onCancel,
 }: CareerIntelTabProps) {
   const switchSubTab = (sub: string) => {
     setActiveTab(sub)
     window.location.hash = `career-intel/${sub}`
   }
+
+  // Redirect if user somehow lands on skills sub-tab (now a top-level tab)
+  useEffect(() => {
+    if (activeTab === 'skills') {
+      setActiveTab('overview')
+      window.location.hash = 'career-intel/overview'
+    }
+  }, [activeTab, setActiveTab])
 
   const unwrappedData: Record<string, any> = {}
   if (data) {
@@ -142,12 +146,11 @@ export default function CareerIntelTab({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-extrabold">Career Intelligence</h2>
-          <Tabs value={activeTab} onValueChange={switchSubTab}>
+          <Tabs value={activeTab === 'skills' ? 'overview' : activeTab} onValueChange={switchSubTab}>
             <TabsList className="bg-muted">
               <TabsTrigger value="overview" className="gap-1"><Lightbulb className="w-4 h-4" />Overview<SectionTimestamp status={status} sectionKey="overview" /></TabsTrigger>
               <TabsTrigger value="opportunities" className="gap-1"><Target className="w-4 h-4" />Opportunities<SectionTimestamp status={status} sectionKey="opportunities" /></TabsTrigger>
               <TabsTrigger value="companies" className="gap-1"><Buildings className="w-4 h-4" />Companies<SectionTimestamp status={status} sectionKey="companies" /></TabsTrigger>
-              <TabsTrigger value="skills" className="gap-1"><Brain className="w-4 h-4" />Skills<SectionTimestamp status={status} sectionKey="skills_intel" /></TabsTrigger>
               <TabsTrigger value="market" className="gap-1"><ChartBar className="w-4 h-4" />Market<SectionTimestamp status={status} sectionKey="market" /></TabsTrigger>
               <TabsTrigger value="networking" className="gap-1"><Users className="w-4 h-4" />Networking<SectionTimestamp status={status} sectionKey="networking" /></TabsTrigger>
             </TabsList>
@@ -191,7 +194,7 @@ export default function CareerIntelTab({
         <Card className="p-8 text-center border-dashed">
           <Lightbulb className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
           <p className="text-sm font-semibold mb-1">No career intelligence yet</p>
-          <p className="text-xs text-muted-foreground mb-4">Click "Generate All" to create actionable insights from your processed jobs, companies, and skills data.</p>
+          <p className="text-xs text-muted-foreground mb-4">Click "Generate All" to create actionable insights from your processed jobs and companies data.</p>
           <Button onClick={onRefreshAll} size="sm" className="gap-1.5">
             <ArrowsClockwise className="w-3.5 h-3.5" /> Generate Intelligence
           </Button>
@@ -207,9 +210,6 @@ export default function CareerIntelTab({
       )}
       {hasData && activeTab === 'companies' && (
         <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} status={status} />
-      )}
-      {hasData && activeTab === 'skills' && (
-        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} roadmapProgress={skillRoadmapProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} status={status} />
       )}
       {hasData && activeTab === 'market' && (
         <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} status={status} />

@@ -492,8 +492,8 @@ def generate_all(pid=0):
             'started_at': _current_run['started_at'], 'run_id': run_id,
         })
 
-        # Sections to generate in order (skills_intel uses dedicated prompt)
-        sections = ['overview', 'opportunities', 'companies', 'market', 'networking', 'skills_intel']
+        # Sections to generate in order (skills has its own independent flow)
+        sections = ['overview', 'opportunities', 'companies', 'market', 'networking']
         results = {}
         errors = []
         last_session_id = None
@@ -535,15 +535,6 @@ def generate_all(pid=0):
             elif err and err != 'Cancelled':
                 errors.append(f'{section}: {err}')
                 print(f"[career_intel] {section} failed: {err}")
-
-        # Clean up stale minimal 'skills' entry from old combined prompt
-        try:
-            conn = _db()
-            conn.execute("DELETE FROM career_insights WHERE insight_type='skills'")
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
 
         if _cancel_requested:
             _complete_run(run_id, 'cancelled', session_id=last_session_id)
