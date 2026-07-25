@@ -47,14 +47,16 @@ def _log(gen_id, step, msg):
     log.info(f"[generation] gen={gen_id} {step}: {msg}")
 
 
-def _load_company_context(job_num, conn):
+def _load_company_context(job_num):
     """Load company intelligence for enrichment when job is linked to a company."""
+    conn = _db()
     job = conn.execute('SELECT company_id FROM jobs WHERE num=?', (job_num,)).fetchone()
     if not job:
+        conn.close()
         return None
-    job_dict = dict(job)
-    company_id = job_dict.get('company_id')
+    company_id = dict(job).get('company_id')
     if not company_id:
+        conn.close()
         return None
 
     intel = conn.execute(
@@ -62,6 +64,7 @@ def _load_company_context(job_num, conn):
         'FROM company_intelligence WHERE company_id=?',
         (company_id,)
     ).fetchone()
+    conn.close()
     if not intel:
         return None
 
@@ -123,9 +126,7 @@ def process_generation(gen_id):
 
         # Step 2: Load company context
         _update_step(gen_id, 'step_context', 1, status='processing')
-        conn = _db()
-        company_context = _load_company_context(job_num, conn)
-        conn.close()
+        company_context = _load_company_context(job_num)
 
         if company_context:
             _log(gen_id, 'context', 'Company intelligence loaded — will enrich prompt')

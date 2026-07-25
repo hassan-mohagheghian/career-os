@@ -117,6 +117,29 @@ def get_generation_history():
     except Exception:
         pass
 
+    # 5. Resume/Cover generations (only done/failed/cancelled)
+    try:
+        rows = conn.execute(
+            "SELECT id, job_num, type, status, error, created_at, updated_at "
+            "FROM pending_generations WHERE status IN ('done', 'failed', 'cancelled') "
+            "ORDER BY updated_at DESC LIMIT 100"
+        ).fetchall()
+        for r in rows:
+            rd = dict(r)
+            type_label = 'Resume' if rd['type'] == 'resume' else 'Cover Letter'
+            items.append({
+                "source": f"{rd['type']}-generation",
+                "title": f"{type_label} for Job #{rd['job_num']}",
+                "status": rd["status"],
+                "started_at": rd["created_at"],
+                "completed_at": rd["updated_at"],
+                "error": rd["error"],
+                "session_id": None,
+                "id": rd["id"],
+            })
+    except Exception:
+        pass
+
     conn.close()
 
     # Sort by most recent first and limit

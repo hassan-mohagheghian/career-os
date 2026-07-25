@@ -8,6 +8,7 @@ export function useResume() {
   const [linkedinProfiles, setLinkedinProfiles] = useState<any[]>([])
   const [generationProgress, setGenerationProgress] = useState<any>(null)
   const [generationId, setGenerationId] = useState<number | null>(null)
+  const [generationType, setGenerationType] = useState<string | null>(null)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchResumes = useCallback(() => {
@@ -24,7 +25,8 @@ export function useResume() {
       const data = await res.json()
       if (!res.ok) { toast.error(data.error || 'Failed'); return }
       setGenerationId(data.gen_id)
-      setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5 })
+      setGenerationType('resume')
+      setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5, type: 'resume' })
     } catch {
       toast.error('Failed to start generation')
     }
@@ -36,7 +38,8 @@ export function useResume() {
       const data = await res.json()
       if (!res.ok) { toast.error(data.error || 'Failed'); return }
       setGenerationId(data.gen_id)
-      setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5 })
+      setGenerationType('cover')
+      setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5, type: 'cover' })
     } catch {
       toast.error('Failed to start generation')
     }
@@ -48,6 +51,7 @@ export function useResume() {
       await fetch(`${API}/generations/${generationId}/cancel`, { method: 'POST' })
       setGenerationProgress(null)
       setGenerationId(null)
+      setGenerationType(null)
       toast.info('Generation cancelled')
     } catch {
       toast.error('Failed to cancel')
@@ -79,6 +83,7 @@ export function useResume() {
           step: completedSteps,
           total_steps: 5,
           error: data.error,
+          type: data.type || generationType,
           elapsed_seconds: data.created_at
             ? Math.floor((Date.now() - new Date(data.created_at).getTime()) / 1000)
             : 0,
@@ -88,6 +93,7 @@ export function useResume() {
           clearInterval(pollRef.current!)
           pollRef.current = null
           setGenerationId(null)
+          setGenerationType(null)
           fetchResumes()
           toast.success('Generation complete!')
           setTimeout(() => setGenerationProgress(null), 2000)
@@ -95,11 +101,13 @@ export function useResume() {
           clearInterval(pollRef.current!)
           pollRef.current = null
           setGenerationId(null)
+          setGenerationType(null)
           toast.error(data.error || 'Generation failed')
         } else if (data.status === 'cancelled') {
           clearInterval(pollRef.current!)
           pollRef.current = null
           setGenerationId(null)
+          setGenerationType(null)
         }
       } catch {
         // Polling error — ignore, will retry
@@ -112,11 +120,11 @@ export function useResume() {
         pollRef.current = null
       }
     }
-  }, [generationId, fetchResumes])
+  }, [generationId, fetchResumes, generationType])
 
   return {
     resumes, setResumes, linkedinProfiles, setLinkedinProfiles,
-    generationProgress, generationId,
+    generationProgress, generationId, generationType,
     fetchResumes, fetchLinkedin, generateResume, generateCover, cancelGeneration
   }
 }
