@@ -1,73 +1,38 @@
 # Changelog
 
-## [Unreleased] — Skill Intelligence System
+## [Unreleased]
 
 ### Added
-- **Skill Taxonomy** — 5 categories: Technical, Engineering, Professional, Domain, Career
-  - Category tabs with filtering across all sections
-  - Auto-categorization of existing skills via migration
-- **Skill Aliases** — `skill_aliases` table for merged skills
-  - Canonical skill + alias records (e.g., PostgreSQL → Postgres)
-  - Aliases shown as "Variant" badges in UI
-- **Skill Relationships** — `skill_relationships` table
-  - Related, similar, parent, child, alternative types
-- **Skill Detail Drawer** — Full skill overview with:
-  - Category, confidence, market demand
-  - Evidence (why this skill matters)
-  - Merged variants display
-  - Checkable learning roadmap
-  - Rename, hide, remove actions
-- **Skill Management Endpoints**:
-  - `PATCH /api/tech-stack/:id/hide` — hide skill
-  - `PATCH /api/tech-stack/:id/restore` — restore hidden skill
-  - `PATCH /api/tech-stack/:id/rename` — rename skill
-  - `DELETE /api/tech-stack/:id` — delete skill + aliases
-  - `POST /api/tech-stack/merge` — merge skills via drag-and-drop
-  - `GET /api/tech-stack/hidden` — list hidden skills
-  - `GET/POST/DELETE /api/skill-relationships` — relationship CRUD
-- **WebSocket Real-Time Updates**:
-  - Pending jobs/companies: `pending:update`, `pending:log`, `pending:complete`, `pending:error`
-  - Career intelligence: `career_intel:progress` with session_id
-  - Session ID extraction from mimo output (all 5 variants + fallback)
-- **Prompt Organization**:
-  - `career_intel/` — career_intelligence.txt, skills_intelligence.txt
-  - `skill_roadmaps/` — generate, extend, finegrain prompts
-  - `job_processing/` — step2-8 pipeline prompts
-  - `company/` — extract, analyze prompts
-  - `resume/` — resume, cover letter prompts
-- **Test Structure** — Mirrors server structure:
-  - `tests/test_blueprints/` — dashboard, pending, companies
-  - `tests/test_services/` — worker, company_worker, process/*
-  - `tests/test_core/` — queue
-  - `tests/test_process/` — skill_management (12 tests)
+- **TypeScript Conversion** — All 68 frontend files converted from JS/JSX to TS/TSX
+- **Feature-Based Frontend Architecture** — `features/{jobs,companies,insights,skills,resume,rules}`, `shared/`, `layout/`
+- **Skills as Top-Level Tab** — Independent from Insights, own `useSkills` hook and `SkillsTab` component
+- **Generation History Drawer** — Unified history across career-intel, roadmaps, job processing, company processing
+- **Version Tracking** — `version` column on `pending_jobs`, `pending_companies` for retry counting
+- **Font Size System** — Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for consistent dense UI
+- **API Documentation** — Swagger UI at `/api/docs/`, ReDoc at `/api/redoc/`, OpenAPI 3.0 spec
+- **Stale Run Recovery** — On startup, stuck `processing` jobs marked `failed` with version bump
 
 ### Changed
-- **SkillsIntelSection Redesign**:
-  - Two-column layout: Strengths (top) | Gaps + Recommendations
-  - Category tabs filter all sections
-  - Add Custom Skill inline with category tabs (collapsible)
-  - Merge mode with drag-and-drop across all sections
-  - Every skill shows source badge (Custom/AI)
-  - Alias "Variant" badges under merged skills
-- **SkillDetailDrawer** — New component with rename, checkable roadmap, variants
-- **Market Intelligence** — Countries in compact right sidebar, scrollable cities
-- **Consistent tab styling** — All drawers use `bg-muted` TabsList
-- **Worker broadcasting** — `worker.py` and `company_worker.py` emit SocketIO events
-- **Broadcaster logging** — `[ws]` prefix for all events in terminal
+- **Renamed "Career Intel" → "Insights"** — All code, DB references, UI, routes, SocketIO events
+- **Feature-based frontend architecture** — `components/` → `features/`, `shared/`, `layout/`
+- **Per-section prompts** — `generate_all()` runs each section's dedicated prompt instead of monolithic
+- **Session resumption** — Worker passes previous session_id to mimo via `--session` for retry continuity
+- **Company scores synced** — Card and drawer now show same Fit/Success/Overall scores
 
-### Fixed
-- ProcessingItem `workflow_log` JSON.parse crash (handles array/string)
-- `session_id` overwritten by numeric `val` in WebSocket handler
-- Career intelligence polling removed (WebSocket replaces it)
-- JSX syntax errors (stray `)}`, missing imports)
+### Removed
+- **Stale agent docs** — `docs/agent/` directory (session-specific, outdated)
+- **career-intel naming** — Replaced with `insights` throughout
 
 ## [Previous]
 
 ### Added
-- Career Intelligence module — 6 sections with AI analysis
-- WebSocket real-time processing output
-- SSE for pending items streaming
-- Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING)
-- Resume/cover letter generation via Mimo CLI
-- LinkedIn profile integration
-- Job reprocessing and rescoring
+- **Skill Taxonomy** — 5 categories: Technical, Engineering, Professional, Domain, Career
+- **Skill Aliases** — Merge duplicate skills with alias tracking
+- **Skill Relationships** — Related, similar, parent, child, alternative links
+- **Skill Detail Drawer** — Full skill overview with roadmap, rename, hide, remove
+- **Skill Management Endpoints** — hide, restore, rename, delete, merge
+- **WebSocket Real-Time Updates** — pending, company, career intelligence, skill roadmap events
+- **Career Intelligence System** — 6 sections with per-section generation
+- **Company Intelligence** — AI analysis with Fit/Success/Overall scoring
+- **Processing Queue** — Persistent queue with concurrent workers
+- **Scoring Rules** — Configurable rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING)
