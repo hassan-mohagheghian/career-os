@@ -13,7 +13,6 @@ import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
 import OverviewSection from './OverviewSection'
 import OpportunitiesSection from './OpportunitiesSection'
 import CompaniesSection from './CompaniesSection'
-import SkillsIntelSection from './SkillsIntelSection'
 import MarketIntelSection from './MarketIntelSection'
 import NetworkingIntelSection from './NetworkingIntelSection'
 
@@ -37,7 +36,7 @@ function IntelProgressCard({ progress, elapsed, onCancel }: { progress: any; ela
   if (!progress.running) return null
   return (
     <GenerationProgressCard
-      title="Generating Insightsligence"
+      title="Generating Insights"
       type={progress.type === 'all' ? 'All sections' : progress.type}
       progress={{ ...progress, elapsed_seconds: elapsed || progress.elapsed_seconds }}
       steps={INTEL_STEPS.map(s => ({ key: s.key, label: s.label }))}
@@ -187,7 +186,7 @@ export default function InsightsTab({
       {!hasData && !isRunning && (
         <Card className="p-8 text-center border-dashed">
           <Lightbulb className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm font-semibold mb-1">No insightsligence yet</p>
+          <p className="text-sm font-semibold mb-1">No insights yet</p>
           <p className="text-xs text-muted-foreground mb-4">Click "Generate All" to create actionable insights from your processed jobs and companies data.</p>
           <Button onClick={onRefreshAll} size="sm" className="gap-1.5">
             <ArrowsClockwise className="w-3.5 h-3.5" /> Generate Intelligence
@@ -200,7 +199,11 @@ export default function InsightsTab({
         <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status} />
       )}
       {hasData && activeTab === 'skills' && (
-        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} status={status} />
+        <Card className="p-8 text-center border-dashed">
+          <Brain className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+          <p className="text-sm font-semibold mb-1">Skills Intelligence</p>
+          <p className="text-xs text-muted-foreground">New design coming soon.</p>
+        </Card>
       )}
       {hasData && activeTab === 'opportunities' && (
         <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status} />

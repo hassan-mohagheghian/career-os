@@ -375,6 +375,12 @@ function App() {
       section: "jobs",
     },
     {
+      id: "skills",
+      icon: <TreeStructure className="w-4 h-4" />,
+      label: "Skills",
+      section: "jobs",
+    },
+    {
       id: "insights",
       icon: <Lightbulb className="w-4 h-4" />,
       label: "Insights",
@@ -436,10 +442,6 @@ function App() {
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header
-          jobAgg={jobAgg}
-          jobsTotal={jobsTotal}
-          resumes={resumes}
-          companies={companies}
           theme={theme}
           tab={tab}
           onSwitchTab={switchTab}
@@ -544,6 +546,9 @@ function App() {
                 onAddCompany={handleAddCompany}
                 onCancel={cancelCareerRun}
               />
+            )}
+            {tab === "skills" && (
+              <SkillsTab />
             )}
             {tab === "resume" && (
               <ResumeTab

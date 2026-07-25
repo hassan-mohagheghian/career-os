@@ -1,6 +1,5 @@
-import { Briefcase, Target, Rocket, House, FileText, Sun, Moon, Buildings, Brain, Gear, Lightbulb, List } from '@phosphor-icons/react'
+import { Briefcase, FileText, Sun, Moon, Buildings, Gear, Lightbulb, List } from '@phosphor-icons/react'
 import { Button } from '@/shared/ui/button'
-import { Badge } from '@/shared/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { useState } from 'react'
 import GenerationHistoryDrawer from '@/shared/components/GenerationHistoryDrawer'
@@ -14,19 +13,13 @@ const FEATURES = [
 ]
 
 interface HeaderProps {
-  jobAgg: Record<string, number>
-  jobsTotal: number
-  resumes: any[]
-  companies: any[]
   theme: string
   tab: string
   onSwitchTab: (id: string) => void
   onToggleTheme: () => void
 }
 
-export default function Header({ jobAgg, jobsTotal, resumes, companies, theme, tab, onSwitchTab, onToggleTheme }: HeaderProps) {
-  const resumeCount = resumes?.filter((r: any) => r.id?.startsWith('original')).length || 0
-  const companyCount = companies?.length || 0
+export default function Header({ theme, tab, onSwitchTab, onToggleTheme }: HeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
 
   return (
@@ -60,39 +53,18 @@ export default function Header({ jobAgg, jobsTotal, resumes, companies, theme, t
           })}
         </div>
 
-        {/* Stats */}
-        <div className="hidden lg:flex items-center gap-3 ml-auto text-xs text-muted-foreground">
-          <StatBadge icon={Briefcase} value={jobAgg.total || jobsTotal} label="jobs" color="text-foreground" />
-          <StatBadge icon={Target} value={jobAgg.high_match} label="match" color="text-green-500" />
-          <StatBadge icon={Rocket} value={jobAgg.apply_now} label="apply" color="text-yellow-500" />
-          <StatBadge icon={House} value={jobAgg.remote} label="remote" color="text-cyan-500" />
-          <span className="text-border">|</span>
-          <StatBadge icon={Buildings} value={companyCount} label="companies" color="text-emerald-500" />
-          <StatBadge icon={FileText} value={resumeCount} label="resumes" color="text-purple-500" />
-        </div>
-
-        {/* History + Theme toggle */}
-        <div className="ml-auto lg:ml-0 flex items-center gap-1.5">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setHistoryOpen(true)} title="Generation History">
-            <List className="w-4 h-4" />
-          </Button>
+        {/* Theme + History toggle — always right-aligned */}
+        <div className="ml-auto flex items-center gap-1.5">
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={onToggleTheme}>
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setHistoryOpen(true)} title="Generation History">
+            <List className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
       <GenerationHistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} />
     </>
-  )
-}
-
-function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: number; label: string; color: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <Icon className={cn("w-3 h-3", color)} />
-      <b className={color}>{value || 0}</b>
-      <span className="opacity-70">{label}</span>
-    </span>
   )
 }

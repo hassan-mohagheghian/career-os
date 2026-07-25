@@ -7,6 +7,7 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
+import { Input } from '@/shared/ui/input'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import ProcessingItem from '@/shared/components/ProcessingItem'

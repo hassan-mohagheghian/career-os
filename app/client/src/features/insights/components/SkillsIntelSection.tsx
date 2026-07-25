@@ -171,7 +171,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
 
 // ── Main component ─────────────────────────────────────────────
 export default function SkillsIntelSection({
-  data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [], status,
+  data, refreshing, onRefresh, roadmapProgress = {}, onRefreshProgress, genJobs = [], status,
 }) {
   // Prefer full skills_intel data (from dedicated prompt) over minimal skills data (from combined prompt)
   const skillsIntel = data?.skills_intel || {};

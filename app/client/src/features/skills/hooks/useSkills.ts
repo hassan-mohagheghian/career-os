@@ -35,7 +35,7 @@ export function useSkills() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchData = useCallback(() => {
-    return fetch(`${API}/insightsligence/skills-intel`)
+    return fetch(`${API}/insights/skills-intel`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d && d.data) {
@@ -50,14 +50,14 @@ export function useSkills() {
   }, [])
 
   const fetchStatus = useCallback(() => {
-    return fetch(`${API}/insightsligence/status`)
+    return fetch(`${API}/insights/status`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setStatus(d))
       .catch(() => setStatus({}))
   }, [])
 
   const fetchProgress = useCallback(() => {
-    return fetch(`${API}/insightsligence/progress`)
+    return fetch(`${API}/insights/progress`)
       .then(r => r.ok ? r.json() : { running: false })
       .then(d => setProgress(d))
       .catch(() => setProgress({ running: false }))
@@ -131,7 +131,7 @@ export function useSkills() {
   const refresh = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch(`${API}/insightsligence/skills-intel/refresh`, { method: 'POST' })
+      const res = await fetch(`${API}/insights/skills-intel/refresh`, { method: 'POST' })
       const body = await res.json()
       if (res.status === 409) {
         setError(body.message || 'Analysis already in progress')
@@ -148,7 +148,7 @@ export function useSkills() {
 
   const cancelRun = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/insightsligence/cancel`, { method: 'POST' })
+      const res = await fetch(`${API}/insights/cancel`, { method: 'POST' })
       const body = await res.json()
       if (body.status === 'cancelled') {
         setRefreshing(false)

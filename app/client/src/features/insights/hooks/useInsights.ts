@@ -33,21 +33,21 @@ export function useInsights() {
   const socket = useSocketIO()
 
   const fetchData = useCallback(() => {
-    return fetch(`${API}/insightsligence`)
+    return fetch(`${API}/insights`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setData(d))
       .catch(() => setData({}))
   }, [])
 
   const fetchStatus = useCallback(() => {
-    return fetch(`${API}/insightsligence/status`)
+    return fetch(`${API}/insights/status`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setStatus(d))
       .catch(() => setStatus({}))
   }, [])
 
   const fetchProgress = useCallback(() => {
-    return fetch(`${API}/insightsligence/progress`)
+    return fetch(`${API}/insights/progress`)
       .then(r => r.ok ? r.json() : { running: false })
       .then(d => setProgress(d))
       .catch(() => setProgress({ running: false }))
@@ -83,7 +83,7 @@ export function useInsights() {
   const refreshSection = useCallback(async (section: string) => {
     setError(null)
     try {
-      const res = await fetch(`${API}/insightsligence/${section}/refresh`, { method: 'POST' })
+      const res = await fetch(`${API}/insights/${section}/refresh`, { method: 'POST' })
       const body = await res.json()
       if (res.status === 409) {
         setError(body.message || 'Analysis already in progress')
@@ -101,7 +101,7 @@ export function useInsights() {
   const refreshAll = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch(`${API}/insightsligence/refresh`, { method: 'POST' })
+      const res = await fetch(`${API}/insights/refresh`, { method: 'POST' })
       const body = await res.json()
       if (res.status === 409) {
         setError(body.message || 'Analysis already in progress')
@@ -118,7 +118,7 @@ export function useInsights() {
 
   const cancelRun = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/insightsligence/cancel`, { method: 'POST' })
+      const res = await fetch(`${API}/insights/cancel`, { method: 'POST' })
       const body = await res.json()
       if (body.status === 'cancelled') {
         setRefreshing({})

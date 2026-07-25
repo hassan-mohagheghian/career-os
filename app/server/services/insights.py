@@ -425,6 +425,92 @@ def generate_skills_intel(pid=0):
         _analysis_lock.release()
 
 
+def _fill_skills_from_insights(result):
+    """Parse AI insights report and fill skills into tech_stack + skill_relationships."""
+    if not result:
+        return
+
+    try:
+        conn = _db()
+        current_state = result.get('current_state', {})
+        recommendations = result.get('recommendations', [])
+        relationships = result.get('relationships', [])
+
+        # 1. Update existing skills with AI-derived data
+        for skill_data in current_state.get('strengths', []) + current_state.get('gaps', []) + current_state.get('maintain', []):
+            name = skill_data.get('skill', '')
+            if not name:
+                continue
+            market_demand = skill_data.get('market_demand', 0)
+            confidence = skill_data.get('confidence', 0)
+            evidence = json.dumps(skill_data.get('evidence', []))
+            category = skill_data.get('category', '')
+
+            # Try to update existing skill
+            row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (name,)).fetchone()
+            if row:
+                updates = []
+                params = []
+                if market_demand and market_demand > 0:
+                    updates.append("market_relevance=?")
+                    params.append(market_demand)
+                if confidence and confidence > 0:
+                    updates.append("confidence=?")
+                    params.append(confidence)
+                if evidence and evidence != '[]':
+                    updates.append("evidence=?")
+                    params.append(evidence)
+                if category:
+                    updates.append("category=?")
+                    params.append(category)
+                if updates:
+                    params.append(name)
+                    conn.execute(f"UPDATE tech_stack SET {', '.join(updates)} WHERE name=?", params)
+
+        # 2. Add new skills from recommendations that don't exist in tech_stack
+        for rec in recommendations:
+            name = rec.get('skill', '')
+            if not name:
+                continue
+            existing = conn.execute("SELECT id FROM tech_stack WHERE name=?", (name,)).fetchone()
+            if not existing:
+                category = rec.get('category', 'technical')
+                confidence = rec.get('confidence', 0.5)
+                market_demand = rec.get('market_demand', 0)
+                evidence = json.dumps(rec.get('evidence', []))
+                conn.execute(
+                    "INSERT INTO tech_stack (name, level, source, source_type, category, confidence, market_relevance, evidence) "
+                    "VALUES (?, 1, 'service', 'ai_generated', ?, ?, ?, ?)",
+                    (name, category, confidence, market_demand, evidence)
+                )
+                print(f"[insights] Added new skill: {name}")
+
+        # 3. Create skill relationships
+        for rel in relationships:
+            skill_name = rel.get('skill', '')
+            related_name = rel.get('related', '')
+            rel_type = rel.get('type', 'related')
+            confidence = rel.get('confidence', 0.5)
+            if not skill_name or not related_name:
+                continue
+            # Check if relationship already exists
+            existing = conn.execute(
+                "SELECT id FROM skill_relationships WHERE skill_name=? AND related_name=? AND relation_type=?",
+                (skill_name, related_name, rel_type)
+            ).fetchone()
+            if not existing:
+                conn.execute(
+                    "INSERT OR IGNORE INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
+                    (skill_name, related_name, rel_type, confidence)
+                )
+
+        conn.commit()
+        conn.close()
+        print(f"[insights] Skills DB filled from insights report")
+    except Exception as e:
+        print(f"[insights] Error filling skills from insights: {e}")
+
+
 def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=None):
     """Run a single section's dedicated prompt and save to DB. No lock management.
 
@@ -464,6 +550,11 @@ def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=
             parts.append(f"Gap: {result['summary']['biggest_gap']}")
         summary = '; '.join(parts) if parts else f"Readiness: {score}/100"
     _save_insight(section, result, score, summary)
+
+    # Fill skills into tech_stack and skill_relationships from AI report
+    if section == 'skills_intel':
+        _fill_skills_from_insights(result)
+
     print(f"[insights] {section} saved to DB (session: {session_id})")
     return result, None, session_id
 

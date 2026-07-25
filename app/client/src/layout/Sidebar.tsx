@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from 'react'
-import { CaretRight, CaretDown } from '@phosphor-icons/react'
+import { type ReactNode } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
 
@@ -28,12 +27,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, onClose }: SidebarProps) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'insights': true })
-
-  const toggleSection = (id: string) => {
-    setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
   return (
     <>
       {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-[49] lg:hidden" onClick={onClose} />}
@@ -47,20 +40,12 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
               <div className="px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">{section}</div>
               {tabs.filter(t => t.section === section).map(t => {
                 const hasChildren = t.children && t.children.length > 0
-                const isExpanded = expanded[t.id]
                 const isActive = tab === t.id
 
                 return (
                   <div key={t.id}>
                     <button
-                      onClick={() => {
-                        if (hasChildren) {
-                          toggleSection(t.id)
-                          onSwitchTab(t.id)
-                        } else {
-                          onSwitchTab(t.id)
-                        }
-                      }}
+                      onClick={() => onSwitchTab(t.id)}
                       className={cn("flex items-center gap-2 px-3 py-2 text-sm border-l-3 transition w-full text-left",
                         isActive ? "border-l-primary font-semibold text-primary" : "border-l-transparent text-muted-foreground"
                       )}
@@ -68,14 +53,9 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
                       {t.icon && <span>{t.icon}</span>}
                       <span>{t.label}</span>
                       {t.badge && <Badge variant="default" className="ml-auto text-2xs h-5">{t.badge}</Badge>}
-                      {hasChildren && (
-                        <span className="ml-auto">
-                          {isExpanded ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
-                        </span>
-                      )}
                     </button>
 
-                    {hasChildren && isExpanded && (
+                    {hasChildren && (
                       <div>
                         {t.children!.map(child => (
                           <button
