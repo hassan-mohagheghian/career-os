@@ -92,9 +92,10 @@ def get_status():
     running, run_info = is_running()
     status = {'_running': running, '_currentRun': run_info}
     for section in INSIGHT_TYPES:
-        runs = get_runs(section, limit=1)
-        if runs:
-            latest = runs[0]
+        result = get_runs(section, limit=1)
+        items = result.get('items', []) if isinstance(result, dict) else result
+        if items:
+            latest = items[0]
             status[section] = {
                 'status': latest['status'],
                 'lastRun': latest['started_at'],

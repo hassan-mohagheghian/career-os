@@ -41,6 +41,7 @@ const CATEGORY_COLORS = {
 
 const SORT_OPTIONS = [
   { id: "strength", label: "Strength" },
+  { id: "level", label: "Proficiency Level" },
   { id: "roadmap", label: "Roadmap Progress" },
   { id: "name", label: "Name" },
   { id: "demand", label: "Market Demand" },
@@ -302,6 +303,7 @@ export default function SkillsIntelSection({
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case "strength": return a.strengthOrder - b.strengthOrder;
+        case "level": return (b.level || 0) - (a.level || 0);
         case "roadmap": return (b.hasRoadmap ? b.roadmapPct : -1) - (a.hasRoadmap ? a.roadmapPct : -1);
         case "name": return a.name.localeCompare(b.name);
         case "demand": return b.marketDemand - a.marketDemand;

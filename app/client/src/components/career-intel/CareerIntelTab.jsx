@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ChartBar, Target, Brain, Buildings, Users, Lightbulb, ArrowsClockwise,
   Check, Spinner, Warning, Globe, MagnifyingGlass, Clipboard, CheckCircle, Clock, X, List
@@ -72,20 +72,31 @@ function HistoryDrawer({ runs, roadmapJobs, runsTotal, roadmapTotal, onLoadMoreR
   })
 
   const totalAll = runsTotal + roadmapTotal
-  const hasMoreRuns = runs.length < runsTotal
-  const hasMoreRoadmap = roadmapJobs.length < roadmapTotal
+  const hasMore = runs.length < runsTotal || roadmapJobs.length < roadmapTotal
+
+  // Stable scroll handler using ref pattern
+  const loadingRef = useRef(false)
+  const handlersRef = useRef({ onLoadMoreRuns, onLoadMoreRoadmapJobs, hasMore })
+  handlersRef.current = { onLoadMoreRuns, onLoadMoreRoadmapJobs, hasMore }
 
   const scrollRef = useCallback((node) => {
     if (!node) return
     const handleScroll = () => {
-      if (node.scrollTop + node.clientHeight >= node.scrollHeight - 50) {
-        if (hasMoreRuns) onLoadMoreRuns?.()
-        if (hasMoreRoadmap) onLoadMoreRoadmapJobs?.()
+      if (loadingRef.current) return
+      if (node.scrollTop + node.clientHeight >= node.scrollHeight - 100) {
+        const { hasMore: canLoad, onLoadMoreRuns: loadRuns, onLoadMoreRoadmapJobs: loadRoadmap } = handlersRef.current
+        if (!canLoad) return
+        loadingRef.current = true
+        // Load both in parallel, then allow next scroll
+        Promise.all([
+          runs.length < runsTotal ? loadRuns?.() : Promise.resolve(),
+          roadmapJobs.length < roadmapTotal ? loadRoadmap?.() : Promise.resolve(),
+        ]).finally(() => { loadingRef.current = false })
       }
     }
-    node.addEventListener('scroll', handleScroll)
+    node.addEventListener('scroll', handleScroll, { passive: true })
     return () => node.removeEventListener('scroll', handleScroll)
-  }, [hasMoreRuns, hasMoreRoadmap, onLoadMoreRuns, onLoadMoreRoadmapJobs])
+  }, [runsTotal, roadmapTotal])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -147,7 +158,7 @@ function HistoryDrawer({ runs, roadmapJobs, runsTotal, roadmapTotal, onLoadMoreR
               No generation runs yet
             </div>
           )}
-          {(hasMoreRuns || hasMoreRoadmap) && allHistory.length > 0 && (
+          {hasMore && allHistory.length > 0 && (
             <div className="text-center py-2 text-muted-foreground text-[0.6rem]">
               Loading more...
             </div>
