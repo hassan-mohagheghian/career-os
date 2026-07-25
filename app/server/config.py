@@ -13,3 +13,6 @@ DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join
 
 PROJECT_ROOT = _PROJECT_ROOT
 STATIC_FOLDER = os.path.join(_SERVER_DIR, '..', 'client', 'dist')
+
+# AI Provider configuration
+AI_PROVIDER = os.environ.get('AI_PROVIDER', 'mimo')

@@ -19,6 +19,14 @@ SERVER_DIR="$SCRIPT_DIR/app/server"
 CLIENT_DIR="$SCRIPT_DIR/app/client"
 PID_FILE="$SCRIPT_DIR/.server.pid"
 CLIENT_PID_FILE="$SCRIPT_DIR/.client.pid"
+VENV_DIR="$SCRIPT_DIR/.venv"
+
+# Use venv python if available, otherwise system python
+if [ -f "$VENV_DIR/bin/python" ]; then
+    PYTHON="$VENV_DIR/bin/python"
+else
+    PYTHON="$(command -v python3 || command -v python)"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -66,8 +74,9 @@ trap cleanup EXIT INT TERM
 
 start_backend() {
     log "Starting backend server..."
+    log "Using Python: $PYTHON"
     cd "$SERVER_DIR"
-    python app.py &
+    $PYTHON app.py &
     echo $! > "$PID_FILE"
     ok "Backend started (PID: $(cat $PID_FILE)) on http://localhost:5000"
 }
@@ -111,6 +120,12 @@ show_status() {
         pgrep -af "mimo run" 2>/dev/null | head -5
     else
         ok "Mimo AI:  No processes running"
+    fi
+
+    # AI Provider config
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        AI_PROVIDER=$(grep -E "^AI_PROVIDER=" "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2 || echo "mimo")
+        ok "AI Provider: ${AI_PROVIDER:-mimo}"
     fi
 
     # Background workers

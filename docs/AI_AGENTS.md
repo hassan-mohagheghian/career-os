@@ -4,6 +4,11 @@
 
 ```
 app/
+├── ai/                 AI Agent Orchestration Layer
+│   ├── providers/      LLM provider abstraction (mimo, openai, local)
+│   ├── agents/         Agent implementations + LangGraph workflows
+│   ├── tools/          Domain tools wrapping existing services
+│   └── prompts/        Centralized prompt registry
 ├── server/          Python Flask backend
 │   ├── app.py       Entry point — do NOT add routes here
 │   ├── blueprints/  API routes (add new routes here)
@@ -23,8 +28,9 @@ app/
 - Add new API routes in `blueprints/` — one file per domain
 - Use `get_db()` for database connections (always close after use)
 - Background tasks use `threading.Thread(target=..., daemon=True)`
-- Mimo CLI calls via `MimoRunner` from `services/process/mimo_runner.py`
+- **New code must use AI provider abstraction** — agents never call MimoRunner directly
 - Structured logging: `from services.process.logging_config import get_logger`
+- Follow OOP, SOLID, DDD, TDD, Design Patterns for all Python code
 
 ### Frontend
 - Feature components go in `features/{name}/components/`
@@ -39,6 +45,9 @@ app/
 - WebSocket for real-time updates (not polling)
 - Concurrency lock for AI generation (only one at a time)
 - Version column for retry tracking
+- **LLMProvider abstraction** for all AI calls (not direct MimoRunner)
+- **Agent → Tool → Service** layering (agents orchestrate, tools wrap services)
+- **LangGraph workflows** for multi-step AI pipelines
 
 ### Patterns to Avoid
 - Do NOT use ORM — raw SQL only
