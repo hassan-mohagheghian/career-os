@@ -1,12 +1,36 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { CaretRight, CaretDown } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
-export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, onSwitchSubTab, onClose }) {
-  const [expanded, setExpanded] = useState({ 'career-intel': true })
+interface TabChild {
+  id: string
+  label: string
+}
 
-  const toggleSection = (id) => {
+interface Tab {
+  id: string
+  section: string
+  label?: string
+  icon?: ReactNode
+  badge?: number
+  children?: TabChild[]
+}
+
+interface SidebarProps {
+  sidebarOpen: boolean
+  tabs: Tab[]
+  tab: string
+  onSwitchTab: (id: string, childId?: string) => void
+  subTab?: string
+  onSwitchSubTab?: (id: string) => void
+  onClose: () => void
+}
+
+export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, onClose }: SidebarProps) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'career-intel': true })
+
+  const toggleSection = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
@@ -18,7 +42,7 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
         sidebarOpen ? "w-[170px]" : "w-0 overflow-hidden"
       )}>
         <div className="pt-12 lg:pt-0 flex-1 overflow-y-auto">
-          {['jobs', 'analysis', 'settings'].map(section => (
+          {(['jobs', 'analysis', 'settings'] as const).map(section => (
             <div key={section}>
               <div className="px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">{section}</div>
               {tabs.filter(t => t.section === section).map(t => {
@@ -28,7 +52,6 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
 
                 return (
                   <div key={t.id}>
-                    {/* Main tab button */}
                     <button
                       onClick={() => {
                         if (hasChildren) {
@@ -52,15 +75,12 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
                       )}
                     </button>
 
-                    {/* Children (sub-tabs) */}
                     {hasChildren && isExpanded && (
                       <div>
-                        {t.children.map(child => (
+                        {t.children!.map(child => (
                           <button
                             key={child.id}
-                            onClick={() => {
-                              onSwitchTab(t.id, child.id)
-                            }}
+                            onClick={() => onSwitchTab(t.id, child.id)}
                             className={cn(
                               "flex items-center gap-2 pl-9 pr-3 py-1.5 text-xs border-l-3 transition w-full text-left",
                               subTab === child.id && tab === t.id

@@ -3,28 +3,37 @@ import { useSocketIO, cancelJob, resetJob, watchPending, unwatchPending } from '
 
 const API = '/api'
 
-export function usePending(onJobDone) {
-  const [pending, setPending] = useState([])
+interface PendingJob {
+  id: number
+  url: string
+  status: string
+  company: string | null
+  job_num: number | null
+  workflow_log: any
+  session_id: string | null
+  error: string | null
+  [key: string]: any
+}
+
+export function usePending(onJobDone?: () => void) {
+  const [pending, setPending] = useState<PendingJob[]>([])
   const [urlInput, setUrlInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [processImmediately, setProcessImmediately] = useState(true)
   const [urlError, setUrlError] = useState('')
-  const [duplicateJob, setDuplicateJob] = useState(null)
-  const seenDoneRef = useRef(new Set())
-  const watchedRef = useRef(new Set())
+  const [duplicateJob, setDuplicateJob] = useState<any>(null)
+  const seenDoneRef = useRef(new Set<number>())
+  const watchedRef = useRef(new Set<number>())
   const socket = useSocketIO()
 
-  // Watch/unwatch rooms when pending list changes
-  const syncWatchRooms = useCallback((list) => {
+  const syncWatchRooms = useCallback((list: PendingJob[]) => {
     const newIds = new Set(list.map(p => p.id))
-    // Unwatch removed jobs
     for (const id of watchedRef.current) {
       if (!newIds.has(id)) {
         unwatchPending(id)
         watchedRef.current.delete(id)
       }
     }
-    // Watch new jobs
     for (const id of newIds) {
       if (!watchedRef.current.has(id)) {
         watchPending(id)
@@ -33,7 +42,6 @@ export function usePending(onJobDone) {
     }
   }, [])
 
-  // Unwatch all on unmount
   useEffect(() => {
     return () => {
       for (const id of watchedRef.current) {
@@ -44,12 +52,17 @@ export function usePending(onJobDone) {
   }, [])
 
   const fetchPending = useCallback(() => {
-    return fetch(`${API}/pending`).then(r => r.json()).then(list => {
+    return fetch(`${API}/pending`).then(r => r.json()).then((list: PendingJob[]) => {
       setPending(list)
       syncWatchRooms(list)
       return list
     })
   }, [syncWatchRooms])
+
+  const processPending = useCallback(async (id: number) => {
+    await fetch(`${API}/pending/${id}/process`, { method: 'POST' })
+    fetchPending()
+  }, [fetchPending])
 
   const submitUrl = useCallback(async () => {
     if (!urlInput.trim()) return
@@ -77,49 +90,42 @@ export function usePending(onJobDone) {
     } finally {
       setSubmitting(false)
     }
-  }, [urlInput, processImmediately, fetchPending])
+  }, [urlInput, processImmediately, fetchPending, processPending])
 
-  const deletePending = useCallback(async (id) => {
+  const deletePending = useCallback(async (id: number) => {
     await fetch(`${API}/pending/${id}`, { method: 'DELETE' })
     fetchPending()
   }, [fetchPending])
 
-  const processPending = useCallback(async (id) => {
-    await fetch(`${API}/pending/${id}/process`, { method: 'POST' })
-    fetchPending()
-  }, [fetchPending])
-
-  const resetPending = useCallback(async (id) => {
+  const resetPending = useCallback(async (id: number) => {
     resetJob(id, 'pending_jobs')
     fetchPending()
   }, [fetchPending])
 
-  const cancelPending = useCallback(async (id) => {
+  const cancelPending = useCallback(async (id: number) => {
     cancelJob(id, 'pending_jobs')
     fetchPending()
   }, [fetchPending])
 
-  // SocketIO real-time updates
   useEffect(() => {
-    const handleUpdate = (data) => {
+    const handleUpdate = (data: any) => {
       setPending(prev => prev.map(p => {
         if (p.id !== data.id) return p
         const updated = { ...p, ...data }
-        // Don't overwrite non-step fields like session_id with numeric val
         if (data.step && data.step !== 'session_id') {
           updated[data.step] = data.val
         }
         return updated
       }))
     }
-    const handleLog = (data) => {
+    const handleLog = (data: any) => {
       setPending(prev => prev.map(p => {
         if (p.id !== data.id) return p
         const logs = Array.isArray(p.workflow_log) ? p.workflow_log : JSON.parse(p.workflow_log || '[]')
         return { ...p, workflow_log: [...logs, { step: data.step, msg: data.msg, ts: data.ts }] }
       }))
     }
-    const handleComplete = (data) => {
+    const handleComplete = (data: any) => {
       setPending(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'done', ...data } : p
       ))
@@ -128,7 +134,7 @@ export function usePending(onJobDone) {
         onJobDone?.()
       }
     }
-    const handleError = (data) => {
+    const handleError = (data: any) => {
       setPending(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
@@ -139,7 +145,6 @@ export function usePending(onJobDone) {
     socket.on('pending:complete', handleComplete)
     socket.on('pending:error', handleError)
 
-    // Initial fetch
     fetchPending()
 
     return () => {

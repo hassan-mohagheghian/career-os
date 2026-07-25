@@ -41,7 +41,7 @@ describe('JobCard action buttons hover behavior', () => {
     renderCard()
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()
     expect(screen.getByText('Senior Backend Engineer')).toBeInTheDocument()
-    expect(screen.getByText('A')).toBeInTheDocument()
+    expect(screen.getAllByText('A').length).toBeGreaterThan(0)
   })
 
   it('action buttons container is hidden by default (opacity-0)', () => {

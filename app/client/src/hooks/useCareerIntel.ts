@@ -3,13 +3,33 @@ import { useSocketIO, watchCareerIntel, unwatchCareerIntel } from './useSocketIO
 
 const API = '/api'
 
+interface ProgressData {
+  running: boolean
+  type?: string
+  status?: string
+  session_id?: string
+  section?: string
+  message?: string
+  error?: string
+  run_id?: number
+  started_at?: string
+  [key: string]: any
+}
+
+interface SectionStatus {
+  status: string
+  lastRun: string | null
+  completedAt?: string
+  error?: string
+}
+
 export function useCareerIntel() {
-  const [data, setData] = useState(null)
-  const [status, setStatus] = useState({})
-  const [progress, setProgress] = useState({ running: false })
+  const [data, setData] = useState<Record<string, any> | null>(null)
+  const [status, setStatus] = useState<Record<string, SectionStatus>>({})
+  const [progress, setProgress] = useState<ProgressData>({ running: false })
   const [activeTab, setActiveTab] = useState('overview')
-  const [refreshing, setRefreshing] = useState({})
-  const [error, setError] = useState(null)
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
+  const [error, setError] = useState<string | null>(null)
   const socket = useSocketIO()
 
   const fetchData = useCallback(() => {
@@ -33,7 +53,6 @@ export function useCareerIntel() {
       .catch(() => setProgress({ running: false }))
   }, [])
 
-  // Initial load + WebSocket for real-time updates
   useEffect(() => {
     fetchData()
     fetchStatus()
@@ -43,10 +62,8 @@ export function useCareerIntel() {
   useEffect(() => {
     if (!socket) return
 
-    const handleProgress = (data) => {
-      // Merge progress updates so session_id and other fields persist across events
+    const handleProgress = (data: ProgressData) => {
       setProgress(prev => ({ ...prev, ...data }))
-      // When analysis completes/fails/cancels, refresh all data
       if (!data.running) {
         setRefreshing({})
         fetchStatus()
@@ -63,7 +80,7 @@ export function useCareerIntel() {
     }
   }, [socket, fetchStatus, fetchData])
 
-  const refreshSection = useCallback(async (section) => {
+  const refreshSection = useCallback(async (section: string) => {
     setError(null)
     try {
       const res = await fetch(`${API}/career-intelligence/${section}/refresh`, { method: 'POST' })
@@ -72,11 +89,10 @@ export function useCareerIntel() {
         setError(body.message || 'Analysis already in progress')
         return false
       }
-      // Optimistically show progress bar immediately (WebSocket will update with real data)
       setProgress(p => ({ ...p, running: true, type: section }))
       setRefreshing(r => ({ ...r, [section]: true }))
       return true
-    } catch (e) {
+    } catch {
       setError('Failed to start analysis')
       return false
     }
@@ -91,11 +107,10 @@ export function useCareerIntel() {
         setError(body.message || 'Analysis already in progress')
         return false
       }
-      // Optimistically show progress bar immediately (WebSocket will update with real data)
       setProgress(p => ({ ...p, running: true, type: 'all' }))
       setRefreshing(r => ({ ...r, all: true }))
       return true
-    } catch (e) {
+    } catch {
       setError('Failed to start analysis')
       return false
     }
@@ -112,7 +127,7 @@ export function useCareerIntel() {
         fetchData()
         return true
       }
-    } catch (e) {
+    } catch {
       setError('Failed to cancel analysis')
     }
     return false

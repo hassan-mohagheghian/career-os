@@ -4,14 +4,13 @@ import { useSocketIO, cancelJob, resetJob, watchCompany, unwatchCompany } from '
 const API = '/api'
 
 export function useCompanies() {
-  const [companies, setCompanies] = useState([])
-  const [pendingCompanies, setPendingCompanies] = useState([])
+  const [companies, setCompanies] = useState<any[]>([])
+  const [pendingCompanies, setPendingCompanies] = useState<any[]>([])
   const socket = useSocketIO()
-  const watchedRef = useRef(new Set())
+  const watchedRef = useRef(new Set<number>())
 
-  // Watch/unwatch rooms when pending companies list changes
-  const syncWatchRooms = useCallback((list) => {
-    const newIds = new Set(list.map(p => p.id))
+  const syncWatchRooms = useCallback((list: any[]) => {
+    const newIds = new Set(list.map((p: any) => p.id))
     for (const id of watchedRef.current) {
       if (!newIds.has(id)) {
         unwatchCompany(id)
@@ -26,7 +25,6 @@ export function useCompanies() {
     }
   }, [])
 
-  // Unwatch all on unmount
   useEffect(() => {
     return () => {
       for (const id of watchedRef.current) {
@@ -41,29 +39,29 @@ export function useCompanies() {
   }, [])
 
   const fetchPendingCompanies = useCallback(() => {
-    return fetch(`${API}/pending-companies`).then(r => r.json()).then(list => {
+    return fetch(`${API}/pending-companies`).then(r => r.json()).then((list: any[]) => {
       setPendingCompanies(list)
       syncWatchRooms(list)
       return list
     })
   }, [syncWatchRooms])
 
-  const deleteCompany = useCallback(async (id) => {
+  const deleteCompany = useCallback(async (id: number) => {
     await fetch(`${API}/companies/${id}`, { method: 'DELETE' })
     fetchCompanies()
   }, [fetchCompanies])
 
-  const reprocessCompany = useCallback(async (id) => {
+  const reprocessCompany = useCallback(async (id: number) => {
     await fetch(`${API}/companies/${id}/reprocess`, { method: 'POST' })
     fetchCompanies()
   }, [fetchCompanies])
 
-  const cancelPendingCompany = useCallback((id) => {
+  const cancelPendingCompany = useCallback((id: number) => {
     cancelJob(id, 'pending_companies')
     fetchPendingCompanies()
   }, [fetchPendingCompanies])
 
-  const resetPendingCompany = useCallback((id) => {
+  const resetPendingCompany = useCallback((id: number) => {
     resetJob(id, 'pending_companies')
     fetchPendingCompanies()
   }, [fetchPendingCompanies])
@@ -73,33 +71,31 @@ export function useCompanies() {
     fetchPendingCompanies()
   }, [fetchCompanies, fetchPendingCompanies])
 
-  // SocketIO real-time updates
   useEffect(() => {
-    const handleUpdate = (data) => {
+    const handleUpdate = (data: any) => {
       setPendingCompanies(prev => prev.map(p => {
         if (p.id !== data.id) return p
         const updated = { ...p, ...data }
-        // Don't overwrite non-step fields like session_id with numeric val
         if (data.step && data.step !== 'session_id') {
           updated[data.step] = data.val
         }
         return updated
       }))
     }
-    const handleLog = (data) => {
+    const handleLog = (data: any) => {
       setPendingCompanies(prev => prev.map(p => {
         if (p.id !== data.id) return p
         const logs = Array.isArray(p.workflow_log) ? p.workflow_log : JSON.parse(p.workflow_log || '[]')
         return { ...p, workflow_log: [...logs, { step: data.step, msg: data.msg, ts: data.ts }] }
       }))
     }
-    const handleComplete = (data) => {
+    const handleComplete = (data: any) => {
       setPendingCompanies(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'done', ...data } : p
       ))
       fetchCompanies()
     }
-    const handleError = (data) => {
+    const handleError = (data: any) => {
       setPendingCompanies(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
@@ -110,7 +106,6 @@ export function useCompanies() {
     socket.on('company:complete', handleComplete)
     socket.on('company:error', handleError)
 
-    // Initial fetch
     fetchCompanies()
     fetchPendingCompanies()
 

@@ -1,13 +1,116 @@
-"""Dashboard insights and refresh routes."""
+"""Dashboard insights, refresh routes, and unified generation history."""
 
 import json
 import sqlite3
+from datetime import datetime
 
 from database import get_db
 from flask import Blueprint, jsonify, request
 from utils import stream_json
 
 bp = Blueprint("dashboard", __name__)
+
+
+@bp.route("/api/generation-history")
+def get_generation_history():
+    """Unified generation history across all subsystems."""
+    limit = request.args.get("limit", 50, type=int)
+    conn = get_db()
+    items = []
+
+    # 1. Career intelligence runs
+    try:
+        rows = conn.execute(
+            "SELECT id, insight_type, status, started_at, completed_at, error_message, session_id "
+            "FROM career_insight_runs ORDER BY started_at DESC LIMIT 100"
+        ).fetchall()
+        for r in rows:
+            rd = dict(r)
+            items.append({
+                "source": "career-intel",
+                "title": rd["insight_type"],
+                "status": rd["status"],
+                "started_at": rd["started_at"],
+                "completed_at": rd["completed_at"],
+                "error": rd["error_message"],
+                "session_id": rd["session_id"],
+                "id": rd["id"],
+            })
+    except Exception:
+        pass
+
+    # 2. Skill roadmap jobs
+    try:
+        rows = conn.execute(
+            "SELECT id, skill_name, job_type, status, version, error, session_id, started_at, completed_at, created_at "
+            "FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT 100"
+        ).fetchall()
+        for r in rows:
+            rd = dict(r)
+            items.append({
+                "source": "roadmap",
+                "title": f"{rd['job_type']}: {rd['skill_name']}",
+                "status": rd["status"],
+                "started_at": rd["started_at"] or rd["created_at"],
+                "completed_at": rd["completed_at"],
+                "error": rd["error"],
+                "session_id": rd["session_id"],
+                "id": rd["id"],
+            })
+    except Exception:
+        pass
+
+    # 3. Pending jobs (processing history — only done/failed/cancelled)
+    try:
+        rows = conn.execute(
+            "SELECT id, company, status, error, session_id, created_at, updated_at "
+            "FROM pending_jobs WHERE status IN ('done', 'failed', 'cancelled') "
+            "ORDER BY updated_at DESC LIMIT 100"
+        ).fetchall()
+        for r in rows:
+            rd = dict(r)
+            items.append({
+                "source": "job-processing",
+                "title": rd["company"] or f"Job #{rd['id']}",
+                "status": rd["status"],
+                "started_at": rd["created_at"],
+                "completed_at": rd["updated_at"],
+                "error": rd["error"],
+                "session_id": rd["session_id"],
+                "id": rd["id"],
+            })
+    except Exception:
+        pass
+
+    # 4. Pending companies (processing history — only done/failed/cancelled)
+    try:
+        rows = conn.execute(
+            "SELECT id, company_name, status, error, session_id, created_at, updated_at "
+            "FROM pending_companies WHERE status IN ('done', 'failed', 'cancelled') "
+            "ORDER BY updated_at DESC LIMIT 100"
+        ).fetchall()
+        for r in rows:
+            rd = dict(r)
+            items.append({
+                "source": "company-processing",
+                "title": rd["company_name"] or f"Company #{rd['id']}",
+                "status": rd["status"],
+                "started_at": rd["created_at"],
+                "completed_at": rd["updated_at"],
+                "error": rd["error"],
+                "session_id": rd["session_id"],
+                "id": rd["id"],
+            })
+    except Exception:
+        pass
+
+    conn.close()
+
+    # Sort by most recent first and limit
+    items.sort(key=lambda x: x.get("completed_at") or x.get("started_at") or "", reverse=True)
+    items = items[:limit]
+
+    return jsonify({"items": items, "total": len(items)})
 
 
 @bp.route("/api/dashboard-insights")

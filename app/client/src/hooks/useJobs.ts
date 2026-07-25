@@ -1,29 +1,71 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 
 const API = '/api'
 const PAGE_SIZE = 30
 
+interface Job {
+  num: number
+  company: string
+  role: string
+  location: string
+  score: string
+  match: string
+  overall_score: number | null
+  fit_score: number | null
+  success_score: number | null
+  stack: string
+  visa: string
+  work_type: string
+  employment_type: string
+  posted_at: string | null
+  created_at: string
+  applicants: string | null
+  locations: string | null
+  linked_company: number | null
+  [key: string]: any
+}
+
+interface JobAgg {
+  total: number
+  high_match: number
+  apply_now: number
+  remote: number
+  [key: string]: number
+}
+
+interface JobWithLocations extends Job {
+  parsedLocations: string[]
+}
+
+interface JobsResponse {
+  jobs: Job[]
+  total: number
+  agg: JobAgg
+}
+
+type SortField = 'created_at' | 'overall_score' | 'fit_score' | 'success_score' | 'num' | 'company' | 'location' | 'applicants' | 'posted_at' | 'apply_time' | 'response_time'
+
 export function useJobs() {
-  const [jobs, setJobs] = useState(null)
-  const [summaries, setSummaries] = useState([])
+  const [jobs, setJobs] = useState<Job[] | null>(null)
+  const [summaries, setSummaries] = useState<any[]>([])
   const [jobsPage, setJobsPage] = useState(0)
   const [jobsTotal, setJobsTotal] = useState(0)
-  const [jobAgg, setJobAgg] = useState({ total: 0, high_match: 0, apply_now: 0, remote: 0 })
+  const [jobAgg, setJobAgg] = useState<JobAgg>({ total: 0, high_match: 0, apply_now: 0, remote: 0 })
   const [loadingMore, setLoadingMore] = useState(false)
-  const [sortBy, setSortBy] = useState('created_at')
-  const [sortDir, setSortDir] = useState('desc')
-  const jobsScrollRef = useRef(null)
-  const jobsSentinelRef = useRef(null)
+  const [sortBy, setSortBy] = useState<SortField>('created_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const jobsScrollRef = useRef<HTMLDivElement>(null)
+  const jobsSentinelRef = useRef<HTMLDivElement>(null)
 
-  const [filterCities, setFilterCities] = useState([])
-  const [filterCompanies, setFilterCompanies] = useState([])
+  const [filterCities, setFilterCities] = useState<string[]>([])
+  const [filterCompanies, setFilterCompanies] = useState<string[]>([])
   const [filterTech, setFilterTech] = useState('')
-  const [filterMatches, setFilterMatches] = useState([])
-  const [filterWorkTypes, setFilterWorkTypes] = useState([])
-  const [filterEmploymentTypes, setFilterEmploymentTypes] = useState([])
-  const [filterResponseStatus, setFilterResponseStatus] = useState([])
+  const [filterMatches, setFilterMatches] = useState<string[]>([])
+  const [filterWorkTypes, setFilterWorkTypes] = useState<string[]>([])
+  const [filterEmploymentTypes, setFilterEmploymentTypes] = useState<string[]>([])
+  const [filterResponseStatus, setFilterResponseStatus] = useState<string[]>([])
   const [filterApplied, setFilterApplied] = useState(false)
-  const [filterScores, setFilterScores] = useState([])
+  const [filterScores, setFilterScores] = useState<string[]>([])
 
   const activeFilterCount = filterCities.length + filterCompanies.length + filterMatches.length +
     filterWorkTypes.length + filterEmploymentTypes.length + filterResponseStatus.length +
@@ -50,10 +92,10 @@ export function useJobs() {
   const refreshJobs = useCallback(() => {
     setJobsPage(0)
     const params = buildParams(0)
-    fetch(`${API}/jobs?${params}`).then(r => r.json()).then(d => {
+    fetch(`${API}/jobs?${params}`).then(r => r.json()).then((d: JobsResponse) => {
       setJobs(d.jobs || [])
       setJobsTotal(d.total || 0)
-      setJobAgg(d.agg || {})
+      setJobAgg(d.agg || { total: 0, high_match: 0, apply_now: 0, remote: 0 })
     })
   }, [buildParams])
 
@@ -66,8 +108,8 @@ export function useJobs() {
     try {
       const params = buildParams(offset)
       const res = await fetch(`${API}/jobs?${params}`)
-      const data = await res.json()
-      setJobs(prev => [...prev, ...(data.jobs || [])])
+      const data: JobsResponse = await res.json()
+      setJobs(prev => [...(prev || []), ...(data.jobs || [])])
       setJobsPage(nextPage)
     } finally {
       setLoadingMore(false)
@@ -77,10 +119,10 @@ export function useJobs() {
   const fetchJobs = useCallback(() => {
     return fetch(`${API}/jobs?offset=0&limit=${PAGE_SIZE}&sort_by=created_at&sort_dir=desc`)
       .then(r => r.json())
-      .then(d => {
+      .then((d: JobsResponse) => {
         setJobs(d.jobs || [])
         setJobsTotal(d.total || 0)
-        setJobAgg(d.agg || {})
+        setJobAgg(d.agg || { total: 0, high_match: 0, apply_now: 0, remote: 0 })
         setJobsPage(0)
       })
   }, [])
@@ -89,22 +131,22 @@ export function useJobs() {
     return fetch(`${API}/summaries`).then(r => r.json()).then(setSummaries)
   }, [])
 
-  const deleteJob = useCallback(async (num) => {
+  const deleteJob = useCallback(async (num: number) => {
     await fetch(`${API}/jobs/${num}`, { method: 'DELETE' })
     refreshJobs()
   }, [refreshJobs])
 
-  const requeueJob = useCallback(async (num) => {
+  const requeueJob = useCallback(async (num: number) => {
     await fetch(`${API}/jobs/${num}/requeue`, { method: 'POST' })
     refreshJobs()
   }, [refreshJobs])
 
-  const rescoreJob = useCallback(async (num) => {
+  const rescoreJob = useCallback(async (num: number) => {
     await fetch(`${API}/jobs/${num}/rescore`, { method: 'POST' })
     refreshJobs()
   }, [refreshJobs])
 
-  const updateJob = useCallback(async (num, fields) => {
+  const updateJob = useCallback(async (num: number, fields: Record<string, any>) => {
     const res = await fetch(`${API}/jobs/${num}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -133,13 +175,13 @@ export function useJobs() {
   const jobsWithLocations = useMemo(() => {
     if (!jobs) return []
     return jobs.map(j => {
-      let locations = []
+      let locations: string[] = []
       if (j.locations) {
         try { locations = typeof j.locations === 'string' ? JSON.parse(j.locations) : j.locations }
         catch { locations = [] }
       }
       if (!locations.length && j.location) locations = [j.location]
-      return { ...j, parsedLocations: locations }
+      return { ...j, parsedLocations: locations } as JobWithLocations
     })
   }, [jobs])
 
@@ -169,9 +211,9 @@ export function useJobs() {
         return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
       if (sortBy === 'created_at' || sortBy === 'posted_at' || sortBy === 'apply_time' || sortBy === 'response_time') {
-        const field = sortBy
-        const aVal = a[field] ? new Date(a[field]).getTime() : 0
-        const bVal = b[field] ? new Date(b[field]).getTime() : 0
+        const field = sortBy as keyof Job
+        const aVal = a[field] ? new Date(a[field] as string).getTime() : 0
+        const bVal = b[field] ? new Date(b[field] as string).getTime() : 0
         return sortDir === 'desc' ? bVal - aVal : aVal - bVal
       }
       return 0
