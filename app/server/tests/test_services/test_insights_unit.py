@@ -59,7 +59,7 @@ def test_db():
             company_type TEXT, country TEXT, city TEXT, tech_stack TEXT,
             funding_stage TEXT, company_size TEXT
         );
-        CREATE TABLE tech_stack (
+        CREATE TABLE skills (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, level INTEGER,
             source TEXT DEFAULT 'service', category TEXT DEFAULT 'technical'
         );

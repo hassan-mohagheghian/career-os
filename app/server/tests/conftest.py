@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS company_links (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES companies(id)
 );
-CREATE TABLE IF NOT EXISTS tech_stack (
+CREATE TABLE IF NOT EXISTS skills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT, level INTEGER, ml TEXT, mc TEXT,
     roles TEXT, path TEXT, source TEXT DEFAULT 'service',

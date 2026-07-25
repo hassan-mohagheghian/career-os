@@ -80,7 +80,7 @@ def init_db():
         jobs TEXT, jd TEXT, reason TEXT, action TEXT
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
+    c.execute("""CREATE TABLE IF NOT EXISTS skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
         roles TEXT, path TEXT, source TEXT DEFAULT 'service',
@@ -105,7 +105,7 @@ def init_db():
         alias_name TEXT NOT NULL,
         normalized_name TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (skill_id) REFERENCES tech_stack(id)
+        FOREIGN KEY (skill_id) REFERENCES skills(id)
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS skill_roadmaps (
@@ -588,9 +588,9 @@ def migrate_existing_analysis_files():
                 )
                 migrated += 1
 
-        # Check if tech_learning or tech_stack tables have data
+        # Check if tech_learning or skills tables have data
         tl_count = c.execute("SELECT COUNT(*) FROM tech_learning").fetchone()[0]
-        ts_count = c.execute("SELECT COUNT(*) FROM tech_stack").fetchone()[0]
+        ts_count = c.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
         if tl_count > 0 or ts_count > 0:
             insights = {}
             if tl_count > 0:
@@ -600,7 +600,7 @@ def migrate_existing_analysis_files():
                 insights["techLearning"] = [dict(r) for r in rows]
             if ts_count > 0:
                 rows = c.execute(
-                    "SELECT * FROM tech_stack ORDER BY level DESC"
+                    "SELECT * FROM skills ORDER BY level DESC"
                 ).fetchall()
                 insights["techStack"] = [dict(r) for r in rows]
             if insights:

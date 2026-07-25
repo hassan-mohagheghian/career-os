@@ -97,7 +97,7 @@ export default function SkillDetailDrawer({
     const newName = renameValue.trim();
     if (!newName || newName === skillName || !skill.id) return;
     try {
-      const res = await fetch(`${API}/tech-stack/${skill.id}/rename`, {
+      const res = await fetch(`${API}/skills/${skill.id}/rename`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName }),
       });
@@ -116,7 +116,7 @@ export default function SkillDetailDrawer({
   const handleSetLevel = async (level) => {
     if (!skill.id || skill.level === level) return;
     try {
-      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+      const res = await fetch(`${API}/skills/${skill.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ level }),
       });
@@ -228,7 +228,7 @@ export default function SkillDetailDrawer({
     if (!tag || tags.includes(tag) || !skill.id) return;
     const newTags = [...tags, tag];
     try {
-      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+      const res = await fetch(`${API}/skills/${skill.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tags: newTags }),
       });
@@ -240,7 +240,7 @@ export default function SkillDetailDrawer({
     if (!skill.id) return;
     const newTags = tags.filter((t) => t !== tag);
     try {
-      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+      const res = await fetch(`${API}/skills/${skill.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tags: newTags }),
       });

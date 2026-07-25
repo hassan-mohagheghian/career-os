@@ -66,7 +66,7 @@ from blueprints.companies import bp as companies_bp
 from blueprints.insights import bp as insights_bp
 from blueprints.rules import bp as rules_bp
 from blueprints.misc import bp as misc_bp
-from blueprints.tech_stack import bp as tech_stack_bp
+from blueprints.skills import bp as skills_bp
 from blueprints.skill_roadmaps import bp as skill_roadmaps_bp, set_socketio as set_roadmap_socketio
 from blueprints.static import bp as static_bp, init_static
 from blueprints.api_docs import bp as api_docs_bp
@@ -78,7 +78,7 @@ app.register_blueprint(companies_bp)
 app.register_blueprint(insights_bp)
 app.register_blueprint(rules_bp)
 app.register_blueprint(misc_bp)
-app.register_blueprint(tech_stack_bp)
+app.register_blueprint(skills_bp)
 app.register_blueprint(skill_roadmaps_bp)
 app.register_blueprint(static_bp)
 app.register_blueprint(api_docs_bp)

@@ -87,7 +87,7 @@ def ensure_db_schema():
             company_type TEXT, logo_url TEXT, founded_year TEXT,
             headquarters_full TEXT, countries_of_operation TEXT,
             funding_stage TEXT, funding_amount TEXT, products TEXT,
-            tech_stack TEXT, work_environment TEXT, extra TEXT,
+            skills TEXT, work_environment TEXT, extra TEXT,
             notes TEXT DEFAULT '[]', processing_status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -103,7 +103,7 @@ def ensure_db_schema():
             "funding_stage",
             "funding_amount",
             "products",
-            "tech_stack",
+            "skills",
             "work_environment",
             "extra",
             "notes",
@@ -213,11 +213,21 @@ def ensure_db_schema():
                 "ALTER TABLE skill_roadmaps ADD COLUMN level INTEGER DEFAULT 0"
             )
 
-    # Add source column to tech_stack if missing
+    # Add source column to skills/tech_stack if missing (before rename migration)
     try:
         conn.execute("SELECT source FROM tech_stack LIMIT 1")
     except sqlite3.OperationalError:
-        conn.execute("ALTER TABLE tech_stack ADD COLUMN source TEXT DEFAULT 'service'")
+        try:
+            conn.execute("ALTER TABLE tech_stack ADD COLUMN source TEXT DEFAULT 'service'")
+        except sqlite3.OperationalError:
+            pass
+    try:
+        conn.execute("SELECT source FROM skills LIMIT 1")
+    except sqlite3.OperationalError:
+        try:
+            conn.execute("ALTER TABLE skills ADD COLUMN source TEXT DEFAULT 'service'")
+        except sqlite3.OperationalError:
+            pass
     if "skill_roadmap_progress" not in tables:
         conn.execute("""CREATE TABLE IF NOT EXISTS skill_roadmap_progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,6 +295,7 @@ def run_migrations():
     _migrate_skill_taxonomy()
     _migrate_skill_aliases()
     _categorize_existing_skills()
+    _migrate_rename_tech_stack_to_skills()
 
 
 def _migrate_roadmap_numbering_column():
@@ -380,10 +391,10 @@ def _migrate_skill_management():
         conn = sqlite3.connect(DB_PATH)
         cols = {row[1] for row in conn.execute("PRAGMA table_info(tech_stack)").fetchall()}
         if 'hidden' not in cols:
-            log.info("migrate.adding_tech_stack_hidden")
+            log.info("migrate.adding_skills_hidden")
             conn.execute("ALTER TABLE tech_stack ADD COLUMN hidden INTEGER DEFAULT 0")
         if 'merged_into' not in cols:
-            log.info("migrate.adding_tech_stack_merged_into")
+            log.info("migrate.adding_skills_merged_into")
             conn.execute("ALTER TABLE tech_stack ADD COLUMN merged_into TEXT DEFAULT ''")
         conn.commit()
         conn.close()
@@ -401,7 +412,7 @@ def _migrate_skill_taxonomy():
             ('evidence', "'[]'"), ('source_type', "'service'"), ('tags', "'[]'"),
         ]:
             if col not in cols:
-                log.info(f"migrate.adding_tech_stack_{col}")
+                log.info(f"migrate.adding_skills_{col}")
                 conn.execute(f"ALTER TABLE tech_stack ADD COLUMN {col} TEXT DEFAULT {default}" if col in ('category', 'evidence', 'source_type', 'tags') else f"ALTER TABLE tech_stack ADD COLUMN {col} REAL DEFAULT {default}")
         # Create skill_relationships table if not exists
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
@@ -1343,5 +1354,22 @@ def _migrate_rule_groups():
         conn.commit()
         conn.close()
         log.info("migrate.rule_groups_complete", counts="SHARED(4) JOB(6) COMPANY_PRODUCT(4) COMPANY_RECRUITING(4)")
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_rename_tech_stack_to_skills():
+    """Rename tech_stack table to skills for accurate naming (handles all skill types)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        if 'tech_stack' in tables and 'skills' not in tables:
+            log.info("migrate.renaming_tech_stack_to_skills")
+            conn.execute("ALTER TABLE tech_stack RENAME TO skills")
+            conn.commit()
+            log.info("migrate.tech_stack_renamed_to_skills")
+        elif 'skills' in tables:
+            log.info("migrate.skills_table_already_exists")
+        conn.close()
     except Exception as e:
         log.warning("migrate.failed", error=str(e))

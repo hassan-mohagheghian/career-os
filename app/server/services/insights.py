@@ -342,7 +342,7 @@ def _collect_jobs_data():
 def _collect_companies_data():
     conn = _db()
     rows = conn.execute(
-        "SELECT c.id, c.name, c.industry, c.company_type, c.country, c.city, c.tech_stack, "
+        "SELECT c.id, c.name, c.industry, c.company_type, c.country, c.city, c.skills, "
         "c.funding_stage, c.company_size, "
         "(SELECT COUNT(*) FROM jobs j WHERE j.company=c.name AND j.deleted=0) as job_count "
         "FROM companies c ORDER BY job_count DESC"
@@ -353,7 +353,7 @@ def _collect_companies_data():
 
 def _collect_skills_data():
     conn = _db()
-    stack = conn.execute("SELECT * FROM tech_stack ORDER BY level DESC").fetchall()
+    stack = conn.execute("SELECT * FROM skills ORDER BY level DESC").fetchall()
     learning = conn.execute("SELECT * FROM tech_learning ORDER BY priority").fetchall()
     conn.close()
     return {
@@ -437,24 +437,24 @@ def _resolve_skill_name(conn, name):
     normalized = _normalize_skill_name(name)
     # Check if this name is an alias
     alias_row = conn.execute(
-        "SELECT ts.name FROM skill_aliases sa JOIN tech_stack ts ON ts.id=sa.skill_id "
+        "SELECT ts.name FROM skill_aliases sa JOIN skills ts ON ts.id=sa.skill_id "
         "WHERE LOWER(sa.alias_name)=?", (normalized,)
     ).fetchone()
     if alias_row:
         return alias_row[0]
     # Check exact match
-    exact = conn.execute("SELECT name FROM tech_stack WHERE name=?", (name,)).fetchone()
+    exact = conn.execute("SELECT name FROM skills WHERE name=?", (name,)).fetchone()
     if exact:
         return exact[0]
     # Check case-insensitive match
-    ci = conn.execute("SELECT name FROM tech_stack WHERE LOWER(name)=?", (normalized,)).fetchone()
+    ci = conn.execute("SELECT name FROM skills WHERE LOWER(name)=?", (normalized,)).fetchone()
     if ci:
         return ci[0]
     return name
 
 
 def _fill_skills_from_insights(result):
-    """Parse AI insights report and fill skills into tech_stack + skill_relationships."""
+    """Parse AI insights report and fill skills into skills + skill_relationships."""
     if not result:
         return
 
@@ -478,7 +478,7 @@ def _fill_skills_from_insights(result):
             category = skill_data.get('category', '')
 
             # Try to update existing skill
-            row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
+            row = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
             if row:
                 updates = []
                 params = []
@@ -496,22 +496,22 @@ def _fill_skills_from_insights(result):
                     params.append(category)
                 if updates:
                     params.append(canonical)
-                    conn.execute(f"UPDATE tech_stack SET {', '.join(updates)} WHERE name=?", params)
+                    conn.execute(f"UPDATE skills SET {', '.join(updates)} WHERE name=?", params)
 
-        # 2. Add new skills from recommendations that don't exist in tech_stack
+        # 2. Add new skills from recommendations that don't exist in skills
         for rec in recommendations:
             name = rec.get('skill', '')
             if not name:
                 continue
             canonical = _resolve_skill_name(conn, name)
-            existing = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
+            existing = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
             if not existing:
                 category = rec.get('category', 'technical')
                 confidence = rec.get('confidence', 0.5)
                 market_demand = rec.get('market_demand', 0)
                 evidence = json.dumps(rec.get('evidence', []))
                 conn.execute(
-                    "INSERT INTO tech_stack (name, level, source, source_type, category, confidence, market_relevance, evidence) "
+                    "INSERT INTO skills (name, level, source, source_type, category, confidence, market_relevance, evidence) "
                     "VALUES (?, 1, 'service', 'ai_generated', ?, ?, ?, ?)",
                     (canonical, category, confidence, market_demand, evidence)
                 )
@@ -545,7 +545,7 @@ def _fill_skills_from_insights(result):
             if not name:
                 continue
             canonical = _resolve_skill_name(conn, name)
-            canonical_row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
+            canonical_row = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
             if not canonical_row:
                 continue
             # If the original name differs from canonical, create an alias
@@ -607,7 +607,7 @@ def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=
         summary = '; '.join(parts) if parts else f"Readiness: {score}/100"
     _save_insight(section, result, score, summary)
 
-    # Fill skills into tech_stack and skill_relationships from AI report
+    # Fill skills into skills and skill_relationships from AI report
     if section == 'skills_intel':
         _fill_skills_from_insights(result)
 

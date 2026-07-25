@@ -6,20 +6,20 @@ import pytest
 
 def _merge(conn, target_id, source_ids):
     """Core merge logic extracted from the endpoint."""
-    target = conn.execute("SELECT name FROM tech_stack WHERE id=?", (target_id,)).fetchone()
+    target = conn.execute("SELECT name FROM skills WHERE id=?", (target_id,)).fetchone()
     if not target:
         return None
     target_name = target[0]
     merged = []
     for sid in source_ids:
-        source = conn.execute("SELECT name FROM tech_stack WHERE id=?", (sid,)).fetchone()
+        source = conn.execute("SELECT name FROM skills WHERE id=?", (sid,)).fetchone()
         if not source or source[0] == target_name:
             continue
         source_name = source[0]
         conn.execute("UPDATE skill_roadmaps SET skill_name=? WHERE skill_name=?", (target_name, source_name))
         conn.execute("UPDATE skill_roadmap_progress SET skill_name=? WHERE skill_name=?", (target_name, source_name))
         conn.execute("UPDATE skill_roadmap_jobs SET skill_name=? WHERE skill_name=?", (target_name, source_name))
-        conn.execute("DELETE FROM tech_stack WHERE id=?", (sid,))
+        conn.execute("DELETE FROM skills WHERE id=?", (sid,))
         merged.append(source_name)
     conn.commit()
     return merged
@@ -28,8 +28,8 @@ def _merge(conn, target_id, source_ids):
 class TestMergeSkills:
     def test_merge_renames_roadmaps(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
         conn.execute("INSERT INTO skill_roadmaps (skill_name, title, level) VALUES (?, ?, ?)", ('postgres', 'Basics', 1))
         conn.execute("INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, ?)", (1, 'postgres', 1))
         conn.execute("INSERT INTO skill_roadmap_jobs (skill_name, status) VALUES (?, ?)", ('postgres', 'completed'))
@@ -41,7 +41,7 @@ class TestMergeSkills:
         roads = conn.execute("SELECT skill_name FROM skill_roadmaps").fetchall()
         progress = conn.execute("SELECT skill_name FROM skill_roadmap_progress").fetchall()
         jobs = conn.execute("SELECT skill_name FROM skill_roadmap_jobs").fetchall()
-        tech = conn.execute("SELECT name FROM tech_stack").fetchall()
+        tech = conn.execute("SELECT name FROM skills").fetchall()
 
         assert all(r[0] == 'PostgreSQL' for r in roads)
         assert all(r[0] == 'PostgreSQL' for r in progress)
@@ -52,34 +52,34 @@ class TestMergeSkills:
 
     def test_hide_skill(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('CSS', 1, 'service'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('CSS', 1, 'service'))
         conn.commit()
 
-        conn.execute("UPDATE tech_stack SET hidden=1 WHERE id=1")
+        conn.execute("UPDATE skills SET hidden=1 WHERE id=1")
         conn.commit()
 
-        row = conn.execute("SELECT hidden FROM tech_stack WHERE id=1").fetchone()
+        row = conn.execute("SELECT hidden FROM skills WHERE id=1").fetchone()
         assert row[0] == 1
 
-        visible = conn.execute("SELECT name FROM tech_stack WHERE hidden=0").fetchall()
+        visible = conn.execute("SELECT name FROM skills WHERE hidden=0").fetchall()
         assert len(visible) == 0
         conn.close()
 
     def test_merge_skips_self(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('Python', 4, 'user'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('Python', 4, 'user'))
         conn.commit()
 
         merged = _merge(conn, 1, [1])
         assert merged == []
-        assert conn.execute("SELECT COUNT(*) FROM tech_stack").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0] == 1
         conn.close()
 
     def test_merge_multiple_sources(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('React', 4, 'user'))
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('ReactJS', 3, 'service'))
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('react.js', 2, 'service'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('React', 4, 'user'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('ReactJS', 3, 'service'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('react.js', 2, 'service'))
         conn.execute("INSERT INTO skill_roadmaps (skill_name, title, level) VALUES (?, ?, ?)", ('ReactJS', 'Basics', 1))
         conn.execute("INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, ?)", (1, 'ReactJS', 1))
         conn.commit()
@@ -90,7 +90,7 @@ class TestMergeSkills:
         roads = conn.execute("SELECT skill_name FROM skill_roadmaps").fetchall()
         assert all(r[0] == 'React' for r in roads)
 
-        tech = conn.execute("SELECT name FROM tech_stack ORDER BY id").fetchall()
+        tech = conn.execute("SELECT name FROM skills ORDER BY id").fetchall()
         assert len(tech) == 1
         assert tech[0][0] == 'React'
         conn.close()
@@ -98,52 +98,52 @@ class TestMergeSkills:
     def test_merge_user_into_service(self, test_db):
         """User-input skill can merge with service-detected skill and vice versa."""
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
-        conn.execute("INSERT INTO tech_stack (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
+        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
         conn.commit()
 
         merged = _merge(conn, 1, [2])
         assert merged == ['postgres']
-        assert conn.execute("SELECT source FROM tech_stack WHERE id=1").fetchone()[0] == 'user'
+        assert conn.execute("SELECT source FROM skills WHERE id=1").fetchone()[0] == 'user'
         conn.close()
 
 
 class TestSkillTaxonomy:
     def test_category_filter(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, category) VALUES (?, ?, ?)", ('Python', 4, 'technical'))
-        conn.execute("INSERT INTO tech_stack (name, level, category) VALUES (?, ?, ?)", ('Leadership', 3, 'professional'))
+        conn.execute("INSERT INTO skills (name, level, category) VALUES (?, ?, ?)", ('Python', 4, 'technical'))
+        conn.execute("INSERT INTO skills (name, level, category) VALUES (?, ?, ?)", ('Leadership', 3, 'professional'))
         conn.commit()
 
-        tech = conn.execute("SELECT name FROM tech_stack WHERE category='technical'").fetchall()
+        tech = conn.execute("SELECT name FROM skills WHERE category='technical'").fetchall()
         assert len(tech) == 1
         assert tech[0][0] == 'Python'
 
-        prof = conn.execute("SELECT name FROM tech_stack WHERE category='professional'").fetchall()
+        prof = conn.execute("SELECT name FROM skills WHERE category='professional'").fetchall()
         assert len(prof) == 1
         assert prof[0][0] == 'Leadership'
         conn.close()
 
     def test_hidden_skills_list(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('CSS', 1, 0))
-        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
+        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('CSS', 1, 0))
+        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
         conn.commit()
 
-        hidden = conn.execute("SELECT name FROM tech_stack WHERE hidden=1").fetchall()
+        hidden = conn.execute("SELECT name FROM skills WHERE hidden=1").fetchall()
         assert len(hidden) == 1
         assert hidden[0][0] == 'jQuery'
         conn.close()
 
     def test_restore_hidden_skill(self, test_db):
         conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO tech_stack (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
+        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
         conn.commit()
 
-        conn.execute("UPDATE tech_stack SET hidden=0 WHERE id=1")
+        conn.execute("UPDATE skills SET hidden=0 WHERE id=1")
         conn.commit()
 
-        row = conn.execute("SELECT hidden FROM tech_stack WHERE id=1").fetchone()
+        row = conn.execute("SELECT hidden FROM skills WHERE id=1").fetchone()
         assert row[0] == 0
         conn.close()
 

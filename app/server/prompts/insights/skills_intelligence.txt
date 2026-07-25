@@ -3,9 +3,9 @@ Analyze the candidate's skills, target career goals, and job market data to gene
 Read the jobs database at {project_root}/server/db/jobs.db.
 Tables available:
 - jobs (deleted=0): company, role, location, score, match, fit_score, success_score, overall_score, stack, visa, work_type, employment_type, raw_description, structured_description
-- companies: name, industry, company_type, country, city, tech_stack, funding_stage, company_size
+- companies: name, industry, company_type, country, city, skills, funding_stage, company_size
 - company_intelligence: company_id, overview, visa_analysis, technology_analysis, scores
-- tech_stack: name, level, roles, path
+- skills: name, level, roles, path
 - tech_learning: name, priority, usage, reason, action
 - preferences: scoring rules
 
@@ -23,9 +23,9 @@ ANALYSIS LAYERS
 Perform ALL of the following analysis layers and combine them into one report:
 
 1. CURRENT STATE ANALYSIS
-   - For each skill in tech_stack, evaluate: proficiency level, market demand, job relevance, candidate advantage, future importance
+   - For each skill in skills, evaluate: proficiency level, market demand, job relevance, candidate advantage, future importance
    - Classify into: strengths (strong alignment), maintain (important but not urgent), gaps (below market expectations), missing (required but absent)
-   - Use tech_stack.level for current proficiency, cross-reference with jobs.stack for market demand
+   - Use skills.level for current proficiency, cross-reference with jobs.stack for market demand
 
 2. TARGET STATE ANALYSIS
    - Infer target role from jobs the candidate scores highest on (overall_score >= 70)

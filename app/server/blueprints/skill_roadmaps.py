@@ -300,9 +300,9 @@ def get_all_skill_progress():
                 [skill_name] + leaf_ids,
             ).fetchone()
             done = row[0] or 0
-        # Get source from tech_stack
+        # Get source from skills
         src_row = conn.execute(
-            "SELECT source FROM tech_stack WHERE name=?", (skill_name,)
+            "SELECT source FROM skills WHERE name=?", (skill_name,)
         ).fetchone()
         source = src_row[0] if src_row else "service"
         result[skill_name] = {
@@ -631,7 +631,7 @@ def _run_generate_worker(skill):
         _update_skill_progress(skill, step=1, message="Reading skill level")
         conn = get_db()
         row = conn.execute(
-            "SELECT level FROM tech_stack WHERE name=?", (skill,)
+            "SELECT level FROM skills WHERE name=?", (skill,)
         ).fetchone()
         conn.close()
         level_map = {1: "beginner", 2: "beginner", 3: "intermediate", 4: "advanced", 5: "expert"}

@@ -48,7 +48,7 @@ def db_path():
         completed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
+    conn.execute("""CREATE TABLE IF NOT EXISTS skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
         roles TEXT, path TEXT, source TEXT DEFAULT 'service',
@@ -255,7 +255,7 @@ class TestSkillRoadmapGeneration:
 
     def test_generate_rejects_if_already_running(self, client, db_path):
         conn = sqlite3.connect(db_path)
-        conn.execute("INSERT INTO tech_stack (name, level) VALUES (?, ?)", ('Python', 3))
+        conn.execute("INSERT INTO skills (name, level) VALUES (?, ?)", ('Python', 3))
         # Insert a running job
         conn.execute(
             "INSERT INTO skill_roadmap_jobs (skill_name, job_type, status) VALUES (?, ?, ?)",

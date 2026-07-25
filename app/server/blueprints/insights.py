@@ -216,7 +216,7 @@ def _get_dashboard_data():
 
     # 1. Get all visible skills
     skill_rows = conn.execute(
-        "SELECT * FROM tech_stack WHERE hidden=0 ORDER BY level DESC"
+        "SELECT * FROM skills WHERE hidden=0 ORDER BY level DESC"
     ).fetchall()
     skills = [row_to_dict(r) for r in skill_rows]
 

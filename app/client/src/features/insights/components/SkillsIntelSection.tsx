@@ -199,11 +199,11 @@ export default function SkillsIntelSection({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const fetchTechStack = useCallback(() => {
-    fetch(`${API}/tech-stack`).then((r) => r.json()).then((list) => setTechStackSkills(Array.isArray(list) ? list : [])).catch(() => {});
+    fetch(`${API}/skills`).then((r) => r.json()).then((list) => setTechStackSkills(Array.isArray(list) ? list : [])).catch(() => {});
   }, []);
 
   const fetchHidden = useCallback(() => {
-    fetch(`${API}/tech-stack/hidden`).then((r) => r.json()).then((list) => setHiddenSkills(Array.isArray(list) ? list : [])).catch(() => {});
+    fetch(`${API}/skills/hidden`).then((r) => r.json()).then((list) => setHiddenSkills(Array.isArray(list) ? list : [])).catch(() => {});
   }, []);
 
   useEffect(() => { fetchTechStack(); fetchHidden(); }, [fetchTechStack, fetchHidden, roadmapProgress]);
@@ -338,7 +338,7 @@ export default function SkillsIntelSection({
     const name = customSkillInput.trim();
     if (!name) return;
     try {
-      await fetch(`${API}/tech-stack`, {
+      await fetch(`${API}/skills`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, level: 1, source: "user", source_type: "user_input", category: activeCategory }),
       });
@@ -351,7 +351,7 @@ export default function SkillsIntelSection({
     const item = techStackSkills.find((s) => s.name === skillName);
     if (!item) return;
     try {
-      await fetch(`${API}/tech-stack/${item.id}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
+      await fetch(`${API}/skills/${item.id}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
       toast.success(`"${skillName}" hidden`); fetchTechStack(); fetchHidden();
     } catch { toast.error("Failed to hide skill"); }
   };
@@ -365,7 +365,7 @@ export default function SkillsIntelSection({
       : `Hide "${skillName}"? It will be moved to Hidden Skills.`;
     if (!window.confirm(msg)) return;
     try {
-      const res = await fetch(`${API}/tech-stack/${skillId}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
+      const res = await fetch(`${API}/skills/${skillId}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
       if (res.ok) {
         toast.success(`"${skillName}" moved to Hidden Skills`);
         fetchTechStack(); fetchHidden(); if (onRefreshProgress) onRefreshProgress();
@@ -384,7 +384,7 @@ export default function SkillsIntelSection({
       : `Permanently delete "${skillName}"? This cannot be undone.`;
     if (!window.confirm(msg)) return;
     try {
-      const res = await fetch(`${API}/tech-stack/${skillId}`, { method: "DELETE" });
+      const res = await fetch(`${API}/skills/${skillId}`, { method: "DELETE" });
       const result = await res.json();
       if (res.ok) {
         toast.success(`"${skillName}" deleted${result.aliases_deleted?.length ? ` with ${result.aliases_deleted.length} alias${result.aliases_deleted.length > 1 ? "es" : ""}` : ""}`);
@@ -399,7 +399,7 @@ export default function SkillsIntelSection({
     const item = hiddenSkills.find((s) => s.name === skillName);
     if (!item) return;
     try {
-      await fetch(`${API}/tech-stack/${item.id}/restore`, { method: "PATCH" });
+      await fetch(`${API}/skills/${item.id}/restore`, { method: "PATCH" });
       toast.success(`"${skillName}" restored`); fetchTechStack(); fetchHidden();
     } catch { toast.error("Failed to restore skill"); }
   };
@@ -412,7 +412,7 @@ export default function SkillsIntelSection({
     if (!sourceItem || !targetItem) return;
     if (!window.confirm(`Merge "${sourceItem.name}" into "${targetItem.name}"?`)) return;
     try {
-      const res = await fetch(`${API}/tech-stack/merge`, {
+      const res = await fetch(`${API}/skills/merge`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_id: targetItem.id, source_ids: [sourceItem.id] }),
       });

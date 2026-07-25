@@ -50,7 +50,7 @@ def db_path():
         completed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
+    conn.execute("""CREATE TABLE IF NOT EXISTS skills (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
         sc TEXT, dc TEXT, usage INTEGER, uc TEXT,
