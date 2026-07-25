@@ -10,6 +10,7 @@ class TestTechStackCoreLogic:
 
     def test_get_visible_skills(self, test_db):
         conn = sqlite3.connect(test_db)
+        conn.row_factory = sqlite3.Row
         conn.execute("INSERT INTO tech_stack (name, level, hidden, category) VALUES (?, ?, ?, ?)", ('Python', 4, 0, 'technical'))
         conn.execute("INSERT INTO tech_stack (name, level, hidden, category) VALUES (?, ?, ?, ?)", ('jQuery', 1, 1, 'technical'))
         conn.commit()
@@ -34,6 +35,7 @@ class TestTechStackCoreLogic:
 
     def test_create_skill(self, test_db):
         conn = sqlite3.connect(test_db)
+        conn.row_factory = sqlite3.Row
         cur = conn.execute("INSERT INTO tech_stack (name, level, source, category) VALUES (?, ?, ?, ?)",
             ('Python', 4, 'user', 'technical'))
         conn.commit()

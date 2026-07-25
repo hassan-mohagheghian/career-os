@@ -74,7 +74,14 @@ CREATE TABLE IF NOT EXISTS tech_stack (
     hidden INTEGER DEFAULT 0, merged_into TEXT DEFAULT '',
     category TEXT DEFAULT '', confidence REAL DEFAULT 0,
     market_relevance REAL DEFAULT 0, evidence TEXT DEFAULT '[]',
-    source_type TEXT DEFAULT 'service'
+    source_type TEXT DEFAULT 'service', tags TEXT DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS skill_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_id INTEGER NOT NULL,
+    alias_name TEXT NOT NULL,
+    normalized_name TEXT DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS skill_relationships (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
