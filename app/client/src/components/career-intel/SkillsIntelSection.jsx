@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   TrendUp, Brain, BookOpen, Wrench, ArrowsClockwise, Target,
   TreeStructure, Plus, User, EyeSlash, DotsSixVertical, GitMerge,
-  Eye, CaretDown, CaretRight, Link, Lightbulb, Trash,
+  Eye, CaretDown, CaretRight, FunnelSimple, SortAscending,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { resolveSkillCategory, filterByCategory } from "@/lib/skills";
+import { resolveSkillCategory } from "@/lib/skills";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -23,11 +24,11 @@ import SkillDetailDrawer from "./SkillDetailDrawer";
 const API = "/api";
 
 const CATEGORIES = [
-  { id: "technical", label: "Technical", icon: <Wrench className="w-3 h-3" />, color: "text-blue-500" },
-  { id: "engineering", label: "Engineering", icon: <Target className="w-3 h-3" />, color: "text-green-500" },
-  { id: "professional", label: "Professional", icon: <User className="w-3 h-3" />, color: "text-purple-500" },
-  { id: "domain", label: "Domain", icon: <BookOpen className="w-3 h-3" />, color: "text-yellow-500" },
-  { id: "career", label: "Career", icon: <TrendUp className="w-3 h-3" />, color: "text-cyan-500" },
+  { id: "technical", label: "Technical", icon: <Wrench className="w-3 h-3" /> },
+  { id: "engineering", label: "Engineering", icon: <Target className="w-3 h-3" /> },
+  { id: "professional", label: "Professional", icon: <User className="w-3 h-3" /> },
+  { id: "domain", label: "Domain", icon: <BookOpen className="w-3 h-3" /> },
+  { id: "career", label: "Career", icon: <TrendUp className="w-3 h-3" /> },
 ];
 
 const CATEGORY_COLORS = {
@@ -38,16 +39,35 @@ const CATEGORY_COLORS = {
   career: "bg-cyan-500/15 text-cyan-500",
 };
 
-const SOURCE_COLORS = {
-  user: "bg-purple-500/15 text-purple-500",
-  service: "bg-blue-500/15 text-blue-500",
-  job_posting: "bg-green-500/15 text-green-500",
-  company_analysis: "bg-orange-500/15 text-orange-500",
-  market_analysis: "bg-cyan-500/15 text-cyan-500",
-};
+const SORT_OPTIONS = [
+  { id: "strength", label: "Strength" },
+  { id: "roadmap", label: "Roadmap Progress" },
+  { id: "name", label: "Name" },
+  { id: "demand", label: "Market Demand" },
+];
 
-// ── Sortable skill row (works in any section) ──────────────────────
-function SortableSkillRow({ id, name, category, confidence, source, marketDemand, onClick, onHide, onRemove, mergeMode, extra, aliases = [], skillId }) {
+const ROLE_FILTERS = [
+  { id: "all", label: "All Roles" },
+  { id: "strength", label: "Strengths" },
+  { id: "gap", label: "Gaps" },
+  { id: "rec", label: "Recommendations" },
+  { id: "none", label: "No Tag" },
+];
+
+const SOURCE_FILTERS = [
+  { id: "all", label: "All Sources" },
+  { id: "custom", label: "Custom" },
+  { id: "ai", label: "AI-Detected" },
+];
+
+const ROADMAP_FILTERS = [
+  { id: "all", label: "All Roadmaps" },
+  { id: "yes", label: "Has Roadmap" },
+  { id: "no", label: "No Roadmap" },
+];
+
+// ── Sortable skill row ────────────────────────────────────────
+function SortableSkillRow({ id, name, category, confidence, source, marketDemand, tags, onClick, onHide, onRemove, mergeMode, extra, aliases = [], skillId }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -62,7 +82,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 p-1.5 rounded transition text-xs",
+        "flex items-center gap-1.5 p-1.5 rounded transition text-xs",
         isDragging ? "bg-primary/10 shadow-md" : "hover:bg-muted",
         mergeMode ? "cursor-grab" : "cursor-pointer",
       )}
@@ -73,23 +93,24 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
           <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
         </button>
       )}
-      <span className="font-semibold w-20 truncate">{name}</span>
+      <span className="font-semibold w-16 truncate shrink-0">{name}</span>
       {category && (
         <Badge variant="secondary" className={cn("text-[0.4rem] h-2.5 shrink-0", CATEGORY_COLORS[category] || "bg-gray-500/15 text-gray-400")}>
           {category}
         </Badge>
       )}
-      <Badge variant="secondary" className={cn("text-[0.35rem] h-2 shrink-0",
-        source === "user" ? "bg-purple-500/15 text-purple-500" : "bg-blue-500/15 text-blue-500"
-      )}>
-        {source === "user" ? "Custom" : "AI"}
-      </Badge>
+      {/* Source + Role tags */}
+      {tags.map((tag) => (
+        <Badge key={tag.label} variant="secondary" className={cn("text-[0.35rem] h-2 shrink-0", tag.color)}>
+          {tag.label}
+        </Badge>
+      ))}
       {marketDemand > 0 && (
         <>
-          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[40px]">
             <div className="h-full bg-primary/60 rounded-full" style={{ width: `${marketDemand}%` }} />
           </div>
-          <span className="w-6 text-right text-[0.5rem] text-muted-foreground">{marketDemand}%</span>
+          <span className="w-6 text-right text-[0.5rem] text-muted-foreground shrink-0">{marketDemand}%</span>
         </>
       )}
       {confidence > 0 && (
@@ -135,7 +156,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────
 export default function SkillsIntelSection({
   data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [],
 }) {
@@ -143,6 +164,7 @@ export default function SkillsIntelSection({
   const strengths = skills.strengths || [];
   const gaps = skills.gaps || [];
   const recommendations = skills.learningRecommendations || [];
+
   const [selectedSkill, setSelectedSkill] = useState(null);
   const [detailSkill, setDetailSkill] = useState(null);
   const [customSkillInput, setCustomSkillInput] = useState("");
@@ -152,6 +174,10 @@ export default function SkillsIntelSection({
   const [activeCategory, setActiveCategory] = useState("technical");
   const [showHidden, setShowHidden] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
+  const [sortBy, setSortBy] = useState("strength");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [roadmapFilter, setRoadmapFilter] = useState("all");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -165,43 +191,112 @@ export default function SkillsIntelSection({
 
   useEffect(() => { fetchTechStack(); fetchHidden(); }, [fetchTechStack, fetchHidden, roadmapProgress]);
 
-  // Build alias map from API data: primary_name -> [alias1, alias2, ...]
-  const aliasMap = {};
-  for (const s of techStackSkills) {
-    if (s.aliases && s.aliases.length > 0) {
-      aliasMap[s.name] = s.aliases;
+  // Build alias map
+  const aliasMap = useMemo(() => {
+    const map = {};
+    for (const s of techStackSkills) {
+      if (s.aliases && s.aliases.length > 0) map[s.name] = s.aliases;
     }
-  }
+    return map;
+  }, [techStackSkills]);
 
-  // Skill categorization — exclude hidden skills
-  const analyzedSkillNames = new Set([...strengths, ...gaps, ...recommendations.map((r) => r.skill)].map((s) => s.skill || s));
-  const customSkillNames = techStackSkills.filter((s) => s.source === "user").map((s) => s.name);
-  const derivedSkillNames = techStackSkills.filter((s) => s.source !== "user" && !analyzedSkillNames.has(s.name)).map((s) => s.name);
-  const allSkillNames = [...new Set([...customSkillNames, ...analyzedSkillNames, ...derivedSkillNames])];
+  const aiReport = useMemo(() => ({ strengths, gaps, learningRecommendations: recommendations }), [strengths, gaps, recommendations]);
 
-  const categoryCounts = {};
-  for (const s of techStackSkills) { const cat = s.category || "technical"; categoryCounts[cat] = (categoryCounts[cat] || 0) + 1; }
+  // Build lookup sets for AI tags
+  const strengthSet = useMemo(() => new Set(strengths.map((s) => s.skill)), [strengths]);
+  const gapSet = useMemo(() => new Set(gaps.map((g) => g.skill)), [gaps]);
+  const recSet = useMemo(() => new Set(recommendations.map((r) => r.skill)), [recommendations]);
 
-  const filteredSkills = allSkillNames.filter((name) => {
-    const item = techStackSkills.find((s) => s.name === name);
-    return item?.category === activeCategory;
-  });
+  // Category counts from tech_stack
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    for (const s of techStackSkills) { const cat = s.category || "technical"; counts[cat] = (counts[cat] || 0) + 1; }
+    return counts;
+  }, [techStackSkills]);
 
-  const aiReport = { strengths, gaps, learningRecommendations: recommendations };
+  // ── Build unified skill list ──
+  const unifiedSkills = useMemo(() => {
+    const seen = new Set();
+    const list = [];
 
-  const getSkillMeta = (name) => {
-    const fromStack = techStackSkills.find((s) => s.name === name);
-    if (fromStack) return fromStack;
-    const category = resolveSkillCategory(name, techStackSkills, aiReport);
-    return category ? { category } : {};
-  };
-  const getSkillId = (name) => techStackSkills.find((s) => s.name === name)?.id;
+    for (const stack of techStackSkills) {
+      if (seen.has(stack.name)) continue;
+      seen.add(stack.name);
 
-  // Filter strengths/gaps/recommendations by active category
-  const filteredStrengths = filterByCategory(strengths, activeCategory, techStackSkills, aiReport);
-  const filteredGaps = filterByCategory(gaps, activeCategory, techStackSkills, aiReport);
-  const filteredRecs = filterByCategory(recommendations, activeCategory, techStackSkills, aiReport);
+      const inStrengths = strengthSet.has(stack.name);
+      const inGaps = gapSet.has(stack.name);
+      const inRecs = recSet.has(stack.name);
+      const prog = roadmapProgress[stack.name];
+      const isCustom = stack.source === "user";
 
+      // Build tags
+      const tags = [];
+      if (isCustom) tags.push({ label: "Custom", color: "bg-purple-500/15 text-purple-500" });
+      else tags.push({ label: "AI", color: "bg-blue-500/15 text-blue-500" });
+      if (inStrengths) tags.push({ label: "Strength", color: "bg-green-500/15 text-green-500" });
+      if (inGaps) tags.push({ label: "Gap", color: "bg-red-500/15 text-red-500" });
+      if (inRecs) tags.push({ label: "Rec", color: "bg-primary/15 text-primary" });
+
+      list.push({
+        name: stack.name,
+        category: stack.category || "technical",
+        source: stack.source,
+        confidence: stack.confidence || 0,
+        marketDemand: stack.market_relevance || 0,
+        level: stack.level || 0,
+        skillId: stack.id,
+        aliases: aliasMap[stack.name] || [],
+        tags,
+        inStrengths,
+        inGaps,
+        inRecs,
+        isCustom,
+        hasRoadmap: prog?.total > 0,
+        roadmapPct: prog?.pct || 0,
+        roadmapCompleted: prog?.completed || 0,
+        roadmapTotal: prog?.total || 0,
+        strengthOrder: inStrengths ? 0 : inGaps ? 1 : inRecs ? 2 : 3,
+      });
+    }
+    return list;
+  }, [techStackSkills, strengthSet, gapSet, recSet, roadmapProgress, aliasMap]);
+
+  // ── Filter + Sort ──
+  const displayedSkills = useMemo(() => {
+    let result = unifiedSkills;
+
+    // Category filter
+    result = result.filter((s) => s.category === activeCategory);
+
+    // Source filter
+    if (sourceFilter === "custom") result = result.filter((s) => s.isCustom);
+    else if (sourceFilter === "ai") result = result.filter((s) => !s.isCustom);
+
+    // Role filter
+    if (roleFilter === "strength") result = result.filter((s) => s.inStrengths);
+    else if (roleFilter === "gap") result = result.filter((s) => s.inGaps);
+    else if (roleFilter === "rec") result = result.filter((s) => s.inRecs);
+    else if (roleFilter === "none") result = result.filter((s) => !s.inStrengths && !s.inGaps && !s.inRecs);
+
+    // Roadmap filter
+    if (roadmapFilter === "yes") result = result.filter((s) => s.hasRoadmap);
+    else if (roadmapFilter === "no") result = result.filter((s) => !s.hasRoadmap);
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case "strength": return a.strengthOrder - b.strengthOrder;
+        case "roadmap": return (b.hasRoadmap ? b.roadmapPct : -1) - (a.hasRoadmap ? a.roadmapPct : -1);
+        case "name": return a.name.localeCompare(b.name);
+        case "demand": return b.marketDemand - a.marketDemand;
+        default: return a.strengthOrder - b.strengthOrder;
+      }
+    });
+
+    return result;
+  }, [unifiedSkills, activeCategory, sourceFilter, roleFilter, roadmapFilter, sortBy]);
+
+  // ── Handlers ──
   const handleAddCustomSkill = async () => {
     const name = customSkillInput.trim();
     if (!name) return;
@@ -252,11 +347,9 @@ export default function SkillsIntelSection({
     } catch { toast.error("Failed to restore skill"); }
   };
 
-  // Global DnD handler — works across ALL sections
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    // Find source and target in techStackSkills
     const sourceItem = techStackSkills.find((s) => s.name === active.id);
     const targetItem = techStackSkills.find((s) => s.name === over.id);
     if (!sourceItem || !targetItem) return;
@@ -279,12 +372,30 @@ export default function SkillsIntelSection({
     } catch { toast.error("Failed to merge skills"); }
   };
 
-  // Collect all draggable IDs across all sections for global DnD
-  const roadmapIds = filteredSkills.filter((s) => roadmapProgress[s]?.total > 0);
-  const allDraggableIds = [...new Set([...roadmapIds, ...filteredStrengths.map((s) => s.skill), ...filteredGaps.map((g) => g.skill), ...filteredRecs.map((r) => r.skill)])];
+  // Build roadmap extra for a skill
+  const getRoadmapExtra = (skill) => {
+    if (skill.hasRoadmap) {
+      return (
+        <>
+          <div className="flex-1 min-w-[60px]"><Progress value={skill.roadmapPct} className="h-1.5" /></div>
+          <span className="text-[0.6rem] text-muted-foreground w-10 text-right shrink-0">{skill.roadmapCompleted}/{skill.roadmapTotal}</span>
+          <Badge variant="secondary" className={cn("text-[0.45rem] h-3 shrink-0",
+            skill.roadmapPct === 100 ? "bg-green-500/15 text-green-500" : skill.roadmapPct > 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-gray-500/15 text-gray-400"
+          )}>{skill.roadmapPct}%</Badge>
+        </>
+      );
+    }
+    return (
+      <>
+        <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill.name); }}
+          className="h-5 text-[0.5rem] gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
+      </>
+    );
+  };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-extrabold text-sm">Skills Intelligence</h3>
@@ -301,11 +412,11 @@ export default function SkillsIntelSection({
 
       {mergeMode && (
         <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-2 text-[0.6rem] text-muted-foreground">
-          <strong className="text-foreground">Merge Mode</strong> — Drag any skill onto another across any section. Target keeps its name, source is absorbed.
+          <strong className="text-foreground">Merge Mode</strong> — Drag any skill onto another. Target keeps its name, source is absorbed.
         </div>
       )}
 
-      {/* Category Navigation + Add Custom Skill toggle */}
+      {/* Category Tabs + Add Skill */}
       <div className="flex items-center gap-2">
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
           <TabsList className="bg-muted">
@@ -338,183 +449,83 @@ export default function SkillsIntelSection({
         </div>
       </div>
 
-      {/* ═══ Global DnD Context — wraps ALL sections ═══ */}
+      {/* Sort + Filter bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1">
+          <SortAscending className="w-3 h-3 text-muted-foreground" />
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-1">
+          <FunnelSimple className="w-3 h-3 text-muted-foreground" />
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ROLE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <SelectTrigger className="h-6 text-[0.6rem] w-28"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SOURCE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={roadmapFilter} onValueChange={setRoadmapFilter}>
+          <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {ROADMAP_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Badge variant="secondary" className="text-[0.5rem] h-4">{displayedSkills.length} skills</Badge>
+      </div>
+
+      {/* ═══ Global DnD Context ═══ */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
 
-        {/* ═══ Strengths — top, prominent ═══ */}
-        <Card className="p-4 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendUp className="w-5 h-5 text-green-500" />
-            <h4 className="font-extrabold text-sm">Strengths</h4>
-            <Badge variant="secondary" className="text-[0.5rem] bg-green-500/15 text-green-500">{filteredStrengths.length}</Badge>
-          </div>
-          <SortableContext items={filteredStrengths.map((s) => s.skill)} strategy={verticalListSortingStrategy}>
-            <div className="grid grid-cols-2 gap-1 max-h-[200px] overflow-y-auto">
-              {filteredStrengths.length > 0 ? filteredStrengths.map((s) => {
-                const meta = getSkillMeta(s.skill);
-                return (
-                  <SortableSkillRow key={s.skill} id={s.skill} name={s.skill}
-                    category={s.category || meta.category} confidence={s.confidence || meta.confidence}
-                    source={meta.source || "service"} marketDemand={s.market_demand}
-                    onClick={(n) => setDetailSkill(n)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
-                    mergeMode={mergeMode} aliases={aliasMap[s.skill] || []} skillId={getSkillId(s.skill)} />
-                );
-              }) : <div className="text-xs text-muted-foreground col-span-2">No strengths in this category</div>}
+        {/* ═══ Unified Skills Card ═══ */}
+        <Card className="p-4">
+          {genJobs.length > 0 && genJobs.map((job) => (
+            <div key={job.skill} className="cursor-pointer mb-2" onClick={() => setSelectedSkill(job.skill)}>
+              <GenerationProgressCard title={job.skill} progress={{ running: true, ...job }} compact />
+            </div>
+          ))}
+          <SortableContext items={displayedSkills.map((s) => s.name)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-0.5 max-h-[500px] overflow-y-auto">
+              {displayedSkills.length > 0 ? displayedSkills.map((skill) => (
+                <SortableSkillRow
+                  key={skill.name}
+                  id={skill.name}
+                  name={skill.name}
+                  category={skill.category}
+                  confidence={skill.confidence}
+                  source={skill.source}
+                  marketDemand={skill.marketDemand}
+                  tags={skill.tags}
+                  onClick={(n) => setDetailSkill(n)}
+                  onHide={handleHideSkill}
+                  onRemove={handleRemoveSkill}
+                  mergeMode={mergeMode}
+                  aliases={skill.aliases}
+                  skillId={skill.skillId}
+                  extra={getRoadmapExtra(skill)}
+                />
+              )) : (
+                <div className="text-xs text-muted-foreground text-center py-8">
+                  No skills match the current filters
+                </div>
+              )}
             </div>
           </SortableContext>
         </Card>
 
-        {/* ═══ Roadmaps + Gaps (two columns) ═══ */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Skill Roadmaps */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TreeStructure className="w-5 h-5 text-emerald-500" />
-              <h4 className="font-extrabold text-sm">Skill Roadmaps</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-emerald-500/15 text-emerald-500">{roadmapIds.length}</Badge>
-            </div>
-            {genJobs.length > 0 && genJobs.map((job) => (
-              <div key={job.skill} className="cursor-pointer" onClick={() => setSelectedSkill(job.skill)}>
-                <GenerationProgressCard title={job.skill} progress={{ running: true, ...job }} compact className="mb-2" />
-              </div>
-            ))}
-            <SortableContext items={roadmapIds} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                {roadmapIds.map((skill) => {
-                  const meta = getSkillMeta(skill);
-                  const prog = roadmapProgress[skill];
-                  return (
-                    <SortableSkillRow key={skill} id={skill} name={skill}
-                      category={meta.category} confidence={meta.confidence} source={meta.source}
-                      onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
-                      mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
-                      extra={<>
-                        <div className="flex-1"><Progress value={prog.pct} className="h-1.5" /></div>
-                        <span className="text-[0.6rem] text-muted-foreground w-12 text-right shrink-0">{prog.completed}/{prog.total}</span>
-                        <Badge variant="secondary" className={cn("text-[0.45rem] h-3 shrink-0",
-                          prog.pct === 100 ? "bg-green-500/15 text-green-500" : prog.pct > 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-gray-500/15 text-gray-400"
-                        )}>{prog.pct}%</Badge>
-                      </>}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </Card>
-
-          {/* AI-Detected + Custom without roadmap */}
-          <div className="space-y-4">
-            {derivedSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0).length > 0 && (
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Brain className="w-4 h-4 text-blue-500" />
-                  <h4 className="font-extrabold text-sm">AI-Detected Skills</h4>
-                </div>
-                <SortableContext items={derivedSkillNames.filter((s) => (!roadmapProgress[s] || roadmapProgress[s].total === 0) && getSkillMeta(s).category === activeCategory)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {derivedSkillNames.filter((s) => (!roadmapProgress[s] || roadmapProgress[s].total === 0) && getSkillMeta(s).category === activeCategory).map((skill) => {
-                      const meta = getSkillMeta(skill);
-                      return (
-                        <SortableSkillRow key={skill} id={skill} name={skill}
-                          category={meta.category} confidence={meta.confidence} source={meta.source}
-                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
-                          mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
-                          extra={<>
-                            <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
-                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill); }}
-                              className="h-5 text-[0.5rem] gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
-                          </>}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </Card>
-            )}
-
-            {customSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0).length > 0 && (
-              <Card className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4 text-purple-500" />
-                  <h4 className="font-extrabold text-sm">Custom Skills</h4>
-                </div>
-                <SortableContext items={customSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-1 max-h-[150px] overflow-y-auto">
-                    {customSkillNames.filter((s) => !roadmapProgress[s] || roadmapProgress[s].total === 0).map((skill) => {
-                      const meta = getSkillMeta(skill);
-                      return (
-                        <SortableSkillRow key={skill} id={skill} name={skill}
-                          category={meta.category} confidence={meta.confidence} source={meta.source}
-                          onClick={(s) => setDetailSkill(s)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
-                          mergeMode={mergeMode} aliases={aliasMap[skill] || []} skillId={getSkillId(skill)}
-                          extra={<>
-                            <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
-                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill); }}
-                              className="h-5 text-[0.5rem] gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
-                          </>}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* ═══ Gaps + Recommendations (two columns) ═══ */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Gaps */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="w-4 h-4 text-red-500" />
-              <h4 className="font-extrabold text-sm">Skill Gaps</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-red-500/15 text-red-500">{filteredGaps.length}</Badge>
-            </div>
-            <SortableContext items={filteredGaps.map((g) => g.skill)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1 max-h-[250px] overflow-y-auto">
-                {filteredGaps.length > 0 ? filteredGaps.map((g) => {
-                  const meta = getSkillMeta(g.skill);
-                  return (
-                    <SortableSkillRow key={g.skill} id={g.skill} name={g.skill}
-                      category={g.category || meta.category} confidence={g.confidence || meta.confidence}
-                      source={meta.source || "service"} marketDemand={g.market_demand}
-                      onClick={(n) => setDetailSkill(n)} onHide={handleHideSkill} onRemove={handleRemoveSkill}
-                      mergeMode={mergeMode} aliases={aliasMap[g.skill] || []} skillId={getSkillId(g.skill)} />
-                  );
-                }) : <div className="text-xs text-muted-foreground">No gaps in this category</div>}
-              </div>
-            </SortableContext>
-          </Card>
-
-          {/* Recommendations */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Brain className="w-4 h-4 text-primary" />
-              <h4 className="font-extrabold text-sm">Recommendations</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-primary/15 text-primary">{filteredRecs.length}</Badge>
-            </div>
-            <div className="grid grid-cols-3 gap-2 max-h-[250px] overflow-y-auto">
-              {filteredRecs.length > 0 ? filteredRecs.map((r) => (
-                <div key={r.skill} className="p-2 rounded-lg border border-primary/20 bg-primary/5 cursor-pointer hover:border-primary/40 transition"
-                  onClick={() => setDetailSkill(r.skill)}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs truncate">{r.skill}</span>
-                    <Badge variant="secondary" className={cn("text-[0.45rem] h-3 shrink-0", r.roi >= 8 ? "bg-green-500/15 text-green-500" : "bg-gray-500/15 text-gray-400")}>
-                      ROI: {r.roi}/10
-                    </Badge>
-                  </div>
-                  <div className="text-[0.55rem] text-muted-foreground mt-0.5 line-clamp-2">{r.reason}</div>
-                  {r.category && <Badge variant="secondary" className={cn("text-[0.4rem] h-2.5 mt-1", CATEGORY_COLORS[r.category])}>{r.category}</Badge>}
-                </div>
-              )) : <div className="text-xs text-muted-foreground text-center py-4 col-span-3">No recommendations in this category</div>}
-            </div>
-          </Card>
-        </div>
-
         {/* Hidden Skills — collapsed, at the end */}
         {hiddenSkills.length > 0 && (
-          <Card className="p-4 mb-4">
+          <Card className="p-4 mt-4">
             <button onClick={() => setShowHidden(!showHidden)} className="flex items-center gap-2 mb-2 w-full text-left">
               {showHidden ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
               <EyeSlash className="w-4 h-4 text-gray-500" />
@@ -528,6 +539,9 @@ export default function SkillsIntelSection({
                     <SortableSkillRow key={skill.name} id={skill.name} name={skill.name}
                       category={skill.category} mergeMode={mergeMode}
                       aliases={aliasMap[skill.name] || []} skillId={skill.id}
+                      tags={skill.source === "user"
+                        ? [{ label: "Custom", color: "bg-purple-500/15 text-purple-500" }]
+                        : [{ label: "AI", color: "bg-blue-500/15 text-blue-500" }]}
                       onRemove={handleRemoveSkill}
                       extra={<>
                         <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
@@ -545,7 +559,6 @@ export default function SkillsIntelSection({
         )}
 
       </DndContext>
-      {/* ═══ End global DnD context ═══ */}
 
       {/* Drawers */}
       <SkillRoadmapDrawer skillName={selectedSkill} open={!!selectedSkill}
@@ -556,3 +569,5 @@ export default function SkillsIntelSection({
     </div>
   );
 }
+
+

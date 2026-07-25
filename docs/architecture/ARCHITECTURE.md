@@ -95,7 +95,7 @@ tech_stack ── skill_aliases (merged variants)
 **Hooks**: useJobs, usePending, useCompanies, useIntelligence, useCareerIntel, useResume, useWorkflow, useSocketIO
 
 **Key Components**:
-- `SkillsIntelSection` — Category tabs, merge DnD, alias badges, collapsible add skill
+- `SkillsIntelSection` — Unified skills card with sort (strength/roadmap/name/demand) + filter (category/source/role/roadmap), merge DnD, source tags (Custom/AI/Strength/Gap/Rec)
 - `SkillDetailDrawer` — Rename, checkable roadmap, merged variants, relationships
 - `SkillRoadmapDrawer` — Roadmap tree with progress tracking
 - `ProcessingItem` / `CompanyProcessingItem` — Real-time processing cards
