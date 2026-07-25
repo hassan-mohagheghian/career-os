@@ -65,11 +65,9 @@ function HistoryItem({ item }: { item: HistoryItemData }) {
             <Clock className="w-2.5 h-2.5" />
             {formatTimeAgo(item.completed_at || item.started_at)}
           </span>
-          {item.session_id && (
-            <span className="text-muted-foreground/50 text-[0.5rem] font-mono truncate max-w-[100px]" title={item.session_id}>
-              {item.session_id}
-            </span>
-          )}
+          <span className="text-muted-foreground/70 text-[0.5rem] font-mono truncate max-w-[140px]" title={item.session_id || 'No session ID'}>
+            {item.session_id || '—'}
+          </span>
         </div>
         {item.error && (
           <div className="text-red-500 text-[0.55rem] mt-0.5 flex items-center gap-1">
