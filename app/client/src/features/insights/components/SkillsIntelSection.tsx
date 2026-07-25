@@ -18,6 +18,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import GenerationProgressCard from "@/shared/components/GenerationProgressCard";
+import ConfirmDialog, { useConfirmDialog } from "@/shared/components/ConfirmDialog";
 import SkillRoadmapDrawer from "./SkillRoadmapDrawer";
 import SkillDetailDrawer from "./SkillDetailDrawer";
 
@@ -197,6 +198,7 @@ export default function SkillsIntelSection({
   const [levelFilter, setLevelFilter] = useState(new Set());
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const { dialog, showConfirm, onClose: closeConfirm } = useConfirmDialog();
 
   const fetchTechStack = useCallback(() => {
     fetch(`${API}/skills`).then((r) => r.json()).then((list) => setTechStackSkills(Array.isArray(list) ? list : [])).catch(() => {});
@@ -363,7 +365,7 @@ export default function SkillsIntelSection({
     const msg = aliases.length > 0
       ? `Hide "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})?`
       : `Hide "${skillName}"? It will be moved to Hidden Skills.`;
-    if (!window.confirm(msg)) return;
+    if (!(await showConfirm("Hide Skill", msg, "Hide"))) return;
     try {
       const res = await fetch(`${API}/skills/${skillId}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
       if (res.ok) {
@@ -382,7 +384,7 @@ export default function SkillsIntelSection({
     const msg = aliases.length > 0
       ? `Permanently delete "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})? This cannot be undone.`
       : `Permanently delete "${skillName}"? This cannot be undone.`;
-    if (!window.confirm(msg)) return;
+    if (!(await showConfirm("Delete Skill", msg, "Delete"))) return;
     try {
       const res = await fetch(`${API}/skills/${skillId}`, { method: "DELETE" });
       const result = await res.json();
@@ -410,7 +412,7 @@ export default function SkillsIntelSection({
     const sourceItem = techStackSkills.find((s) => s.name === active.id);
     const targetItem = techStackSkills.find((s) => s.name === over.id);
     if (!sourceItem || !targetItem) return;
-    if (!window.confirm(`Merge "${sourceItem.name}" into "${targetItem.name}"?`)) return;
+    if (!(await showConfirm("Merge Skills", `Merge "${sourceItem.name}" into "${targetItem.name}"?`, "Merge"))) return;
     try {
       const res = await fetch(`${API}/skills/merge`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -653,6 +655,7 @@ export default function SkillsIntelSection({
       <SkillDetailDrawer skillName={detailSkill} open={!!detailSkill}
         onOpenChange={(open) => { if (!open) setDetailSkill(null); }} techStackSkills={techStackSkills}
         roadmapProgress={roadmapProgress} onHide={handleHideSkill} onGenerate={setSelectedSkill} />
+      <ConfirmDialog dialog={dialog} onClose={closeConfirm} />
     </div>
   );
 }
