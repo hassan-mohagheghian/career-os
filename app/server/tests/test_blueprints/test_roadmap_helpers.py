@@ -98,7 +98,7 @@ def _sample_roadmap():
 
 class TestParseRoadmapJson:
     def test_valid_json_array_in_text_events(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         roadmap = _sample_roadmap()
         events = [
@@ -110,7 +110,7 @@ class TestParseRoadmapJson:
         assert result == roadmap
 
     def test_json_with_markdown_fences(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         roadmap = _sample_roadmap()
         events = [
@@ -121,7 +121,7 @@ class TestParseRoadmapJson:
         assert result == roadmap
 
     def test_json_with_markdown_fences_no_lang(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         roadmap = _sample_roadmap()
         events = [
@@ -132,7 +132,7 @@ class TestParseRoadmapJson:
         assert result == roadmap
 
     def test_json_embedded_in_larger_text(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         roadmap = _sample_roadmap()
         events = [
@@ -143,7 +143,7 @@ class TestParseRoadmapJson:
         assert result == roadmap
 
     def test_no_text_events_returns_error(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         events = [
             json.dumps({"type": "tool_use", "part": {"tool": "write"}}),
@@ -153,7 +153,7 @@ class TestParseRoadmapJson:
         assert "No text output" in err
 
     def test_empty_text_returns_error(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         events = [
             json.dumps({"type": "text", "part": {"text": ""}}),
@@ -163,7 +163,7 @@ class TestParseRoadmapJson:
         assert result is None
 
     def test_non_array_json_returns_error(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         events = [
             json.dumps({"type": "text", "part": {"text": json.dumps({"foo": "bar"})}}),
@@ -173,7 +173,7 @@ class TestParseRoadmapJson:
         assert "Could not parse" in err
 
     def test_invalid_json_returns_error(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         events = [
             json.dumps({"type": "text", "part": {"text": "not valid json at all"}}),
@@ -183,14 +183,14 @@ class TestParseRoadmapJson:
         assert "Could not parse" in err
 
     def test_handles_non_string_lines(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         events = [123, None, {"not": "a string"}]
         result, err = _parse_roadmap_json(events)
         assert result is None
 
     def test_multiple_text_chunks_concatenated(self):
-        from blueprints.dashboard import _parse_roadmap_json
+        from blueprints.skill_roadmaps import _parse_roadmap_json
 
         roadmap = _sample_roadmap()
         half = json.dumps(roadmap)[:len(json.dumps(roadmap)) // 2]
@@ -212,27 +212,27 @@ class TestParseRoadmapJson:
 
 class TestValidateRoadmap:
     def test_valid_roadmap(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         is_valid, errors = _validate_roadmap(_sample_roadmap())
         assert is_valid
         assert errors == []
 
     def test_empty_list(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         is_valid, errors = _validate_roadmap([])
         assert not is_valid
         assert "empty" in errors[0].lower()
 
     def test_not_a_list(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         is_valid, errors = _validate_roadmap({"title": "foo"})
         assert not is_valid
 
     def test_missing_title(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"description": "desc", "level": 100, "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -240,7 +240,7 @@ class TestValidateRoadmap:
         assert any("missing title" in e.lower() for e in errors)
 
     def test_missing_level(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "desc", "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -248,7 +248,7 @@ class TestValidateRoadmap:
         assert any("missing level" in e.lower() for e in errors)
 
     def test_missing_description(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "level": 100, "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -256,7 +256,7 @@ class TestValidateRoadmap:
         assert any("missing description" in e.lower() for e in errors)
 
     def test_level_out_of_range_negative(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": -1, "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -264,7 +264,7 @@ class TestValidateRoadmap:
         assert any("out of range" in e.lower() for e in errors)
 
     def test_level_out_of_range_over_1000(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": 1001, "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -272,21 +272,21 @@ class TestValidateRoadmap:
         assert any("out of range" in e.lower() for e in errors)
 
     def test_level_1000_is_valid(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": 1000, "children": []}]
         is_valid, errors = _validate_roadmap(data)
         assert is_valid
 
     def test_level_0_is_valid(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": 0, "children": []}]
         is_valid, errors = _validate_roadmap(data)
         assert is_valid
 
     def test_duplicate_titles(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [
             {"title": "Same", "description": "d", "level": 100, "children": []},
@@ -297,7 +297,7 @@ class TestValidateRoadmap:
         assert any("duplicate" in e.lower() for e in errors)
 
     def test_too_many_root_items(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [
             {"title": f"Item {i}", "description": "d", "level": i * 50, "children": []}
@@ -308,7 +308,7 @@ class TestValidateRoadmap:
         assert any("too many" in e.lower() for e in errors)
 
     def test_nested_children_valid(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [_make_roadmap_item("Parent", 400, [
             _make_roadmap_item("Child 1", 350),
@@ -318,7 +318,7 @@ class TestValidateRoadmap:
         assert is_valid
 
     def test_too_deep_nesting(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{
             "title": "L1", "description": "d", "level": 100,
@@ -335,7 +335,7 @@ class TestValidateRoadmap:
         assert any("depth" in e.lower() or "nesting" in e.lower() for e in errors)
 
     def test_level_not_a_number(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": "high", "children": []}]
         is_valid, errors = _validate_roadmap(data)
@@ -343,7 +343,7 @@ class TestValidateRoadmap:
         assert any("must be a number" in e.lower() for e in errors)
 
     def test_children_not_an_array(self):
-        from blueprints.dashboard import _validate_roadmap
+        from blueprints.skill_roadmaps import _validate_roadmap
 
         data = [{"title": "Item", "description": "d", "level": 100, "children": "bad"}]
         is_valid, errors = _validate_roadmap(data)
@@ -356,7 +356,7 @@ class TestValidateRoadmap:
 
 class TestSaveRoadmapToDb:
     def test_saves_root_items(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         roadmap = _sample_roadmap()
         version, count = _save_roadmap_to_db("Python", roadmap)
@@ -373,7 +373,7 @@ class TestSaveRoadmapToDb:
         assert rows[1][0] == "Advanced"
 
     def test_saves_children(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         roadmap = _sample_roadmap()
         _save_roadmap_to_db("Python", roadmap)
@@ -391,7 +391,7 @@ class TestSaveRoadmapToDb:
         assert "Decorators" in titles
 
     def test_assigns_numbering(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         roadmap = _sample_roadmap()
         _save_roadmap_to_db("Python", roadmap)
@@ -410,7 +410,7 @@ class TestSaveRoadmapToDb:
         assert numbering["Decorators"] == "2.2"
 
     def test_increments_version(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         roadmap = _sample_roadmap()
         v1, _ = _save_roadmap_to_db("Python", roadmap)
@@ -418,7 +418,7 @@ class TestSaveRoadmapToDb:
         assert v2 == v1 + 1
 
     def test_preserves_checked_items(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         roadmap = _sample_roadmap()
         _save_roadmap_to_db("Python", roadmap, checked_titles=["Basics", "Variables"])
@@ -433,7 +433,7 @@ class TestSaveRoadmapToDb:
         assert len(completed_ids) == 2
 
     def test_empty_roadmap(self, db):
-        from blueprints.dashboard import _save_roadmap_to_db
+        from blueprints.skill_roadmaps import _save_roadmap_to_db
 
         version, count = _save_roadmap_to_db("Python", [])
         assert version == 1

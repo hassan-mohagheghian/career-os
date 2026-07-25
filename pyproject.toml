@@ -23,3 +23,7 @@ test = [
 
 [project.scripts]
 jobsearch = "app.server.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["app/server/tests"]
+addopts = "--tb=short -q"

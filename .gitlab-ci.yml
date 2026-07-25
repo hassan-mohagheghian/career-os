@@ -1,0 +1,27 @@
+stages:
+  - test
+
+backend-tests:
+  stage: test
+  image: python:3.12
+  before_script:
+    - cd app/server
+    - pip install -r requirements.txt
+    - pip install pytest-cov
+  script:
+    - python -m pytest --cov=services --cov=blueprints --cov-report=term-missing --cov-report=html:htmlcov --tb=short -q
+  artifacts:
+    paths:
+      - app/server/htmlcov/
+    expire_in: 7 days
+  allow_failure: false
+
+frontend-tests:
+  stage: test
+  image: node:20
+  before_script:
+    - cd app/client
+    - npm install
+  script:
+    - npx vitest run
+  allow_failure: false

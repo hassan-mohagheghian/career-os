@@ -72,8 +72,8 @@ def app(db_path):
     CORS(app)
     app.config['TESTING'] = True
 
-    from blueprints.dashboard import bp as dashboard_bp
-    app.register_blueprint(dashboard_bp)
+    from blueprints.skill_roadmaps import bp as skill_roadmaps_bp
+    app.register_blueprint(skill_roadmaps_bp)
 
     return app
 
