@@ -140,6 +140,16 @@ function App() {
     generateCover,
   } = useResume();
 
+  // Initialize insights sub-tab from hash for deep linking
+  const [initialSubTab] = useState(() => {
+    const h = window.location.hash.replace("#", "") || "";
+    const parts = h.split("/");
+    if (parts[0] === "insights" && parts[1] && !parseInt(parts[1])) {
+      return parts[1];
+    }
+    return null;
+  });
+
   const {
     data: careerData,
     status: careerStatus,
@@ -154,7 +164,7 @@ function App() {
     refreshSection: refreshCareerSection,
     refreshAll: refreshCareerAll,
     cancelRun: cancelCareerRun,
-  } = useInsights();
+  } = useInsights(initialSubTab || undefined);
 
   const [rules, setRules] = useState(null);
   const [tab, setTab] = useState(() => {

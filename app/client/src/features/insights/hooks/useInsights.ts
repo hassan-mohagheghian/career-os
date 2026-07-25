@@ -23,11 +23,11 @@ interface SectionStatus {
   error?: string
 }
 
-export function useInsights() {
+export function useInsights(initialTab?: string) {
   const [data, setData] = useState<Record<string, any> | null>(null)
   const [status, setStatus] = useState<Record<string, SectionStatus>>({})
   const [progress, setProgress] = useState<ProgressData>({ running: false })
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview')
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
   const socket = useSocketIO()

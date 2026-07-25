@@ -425,6 +425,34 @@ def generate_skills_intel(pid=0):
         _analysis_lock.release()
 
 
+def _normalize_skill_name(name):
+    """Normalize a skill name for deduplication: lowercase, strip whitespace, collapse spaces."""
+    if not name:
+        return name
+    return ' '.join(name.strip().lower().split())
+
+
+def _resolve_skill_name(conn, name):
+    """Resolve a skill name to its canonical form via skill_aliases."""
+    normalized = _normalize_skill_name(name)
+    # Check if this name is an alias
+    alias_row = conn.execute(
+        "SELECT ts.name FROM skill_aliases sa JOIN tech_stack ts ON ts.id=sa.skill_id "
+        "WHERE LOWER(sa.alias_name)=?", (normalized,)
+    ).fetchone()
+    if alias_row:
+        return alias_row[0]
+    # Check exact match
+    exact = conn.execute("SELECT name FROM tech_stack WHERE name=?", (name,)).fetchone()
+    if exact:
+        return exact[0]
+    # Check case-insensitive match
+    ci = conn.execute("SELECT name FROM tech_stack WHERE LOWER(name)=?", (normalized,)).fetchone()
+    if ci:
+        return ci[0]
+    return name
+
+
 def _fill_skills_from_insights(result):
     """Parse AI insights report and fill skills into tech_stack + skill_relationships."""
     if not result:
@@ -437,17 +465,20 @@ def _fill_skills_from_insights(result):
         relationships = result.get('relationships', [])
 
         # 1. Update existing skills with AI-derived data
-        for skill_data in current_state.get('strengths', []) + current_state.get('gaps', []) + current_state.get('maintain', []):
+        all_ai_skills = current_state.get('strengths', []) + current_state.get('gaps', []) + current_state.get('maintain', [])
+        for skill_data in all_ai_skills:
             name = skill_data.get('skill', '')
             if not name:
                 continue
+            # Resolve to canonical name (handles aliases)
+            canonical = _resolve_skill_name(conn, name)
             market_demand = skill_data.get('market_demand', 0)
             confidence = skill_data.get('confidence', 0)
             evidence = json.dumps(skill_data.get('evidence', []))
             category = skill_data.get('category', '')
 
             # Try to update existing skill
-            row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (name,)).fetchone()
+            row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
             if row:
                 updates = []
                 params = []
@@ -464,7 +495,7 @@ def _fill_skills_from_insights(result):
                     updates.append("category=?")
                     params.append(category)
                 if updates:
-                    params.append(name)
+                    params.append(canonical)
                     conn.execute(f"UPDATE tech_stack SET {', '.join(updates)} WHERE name=?", params)
 
         # 2. Add new skills from recommendations that don't exist in tech_stack
@@ -472,7 +503,8 @@ def _fill_skills_from_insights(result):
             name = rec.get('skill', '')
             if not name:
                 continue
-            existing = conn.execute("SELECT id FROM tech_stack WHERE name=?", (name,)).fetchone()
+            canonical = _resolve_skill_name(conn, name)
+            existing = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
             if not existing:
                 category = rec.get('category', 'technical')
                 confidence = rec.get('confidence', 0.5)
@@ -481,9 +513,9 @@ def _fill_skills_from_insights(result):
                 conn.execute(
                     "INSERT INTO tech_stack (name, level, source, source_type, category, confidence, market_relevance, evidence) "
                     "VALUES (?, 1, 'service', 'ai_generated', ?, ?, ?, ?)",
-                    (name, category, confidence, market_demand, evidence)
+                    (canonical, category, confidence, market_demand, evidence)
                 )
-                print(f"[insights] Added new skill: {name}")
+                print(f"[insights] Added new skill: {canonical}")
 
         # 3. Create skill relationships
         for rel in relationships:
@@ -493,6 +525,9 @@ def _fill_skills_from_insights(result):
             confidence = rel.get('confidence', 0.5)
             if not skill_name or not related_name:
                 continue
+            # Resolve both names
+            skill_name = _resolve_skill_name(conn, skill_name)
+            related_name = _resolve_skill_name(conn, related_name)
             # Check if relationship already exists
             existing = conn.execute(
                 "SELECT id FROM skill_relationships WHERE skill_name=? AND related_name=? AND relation_type=?",
@@ -503,6 +538,27 @@ def _fill_skills_from_insights(result):
                     "INSERT OR IGNORE INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
                     (skill_name, related_name, rel_type, confidence)
                 )
+
+        # 4. Auto-create aliases from AI-reported synonyms/variants
+        for skill_data in all_ai_skills:
+            name = skill_data.get('skill', '')
+            if not name:
+                continue
+            canonical = _resolve_skill_name(conn, name)
+            canonical_row = conn.execute("SELECT id FROM tech_stack WHERE name=?", (canonical,)).fetchone()
+            if not canonical_row:
+                continue
+            # If the original name differs from canonical, create an alias
+            if name != canonical:
+                existing_alias = conn.execute(
+                    "SELECT id FROM skill_aliases WHERE skill_id=? AND alias_name=?",
+                    (canonical_row[0], name)
+                ).fetchone()
+                if not existing_alias:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO skill_aliases (skill_id, alias_name, normalized_name) VALUES (?, ?, ?)",
+                        (canonical_row[0], name, _normalize_skill_name(name))
+                    )
 
         conn.commit()
         conn.close()

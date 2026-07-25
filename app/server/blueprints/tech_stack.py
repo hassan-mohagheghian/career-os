@@ -64,13 +64,15 @@ def create_tech_stack():
             {"id": existing[0], "name": data["name"], "message": "Skill already exists"}
         ), 200
     cur = conn.execute(
-        "INSERT INTO tech_stack (name, level, roles, path, source) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO tech_stack (name, level, roles, path, source, source_type, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             data["name"],
             data.get("level", 1),
             data.get("roles", ""),
             data.get("path", ""),
             data.get("source", "user"),
+            data.get("source_type", "user_input"),
+            data.get("category", ""),
         ),
     )
     conn.commit()
@@ -303,4 +305,104 @@ def delete_skill_relationship(id):
     conn.commit()
     conn.close()
     return jsonify({"status": "deleted"})
+
+
+@bp.route("/api/tech-stack/categories")
+def get_categories():
+    """Get all skill categories with counts and average market demand."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT category, COUNT(*) as count, "
+        "ROUND(AVG(market_relevance), 1) as avg_demand, "
+        "ROUND(AVG(level), 1) as avg_level "
+        "FROM tech_stack WHERE hidden=0 AND category != '' "
+        "GROUP BY category ORDER BY count DESC"
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@bp.route("/api/tech-stack/stats")
+def get_stats():
+    """Get overall skills statistics."""
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) FROM tech_stack WHERE hidden=0").fetchone()[0]
+    hidden = conn.execute("SELECT COUNT(*) FROM tech_stack WHERE hidden=1").fetchone()[0]
+    by_source = conn.execute(
+        "SELECT source, COUNT(*) as count FROM tech_stack WHERE hidden=0 GROUP BY source"
+    ).fetchall()
+    avg_level = conn.execute(
+        "SELECT ROUND(AVG(level), 1) FROM tech_stack WHERE hidden=0"
+    ).fetchone()[0]
+    avg_demand = conn.execute(
+        "SELECT ROUND(AVG(market_relevance), 1) FROM tech_stack WHERE hidden=0 AND market_relevance > 0"
+    ).fetchone()[0]
+    total_relationships = conn.execute("SELECT COUNT(*) FROM skill_relationships").fetchone()[0]
+    total_aliases = conn.execute("SELECT COUNT(*) FROM skill_aliases").fetchone()[0]
+    total_roadmaps = conn.execute(
+        "SELECT COUNT(DISTINCT skill_name) FROM skill_roadmaps"
+    ).fetchone()[0]
+    conn.close()
+    return jsonify({
+        'total': total,
+        'hidden': hidden,
+        'avg_level': avg_level or 0,
+        'avg_demand': avg_demand or 0,
+        'by_source': {r[0]: r[1] for r in by_source},
+        'total_relationships': total_relationships,
+        'total_aliases': total_aliases,
+        'total_roadmaps': total_roadmaps,
+    })
+
+
+@bp.route("/api/tech-stack/bulk-hide", methods=["POST"])
+def bulk_hide():
+    """Hide multiple skills at once."""
+    data = request.get_json() or {}
+    skill_ids = data.get("ids", [])
+    if not skill_ids:
+        return jsonify({"error": "ids array required"}), 400
+    conn = get_db()
+    placeholders = ",".join("?" * len(skill_ids))
+    conn.execute(f"UPDATE tech_stack SET hidden=1 WHERE id IN ({placeholders})", skill_ids)
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "hidden", "count": len(skill_ids)})
+
+
+@bp.route("/api/tech-stack/bulk-categorize", methods=["POST"])
+def bulk_categorize():
+    """Re-categorize multiple skills at once."""
+    data = request.get_json() or {}
+    skill_ids = data.get("ids", [])
+    category = data.get("category", "")
+    if not skill_ids or not category:
+        return jsonify({"error": "ids and category required"}), 400
+    valid = {"technical", "engineering", "professional", "domain", "career"}
+    if category not in valid:
+        return jsonify({"error": f"Invalid category. Must be one of: {', '.join(valid)}"}), 400
+    conn = get_db()
+    placeholders = ",".join("?" * len(skill_ids))
+    conn.execute(f"UPDATE tech_stack SET category=? WHERE id IN ({placeholders})", [category] + skill_ids)
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "categorized", "category": category, "count": len(skill_ids)})
+
+
+@bp.route("/api/tech-stack/<int:id>/category", methods=["PUT"])
+def update_category(id):
+    """Update a skill's category."""
+    data = request.get_json() or {}
+    category = data.get("category", "")
+    valid = {"technical", "engineering", "professional", "domain", "career"}
+    if category not in valid:
+        return jsonify({"error": f"Invalid category. Must be one of: {', '.join(valid)}"}), 400
+    conn = get_db()
+    conn.execute("UPDATE tech_stack SET category=? WHERE id=?", (category, id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM tech_stack WHERE id=?", (id,)).fetchone()
+    conn.close()
+    if row:
+        return jsonify(dict(row))
+    return jsonify({"error": "Not found"}), 404
 

@@ -89,6 +89,7 @@ export default function SkillDetailDrawer({
   const [renameValue, setRenameValue] = useState("");
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
+  const [marketJobs, setMarketJobs] = useState<any[]>([]);
 
   const skill = techStackSkills.find((s) => s.name === skillName) || {};
 
@@ -200,6 +201,21 @@ export default function SkillDetailDrawer({
 
   useEffect(() => { fetchRelationships(); fetchVariantes(); fetchRoadmap(); }, [fetchRelationships, fetchVariantes, fetchRoadmap]);
 
+  // Fetch jobs that mention this skill in their stack
+  useEffect(() => {
+    if (!open || !skillName) return;
+    fetch(`${API}/jobs?limit=50&sort_by=overall_score&sort_dir=desc`)
+      .then(r => r.ok ? r.json() : { jobs: [] })
+      .then(d => {
+        const jobs = (d.jobs || []).filter((j: any) => {
+          const stack = (j.stack || '').toLowerCase();
+          return stack.includes(skillName.toLowerCase());
+        });
+        setMarketJobs(jobs.slice(0, 5));
+      })
+      .catch(() => setMarketJobs([]));
+  }, [open, skillName]);
+
   // Load tags from skill data when drawer opens
   useEffect(() => {
     if (open && skill.tags) {
@@ -300,6 +316,34 @@ export default function SkillDetailDrawer({
                 {evidence.map((e, i) => (
                   <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                     <span className="text-yellow-500 shrink-0">•</span> {e}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Job Market Evidence */}
+          {marketJobs.length > 0 && (
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-blue-500" />
+                <span className="text-xs font-bold">Job Market</span>
+                <Badge variant="secondary" className="text-3xs h-2.5 bg-blue-500/15 text-blue-500">
+                  {marketJobs.length} jobs
+                </Badge>
+              </div>
+              <div className="space-y-1.5">
+                {marketJobs.map((job) => (
+                  <div key={job.num} className="flex items-center gap-2 text-2xs">
+                    {job.score && (
+                      <Badge variant="secondary" className={cn("text-3xs h-2 shrink-0",
+                        job.score === 'A++' || job.score === 'A+' ? "bg-green-500/15 text-green-500" :
+                        job.score === 'A' || job.score === 'B' ? "bg-blue-500/15 text-blue-500" :
+                        "bg-muted text-muted-foreground"
+                      )}>{job.score}</Badge>
+                    )}
+                    <span className="font-medium truncate">{job.role || 'Unknown Role'}</span>
+                    <span className="text-muted-foreground truncate">{job.company}</span>
                   </div>
                 ))}
               </div>

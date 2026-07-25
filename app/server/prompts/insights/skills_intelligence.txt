@@ -159,6 +159,51 @@ Save the result to {tmp_dir}/skills_intelligence_{pid}.json with this exact stru
     "now": ["<skill1>", "<skill2>"],
     "next": ["<skill3>", "<skill4>"],
     "later": ["<skill5>"]
+  }},
+  "dashboard": {{
+    "market_demand_top_skills": [
+      {{
+        "skill": "<name>",
+        "demand_percentage": <number 0-100>,
+        "job_count": <number of jobs requiring this>,
+        "category": "<category>"
+      }}
+    ],
+    "skill_gap_matrix": [
+      {{
+        "skill": "<name>",
+        "category": "<category>",
+        "market_demand": <number 0-100>,
+        "current_level": "<level>",
+        "gap_severity": "<critical|high|medium|low>",
+        "priority": "P1|P2|P3",
+        "reasoning": "<why this priority>"
+      }}
+    ],
+    "category_breakdown": {{
+      "<category>": {{
+        "count": <number>,
+        "avg_market_demand": <number 0-100>,
+        "top_skill": "<highest demand skill in category>"
+      }}
+    }},
+    "high_roi_skills": [
+      {{
+        "skill": "<name>",
+        "roi_score": <number 0-100>,
+        "market_demand": <number>,
+        "current_level": "<level>",
+        "target_level": "<level>",
+        "reasoning": "<brief explanation>"
+      }}
+    ],
+    "market_demand_chart": {{
+      "total_jobs_analyzed": <number>,
+      "unique_skills_found": <number>,
+      "top_10_by_frequency": [
+        {{ "skill": "<name>", "count": <number>, "percentage": <number 0-100> }}
+      ]
+    }}
   }}
 }}
 
@@ -176,3 +221,9 @@ RULES:
 - Include skill relationships: related, similar, parent, child, alternative types.
 - Do not create duplicate skills. Normalize synonyms and abbreviations.
 - Professional skills (communication, leadership) are as important as technical skills.
+- The dashboard section is CRITICAL — it powers the visual intelligence dashboard.
+- For market_demand_top_skills: list the top 15 skills ranked by demand_percentage.
+- For skill_gap_matrix: include ALL gaps and missing skills sorted by priority (P1 first).
+- For category_breakdown: compute stats for each category from the skills you analyze.
+- For high_roi_skills: pick the 5 skills with the best return on investment.
+- For market_demand_chart: analyze jobs.stack to count skill frequency across all jobs.

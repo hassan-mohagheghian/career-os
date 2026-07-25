@@ -15,6 +15,7 @@ import OpportunitiesSection from './OpportunitiesSection'
 import CompaniesSection from './CompaniesSection'
 import MarketIntelSection from './MarketIntelSection'
 import NetworkingIntelSection from './NetworkingIntelSection'
+import SkillsIntelDashboard from './SkillsIntelDashboard'
 
 const INTEL_STEPS = [
   { key: 'collect', icon: <Globe className="w-3 h-3" />, label: 'Collecting data' },
@@ -199,11 +200,12 @@ export default function InsightsTab({
         <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status} />
       )}
       {hasData && activeTab === 'skills' && (
-        <Card className="p-8 text-center border-dashed">
-          <Brain className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm font-semibold mb-1">Skills Intelligence</p>
-          <p className="text-xs text-muted-foreground">New design coming soon.</p>
-        </Card>
+        <SkillsIntelDashboard
+          refreshing={refreshing}
+          onRefresh={() => onRefreshSection('skills_intel')}
+          status={status}
+          onOpenDrawer={onOpenDrawer}
+        />
       )}
       {hasData && activeTab === 'opportunities' && (
         <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status} />

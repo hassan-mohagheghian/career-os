@@ -31,6 +31,7 @@ export function useSkills() {
   const [error, setError] = useState<string | null>(null)
   const [skillRoadmapProgress, setSkillRoadmapProgress] = useState<Record<string, any>>({})
   const [skillGenJobs, setSkillGenJobs] = useState<any[]>([])
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const socket = useSocketIO()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -47,6 +48,13 @@ export function useSkills() {
         }
       })
       .catch(() => setData(null))
+  }, [])
+
+  const fetchDashboard = useCallback(() => {
+    return fetch(`${API}/skills-intelligence/dashboard`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setDashboardData(d); })
+      .catch(() => {})
   }, [])
 
   const fetchStatus = useCallback(() => {
@@ -88,7 +96,8 @@ export function useSkills() {
     fetchStatus()
     fetchProgress()
     fetchSkillProgress()
-  }, [fetchData, fetchStatus, fetchProgress, fetchSkillProgress])
+    fetchDashboard()
+  }, [fetchData, fetchStatus, fetchProgress, fetchSkillProgress, fetchDashboard])
 
   // SocketIO for real-time updates
   useEffect(() => {
@@ -101,6 +110,7 @@ export function useSkills() {
         fetchStatus()
         fetchData()
         fetchSkillProgress()
+        fetchDashboard()
       }
     }
 
@@ -166,7 +176,9 @@ export function useSkills() {
   return {
     data, status, progress, refreshing, error,
     skillRoadmapProgress, skillGenJobs,
+    dashboardData,
     refresh, cancelRun, fetchProgress,
     refreshSkillRoadmapProgress: fetchSkillProgress,
+    refreshDashboard: fetchDashboard,
   }
 }
