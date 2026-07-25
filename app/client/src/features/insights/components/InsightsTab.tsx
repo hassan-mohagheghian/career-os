@@ -36,7 +36,7 @@ function IntelProgressCard({ progress, elapsed, onCancel }: { progress: any; ela
   if (!progress.running) return null
   return (
     <GenerationProgressCard
-      title="Generating Career Intelligence"
+      title="Generating Insightsligence"
       type={progress.type === 'all' ? 'All sections' : progress.type}
       progress={{ ...progress, elapsed_seconds: elapsed || progress.elapsed_seconds }}
       steps={INTEL_STEPS.map(s => ({ key: s.key, label: s.label }))}
@@ -75,7 +75,7 @@ function SectionTimestamp({ status, sectionKey }: { status: Record<string, any>;
   )
 }
 
-interface CareerIntelTabProps {
+interface InsightsTabProps {
   data: Record<string, any> | null
   status: Record<string, any>
   progress: any
@@ -91,21 +91,21 @@ interface CareerIntelTabProps {
   onCancel: () => void
 }
 
-export default function CareerIntelTab({
+export default function InsightsTab({
   data, status, progress, activeTab, setActiveTab, refreshing, error,
   onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany,
   onCancel,
-}: CareerIntelTabProps) {
+}: InsightsTabProps) {
   const switchSubTab = (sub: string) => {
     setActiveTab(sub)
-    window.location.hash = `career-intel/${sub}`
+    window.location.hash = `insights/${sub}`
   }
 
   // Redirect if user somehow lands on skills sub-tab (now a top-level tab)
   useEffect(() => {
     if (activeTab === 'skills') {
       setActiveTab('overview')
-      window.location.hash = 'career-intel/overview'
+      window.location.hash = 'insights/overview'
     }
   }, [activeTab, setActiveTab])
 
@@ -145,7 +145,7 @@ export default function CareerIntelTab({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-extrabold">Career Intelligence</h2>
+          <h2 className="text-xl font-extrabold">Insightsligence</h2>
           <Tabs value={activeTab === 'skills' ? 'overview' : activeTab} onValueChange={switchSubTab}>
             <TabsList className="bg-muted">
               <TabsTrigger value="overview" className="gap-1"><Lightbulb className="w-4 h-4" />Overview<SectionTimestamp status={status} sectionKey="overview" /></TabsTrigger>
@@ -193,7 +193,7 @@ export default function CareerIntelTab({
       {!hasData && !isRunning && (
         <Card className="p-8 text-center border-dashed">
           <Lightbulb className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm font-semibold mb-1">No career intelligence yet</p>
+          <p className="text-sm font-semibold mb-1">No insightsligence yet</p>
           <p className="text-xs text-muted-foreground mb-4">Click "Generate All" to create actionable insights from your processed jobs and companies data.</p>
           <Button onClick={onRefreshAll} size="sm" className="gap-1.5">
             <ArrowsClockwise className="w-3.5 h-3.5" /> Generate Intelligence

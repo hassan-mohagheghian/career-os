@@ -63,10 +63,10 @@ export function unwatchSkills(): void {
   getSocket().emit('unwatch_skills')
 }
 
-export function watchCareerIntel(): void {
-  getSocket().emit('watch_career_intel')
+export function watchInsights(): void {
+  getSocket().emit('watch_insights')
 }
 
-export function unwatchCareerIntel(): void {
-  getSocket().emit('unwatch_career_intel')
+export function unwatchInsights(): void {
+  getSocket().emit('unwatch_insights')
 }

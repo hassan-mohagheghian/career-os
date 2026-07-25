@@ -34,7 +34,7 @@ INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', '
 CURRENT_VERSION = 1
 
 # Per-section prompt mapping
-# Values are prompt names WITHOUT the career_intel/ prefix (added by _run_mimo_prompt)
+# Values are prompt names WITHOUT the insights/ prefix (added by _run_mimo_prompt)
 # 'skills' maps to skills_intelligence (full report), not the minimal skills section in the combined prompt
 SECTION_PROMPTS = {
     'overview': 'overview_intelligence',
@@ -56,14 +56,14 @@ def _db():
 
 
 def _emit_progress(progress_data):
-    """Emit progress update via SocketIO to the career_intel room."""
+    """Emit progress update via SocketIO to the insights room."""
     if _socketio is not None:
         try:
             # Always include session_id if available
             sid = _current_run.get('session_id')
             if sid:
                 progress_data['session_id'] = sid
-            _socketio.emit('career_intel:progress', progress_data, room='career_intel')
+            _socketio.emit('insights:progress', progress_data, room='insights')
         except Exception:
             pass
 
@@ -176,7 +176,7 @@ def cancel_run():
         if run_id:
             _complete_run(run_id, 'cancelled', 'Cancelled by user')
         _emit_progress({'running': False, 'status': 'cancelled', 'type': _current_run.get('type'), 'run_id': run_id})
-        print(f"[career_intel] Run {run_id} cancelled")
+        print(f"[insights] Run {run_id} cancelled")
         return True
     # Also handle stale DB records (from crashed sessions)
     conn = _db()
@@ -187,7 +187,7 @@ def cancel_run():
         _complete_run(row[0], 'cancelled', 'Cancelled by user (stale)')
         _emit_progress({'running': False, 'status': 'cancelled', 'run_id': row[0]})
         conn.close()
-        print(f"[career_intel] Stale run {row[0]} cancelled")
+        print(f"[insights] Stale run {row[0]} cancelled")
         return True
     conn.close()
     return False
@@ -274,11 +274,11 @@ def _parse_session_id(stdout):
 def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous_session_id=None, **kwargs):
     """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
-    prompt = load_prompt(f'career_intel/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
+    prompt = load_prompt(f'insights/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
     if result_file is None:
-        result_file = os.path.join(TMP_DIR, f'career_intelligence_{pid}.json')
+        result_file = os.path.join(TMP_DIR, f'insights_{pid}.json')
     session_id = None
-    job_key = f'career_intel_{prompt_name}_{pid}'
+    job_key = f'insights_{prompt_name}_{pid}'
     _current_run['process_key'] = job_key
     try:
         from services.process.mimo_runner import MimoRunner
@@ -301,7 +301,7 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
                     _emit_progress({'running': True, 'status': 'processing', 'message': f"AI: {text[:120]}"})
 
         returncode, output_lines, session_id = mimo.run(
-            prompt, timeout=timeout, key=f'career_intel_{prompt_name}_{pid}',
+            prompt, timeout=timeout, key=f'insights_{prompt_name}_{pid}',
             session_id=previous_session_id,
             on_event=_on_event, on_session_id=_on_session_id,
         )
@@ -367,7 +367,7 @@ def generate_skills_intel(pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[career_intel] Analysis already running: {info}")
+        print(f"[insights] Analysis already running: {info}")
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -403,17 +403,17 @@ def generate_skills_intel(pid=0):
         if section_data:
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'skills_intel', 'run_id': run_id})
-            print(f"[career_intel] Skills intelligence generated successfully (session: {session_id})")
+            print(f"[insights] Skills intelligence generated successfully (session: {session_id})")
             return section_data
 
         _complete_run(run_id, 'failed', error_msg or 'Mimo analysis returned no result', session_id=session_id)
         _emit_progress({'running': False, 'status': 'failed', 'type': 'skills_intel', 'error': error_msg, 'run_id': run_id})
-        print(f"[career_intel] Skills intelligence generation failed: {error_msg}")
+        print(f"[insights] Skills intelligence generation failed: {error_msg}")
         return None
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[career_intel] Error: {e}")
+        print(f"[insights] Error: {e}")
         traceback.print_exc()
         return None
     finally:
@@ -464,12 +464,12 @@ def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=
             parts.append(f"Gap: {result['summary']['biggest_gap']}")
         summary = '; '.join(parts) if parts else f"Readiness: {score}/100"
     _save_insight(section, result, score, summary)
-    print(f"[career_intel] {section} saved to DB (session: {session_id})")
+    print(f"[insights] {section} saved to DB (session: {session_id})")
     return result, None, session_id
 
 
 def generate_all(pid=0):
-    """Generate all career intelligence sections using each section's dedicated prompt.
+    """Generate all insights sections using each section's dedicated prompt.
 
     Runs sequentially: overview → opportunities → companies → market → networking → skills_intel.
     Each section uses its own focused prompt for better quality.
@@ -478,7 +478,7 @@ def generate_all(pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[career_intel] Analysis already running: {info}")
+        print(f"[insights] Analysis already running: {info}")
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -515,7 +515,7 @@ def generate_all(pid=0):
 
         for section in sections:
             if _cancel_requested:
-                print(f"[career_intel] All sections generation cancelled at {section}")
+                print(f"[insights] All sections generation cancelled at {section}")
                 break
 
             _emit_progress({
@@ -534,12 +534,12 @@ def generate_all(pid=0):
                 results[section] = section_data
             elif err and err != 'Cancelled':
                 errors.append(f'{section}: {err}')
-                print(f"[career_intel] {section} failed: {err}")
+                print(f"[insights] {section} failed: {err}")
 
         if _cancel_requested:
             _complete_run(run_id, 'cancelled', session_id=last_session_id)
             _emit_progress({'running': False, 'status': 'cancelled', 'type': 'all', 'run_id': run_id})
-            print(f"[career_intel] All sections generation cancelled")
+            print(f"[insights] All sections generation cancelled")
             return None
 
         if not results:
@@ -557,14 +557,14 @@ def generate_all(pid=0):
             _complete_run(run_id, 'completed', session_id=last_session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'all', 'run_id': run_id})
 
-        print(f"[career_intel] All sections generated: {len(results)}/{len(sections)} succeeded "
+        print(f"[insights] All sections generated: {len(results)}/{len(sections)} succeeded "
               f"(errors: {len(errors)}, session: {last_session_id})")
         return results if results else None
 
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[career_intel] Error: {e}")
+        print(f"[insights] Error: {e}")
         traceback.print_exc()
         return None
     finally:
@@ -577,7 +577,7 @@ def generate_all(pid=0):
 
 
 def generate_section(section, pid=0):
-    """Generate a single career intelligence section. Only one run at a time."""
+    """Generate a single insights section. Only one run at a time."""
     if section in ('skills', 'skills_intel'):
         return generate_skills_intel(pid)
     if section not in SECTION_PROMPTS:
@@ -585,7 +585,7 @@ def generate_section(section, pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[career_intel] Analysis already running: {info}")
+        print(f"[insights] Analysis already running: {info}")
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -620,7 +620,7 @@ def generate_section(section, pid=0):
         if section_data:
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': section, 'run_id': run_id})
-            print(f"[career_intel] {section} generated successfully (session: {session_id})")
+            print(f"[insights] {section} generated successfully (session: {session_id})")
             return section_data
 
         _complete_run(run_id, 'failed', error_msg or f'Mimo analysis failed for {section}', session_id=session_id)
@@ -629,7 +629,7 @@ def generate_section(section, pid=0):
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[career_intel] Error generating {section}: {e}")
+        print(f"[insights] Error generating {section}: {e}")
         return None
     finally:
         _current_run['active'] = False

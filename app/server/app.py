@@ -63,7 +63,7 @@ from blueprints.jobs import bp as jobs_bp
 from blueprints.resumes import bp as resumes_bp
 from blueprints.pending import bp as pending_bp
 from blueprints.companies import bp as companies_bp
-from blueprints.career_intel import bp as career_intel_bp
+from blueprints.insights import bp as insights_bp
 from blueprints.rules import bp as rules_bp
 from blueprints.misc import bp as misc_bp
 from blueprints.tech_stack import bp as tech_stack_bp
@@ -75,7 +75,7 @@ app.register_blueprint(jobs_bp)
 app.register_blueprint(resumes_bp)
 app.register_blueprint(pending_bp)
 app.register_blueprint(companies_bp)
-app.register_blueprint(career_intel_bp)
+app.register_blueprint(insights_bp)
 app.register_blueprint(rules_bp)
 app.register_blueprint(misc_bp)
 app.register_blueprint(tech_stack_bp)
@@ -85,9 +85,9 @@ app.register_blueprint(api_docs_bp)
 
 set_roadmap_socketio(socketio)
 
-# Wire SocketIO to career intelligence service for real-time progress
-from services.career_intel import set_socketio as set_career_intel_socketio
-set_career_intel_socketio(socketio)
+# Wire SocketIO to insights service for real-time progress
+from services.insights import set_socketio as set_insights_socketio
+set_insights_socketio(socketio)
 
 init_static(app)
 
@@ -105,10 +105,10 @@ def _recover_generation_tasks():
             "SELECT id, insight_type, session_id FROM career_insight_runs WHERE status='processing'"
         ).fetchall()
         if runs:
-            log.info("app.recovery_career_intel", count=len(runs))
-            from services.career_intel import generate_section
+            log.info("app.recovery_insights", count=len(runs))
+            from services.insights import generate_section
             for run_id, insight_type, session_id in runs:
-                log.info("app.resuming_career_intel", type=insight_type, run_id=run_id, has_session=bool(session_id))
+                log.info("app.resuming_insights", type=insight_type, run_id=run_id, has_session=bool(session_id))
                 threading.Thread(target=generate_section, args=(insight_type,), daemon=True).start()
 
         # Skill roadmaps: find interrupted jobs
@@ -223,15 +223,15 @@ def handle_unwatch_skills():
     leave_room('skills')
 
 
-@socketio.on('watch_career_intel')
-def handle_watch_career_intel():
-    join_room('career_intel')
-    log.info("socketio.watch", room='career_intel')
+@socketio.on('watch_insights')
+def handle_watch_insights():
+    join_room('insights')
+    log.info("socketio.watch", room='insights')
 
 
-@socketio.on('unwatch_career_intel')
-def handle_unwatch_career_intel():
-    leave_room('career_intel')
+@socketio.on('unwatch_insights')
+def handle_unwatch_insights():
+    leave_room('insights')
 
 # ── Graceful Shutdown ─────────────────────────────────────────────
 
@@ -242,7 +242,7 @@ def _cleanup(signum=None, frame=None):
         get_queue_manager().stop(timeout=15)
     except Exception as e:
         log.warning("app.queue_stop_error", error=str(e))
-    # 2. Do NOT cancel career intel or roadmap jobs — leave as 'processing'
+    # 2. Do NOT cancel insights or roadmap jobs — leave as 'processing'
     #    so the startup recovery hook can resume them on next boot
     # 3. Stop SocketIO
     try:

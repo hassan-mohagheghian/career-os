@@ -28,7 +28,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, onClose }: SidebarProps) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'career-intel': true })
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'insights': true })
 
   const toggleSection = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))

@@ -311,16 +311,16 @@ def status():
 
 @app.command()
 def update_insights():
-    """Update all career intelligence insights based on processed jobs."""
+    """Update all insights insights based on processed jobs."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from services.career_intel import generate_all
+    from services.insights import generate_all
 
-    console.print("[cyan]Generating career intelligence...[/cyan]")
+    console.print("[cyan]Generating insights...[/cyan]")
     try:
         result = generate_all()
         if result:
-            console.print("[green]Career intelligence updated![/green]")
+            console.print("[green]Insights updated![/green]")
         else:
             console.print("[red]Generation returned no result[/red]")
     except Exception as e:
@@ -328,7 +328,7 @@ def update_insights():
 
 @app.command()
 def update_dashboard():
-    """Update career intelligence (alias for update-insights)."""
+    """Update insights (alias for update-insights)."""
     update_insights()
 
 @app.command()
@@ -336,7 +336,7 @@ def update_skills():
     """Update skills section only."""
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
-    from services.career_intel import generate_section
+    from services.insights import generate_section
     console.print("[cyan]Updating skills intelligence...[/cyan]")
     try:
         result = generate_section('skills')
@@ -519,7 +519,7 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
 @app.command()
 def cleanup(
     kill_mimo: bool = typer.Option(False, "--kill-mimo", "-m", help="Kill all mimo processes"),
-    reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck career intel jobs"),
+    reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck insights jobs"),
     reset_roadmaps: bool = typer.Option(False, "--reset-roadmaps", "-r", help="Reset stuck roadmap generation jobs"),
     all: bool = typer.Option(False, "--all", "-a", help="Run all cleanup actions"),
 ):
@@ -548,7 +548,7 @@ def cleanup(
             console.print("  [dim]No mimo processes found[/dim]")
 
     if reset_jobs:
-        console.print("\n[bold]Resetting stuck career intel jobs...[/bold]")
+        console.print("\n[bold]Resetting stuck insights jobs...[/bold]")
         conn = get_db()
         count = conn.execute(
             "UPDATE career_insight_runs SET status='failed', error_message='Reset by CLI' WHERE status IN ('processing','queued')"

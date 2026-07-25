@@ -5,7 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { Card } from '@/shared/ui/card'
 import { toast } from 'sonner'
 import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
-import SkillsIntelSection from '@/features/career-intel/components/SkillsIntelSection'
+import SkillsIntelSection from '@/features/insights/components/SkillsIntelSection'
 import { useSkills } from '../hooks/useSkills'
 
 const SKILLS_STEPS = [

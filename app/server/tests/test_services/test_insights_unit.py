@@ -13,7 +13,7 @@ import pytest
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-import services.career_intel as ci
+import services.insights as ci
 
 
 @pytest.fixture(autouse=True)
@@ -106,7 +106,7 @@ class TestEmitProgress:
         ci._socketio = mock
         ci._emit_progress({'running': True})
         mock.emit.assert_called_once_with(
-            'career_intel:progress', {'running': True}, room='career_intel'
+            'insights:progress', {'running': True}, room='insights'
         )
 
     def test_includes_session_id(self):

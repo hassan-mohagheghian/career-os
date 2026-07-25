@@ -23,7 +23,7 @@ import Sidebar from "@/layout/Sidebar";
 import Header from "@/layout/Header";
 import JobDrawer from "@/features/jobs/components/drawer/JobDrawer";
 import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
-import CareerIntelTab from "@/features/career-intel/components/CareerIntelTab";
+import InsightsTab from "@/features/insights/components/InsightsTab";
 import SkillsTab from "@/features/skills/components/SkillsTab";
 import ResumeTab from "@/features/resume/components/ResumeTab";
 import RulesTab from "@/features/rules/components/RulesTab";
@@ -38,7 +38,7 @@ import {
   useCompanies,
   useWorkflow,
   useResume,
-  useCareerIntel,
+  useInsights,
 } from "@/shared/hooks";
 import { useSocketIO } from "@/shared/hooks/useSocketIO";
 
@@ -154,7 +154,7 @@ function App() {
     refreshSection: refreshCareerSection,
     refreshAll: refreshCareerAll,
     cancelRun: cancelCareerRun,
-  } = useCareerIntel();
+  } = useInsights();
 
   const [rules, setRules] = useState(null);
   const [tab, setTab] = useState(() => {
@@ -210,8 +210,8 @@ function App() {
       const newTab = parts[0] || "jobs";
       const second = parts[1] || null;
       if (newTab && newTab !== tab) setTab(newTab);
-      // For career-intel, second part is sub-tab (e.g. #career-intel/skills)
-      if (newTab === "career-intel" && second && !parseInt(second)) {
+      // For insights, second part is sub-tab (e.g. #insights/skills)
+      if (newTab === "insights" && second && !parseInt(second)) {
         setCareerSubTab(second);
       } else if (second) {
         setDeepLinkId(parseInt(second));
@@ -387,9 +387,9 @@ function App() {
       section: "settings",
     },
     {
-      id: "career-intel",
+      id: "insights",
       icon: <Lightbulb className="w-4 h-4" />,
-      label: "Career Intel",
+      label: "Insights",
       section: "analysis",
       children: [
         { id: "overview", label: "Overview" },
@@ -533,8 +533,8 @@ function App() {
                 onOpenCompany={openCompanyDrawer}
               />
             )}
-            {tab === "career-intel" && (
-              <CareerIntelTab
+            {tab === "insights" && (
+              <InsightsTab
                 data={careerData}
                 status={careerStatus}
                 progress={careerProgress}

@@ -1,31 +1,31 @@
-"""Career Intelligence API routes."""
+"""Insights API routes."""
 
 import threading
 
 from flask import Blueprint, jsonify, request
 
-bp = Blueprint('career_intel', __name__)
+bp = Blueprint('insights', __name__)
 
 INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking', 'skills_intel']
 
 
-@bp.route('/api/career-intelligence', methods=['GET'])
+@bp.route('/api/insights', methods=['GET'])
 def get_all():
-    """Get all latest career intelligence sections.
+    """Get all latest insights sections.
     ---
     tags: [Insights]
     responses:
       200:
         description: All intelligence sections (overview, opportunities, companies, market, networking, skills_intel)
     """
-    from services.career_intel import get_latest
+    from services.insights import get_latest
     data = get_latest()
     return jsonify(data or {})
 
 
-@bp.route('/api/career-intelligence/<section>', methods=['GET'])
+@bp.route('/api/insights/<section>', methods=['GET'])
 def get_section(section):
-    """Get latest career intelligence for a specific section.
+    """Get latest insights for a specific section.
     ---
     tags: [Insights]
     parameters:
@@ -42,17 +42,17 @@ def get_section(section):
     """
     if section not in INSIGHT_TYPES:
         return jsonify({'error': f'Invalid section: {section}'}), 400
-    from services.career_intel import get_latest
+    from services.insights import get_latest
     data = get_latest(section)
     if data:
         return jsonify(data)
     return jsonify({'error': f'No {section} intelligence found'}), 404
 
 
-@bp.route('/api/career-intelligence/runs', methods=['GET'])
+@bp.route('/api/insights/runs', methods=['GET'])
 def get_runs():
     """Get recent insight generation runs with total count for infinite scroll."""
-    from services.career_intel import get_runs
+    from services.insights import get_runs
     section = request.args.get('section')
     limit = request.args.get('limit', 20, type=int)
     offset = request.args.get('offset', 0, type=int)
@@ -60,16 +60,16 @@ def get_runs():
     return jsonify(result)
 
 
-@bp.route('/api/career-intelligence/progress', methods=['GET'])
+@bp.route('/api/insights/progress', methods=['GET'])
 def get_progress():
     """Get current analysis progress (real-time status)."""
-    from services.career_intel import get_progress as _get_progress
+    from services.insights import get_progress as _get_progress
     return jsonify(_get_progress())
 
 
-@bp.route('/api/career-intelligence/refresh', methods=['POST'])
+@bp.route('/api/insights/refresh', methods=['POST'])
 def refresh_all():
-    """Generate all career intelligence sections in background.
+    """Generate all insights sections in background.
     ---
     tags: [Insights]
     responses:
@@ -78,7 +78,7 @@ def refresh_all():
       409:
         description: Analysis already running
     """
-    from services.career_intel import generate_all, is_running
+    from services.insights import generate_all, is_running
     running, info = is_running()
     if running:
         return jsonify({
@@ -90,15 +90,15 @@ def refresh_all():
         generate_all()
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
-    return jsonify({'status': 'started', 'message': 'Career intelligence generation started'})
+    return jsonify({'status': 'started', 'message': 'Insights generation started'})
 
 
-@bp.route('/api/career-intelligence/<section>/refresh', methods=['POST'])
+@bp.route('/api/insights/<section>/refresh', methods=['POST'])
 def refresh_section(section):
-    """Generate a single career intelligence section in background."""
+    """Generate a single insights section in background."""
     if section not in INSIGHT_TYPES:
         return jsonify({'error': f'Invalid section: {section}'}), 400
-    from services.career_intel import generate_section, is_running
+    from services.insights import generate_section, is_running
     running, info = is_running()
     if running:
         return jsonify({
@@ -113,10 +113,10 @@ def refresh_section(section):
     return jsonify({'status': 'started', 'section': section, 'message': f'{section} intelligence generation started'})
 
 
-@bp.route('/api/career-intelligence/status', methods=['GET'])
+@bp.route('/api/insights/status', methods=['GET'])
 def get_status():
     """Get current generation status for all sections."""
-    from services.career_intel import get_runs, is_running
+    from services.insights import get_runs, is_running
     running, run_info = is_running()
     status = {'_running': running, '_currentRun': run_info}
     for section in INSIGHT_TYPES:
@@ -135,7 +135,7 @@ def get_status():
     return jsonify(status)
 
 
-@bp.route('/api/career-intelligence/skills-intel', methods=['GET'])
+@bp.route('/api/insights/skills-intel', methods=['GET'])
 def get_skills_intel():
     """Get the latest Skills Intelligence Report.
     ---
@@ -146,17 +146,17 @@ def get_skills_intel():
       404:
         description: No skills intelligence found
     """
-    from services.career_intel import get_latest
+    from services.insights import get_latest
     data = get_latest('skills_intel')
     if data:
         return jsonify(data)
     return jsonify({'error': 'No skills intelligence found. Run refresh first.'}), 404
 
 
-@bp.route('/api/career-intelligence/skills-intel/refresh', methods=['POST'])
+@bp.route('/api/insights/skills-intel/refresh', methods=['POST'])
 def refresh_skills_intel():
     """Generate the Skills Intelligence Report in background."""
-    from services.career_intel import generate_skills_intel, is_running
+    from services.insights import generate_skills_intel, is_running
     running, info = is_running()
     if running:
         return jsonify({
@@ -171,16 +171,16 @@ def refresh_skills_intel():
     return jsonify({'status': 'started', 'message': 'Skills intelligence generation started'})
 
 
-@bp.route('/api/career-intelligence/cancel', methods=['POST'])
+@bp.route('/api/insights/cancel', methods=['POST'])
 def cancel():
-    """Cancel the currently running career intelligence analysis.
+    """Cancel the currently running insights analysis.
     ---
     tags: [Insights]
     responses:
       200:
         description: Analysis cancelled
     """
-    from services.career_intel import cancel_run, is_running
+    from services.insights import cancel_run, is_running
     running, info = is_running()
     if not running:
         return jsonify({'status': 'idle', 'message': 'No analysis running'}), 200

@@ -8,7 +8,7 @@ const API = '/api'
 const PAGE_SIZE = 100
 
 interface HistoryItemData {
-  source: 'career-intel' | 'roadmap' | 'job-processing' | 'company-processing'
+  source: 'insights' | 'roadmap' | 'job-processing' | 'company-processing'
   title: string
   status: string
   started_at: string | null
@@ -19,7 +19,7 @@ interface HistoryItemData {
 }
 
 const SOURCE_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  'career-intel': { icon: Lightbulb, color: 'bg-amber-500/15 text-amber-500', label: 'Intel' },
+  'insights': { icon: Lightbulb, color: 'bg-amber-500/15 text-amber-500', label: 'Intel' },
   'roadmap': { icon: TreeStructure, color: 'bg-emerald-500/15 text-emerald-500', label: 'Roadmap' },
   'job-processing': { icon: Briefcase, color: 'bg-blue-500/15 text-blue-500', label: 'Job' },
   'company-processing': { icon: Buildings, color: 'bg-purple-500/15 text-purple-500', label: 'Company' },
@@ -39,7 +39,7 @@ function formatTimeAgo(ts: string | null): string {
 }
 
 function HistoryItem({ item }: { item: HistoryItemData }) {
-  const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['career-intel']
+  const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['insights']
   const statusColor = item.status === 'completed' ? 'bg-green-500' :
     item.status === 'failed' ? 'bg-red-500' :
     item.status === 'cancelled' ? 'bg-yellow-500' :

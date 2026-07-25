@@ -30,7 +30,7 @@ def get_generation_history():
     conn = get_db()
     items = []
 
-    # 1. Career intelligence runs
+    # 1. Insights runs
     try:
         rows = conn.execute(
             "SELECT id, insight_type, status, started_at, completed_at, error_message, session_id "
@@ -39,7 +39,7 @@ def get_generation_history():
         for r in rows:
             rd = dict(r)
             items.append({
-                "source": "career-intel",
+                "source": "insights",
                 "title": INSIGHT_TYPE_LABELS.get(rd["insight_type"], rd["insight_type"]),
                 "status": rd["status"],
                 "started_at": rd["started_at"],
@@ -297,8 +297,8 @@ def get_cities():
 
 @bp.route("/api/refresh/dashboard", methods=["POST"])
 def refresh_dashboard():
-    """Refresh dashboard — now delegates to career intelligence."""
-    from services.career_intel import generate_all, is_running
+    """Refresh dashboard — now delegates to insights."""
+    from services.insights import generate_all, is_running
 
     running, _ = is_running()
     if running:
@@ -311,8 +311,8 @@ def refresh_dashboard():
 
 @bp.route("/api/refresh/networking", methods=["POST"])
 def refresh_networking():
-    """Refresh networking — now delegates to career intelligence."""
-    from services.career_intel import generate_section, is_running
+    """Refresh networking — now delegates to insights."""
+    from services.insights import generate_section, is_running
 
     running, _ = is_running()
     if running:
@@ -325,8 +325,8 @@ def refresh_networking():
 
 @bp.route("/api/refresh/skills", methods=["POST"])
 def refresh_skills():
-    """Refresh skills — now delegates to career intelligence."""
-    from services.career_intel import generate_section, is_running
+    """Refresh skills — now delegates to insights."""
+    from services.insights import generate_section, is_running
 
     running, _ = is_running()
     if running:
@@ -339,8 +339,8 @@ def refresh_skills():
 
 @bp.route("/api/refresh/analysis", methods=["POST"])
 def refresh_analysis():
-    """Refresh all analysis — now delegates to career intelligence."""
-    from services.career_intel import generate_all, is_running
+    """Refresh all analysis — now delegates to insights."""
+    from services.insights import generate_all, is_running
 
     running, _ = is_running()
     if running:

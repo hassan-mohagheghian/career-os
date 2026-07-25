@@ -175,15 +175,15 @@ class TestMimoPromptSessionDiscovery:
 
     def test_career_intel_uses_mimo_runner_not_raw_subprocess(self):
         """
-        RED: career_intel._run_mimo_prompt should use MimoRunner
+        RED: insights._run_mimo_prompt should use MimoRunner
         (which streams) instead of subprocess.Popen + communicate() (blocking).
         """
         import ast
         import inspect
 
-        # Read the source of career_intel._run_mimo_prompt
-        from services import career_intel
-        source = inspect.getsource(career_intel._run_mimo_prompt)
+        # Read the source of insights._run_mimo_prompt
+        from services import insights
+        source = inspect.getsource(insights._run_mimo_prompt)
 
         # Should NOT contain raw subprocess.Popen (it should use MimoRunner)
         assert 'subprocess.Popen' not in source, (
@@ -201,7 +201,7 @@ class TestSectionPromptRouting:
 
     def test_section_prompts_mapping_exists(self):
         """SECTION_PROMPTS maps each tab to its own prompt name."""
-        from services.career_intel import SECTION_PROMPTS
+        from services.insights import SECTION_PROMPTS
         assert 'overview' in SECTION_PROMPTS
         assert 'opportunities' in SECTION_PROMPTS
         assert 'companies' in SECTION_PROMPTS
@@ -211,12 +211,12 @@ class TestSectionPromptRouting:
 
     def test_skills_section_maps_to_skills_intelligence(self):
         """'skills_intel' section should map to skills_intelligence prompt (full report)."""
-        from services.career_intel import SECTION_PROMPTS
+        from services.insights import SECTION_PROMPTS
         assert SECTION_PROMPTS['skills_intel'] == 'skills_intelligence'
 
     def test_section_prompts_values_are_prompt_names(self):
         """SECTION_PROMPTS values are prompt file names (no career_intel/ prefix)."""
-        from services.career_intel import SECTION_PROMPTS
+        from services.insights import SECTION_PROMPTS
         for section, prompt_name in SECTION_PROMPTS.items():
             assert '/' not in prompt_name, f"{section} prompt name should not contain /"
             assert prompt_name.endswith('_intelligence'), f"{section} prompt should end with _intelligence"
@@ -224,7 +224,7 @@ class TestSectionPromptRouting:
     def test_generate_section_uses_section_prompt(self):
         """generate_section should route to the section-specific prompt, not career_intelligence."""
         import inspect
-        from services.career_intel import generate_section
+        from services.insights import generate_section
         source = inspect.getsource(generate_section)
 
         # Should reference SECTION_PROMPTS for per-section routing
@@ -235,7 +235,7 @@ class TestSectionPromptRouting:
     def test_generate_all_uses_per_section_prompts(self):
         """generate_all should use each section's dedicated prompt via _generate_section_internal."""
         import inspect
-        from services.career_intel import generate_all
+        from services.insights import generate_all
         source = inspect.getsource(generate_all)
 
         # Should use _generate_section_internal for per-section prompt routing
@@ -253,7 +253,7 @@ class TestSectionPromptRouting:
         _generate_section_internal saves result directly, not result[section].
         """
         import inspect
-        from services.career_intel import _generate_section_internal
+        from services.insights import _generate_section_internal
         source = inspect.getsource(_generate_section_internal)
 
         # Per-section prompts output flat JSON — save directly

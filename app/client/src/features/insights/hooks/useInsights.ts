@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useSocketIO, watchCareerIntel, unwatchCareerIntel } from '@/shared/hooks/useSocketIO'
+import { useSocketIO, watchInsights, unwatchInsights } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 
@@ -23,7 +23,7 @@ interface SectionStatus {
   error?: string
 }
 
-export function useCareerIntel() {
+export function useInsights() {
   const [data, setData] = useState<Record<string, any> | null>(null)
   const [status, setStatus] = useState<Record<string, SectionStatus>>({})
   const [progress, setProgress] = useState<ProgressData>({ running: false })
@@ -33,21 +33,21 @@ export function useCareerIntel() {
   const socket = useSocketIO()
 
   const fetchData = useCallback(() => {
-    return fetch(`${API}/career-intelligence`)
+    return fetch(`${API}/insightsligence`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setData(d))
       .catch(() => setData({}))
   }, [])
 
   const fetchStatus = useCallback(() => {
-    return fetch(`${API}/career-intelligence/status`)
+    return fetch(`${API}/insightsligence/status`)
       .then(r => r.ok ? r.json() : {})
       .then(d => setStatus(d))
       .catch(() => setStatus({}))
   }, [])
 
   const fetchProgress = useCallback(() => {
-    return fetch(`${API}/career-intelligence/progress`)
+    return fetch(`${API}/insightsligence/progress`)
       .then(r => r.ok ? r.json() : { running: false })
       .then(d => setProgress(d))
       .catch(() => setProgress({ running: false }))
@@ -71,19 +71,19 @@ export function useCareerIntel() {
       }
     }
 
-    socket.on('career_intel:progress', handleProgress)
-    watchCareerIntel()
+    socket.on('insights:progress', handleProgress)
+    watchInsights()
 
     return () => {
-      socket.off('career_intel:progress', handleProgress)
-      unwatchCareerIntel()
+      socket.off('insights:progress', handleProgress)
+      unwatchInsights()
     }
   }, [socket, fetchStatus, fetchData])
 
   const refreshSection = useCallback(async (section: string) => {
     setError(null)
     try {
-      const res = await fetch(`${API}/career-intelligence/${section}/refresh`, { method: 'POST' })
+      const res = await fetch(`${API}/insightsligence/${section}/refresh`, { method: 'POST' })
       const body = await res.json()
       if (res.status === 409) {
         setError(body.message || 'Analysis already in progress')
@@ -101,7 +101,7 @@ export function useCareerIntel() {
   const refreshAll = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch(`${API}/career-intelligence/refresh`, { method: 'POST' })
+      const res = await fetch(`${API}/insightsligence/refresh`, { method: 'POST' })
       const body = await res.json()
       if (res.status === 409) {
         setError(body.message || 'Analysis already in progress')
@@ -118,7 +118,7 @@ export function useCareerIntel() {
 
   const cancelRun = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/career-intelligence/cancel`, { method: 'POST' })
+      const res = await fetch(`${API}/insightsligence/cancel`, { method: 'POST' })
       const body = await res.json()
       if (body.status === 'cancelled') {
         setRefreshing({})
