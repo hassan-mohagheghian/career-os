@@ -13,6 +13,18 @@ The JSON must be exactly:
 {{"resume_html": "<full HTML document>"}}
 
 ═══════════════════════════════════════════════════════════════
+COMPANY INTELLIGENCE (if available)
+═══════════════════════════════════════════════════════════════
+
+{company_context}
+
+Use this company intelligence to:
+- Reference the company's tech stack in your Skills section
+- Align your experience with their engineering culture
+- Mention relevant domain experience if company industry matches
+- Tailor the Summary to their specific needs
+
+═══════════════════════════════════════════════════════════════
 RESUME REQUIREMENTS
 ═══════════════════════════════════════════════════════════════
 

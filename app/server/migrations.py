@@ -271,6 +271,25 @@ def ensure_db_schema():
         "CREATE INDEX IF NOT EXISTS idx_skill_roadmap_progress_skill ON skill_roadmap_progress(skill_name)"
     )
 
+    # Pending generations table (resume/cover generation progress)
+    if "pending_generations" not in tables:
+        conn.execute("""CREATE TABLE IF NOT EXISTS pending_generations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_num INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            status TEXT DEFAULT 'queued',
+            step_prepare INTEGER DEFAULT 0,
+            step_context INTEGER DEFAULT 0,
+            step_generate INTEGER DEFAULT 0,
+            step_save INTEGER DEFAULT 0,
+            step_done INTEGER DEFAULT 0,
+            result TEXT,
+            error TEXT,
+            session_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+
     conn.commit()
     conn.close()
 

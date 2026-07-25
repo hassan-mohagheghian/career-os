@@ -18,14 +18,22 @@
 │            │      SQLite DB          │                   │
 │            │      (jobs.db)          │                   │
 │            └─────────────────────────┘                   │
-└─────────────────────────────────────────────────────────┘
+└─────────────────────────┬───────────────────────────────┘
                           │
               ┌───────────▼───────────┐
-              │    Mimo CLI (AI)      │
+              │   AI Agent Layer      │
+              │   (LLMService)        │
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │   Provider Layer      │
+              │  ┌─────┬──────┬─────┐│
+              │  │Mimo │OpenAI│Local││
+              │  └─────┴──────┴─────┘│
               └───────────────────────┘
 ```
 
-**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | Flask 3.1 + SQLite (raw SQL) + Mimo CLI subprocess | WebSocket (SocketIO, threading mode)
+**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | Flask 3.1 + Python 3.14 + SQLite (raw SQL) | AI Agent Layer (LLMService + LangGraph) | WebSocket (SocketIO, threading mode)
 
 ## Core Entities
 
@@ -38,7 +46,7 @@
 | Preferences | `preferences` | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
 | Insights | `career_insights` | Versioned intelligence results (overview, opportunities, companies, skills, market, networking) |
 | Insight Runs | `career_insight_runs` | Generation workflow tracking |
-| Tech Stack | `tech_stack` | Skills with category, confidence, market_relevance, source |
+| Skills | `skills` | Skills with category, confidence, market_relevance, source |
 | Skill Aliases | `skill_aliases` | Merged skill variants (canonical skill_id → alias_name) |
 | Skill Relationships | `skill_relationships` | Related, similar, parent, child, alternative links |
 | Skill Roadmaps | `skill_roadmaps` | Hierarchical learning trees per skill |
@@ -54,7 +62,7 @@ jobs ── company ── company_intelligence
 career_insight_runs ── career_insights
   └── session tracking
 
-tech_stack ── skill_aliases
+skills ── skill_aliases
   ├── skill_relationships
   ├── skill_roadmaps ── skill_roadmap_progress
   └── skill_roadmap_jobs
@@ -86,65 +94,114 @@ SETTINGS
 ## Backend Structure
 
 ```
-app/server/
-├── app.py              Flask entry point, SocketIO, blueprints
-├── config.py           Centralized path constants
-├── database.py         get_db() helper
-├── migrations.py       Schema + data migrations
-├── blueprints/         API routes (10 blueprints)
-│   ├── jobs.py         Job CRUD, scoring
-│   ├── pending.py      Processing queue (accepts notes+links)
-│   ├── companies.py    Company CRUD, intelligence
-│   ├── insights.py     Career intelligence endpoints
-│   ├── tech_stack.py   Skills CRUD, merge, taxonomy
-│   ├── skill_roadmaps.py  Roadmap generation, progress
-│   ├── resumes.py      Resume/cover letter generation
-│   ├── rules.py        Scoring rules
-│   ├── misc.py         Generation history, dashboard
-│   ├── api_docs.py     Swagger UI + ReDoc
-│   └── static.py       SPA static serving
-├── services/
-│   ├── worker.py       Job processing pipeline (supports notes+links)
-│   ├── company_worker.py  Company processing
-│   ├── insights.py     Career intelligence (concurrency-locked, fills skills into DB)
-│   └── process/        Broadcaster, models, mimo_runner, process_manager
-├── core/
-│   ├── db.py           DB schema, migrations
-│   └── queue.py        Job queue manager (shared for jobs + companies)
-├── prompts/            AI prompt templates
-│   ├── insights/       Career intelligence (7 prompts)
-│   ├── skill_roadmaps/ Skill roadmap generation
-│   ├── job_processing/ Job processing steps
-│   ├── company/        Company analysis
-│   └── resume/         Resume generation
-└── tests/              306 tests mirroring server structure
+app/
+├── ai/                    AI Agent Orchestration Layer
+│   ├── service.py         LLMService — unified entry point for all AI calls
+│   ├── providers/         LLM provider abstraction (mimo, openai, local)
+│   ├── agents/            Agent implementations + LangGraph workflows
+│   ├── tools/             Domain tools wrapping existing services
+│   ├── prompts/           Centralized prompt registry
+│   └── logging.py         Structured agent events
+├── server/
+│   ├── app.py              Flask entry point, SocketIO, blueprints
+│   ├── ai_compat.py        Bridge for server → ai imports
+│   ├── config.py           Centralized path constants + AI_PROVIDER
+│   ├── database.py         get_db() helper
+│   ├── migrations.py       Schema + data migrations
+│   ├── blueprints/         API routes (10 blueprints)
+│   │   ├── jobs.py         Job CRUD, scoring
+│   │   ├── pending.py      Processing queue (accepts notes+links)
+│   │   ├── companies.py    Company CRUD, intelligence
+│   │   ├── insights.py     Career intelligence endpoints
+│   │   ├── tech_stack.py   Skills CRUD, merge, taxonomy
+│   │   ├── skill_roadmaps.py  Roadmap generation, progress
+│   │   ├── resumes.py      Resume/cover letter generation
+│   │   ├── rules.py        Scoring rules
+│   │   ├── misc.py         Generation history, dashboard
+│   │   ├── api_docs.py     Swagger UI + ReDoc
+│   │   └── static.py       SPA static serving
+│   ├── services/
+│   │   ├── worker.py       Job processing pipeline (uses LLMService)
+│   │   ├── company_worker.py  Company processing (uses LLMService)
+│   │   ├── insights.py     Career intelligence (uses LLMService)
+│   │   └── process/        Broadcaster, models, process_manager
+│   ├── core/
+│   │   ├── db.py           DB schema, migrations
+│   │   └── queue.py        Job queue manager (shared for jobs + companies)
+│   ├── prompts/            AI prompt templates
+│   │   ├── insights/       Career intelligence (7 prompts)
+│   │   ├── skill_roadmaps/ Skill roadmap generation
+│   │   ├── job_processing/ Job processing steps
+│   │   ├── company/        Company analysis
+│   │   └── resume/         Resume generation
+│   └── tests/              306 tests mirroring server structure
+└── client/
+    └── src/
+        ├── features/       Feature-based (each has components/, hooks/)
+        ├── shared/         Shared UI, hooks, lib
+        └── layout/         Header, Sidebar
+
+tests/test_ai/              70 AI layer tests
 ```
+
+## AI Agent Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Application Services                    │
+│              (worker.py, company_worker.py)              │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+              ┌───────────▼───────────┐
+              │      LLMService       │
+              │   (Unified Entry)     │
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │     LLMProvider       │
+              │   (ABC Interface)     │
+              └───────────┬───────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+   ┌────▼────┐     ┌──────▼──────┐   ┌─────▼─────┐
+   │  Mimo   │     │   OpenAI    │   │   Local   │
+   │Provider │     │  Provider   │   │  Provider │
+   └─────────┘     └─────────────┘   └───────────┘
+```
+
+**Key patterns:**
+- **Provider Abstraction**: Swap LLM providers by changing `AI_PROVIDER` env var
+- **LLMService**: Single entry point for all AI calls (Facade Pattern)
+- **Agent Layer**: Thin orchestration over existing services
+- **Tool System**: Domain services wrapping existing business logic
+- **Workflow Graphs**: LangGraph-based composable pipelines
 
 ## Data Flows
 
 ### Job Processing
 ```
-URL/Notes/Links → pending_jobs → worker.py → fetch → validate → extract → score → save to jobs
+URL/Notes/Links → pending_jobs → worker.py → LLMService → fetch → validate → extract → score → save to jobs
 ```
 
 ### Company Processing
 ```
-Notes/Links → pending_companies → company_worker.py → fetch → extract → analyze → save to companies
+Notes/Links → pending_companies → company_worker.py → LLMService → fetch → extract → analyze → save to companies
 ```
 
 ### Insights Generation
 ```
-Click Generate → insights.py → per-section prompts → mimo CLI → save to career_insights
+Click Generate → insights.py → LLMService → per-section prompts → save to career_insights
 ```
 
 ### Skills Intelligence
 ```
-Click Generate → insights.py → skills_intelligence prompt → mimo CLI → save to career_insights + fill tech_stack
+Click Generate → insights.py → LLMService → skills_intelligence prompt → save to career_insights + fill skills
 ```
 
 ### Skill Roadmap Generation
 ```
-Click Generate → skill_roadmaps.py → mimo CLI → save to skill_roadmaps + emit progress
+Click Generate → skill_roadmaps.py → LLMService → mimo CLI → save to skill_roadmaps + emit progress
 ```
 
 ## Design Decisions
@@ -153,11 +210,14 @@ Click Generate → skill_roadmaps.py → mimo CLI → save to skill_roadmaps + e
 - **Feature-based frontend**: Each feature owns its components, hooks, and types
 - **Concurrency lock**: Only one insights generation at a time
 - **Version tracking**: `version` column on pending_jobs/companies for retry counting
-- **Session resumption**: Mimo `--session` flag enables continuing interrupted AI sessions
+- **Session resumption**: Previous session_id enables continuing interrupted AI sessions
 - **Stale run recovery**: On startup, stuck `processing` jobs marked `failed`
 - **Font size system**: Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for dense dashboard UI
 - **API docs**: Static OpenAPI 3.0 spec served via Swagger UI (`/api/docs/`) and ReDoc (`/api/redoc/`)
 - **Notes+Links input**: Both jobs and companies accept multi-source input (URL + text notes + labeled links)
+- **Provider abstraction**: LLMService wraps all AI calls — never call MimoRunner directly
+- **DDD/SOLID/TDD**: Follow domain-driven design, SOLID principles, and test-driven development
+- **Backward compatible**: Existing workers continue to work while using new AI layer
 
 ## WebSocket Events
 

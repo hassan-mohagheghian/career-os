@@ -174,6 +174,23 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS pending_generations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_num INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT DEFAULT 'queued',
+        step_prepare INTEGER DEFAULT 0,
+        step_context INTEGER DEFAULT 0,
+        step_generate INTEGER DEFAULT 0,
+        step_save INTEGER DEFAULT 0,
+        step_done INTEGER DEFAULT 0,
+        result TEXT,
+        error TEXT,
+        session_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
     c.execute("""CREATE TABLE IF NOT EXISTS dashboard_insights (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,

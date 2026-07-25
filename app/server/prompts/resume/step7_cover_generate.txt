@@ -13,6 +13,18 @@ The JSON must be exactly:
 {{"cover_letter": "<full HTML document>"}}
 
 ═══════════════════════════════════════════════════════════════
+COMPANY INTELLIGENCE (if available)
+═══════════════════════════════════════════════════════════════
+
+{company_context}
+
+Use this company intelligence to:
+- Reference the company's mission, products, or values in your opening
+- Show you understand their engineering culture and tech choices
+- Explain why you specifically want to work at THIS company
+- Connect your experience to their specific challenges
+
+═══════════════════════════════════════════════════════════════
 COVER LETTER REQUIREMENTS
 ═══════════════════════════════════════════════════════════════
 

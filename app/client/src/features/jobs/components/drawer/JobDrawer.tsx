@@ -16,7 +16,7 @@ import SummaryTab from './SummaryTab'
 import DocumentsTab from './DocumentsTab'
 import CompanyTab from './CompanyTab'
 
-export default function JobDrawer({ drawer, drawerTab, generatingResume, generatingCover, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onLinkCompany, onOpenCompany, onNavigateToCompany }) {
+export default function JobDrawer({ drawer, drawerTab, generationProgress, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onCancelGeneration, onLinkCompany, onOpenCompany, onNavigateToCompany }) {
   if (!drawer) return null
 
   const job = drawer.job
@@ -140,7 +140,7 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
         {drawerTab === 'structured' && <StructuredTab job={job} />}
         {drawerTab === 'summary' && <SummaryTab summary={drawer.summary} />}
         {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} onOpenCompany={onOpenCompany} onNavigateToCompany={onNavigateToCompany} onClose={onClose} />}
-        {drawerTab === 'documents' && <DocumentsTab job={job} resume={drawer.resume} coverLetter={drawer.coverLetter} generatingResume={generatingResume} generatingCover={generatingCover} onGenerateResume={onGenerateResume} onGenerateCover={onGenerateCover} />}
+        {drawerTab === 'documents' && <DocumentsTab job={job} resume={drawer.resume} coverLetter={drawer.coverLetter} generationProgress={generationProgress} onGenerateResume={onGenerateResume} onGenerateCover={onGenerateCover} onCancelGeneration={onCancelGeneration} />}
       </SheetContent>
     </Sheet>
   )

@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import threading
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
@@ -135,154 +136,93 @@ def delete_linkedin(version):
 
 @bp.route('/api/jobs/<int:num>/generate-resume', methods=['POST'])
 def generate_resume(num):
-    from prompts import load_prompt
-
+    """Start async resume generation. Returns gen_id for progress tracking."""
     conn = get_db()
     job = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (num,)).fetchone()
     if not job:
         conn.close()
         return jsonify({'error': 'Job not found'}), 404
-    j = dict(job)
 
-    resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
-    conn.close()
+    resume_row = conn.execute(
+        "SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1"
+    ).fetchone()
     if not resume_row or not dict(resume_row).get('raw_text'):
-        return jsonify({'error': 'No master resume uploaded'}), 400
-
-    _tmp = os.environ.get('TEMP_DIR', 'tmp')
-    tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-    os.makedirs(tmp_dir, exist_ok=True)
-    pid = f'resume_{num}_{int(datetime.now().timestamp()*1000)}'
-    job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
-    resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
-
-    raw_desc = j.get('raw_description', '')
-    if not raw_desc:
-        return jsonify({'error': 'No job description available'}), 400
-
-    with open(job_file, 'w') as f:
-        f.write(raw_desc)
-    with open(resume_file, 'w') as f:
-        f.write(dict(resume_row)['raw_text'])
-
-    try:
-        prompt = load_prompt('resume/step_resume_generate',
-            job_file=job_file, resume_file=resume_file,
-            tmp_dir=tmp_dir, pid=pid)
-
-        result_path = os.path.join(tmp_dir, f'resume_{pid}.json')
-        llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": result_path, "pid": pid},
-            timeout=180,
-        )
-        data = json.loads(resp.content)
-
-        resume_html = data.get('resume_html', '')
-        if not resume_html:
-            return jsonify({'error': 'Resume generation returned empty content'}), 500
-
-        conn = get_db()
-        conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
-            VALUES (?,?,?,?,?,?,?,?,?)''',
-            (f'pending_{num}', f"{j['company']} (Score {j['score']})", j['company'], j['role'],
-             resume_html, 1, '', datetime.now().isoformat(), num))
-        conn.commit()
         conn.close()
+        return jsonify({'error': 'No master resume uploaded'}), 400
+    conn.close()
 
-        try: os.remove(result_path)
-        except OSError: pass
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, 'resume', 'queued')",
+        (num,)
+    )
+    gen_id = cur.lastrowid
+    conn.commit()
+    conn.close()
 
-        return jsonify({'status': 'generated', 'id': f'pending_{num}', 'content': resume_html})
-    except subprocess.TimeoutExpired:
-        return jsonify({'error': 'Resume generation timed out'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        for f in [job_file, resume_file]:
-            try: os.remove(f)
-            except OSError: pass
+    from services.generation_worker import process_generation
+    threading.Thread(target=process_generation, args=(gen_id,), daemon=True).start()
+
+    return jsonify({'gen_id': gen_id, 'status': 'queued'})
 
 
 @bp.route('/api/jobs/<int:num>/generate-cover', methods=['POST'])
 def generate_cover(num):
-    from prompts import load_prompt
-
+    """Start async cover letter generation. Returns gen_id for progress tracking."""
     conn = get_db()
     job = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (num,)).fetchone()
     if not job:
         conn.close()
         return jsonify({'error': 'Job not found'}), 404
-    j = dict(job)
 
-    resume_row = conn.execute("SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1").fetchone()
-    conn.close()
+    resume_row = conn.execute(
+        "SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1"
+    ).fetchone()
     if not resume_row or not dict(resume_row).get('raw_text'):
+        conn.close()
         return jsonify({'error': 'No master resume uploaded'}), 400
+    conn.close()
 
-    _tmp = os.environ.get('TEMP_DIR', 'tmp')
-    tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-    os.makedirs(tmp_dir, exist_ok=True)
-    pid = f'cover_{num}_{int(datetime.now().timestamp()*1000)}'
-    job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
-    resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, 'cover', 'queued')",
+        (num,)
+    )
+    gen_id = cur.lastrowid
+    conn.commit()
+    conn.close()
 
-    raw_desc = j.get('raw_description', '')
-    if not raw_desc:
-        return jsonify({'error': 'No job description available'}), 400
+    from services.generation_worker import process_generation
+    threading.Thread(target=process_generation, args=(gen_id,), daemon=True).start()
 
-    with open(job_file, 'w') as f:
-        f.write(raw_desc)
-    with open(resume_file, 'w') as f:
-        f.write(dict(resume_row)['raw_text'])
+    return jsonify({'gen_id': gen_id, 'status': 'queued'})
 
-    try:
-        rules_text = ''
-        conn = get_db()
-        rule_rows = conn.execute(
-            "SELECT key, value, priority, score_weight FROM preferences "
-            "WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
-            "ORDER BY priority DESC"
-        ).fetchall()
-        conn.close()
-        if rule_rows:
-            rules_text = '\n'.join([f"- {r['key']} (weight:{r.get('score_weight') or r['priority']}): {r['value']}" for r in rule_rows])
 
-        prompt = load_prompt('resume/step7_cover_generate',
-            url=j.get('url', ''), job_file=job_file, resume_file=resume_file,
-            tmp_dir=tmp_dir, pid=pid, rules=rules_text)
+@bp.route('/api/generations/<int:gen_id>')
+def get_generation_progress(gen_id):
+    """Get progress for a specific generation."""
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pending_generations WHERE id=?', (gen_id,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Generation not found'}), 404
+    gen = dict(row)
+    if gen.get('result'):
+        try:
+            gen['result'] = json.loads(gen['result'])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return jsonify(gen)
 
-        result_path = os.path.join(tmp_dir, f'cover_{pid}.json')
-        llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": result_path, "pid": pid},
-            timeout=120,
-        )
-        data = json.loads(resp.content)
 
-        cover_html = data.get('cover_letter', '')
-        if not cover_html:
-            return jsonify({'error': 'Cover letter generation returned empty content'}), 500
-
-        conn = get_db()
-        conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
-            VALUES (?,?,?,?,?,?,?,?,?)''',
-            (f'cover_{num}', f"{j['company']} Cover Letter", j['company'], j['role'],
-             cover_html, 1, '', datetime.now().isoformat(), num))
-        conn.commit()
-        conn.close()
-
-        try: os.remove(result_path)
-        except OSError: pass
-
-        return jsonify({'status': 'generated', 'id': f'cover_{num}', 'content': cover_html})
-    except subprocess.TimeoutExpired:
-        return jsonify({'error': 'Cover letter generation timed out'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        for f in [job_file, resume_file]:
-            try: os.remove(f)
-            except OSError: pass
+@bp.route('/api/generations/<int:gen_id>/cancel', methods=['POST'])
+def cancel_generation(gen_id):
+    """Cancel a running generation."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE pending_generations SET status='cancelled', error='Cancelled by user', updated_at=? WHERE id=? AND status IN ('queued', 'processing')",
+        (datetime.now().isoformat(), gen_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'cancelled'})

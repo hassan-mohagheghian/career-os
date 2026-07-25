@@ -132,12 +132,12 @@ function App() {
     resumes,
     setResumes,
     linkedinProfiles,
-    generatingResume,
-    generatingCover,
+    generationProgress,
     fetchResumes,
     fetchLinkedin,
     generateResume,
     generateCover,
+    cancelGeneration,
   } = useResume();
 
   // Initialize insights sub-tab from hash for deep linking
@@ -578,8 +578,7 @@ function App() {
       <JobDrawer
         drawer={drawer}
         drawerTab={drawerTab}
-        generatingResume={generatingResume}
-        generatingCover={generatingCover}
+        generationProgress={generationProgress}
         companies={companies}
         onClose={() => {
           setDrawer(null);
@@ -592,6 +591,7 @@ function App() {
         onSetToast={(msg) => toast.success(msg)}
         onGenerateResume={(num) => generateResume(num, setDrawer)}
         onGenerateCover={(num) => generateCover(num, setDrawer)}
+        onCancelGeneration={cancelGeneration}
         onLinkCompany={async (num, companyId) => {
           await fetch(`${API}/jobs/${num}/link-company`, {
             method: "POST",
