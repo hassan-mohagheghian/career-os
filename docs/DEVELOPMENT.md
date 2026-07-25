@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.15+
+- Python 3.14+
 - Node.js 20+
 - uv (Python package manager)
 - Mimo CLI (`~/.mimocode/bin/mimo`)
@@ -31,6 +31,7 @@ npm run dev          # Vite on :5173
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `AI_PROVIDER` | `mimo` | AI provider: `mimo`, `openai`, `local` |
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
 | `TEMP_DIR` | `app/tmp` | Temporary files directory |
 | `SECRET_KEY` | `dev-secret-key` | Flask secret key |
@@ -39,11 +40,17 @@ npm run dev          # Vite on :5173
 ## Testing
 
 ```bash
-# Backend (306 tests)
-cd app/server && python -m pytest tests/ -v
+# Backend (376 tests)
+uv run pytest app/server/tests/ -v
+
+# AI layer tests (70 tests)
+uv run pytest tests/test_ai/ -v
+
+# All tests
+uv run pytest tests/test_ai/ app/server/tests/ -v
 
 # Backend with coverage
-cd app/server && python -m pytest tests/ --cov=services --cov=blueprints --cov=core --cov-report=term-missing
+uv run pytest app/server/tests/ --cov=services --cov=blueprints --cov=core --cov-report=term-missing
 
 # Frontend (23 tests)
 cd app/client && npx vitest run
@@ -57,6 +64,7 @@ cd app/client && npx vitest run
 - Raw SQL via `get_db()` helper (no ORM)
 - Flask Blueprints for API routes
 - Background threading for long operations
+- **AI calls via LLMService** — `from ai_compat import get_llm_service`
 
 ### TypeScript (Frontend)
 - Feature-based architecture: `features/{name}/components/`, `features/{name}/hooks/`
@@ -75,7 +83,7 @@ cd app/client && npx vitest run
 - Feature branches from `main`
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`
 - All tests must pass before merge
-- Run `python -m pytest tests/` and `npx vitest run` before committing
+- Run `uv run pytest tests/` and `npx vitest run` before committing
 
 ## Debugging
 
@@ -83,4 +91,4 @@ cd app/client && npx vitest run
 - **Frontend**: Browser dev tools, Vite HMR
 - **WebSocket**: SocketIO events visible in Network tab
 - **Database**: `sqlite3 app/server/db/jobs.db` for direct queries
-- **Mimo CLI**: Check `~/.mimocode/bin/mimo` exists and is executable
+- **AI Provider**: Check `AI_PROVIDER` env var and `~/.mimocode/bin/mimo`

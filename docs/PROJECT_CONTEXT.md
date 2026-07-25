@@ -29,12 +29,8 @@
 - **Features**: Per-section generation (overview, skills, opportunities, companies, market, networking)
 - **Files**: `features/insights/`, `services/insights.py`, `blueprints/insights.py`
 
-### Networking
-- **Responsibility**: Connection strategy (part of Insights)
-- **Features**: LinkedIn targets, outreach templates, company prioritization
-
 ### Settings
-- **Resume**: AI-powered resume/cover letter generation
+- **Resume**: AI-powered resume/cover letter generation with progress bars
 - **Rules**: Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING)
 
 ## 3. Technology Stack
@@ -43,19 +39,26 @@
 - **Framework**: React 18 with TypeScript
 - **UI**: shadcn/ui + Tailwind CSS (custom tokens: text-3xs, text-2xs)
 - **State**: React hooks (useState, useCallback, useRef)
-- **Data fetching**: Direct fetch() calls
+- **Data fetching**: Direct fetch() calls + WebSocket (SocketIO)
 - **Architecture**: Feature-based (`features/`, `shared/`, `layout/`)
 
 ### Backend
 - **Framework**: Flask 3.1 with Flask-SocketIO
-- **Language**: Python 3.15+
+- **Language**: Python 3.14+
 - **Architecture**: Blueprint-based (10 blueprints), service layer
-- **Libraries**: structlog, python-dotenv, typer, rich
+- **Libraries**: structlog, python-dotenv, typer, rich, langgraph, langchain-core
 
 ### Database
 - **Engine**: SQLite (raw SQL, no ORM)
-- **Key Tables**: jobs, companies, company_intelligence, tech_stack, skill_roadmaps, career_insights, pending_jobs, pending_companies
+- **Key Tables**: jobs, companies, company_intelligence, skills, skill_roadmaps, career_insights, pending_jobs, pending_companies, pending_generations
 - **Migrations**: Inline system in `core/db.py` + `migrations.py`
+
+### AI Layer
+- **LLMService**: Unified entry point for all AI calls
+- **Providers**: Mimo (production), OpenAI (stub), Local LLM (stub)
+- **Agents**: Thin orchestration layers over existing services
+- **Tools**: Domain services wrapping existing business logic
+- **Graphs**: LangGraph-based composable workflows
 
 ### Infrastructure
 - **Deployment**: Single `./start.sh` (Flask + Vite dev server)
@@ -67,18 +70,20 @@
 ```
 React SPA → Flask API → SQLite DB
      ↓           ↓
-  WebSocket   Mimo CLI (AI)
+  WebSocket   AI Agent Layer (LLMService)
+                    ↓
+              Provider Layer (Mimo / OpenAI / Local)
 ```
 
 - **Frontend** communicates via HTTP (REST) + WebSocket (real-time)
 - **Backend** uses Blueprint-based routing, service layer for business logic
-- **AI** via Mimo CLI subprocess (no paid APIs)
+- **AI** via LLMService provider abstraction (Mimo CLI default)
 - **Queue**: Single shared queue for jobs + companies with concurrency control
 
 ## 5. Domain Model
 
 ### Job → Company (many-to-one)
-- Jobs link to companies via `company` name column
+- Jobs link to companies via `company_id` column
 - Jobs have scoring: `fit_score`, `success_score`, `overall_score`
 
 ### Skill → Skill (many-to-many via aliases/relationships)
@@ -94,23 +99,39 @@ React SPA → Flask API → SQLite DB
 - Jobs contain `stack` column with comma-separated skills
 - Skills intelligence analyzes this to extract market demand
 
+### Job → Generation (one-to-many)
+- Jobs can have multiple resume/cover generations
+- Generations tracked in `pending_generations` with progress
+
 ## 6. AI Architecture
 
+### LLMService
+- Unified entry point for all AI calls
+- Methods: generate(), generate_structured(), generate_streaming()
+- Accessed via: `from ai_compat import get_llm_service`
+
+### Providers
+- MimoProvider: Wraps Mimo CLI subprocess
+- OpenAIProvider: Stub for OpenAI API
+- LocalLLMProvider: Stub for Ollama/local LLMs
+- Selection via `AI_PROVIDER` env var
+
+### Agents
+- Thin orchestration layers over existing services
+- Use tools for business operations
+- State passing via AgentState dict
+
+### Workflow Graphs
+- JobProcessingGraph: fetch → validate → extract → score
+- CompanyProcessingGraph: fetch → extract → analyze → save
+- InsightsGenerationGraph: overview → opportunities → companies → market → networking → skills_intel
+
 ### Existing Prompts
-- `insights/` — 7 prompts for career intelligence sections
-- `skill_roadmaps/` — 4 prompts for roadmap generation/extension
-- `job_processing/` — 4 prompts for job extraction
-- `company/` — 2 prompts for company analysis
-
-### AI Tools
-- `MimoRunner` — subprocess management with streaming, session support
-- `ProcessManager` — lifecycle management for background tasks
-
-### Workflows
-- Job: fetch → extract → validate → score → save
-- Company: fetch → extract → analyze → save
-- Insights: per-section generation with concurrency lock
-- Roadmap: generate → extend → finegrain per skill
+- `prompts/insights/` — 7 prompts for career intelligence sections
+- `prompts/skill_roadmaps/` — 4 prompts for roadmap generation/extension
+- `prompts/job_processing/` — 4 prompts for job extraction
+- `prompts/company/` — 2 prompts for company analysis
+- `prompts/resume/` — 2 prompts for resume/cover generation
 
 ## 7. Development Rules
 
@@ -121,6 +142,8 @@ React SPA → Flask API → SQLite DB
 - structlog for logging (no print())
 - Single generation lock (one AI analysis at a time)
 - Version tracking for retries
+- LLMService for all AI calls (never MimoRunner directly)
+- DDD, SOLID, TDD, Design Patterns
 
 ### Must Not
 - Add paid API dependencies
@@ -128,11 +151,11 @@ React SPA → Flask API → SQLite DB
 - Add routes in `app.py`
 - Create duplicate prompt systems
 - Mix feature boundaries
+- Call MimoRunner directly
 
 ## 8. Technical Debt
 
 - `_db()` sets `row_factory=None` but some callers use `dict(r)` — inconsistent
 - `pending_jobs.notes` and `pending_jobs.links` columns added but job worker doesn't fully iterate them yet
-- Skills intelligence AI report not propagated to `tech_stack` DB (only stored as JSON blob)
 - `skill_relationships` table exists but never populated by production code
 - Some test fixtures missing `version` column

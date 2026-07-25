@@ -64,13 +64,16 @@
 
 **Goal**: Generate tailored resumes and cover letters for specific jobs.
 
-- AI-powered resume tailoring
-- Cover letter generation
+- AI-powered resume tailoring with company context enrichment
+- Cover letter generation with company intelligence
+- Real-time WebSocket progress bars
+- Immediate content display on completion
 - LinkedIn profile integration
 - Multiple resume versions (original, tailored, cover)
+- Generation history with session tracking
 
-**Components**: `ResumeTab`
-**API**: `GET /api/resumes`, `POST /api/jobs/:num/generate-resume`
+**Components**: `ResumeTab`, `DocumentsTab` (in JobDrawer)
+**API**: `POST /api/jobs/:num/generate-resume`, `POST /api/jobs/:num/generate-cover`
 **Status**: Complete
 
 ## Skills Intelligence (AI Analysis)
@@ -83,8 +86,23 @@
 - ROI-based skill scoring
 - Learning roadmap (NOW/NEXT/LATER)
 - Career readiness score (0-100)
-- Fills extracted skills into tech_stack DB
+- Fills extracted skills into skills DB
 
 **Components**: `SkillsIntelSection` (under Insights)
 **API**: `POST /api/insights/skills-intel/refresh`
+**Status**: Complete
+
+## AI Agent Orchestration
+
+**Goal**: Flexible multi-provider AI system with provider abstraction.
+
+- LLMService — unified entry point for all AI calls
+- Provider abstraction — swap Mimo/OpenAI/Local via env var
+- Agent runtime — LangGraph-based workflow orchestration
+- Tool system — domain tools wrapping existing services
+- Workflow graphs — composable, stateful processing pipelines
+- DDD/SOLID/TDD throughout
+
+**Components**: `app/ai/` (providers, agents, tools, runtime, prompts)
+**Config**: `AI_PROVIDER=mimo` in `.env`
 **Status**: Complete

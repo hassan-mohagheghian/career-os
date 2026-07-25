@@ -32,6 +32,7 @@ LLM Provider Layer
 ```
 app/ai/
 ├── __init__.py
+├── service.py                    # LLMService — unified entry point
 ├── logging.py                    # Structured agent events
 ├── providers/
 │   ├── __init__.py               # Factory + registry
@@ -332,6 +333,7 @@ tests/test_ai/
 ├── test_providers.py    # Provider interface, factory, MimoProvider
 ├── test_agents.py       # State, registry, executor
 ├── test_tools.py        # Tool interface, job/company/skill tools
+├── test_service.py      # LLMService facade, delegation, error handling
 └── test_workflows.py    # Graph builder, compiled graphs, integration
 ```
 

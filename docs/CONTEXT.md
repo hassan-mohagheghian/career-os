@@ -16,11 +16,11 @@ Job Search Intelligence is an AI-powered career platform that helps software eng
 - **Company Intelligence**: Profile extraction, visa assessment, Fit/Success/Overall scoring
 - **Skills Management**: 5-category taxonomy, AI-powered insights, learning roadmaps
 - **Career Insights**: Health score, market analysis, opportunity funnel
-- **Resume Generation**: AI-tailored resumes and cover letters
+- **Resume Generation**: AI-tailored resumes and cover letters with real-time progress
 
 ## Key Rules
 
-1. **No paid APIs**: All AI work uses `mimo run` subprocess — no OpenAI, no Anthropic
+1. **Provider abstraction**: All AI calls go through LLMService — never call MimoRunner directly. Default provider is Mimo CLI, but OpenAI and local LLMs are supported via `AI_PROVIDER` env var
 2. **TypeScript frontend**: All client code is `.ts`/`.tsx`
 3. **Raw SQL**: No ORM, direct SQLite queries
 4. **Feature-based architecture**: Frontend organized by `features/`, `shared/`, `layout/`
@@ -30,9 +30,10 @@ Job Search Intelligence is an AI-powered career platform that helps software eng
 8. **All cards must have delete button**
 9. **Default sort**: Newest first (`created_at desc`)
 10. **Save folder paths configurable via .env**
+11. **DDD/SOLID/TDD**: Follow domain-driven design, SOLID principles, and test-driven development
 
 ## System Boundaries
 
 - **In scope**: Job discovery, company analysis, skill management, resume generation, career insights
 - **Out of scope**: Job application submission, interview scheduling, salary negotiation
-- **External integrations**: Mimo CLI (AI), LinkedIn (scraping), job boards (URL fetching)
+- **External integrations**: AI Agent Layer (LLMService + provider abstraction), LinkedIn (scraping), job boards (URL fetching)
