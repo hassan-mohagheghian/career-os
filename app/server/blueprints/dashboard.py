@@ -144,6 +144,12 @@ def get_tech_stack():
         skill_dict = dict(row)
         aliases = conn.execute("SELECT alias_name FROM skill_aliases WHERE skill_id=?", (row['id'],)).fetchall()
         skill_dict['aliases'] = [a[0] for a in aliases]
+        # Parse tags from JSON string to array
+        import json as _json
+        try:
+            skill_dict['tags'] = _json.loads(skill_dict.get('tags', '[]') or '[]')
+        except (ValueError, TypeError):
+            skill_dict['tags'] = []
         result.append(skill_dict)
     conn.close()
     return stream_json(result)
@@ -194,6 +200,11 @@ def update_tech_stack(id):
         if field in data:
             fields.append(f"{field}=?")
             values.append(data[field])
+    # Tags stored as JSON string
+    if "tags" in data:
+        import json as _json
+        fields.append("tags=?")
+        values.append(_json.dumps(data["tags"]) if isinstance(data["tags"], list) else data["tags"])
     if not fields:
         return jsonify({"error": "No valid fields to update"}), 400
     values.append(id)
@@ -330,7 +341,16 @@ def get_hidden_skills():
     conn = get_db()
     rows = conn.execute("SELECT * FROM tech_stack WHERE hidden=1 ORDER BY name").fetchall()
     conn.close()
-    return stream_json([dict(r) for r in rows])
+    import json as _json
+    result = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d['tags'] = _json.loads(d.get('tags', '[]') or '[]')
+        except (ValueError, TypeError):
+            d['tags'] = []
+        result.append(d)
+    return stream_json(result)
 
 
 @bp.route("/api/tech-stack/<int:id>/restore", methods=["PATCH"])

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   X, TrendUp, Brain, BookOpen, EyeSlash, GitMerge, TreeStructure,
-  Link, Target, Lightbulb, Spinner, CaretDown, CaretRight, Check, PencilSimple,
+  Link, Target, Lightbulb, Spinner, CaretDown, CaretRight, Check, PencilSimple, Tag,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -87,6 +87,8 @@ export default function SkillDetailDrawer({
   const [loading, setLoading] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
+  const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState("");
 
   const skill = techStackSkills.find((s) => s.name === skillName) || {};
 
@@ -182,6 +184,38 @@ export default function SkillDetailDrawer({
   }, []);
 
   useEffect(() => { fetchRelationships(); fetchVariantes(); fetchRoadmap(); }, [fetchRelationships, fetchVariantes, fetchRoadmap]);
+
+  // Load tags from skill data when drawer opens
+  useEffect(() => {
+    if (open && skill.tags) {
+      setTags(Array.isArray(skill.tags) ? skill.tags : []);
+    }
+  }, [open, skillName, skill.tags]);
+
+  const handleAddTag = async () => {
+    const tag = tagInput.trim();
+    if (!tag || tags.includes(tag) || !skill.id) return;
+    const newTags = [...tags, tag];
+    try {
+      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      if (res.ok) { setTags(newTags); setTagInput(""); }
+    } catch {}
+  };
+
+  const handleRemoveTag = async (tag) => {
+    if (!skill.id) return;
+    const newTags = tags.filter((t) => t !== tag);
+    try {
+      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      if (res.ok) setTags(newTags);
+    } catch {}
+  };
 
   if (!skillName) return null;
 
@@ -294,6 +328,30 @@ export default function SkillDetailDrawer({
               </div>
             </Card>
           )}
+
+          {/* Tags */}
+          <Card className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="w-4 h-4 text-orange-500" />
+              <span className="text-xs font-bold">Tags</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-[0.5rem] h-4 bg-orange-500/10 text-orange-600 border border-orange-500/20 gap-1 pr-1">
+                  {tag}
+                  <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-red-500 transition">&times;</button>
+                </Badge>
+              ))}
+              {tags.length === 0 && <span className="text-[0.55rem] text-muted-foreground">No tags</span>}
+            </div>
+            <div className="flex gap-1">
+              <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
+                placeholder="Add tag..." className="h-6 text-[0.6rem] flex-1" />
+              <Button size="sm" variant="outline" onClick={handleAddTag} disabled={!tagInput.trim()}
+                className="h-6 text-[0.5rem] px-2">Add</Button>
+            </div>
+          </Card>
 
           {/* Learning Roadmap — collapsible with items */}
           {hasRoadmap && (

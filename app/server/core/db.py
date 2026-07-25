@@ -87,7 +87,7 @@ def init_db():
         hidden INTEGER DEFAULT 0, merged_into TEXT DEFAULT '',
         category TEXT DEFAULT '', confidence REAL DEFAULT 0,
         market_relevance REAL DEFAULT 0, evidence TEXT DEFAULT '[]',
-        source_type TEXT DEFAULT 'service'
+        source_type TEXT DEFAULT 'service', tags TEXT DEFAULT '[]'
     )""")
 
     c.execute("""CREATE TABLE IF NOT EXISTS skill_relationships (

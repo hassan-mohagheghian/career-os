@@ -361,11 +361,11 @@ def _migrate_skill_taxonomy():
         cols = {row[1] for row in conn.execute("PRAGMA table_info(tech_stack)").fetchall()}
         for col, default in [
             ('category', "''"), ('confidence', '0'), ('market_relevance', '0'),
-            ('evidence', "'[]'"), ('source_type', "'service'"),
+            ('evidence', "'[]'"), ('source_type', "'service'"), ('tags', "'[]'"),
         ]:
             if col not in cols:
                 log.info(f"migrate.adding_tech_stack_{col}")
-                conn.execute(f"ALTER TABLE tech_stack ADD COLUMN {col} TEXT DEFAULT {default}" if col == 'category' or col == 'evidence' or col == 'source_type' else f"ALTER TABLE tech_stack ADD COLUMN {col} REAL DEFAULT {default}")
+                conn.execute(f"ALTER TABLE tech_stack ADD COLUMN {col} TEXT DEFAULT {default}" if col in ('category', 'evidence', 'source_type', 'tags') else f"ALTER TABLE tech_stack ADD COLUMN {col} REAL DEFAULT {default}")
         # Create skill_relationships table if not exists
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         if 'skill_relationships' not in tables:

@@ -236,6 +236,13 @@ export default function SkillsIntelSection({
       if (inStrengths) tags.push({ label: "Strength", color: "bg-green-500/15 text-green-500" });
       if (inGaps) tags.push({ label: "Gap", color: "bg-red-500/15 text-red-500" });
       if (inRecs) tags.push({ label: "Rec", color: "bg-primary/15 text-primary" });
+      // System tag: roadmap status
+      if (prog?.total > 0) tags.push({ label: "Roadmapped", color: "bg-emerald-500/15 text-emerald-500" });
+      // User-defined custom tags
+      const userTags = Array.isArray(stack.tags) ? stack.tags : [];
+      for (const t of userTags) {
+        tags.push({ label: t, color: "bg-orange-500/15 text-orange-500" });
+      }
 
       list.push({
         name: stack.name,
