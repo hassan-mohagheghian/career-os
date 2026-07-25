@@ -14,6 +14,36 @@ bp = Blueprint('jobs', __name__)
 
 @bp.route('/api/jobs')
 def get_jobs():
+    """Get paginated list of processed jobs.
+    ---
+    tags: [Jobs]
+    parameters:
+      - name: offset
+        in: query
+        type: integer
+        default: 0
+      - name: limit
+        in: query
+        type: integer
+        default: 30
+      - name: sort_by
+        in: query
+        type: string
+        enum: [created_at, overall_score, fit_score, success_score, num, company, location]
+        default: created_at
+      - name: sort_dir
+        in: query
+        type: string
+        enum: [asc, desc]
+        default: desc
+      - name: filter_tech
+        in: query
+        type: string
+        description: Filter by tech stack (comma-separated)
+    responses:
+      200:
+        description: Paginated job list
+    """
     conn = get_db()
     offset = request.args.get('offset', type=int)
     limit = request.args.get('limit', type=int)

@@ -11,7 +11,13 @@ INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', '
 
 @bp.route('/api/career-intelligence', methods=['GET'])
 def get_all():
-    """Get all latest career intelligence sections."""
+    """Get all latest career intelligence sections.
+    ---
+    tags: [Insights]
+    responses:
+      200:
+        description: All intelligence sections (overview, opportunities, companies, market, networking, skills_intel)
+    """
     from services.career_intel import get_latest
     data = get_latest()
     return jsonify(data or {})
@@ -19,7 +25,21 @@ def get_all():
 
 @bp.route('/api/career-intelligence/<section>', methods=['GET'])
 def get_section(section):
-    """Get latest career intelligence for a specific section."""
+    """Get latest career intelligence for a specific section.
+    ---
+    tags: [Insights]
+    parameters:
+      - name: section
+        in: path
+        required: true
+        type: string
+        enum: [overview, opportunities, companies, market, networking, skills_intel]
+    responses:
+      200:
+        description: Section intelligence data
+      404:
+        description: No intelligence found for this section
+    """
     if section not in INSIGHT_TYPES:
         return jsonify({'error': f'Invalid section: {section}'}), 400
     from services.career_intel import get_latest
@@ -49,7 +69,15 @@ def get_progress():
 
 @bp.route('/api/career-intelligence/refresh', methods=['POST'])
 def refresh_all():
-    """Generate all career intelligence sections in background."""
+    """Generate all career intelligence sections in background.
+    ---
+    tags: [Insights]
+    responses:
+      200:
+        description: Generation started
+      409:
+        description: Analysis already running
+    """
     from services.career_intel import generate_all, is_running
     running, info = is_running()
     if running:
@@ -109,7 +137,15 @@ def get_status():
 
 @bp.route('/api/career-intelligence/skills-intel', methods=['GET'])
 def get_skills_intel():
-    """Get the latest Skills Intelligence Report."""
+    """Get the latest Skills Intelligence Report.
+    ---
+    tags: [Skills]
+    responses:
+      200:
+        description: Skills intelligence data with strengths, gaps, recommendations
+      404:
+        description: No skills intelligence found
+    """
     from services.career_intel import get_latest
     data = get_latest('skills_intel')
     if data:
@@ -137,7 +173,13 @@ def refresh_skills_intel():
 
 @bp.route('/api/career-intelligence/cancel', methods=['POST'])
 def cancel():
-    """Cancel the currently running career intelligence analysis."""
+    """Cancel the currently running career intelligence analysis.
+    ---
+    tags: [Insights]
+    responses:
+      200:
+        description: Analysis cancelled
+    """
     from services.career_intel import cancel_run, is_running
     running, info = is_running()
     if not running:

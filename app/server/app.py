@@ -69,6 +69,7 @@ from blueprints.misc import bp as misc_bp
 from blueprints.tech_stack import bp as tech_stack_bp
 from blueprints.skill_roadmaps import bp as skill_roadmaps_bp, set_socketio as set_roadmap_socketio
 from blueprints.static import bp as static_bp, init_static
+from blueprints.api_docs import bp as api_docs_bp
 
 app.register_blueprint(jobs_bp)
 app.register_blueprint(resumes_bp)
@@ -80,6 +81,7 @@ app.register_blueprint(misc_bp)
 app.register_blueprint(tech_stack_bp)
 app.register_blueprint(skill_roadmaps_bp)
 app.register_blueprint(static_bp)
+app.register_blueprint(api_docs_bp)
 
 set_roadmap_socketio(socketio)
 

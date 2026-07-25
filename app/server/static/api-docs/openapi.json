@@ -1,0 +1,312 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Job Search Intelligence API",
+    "description": "AI-powered career intelligence platform — job discovery, company analysis, skill management, resume generation, and career insights.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://localhost:5000", "description": "Development server" }
+  ],
+  "tags": [
+    { "name": "Jobs", "description": "Job CRUD, scoring, processing" },
+    { "name": "Companies", "description": "Company CRUD, intelligence, processing" },
+    { "name": "Skills", "description": "Tech stack, skill roadmaps, generation" },
+    { "name": "Insights", "description": "Career intelligence analysis (overview, opportunities, market, networking)" },
+    { "name": "Resumes", "description": "Resume and cover letter generation" },
+    { "name": "Queue", "description": "Processing queue management" },
+    { "name": "Rules", "description": "Scoring rules configuration" },
+    { "name": "System", "description": "Generation history, dashboard, health" }
+  ],
+  "paths": {
+    "/api/jobs": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Get paginated list of processed jobs",
+        "parameters": [
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 30 } },
+          { "name": "sort_by", "in": "query", "schema": { "type": "string", "enum": ["created_at", "overall_score", "fit_score", "success_score", "num", "company", "location"] } },
+          { "name": "sort_dir", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"] } },
+          { "name": "filter_tech", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated tech stack filter" },
+          { "name": "filter_cities", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated city filter" }
+        ],
+        "responses": { "200": { "description": "Paginated job list with total count" } }
+      }
+    },
+    "/api/jobs/{num}": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Get a single job by number",
+        "parameters": [{ "name": "num", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Job details" }, "404": { "description": "Job not found" } }
+      },
+      "put": {
+        "tags": ["Jobs"],
+        "summary": "Update job fields",
+        "parameters": [{ "name": "num", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Updated job" } }
+      },
+      "delete": {
+        "tags": ["Jobs"],
+        "summary": "Delete a job (hard delete)",
+        "parameters": [{ "name": "num", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Job deleted" } }
+      }
+    },
+    "/api/jobs/{num}/requeue": {
+      "post": {
+        "tags": ["Jobs"],
+        "summary": "Re-queue a processed job for reprocessing",
+        "parameters": [{ "name": "num", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Job re-queued" } }
+      }
+    },
+    "/api/jobs/{num}/rescore": {
+      "post": {
+        "tags": ["Jobs"],
+        "summary": "Rescore an existing job",
+        "parameters": [{ "name": "num", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Job rescored" } }
+      }
+    },
+    "/api/companies": {
+      "get": {
+        "tags": ["Companies"],
+        "summary": "Get all processed companies with scores",
+        "responses": { "200": { "description": "List of companies with intelligence scores" } }
+      },
+      "post": {
+        "tags": ["Companies"],
+        "summary": "Add a company for research (notes + links)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": { "type": "array", "items": { "type": "object" } },
+                  "links": { "type": "array", "items": { "type": "object" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Company added" } }
+      }
+    },
+    "/api/companies/{id}": {
+      "get": {
+        "tags": ["Companies"],
+        "summary": "Get company details with full intelligence",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Company with intelligence data" } }
+      },
+      "delete": {
+        "tags": ["Companies"],
+        "summary": "Delete company and all intelligence",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Company deleted" } }
+      }
+    },
+    "/api/tech-stack": {
+      "get": {
+        "tags": ["Skills"],
+        "summary": "Get visible skills with aliases and tags",
+        "parameters": [
+          { "name": "category", "in": "query", "schema": { "type": "string", "enum": ["technical", "engineering", "professional", "domain", "career"] } }
+        ],
+        "responses": { "200": { "description": "List of visible skills" } }
+      },
+      "post": {
+        "tags": ["Skills"],
+        "summary": "Add a new skill",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "level": { "type": "integer" },
+                  "category": { "type": "string" },
+                  "source": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Skill created" } }
+      }
+    },
+    "/api/tech-stack/{id}": {
+      "put": {
+        "tags": ["Skills"],
+        "summary": "Update a skill",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Skill updated" } }
+      },
+      "delete": {
+        "tags": ["Skills"],
+        "summary": "Permanently delete a skill and its aliases",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Skill deleted" } }
+      }
+    },
+    "/api/skill-roadmaps": {
+      "get": {
+        "tags": ["Skills"],
+        "summary": "Get roadmap tree for a skill",
+        "parameters": [{ "name": "skill", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Roadmap tree" } }
+      }
+    },
+    "/api/skill-roadmaps/generate": {
+      "post": {
+        "tags": ["Skills"],
+        "summary": "Start AI roadmap generation for a skill",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "skill_name": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "202": { "description": "Generation started" } }
+      }
+    },
+    "/api/career-intelligence": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Get all latest intelligence sections",
+        "responses": { "200": { "description": "All sections (overview, opportunities, companies, market, networking, skills_intel)" } }
+      }
+    },
+    "/api/career-intelligence/{section}": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Get latest intelligence for a section",
+        "parameters": [
+          { "name": "section", "in": "path", "required": true, "schema": { "type": "string", "enum": ["overview", "opportunities", "companies", "market", "networking", "skills_intel"] } }
+        ],
+        "responses": { "200": { "description": "Section data" }, "404": { "description": "No data found" } }
+      }
+    },
+    "/api/career-intelligence/refresh": {
+      "post": {
+        "tags": ["Insights"],
+        "summary": "Generate all insight sections in background",
+        "responses": { "200": { "description": "Generation started" }, "409": { "description": "Already running" } }
+      }
+    },
+    "/api/career-intelligence/{section}/refresh": {
+      "post": {
+        "tags": ["Insights"],
+        "summary": "Generate a single insight section",
+        "parameters": [
+          { "name": "section", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Generation started" } }
+      }
+    },
+    "/api/career-intelligence/skills-intel": {
+      "get": {
+        "tags": ["Skills"],
+        "summary": "Get latest Skills Intelligence Report",
+        "responses": { "200": { "description": "Skills intelligence data" }, "404": { "description": "No data found" } }
+      }
+    },
+    "/api/career-intelligence/skills-intel/refresh": {
+      "post": {
+        "tags": ["Skills"],
+        "summary": "Generate Skills Intelligence Report",
+        "responses": { "200": { "description": "Generation started" } }
+      }
+    },
+    "/api/career-intelligence/cancel": {
+      "post": {
+        "tags": ["Insights"],
+        "summary": "Cancel running analysis",
+        "responses": { "200": { "description": "Analysis cancelled" } }
+      }
+    },
+    "/api/career-intelligence/progress": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Get real-time generation progress",
+        "responses": { "200": { "description": "Progress status" } }
+      }
+    },
+    "/api/career-intelligence/status": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Get per-section generation status",
+        "responses": { "200": { "description": "Section statuses with lastRun timestamps" } }
+      }
+    },
+    "/api/career-intelligence/runs": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Get generation history with pagination",
+        "parameters": [
+          { "name": "section", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": { "200": { "description": "Paginated generation runs" } }
+      }
+    },
+    "/api/generation-history": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Unified generation history across all subsystems",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": { "200": { "description": "Merged history from career-intel, roadmaps, job processing, company processing" } }
+      }
+    },
+    "/api/pending": {
+      "get": {
+        "tags": ["Queue"],
+        "summary": "Get all pending/processing jobs",
+        "responses": { "200": { "description": "List of pending jobs" } }
+      },
+      "post": {
+        "tags": ["Queue"],
+        "summary": "Add a job URL to the processing queue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string" },
+                  "source": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Job queued" } }
+      }
+    },
+    "/api/rules": {
+      "get": {
+        "tags": ["Rules"],
+        "summary": "Get all scoring rules",
+        "responses": { "200": { "description": "List of scoring rules" } }
+      }
+    },
+    "/api/resumes": {
+      "get": {
+        "tags": ["Resumes"],
+        "summary": "Get all resumes",
+        "responses": { "200": { "description": "List of resumes" } }
+      }
+    }
+  }
+}

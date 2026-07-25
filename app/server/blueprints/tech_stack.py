@@ -12,7 +12,19 @@ bp = Blueprint("tech_stack", __name__)
 
 @bp.route("/api/tech-stack")
 def get_tech_stack():
-    """Get visible skills. Optional query: ?category=technical"""
+    """Get visible skills with aliases and tags.
+    ---
+    tags: [Skills]
+    parameters:
+      - name: category
+        in: query
+        type: string
+        enum: [technical, engineering, professional, domain, career]
+        description: Filter by skill category
+    responses:
+      200:
+        description: List of visible skills
+    """
     conn = get_db()
     category = request.args.get("category", "")
     if category:
