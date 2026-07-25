@@ -440,10 +440,16 @@ class TestGenerateSection:
 # ── generate_skills_intel ───────────────────────────────────────
 
 class TestGenerateSkillsIntel:
-    def test_already_running(self):
-        ci._current_run['active'] = True
-        result = ci.generate_skills_intel()
-        assert 'error' in result
+    def test_already_running(self, db):
+        ci._analysis_lock.acquire(blocking=False)
+        try:
+            result = ci.generate_skills_intel()
+            assert 'error' in result
+        finally:
+            try:
+                ci._analysis_lock.release()
+            except RuntimeError:
+                pass
 
     @patch.object(ci, '_run_mimo_prompt')
     def test_success(self, mock_run, db):
@@ -536,53 +542,44 @@ class TestGetRuns:
 # ── _run_mimo_prompt ────────────────────────────────────────────
 
 class TestRunMimoPrompt:
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_success(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "test prompt"
+    """MimoRunner/ProcessManager are imported inside _run_mimo_prompt,
+    so patch them at their source module path."""
+
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_success(self, MockRunner, MockPM, mock_load, db):
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
         mock_mimo.run.return_value = (0, ['line1'], 'ses_test')
-
-        # Create a temp result file
         result_file = os.path.join(ci.TMP_DIR, 'test_result.json')
         with open(result_file, 'w') as f:
             json.dump({'key': 'value'}, f)
-
         result, err, sid = ci._run_mimo_prompt('test_prompt', result_file=result_file)
-        assert result == {'key': 'value'}
-        assert err is None
-        assert sid == 'ses_test'
+        assert result == {'key': 'value'} and err is None and sid == 'ses_test'
 
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_nonzero_exit(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "prompt"
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_nonzero_exit(self, MockRunner, MockPM, mock_load, db):
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
         mock_mimo.run.return_value = (1, [], None)
-
         result, err, sid = ci._run_mimo_prompt('test', result_file='/nonexistent')
-        assert result is None
-        assert 'Exit code 1' in err
+        assert result is None and 'Exit code 1' in err
 
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_exception(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "prompt"
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_exception(self, MockRunner, MockPM, mock_load, db):
         MockRunner.side_effect = RuntimeError("boom")
         result, err, sid = ci._run_mimo_prompt('test')
-        assert result is None
-        assert 'boom' in err
+        assert result is None and 'boom' in err
 
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_cancellation(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "prompt"
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_cancellation(self, MockRunner, MockPM, mock_load, db):
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
         mock_mimo.run.return_value = (-15, [], None)
@@ -590,11 +587,10 @@ class TestRunMimoPrompt:
         result, err, sid = ci._run_mimo_prompt('test')
         assert result is None and err is None
 
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_on_session_id_callback(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "prompt"
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_on_session_id_callback(self, MockRunner, MockPM, mock_load, db):
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
 
@@ -602,38 +598,30 @@ class TestRunMimoPrompt:
             if on_session_id:
                 on_session_id('ses_discovered')
             return (0, [], 'ses_discovered')
-
         mock_mimo.run.side_effect = fake_run
 
         result_file = os.path.join(ci.TMP_DIR, 'test_cb.json')
         with open(result_file, 'w') as f:
             json.dump({'ok': True}, f)
-
         result, err, sid = ci._run_mimo_prompt('test', result_file=result_file)
         assert sid == 'ses_discovered'
 
-    @patch.object(ci, 'load_prompt')
-    @patch('services.career_intel.MimoRunner')
-    @patch('services.career_intel.ProcessManager')
-    def test_on_event_callback(self, MockPM, MockRunner, mock_load, db):
-        mock_load.return_value = "prompt"
+    @patch.object(ci, 'load_prompt', return_value='prompt')
+    @patch('services.process.process_manager.ProcessManager')
+    @patch('services.process.mimo_runner.MimoRunner')
+    def test_on_event_callback(self, MockRunner, MockPM, mock_load, db):
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
-
-        events_received = []
+        ci._socketio = MagicMock()
 
         def fake_run(prompt, timeout, key, on_event=None, on_session_id=None):
             if on_event:
                 on_event({'type': 'text', 'part': {'text': 'hello world'}})
             return (0, [], None)
-
         mock_mimo.run.side_effect = fake_run
-        ci._socketio = MagicMock()
 
         result_file = os.path.join(ci.TMP_DIR, 'test_evt.json')
         with open(result_file, 'w') as f:
             json.dump({}, f)
-
         ci._run_mimo_prompt('test', result_file=result_file)
-        # Verify progress was emitted with text message
         ci._socketio.emit.assert_called()
