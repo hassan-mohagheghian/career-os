@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   TrendUp, Brain, BookOpen, Wrench, ArrowsClockwise, Target,
   TreeStructure, Plus, User, EyeSlash, DotsSixVertical, GitMerge,
-  Eye, CaretDown, CaretRight, FunnelSimple, SortAscending, Trash,
+  Eye, CaretDown, CaretRight, FunnelSimple, SortAscending, Trash, Clock,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { resolveSkillCategory } from "@/lib/skills";
@@ -22,6 +22,18 @@ import SkillRoadmapDrawer from "./SkillRoadmapDrawer";
 import SkillDetailDrawer from "./SkillDetailDrawer";
 
 const API = "/api";
+
+function formatTimeAgo(ts) {
+  if (!ts) return '';
+  const diffMs = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return days < 7 ? `${days}d ago` : new Date(ts).toLocaleDateString();
+}
 
 const CATEGORIES = [
   { id: "technical", label: "Technical", icon: <Wrench className="w-3 h-3" /> },
@@ -159,7 +171,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
 
 // ── Main component ─────────────────────────────────────────────
 export default function SkillsIntelSection({
-  data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [],
+  data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [], status,
 }) {
   // Prefer full skills_intel data (from dedicated prompt) over minimal skills data (from combined prompt)
   const skillsIntel = data?.skills_intel || {};
@@ -443,7 +455,14 @@ export default function SkillsIntelSection({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-extrabold text-sm">Skills Intelligence</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="font-extrabold text-sm">Skills Intelligence</h3>
+          {status?.skills_intel?.lastRun && (
+            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+              <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.skills_intel.lastRun)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button variant={mergeMode ? "default" : "ghost"} size="sm" onClick={() => setMergeMode(!mergeMode)}
             className={cn("gap-1 h-6 text-[0.55rem]", mergeMode && "bg-primary/20")}>

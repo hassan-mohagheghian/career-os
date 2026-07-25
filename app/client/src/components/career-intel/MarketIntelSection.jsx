@@ -1,12 +1,24 @@
 import {
-  Globe, MapPin, House, IdentificationCard, Lightbulb, ArrowsClockwise
+  Globe, MapPin, House, IdentificationCard, Lightbulb, ArrowsClockwise, Clock
 } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 
-export default function MarketIntelSection({ data, refreshing, onRefresh }) {
+function formatTimeAgo(ts) {
+  if (!ts) return ''
+  const diffMs = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return days < 7 ? `${days}d ago` : new Date(ts).toLocaleDateString()
+}
+
+export default function MarketIntelSection({ data, refreshing, onRefresh, status }) {
   const market = data?.market || {}
   const countries = market.countries || []
   const cities = market.cities || []
@@ -17,7 +29,14 @@ export default function MarketIntelSection({ data, refreshing, onRefresh }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="font-extrabold text-sm">Market Intelligence</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="font-extrabold text-sm">Market Intelligence</h3>
+          {status?.market?.lastRun && (
+            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+              <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.market.lastRun)}
+            </span>
+          )}
+        </div>
         <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.market} className="gap-1 h-6 text-[0.55rem]">
           <ArrowsClockwise className={cn("w-3 h-3", refreshing.market && "animate-spin")} /> Refresh
         </Button>

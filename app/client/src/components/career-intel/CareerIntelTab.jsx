@@ -184,6 +184,21 @@ function formatTimestamp(ts) {
   return date.toLocaleDateString()
 }
 
+function SectionTimestamp({ status, sectionKey }) {
+  const sectionStatus = status?.[sectionKey]
+  if (!sectionStatus?.lastRun) return null
+  const isError = sectionStatus.status === 'failed'
+  return (
+    <span className={cn("text-[0.5rem] flex items-center gap-0.5 ml-1.5",
+      isError ? "text-red-500" : "text-muted-foreground/60"
+    )}>
+      <Clock className="w-2.5 h-2.5" />
+      {formatTimestamp(sectionStatus.lastRun)}
+      {isError && sectionStatus.error && <span title={sectionStatus.error}>!</span>}
+    </span>
+  )
+}
+
 export default function CareerIntelTab({ data, status, progress, activeTab, setActiveTab, refreshing, error, onRefreshAll, onRefreshSection, onOpenDrawer, onOpenCompany, onAddCompany, onCancel, skillRoadmapProgress, onRefreshSkillProgress, skillGenJobs }) {
   // Wrap setActiveTab to also update URL hash
   const switchSubTab = (sub) => {
@@ -275,12 +290,12 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
           <h2 className="text-xl font-extrabold">Career Intelligence</h2>
           <Tabs value={activeTab} onValueChange={switchSubTab}>
             <TabsList className="bg-muted">
-              <TabsTrigger value="overview"><Lightbulb className="w-4 h-4 mr-1.5" />Overview</TabsTrigger>
-              <TabsTrigger value="opportunities"><Target className="w-4 h-4 mr-1.5" />Opportunities</TabsTrigger>
-              <TabsTrigger value="companies"><Buildings className="w-4 h-4 mr-1.5" />Companies</TabsTrigger>
-              <TabsTrigger value="skills"><Brain className="w-4 h-4 mr-1.5" />Skills</TabsTrigger>
-              <TabsTrigger value="market"><ChartBar className="w-4 h-4 mr-1.5" />Market</TabsTrigger>
-              <TabsTrigger value="networking"><Users className="w-4 h-4 mr-1.5" />Networking</TabsTrigger>
+              <TabsTrigger value="overview" className="gap-1"><Lightbulb className="w-4 h-4" />Overview<SectionTimestamp status={status} sectionKey="overview" /></TabsTrigger>
+              <TabsTrigger value="opportunities" className="gap-1"><Target className="w-4 h-4" />Opportunities<SectionTimestamp status={status} sectionKey="opportunities" /></TabsTrigger>
+              <TabsTrigger value="companies" className="gap-1"><Buildings className="w-4 h-4" />Companies<SectionTimestamp status={status} sectionKey="companies" /></TabsTrigger>
+              <TabsTrigger value="skills" className="gap-1"><Brain className="w-4 h-4" />Skills<SectionTimestamp status={status} sectionKey="skills_intel" /></TabsTrigger>
+              <TabsTrigger value="market" className="gap-1"><ChartBar className="w-4 h-4" />Market<SectionTimestamp status={status} sectionKey="market" /></TabsTrigger>
+              <TabsTrigger value="networking" className="gap-1"><Users className="w-4 h-4" />Networking<SectionTimestamp status={status} sectionKey="networking" /></TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -341,22 +356,22 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
 
       {/* Sections — shown when data exists and not running */}
       {hasData && activeTab === 'overview' && (
-        <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} />
+        <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status} />
       )}
       {hasData && activeTab === 'opportunities' && (
-        <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} />
+        <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status} />
       )}
       {hasData && activeTab === 'companies' && (
-        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} />
+        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} status={status} />
       )}
       {hasData && activeTab === 'skills' && (
-        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} roadmapProgress={skillRoadmapProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} />
+        <SkillsIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('skills')} roadmapProgress={skillRoadmapProgress} onRefreshProgress={onRefreshSkillProgress} genJobs={skillGenJobs} status={status} />
       )}
       {hasData && activeTab === 'market' && (
-        <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} />
+        <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} status={status} />
       )}
       {hasData && activeTab === 'networking' && (
-        <NetworkingIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('networking')} />
+        <NetworkingIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('networking')} status={status} />
       )}
     </div>
   )
