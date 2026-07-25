@@ -167,11 +167,14 @@ def process_generation(gen_id):
                 parts.append(f"Visa Info: {json.dumps(company_context['visa'], ensure_ascii=False)[:300]}")
             company_context_str = '\n'.join(parts)
 
+        # Escape curly braces so template.format() doesn't break on JSON content
+        company_context_safe = company_context_str.replace('{', '{{').replace('}', '}}') if company_context_str else ''
+
         if gen_type == 'resume':
             prompt = load_prompt('resume/step_resume_generate',
                 job_file=job_file, resume_file=resume_file,
                 tmp_dir=tmp_dir, pid=pid,
-                company_context=company_context_str)
+                company_context=company_context_safe)
             result_path = os.path.join(tmp_dir, f'resume_{pid}.json')
         else:
             # Load rules for cover letter
@@ -192,7 +195,7 @@ def process_generation(gen_id):
             prompt = load_prompt('resume/step7_cover_generate',
                 url=job_dict.get('url', ''), job_file=job_file, resume_file=resume_file,
                 tmp_dir=tmp_dir, pid=pid, rules=rules_text,
-                company_context=company_context_str)
+                company_context=company_context_safe)
             result_path = os.path.join(tmp_dir, f'cover_{pid}.json')
 
         llm = get_llm_service()
