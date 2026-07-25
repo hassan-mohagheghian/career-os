@@ -1,6 +1,6 @@
 """
 Backfill structured descriptions for existing jobs.
-Uses mimo to extract structured info from raw_description.
+Uses LLM service to extract structured info from raw_description.
 Includes delay between requests to avoid rate limiting.
 """
 import sqlite3
@@ -10,10 +10,13 @@ import time
 import subprocess
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
-_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
+_server_dir = os.path.join(_file_dir, '..')
+_db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
 DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
+
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
 
 EXTRACT_PROMPT = """Extract structured information from this raw job description.
 
@@ -64,26 +67,20 @@ def get_db():
     return conn
 
 def extract_structured(raw_text, num):
-    """Extract structured job info from raw description using mimo."""
+    """Extract structured job info from raw description using LLM service."""
     output_file = os.path.join(PROJECT_ROOT, 'data', f'structured_{num}.json')
     prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:5000], output_file=output_file)
 
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
-
-    if proc.returncode == 0 and os.path.exists(output_file):
-        try:
-            with open(output_file) as f:
-                structured = json.load(f)
-            os.remove(output_file)
-            return json.dumps(structured, ensure_ascii=False)
-        except Exception as e:
-            print(f"  Parse error: {e}")
-            if os.path.exists(output_file):
-                os.remove(output_file)
+    try:
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": output_file, "pid": str(num)},
+            timeout=60,
+        )
+        return resp.content
+    except Exception as e:
+        print(f"  LLM error: {e}")
     return None
 
 def main():

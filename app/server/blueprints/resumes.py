@@ -11,6 +11,9 @@ from config import DB_PATH, PROJECT_ROOT
 from database import get_db, row_to_dict, rows_to_list
 from utils import stream_json, mask_pii, text_to_html
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 bp = Blueprint('resumes', __name__)
 
 
@@ -167,19 +170,14 @@ def generate_resume(num):
             job_file=job_file, resume_file=resume_file,
             tmp_dir=tmp_dir, pid=pid)
 
-        mimo_bin = os.path.expanduser('~/.mimocode/bin/mimo')
-        proc = subprocess.run(
-            [mimo_bin, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-            cwd=PROJECT_ROOT, capture_output=True, text=True,
-            env={**os.environ, 'NO_COLOR': '1'}, timeout=180
-        )
-
         result_path = os.path.join(tmp_dir, f'resume_{pid}.json')
-        if not os.path.exists(result_path):
-            return jsonify({'error': 'Resume generation failed — no output file'}), 500
-
-        with open(result_path) as f:
-            data = json.loads(f.read(), strict=False)
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": result_path, "pid": pid},
+            timeout=180,
+        )
+        data = json.loads(resp.content)
 
         resume_html = data.get('resume_html', '')
         if not resume_html:
@@ -255,19 +253,14 @@ def generate_cover(num):
             url=j.get('url', ''), job_file=job_file, resume_file=resume_file,
             tmp_dir=tmp_dir, pid=pid, rules=rules_text)
 
-        mimo_bin = os.path.expanduser('~/.mimocode/bin/mimo')
-        proc = subprocess.run(
-            [mimo_bin, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-            cwd=PROJECT_ROOT, capture_output=True, text=True,
-            env={**os.environ, 'NO_COLOR': '1'}, timeout=120
-        )
-
         result_path = os.path.join(tmp_dir, f'cover_{pid}.json')
-        if not os.path.exists(result_path):
-            return jsonify({'error': 'Cover letter generation failed — no output file'}), 500
-
-        with open(result_path) as f:
-            data = json.loads(f.read(), strict=False)
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": result_path, "pid": pid},
+            timeout=120,
+        )
+        data = json.loads(resp.content)
 
         cover_html = data.get('cover_letter', '')
         if not cover_html:

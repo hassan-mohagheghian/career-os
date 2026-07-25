@@ -7,6 +7,9 @@ from database import get_db
 from flask import Blueprint, jsonify, request
 from utils import stream_json
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 bp = Blueprint("skill_roadmaps", __name__)
 
 _socketio = None  # set by app.py after SocketIO init
@@ -649,9 +652,7 @@ def _run_generate_worker(skill):
 
         # Step 3: Run AI
         _update_skill_progress(skill, step=3, message="AI is generating roadmap...")
-        from services.process.mimo_runner import MimoRunner
-        from services.process.process_manager import ProcessManager
-        mimo = MimoRunner(ProcessManager())
+        llm = get_llm_service()
         job_key = f"roadmap_{skill}_generate"
 
         def _on_mimo_event(evt):
@@ -667,10 +668,16 @@ def _run_generate_worker(skill):
         def _on_session_id(sid):
             _update_skill_progress(skill, job_type="generate", session_id=sid)
 
-        returncode, output_lines, session_id = mimo.run(
-            prompt, timeout=300, key=job_key,
-            on_event=_on_mimo_event, on_session_id=_on_session_id,
+        resp = llm.generate_streaming(
+            prompt,
+            context={"key": job_key},
+            timeout=300,
+            on_event=_on_mimo_event,
+            on_session_id=_on_session_id,
         )
+
+        output_lines = resp.metadata.get("lines", [])
+        session_id = resp.metadata.get("session_id")
 
         # Final save if discovered after streaming ended
         if session_id:
@@ -756,9 +763,7 @@ def _run_grow_worker(skill, mode="extend"):
         # Step 3: Run AI
         ai_msg = f"AI is {'extending' if mode == 'extend' else 'fine-graining'} roadmap..."
         _update_skill_progress(skill, job_type=mode, step=3, message=ai_msg)
-        from services.process.mimo_runner import MimoRunner
-        from services.process.process_manager import ProcessManager
-        mimo = MimoRunner(ProcessManager())
+        llm = get_llm_service()
         job_key = f"roadmap_{skill}_{mode}"
 
         def _on_grow_event(evt):
@@ -774,10 +779,16 @@ def _run_grow_worker(skill, mode="extend"):
         def _on_session_id(sid):
             _update_skill_progress(skill, job_type=mode, session_id=sid)
 
-        returncode, output_lines, session_id = mimo.run(
-            prompt, timeout=300, key=job_key,
-            on_event=_on_grow_event, on_session_id=_on_session_id,
+        resp = llm.generate_streaming(
+            prompt,
+            context={"key": job_key},
+            timeout=300,
+            on_event=_on_grow_event,
+            on_session_id=_on_session_id,
         )
+
+        output_lines = resp.metadata.get("lines", [])
+        session_id = resp.metadata.get("session_id")
 
         # Final save if discovered after streaming ended
         if session_id:

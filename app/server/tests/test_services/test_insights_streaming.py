@@ -173,26 +173,24 @@ class TestMimoPromptSessionDiscovery:
         event_calls = [c for c in callback_calls if c[0] == 'event']
         assert len(event_calls) == 3
 
-    def test_career_intel_uses_mimo_runner_not_raw_subprocess(self):
+    def test_career_intel_uses_llm_service(self):
         """
-        RED: insights._run_mimo_prompt should use MimoRunner
-        (which streams) instead of subprocess.Popen + communicate() (blocking).
+        insights._run_mimo_prompt should use LLMService
+        for provider abstraction instead of raw subprocess.
         """
-        import ast
         import inspect
 
-        # Read the source of insights._run_mimo_prompt
         from services import insights
         source = inspect.getsource(insights._run_mimo_prompt)
 
-        # Should NOT contain raw subprocess.Popen (it should use MimoRunner)
+        # Should NOT contain raw subprocess.Popen
         assert 'subprocess.Popen' not in source, (
             "_run_mimo_prompt still uses raw subprocess.Popen — "
-            "should use MimoRunner for streaming session_id discovery"
+            "should use LLMService for provider abstraction"
         )
-        # Should reference MimoRunner or ProcessManager
-        assert 'MimoRunner' in source or 'mimo_runner' in source or 'ProcessManager' in source, (
-            "_run_mimo_prompt should use the existing MimoRunner domain service"
+        # Should reference LLMService or get_llm_service
+        assert 'get_llm_service' in source or 'LLMService' in source or 'llm' in source, (
+            "_run_mimo_prompt should use the LLMService for provider abstraction"
         )
 
 

@@ -17,6 +17,12 @@ _server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'
 if _server_dir not in sys.path:
     sys.path.insert(0, _server_dir)
 
+# Import existing functions at module level for testability (mockable)
+try:
+    from services.worker import _fetch_url as _fetch_url_ref
+except ImportError:
+    _fetch_url_ref = None
+
 
 class FetchJobTool(BaseTool):
     """Fetches job posting content from a URL.
@@ -48,9 +54,11 @@ class FetchJobTool(BaseTool):
             return ToolResult(success=False, error="url parameter is required")
 
         try:
-            # Import from existing worker module
-            from services.worker import _fetch_url
-            content = _fetch_url(url)
+            fetch_fn = _fetch_url_ref
+            if fetch_fn is None:
+                from services.worker import _fetch_url
+                fetch_fn = _fetch_url
+            content = fetch_fn(url)
             return ToolResult(
                 success=True,
                 data=content,

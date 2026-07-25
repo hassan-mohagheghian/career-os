@@ -22,6 +22,9 @@ from services.process_utils import (
 )
 from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 log = get_logger('worker')
 
 VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
@@ -535,48 +538,36 @@ def _load_rules(context='job'):
     return '\n'.join(lines)
 
 def _extract_structured_description(raw_text, num):
-    """Extract structured job info from raw description using mimo."""
+    """Extract structured job info from raw description using LLM service."""
     output_file = os.path.join(TMP_DIR, f'structured_{num}.json')
     prompt = load_prompt('job_processing/step4_extract_struct',
         raw_content=raw_text[:5000], output_file=output_file)
 
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
-        env={**os.environ, 'NO_COLOR': '1'}
+    llm = get_llm_service()
+    resp = llm.generate_structured(
+        prompt,
+        context={"result_file": output_file, "pid": str(num)},
+        timeout=60,
     )
-
-    if proc.returncode == 0 and os.path.exists(output_file):
-        try:
-            with open(output_file) as f:
-                structured = json.load(f)
-            os.remove(output_file)
-            return json.dumps(structured, ensure_ascii=False)
-        except Exception:
-            pass
-    return None
+    return resp.content
 
 def _extract_all(raw_text, pid):
-    """Combined extraction: validate + structured + summary in one mimo call."""
+    """Combined extraction: validate + structured + summary in one LLM call."""
     output_file = os.path.join(TMP_DIR, f'extract_{pid}.json')
     prompt = load_prompt('job_processing/step3_extract_raw',
         content=raw_text[:5000], output_file=output_file)
 
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=90,
-        env={**os.environ, 'NO_COLOR': '1'}
+    llm = get_llm_service()
+    resp = llm.generate_structured(
+        prompt,
+        context={"result_file": output_file, "pid": str(pid)},
+        timeout=90,
     )
-
-    if proc.returncode == 0 and os.path.exists(output_file):
-        try:
-            with open(output_file) as f:
-                result = json.load(f)
-            os.remove(output_file)
-            return result
-        except Exception:
-            pass
-    return None
+    # Parse the JSON content from the response
+    try:
+        return json.loads(resp.content)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
@@ -730,24 +721,20 @@ def _fetch_url(url):
     return text[:5000]
 
 def _validate_job_content(raw_text, pid):
-    """Validate and extract main job section from fetched content using mimo."""
+    """Validate and extract main job section from fetched content using LLM service."""
     result_file = os.path.join(TMP_DIR, f'validate_{pid}.json')
     prompt = load_prompt('job_processing/step2_validate', content=raw_text[:3000], result_file=result_file)
 
-    proc = subprocess.run(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60,
-        env={**os.environ, 'NO_COLOR': '1'}
-    )
-
-    if proc.returncode == 0 and os.path.exists(result_file):
-        try:
-            with open(result_file) as f:
-                result = json.load(f)
-            os.remove(result_file)
-            return result
-        except Exception:
-            pass
+    try:
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": result_file, "pid": str(pid)},
+            timeout=60,
+        )
+        return json.loads(resp.content)
+    except Exception:
+        pass
     # Fallback: heuristic validation
     job_keywords = ['engineer', 'developer', 'software', 'senior', 'backend', 'frontend',
                     'python', 'devops', 'sre', 'platform', 'role', 'responsibilities',
@@ -759,7 +746,7 @@ def _validate_job_content(raw_text, pid):
 # --- Streaming subprocess execution ---
 
 def _mimo_cmd(prompt, session_id=None):
-    """Build mimo command with optional session resumption."""
+    """Build mimo command with optional session resumption. (Legacy — kept for compatibility)"""
     cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
     if session_id:
         cmd.extend(['--session', session_id])
@@ -767,97 +754,55 @@ def _mimo_cmd(prompt, session_id=None):
 
 
 def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
-    """Run mimo with Popen and stream stdout line by line.
+    """Run mimo with streaming output via LLM Service.
 
-    Reads output incrementally while the process is still running.
-    Merges stderr into stdout (stderr=subprocess.STDOUT) to avoid the
-    classic deadlock where one pipe fills up while the other is starved.
-    Each JSON event is parsed and logged to the DB *immediately* —
-    before the child process exits — so the frontend can pick it up
-    via SSE polling or WebSocket with no additional delay.
+    Uses the AI agent layer's LLMService for provider abstraction.
+    Maintains the same return signature for backward compatibility:
+    (returncode, all_lines, session_id).
 
-    If resume_session_id is provided, adds --session to try continuing
-    the previous mimo session. If mimo can't resume, it starts a new
-    session automatically.
-
-    Returns (returncode, all_lines, session_id).
-    Raises RuntimeError on timeout.
+    Each JSON event is parsed and logged to the DB immediately —
+    before the process exits — so the frontend can pick it up.
     """
-    if resume_session_id:
-        cmd = list(cmd)  # copy to avoid mutating caller's list
-        cmd.extend(['--session', resume_session_id])
-    proc = subprocess.Popen(
-        cmd,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,   # merge — avoids deadlock entirely
-        text=True,
-        env=env,
-    )
+    # Extract prompt from cmd for LLMService (cmd[2] is the prompt in [MIMO_BIN, 'run', prompt, ...])
+    prompt = cmd[2] if len(cmd) > 2 else ""
 
-    all_lines = []
-    session_id = None
-    timed_out = threading.Event()
+    llm = get_llm_service()
 
-    def watchdog():
-        timed_out.wait(timeout)
-        if not timed_out.is_set():
-            try:
-                proc.kill()
-            except OSError:
-                pass
+    def on_event(evt):
+        """Forward events to the existing handler."""
+        _handle_mimo_event(pid, evt)
 
-    timer = threading.Thread(target=watchdog, daemon=True)
-    timer.start()
+    def on_session_id(sid):
+        """Save session ID when discovered."""
+        _save_session_id(pid, sid)
 
     try:
-        # Python's file iterator reads chunks from the OS pipe and
-        # yields complete lines.  Because we merged stderr, there is
-        # only one pipe to drain — no cross-thread coordination needed.
-        for raw_line in proc.stdout:
-            line = raw_line.rstrip('\n')
-            if not line:
-                continue
-            all_lines.append(line)
+        resp = llm.generate_streaming(
+            prompt,
+            context={
+                "session_id": resume_session_id,
+                "pid": pid,
+                "cwd": cwd,
+            },
+            timeout=timeout,
+            on_event=on_event,
+            on_session_id=on_session_id,
+        )
 
-            # ── Process each event IMMEDIATELY ──
-            try:
-                evt = json.loads(line)
-                # Extract session_id from mimo output — broadcast immediately
-                if not session_id:
-                    sid = (evt.get('sessionID') or evt.get('session_id')
-                           or evt.get('sessionId'))
-                    if not sid and 'session' in evt and isinstance(evt['session'], dict):
-                        sid = evt['session'].get('id') or evt['session'].get('ID')
-                    if sid:
-                        session_id = sid
-                        _save_session_id(pid, sid)
-                    elif not session_id and evt.get('type') in (None, 'session'):
-                        log.info(f"[worker] pid={pid} evt keys={list(evt.keys())}")
-                _handle_mimo_event(pid, evt)
-            except json.JSONDecodeError:
-                _log(pid, 'mimo', f'[raw] {line[:200]}')
-
-        timed_out.set()        # cancel watchdog
-        proc.wait()
+        all_lines = resp.metadata.get("lines", [])
+        session_id = resp.metadata.get("session_id")
+        returncode = resp.metadata.get("returncode", 0)
 
         # Generate fallback session_id if mimo didn't provide one
         if not session_id:
             session_id = f"mimo_{uuid.uuid4().hex[:12]}"
             _save_session_id(pid, session_id)
 
-        if proc.returncode == -9:   # SIGKILL from watchdog
-            raise RuntimeError(f"mimo timed out after {timeout}s")
+        return returncode, all_lines, session_id
 
-        return proc.returncode, all_lines, session_id
-
-    except:
-        timed_out.set()
-        try:
-            proc.kill()
-        except OSError:
-            pass
-        proc.wait()
+    except RuntimeError as e:
+        if "timed out" in str(e):
+            return -9, [], resume_session_id
         raise
 
 

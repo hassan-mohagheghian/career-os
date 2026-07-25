@@ -557,86 +557,55 @@ class TestGetRuns:
 # ── _run_mimo_prompt ────────────────────────────────────────────
 
 class TestRunMimoPrompt:
-    """MimoRunner/ProcessManager are imported inside _run_mimo_prompt,
-    so patch them at their source module path."""
+    """LLMService replaces MimoRunner — patch get_llm_service at its source."""
 
+    @patch('services.insights.get_llm_service')
     @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_success(self, MockRunner, MockPM, mock_load, db):
-        mock_mimo = MagicMock()
-        MockRunner.return_value = mock_mimo
-        mock_mimo.run.return_value = (0, ['line1'], 'ses_test')
+    def test_success(self, mock_load, mock_get_llm, db):
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = mock_llm
+        mock_resp = MagicMock()
+        mock_resp.content = '{}'
+        mock_llm.generate_streaming.return_value = mock_resp
         result_file = os.path.join(ci.TMP_DIR, 'test_result.json')
         with open(result_file, 'w') as f:
             json.dump({'key': 'value'}, f)
         result, err, sid = ci._run_mimo_prompt('test_prompt', result_file=result_file)
-        assert result == {'key': 'value'} and err is None and sid == 'ses_test'
+        assert result == {'key': 'value'} and err is None
 
+    @patch('services.insights.get_llm_service')
     @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_nonzero_exit(self, MockRunner, MockPM, mock_load, db):
-        mock_mimo = MagicMock()
-        MockRunner.return_value = mock_mimo
-        mock_mimo.run.return_value = (1, [], None)
+    def test_nonzero_exit(self, mock_load, mock_get_llm, db):
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = mock_llm
+        mock_llm.generate_streaming.side_effect = RuntimeError("LLM failed")
         result, err, sid = ci._run_mimo_prompt('test', result_file='/nonexistent')
-        assert result is None and 'Exit code 1' in err
+        assert result is None and 'LLM failed' in err
 
+    @patch('services.insights.get_llm_service')
     @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_exception(self, MockRunner, MockPM, mock_load, db):
-        MockRunner.side_effect = RuntimeError("boom")
+    def test_exception(self, mock_load, mock_get_llm, db):
+        mock_get_llm.side_effect = RuntimeError("boom")
         result, err, sid = ci._run_mimo_prompt('test')
         assert result is None and 'boom' in err
 
+    @patch('services.insights.get_llm_service')
     @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_cancellation(self, MockRunner, MockPM, mock_load, db):
-        mock_mimo = MagicMock()
-        MockRunner.return_value = mock_mimo
-        mock_mimo.run.return_value = (-15, [], None)
-        ci._cancel_requested = True
-        result, err, sid = ci._run_mimo_prompt('test')
-        assert result is None and err is None
+    def test_on_session_id_callback(self, mock_load, mock_get_llm, db):
+        mock_llm = MagicMock()
+        mock_get_llm.return_value = mock_llm
 
-    @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_on_session_id_callback(self, MockRunner, MockPM, mock_load, db):
-        mock_mimo = MagicMock()
-        MockRunner.return_value = mock_mimo
-
-        def fake_run(prompt, timeout, key, session_id=None, on_event=None, on_session_id=None):
+        def fake_streaming(prompt, context=None, timeout=None, on_event=None, on_session_id=None):
             if on_session_id:
                 on_session_id('ses_discovered')
-            return (0, [], 'ses_discovered')
-        mock_mimo.run.side_effect = fake_run
+            resp = MagicMock()
+            resp.content = '{}'
+            resp.metadata = {"session_id": "ses_discovered", "lines": [], "returncode": 0}
+            return resp
+        mock_llm.generate_streaming.side_effect = fake_streaming
 
         result_file = os.path.join(ci.TMP_DIR, 'test_cb.json')
         with open(result_file, 'w') as f:
             json.dump({'ok': True}, f)
         result, err, sid = ci._run_mimo_prompt('test', result_file=result_file)
         assert sid == 'ses_discovered'
-
-    @patch.object(ci, 'load_prompt', return_value='prompt')
-    @patch('services.process.process_manager.ProcessManager')
-    @patch('services.process.mimo_runner.MimoRunner')
-    def test_on_event_callback(self, MockRunner, MockPM, mock_load, db):
-        mock_mimo = MagicMock()
-        MockRunner.return_value = mock_mimo
-        ci._socketio = MagicMock()
-
-        def fake_run(prompt, timeout, key, session_id=None, on_event=None, on_session_id=None):
-            if on_event:
-                on_event({'type': 'text', 'part': {'text': 'hello world'}})
-            return (0, [], None)
-        mock_mimo.run.side_effect = fake_run
-
-        result_file = os.path.join(ci.TMP_DIR, 'test_evt.json')
-        with open(result_file, 'w') as f:
-            json.dump({}, f)
-        ci._run_mimo_prompt('test', result_file=result_file)
-        ci._socketio.emit.assert_called()

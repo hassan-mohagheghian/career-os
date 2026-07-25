@@ -244,6 +244,62 @@ DB_PATH=db/jobs.db        # Database path
 
 The provider is selected at startup based on `AI_PROVIDER`. Agents never call `MimoRunner` directly — they go through the provider abstraction.
 
+## LLM Service
+
+`LLMService` is the unified entry point for all AI calls. It replaces direct MimoRunner and subprocess calls throughout the codebase.
+
+### Usage
+
+```python
+from ai_compat import get_llm_service
+
+llm = get_llm_service()
+
+# Simple text generation
+resp = llm.generate("Analyze this job posting")
+
+# Structured output (reads result file)
+resp = llm.generate_structured(
+    prompt,
+    context={"result_file": "/tmp/result.json", "pid": "123"},
+    timeout=60,
+)
+
+# Streaming with callbacks (for real-time UI updates)
+resp = llm.generate_streaming(
+    prompt,
+    context={"session_id": "prev_session"},
+    timeout=300,
+    on_event=lambda evt: print(evt),
+    on_session_id=lambda sid: print(f"Session: {sid}"),
+)
+```
+
+### Migration Status
+
+All 15 direct mimo call sites have been migrated to LLMService:
+
+| File | Call Sites | Status |
+|------|-----------|--------|
+| `services/worker.py` | 6 | Migrated |
+| `services/company_worker.py` | 2 | Migrated |
+| `services/insights.py` | 1 | Migrated |
+| `blueprints/resumes.py` | 2 | Migrated |
+| `blueprints/skill_roadmaps.py` | 2 | Migrated |
+| `stream_server.py` | 1 | Migrated |
+| `scripts/backfill_structured.py` | 1 | Migrated |
+
+### Adding to Server Code
+
+Use `ai_compat` for imports from the server:
+
+```python
+from ai_compat import get_llm_service
+
+llm = get_llm_service()
+resp = llm.generate_structured(prompt, context={"result_file": path})
+```
+
 ## Logging
 
 Agent events use structured logging via `structlog`:

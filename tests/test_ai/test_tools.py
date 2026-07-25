@@ -109,7 +109,7 @@ class TestFetchJobTool:
         assert tool.name == "fetch_job_url"
         assert "fetch" in tool.description.lower()
 
-    @patch("services.worker._fetch_url")
+    @patch("app.ai.tools.job_tools._fetch_url_ref")
     def test_run_fetches_url(self, mock_fetch):
         mock_fetch.return_value = "Job description content here"
         tool = FetchJobTool()

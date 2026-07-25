@@ -12,11 +12,13 @@ from datetime import datetime
 import websockets
 from prompts import load_prompt
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 # Connected clients per job
 clients = {}  # pid -> set of websocket connections
 processes = {}  # pid -> Popen object
 
-MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
@@ -358,74 +360,57 @@ def fetch_url(url):
 # --- Stream mimo process ---
 
 async def stream_mimo(pid, prompt):
-    """Run mimo with Popen and stream output line by line via WebSocket."""
-    proc = await asyncio.create_subprocess_exec(
-        MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions',
-        cwd=PROJECT_ROOT,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, 'NO_COLOR': '1'},
-    )
-    processes[pid] = proc
+    """Run LLM with streaming output via WebSocket.
 
+    Uses the AI agent layer's LLMService for provider abstraction.
+    The async nature requires wrapping the synchronous provider.
+    """
     await broadcast(pid, {'type': 'process_start', 'pid': pid, 'ts': datetime.now().strftime('%H:%M:%S')})
 
-    # Read stdout line by line
-    async def read_stream(stream, stream_name):
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            text = line.decode('utf-8', errors='replace').strip()
-            if not text:
-                continue
-            # Parse JSON events
-            try:
-                evt = json.loads(text)
-                # Forward structured event
-                await broadcast(pid, {'type': 'mimo_event', 'event': evt, 'ts': datetime.now().strftime('%H:%M:%S')})
-                # Log and forward tool outputs
-                if evt.get('type') == 'text':
-                    txt = evt.get('part', {}).get('text', '')
-                    _log(pid, 'mimo', txt[:200])
-                    await broadcast(pid, {'type': 'tool_output', 'stream': 'text', 'data': txt, 'ts': datetime.now().strftime('%H:%M:%S')})
-                elif evt.get('type') == 'tool_use':
-                    tool = evt.get('part', {}).get('tool', 'unknown')
-                    state = evt.get('part', {}).get('state', {})
-                    status = state.get('status', '')
-                    inp = state.get('input', {})
-                    output = state.get('output', '') or state.get('metadata', {}).get('output', '')
-                    title = state.get('title', '')
-                    _log(pid, 'mimo', f"Tool: {tool} [{status}] {title}")
-                    # Forward tool input (command)
-                    if inp.get('command'):
-                        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': tool, 'data': f"$ {inp['command']}", 'ts': datetime.now().strftime('%H:%M:%S')})
-                    # Forward tool output (result)
-                    if output:
-                        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': tool, 'data': output.rstrip(), 'ts': datetime.now().strftime('%H:%M:%S')})
-                    # Forward tool error
-                    if status == 'error':
-                        err = state.get('error', '')
-                        if err:
-                            await broadcast(pid, {'type': 'tool_output', 'stream': 'error', 'tool': tool, 'data': err, 'ts': datetime.now().strftime('%H:%M:%S')})
-                elif evt.get('type') == 'step_finish':
-                    reason = evt.get('part', {}).get('reason', '')
-                    tokens = evt.get('part', {}).get('tokens', {})
-                    _log(pid, 'mimo', f"Step finished: {reason} ({tokens.get('total', 0)} tokens)")
-            except json.JSONDecodeError:
-                # Non-JSON output (mimo UI noise) — forward as-is
-                await broadcast(pid, {'type': 'mimo_raw', 'line': text, 'stream': stream_name, 'ts': datetime.now().strftime('%H:%M:%S')})
+    llm = get_llm_service()
 
-    # Run both streams concurrently
-    await asyncio.gather(
-        read_stream(proc.stdout, 'stdout'),
-        read_stream(proc.stderr, 'stderr'),
+    def on_event(evt):
+        """Forward events to WebSocket broadcast."""
+        etype = evt.get('type', '')
+        if etype == 'text':
+            txt = evt.get('part', {}).get('text', '')
+            if txt:
+                _log(pid, 'mimo', txt[:200])
+                asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'text', 'data': txt, 'ts': datetime.now().strftime('%H:%M:%S')}))
+        elif etype == 'tool_use':
+            part = evt.get('part', {})
+            tool = part.get('tool', 'unknown')
+            state = part.get('state', {})
+            status = state.get('status', '')
+            inp = state.get('input', {})
+            output = state.get('output', '') or state.get('metadata', {}).get('output', '')
+            title = state.get('title', '')
+            _log(pid, 'mimo', f"Tool: {tool} [{status}] {title}")
+            asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': tool, 'data': f"$ {inp.get('command', '')}", 'ts': datetime.now().strftime('%H:%M:%S')}))
+            if output:
+                asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': tool, 'data': output.rstrip(), 'ts': datetime.now().strftime('%H:%M:%S')}))
+        elif etype == 'step_finish':
+            reason = evt.get('part', {}).get('reason', '')
+            tokens = evt.get('part', {}).get('tokens', {})
+            _log(pid, 'mimo', f"Step finished: {reason} ({tokens.get('total', 0)} tokens)")
+
+    def on_session_id(sid):
+        asyncio.ensure_future(broadcast(pid, {'type': 'session_id', 'session_id': sid, 'ts': datetime.now().strftime('%H:%M:%S')}))
+
+    # Run synchronous LLM call in a thread to not block the event loop
+    loop = asyncio.get_event_loop()
+    resp = await loop.run_in_executor(
+        None,
+        lambda: llm.generate_streaming(
+            prompt,
+            context={"pid": pid},
+            timeout=300,
+            on_event=on_event,
+            on_session_id=on_session_id,
+        ),
     )
 
-    # Wait for process to finish
-    returncode = await proc.wait()
-    processes.pop(pid, None)
-
+    returncode = resp.metadata.get("returncode", 0)
     await broadcast(pid, {'type': 'process_end', 'pid': pid, 'returncode': returncode, 'ts': datetime.now().strftime('%H:%M:%S')})
     return returncode
 

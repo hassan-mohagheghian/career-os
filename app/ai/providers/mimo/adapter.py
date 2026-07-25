@@ -1,4 +1,9 @@
-"""Mimo CLI provider — wraps the existing MimoRunner subprocess integration."""
+"""Mimo CLI provider — wraps the existing MimoRunner subprocess integration.
+
+SRP: Only handles mimo CLI communication.
+OCP: Extends LLMProvider without modifying it.
+DIP: Depends on LLMProvider abstraction.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +14,6 @@ from typing import Any, Callable, Optional
 
 from ..base import LLMProvider, ProviderConfig, ProviderResponse
 
-# Reuse existing paths from the process module
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.abspath(os.path.join(_file_dir, '..', '..', '..', '..'))
 MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
@@ -41,15 +45,11 @@ class MimoProvider(LLMProvider):
         timeout = timeout or self._config.timeout
         session_id = context.get("session_id")
 
-        cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
-        if session_id:
-            cmd.extend(['--session', session_id])
-
+        cmd = self._build_cmd(prompt, session_id)
         returncode, output_lines, discovered_session_id = self._run_subprocess(
             cmd, timeout=timeout
         )
 
-        # Extract text content from JSON events
         text_parts = []
         for line in output_lines:
             try:
@@ -80,11 +80,7 @@ class MimoProvider(LLMProvider):
         context: Optional[dict] = None,
         timeout: Optional[int] = None,
     ) -> ProviderResponse:
-        """Run mimo CLI expecting a JSON result file as output.
-
-        The prompt should instruct mimo to write results to a specific
-        output file. This method runs mimo, then reads that file.
-        """
+        """Run mimo CLI expecting a JSON result file as output."""
         context = context or {}
         timeout = timeout or self._config.timeout
         session_id = context.get("session_id")
@@ -94,10 +90,7 @@ class MimoProvider(LLMProvider):
             pid = context.get("pid", uuid.uuid4().hex[:12])
             result_file = os.path.join(self._tmp_dir, f'ai_result_{pid}.json')
 
-        cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
-        if session_id:
-            cmd.extend(['--session', session_id])
-
+        cmd = self._build_cmd(prompt, session_id)
         returncode, output_lines, discovered_session_id = self._run_subprocess(
             cmd, timeout=timeout
         )
@@ -113,7 +106,6 @@ class MimoProvider(LLMProvider):
                     continue
             raise RuntimeError(f"mimo failed: {error_msg}")
 
-        # Read the result file
         if os.path.exists(result_file):
             try:
                 with open(result_file) as f:
@@ -133,12 +125,85 @@ class MimoProvider(LLMProvider):
 
         raise RuntimeError(f"mimo returned no result file: {result_file}")
 
+    def generate_streaming(
+        self,
+        prompt: str,
+        context: Optional[dict] = None,
+        timeout: Optional[int] = None,
+        on_event: Optional[Callable] = None,
+        on_session_id: Optional[Callable] = None,
+    ) -> ProviderResponse:
+        """Run mimo with streaming event callbacks.
+
+        Supports real-time event forwarding and session ID discovery.
+        Used by workers that need live progress updates.
+
+        Args:
+            prompt: The prompt to send.
+            context: Optional context (session_id, pid, key, cwd).
+            timeout: Timeout in seconds.
+            on_event: Called for each JSON event from mimo.
+            on_session_id: Called when session_id is discovered.
+
+        Returns:
+            ProviderResponse with raw output lines in metadata.
+        """
+        context = context or {}
+        timeout = timeout or self._config.timeout
+        session_id = context.get("session_id")
+        key = context.get("key")
+
+        cmd = self._build_cmd(prompt, session_id)
+        cwd = context.get("cwd", _project_root)
+
+        returncode, output_lines, discovered_session_id = self._run_subprocess(
+            cmd, timeout=timeout, cwd=cwd,
+            on_event=on_event, on_session_id=on_session_id,
+        )
+
+        if returncode == -9:
+            raise RuntimeError(f"mimo timed out after {timeout}s")
+
+        # Build content from text events
+        text_parts = []
+        for line in output_lines:
+            try:
+                evt = json.loads(line)
+                if evt.get('type') == 'text':
+                    text = evt.get('part', {}).get('text', '')
+                    if text:
+                        text_parts.append(text)
+            except json.JSONDecodeError:
+                pass
+
+        return ProviderResponse(
+            content='\n'.join(text_parts),
+            metadata={
+                "returncode": returncode,
+                "lines": output_lines,
+                "session_id": discovered_session_id,
+                "line_count": len(output_lines),
+            },
+            provider="mimo",
+            model="mimo-cli",
+        )
+
+    def _build_cmd(self, prompt: str, session_id: Optional[str] = None) -> list:
+        """Build mimo CLI command."""
+        cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
+        if session_id:
+            cmd.extend(['--session', session_id])
+        return cmd
+
     def _run_subprocess(
         self,
         cmd: list,
         timeout: int = 300,
+        cwd: Optional[str] = None,
+        on_event: Optional[Callable] = None,
+        on_session_id: Optional[Callable] = None,
     ) -> tuple[int, list[str], Optional[str]]:
-        """Run mimo subprocess with streaming output.
+        """Run mimo subprocess with streaming output and event callbacks.
 
         Returns (returncode, output_lines, session_id).
         """
@@ -148,7 +213,7 @@ class MimoProvider(LLMProvider):
         env = {**os.environ, 'NO_COLOR': '1'}
         proc = subprocess.Popen(
             cmd,
-            cwd=_project_root,
+            cwd=cwd or _project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -178,6 +243,8 @@ class MimoProvider(LLMProvider):
                 all_lines.append(line)
                 try:
                     evt = json.loads(line)
+
+                    # Extract session_id
                     if not session_id:
                         sid = (evt.get('sessionID') or evt.get('session_id')
                                or evt.get('sessionId'))
@@ -185,6 +252,19 @@ class MimoProvider(LLMProvider):
                             sid = evt['session'].get('id') or evt['session'].get('ID')
                         if sid:
                             session_id = sid
+                            if on_session_id:
+                                try:
+                                    on_session_id(sid)
+                                except Exception:
+                                    pass
+
+                    # Forward event to callback
+                    if on_event:
+                        try:
+                            on_event(evt)
+                        except Exception:
+                            pass
+
                 except json.JSONDecodeError:
                     pass
 

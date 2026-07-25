@@ -18,6 +18,9 @@ from services.process.logging_config import get_logger
 from services.process_utils import broadcaster
 from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 log = get_logger('company_worker')
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +28,6 @@ _server_dir = os.path.join(_file_dir, '..')
 _db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
 DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..', '..'))
-MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
 os.makedirs(TMP_DIR, exist_ok=True)
@@ -238,7 +240,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
 
 
 def _extract_company_info(input_text, input_type, pid):
-    """Step 1: Extract structured company data using mimo."""
+    """Step 1: Extract structured company data using LLM service."""
     output_file = os.path.join(TMP_DIR, f'company_extract_{pid}.json')
     if input_type == 'multi_note':
         content = input_text[:8000]
@@ -249,22 +251,16 @@ def _extract_company_info(input_text, input_type, pid):
     prompt = load_prompt('company/company_extract',
         content=content, input_type=input_type, output_file=output_file)
 
-    returncode, _, sid = _stream_mimo_output(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, env={**os.environ, 'NO_COLOR': '1'},
-        timeout=180, pid=pid,
-    )
-
-    if returncode == 0 and os.path.exists(output_file):
-        try:
-            with open(output_file) as f:
-                data = json.load(f)
-            os.remove(output_file)
-            return data
-        except Exception as e:
-            _log(pid, 'extract', f'Warning: Failed to parse extraction output: {e}')
-    else:
-        _log(pid, 'extract', f'Warning: mimo returned code {returncode}')
+    try:
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": output_file, "pid": str(pid)},
+            timeout=180,
+        )
+        return json.loads(resp.content)
+    except Exception as e:
+        _log(pid, 'extract', f'Warning: LLM extraction failed: {e}')
     return None
 
 
@@ -322,7 +318,7 @@ def _load_rules(context='company', company_type='UNKNOWN'):
 
 
 def _analyze_company(company_data, pid, company_type='UNKNOWN'):
-    """Step 2: Generate full intelligence analysis using mimo."""
+    """Step 2: Generate full intelligence analysis using LLM service."""
     output_file = os.path.join(TMP_DIR, f'company_analyze_{pid}.json')
     rules = _load_rules(context='company', company_type=company_type)
     prompt = load_prompt('company/company_analyze',
@@ -331,20 +327,16 @@ def _analyze_company(company_data, pid, company_type='UNKNOWN'):
         rules=rules,
         output_file=output_file)
 
-    returncode, _, sid = _stream_mimo_output(
-        [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-        cwd=PROJECT_ROOT, env={**os.environ, 'NO_COLOR': '1'},
-        timeout=300, pid=pid,
-    )
-
-    if returncode == 0 and os.path.exists(output_file):
-        try:
-            with open(output_file) as f:
-                data = json.load(f)
-            os.remove(output_file)
-            return data
-        except Exception:
-            pass
+    try:
+        llm = get_llm_service()
+        resp = llm.generate_structured(
+            prompt,
+            context={"result_file": output_file, "pid": str(pid)},
+            timeout=300,
+        )
+        return json.loads(resp.content)
+    except Exception:
+        pass
     return None
 
 

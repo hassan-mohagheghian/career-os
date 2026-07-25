@@ -15,6 +15,9 @@ from datetime import datetime
 from core.db import get_db
 from prompts import load_prompt
 
+# AI Agent Layer — unified LLM service
+from ai_compat import get_llm_service
+
 _socketio = None  # set by app.py after SocketIO init
 
 
@@ -25,7 +28,6 @@ def set_socketio(sio):
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..'))
-MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
 os.makedirs(TMP_DIR, exist_ok=True)
@@ -272,7 +274,7 @@ def _parse_session_id(stdout):
 
 
 def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous_session_id=None, **kwargs):
-    """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
+    """Run an LLM analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
     prompt = load_prompt(f'insights/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
     if result_file is None:
@@ -281,15 +283,12 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
     job_key = f'insights_{prompt_name}_{pid}'
     _current_run['process_key'] = job_key
     try:
-        from services.process.mimo_runner import MimoRunner
-        from services.process.process_manager import ProcessManager
-        mimo = MimoRunner(ProcessManager())
+        llm = get_llm_service()
 
         def _on_session_id(sid):
             nonlocal session_id
             session_id = sid
             _current_run['session_id'] = sid
-            # Save to DB immediately for crash recovery
             _save_session_id(_current_run.get('run_id'), sid)
             _emit_progress({'running': True, 'status': 'processing', 'session_id': sid})
 
@@ -300,16 +299,23 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
                 if text:
                     _emit_progress({'running': True, 'status': 'processing', 'message': f"AI: {text[:120]}"})
 
-        returncode, output_lines, session_id = mimo.run(
-            prompt, timeout=timeout, key=f'insights_{prompt_name}_{pid}',
-            session_id=previous_session_id,
-            on_event=_on_event, on_session_id=_on_session_id,
+        resp = llm.generate_streaming(
+            prompt,
+            context={
+                "session_id": previous_session_id,
+                "pid": pid,
+                "key": job_key,
+            },
+            timeout=timeout,
+            on_event=_on_event,
+            on_session_id=_on_session_id,
         )
 
         if _cancel_requested:
             return None, None, session_id
 
-        if returncode == 0 and os.path.exists(result_file):
+        # Read the result file
+        if os.path.exists(result_file):
             with open(result_file) as f:
                 result = json.load(f)
             try:
@@ -318,8 +324,7 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
                 pass
             return result, None, session_id
         else:
-            err = f'Exit code {returncode}' if returncode != 0 else 'Mimo returned no result file'
-            return None, err, session_id
+            return None, 'LLM returned no result file', session_id
     except Exception as e:
         return None, str(e), session_id
     finally:
