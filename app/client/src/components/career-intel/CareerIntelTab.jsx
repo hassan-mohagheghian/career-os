@@ -240,7 +240,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
           <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 h-8">
             <List className="w-3.5 h-3.5" />
             History
-            {runs.length > 0 && <Badge variant="secondary" className="text-[0.5rem] h-4 ml-0.5">{runs.length}</Badge>}
+            {runs.length + roadmapJobs.length > 0 && <Badge variant="secondary" className="text-[0.5rem] h-4 ml-0.5">{runs.length + roadmapJobs.length}</Badge>}
           </Button>
           <Button onClick={onRefreshAll} disabled={isRunning} variant={isRunning ? "secondary" : "outline"} size="sm" className="gap-1.5">
             <ArrowsClockwise className={cn("w-3.5 h-3.5", isRunning && "animate-spin")} />
