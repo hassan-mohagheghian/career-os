@@ -1,21 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { List, Clock, Warning, CheckCircle, Spinner, X, Briefcase, Buildings, Brain, TreeStructure, Lightbulb } from '@phosphor-icons/react'
+import { List, Clock, Warning, Spinner, Briefcase, Buildings, TreeStructure, Lightbulb } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 
 const API = '/api'
 const PAGE_SIZE = 30
 
-const SOURCE_CONFIG = {
+interface HistoryItemData {
+  source: 'career-intel' | 'roadmap' | 'job-processing' | 'company-processing'
+  title: string
+  status: string
+  started_at: string | null
+  completed_at: string | null
+  error: string | null
+  session_id: string | null
+  id: number
+}
+
+const SOURCE_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
   'career-intel': { icon: Lightbulb, color: 'bg-amber-500/15 text-amber-500', label: 'Intel' },
   'roadmap': { icon: TreeStructure, color: 'bg-emerald-500/15 text-emerald-500', label: 'Roadmap' },
   'job-processing': { icon: Briefcase, color: 'bg-blue-500/15 text-blue-500', label: 'Job' },
   'company-processing': { icon: Buildings, color: 'bg-purple-500/15 text-purple-500', label: 'Company' },
 }
 
-function formatTimeAgo(ts) {
+function formatTimeAgo(ts: string | null): string {
   if (!ts) return ''
   const diffMs = Date.now() - new Date(ts).getTime()
   const mins = Math.floor(diffMs / 60000)
@@ -28,9 +38,8 @@ function formatTimeAgo(ts) {
   return new Date(ts).toLocaleDateString()
 }
 
-function HistoryItem({ item }) {
+function HistoryItem({ item }: { item: HistoryItemData }) {
   const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['career-intel']
-  const Icon = cfg.icon
   const statusColor = item.status === 'completed' ? 'bg-green-500' :
     item.status === 'failed' ? 'bg-red-500' :
     item.status === 'cancelled' ? 'bg-yellow-500' :
@@ -73,44 +82,54 @@ function HistoryItem({ item }) {
   )
 }
 
-export default function GenerationHistoryDrawer({ open, onOpenChange }) {
-  const [items, setItems] = useState([])
+interface GenerationHistoryDrawerProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export default function GenerationHistoryDrawer({ open, onOpenChange }: GenerationHistoryDrawerProps) {
+  const [items, setItems] = useState<HistoryItemData[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadedCount, setLoadedCount] = useState(0)
-  const scrollRef = useRef(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef(false)
+  const loadedCountRef = useRef(0)
 
-  const fetchHistory = useCallback((offset = 0, append = false) => {
+  const fetchHistory = useCallback((offset: number = 0, append: boolean = false) => {
     if (loadingRef.current) return
     loadingRef.current = true
     setLoading(true)
-    fetch(`${API}/gallery/generation-history?limit=${PAGE_SIZE}&offset=${offset}`)
+    fetch(`${API}/generation-history?limit=${PAGE_SIZE}&offset=${offset}`)
       .then(r => r.ok ? r.json() : { items: [], total: 0 })
       .then(d => {
-        const newItems = d.items || []
-        const newTotal = d.total || 0
+        const newItems: HistoryItemData[] = d.items || []
+        const newTotal: number = d.total || 0
         setTotal(newTotal)
         setItems(prev => append ? [...prev, ...newItems] : newItems)
-        setLoadedCount(append ? loadedCount + newItems.length : newItems.length)
+        const newCount = append ? loadedCountRef.current + newItems.length : newItems.length
+        loadedCountRef.current = newCount
+        setLoadedCount(newCount)
       })
       .catch(() => { if (!append) setItems([]) })
       .finally(() => { setLoading(false); loadingRef.current = false })
-  }, [loadedCount])
+  }, [])
 
   useEffect(() => {
     if (open) {
+      loadedCountRef.current = 0
+      setLoadedCount(0)
       fetchHistory()
     }
-  }, [open, fetchHistory])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScroll = useCallback(() => {
     const node = scrollRef.current
-    if (!node || loadingRef.current || loadedCount >= total) return
+    if (!node || loadingRef.current || loadedCountRef.current >= total) return
     if (node.scrollTop + node.clientHeight >= node.scrollHeight - 100) {
-      fetchHistory(loadedCount, true)
+      fetchHistory(loadedCountRef.current, true)
     }
-  }, [loadedCount, total, fetchHistory])
+  }, [total, fetchHistory])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
