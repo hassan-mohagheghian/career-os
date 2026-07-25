@@ -35,6 +35,8 @@ export default function JobsPage({
 
   const [dragId, setDragId] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
+  const [jobNotes, setJobNotes] = useState<Array<{ type: string; content: string }>>([])
+  const [jobLinks, setJobLinks] = useState<Array<{ url: string; title: string }>>([])
 
   const handleDragStart = (e, id) => { setDragId(id); e.dataTransfer.effectAllowed = 'move' }
   const handleDragOver = (e, colId) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(colId) }
@@ -58,30 +60,27 @@ export default function JobsPage({
           <Badge variant="default" className="ml-auto text-2xs h-4">{stackedTotal}</Badge>
         </div>
         <div className="flex flex-col flex-1 min-h-0 p-2">
-          {/* Add URL */}
-          <div className="rounded border p-1.5 shrink-0 mb-1 bg-muted min-w-0">
-            <Input type="url" value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError('') }}
-              onKeyDown={e => e.key === 'Enter' && submitUrl()}
-              placeholder="Paste LinkedIn URL..."
-              className={cn("w-full h-7 rounded border text-2xs min-w-0", urlError && "border-destructive")} />
-            {urlError && <div className="text-2xs mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {urlError}</div>}
-            <div className="flex items-center gap-1 mt-1">
-              <Button onClick={submitUrl} disabled={submitting || !urlInput.trim()} size="sm" className="flex-1 h-6 text-2xs">
-                {submitting ? '...' : processImmediately ? 'Add & Process' : 'Add'}
-              </Button>
-              <button
-                onClick={() => setProcessImmediately(v => !v)}
-                className={cn(
-                  "shrink-0 h-6 px-1.5 rounded text-2xs font-medium border transition-colors",
-                  processImmediately
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:bg-muted"
-                )}
-              >
-                {processImmediately ? 'Auto' : 'Queue'}
-              </button>
-            </div>
-          </div>
+          {/* Add Job — URL + Notes + Links */}
+          <NotesLinksInput
+            notes={jobNotes}
+            links={jobLinks}
+            onAddNote={(note) => setJobNotes(prev => [...prev, note])}
+            onRemoveNote={(i) => setJobNotes(prev => prev.filter((_, idx) => idx !== i))}
+            onAddLink={(link) => setJobLinks(prev => [...prev, link])}
+            onRemoveLink={(i) => setJobLinks(prev => prev.filter((_, idx) => idx !== i))}
+            onSubmit={() => {
+              // Build URL from first URL-type note, or use urlInput
+              const urlNote = jobNotes.find(n => n.type === 'url')
+              const url = urlNote?.content || urlInput
+              if (url) setUrlInput(url)
+              submitUrl(jobNotes, jobLinks)
+            }}
+            submitting={submitting}
+            processImmediately={processImmediately}
+            onToggleProcess={() => setProcessImmediately(v => !v)}
+            error={urlError}
+            placeholder="Paste LinkedIn URL or add a note..."
+          />
           {/* Stacked sections */}
           <div className="flex flex-col flex-1 min-h-0 gap-1">
             {[

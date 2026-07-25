@@ -64,15 +64,18 @@ export function usePending(onJobDone?: () => void) {
     fetchPending()
   }, [fetchPending])
 
-  const submitUrl = useCallback(async () => {
-    if (!urlInput.trim()) return
+  const submitUrl = useCallback(async (extraNotes?: Array<{ type: string; content: string }>, extraLinks?: Array<{ url: string; title: string }>) => {
+    if (!urlInput.trim() && (!extraNotes || extraNotes.length === 0)) return
     setUrlError('')
     setSubmitting(true)
     try {
+      const payload: Record<string, any> = { url: urlInput.trim(), source: 'web' }
+      if (extraNotes && extraNotes.length > 0) payload.notes = extraNotes
+      if (extraLinks && extraLinks.length > 0) payload.links = extraLinks
       const res = await fetch(`${API}/pending`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlInput.trim(), source: 'web' })
+        body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (res.ok && data.status === 'exists') {
