@@ -11,6 +11,18 @@ from utils import stream_json
 bp = Blueprint("dashboard", __name__)
 
 
+INSIGHT_TYPE_LABELS = {
+    'overview': 'Overview Intelligence',
+    'opportunities': 'Opportunities Intelligence',
+    'companies': 'Companies Intelligence',
+    'skills': 'Skills Intelligence',
+    'skills_intel': 'Skills Intelligence',
+    'market': 'Market Intelligence',
+    'networking': 'Networking Intelligence',
+    'all': 'All Sections',
+}
+
+
 @bp.route("/api/generation-history")
 def get_generation_history():
     """Unified generation history across all subsystems."""
@@ -28,7 +40,7 @@ def get_generation_history():
             rd = dict(r)
             items.append({
                 "source": "career-intel",
-                "title": rd["insight_type"],
+                "title": INSIGHT_TYPE_LABELS.get(rd["insight_type"], rd["insight_type"]),
                 "status": rd["status"],
                 "started_at": rd["started_at"],
                 "completed_at": rd["completed_at"],
@@ -47,9 +59,10 @@ def get_generation_history():
         ).fetchall()
         for r in rows:
             rd = dict(r)
+            job_type_label = rd['job_type'].capitalize() if rd['job_type'] else 'Generate'
             items.append({
                 "source": "roadmap",
-                "title": f"{rd['job_type']}: {rd['skill_name']}",
+                "title": f"{job_type_label}: {rd['skill_name']}",
                 "status": rd["status"],
                 "started_at": rd["started_at"] or rd["created_at"],
                 "completed_at": rd["completed_at"],

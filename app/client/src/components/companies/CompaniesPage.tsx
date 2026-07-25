@@ -84,7 +84,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
 
   const pendingCount = pendingCompanies.filter(p => p.status === 'pending').length
   const queuedCount = pendingCompanies.filter(p => p.status === 'queued').length
-  const processingCount = pendingCompanies.filter(p => p.status === 'processing').length
+  const processingCount = pendingCompanies.filter(p => p.status === 'processing' || p.status === 'done').length
   const failedCount = pendingCompanies.filter(p => p.status === 'failed').length
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
@@ -422,7 +422,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   {isOpen && (
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pendingCompanies.filter(p => p.status === s.id).map(p => (
+                        {pendingCompanies.filter(p => p.status === s.id || (s.id === 'processing' && p.status === 'done')).map(p => (
                           <div key={p.id}>
                             <CompanyProcessingItem item={p}
                               onProcess={() => processCompany(p.id)}
