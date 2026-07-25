@@ -158,6 +158,8 @@ def init_db():
         source TEXT DEFAULT 'cli',
         status TEXT DEFAULT 'queued',
         version INTEGER DEFAULT 1,
+        notes TEXT DEFAULT '[]',
+        links TEXT DEFAULT '[]',
         step_fetch INTEGER DEFAULT 0,
         step_analyze INTEGER DEFAULT 0,
         step_resume INTEGER DEFAULT 0,

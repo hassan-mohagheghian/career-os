@@ -13,7 +13,9 @@ ALL_TABLES = """
 CREATE TABLE IF NOT EXISTS pending_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT NOT NULL, title TEXT, company TEXT, source TEXT DEFAULT 'web',
-    status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1, job_num INTEGER,
+    status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1,
+    notes TEXT DEFAULT '[]', links TEXT DEFAULT '[]',
+    job_num INTEGER,
     step_fetch INTEGER DEFAULT 0, step_validate INTEGER DEFAULT 0,
     step_extract_raw INTEGER DEFAULT 0, step_extract_struct INTEGER DEFAULT 0,
     step_summary INTEGER DEFAULT 0, step_analyze INTEGER DEFAULT 0,

@@ -1,6 +1,7 @@
 """Pending job queue routes."""
 
 import json
+import sqlite3
 import time
 from datetime import datetime
 
@@ -26,42 +27,50 @@ def add_pending():
     data = request.get_json()
     url = data.get('url', '').strip()
     source = data.get('source', 'web')
-    if not url:
-        return jsonify({'error': 'URL required'}), 400
+    notes = data.get('notes', [])
+    links = data.get('links', [])
 
-    normalized = normalize_url(url)
+    # URL is required (for backward compat and duplicate detection)
+    if not url and not notes:
+        return jsonify({'error': 'URL or notes required'}), 400
+
+    normalized = normalize_url(url) if url else None
     conn = get_db()
 
-    pending = conn.execute('SELECT id, status, url FROM pending_jobs WHERE status NOT IN (?,?)', ('done', 'failed')).fetchall()
-    for row in pending:
-        r = dict(row)
-        if normalize_url(r['url']) == normalized:
-            conn.close()
-            return jsonify({'error': 'Already in queue', 'id': r['id'], 'status': r['status']}), 409
+    # Duplicate detection (URL-based)
+    if normalized:
+        pending = conn.execute('SELECT id, status, url FROM pending_jobs WHERE status NOT IN (?,?)', ('done', 'failed')).fetchall()
+        for row in pending:
+            r = dict(row)
+            if normalize_url(r['url']) == normalized:
+                conn.close()
+                return jsonify({'error': 'Already in queue', 'id': r['id'], 'status': r['status']}), 409
 
-    jobs = conn.execute('SELECT num, company, url, score, match FROM jobs WHERE deleted=0').fetchall()
-    for row in jobs:
-        j = dict(row)
-        if normalize_url(j['url']) == normalized:
-            conn.close()
-            return jsonify({
-                'status': 'exists',
-                'num': j['num'],
-                'company': j['company'],
-                'score': j['score'],
-                'match': j['match'],
-                'url': url
-            })
+        jobs = conn.execute('SELECT num, company, url, score, match FROM jobs WHERE deleted=0').fetchall()
+        for row in jobs:
+            j = dict(row)
+            if normalize_url(j['url']) == normalized:
+                conn.close()
+                return jsonify({
+                    'status': 'exists',
+                    'num': j['num'],
+                    'company': j['company'],
+                    'score': j['score'],
+                    'match': j['match'],
+                    'url': url
+                })
 
-    old_pending = conn.execute('SELECT id FROM pending_jobs WHERE url=? AND status IN (?,?)', (url, 'done', 'failed')).fetchall()
-    for row in old_pending:
-        conn.execute('DELETE FROM pending_jobs WHERE id=?', (dict(row)['id'],))
-    if old_pending:
-        conn.commit()
+        old_pending = conn.execute('SELECT id FROM pending_jobs WHERE url=? AND status IN (?,?)', (url, 'done', 'failed')).fetchall()
+        for row in old_pending:
+            conn.execute('DELETE FROM pending_jobs WHERE id=?', (dict(row)['id'],))
+        if old_pending:
+            conn.commit()
 
     try:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, status) VALUES (?, ?, ?)',
-                           (url, source, 'pending'))
+        cur = conn.execute(
+            'INSERT INTO pending_jobs (url, source, status, notes, links) VALUES (?, ?, ?, ?, ?)',
+            (url or '', source, 'pending', json.dumps(notes), json.dumps(links))
+        )
         conn.commit()
         new_id = cur.lastrowid
         conn.close()

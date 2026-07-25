@@ -19,6 +19,7 @@ def db_path():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT UNIQUE, source TEXT DEFAULT 'cli',
         status TEXT DEFAULT 'queued', version INTEGER DEFAULT 1,
+        notes TEXT DEFAULT '[]', links TEXT DEFAULT '[]',
         queue_order INTEGER DEFAULT 0,
         step_fetch INTEGER DEFAULT 0, step_validate INTEGER DEFAULT 0,
         step_extract_raw INTEGER DEFAULT 0, step_extract_struct INTEGER DEFAULT 0,

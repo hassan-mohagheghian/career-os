@@ -665,6 +665,36 @@ def _normalize_job_data(d):
 
 # --- URL fetcher ---
 
+def _fetch_multi_source(url, notes, links, pid):
+    """Fetch content from multiple sources (notes + links), similar to company_worker."""
+    parts = []
+
+    # Add text notes
+    for note in notes:
+        if note.get('type') == 'text' and note.get('content'):
+            parts.append(f"[NOTE] {note['content']}")
+
+    # Fetch URL from the main job URL
+    if url:
+        try:
+            fetched = _fetch_url(url)
+            parts.append(fetched)
+        except Exception as e:
+            _log(pid, 'fetch', f'URL fetch failed: {e}')
+
+    # Fetch each link URL
+    for link in links:
+        link_url = link.get('url', '')
+        if link_url and link_url.startswith('http'):
+            try:
+                fetched = _fetch_url(link_url)
+                parts.append(f"[{link.get('title', 'Link')}] {fetched}")
+            except Exception as e:
+                _log(pid, 'fetch', f'Link fetch failed ({link_url}): {e}')
+
+    return '\n\n'.join(parts)[:8000] if parts else ''
+
+
 def _fetch_url(url):
     try:
         req = urllib.request.Request(url, headers={
@@ -1105,10 +1135,20 @@ def process_job(pid):
             _log(pid, 'pause', 'Job paused/stopped before fetch')
             return
 
-        # ── Step 1: Fetch ──
+        # ── Step 1: Fetch (supports URL-only or notes+links) ──
         _update_step(pid, 'step_fetch', 0, status='processing')
         _log(pid, 'fetch', 'Fetching page...')
-        raw_text = _fetch_url(url)
+
+        notes = json.loads(item.get('notes') or '[]')
+        links = json.loads(item.get('links') or '[]')
+
+        if notes or links:
+            # Multi-source: iterate over notes and links (like company_worker)
+            raw_text = _fetch_multi_source(url, notes, links, pid)
+        else:
+            # Legacy: URL-only fetch
+            raw_text = _fetch_url(url)
+
         with open(job_file, 'w') as f:
             f.write(raw_text)
         _log(pid, 'fetch', f'Fetched {len(raw_text)} chars')
