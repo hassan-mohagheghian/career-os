@@ -124,6 +124,33 @@ def _recover_generation_tasks():
                     from blueprints.dashboard import _run_grow_worker
                     threading.Thread(target=_run_grow_worker, args=(skill_name, job_type), daemon=True).start()
 
+        # Pending jobs: mark stuck 'processing' as 'failed' with version bump
+        stuck_jobs = conn.execute(
+            "SELECT id, version FROM pending_jobs WHERE status='processing'"
+        ).fetchall()
+        if stuck_jobs:
+            log.info("app.recovery_stuck_jobs", count=len(stuck_jobs))
+            for job_id, version in stuck_jobs:
+                new_version = (version or 1) + 1
+                conn.execute(
+                    "UPDATE pending_jobs SET status='failed', error='Interrupted by server restart', version=?, updated_at=? WHERE id=?",
+                    (new_version, datetime.now().isoformat(), job_id)
+                )
+
+        # Pending companies: mark stuck 'processing' as 'failed' with version bump
+        stuck_companies = conn.execute(
+            "SELECT id, version FROM pending_companies WHERE status='processing'"
+        ).fetchall()
+        if stuck_companies:
+            log.info("app.recovery_stuck_companies", count=len(stuck_companies))
+            for company_id, version in stuck_companies:
+                new_version = (version or 1) + 1
+                conn.execute(
+                    "UPDATE pending_companies SET status='failed', error='Interrupted by server restart', version=?, updated_at=? WHERE id=?",
+                    (new_version, datetime.now().isoformat(), company_id)
+                )
+
+        conn.commit()
         conn.close()
     except Exception as e:
         log.warning("app.recovery_failed", error=str(e))

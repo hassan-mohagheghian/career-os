@@ -198,15 +198,18 @@ class JobQueueManager:
             conn.close()
 
     def reset_job(self, pending_id: int, table: str = 'pending_jobs') -> bool:
-        """Reset a job: kill subprocess, clear steps, re-queue."""
+        """Reset a job: kill subprocess, clear steps, increment version, re-queue."""
         conn = _db()
         try:
-            row = conn.execute(f"SELECT status FROM {table} WHERE id=?", (pending_id,)).fetchone()
+            row = conn.execute(f"SELECT status, version FROM {table} WHERE id=?", (pending_id,)).fetchone()
             if not row:
                 return False
 
+            row_dict = dict(row)
+            current_version = row_dict.get('version') or 1
+
             # Kill subprocess if processing
-            status = dict(row)['status']
+            status = row_dict['status']
             if status == 'processing':
                 try:
                     from services.process.process_manager import ProcessManager
@@ -216,28 +219,32 @@ class JobQueueManager:
                 except Exception:
                     pass
 
-            # Reset all steps
+            new_version = current_version + 1
+
+            # Reset all steps and increment version
             if table == 'pending_jobs':
                 conn.execute(
                     """UPDATE pending_jobs SET
                        status='pending', error=NULL, queue_order=0,
+                       version=?,
                        step_fetch=0, step_validate=0, step_extract_raw=0,
                        step_extract_struct=0, step_analyze=0, step_summary=0,
                        step_db=0, step_done=0, workflow_log='[]',
                        updated_at=? WHERE id=?""",
-                    (datetime.now().isoformat(), pending_id),
+                    (new_version, datetime.now().isoformat(), pending_id),
                 )
             else:
                 conn.execute(
                     """UPDATE pending_companies SET
                        status='pending', error=NULL,
+                       version=?,
                        step_fetch=0, step_extract=0, step_analyze=0,
                        step_save=0, step_done=0, workflow_log='[]',
                        updated_at=? WHERE id=?""",
-                    (datetime.now().isoformat(), pending_id),
+                    (new_version, datetime.now().isoformat(), pending_id),
                 )
             conn.commit()
-            logger.info(f"[queue] Reset {table}:{pending_id}")
+            logger.info(f"[queue] Reset {table}:{pending_id} → version {new_version}")
             return True
         finally:
             conn.close()

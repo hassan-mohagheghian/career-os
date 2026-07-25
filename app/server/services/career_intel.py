@@ -271,7 +271,7 @@ def _parse_session_id(stdout):
     return None
 
 
-def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs):
+def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous_session_id=None, **kwargs):
     """Run a mimo analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
     prompt = load_prompt(f'career_intel/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
@@ -302,6 +302,7 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs
 
         returncode, output_lines, session_id = mimo.run(
             prompt, timeout=timeout, key=f'career_intel_{prompt_name}_{pid}',
+            session_id=previous_session_id,
             on_event=_on_event, on_session_id=_on_session_id,
         )
 
@@ -380,8 +381,21 @@ def generate_skills_intel(pid=0):
             'started_at': _current_run['started_at'], 'run_id': run_id,
         })
 
+        # Read previous session_id for retry resumption
+        prev_sid = None
+        try:
+            conn = _db()
+            row = conn.execute(
+                "SELECT session_id FROM career_insight_runs WHERE insight_type='skills_intel' AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+            if row and row[0]:
+                prev_sid = row[0]
+            conn.close()
+        except Exception:
+            pass
+
         section_data, error_msg, session_id = _generate_section_internal(
-            'skills_intel', pid=pid, timeout=900,
+            'skills_intel', pid=pid, timeout=900, previous_session_id=prev_sid,
         )
         if session_id:
             _current_run['session_id'] = session_id
@@ -411,7 +425,7 @@ def generate_skills_intel(pid=0):
         _analysis_lock.release()
 
 
-def _generate_section_internal(section, pid=0, timeout=600):
+def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=None):
     """Run a single section's dedicated prompt and save to DB. No lock management.
 
     Returns (section_data, error_msg, session_id) or (None, error_msg, session_id).
@@ -426,6 +440,7 @@ def _generate_section_internal(section, pid=0, timeout=600):
     result_file = os.path.join(TMP_DIR, f'{section}_intelligence_{pid}.json')
     result, error_msg, session_id = _run_mimo_prompt(
         prompt_name, pid=pid, result_file=result_file, timeout=timeout,
+        previous_session_id=previous_session_id,
     )
 
     if _cancel_requested:
@@ -483,6 +498,21 @@ def generate_all(pid=0):
         errors = []
         last_session_id = None
 
+        # Read previous session_ids for retry resumption
+        prev_sessions = {}
+        try:
+            conn = _db()
+            for section in sections:
+                row = conn.execute(
+                    "SELECT session_id FROM career_insight_runs WHERE insight_type=? AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1",
+                    (section,)
+                ).fetchone()
+                if row and row[0]:
+                    prev_sessions[section] = row[0]
+            conn.close()
+        except Exception:
+            pass
+
         for section in sections:
             if _cancel_requested:
                 print(f"[career_intel] All sections generation cancelled at {section}")
@@ -494,7 +524,8 @@ def generate_all(pid=0):
             })
 
             timeout = 900 if section == 'skills_intel' else 600
-            section_data, err, sid = _generate_section_internal(section, pid=pid, timeout=timeout)
+            prev_sid = prev_sessions.get(section)
+            section_data, err, sid = _generate_section_internal(section, pid=pid, timeout=timeout, previous_session_id=prev_sid)
             if sid:
                 last_session_id = sid
                 _current_run['session_id'] = sid
@@ -577,7 +608,21 @@ def generate_section(section, pid=0):
             'started_at': _current_run['started_at'], 'run_id': run_id,
         })
 
-        section_data, error_msg, session_id = _generate_section_internal(section, pid=pid)
+        # Read previous session_id for retry resumption
+        prev_sid = None
+        try:
+            conn = _db()
+            row = conn.execute(
+                "SELECT session_id FROM career_insight_runs WHERE insight_type=? AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1",
+                (section,)
+            ).fetchone()
+            if row and row[0]:
+                prev_sid = row[0]
+            conn.close()
+        except Exception:
+            pass
+
+        section_data, error_msg, session_id = _generate_section_internal(section, pid=pid, previous_session_id=prev_sid)
         if session_id:
             _current_run['session_id'] = session_id
 

@@ -17,7 +17,7 @@ def db_path():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         input_text TEXT NOT NULL, notes TEXT DEFAULT '[]',
         links TEXT DEFAULT '[]', input_type TEXT DEFAULT 'url',
-        source TEXT DEFAULT 'web', status TEXT DEFAULT 'pending',
+        source TEXT DEFAULT 'web', status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1,
         step_fetch INTEGER DEFAULT 0, step_extract INTEGER DEFAULT 0,
         step_analyze INTEGER DEFAULT 0, step_save INTEGER DEFAULT 0,
         step_done INTEGER DEFAULT 0, company_id INTEGER,

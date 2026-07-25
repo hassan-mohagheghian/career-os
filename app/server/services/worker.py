@@ -728,7 +728,15 @@ def _validate_job_content(raw_text, pid):
 
 # --- Streaming subprocess execution ---
 
-def _stream_mimo_output(cmd, cwd, env, timeout, pid):
+def _mimo_cmd(prompt, session_id=None):
+    """Build mimo command with optional session resumption."""
+    cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
+    if session_id:
+        cmd.extend(['--session', session_id])
+    return cmd
+
+
+def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
     """Run mimo with Popen and stream stdout line by line.
 
     Reads output incrementally while the process is still running.
@@ -738,9 +746,16 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
     before the child process exits — so the frontend can pick it up
     via SSE polling or WebSocket with no additional delay.
 
+    If resume_session_id is provided, adds --session to try continuing
+    the previous mimo session. If mimo can't resume, it starts a new
+    session automatically.
+
     Returns (returncode, all_lines, session_id).
     Raises RuntimeError on timeout.
     """
+    if resume_session_id:
+        cmd = list(cmd)  # copy to avoid mutating caller's list
+        cmd.extend(['--session', resume_session_id])
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
@@ -866,6 +881,8 @@ def process_job(pid):
     item = dict(row)
     url = item['url']
     source = item.get('source', 'cli')
+    version = item.get('version') or 1
+    previous_session_id = item.get('session_id')
 
     job_file = os.path.join(TMP_DIR, f'job_{pid}.txt')
 
@@ -977,6 +994,7 @@ def process_job(pid):
                 env={**os.environ, 'NO_COLOR': '1'},
                 timeout=300,
                 pid=pid,
+                resume_session_id=previous_session_id,
             )
 
             if returncode != 0:
@@ -1236,6 +1254,7 @@ def process_job(pid):
             env={**os.environ, 'NO_COLOR': '1'},
             timeout=300,
             pid=pid,
+            resume_session_id=previous_session_id,
         )
 
         if returncode != 0:

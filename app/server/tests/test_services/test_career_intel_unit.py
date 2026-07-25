@@ -602,7 +602,7 @@ class TestRunMimoPrompt:
         mock_mimo = MagicMock()
         MockRunner.return_value = mock_mimo
 
-        def fake_run(prompt, timeout, key, on_event=None, on_session_id=None):
+        def fake_run(prompt, timeout, key, session_id=None, on_event=None, on_session_id=None):
             if on_session_id:
                 on_session_id('ses_discovered')
             return (0, [], 'ses_discovered')
@@ -622,7 +622,7 @@ class TestRunMimoPrompt:
         MockRunner.return_value = mock_mimo
         ci._socketio = MagicMock()
 
-        def fake_run(prompt, timeout, key, on_event=None, on_session_id=None):
+        def fake_run(prompt, timeout, key, session_id=None, on_event=None, on_session_id=None):
             if on_event:
                 on_event({'type': 'text', 'part': {'text': 'hello world'}})
             return (0, [], None)

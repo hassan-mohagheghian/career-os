@@ -279,6 +279,7 @@ def run_migrations():
     _migrate_roadmap_progress_column()
     _migrate_roadmap_numbering_column()
     _migrate_pending_session_id()
+    _migrate_pending_version()
     _migrate_skill_management()
     _migrate_skill_taxonomy()
     _migrate_skill_aliases()
@@ -331,6 +332,24 @@ def _migrate_pending_session_id():
         if 'session_id' not in cols:
             log.info("migrate.adding_pending_companies_session_id")
             conn.execute("ALTER TABLE pending_companies ADD COLUMN session_id TEXT")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.warning("migrate.failed", error=str(e))
+
+
+def _migrate_pending_version():
+    """Add version column to pending_jobs and pending_companies for retry tracking."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(pending_jobs)").fetchall()}
+        if 'version' not in cols:
+            log.info("migrate.adding_pending_jobs_version")
+            conn.execute("ALTER TABLE pending_jobs ADD COLUMN version INTEGER DEFAULT 1")
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(pending_companies)").fetchall()}
+        if 'version' not in cols:
+            log.info("migrate.adding_pending_companies_version")
+            conn.execute("ALTER TABLE pending_companies ADD COLUMN version INTEGER DEFAULT 1")
         conn.commit()
         conn.close()
     except Exception as e:
