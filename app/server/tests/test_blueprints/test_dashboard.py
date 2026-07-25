@@ -51,8 +51,26 @@ def db_path():
     conn.execute("""CREATE TABLE IF NOT EXISTS tech_stack (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT, level INTEGER, ml TEXT, mc TEXT,
-        sc TEXT, dc TEXT, usage INTEGER, uc TEXT,
-        roles TEXT, path TEXT, source TEXT DEFAULT 'service'
+        roles TEXT, path TEXT, source TEXT DEFAULT 'service',
+        hidden INTEGER DEFAULT 0, merged_into TEXT DEFAULT '',
+        category TEXT DEFAULT '', confidence REAL DEFAULT 0,
+        market_relevance REAL DEFAULT 0, evidence TEXT DEFAULT '[]',
+        source_type TEXT DEFAULT 'service', tags TEXT DEFAULT '[]'
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS skill_aliases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_id INTEGER NOT NULL,
+        alias_name TEXT NOT NULL,
+        normalized_name TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS skill_relationships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        skill_name TEXT NOT NULL,
+        related_name TEXT NOT NULL,
+        relation_type TEXT NOT NULL,
+        confidence REAL DEFAULT 0,
+        UNIQUE(skill_name, related_name, relation_type)
     )""")
     conn.commit()
     conn.close()
@@ -65,6 +83,8 @@ def app(db_path):
     os.environ['DB_PATH'] = db_path
     import database as db_mod
     db_mod.DB_PATH = db_path
+    import config as config_mod
+    config_mod.DB_PATH = db_path
 
     from flask import Flask
     from flask_cors import CORS
