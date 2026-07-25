@@ -161,10 +161,13 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
 export default function SkillsIntelSection({
   data, refreshing, onRefresh, roadmapProgress, onRefreshProgress, genJobs = [],
 }) {
-  const skills = data?.skills || {};
-  const strengths = skills.strengths || [];
-  const gaps = skills.gaps || [];
-  const recommendations = skills.learningRecommendations || [];
+  // Prefer full skills_intel data (from dedicated prompt) over minimal skills data (from combined prompt)
+  const skillsIntel = data?.skills_intel || {};
+  const skillsMinimal = data?.skills || {};
+  const currentState = skillsIntel.current_state || {};
+  const strengths = currentState.strengths || skillsMinimal.strengths || [];
+  const gaps = currentState.gaps || skillsMinimal.gaps || [];
+  const recommendations = skillsIntel.recommendations || skillsMinimal.learningRecommendations || [];
 
   const [selectedSkill, setSelectedSkill] = useState(null);
   const [detailSkill, setDetailSkill] = useState(null);

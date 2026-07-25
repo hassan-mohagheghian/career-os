@@ -200,19 +200,19 @@ class TestSectionPromptRouting:
     """Domain: each section should route to its own prompt, not the full prompt."""
 
     def test_section_prompts_mapping_exists(self):
-        """SECTION_PROMPTS maps each section to its own prompt name."""
+        """SECTION_PROMPTS maps each tab to its own prompt name."""
         from services.career_intel import SECTION_PROMPTS
         assert 'overview' in SECTION_PROMPTS
         assert 'opportunities' in SECTION_PROMPTS
         assert 'companies' in SECTION_PROMPTS
-        assert 'skills' in SECTION_PROMPTS
+        assert 'skills_intel' in SECTION_PROMPTS
         assert 'market' in SECTION_PROMPTS
         assert 'networking' in SECTION_PROMPTS
 
     def test_skills_section_maps_to_skills_intelligence(self):
-        """'skills' section should map to skills_intelligence prompt (full report)."""
+        """'skills_intel' section should map to skills_intelligence prompt (full report)."""
         from services.career_intel import SECTION_PROMPTS
-        assert SECTION_PROMPTS['skills'] == 'skills_intelligence'
+        assert SECTION_PROMPTS['skills_intel'] == 'skills_intelligence'
 
     def test_section_prompts_values_are_prompt_names(self):
         """SECTION_PROMPTS values are prompt file names (no career_intel/ prefix)."""
@@ -232,27 +232,31 @@ class TestSectionPromptRouting:
             "generate_section should use SECTION_PROMPTS for per-section prompt routing"
         )
 
-    def test_generate_all_still_uses_combined_prompt(self):
-        """generate_all should still use the combined career_intelligence prompt."""
+    def test_generate_all_uses_per_section_prompts(self):
+        """generate_all should use each section's dedicated prompt via _generate_section_internal."""
         import inspect
         from services.career_intel import generate_all
         source = inspect.getsource(generate_all)
 
-        # Should still call _run_mimo_prompt with 'career_intelligence'
-        assert "'career_intelligence'" in source or '"career_intelligence"' in source, (
-            "generate_all should still use the combined 'career_intelligence' prompt"
+        # Should use _generate_section_internal for per-section prompt routing
+        assert '_generate_section_internal' in source, (
+            "generate_all should use _generate_section_internal for per-section prompt routing"
+        )
+        # Should iterate through sections
+        assert 'sections' in source or 'SECTION_PROMPTS' in source, (
+            "generate_all should iterate through sections"
         )
 
     def test_per_section_result_is_flat_json(self):
         """
         When using per-section prompts, the result is flat JSON (not wrapped in a section key).
-        generate_section should use result directly, not result[section].
+        _generate_section_internal saves result directly, not result[section].
         """
         import inspect
-        from services.career_intel import generate_section
-        source = inspect.getsource(generate_section)
+        from services.career_intel import _generate_section_internal
+        source = inspect.getsource(_generate_section_internal)
 
-        # Should have logic for flat vs wrapped results
-        assert 'SECTION_PROMPTS' in source
-        # The flat path should use result directly
-        assert 'section_data = result' in source or 'section_data =result' in source
+        # Per-section prompts output flat JSON — save directly
+        assert '_save_insight(section, result' in source, (
+            "_generate_section_internal should save flat JSON result directly"
+        )
