@@ -91,7 +91,7 @@ def update_tech_stack(id):
     conn = get_db()
     fields = []
     values = []
-    for field in ["name", "level", "roles", "path", "source"]:
+    for field in ["name", "level", "roles", "path", "source", "source_type", "category", "confidence", "market_relevance", "evidence"]:
         if field in data:
             fields.append(f"{field}=?")
             values.append(data[field])
