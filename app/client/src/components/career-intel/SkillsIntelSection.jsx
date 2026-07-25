@@ -238,6 +238,15 @@ export default function SkillsIntelSection({
       if (inRecs) tags.push({ label: "Rec", color: "bg-primary/15 text-primary" });
       // System tag: roadmap status
       if (prog?.total > 0) tags.push({ label: "Roadmapped", color: "bg-emerald-500/15 text-emerald-500" });
+      // System tag: proficiency level
+      const levelLabels = { 1: "Beginner", 2: "Beginner", 3: "Intermediate", 4: "Advanced", 5: "Expert" };
+      if (stack.level && levelLabels[stack.level]) {
+        tags.push({ label: levelLabels[stack.level], color: "bg-indigo-500/15 text-indigo-500" });
+      }
+      // System tag: progress percent
+      if (prog?.total > 0) {
+        tags.push({ label: `${prog.pct}%`, color: prog.pct === 100 ? "bg-green-500/15 text-green-500" : "bg-gray-500/15 text-gray-400" });
+      }
       // User-defined custom tags
       const userTags = Array.isArray(stack.tags) ? stack.tags : [];
       for (const t of userTags) {

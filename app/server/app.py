@@ -85,6 +85,49 @@ set_career_intel_socketio(socketio)
 
 init_static(app)
 
+# ── Recover interrupted generation tasks ──────────────────────────
+
+def _recover_generation_tasks():
+    """On startup, check for interrupted generation tasks and resume them."""
+    import threading
+    try:
+        from database import get_db
+        conn = get_db()
+
+        # Career intel: find interrupted runs
+        runs = conn.execute(
+            "SELECT id, insight_type, session_id FROM career_insight_runs WHERE status='processing'"
+        ).fetchall()
+        if runs:
+            log.info("app.recovery_career_intel", count=len(runs))
+            from services.career_intel import generate_section
+            for run_id, insight_type, session_id in runs:
+                log.info("app.resuming_career_intel", type=insight_type, run_id=run_id, has_session=bool(session_id))
+                threading.Thread(target=generate_section, args=(insight_type,), daemon=True).start()
+
+        # Skill roadmaps: find interrupted jobs
+        jobs = conn.execute(
+            "SELECT skill_name, job_type, session_id FROM skill_roadmap_jobs WHERE status IN ('running','queued')"
+        ).fetchall()
+        if jobs:
+            log.info("app.recovery_roadmaps", count=len(jobs))
+            for skill_name, job_type, session_id in jobs:
+                log.info("app.resuming_roadmap", skill=skill_name, type=job_type, has_session=bool(session_id))
+                if job_type == 'generate':
+                    from blueprints.dashboard import _run_generate_worker
+                    threading.Thread(target=_run_generate_worker, args=(skill_name,), daemon=True).start()
+                elif job_type in ('extend', 'finegrain'):
+                    from blueprints.dashboard import _run_grow_worker
+                    threading.Thread(target=_run_grow_worker, args=(skill_name, job_type), daemon=True).start()
+
+        conn.close()
+    except Exception as e:
+        log.warning("app.recovery_failed", error=str(e))
+
+# Run recovery after a short delay to let the app fully start
+import threading as _threading
+_threading.Timer(2.0, _recover_generation_tasks).start()
+
 # ── SocketIO Events ───────────────────────────────────────────────
 
 @socketio.on('connect')
@@ -166,24 +209,9 @@ def _cleanup(signum=None, frame=None):
         get_queue_manager().stop(timeout=15)
     except Exception as e:
         log.warning("app.queue_stop_error", error=str(e))
-    # 2. Cancel career intel runs
-    try:
-        from services.career_intel import cancel_run
-        cancel_run()
-    except Exception:
-        pass
-    # 3. Mark skill roadmap jobs as cancelled
-    try:
-        from database import get_db
-        conn = get_db()
-        conn.execute(
-            "UPDATE skill_roadmap_jobs SET status='cancelled', error='Server shutting down' WHERE status IN ('running','queued')"
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-    # 4. Stop SocketIO
+    # 2. Do NOT cancel career intel or roadmap jobs — leave as 'processing'
+    #    so the startup recovery hook can resume them on next boot
+    # 3. Stop SocketIO
     try:
         socketio.stop()
     except Exception:

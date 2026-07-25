@@ -112,6 +112,21 @@ export default function SkillDetailDrawer({
     } catch { toast.error("Rename failed"); }
   };
 
+  const handleSetLevel = async (level) => {
+    if (!skill.id || skill.level === level) return;
+    try {
+      const res = await fetch(`${API}/tech-stack/${skill.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level }),
+      });
+      if (res.ok) {
+        toast.success(`Proficiency set to ${["Beginner", "Basic", "Intermediate", "Advanced", "Expert"][level - 1]}`);
+        // Force re-render by triggering parent refresh
+        onOpenChange?.(true);
+      }
+    } catch {}
+  };
+
   const fetchRelationships = useCallback(async () => {
     if (!skillName || !open) return;
     setLoading(true);
@@ -292,21 +307,34 @@ export default function SkillDetailDrawer({
           )}
 
           {/* Proficiency Level */}
-          {skill.level && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-green-500" />
-                <span className="text-xs font-bold">Proficiency Level</span>
-              </div>
-              <Badge variant="secondary" className={cn("text-[0.55rem]",
-                skill.level >= 4 ? "bg-green-500/15 text-green-500" :
-                skill.level >= 3 ? "bg-blue-500/15 text-blue-500" :
-                skill.level >= 2 ? "bg-yellow-500/15 text-yellow-500" : "bg-orange-500/15 text-orange-500"
-              )}>
-                {skill.level >= 4 ? "Expert" : skill.level >= 3 ? "Advanced" : skill.level >= 2 ? "Intermediate" : "Beginner"}
-              </Badge>
-            </Card>
-          )}
+          {/* Proficiency Level — editable */}
+          <Card className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-4 h-4 text-green-500" />
+              <span className="text-xs font-bold">Proficiency Level</span>
+            </div>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4, 5].map((lvl) => {
+                const labels = { 1: "Beginner", 2: "Basic", 3: "Intermediate", 4: "Advanced", 5: "Expert" };
+                const colors = {
+                  1: "bg-orange-500/15 text-orange-500 border-orange-500/30",
+                  2: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30",
+                  3: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+                  4: "bg-green-500/15 text-green-500 border-green-500/30",
+                  5: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+                };
+                const isActive = skill.level === lvl;
+                return (
+                  <button key={lvl} onClick={() => handleSetLevel(lvl)}
+                    className={cn("px-2 py-1 rounded text-[0.55rem] font-semibold border transition",
+                      isActive ? colors[lvl] : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                    )}>
+                    {labels[lvl]}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
 
           {/* Merged Variantes */}
           {aliases.length > 0 && (

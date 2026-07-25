@@ -224,6 +224,19 @@ def _complete_run(run_id, status='completed', error=None, session_id=None):
     conn.close()
 
 
+def _save_session_id(run_id, session_id):
+    """Save session_id to DB immediately when discovered (for crash recovery)."""
+    if not run_id or not session_id:
+        return
+    try:
+        conn = _db()
+        conn.execute("UPDATE career_insight_runs SET session_id=? WHERE id=?", (session_id, run_id))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
 def _save_insight(insight_type, data, score=None, summary=None):
     """Save generated insight to career_insights table."""
     conn = _db()
@@ -278,6 +291,8 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, **kwargs
             nonlocal session_id
             session_id = sid
             _current_run['session_id'] = sid
+            # Save to DB immediately for crash recovery
+            _save_session_id(_current_run.get('run_id'), sid)
             _emit_progress({'running': True, 'status': 'processing', 'session_id': sid})
 
         def _on_event(evt):
