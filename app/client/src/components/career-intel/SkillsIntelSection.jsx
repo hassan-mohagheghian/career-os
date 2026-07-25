@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   TrendUp, Brain, BookOpen, Wrench, ArrowsClockwise, Target,
   TreeStructure, Plus, User, EyeSlash, DotsSixVertical, GitMerge,
-  Eye, CaretDown, CaretRight, FunnelSimple, SortAscending,
+  Eye, CaretDown, CaretRight, FunnelSimple, SortAscending, Trash,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { resolveSkillCategory } from "@/lib/skills";
