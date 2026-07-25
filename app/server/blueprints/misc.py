@@ -120,7 +120,7 @@ def get_generation_history():
     # 5. Resume/Cover generations (only done/failed/cancelled)
     try:
         rows = conn.execute(
-            "SELECT id, job_num, type, status, error, created_at, updated_at "
+            "SELECT id, job_num, type, status, error, session_id, created_at, updated_at "
             "FROM pending_generations WHERE status IN ('done', 'failed', 'cancelled') "
             "ORDER BY updated_at DESC LIMIT 100"
         ).fetchall()
@@ -134,7 +134,7 @@ def get_generation_history():
                 "started_at": rd["created_at"],
                 "completed_at": rd["updated_at"],
                 "error": rd["error"],
-                "session_id": None,
+                "session_id": rd["session_id"],
                 "id": rd["id"],
             })
     except Exception:

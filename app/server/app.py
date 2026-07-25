@@ -197,6 +197,19 @@ def handle_unwatch_company(data):
     if pid:
         leave_room(f'company_{pid}')
 
+@socketio.on('watch_generation')
+def handle_watch_generation(data):
+    gen_id = data.get('id')
+    if gen_id:
+        join_room(f'generation_{gen_id}')
+        log.info("socketio.watch", room=f'generation_{gen_id}')
+
+@socketio.on('unwatch_generation')
+def handle_unwatch_generation(data):
+    gen_id = data.get('id')
+    if gen_id:
+        leave_room(f'generation_{gen_id}')
+
 @socketio.on('cancel_job')
 def handle_cancel_job(data):
     pid = data.get('id')

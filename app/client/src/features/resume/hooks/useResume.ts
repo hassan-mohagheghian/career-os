@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { useSocketIO, watchGeneration, unwatchGeneration } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 
@@ -9,7 +10,8 @@ export function useResume() {
   const [generationProgress, setGenerationProgress] = useState<any>(null)
   const [generationId, setGenerationId] = useState<number | null>(null)
   const [generationType, setGenerationType] = useState<string | null>(null)
-  const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const [generationResult, setGenerationResult] = useState<any>(null)
+  const socket = useSocketIO()
 
   const fetchResumes = useCallback(() => {
     return fetch(`${API}/resumes`).then(r => r.json()).then(setResumes)
@@ -27,6 +29,7 @@ export function useResume() {
       setGenerationId(data.gen_id)
       setGenerationType('resume')
       setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5, type: 'resume' })
+      watchGeneration(data.gen_id)
     } catch {
       toast.error('Failed to start generation')
     }
@@ -40,6 +43,7 @@ export function useResume() {
       setGenerationId(data.gen_id)
       setGenerationType('cover')
       setGenerationProgress({ running: true, status: 'queued', step: 0, total_steps: 5, type: 'cover' })
+      watchGeneration(data.gen_id)
     } catch {
       toast.error('Failed to start generation')
     }
@@ -49,6 +53,7 @@ export function useResume() {
     if (!generationId) return
     try {
       await fetch(`${API}/generations/${generationId}/cancel`, { method: 'POST' })
+      unwatchGeneration(generationId)
       setGenerationProgress(null)
       setGenerationId(null)
       setGenerationType(null)
@@ -58,73 +63,61 @@ export function useResume() {
     }
   }, [generationId])
 
-  // Poll for progress
+  // Listen for WebSocket generation events
   useEffect(() => {
-    if (!generationId) {
-      if (pollRef.current) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
-      }
-      return
+    if (!socket || !generationId) return
+
+    const handleUpdate = (data: any) => {
+      if (data.id !== generationId) return
+      const steps = ['step_prepare', 'step_context', 'step_generate', 'step_save', 'step_done']
+      const completedSteps = steps.filter(s => data[s] === 1).length
+      setGenerationProgress({
+        running: data.status === 'processing' || data.status === 'queued',
+        status: data.status,
+        step: completedSteps,
+        total_steps: 5,
+        error: data.error,
+        type: data.type || generationType,
+      })
     }
 
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`${API}/generations/${generationId}`)
-        const data = await res.json()
+    const handleComplete = (data: any) => {
+      if (data.id !== generationId) return
+      unwatchGeneration(generationId)
+      setGenerationProgress(null)
+      setGenerationId(null)
+      setGenerationType(null)
+      // Store result for immediate display
+      setGenerationResult(data)
+      fetchResumes()
+      toast.success('Generation complete!')
+      // Clear result after 5 seconds
+      setTimeout(() => setGenerationResult(null), 5000)
+    }
 
-        // Calculate step from progress
-        const steps = ['step_prepare', 'step_context', 'step_generate', 'step_save', 'step_done']
-        const completedSteps = steps.filter(s => data[s] === 1).length
+    const handleError = (data: any) => {
+      if (data.id !== generationId) return
+      unwatchGeneration(generationId)
+      setGenerationProgress(null)
+      setGenerationId(null)
+      setGenerationType(null)
+      toast.error(data.msg || 'Generation failed')
+    }
 
-        setGenerationProgress({
-          running: data.status === 'processing' || data.status === 'queued',
-          status: data.status,
-          step: completedSteps,
-          total_steps: 5,
-          error: data.error,
-          type: data.type || generationType,
-          elapsed_seconds: data.created_at
-            ? Math.floor((Date.now() - new Date(data.created_at).getTime()) / 1000)
-            : 0,
-        })
-
-        if (data.status === 'done') {
-          clearInterval(pollRef.current!)
-          pollRef.current = null
-          setGenerationId(null)
-          setGenerationType(null)
-          fetchResumes()
-          toast.success('Generation complete!')
-          setTimeout(() => setGenerationProgress(null), 2000)
-        } else if (data.status === 'failed') {
-          clearInterval(pollRef.current!)
-          pollRef.current = null
-          setGenerationId(null)
-          setGenerationType(null)
-          toast.error(data.error || 'Generation failed')
-        } else if (data.status === 'cancelled') {
-          clearInterval(pollRef.current!)
-          pollRef.current = null
-          setGenerationId(null)
-          setGenerationType(null)
-        }
-      } catch {
-        // Polling error — ignore, will retry
-      }
-    }, 2000)
+    socket.on('generation:update', handleUpdate)
+    socket.on('generation:complete', handleComplete)
+    socket.on('generation:error', handleError)
 
     return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
-      }
+      socket.off('generation:update', handleUpdate)
+      socket.off('generation:complete', handleComplete)
+      socket.off('generation:error', handleError)
     }
-  }, [generationId, fetchResumes, generationType])
+  }, [socket, generationId, generationType, fetchResumes])
 
   return {
     resumes, setResumes, linkedinProfiles, setLinkedinProfiles,
-    generationProgress, generationId, generationType,
+    generationProgress, generationId, generationType, generationResult,
     fetchResumes, fetchLinkedin, generateResume, generateCover, cancelGeneration
   }
 }

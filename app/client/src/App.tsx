@@ -133,12 +133,24 @@ function App() {
     setResumes,
     linkedinProfiles,
     generationProgress,
+    generationResult,
     fetchResumes,
     fetchLinkedin,
     generateResume,
     generateCover,
     cancelGeneration,
   } = useResume();
+
+  // Update drawer immediately when generation completes
+  useEffect(() => {
+    if (!generationResult) return
+    const { type, content, id, job_num, title } = generationResult
+    if (type === 'resume') {
+      setDrawer(prev => prev ? { ...prev, resume: { id, content, job_num, title } } : null)
+    } else if (type === 'cover') {
+      setDrawer(prev => prev ? { ...prev, coverLetter: { id, content, job_num, title } } : null)
+    }
+  }, [generationResult])
 
   // Initialize insights sub-tab from hash for deep linking
   const [initialSubTab] = useState(() => {

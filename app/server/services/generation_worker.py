@@ -3,6 +3,7 @@
 Follows the same pattern as worker.py and company_worker.py:
 - Background thread processing
 - Step-by-step progress tracking
+- WebSocket real-time updates via broadcaster
 - Structured logging via structlog
 - LLMService for AI calls
 """
@@ -13,6 +14,8 @@ import threading
 from datetime import datetime
 
 from services.process.logging_config import get_logger
+from services.process_utils import broadcaster
+from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 from ai_compat import get_llm_service
 
 log = get_logger('generation_worker')
@@ -24,7 +27,7 @@ def _db():
 
 
 def _update_step(gen_id, step, val, status=None, error=None):
-    """Update a generation step and emit progress."""
+    """Update a generation step and emit WebSocket progress."""
     conn = _db()
     fields = [f'{step}=?']
     values = [val]
@@ -41,10 +44,24 @@ def _update_step(gen_id, step, val, status=None, error=None):
     conn.commit()
     conn.close()
 
+    # Emit WebSocket event
+    extra = {}
+    if status:
+        extra['status'] = status
+    if error:
+        extra['error'] = error
+    broadcaster.step_update(StatusUpdate(
+        table='pending_generations', pid=gen_id, step=step, val=val,
+        extra=extra or None,
+    ))
 
-def _log(gen_id, step, msg):
-    """Append a workflow log entry."""
+
+def _log_event(gen_id, step, msg):
+    """Log and emit WebSocket log event."""
     log.info(f"[generation] gen={gen_id} {step}: {msg}")
+    broadcaster.log(LogEntry(
+        table='pending_generations', pid=gen_id, step=step, msg=msg,
+    ))
 
 
 def _load_company_context(job_num):
@@ -98,11 +115,14 @@ def process_generation(gen_id):
     job_num = gen['job_num']
     gen_type = gen['type']
 
-    try:
-        # Step 1: Prepare
-        _update_step(gen_id, 'step_prepare', 1, status='processing')
-        _log(gen_id, 'prepare', f'Loading job #{job_num} data')
+    # Step 1: Prepare
+    _update_step(gen_id, 'step_prepare', 1, status='processing')
+    _log_event(gen_id, 'prepare', f'Loading job #{job_num} data')
 
+    job_file = None
+    resume_file = None
+
+    try:
         conn = _db()
         job = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (job_num,)).fetchone()
         if not job:
@@ -122,21 +142,21 @@ def process_generation(gen_id):
         conn.close()
 
         _update_step(gen_id, 'step_prepare', 1)
-        _log(gen_id, 'prepare', f'Job: {job_dict.get("company")} — {job_dict.get("role")}')
+        _log_event(gen_id, 'prepare', f'Job: {job_dict.get("company")} — {job_dict.get("role")}')
 
         # Step 2: Load company context
         _update_step(gen_id, 'step_context', 1, status='processing')
         company_context = _load_company_context(job_num)
 
         if company_context:
-            _log(gen_id, 'context', 'Company intelligence loaded — will enrich prompt')
+            _log_event(gen_id, 'context', 'Company intelligence loaded — will enrich prompt')
         else:
-            _log(gen_id, 'context', 'No linked company — using standard prompt')
+            _log_event(gen_id, 'context', 'No linked company — using standard prompt')
         _update_step(gen_id, 'step_context', 1)
 
         # Step 3: Generate
         _update_step(gen_id, 'step_generate', 1, status='processing')
-        _log(gen_id, 'generate', f'Calling LLM for {gen_type} generation')
+        _log_event(gen_id, 'generate', f'Calling LLM for {gen_type} generation')
 
         from prompts import load_prompt
         _tmp = os.environ.get('TEMP_DIR', 'tmp')
@@ -212,13 +232,15 @@ def process_generation(gen_id):
                 os.remove(f)
             except OSError:
                 pass
+        job_file = None
+        resume_file = None
 
         _update_step(gen_id, 'step_generate', 1)
-        _log(gen_id, 'generate', f'LLM returned {len(resp.content)} chars')
+        _log_event(gen_id, 'generate', f'LLM returned {len(resp.content)} chars')
 
         # Step 4: Save
         _update_step(gen_id, 'step_save', 1, status='processing')
-        _log(gen_id, 'save', 'Saving to resumes table')
+        _log_event(gen_id, 'save', 'Saving to resumes table')
 
         if gen_type == 'resume':
             content = data.get('resume_html', '')
@@ -245,20 +267,33 @@ def process_generation(gen_id):
 
         # Step 5: Done
         _update_step(gen_id, 'step_done', 1, status='done')
-        _log(gen_id, 'done', f'{gen_type.title()} generated for #{job_num}')
+        _log_event(gen_id, 'done', f'{gen_type.title()} generated for #{job_num}')
 
-        # Update result in pending_generations
+        # Store result and session_id in pending_generations
         conn = _db()
         conn.execute(
-            'UPDATE pending_generations SET result=?, status=? WHERE id=?',
-            (json.dumps({'id': resume_id, 'content': content}), 'done', gen_id)
+            'UPDATE pending_generations SET result=?, status=?, session_id=? WHERE id=?',
+            (json.dumps({'id': resume_id, 'content': content, 'title': title}), 'done', pid, gen_id)
         )
         conn.commit()
         conn.close()
 
+        # Emit completion event with content for immediate display
+        broadcaster.complete(ProcessingComplete(
+            table='pending_generations', pid=gen_id,
+            result={
+                'id': resume_id, 'content': content, 'title': title,
+                'type': gen_type, 'job_num': job_num, 'session_id': pid,
+            },
+        ))
+
     except Exception as e:
         log.error(f"[generation] gen={gen_id} failed: {e}")
         _update_step(gen_id, 'step_generate', 0, status='failed', error=str(e))
+        broadcaster.error(ProcessingError(
+            table='pending_generations', pid=gen_id,
+            msg=str(e), step='generate',
+        ))
         # Cleanup temp files on error
         for f in [job_file, resume_file]:
             try:

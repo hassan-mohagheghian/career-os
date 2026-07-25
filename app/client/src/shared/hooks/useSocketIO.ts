@@ -70,3 +70,11 @@ export function watchInsights(): void {
 export function unwatchInsights(): void {
   getSocket().emit('unwatch_insights')
 }
+
+export function watchGeneration(id: number): void {
+  getSocket().emit('watch_generation', { id })
+}
+
+export function unwatchGeneration(id: number): void {
+  getSocket().emit('unwatch_generation', { id })
+}

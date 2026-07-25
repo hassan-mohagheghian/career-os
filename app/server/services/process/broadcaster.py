@@ -50,9 +50,13 @@ class Broadcaster(IBroadcaster):
                 logger.debug(f"[broadcaster] Listener failed: {e}")
 
     def _room_for(self, table: str, pid: int) -> str:
+        if table == 'pending_generations':
+            return f'generation_{pid}'
         return f'{"pending" if table == "pending_jobs" else "company"}_{pid}'
 
     def _prefix(self, table: str) -> str:
+        if table == 'pending_generations':
+            return 'generation'
         return 'pending' if table == 'pending_jobs' else 'company'
 
     def step_update(self, event: StatusUpdate) -> None:
