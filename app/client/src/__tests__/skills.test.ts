@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveSkillCategory, filterByCategory } from '@/lib/skills'
+import { resolveSkillCategory, filterByCategory } from '@/shared/lib/skills'
 
 const techStackSkills = [
   { name: 'Python', category: 'technical', level: 4 },

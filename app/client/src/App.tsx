@@ -14,22 +14,22 @@ import {
 import { ThemeProvider } from "next-themes";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/sonner";
-import { Progress } from "@/components/ui/progress";
-import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import { Button } from "@/shared/ui/button";
+import { Toaster } from "@/shared/ui/sonner";
+import { Progress } from "@/shared/ui/progress";
+import ConfirmDialog from "@/shared/components/ConfirmDialog";
 
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
-import JobDrawer from "@/components/jobs/drawer/JobDrawer";
-import CompanyDrawer from "@/components/companies/CompanyDrawer";
-import CareerIntelTab from "@/components/career-intel/CareerIntelTab";
-import ResumeTab from "@/components/resume/ResumeTab";
-import RulesTab from "@/components/rules/RulesTab";
-import CompaniesPage from "@/components/companies/CompaniesPage";
-import JobsPage from "@/components/jobs/JobsPage";
-import WorkflowTerminal from "@/components/shared/WorkflowTerminal";
-import DuplicateJobDialog from "@/components/shared/DuplicateJobDialog";
+import Sidebar from "@/layout/Sidebar";
+import Header from "@/layout/Header";
+import JobDrawer from "@/features/jobs/components/drawer/JobDrawer";
+import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
+import CareerIntelTab from "@/features/career-intel/components/CareerIntelTab";
+import ResumeTab from "@/features/resume/components/ResumeTab";
+import RulesTab from "@/features/rules/components/RulesTab";
+import CompaniesPage from "@/features/companies/components/CompaniesPage";
+import JobsPage from "@/features/jobs/components/JobsPage";
+import WorkflowTerminal from "@/shared/components/WorkflowTerminal";
+import DuplicateJobDialog from "@/shared/components/DuplicateJobDialog";
 
 import {
   useJobs,
@@ -38,8 +38,8 @@ import {
   useWorkflow,
   useResume,
   useCareerIntel,
-} from "@/hooks";
-import { useSocketIO, watchSkills, unwatchSkills } from "@/hooks/useSocketIO";
+} from "@/shared/hooks";
+import { useSocketIO, watchSkills, unwatchSkills } from "@/shared/hooks/useSocketIO";
 
 const API = "/api";
 
