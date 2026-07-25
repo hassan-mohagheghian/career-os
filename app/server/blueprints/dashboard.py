@@ -1450,17 +1450,19 @@ def get_skill_gen_progress():
 
 @bp.route("/api/skill-roadmap-jobs")
 def get_roadmap_jobs():
-    """Get recent roadmap generation jobs for history display."""
+    """Get recent roadmap generation jobs with total count for infinite scroll."""
     limit = request.args.get("limit", 20, type=int)
+    offset = request.args.get("offset", 0, type=int)
     conn = get_db()
     cols = ["id", "skill_name", "job_type", "status", "version", "count",
             "error", "session_id", "started_at", "completed_at", "created_at"]
+    total = conn.execute("SELECT COUNT(*) FROM skill_roadmap_jobs").fetchone()[0]
     rows = conn.execute(
-        f"SELECT {', '.join(cols)} FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?",
-        (limit,),
+        f"SELECT {', '.join(cols)} FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (limit, offset),
     ).fetchall()
     conn.close()
-    return jsonify([dict(zip(cols, r)) for r in rows] if rows else [])
+    return jsonify({'items': [dict(zip(cols, r)) for r in rows] if rows else [], 'total': total})
 
 
 def _build_roadmap_tree_for_prompt(rows):

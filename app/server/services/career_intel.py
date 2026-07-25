@@ -608,20 +608,24 @@ def get_latest(insight_type=None):
         return results
 
 
-def get_runs(insight_type=None, limit=10):
-    """Get recent insight generation runs."""
+def get_runs(insight_type=None, limit=10, offset=0):
+    """Get recent insight generation runs with total count for infinite scroll."""
     conn = _db()
     conn.row_factory = None
     cols = ['id', 'insight_type', 'version', 'status', 'started_at', 'completed_at', 'error_message', 'session_id']
     if insight_type:
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM career_insight_runs WHERE insight_type=?", (insight_type,)
+        ).fetchone()[0]
         rows = conn.execute(
-            f"SELECT {', '.join(cols)} FROM career_insight_runs WHERE insight_type=? ORDER BY started_at DESC LIMIT ?",
-            (insight_type, limit)
+            f"SELECT {', '.join(cols)} FROM career_insight_runs WHERE insight_type=? ORDER BY started_at DESC LIMIT ? OFFSET ?",
+            (insight_type, limit, offset)
         ).fetchall()
     else:
+        total = conn.execute("SELECT COUNT(*) FROM career_insight_runs").fetchone()[0]
         rows = conn.execute(
-            f"SELECT {', '.join(cols)} FROM career_insight_runs ORDER BY started_at DESC LIMIT ?",
-            (limit,)
+            f"SELECT {', '.join(cols)} FROM career_insight_runs ORDER BY started_at DESC LIMIT ? OFFSET ?",
+            (limit, offset)
         ).fetchall()
     conn.close()
-    return [dict(zip(cols, r)) for r in rows] if rows else []
+    return {'items': [dict(zip(cols, r)) for r in rows] if rows else [], 'total': total}

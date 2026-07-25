@@ -336,22 +336,42 @@ export default function SkillsIntelSection({
   };
 
   const handleRemoveSkill = async (skillName, skillId) => {
+    // Move to hidden (soft delete) — must hide first before permanent delete
     if (!skillId) return;
     const aliases = aliasMap[skillName] || [];
     const msg = aliases.length > 0
-      ? `Remove "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})?`
-      : `Remove "${skillName}"?`;
+      ? `Hide "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})?`
+      : `Hide "${skillName}"? It will be moved to Hidden Skills.`;
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await fetch(`${API}/tech-stack/${skillId}/hide`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: 1 }) });
+      if (res.ok) {
+        toast.success(`"${skillName}" moved to Hidden Skills`);
+        fetchTechStack(); fetchHidden(); if (onRefreshProgress) onRefreshProgress();
+      } else {
+        toast.error("Failed to hide skill");
+      }
+    } catch { toast.error("Failed to hide skill"); }
+  };
+
+  const handleDeleteSkill = async (skillName, skillId) => {
+    // Permanent delete — only available from Hidden Skills section
+    if (!skillId) return;
+    const aliases = aliasMap[skillName] || [];
+    const msg = aliases.length > 0
+      ? `Permanently delete "${skillName}" and its ${aliases.length} alias${aliases.length > 1 ? "es" : ""} (${aliases.join(", ")})? This cannot be undone.`
+      : `Permanently delete "${skillName}"? This cannot be undone.`;
     if (!window.confirm(msg)) return;
     try {
       const res = await fetch(`${API}/tech-stack/${skillId}`, { method: "DELETE" });
       const result = await res.json();
       if (res.ok) {
-        toast.success(`"${skillName}" removed${result.aliases_deleted?.length ? ` with ${result.aliases_deleted.length} alias${result.aliases_deleted.length > 1 ? "es" : ""}` : ""}`);
+        toast.success(`"${skillName}" deleted${result.aliases_deleted?.length ? ` with ${result.aliases_deleted.length} alias${result.aliases_deleted.length > 1 ? "es" : ""}` : ""}`);
         fetchTechStack(); fetchHidden(); if (onRefreshProgress) onRefreshProgress();
       } else {
-        toast.error(result.error || "Failed to remove");
+        toast.error(result.error || "Failed to delete");
       }
-    } catch { toast.error("Failed to remove skill"); }
+    } catch { toast.error("Failed to delete skill"); }
   };
 
   const handleRestoreSkill = async (skillName) => {
@@ -558,7 +578,7 @@ export default function SkillsIntelSection({
                       tags={skill.source === "user"
                         ? [{ label: "Custom", color: "bg-purple-500/15 text-purple-500" }]
                         : [{ label: "AI", color: "bg-blue-500/15 text-blue-500" }]}
-                      onRemove={handleRemoveSkill}
+                      onRemove={handleDeleteSkill}
                       extra={<>
                         <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
                         <button onClick={(e) => { e.stopPropagation(); handleRestoreSkill(skill.name); }}

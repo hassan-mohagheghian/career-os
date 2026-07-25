@@ -50,8 +50,7 @@ function IntelProgressCard({ progress, elapsed, onCancel }) {
   )
 }
 
-function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
-  // Combine career intel runs and roadmap jobs into a unified history
+function HistoryDrawer({ runs, roadmapJobs, runsTotal, roadmapTotal, onLoadMoreRuns, onLoadMoreRoadmapJobs, open, onOpenChange }) {
   const allHistory = [
     ...runs.map(r => ({ ...r, source: 'career-intel' })),
     ...roadmapJobs.map(j => ({
@@ -72,6 +71,22 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
     return dateB - dateA
   })
 
+  const totalAll = runsTotal + roadmapTotal
+  const hasMoreRuns = runs.length < runsTotal
+  const hasMoreRoadmap = roadmapJobs.length < roadmapTotal
+
+  const scrollRef = useCallback((node) => {
+    if (!node) return
+    const handleScroll = () => {
+      if (node.scrollTop + node.clientHeight >= node.scrollHeight - 50) {
+        if (hasMoreRuns) onLoadMoreRuns?.()
+        if (hasMoreRoadmap) onLoadMoreRoadmapJobs?.()
+      }
+    }
+    node.addEventListener('scroll', handleScroll)
+    return () => node.removeEventListener('scroll', handleScroll)
+  }, [hasMoreRuns, hasMoreRoadmap, onLoadMoreRuns, onLoadMoreRoadmapJobs])
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:w-[500px] p-0">
@@ -81,10 +96,10 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
             Generation History
           </SheetTitle>
           <SheetDescription>
-            {allHistory.length} recent generation runs
+            {totalAll} total generation runs
           </SheetDescription>
         </SheetHeader>
-        <div className="px-6 pb-6 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
+        <div ref={scrollRef} className="px-6 pb-6 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">
           {allHistory.map((run, i) => (
             <div key={run.id || i} className="flex items-center gap-2 text-xs p-2 rounded hover:bg-muted transition">
               <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
@@ -132,6 +147,11 @@ function HistoryDrawer({ runs, roadmapJobs, open, onOpenChange }) {
               No generation runs yet
             </div>
           )}
+          {(hasMoreRuns || hasMoreRoadmap) && allHistory.length > 0 && (
+            <div className="text-center py-2 text-muted-foreground text-[0.6rem]">
+              Loading more...
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
@@ -173,26 +193,48 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
   const hasData = unwrappedData && Object.keys(unwrappedData).length > 0
   const isRunning = progress?.running || refreshing.all
   const [runs, setRuns] = useState([])
+  const [runsTotal, setRunsTotal] = useState(0)
   const [roadmapJobs, setRoadmapJobs] = useState([])
+  const [roadmapTotal, setRoadmapTotal] = useState(0)
   const [historyOpen, setHistoryOpen] = useState(false)
 
-  const fetchRuns = useCallback(() => {
-    fetch('/api/career-intelligence/runs?limit=20')
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setRuns(d))
-      .catch(() => setRuns([]))
+  const PAGE_SIZE = 20
+
+  const fetchRuns = useCallback((offset = 0, append = false) => {
+    fetch(`/api/career-intelligence/runs?limit=${PAGE_SIZE}&offset=${offset}`)
+      .then(r => r.ok ? r.json() : { items: [], total: 0 })
+      .then(d => {
+        const items = d.items || []
+        const total = d.total || 0
+        setRunsTotal(total)
+        setRuns(prev => append ? [...prev, ...items] : items)
+      })
+      .catch(() => { if (!append) setRuns([]) })
   }, [])
 
-  const fetchRoadmapJobs = useCallback(() => {
-    fetch('/api/skill-roadmap-jobs?limit=20')
-      .then(r => r.ok ? r.json() : [])
-      .then(jobs => setRoadmapJobs(Array.isArray(jobs) ? jobs : []))
-      .catch(() => setRoadmapJobs([]))
+  const fetchRoadmapJobs = useCallback((offset = 0, append = false) => {
+    fetch(`/api/skill-roadmap-jobs?limit=${PAGE_SIZE}&offset=${offset}`)
+      .then(r => r.ok ? r.json() : { items: [], total: 0 })
+      .then(d => {
+        const items = d.items || []
+        const total = d.total || 0
+        setRoadmapTotal(total)
+        setRoadmapJobs(prev => append ? [...prev, ...items] : items)
+      })
+      .catch(() => { if (!append) setRoadmapJobs([]) })
   }, [])
+
+  const loadMoreRuns = useCallback(() => {
+    if (runs.length < runsTotal) fetchRuns(runs.length, true)
+  }, [runs.length, runsTotal, fetchRuns])
+
+  const loadMoreRoadmapJobs = useCallback(() => {
+    if (roadmapJobs.length < roadmapTotal) fetchRoadmapJobs(roadmapJobs.length, true)
+  }, [roadmapJobs.length, roadmapTotal, fetchRoadmapJobs])
 
   useEffect(() => { fetchRuns(); fetchRoadmapJobs() }, [fetchRuns, fetchRoadmapJobs])
   // Refresh runs when analysis completes
-  useEffect(() => { if (!isRunning) fetchRuns() }, [isRunning, fetchRuns])
+  useEffect(() => { if (!isRunning) { fetchRuns(); fetchRoadmapJobs() } }, [isRunning, fetchRuns, fetchRoadmapJobs])
   const [elapsed, setElapsed] = useState(0)
 
   // Elapsed timer when running
@@ -240,7 +282,7 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
           <Button variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="gap-1.5 h-8">
             <List className="w-3.5 h-3.5" />
             History
-            {runs.length + roadmapJobs.length > 0 && <Badge variant="secondary" className="text-[0.5rem] h-4 ml-0.5">{runs.length + roadmapJobs.length}</Badge>}
+            {runsTotal + roadmapTotal > 0 && <Badge variant="secondary" className="text-[0.5rem] h-4 ml-0.5">{runsTotal + roadmapTotal}</Badge>}
           </Button>
           <Button onClick={onRefreshAll} disabled={isRunning} variant={isRunning ? "secondary" : "outline"} size="sm" className="gap-1.5">
             <ArrowsClockwise className={cn("w-3.5 h-3.5", isRunning && "animate-spin")} />
@@ -270,7 +312,9 @@ export default function CareerIntelTab({ data, status, progress, activeTab, setA
       )}
 
       {/* History Drawer */}
-      <HistoryDrawer runs={runs} roadmapJobs={roadmapJobs} open={historyOpen} onOpenChange={setHistoryOpen} />
+      <HistoryDrawer runs={runs} roadmapJobs={roadmapJobs} runsTotal={runsTotal} roadmapTotal={roadmapTotal}
+        onLoadMoreRuns={loadMoreRuns} onLoadMoreRoadmapJobs={loadMoreRoadmapJobs}
+        open={historyOpen} onOpenChange={setHistoryOpen} />
 
       {/* Empty State */}
       {!hasData && !isRunning && (

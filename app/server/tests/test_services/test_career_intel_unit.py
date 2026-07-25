@@ -521,22 +521,30 @@ class TestGetRuns:
     def test_returns_runs(self, db):
         run_id = ci._start_run('overview')
         ci._complete_run(run_id, 'completed')
-        runs = ci.get_runs()
-        assert len(runs) == 1 and runs[0]['status'] == 'completed'
+        result = ci.get_runs()
+        assert result['total'] == 1 and result['items'][0]['status'] == 'completed'
 
     def test_filters_by_type(self, db):
         ci._complete_run(ci._start_run('overview'), 'completed')
         ci._complete_run(ci._start_run('market'), 'completed')
-        runs = ci.get_runs(insight_type='overview')
-        assert len(runs) == 1
+        result = ci.get_runs(insight_type='overview')
+        assert result['total'] == 1 and len(result['items']) == 1
 
     def test_limit(self, db):
         for _ in range(5):
             ci._complete_run(ci._start_run('overview'), 'completed')
-        assert len(ci.get_runs(limit=3)) == 3
+        result = ci.get_runs(limit=3)
+        assert len(result['items']) == 3 and result['total'] == 5
 
     def test_empty(self, db):
-        assert ci.get_runs() == []
+        result = ci.get_runs()
+        assert result == {'items': [], 'total': 0}
+
+    def test_offset(self, db):
+        for _ in range(5):
+            ci._complete_run(ci._start_run('overview'), 'completed')
+        result = ci.get_runs(limit=2, offset=2)
+        assert len(result['items']) == 2 and result['total'] == 5
 
 
 # ── _run_mimo_prompt ────────────────────────────────────────────

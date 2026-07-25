@@ -31,12 +31,13 @@ def get_section(section):
 
 @bp.route('/api/career-intelligence/runs', methods=['GET'])
 def get_runs():
-    """Get recent insight generation runs."""
+    """Get recent insight generation runs with total count for infinite scroll."""
     from services.career_intel import get_runs
     section = request.args.get('section')
-    limit = request.args.get('limit', 10, type=int)
-    runs = get_runs(section, limit)
-    return jsonify(runs)
+    limit = request.args.get('limit', 20, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    result = get_runs(section, limit, offset)
+    return jsonify(result)
 
 
 @bp.route('/api/career-intelligence/progress', methods=['GET'])
