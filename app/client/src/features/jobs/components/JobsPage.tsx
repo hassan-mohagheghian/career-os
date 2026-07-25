@@ -7,12 +7,12 @@ import {
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
-import { Input } from '@/shared/ui/input'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import ProcessingItem from '@/shared/components/ProcessingItem'
 import { JobCard } from '@/shared/components/ProcessedCards'
 import { MultiSelect } from '@/shared/components/MultiSelect'
+import NotesLinksInput from '@/shared/components/NotesLinksInput'
 
 export default function JobsPage({
   pending, jobs, filteredJobs, jobsTotal, filteredJobsCount,

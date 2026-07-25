@@ -381,17 +381,12 @@ function App() {
       section: "jobs",
       children: [
         { id: "overview", label: "Overview" },
+        { id: "skills", label: "Skills" },
         { id: "opportunities", label: "Opportunities" },
         { id: "companies", label: "Companies" },
         { id: "market", label: "Market" },
         { id: "networking", label: "Networking" },
       ],
-    },
-    {
-      id: "skills",
-      icon: <Brain className="w-4 h-4" />,
-      label: "Skills",
-      section: "growth hub",
     },
     {
       id: "resume",
@@ -549,9 +544,6 @@ function App() {
                 onAddCompany={handleAddCompany}
                 onCancel={cancelCareerRun}
               />
-            )}
-            {tab === "skills" && (
-              <SkillsTab />
             )}
             {tab === "resume" && (
               <ResumeTab

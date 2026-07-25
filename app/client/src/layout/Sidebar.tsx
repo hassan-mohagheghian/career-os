@@ -42,7 +42,7 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
         sidebarOpen ? "w-[170px]" : "w-0 overflow-hidden"
       )}>
         <div className="pt-12 lg:pt-0 flex-1 overflow-y-auto">
-          {(['jobs', 'growth hub', 'settings'] as const).map(section => (
+          {(['jobs', 'settings'] as const).map(section => (
             <div key={section}>
               <div className="px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">{section}</div>
               {tabs.filter(t => t.section === section).map(t => {
