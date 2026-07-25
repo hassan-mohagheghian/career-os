@@ -143,7 +143,7 @@ def process_generation(gen_id):
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(project_root, _tmp)
         os.makedirs(tmp_dir, exist_ok=True)
-        pid = f'{gen_type}_{job_num}_{int(datetime.now().timestamp()*1000)}'
+        pid = f'{job_num}_{int(datetime.now().timestamp()*1000)}'
 
         # Write temp files
         job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
