@@ -55,7 +55,7 @@ export default function JobsPage({
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
           <Gear className="w-4 h-4 text-primary" />
           <span className="font-bold text-xs text-primary">Processing Jobs</span>
-          <Badge variant="default" className="ml-auto text-[0.5rem] h-4">{stackedTotal}</Badge>
+          <Badge variant="default" className="ml-auto text-2xs h-4">{stackedTotal}</Badge>
         </div>
         <div className="flex flex-col flex-1 min-h-0 p-2">
           {/* Add URL */}
@@ -63,16 +63,16 @@ export default function JobsPage({
             <Input type="url" value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError('') }}
               onKeyDown={e => e.key === 'Enter' && submitUrl()}
               placeholder="Paste LinkedIn URL..."
-              className={cn("w-full h-7 rounded border text-[0.6rem] min-w-0", urlError && "border-destructive")} />
-            {urlError && <div className="text-[0.5rem] mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {urlError}</div>}
+              className={cn("w-full h-7 rounded border text-2xs min-w-0", urlError && "border-destructive")} />
+            {urlError && <div className="text-2xs mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {urlError}</div>}
             <div className="flex items-center gap-1 mt-1">
-              <Button onClick={submitUrl} disabled={submitting || !urlInput.trim()} size="sm" className="flex-1 h-6 text-[0.55rem]">
+              <Button onClick={submitUrl} disabled={submitting || !urlInput.trim()} size="sm" className="flex-1 h-6 text-2xs">
                 {submitting ? '...' : processImmediately ? 'Add & Process' : 'Add'}
               </Button>
               <button
                 onClick={() => setProcessImmediately(v => !v)}
                 className={cn(
-                  "shrink-0 h-6 px-1.5 rounded text-[0.5rem] font-medium border transition-colors",
+                  "shrink-0 h-6 px-1.5 rounded text-2xs font-medium border transition-colors",
                   processImmediately
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:bg-muted"
@@ -97,9 +97,9 @@ export default function JobsPage({
                   <div onClick={() => !isEmpty && setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
                     className={cn("px-2 py-1 flex items-center gap-1 shrink-0 transition", !isEmpty && "cursor-pointer select-none hover:bg-muted/50", s.bgClass, s.borderClass)}>
                     <span className={s.iconClass}>{s.icon}</span>
-                    <span className={cn("font-bold text-[0.6rem] uppercase tracking-wider", s.textClass)}>{s.label}</span>
-                    <Badge variant="secondary" className={cn("text-[0.5rem] h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
-                    {!isEmpty && <span className="text-[0.5rem] text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
+                    <span className={cn("font-bold text-2xs uppercase tracking-wider", s.textClass)}>{s.label}</span>
+                    <Badge variant="secondary" className={cn("text-2xs h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
+                    {!isEmpty && <span className="text-2xs text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
                   </div>
                   {isOpen && s.id === 'pending' && (
                     <ScrollArea className="flex-1 min-h-0 min-w-0"
@@ -141,7 +141,7 @@ export default function JobsPage({
               )
             })}
           </div>
-          {stackedTotal === 0 && <div className="text-center py-8 text-[0.6rem] text-muted-foreground shrink-0">All jobs processed</div>}
+          {stackedTotal === 0 && <div className="text-center py-8 text-2xs text-muted-foreground shrink-0">All jobs processed</div>}
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export default function JobsPage({
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-green-500/10 to-green-500/5 border-b border-green-500/20">
           <CheckCircle className="w-4 h-4 text-green-500" />
           <span className="font-bold text-xs text-green-500">Processed Jobs</span>
-          <Badge variant="secondary" className="text-[0.5rem] h-4 bg-green-500/15 text-green-500">{filteredJobsCount}/{jobsTotal}</Badge>
+          <Badge variant="secondary" className="text-2xs h-4 bg-green-500/15 text-green-500">{filteredJobsCount}/{jobsTotal}</Badge>
           <div className="flex items-center gap-0.5 ml-auto">
             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refreshJobs()} title="Refresh"><ArrowsClockwise className="w-3 h-3 text-green-500" /></Button>
           </div>
@@ -162,14 +162,14 @@ export default function JobsPage({
                 <Input value={filterTech} onChange={e => setFilterTech(e.target.value)}
                   placeholder="Search by role, company, stack, or notes..."
                   className={cn("w-full h-7 text-xs", filterTech && "border-green-500 ring-1 ring-green-500/20")} />
-                {filterTech && <button onClick={() => setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem] text-muted-foreground">✕</button>}
+                {filterTech && <button onClick={() => setFilterTech('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground">✕</button>}
               </div>
-              {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="h-7 text-[0.6rem] text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={clearFilters}>Clear all</Button>}
+              {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="h-7 text-2xs text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={clearFilters}>Clear all</Button>}
             </div>
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-1">
                 <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setSortDir('desc') }}>
-                  <SelectTrigger className="h-7 w-auto text-[0.6rem] border-green-500/30"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 w-auto text-2xs border-green-500/30"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at">Newest first</SelectItem>
                     <SelectItem value="overall_score">Overall Score</SelectItem>
@@ -183,7 +183,7 @@ export default function JobsPage({
                     <SelectItem value="response_time">Response date</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-7 text-[0.6rem] border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
+                <Button variant="outline" size="sm" className="h-7 text-2xs border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
                   {sortDir === 'desc' ? '↓' : '↑'}
                 </Button>
               </div>
@@ -195,7 +195,7 @@ export default function JobsPage({
                 <MultiSelect value={filterEmploymentTypes} onChange={setFilterEmploymentTypes} placeholder="Emp" icon={<Briefcase className="w-3 h-3" />} options={[{ value: 'Full-time', label: 'Full-time' }, { value: 'Part-time', label: 'Part-time' }, { value: 'Contract', label: 'Contract' }, { value: 'Internship', label: 'Internship' }, { value: 'Temporary', label: 'Temporary' }]} />
                 <MultiSelect value={filterResponseStatus} onChange={setFilterResponseStatus} placeholder="Status" icon={<CheckCircle className="w-3 h-3" />} options={[{ value: 'Interview', label: 'Interview' }, { value: 'Rejected', label: 'Rejected' }]} />
                 <MultiSelect value={filterScores} onChange={setFilterScores} placeholder="Score" icon={<Target className="w-3 h-3" />} options={[{ value: 'A++', label: 'A++' }, { value: 'A+', label: 'A+' }, { value: 'A', label: 'A' }, { value: 'B', label: 'B' }, { value: 'C', label: 'C' }, { value: 'D', label: 'D' }, { value: 'E', label: 'E' }]} />
-                <Button variant={filterApplied ? "default" : "outline"} size="sm" className={cn("h-7 text-[0.6rem]", filterApplied && "bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30")} onClick={() => setFilterApplied(f => !f)}>
+                <Button variant={filterApplied ? "default" : "outline"} size="sm" className={cn("h-7 text-2xs", filterApplied && "bg-green-500/20 text-green-500 border-green-500/30 hover:bg-green-500/30")} onClick={() => setFilterApplied(f => !f)}>
                   <PaperPlaneRight className="w-3 h-3 mr-0.5" />Applied
                 </Button>
               </div>
@@ -206,8 +206,8 @@ export default function JobsPage({
               {filteredJobs.map((j, i) => <JobCard key={j.num} job={j} rank={i + 1} onClick={() => openDrawer(j.num)} onRescore={rescoreJob} onDelete={deleteJob} onRequeue={requeueJob} onViewWorkflow={openWorkflow} onOpenCompany={onOpenCompany} />)}
             </div>
             <div ref={jobsSentinelRef} className="h-1" />
-            {loadingMore && <div className="text-center py-2 text-[0.6rem] text-muted-foreground">Loading more...</div>}
-            {!loadingMore && filteredJobsCount >= jobsTotal && filteredJobsCount > 0 && <div className="text-center py-2 text-[0.55rem] text-muted-foreground opacity-50">All {jobsTotal} jobs loaded</div>}
+            {loadingMore && <div className="text-center py-2 text-2xs text-muted-foreground">Loading more...</div>}
+            {!loadingMore && filteredJobsCount >= jobsTotal && filteredJobsCount > 0 && <div className="text-center py-2 text-2xs text-muted-foreground opacity-50">All {jobsTotal} jobs loaded</div>}
           </div>
         </div>
       </div>

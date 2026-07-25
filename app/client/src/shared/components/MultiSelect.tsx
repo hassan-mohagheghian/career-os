@@ -21,7 +21,7 @@ export function MultiSelect({ value, onChange, options, placeholder, alignRight,
           variant="outline"
           size="sm"
           className={cn(
-            "h-6 px-2 text-[0.6rem] gap-1 whitespace-nowrap border-dashed",
+            "h-6 px-2 text-2xs gap-1 whitespace-nowrap border-dashed",
             hasValue && "border-green-500/50 text-green-500 bg-green-500/5"
           )}
         >
@@ -42,7 +42,7 @@ export function MultiSelect({ value, onChange, options, placeholder, alignRight,
                 <label
                   key={o.value}
                   className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 text-[0.6rem] cursor-pointer rounded-sm transition-colors",
+                    "flex items-center gap-2 px-2 py-1.5 text-2xs cursor-pointer rounded-sm transition-colors",
                     checked && "bg-green-500/5"
                   )}
                   onClick={() => toggle(o.value)}

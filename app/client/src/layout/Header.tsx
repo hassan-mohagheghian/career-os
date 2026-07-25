@@ -47,7 +47,7 @@ export default function Header({ jobAgg, jobsTotal, resumes, companies, theme, t
                 key={f.id}
                 onClick={() => onSwitchTab(f.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[0.65rem] font-medium transition-all",
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -61,7 +61,7 @@ export default function Header({ jobAgg, jobsTotal, resumes, companies, theme, t
         </div>
 
         {/* Stats */}
-        <div className="hidden lg:flex items-center gap-3 ml-auto text-[0.65rem] text-muted-foreground">
+        <div className="hidden lg:flex items-center gap-3 ml-auto text-xs text-muted-foreground">
           <StatBadge icon={Briefcase} value={jobAgg.total || jobsTotal} label="jobs" color="text-foreground" />
           <StatBadge icon={Target} value={jobAgg.high_match} label="match" color="text-green-500" />
           <StatBadge icon={Rocket} value={jobAgg.apply_now} label="apply" color="text-yellow-500" />

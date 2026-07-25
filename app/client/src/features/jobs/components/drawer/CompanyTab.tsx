@@ -78,36 +78,36 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
           </div>
           <div className="text-sm font-bold">{linkedCompany.name}</div>
           <div className="flex flex-wrap gap-1 mt-1">
-            {linkedCompany.industry && <Badge variant="secondary" className="text-[0.55rem]">{linkedCompany.industry}</Badge>}
+            {linkedCompany.industry && <Badge variant="secondary" className="text-2xs">{linkedCompany.industry}</Badge>}
             {(linkedCompany.city || linkedCompany.country) && (
-              <Badge variant="secondary" className="text-[0.55rem]"><MapPin className="w-2.5 h-2.5 mr-0.5" />{[linkedCompany.city, linkedCompany.country].filter(Boolean).join(', ')}</Badge>
+              <Badge variant="secondary" className="text-2xs"><MapPin className="w-2.5 h-2.5 mr-0.5" />{[linkedCompany.city, linkedCompany.country].filter(Boolean).join(', ')}</Badge>
             )}
           </div>
 
           {intel && (
             <div className="mt-3 pt-3 border-t border-green-500/20">
-              <div className="text-[0.55rem] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Company Scores</div>
+              <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Company Scores</div>
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div>
                   <div className="text-lg font-black text-primary">{overallGrade}</div>
-                  <div className="text-[0.5rem] text-muted-foreground">Grade</div>
+                  <div className="text-2xs text-muted-foreground">Grade</div>
                 </div>
                 {companyFitScore !== null && (
                   <div>
                     <div className="text-lg font-bold text-blue-400">{companyFitScore}</div>
-                    <div className="text-[0.5rem] text-muted-foreground">Fit</div>
+                    <div className="text-2xs text-muted-foreground">Fit</div>
                   </div>
                 )}
                 {companySuccessScore !== null && (
                   <div>
                     <div className="text-lg font-bold text-emerald-400">{companySuccessScore}</div>
-                    <div className="text-[0.5rem] text-muted-foreground">Success</div>
+                    <div className="text-2xs text-muted-foreground">Success</div>
                   </div>
                 )}
                 {companyOverallScore !== null && (
                   <div>
                     <div className="text-lg font-bold text-purple-400">{companyOverallScore}</div>
-                    <div className="text-[0.5rem] text-muted-foreground">Overall</div>
+                    <div className="text-2xs text-muted-foreground">Overall</div>
                   </div>
                 )}
               </div>
@@ -116,7 +116,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
 
           {intel && (
             <div className="mt-3 pt-3 border-t border-green-500/20">
-              <div className="text-[0.55rem] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Intelligence Summary</div>
+              <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Intelligence Summary</div>
               <div className="space-y-1.5 text-xs">
                 {overview.description && (
                   <p className="text-muted-foreground line-clamp-2">{overview.description}</p>
@@ -131,7 +131,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
                   <div className="flex items-center gap-1">
                     <span className="text-muted-foreground">Relocation:</span>
                     <Badge variant={visa.relocation_recommendation === 'HIGH' ? 'default' : visa.relocation_recommendation === 'MEDIUM' ? 'secondary' : 'outline'}
-                      className={cn("text-[0.5rem]",
+                      className={cn("text-2xs",
                         visa.relocation_recommendation === 'HIGH' ? 'bg-emerald-500/15 text-emerald-400' :
                         visa.relocation_recommendation === 'MEDIUM' ? 'bg-yellow-500/15 text-yellow-400' :
                         'bg-red-500/15 text-red-400'
@@ -143,7 +143,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
                 {tech.backend && tech.backend.length > 0 && (
                   <div>
                     <span className="text-muted-foreground">Tech: </span>
-                    <span className="text-[0.55rem]">{tech.backend.slice(0, 3).join(', ')}{tech.backend.length > 3 ? '...' : ''}</span>
+                    <span className="text-2xs">{tech.backend.slice(0, 3).join(', ')}{tech.backend.length > 3 ? '...' : ''}</span>
                   </div>
                 )}
               </div>
@@ -161,7 +161,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
         <Button
           variant="outline"
           size="sm"
-          className="flex-1 gap-1.5 h-7 text-[0.55rem]"
+          className="flex-1 gap-1.5 h-7 text-2xs"
           onClick={() => setShowSelector(!showSelector)}
         >
           <Buildings className="w-3 h-3" />
@@ -171,7 +171,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 h-7 text-[0.55rem] text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+            className="gap-1.5 h-7 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
             onClick={handleUnlink}
             disabled={linking}
           >
@@ -193,7 +193,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
           />
           <div className="max-h-48 overflow-y-auto space-y-1">
             {filtered.length === 0 && (
-              <div className="text-[0.6rem] text-muted-foreground text-center py-2">No companies found</div>
+              <div className="text-2xs text-muted-foreground text-center py-2">No companies found</div>
             )}
             {filtered.map(c => (
               <div key={c.id}
@@ -207,7 +207,7 @@ export default function CompanyTab({ job, companies, onLinkCompany, onSetToast, 
                 {c.logo_url && <img src={c.logo_url} alt="" className="w-4 h-4 rounded" />}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{c.name}</div>
-                  <div className="text-[0.55rem] text-muted-foreground truncate">{c.industry || ''} {c.city ? `· ${c.city}` : ''}</div>
+                  <div className="text-2xs text-muted-foreground truncate">{c.industry || ''} {c.city ? `· ${c.city}` : ''}</div>
                 </div>
                 {linkedCompany?.id === c.id && <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />}
               </div>

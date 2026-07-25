@@ -29,7 +29,7 @@ export default function WorkflowCard({ section, status }) {
     <Card className="p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-xs capitalize">{section}</span>
-        <span className={cn("text-[0.5rem] font-semibold",
+        <span className={cn("text-2xs font-semibold",
           st.status === 'completed' ? 'text-green-500' :
           st.status === 'processing' ? 'text-primary' :
           st.status === 'failed' ? 'text-red-500' : 'text-muted-foreground'
@@ -39,7 +39,7 @@ export default function WorkflowCard({ section, status }) {
         {steps.map((step, i) => (
           <div key={i} className="flex items-center gap-2">
             <StepIcon status={step.status} />
-            <span className={cn("text-[0.55rem]",
+            <span className={cn("text-2xs",
               step.status === 'completed' ? 'text-foreground' :
               step.status === 'processing' ? 'text-primary font-semibold' : 'text-muted-foreground'
             )}>{step.label}</span>
@@ -47,7 +47,7 @@ export default function WorkflowCard({ section, status }) {
         ))}
       </div>
       {st.error && (
-        <div className="mt-2 text-[0.5rem] text-red-500 p-1.5 rounded bg-red-500/5">{st.error}</div>
+        <div className="mt-2 text-2xs text-red-500 p-1.5 rounded bg-red-500/5">{st.error}</div>
       )}
     </Card>
   )

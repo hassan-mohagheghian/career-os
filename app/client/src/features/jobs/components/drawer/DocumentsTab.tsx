@@ -14,7 +14,7 @@ function DocumentSection({ title, content, isGenerating, hasContent, onGenerate,
           size="sm"
           onClick={onGenerate}
           disabled={isGenerating}
-          className="gap-1.5 h-6 text-[0.55rem] bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30"
+          className="gap-1.5 h-6 text-2xs bg-primary/15 text-primary hover:bg-primary/25 border border-primary/30"
         >
           {isGenerating ? <Spinner className="w-2.5 h-2.5 animate-spin" /> : <Repeat className="w-2.5 h-2.5" />}
           {isGenerating ? 'Generating...' : hasContent ? 'Regenerate' : 'Generate'}
@@ -27,7 +27,7 @@ function DocumentSection({ title, content, isGenerating, hasContent, onGenerate,
       ) : (
         <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-lg border border-dashed border-primary/30 bg-background">
           <FileText className="w-6 h-6 text-primary/40" />
-          <p className="text-[0.6rem] text-muted-foreground">{emptyLabel}</p>
+          <p className="text-2xs text-muted-foreground">{emptyLabel}</p>
         </div>
       )}
     </div>
@@ -43,7 +43,7 @@ export default function DocumentsTab({ job, resume, coverLetter, generatingResum
         <button
           onClick={() => setActiveDoc('resume')}
           className={cn(
-            "px-3 py-1.5 rounded-md text-[0.6rem] font-semibold transition",
+            "px-3 py-1.5 rounded-md text-2xs font-semibold transition",
             activeDoc === 'resume'
               ? "bg-primary text-primary-foreground"
               : "bg-muted text-muted-foreground hover:text-foreground"
@@ -54,7 +54,7 @@ export default function DocumentsTab({ job, resume, coverLetter, generatingResum
         <button
           onClick={() => setActiveDoc('cover')}
           className={cn(
-            "px-3 py-1.5 rounded-md text-[0.6rem] font-semibold transition",
+            "px-3 py-1.5 rounded-md text-2xs font-semibold transition",
             activeDoc === 'cover'
               ? "bg-primary text-primary-foreground"
               : "bg-muted text-muted-foreground hover:text-foreground"

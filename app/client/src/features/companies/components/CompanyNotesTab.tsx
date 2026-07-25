@@ -149,9 +149,9 @@ export default function CompanyNotesTab({ company, onUpdate }) {
         <div className="flex items-center gap-2 mb-2">
           <Note className="w-4 h-4 text-primary" />
           <span className="text-xs font-semibold">Company Notes</span>
-          <Badge variant="secondary" className="text-[0.5rem]">{notes.length}</Badge>
+          <Badge variant="secondary" className="text-2xs">{notes.length}</Badge>
         </div>
-        <p className="text-[0.6rem] text-muted-foreground mb-2">
+        <p className="text-2xs text-muted-foreground mb-2">
           Add notes about this company — research, observations, interview notes, culture info.
         </p>
 
@@ -166,7 +166,7 @@ export default function CompanyNotesTab({ company, onUpdate }) {
           />
         </div>
         <div className="flex justify-end mb-2">
-          <Button onClick={addNote} disabled={saving || !noteInput.trim()} size="sm" className="h-6 px-2 text-[0.6rem]">
+          <Button onClick={addNote} disabled={saving || !noteInput.trim()} size="sm" className="h-6 px-2 text-2xs">
             <Plus className="w-2.5 h-2.5 mr-1" /> Add Note
           </Button>
         </div>
@@ -174,7 +174,7 @@ export default function CompanyNotesTab({ company, onUpdate }) {
         {/* Notes list */}
         <div className="space-y-1 max-h-60 overflow-y-auto">
           {notes.length === 0 && (
-            <div className="text-center py-3 text-[0.6rem] text-muted-foreground">No notes yet.</div>
+            <div className="text-center py-3 text-2xs text-muted-foreground">No notes yet.</div>
           )}
           {notes.map((n) => {
             const isEditing = editingNoteId === n.id
@@ -190,10 +190,10 @@ export default function CompanyNotesTab({ company, onUpdate }) {
                       autoFocus
                     />
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={() => updateNote(n.id)}>
+                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-2xs" onClick={() => updateNote(n.id)}>
                         <Check className="w-2.5 h-2.5 mr-0.5" /> Save
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={() => { setEditingNoteId(null); setEditNoteContent('') }}>
+                      <Button size="sm" variant="ghost" className="h-5 px-1.5 text-2xs" onClick={() => { setEditingNoteId(null); setEditNoteContent('') }}>
                         <X className="w-2.5 h-2.5" />
                       </Button>
                     </div>
@@ -229,15 +229,15 @@ export default function CompanyNotesTab({ company, onUpdate }) {
           <div className="flex items-center gap-2">
             <Link className="w-4 h-4 text-primary" />
             <span className="text-xs font-semibold">Company Links</span>
-            <Badge variant="secondary" className="text-[0.5rem]">{links.length}</Badge>
+            <Badge variant="secondary" className="text-2xs">{links.length}</Badge>
           </div>
           {!showLinkForm && (
-            <Button onClick={() => setShowLinkForm(true)} size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]">
+            <Button onClick={() => setShowLinkForm(true)} size="sm" variant="ghost" className="h-5 px-1.5 text-2xs">
               <Plus className="w-2.5 h-2.5 mr-0.5" /> Add Link
             </Button>
           )}
         </div>
-        <p className="text-[0.6rem] text-muted-foreground mb-2">
+        <p className="text-2xs text-muted-foreground mb-2">
           Add company pages, careers, blog posts, documentation, LinkedIn profiles.
         </p>
 
@@ -256,7 +256,7 @@ export default function CompanyNotesTab({ company, onUpdate }) {
               {['LinkedIn', 'Website', 'Careers', 'GitHub'].map(label => (
                 <button key={label} type="button"
                   onClick={() => setLinkTitle(linkTitle === label ? '' : label)}
-                  className={cn("h-5 px-1.5 rounded text-[0.5rem] border transition-colors",
+                  className={cn("h-5 px-1.5 rounded text-2xs border transition-colors",
                     linkTitle === label
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-muted-foreground border-border hover:bg-muted"
@@ -278,12 +278,12 @@ export default function CompanyNotesTab({ company, onUpdate }) {
               className="w-full h-6 rounded border text-xs px-2 bg-muted"
             />
             <div className="flex justify-end gap-1">
-              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]"
+              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-2xs"
                 onClick={() => editingLinkId ? updateLink(editingLinkId) : addLink()}
                 disabled={saving || !linkUrl.trim()}>
                 <Check className="w-2.5 h-2.5 mr-0.5" /> {editingLinkId ? 'Update' : 'Add'}
               </Button>
-              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[0.6rem]" onClick={cancelLinkForm}>
+              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-2xs" onClick={cancelLinkForm}>
                 <X className="w-2.5 h-2.5" />
               </Button>
             </div>
@@ -293,7 +293,7 @@ export default function CompanyNotesTab({ company, onUpdate }) {
         {/* Links list */}
         <div className="space-y-1 max-h-60 overflow-y-auto">
           {links.length === 0 && !showLinkForm && (
-            <div className="text-center py-3 text-[0.6rem] text-muted-foreground">No links yet.</div>
+            <div className="text-center py-3 text-2xs text-muted-foreground">No links yet.</div>
           )}
           {links.map((link) => (
             <div key={link.id} className="group flex items-start gap-1.5 rounded border bg-muted/50 px-2 py-1.5 text-xs">
@@ -301,10 +301,10 @@ export default function CompanyNotesTab({ company, onUpdate }) {
               <div className="flex-1 min-w-0">
                 <a href={link.url} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{link.url}</a>
                 {link.title && <div className="text-muted-foreground truncate">{link.title}</div>}
-                {link.description && <div className="text-[0.55rem] text-muted-foreground truncate">{link.description}</div>}
+                {link.description && <div className="text-2xs text-muted-foreground truncate">{link.description}</div>}
                 <div className="flex items-center gap-1 mt-0.5">
                   <Badge variant={link.status === 'processed' ? 'default' : link.status === 'failed' ? 'destructive' : 'secondary'}
-                    className="text-[0.45rem] px-1 py-0">
+                    className="text-2xs px-1 py-0">
                     {link.status === 'processed' ? 'Processed' : link.status === 'failed' ? 'Failed' : 'Pending'}
                   </Badge>
                 </div>

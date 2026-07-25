@@ -107,15 +107,15 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
 
       <Tabs value={subTab} onValueChange={(v) => { setSubTab(v); setViewingItem(null) }}>
         <TabsList className="bg-muted">
-          <TabsTrigger value="resume" className="gap-1.5 text-[0.6rem]">
+          <TabsTrigger value="resume" className="gap-1.5 text-2xs">
             <Star className="w-3.5 h-3.5" />
             Resumes
-            {originalResumes.length > 0 && <Badge variant="outline" className="ml-1 text-[0.5rem] h-4">{originalResumes.length}</Badge>}
+            {originalResumes.length > 0 && <Badge variant="outline" className="ml-1 text-2xs h-4">{originalResumes.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="linkedin" className="gap-1.5 text-[0.6rem]">
+          <TabsTrigger value="linkedin" className="gap-1.5 text-2xs">
             <LinkedinLogo className="w-3.5 h-3.5" />
             LinkedIn Profile
-            {sortedProfiles.length > 0 && <Badge variant="outline" className="ml-1 text-[0.5rem] h-4">{sortedProfiles.length}</Badge>}
+            {sortedProfiles.length > 0 && <Badge variant="outline" className="ml-1 text-2xs h-4">{sortedProfiles.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
@@ -135,7 +135,7 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
               <CardContent className="py-12 text-center text-muted-foreground">
                 <FileText className="w-8 h-8 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No resumes uploaded yet.</p>
-                <p className="text-[0.65rem] mt-1">Upload your base resume — it's used to score jobs and generate tailored versions.</p>
+                <p className="text-xs mt-1">Upload your base resume — it's used to score jobs and generate tailored versions.</p>
                 <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={() => setUploadOpen(true)}>
                   <Upload className="w-3.5 h-3.5" /> Upload Resume
                 </Button>
@@ -148,7 +148,7 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
               onSelect={setViewingItem}
               onDelete={handleDeleteResume}
               renderItem={(r) => ({ label: `v${r.version}`, sub: r.created_at ? new Date(r.created_at).toLocaleDateString() : '' })}
-              renderBadge={(r, i) => i === 0 && <Badge variant="default" className="text-[0.4rem] h-3.5 px-1">Active</Badge>}
+              renderBadge={(r, i) => i === 0 && <Badge variant="default" className="text-3xs h-3.5 px-1">Active</Badge>}
             />
           )}
         </TabsContent>
@@ -166,7 +166,7 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
 
           <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
             <Warning className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-            <p className="text-[0.65rem] text-yellow-500/80">
+            <p className="text-xs text-yellow-500/80">
               Personal info (name, phone, email, LinkedIn URL) is automatically masked for privacy.
             </p>
           </div>
@@ -176,7 +176,7 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
               <CardContent className="py-12 text-center text-muted-foreground">
                 <LinkedinLogo className="w-8 h-8 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No LinkedIn profile uploaded yet.</p>
-                <p className="text-[0.65rem] mt-1">Paste your LinkedIn profile text to give the AI more context about your experience.</p>
+                <p className="text-xs mt-1">Paste your LinkedIn profile text to give the AI more context about your experience.</p>
                 <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={() => setLinkedinUploadOpen(true)}>
                   <Upload className="w-3.5 h-3.5" /> Upload Profile
                 </Button>
@@ -189,7 +189,7 @@ export default function ResumeTab({ resumes, linkedinProfiles, onRefreshResumes,
               onSelect={setViewingItem}
               onDelete={handleDeleteLinkedin}
               renderItem={(p) => ({ label: `v${p.version}`, sub: p.created_at ? new Date(p.created_at).toLocaleDateString() : '' })}
-              renderBadge={(p, i) => i === 0 && <Badge variant="default" className="text-[0.4rem] h-3.5 px-1">Active</Badge>}
+              renderBadge={(p, i) => i === 0 && <Badge variant="default" className="text-3xs h-3.5 px-1">Active</Badge>}
             />
           )}
         </TabsContent>
@@ -276,7 +276,7 @@ function ResumeListView({ items, viewingItem, onSelect, onDelete, renderItem, re
                           <span className="text-xs font-bold truncate">{label}</span>
                           {renderBadge(item, i)}
                         </div>
-                        <div className="text-[0.55rem] text-muted-foreground truncate">{sub}</div>
+                        <div className="text-2xs text-muted-foreground truncate">{sub}</div>
                       </div>
                       <button
                         className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
@@ -299,7 +299,7 @@ function ResumeListView({ items, viewingItem, onSelect, onDelete, renderItem, re
           <Card className="h-full flex flex-col min-h-0">
             <div className="px-4 pt-3 pb-2 flex items-center justify-between shrink-0">
               <span className="text-sm font-bold">{viewingItem.title || 'Preview'}</span>
-              <Button variant="ghost" size="sm" className="h-6 text-[0.55rem]" onClick={() => onSelect(null)}>Close</Button>
+              <Button variant="ghost" size="sm" className="h-6 text-2xs" onClick={() => onSelect(null)}>Close</Button>
             </div>
             <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col items-center">
               <div className="flex-1 min-h-0 w-full flex items-start justify-center overflow-y-auto">

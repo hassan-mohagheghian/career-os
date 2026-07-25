@@ -55,7 +55,7 @@ function RoadmapItem({ item, checked, onToggle, depth = 0 }) {
 
   return (
     <div className={cn("select-none", depth > 0 && "ml-3")}>
-      <div className={cn("flex items-center gap-1.5 py-1 px-1 rounded hover:bg-muted/50 transition text-[0.6rem]",
+      <div className={cn("flex items-center gap-1.5 py-1 px-1 rounded hover:bg-muted/50 transition text-2xs",
         isComplete && "bg-green-500/5"
       )}>
         <button className="shrink-0 w-3 h-3 flex items-center justify-center" onClick={() => hasChildren && setExpanded(!expanded)}>
@@ -248,14 +248,14 @@ export default function SkillDetailDrawer({
                 <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setRenaming(false); }}
                   className="h-7 text-sm flex-1" autoFocus />
-                <Button size="sm" variant="ghost" onClick={handleRename} className="h-7 text-[0.6rem]">Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setRenaming(false)} className="h-7 text-[0.6rem]">Cancel</Button>
+                <Button size="sm" variant="ghost" onClick={handleRename} className="h-7 text-2xs">Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setRenaming(false)} className="h-7 text-2xs">Cancel</Button>
               </div>
             ) : (
               <>
                 {skillName}
                 {skill.category && (
-                  <Badge variant="secondary" className={cn("text-[0.5rem]", CATEGORY_COLORS[skill.category] || "bg-gray-500/15 text-gray-400")}>
+                  <Badge variant="secondary" className={cn("text-2xs", CATEGORY_COLORS[skill.category] || "bg-gray-500/15 text-gray-400")}>
                     {skill.category}
                   </Badge>
                 )}
@@ -267,9 +267,9 @@ export default function SkillDetailDrawer({
             )}
           </SheetTitle>
           <SheetDescription className="flex items-center gap-2">
-            {skill.source && <Badge variant="secondary" className="text-[0.5rem]">{skill.source?.replace("_", " ")}</Badge>}
+            {skill.source && <Badge variant="secondary" className="text-2xs">{skill.source?.replace("_", " ")}</Badge>}
             {skill.confidence > 0 && (
-              <span className="text-[0.55rem] text-muted-foreground">Confidence: {Math.round(skill.confidence * 100)}%</span>
+              <span className="text-2xs text-muted-foreground">Confidence: {Math.round(skill.confidence * 100)}%</span>
             )}
           </SheetDescription>
         </SheetHeader>
@@ -298,7 +298,7 @@ export default function SkillDetailDrawer({
               </div>
               <div className="space-y-1.5">
                 {evidence.map((e, i) => (
-                  <div key={i} className="text-[0.65rem] text-muted-foreground flex items-start gap-1.5">
+                  <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                     <span className="text-yellow-500 shrink-0">•</span> {e}
                   </div>
                 ))}
@@ -326,7 +326,7 @@ export default function SkillDetailDrawer({
                 const isActive = skill.level === lvl;
                 return (
                   <button key={lvl} onClick={() => handleSetLevel(lvl)}
-                    className={cn("px-2 py-1 rounded text-[0.55rem] font-semibold border transition",
+                    className={cn("px-2 py-1 rounded text-2xs font-semibold border transition",
                       isActive ? colors[lvl] : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
                     )}>
                     {labels[lvl]}
@@ -342,16 +342,16 @@ export default function SkillDetailDrawer({
               <div className="flex items-center gap-2 mb-2">
                 <GitMerge className="w-4 h-4 text-amber-500" />
                 <span className="text-xs font-bold">Merged Skills</span>
-                <Badge variant="secondary" className="text-[0.4rem] h-2.5 bg-amber-500/15 text-amber-600">{aliases.length}</Badge>
+                <Badge variant="secondary" className="text-3xs h-2.5 bg-amber-500/15 text-amber-600">{aliases.length}</Badge>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {aliases.map((alias) => (
-                  <Badge key={alias} variant="secondary" className="text-[0.5rem] h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                  <Badge key={alias} variant="secondary" className="text-2xs h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">
                     {alias}
                   </Badge>
                 ))}
               </div>
-              <div className="text-[0.5rem] text-muted-foreground mt-1.5">
+              <div className="text-2xs text-muted-foreground mt-1.5">
                 These skills are variants of {skillName} — they were merged into this skill.
               </div>
             </Card>
@@ -365,19 +365,19 @@ export default function SkillDetailDrawer({
             </div>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-[0.5rem] h-4 bg-orange-500/10 text-orange-600 border border-orange-500/20 gap-1 pr-1">
+                <Badge key={tag} variant="secondary" className="text-2xs h-4 bg-orange-500/10 text-orange-600 border border-orange-500/20 gap-1 pr-1">
                   {tag}
                   <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-red-500 transition">&times;</button>
                 </Badge>
               ))}
-              {tags.length === 0 && <span className="text-[0.55rem] text-muted-foreground">No tags</span>}
+              {tags.length === 0 && <span className="text-2xs text-muted-foreground">No tags</span>}
             </div>
             <div className="flex gap-1">
               <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
-                placeholder="Add tag..." className="h-6 text-[0.6rem] flex-1" />
+                placeholder="Add tag..." className="h-6 text-2xs flex-1" />
               <Button size="sm" variant="outline" onClick={handleAddTag} disabled={!tagInput.trim()}
-                className="h-6 text-[0.5rem] px-2">Add</Button>
+                className="h-6 text-2xs px-2">Add</Button>
             </div>
           </Card>
 
@@ -389,11 +389,11 @@ export default function SkillDetailDrawer({
                 {roadmapExpanded ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
                 <TreeStructure className="w-4 h-4 text-emerald-500" />
                 <span className="text-xs font-bold">Learning Roadmap</span>
-                <Badge variant="secondary" className="text-[0.4rem] h-2.5 bg-emerald-500/15 text-emerald-500">
+                <Badge variant="secondary" className="text-3xs h-2.5 bg-emerald-500/15 text-emerald-500">
                   {prog.completed}/{prog.total}
                 </Badge>
                 <div className="flex-1" />
-                <span className="text-[0.5rem] text-muted-foreground">{prog.pct}%</span>
+                <span className="text-2xs text-muted-foreground">{prog.pct}%</span>
               </button>
               <div className="flex items-center gap-2 mb-2">
                 <Progress value={prog.pct} className="h-1.5 flex-1" />
@@ -421,12 +421,12 @@ export default function SkillDetailDrawer({
                   const relInfo = RELATION_LABELS[rel.relation_type] || RELATION_LABELS.related;
                   return (
                     <div key={rel.id} className="flex items-center gap-2">
-                      <Badge variant="secondary" className={cn("text-[0.4rem] h-2.5 shrink-0", relInfo.color)}>
+                      <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", relInfo.color)}>
                         {relInfo.label}
                       </Badge>
                       <span className="text-xs font-semibold">{otherName}</span>
                       {rel.confidence > 0 && (
-                        <span className="text-[0.5rem] text-muted-foreground ml-auto">{Math.round(rel.confidence * 100)}%</span>
+                        <span className="text-2xs text-muted-foreground ml-auto">{Math.round(rel.confidence * 100)}%</span>
                       )}
                     </div>
                   );
@@ -439,12 +439,12 @@ export default function SkillDetailDrawer({
           <div className="flex gap-2">
             {!hasRoadmap && (
               <Button size="sm" onClick={() => { onGenerate?.(skillName); onOpenChange?.(false); }}
-                className="gap-1 h-7 text-[0.6rem]">
+                className="gap-1 h-7 text-2xs">
                 <TreeStructure className="w-3 h-3" /> Generate Roadmap
               </Button>
             )}
             <Button size="sm" variant="outline" onClick={() => { onHide?.(skillName); onOpenChange?.(false); }}
-              className="gap-1 h-7 text-[0.6rem] text-red-500 hover:bg-red-500/10">
+              className="gap-1 h-7 text-2xs text-red-500 hover:bg-red-500/10">
               <EyeSlash className="w-3 h-3" /> Hide Skill
             </Button>
           </div>

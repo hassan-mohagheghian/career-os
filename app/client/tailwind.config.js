@@ -11,6 +11,19 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        '3xs': ['0.375rem', { lineHeight: '0.875rem' }],   // 6px  — tiny badges, indicators
+        '2xs': ['0.5rem', { lineHeight: '0.75rem' }],      // 8px  — badges, labels, status
+        'xs': ['0.75rem', { lineHeight: '1rem' }],          // 12px — body small, descriptions
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],      // 14px — body, cards
+        'base': ['1rem', { lineHeight: '1.5rem' }],         // 16px — default
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],      // 18px — headings small
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],       // 20px — headings
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],          // 24px — section titles
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],     // 30px — stats
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],       // 36px — hero stats
+        '5xl': ['3rem', { lineHeight: '1' }],               // 48px — large hero
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",

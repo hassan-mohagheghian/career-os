@@ -51,26 +51,26 @@ function HistoryItem({ item }: { item: HistoryItemData }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="font-semibold truncate">{item.title}</span>
-          <Badge variant="secondary" className={cn("text-[0.4rem] h-2.5 shrink-0", cfg.color)}>
+          <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", cfg.color)}>
             {cfg.label}
           </Badge>
-          <span className={cn("font-semibold text-[0.55rem] shrink-0",
+          <span className={cn("font-semibold text-2xs shrink-0",
             item.status === 'completed' ? "text-green-500" :
             item.status === 'failed' ? "text-red-500" :
             item.status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
           )}>{item.status}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-muted-foreground text-[0.55rem] flex items-center gap-0.5">
+          <span className="text-muted-foreground text-2xs flex items-center gap-0.5">
             <Clock className="w-2.5 h-2.5" />
             {formatTimeAgo(item.completed_at || item.started_at)}
           </span>
-          <span className="text-muted-foreground/70 text-[0.5rem] font-mono truncate max-w-[140px]" title={item.session_id || 'No session ID'}>
+          <span className="text-muted-foreground/70 text-2xs font-mono truncate max-w-[140px]" title={item.session_id || 'No session ID'}>
             {item.session_id || '—'}
           </span>
         </div>
         {item.error && (
-          <div className="text-red-500 text-[0.55rem] mt-0.5 flex items-center gap-1">
+          <div className="text-red-500 text-2xs mt-0.5 flex items-center gap-1">
             <Warning className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate">{item.error}</span>
           </div>
@@ -155,12 +155,12 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
             </div>
           )}
           {loading && (
-            <div className="text-center py-2 text-muted-foreground text-[0.6rem] flex items-center justify-center gap-1">
+            <div className="text-center py-2 text-muted-foreground text-2xs flex items-center justify-center gap-1">
               <Spinner className="w-3 h-3 animate-spin" /> Loading...
             </div>
           )}
           {!loading && loadedCount < total && items.length > 0 && (
-            <div className="text-center py-2 text-muted-foreground text-[0.6rem]">
+            <div className="text-center py-2 text-muted-foreground text-2xs">
               Scroll for more...
             </div>
           )}

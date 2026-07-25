@@ -30,15 +30,15 @@ const FILTER_TABS = [
 ]
 
 function PriorityBadge({ p }) {
-  if (p >= 90) return <Badge className="text-[0.45rem] px-1 h-3.5 bg-red-500/15 text-red-500 border-red-500/30 shrink-0">Critical</Badge>
-  if (p >= 75) return <Badge className="text-[0.45rem] px-1 h-3.5 bg-orange-500/15 text-orange-500 border-orange-500/30 shrink-0">High</Badge>
-  if (p >= 50) return <Badge variant="secondary" className="text-[0.45rem] px-1 h-3.5 shrink-0">Med</Badge>
-  return <Badge variant="outline" className="text-[0.45rem] px-1 h-3.5 shrink-0">Low</Badge>
+  if (p >= 90) return <Badge className="text-2xs px-1 h-3.5 bg-red-500/15 text-red-500 border-red-500/30 shrink-0">Critical</Badge>
+  if (p >= 75) return <Badge className="text-2xs px-1 h-3.5 bg-orange-500/15 text-orange-500 border-orange-500/30 shrink-0">High</Badge>
+  if (p >= 50) return <Badge variant="secondary" className="text-2xs px-1 h-3.5 shrink-0">Med</Badge>
+  return <Badge variant="outline" className="text-2xs px-1 h-3.5 shrink-0">Low</Badge>
 }
 
 function ScopeBadge({ scope }) {
   const config = SCOPE_CONFIG[scope] || SCOPE_CONFIG.SHARED
-  return <Badge variant="outline" className={cn("text-[0.4rem] px-0.5 h-2.5 shrink-0", config.color)}>{config.label}</Badge>
+  return <Badge variant="outline" className={cn("text-3xs px-0.5 h-2.5 shrink-0", config.color)}>{config.label}</Badge>
 }
 
 function RuleForm({ initial, onSave, onCancel }) {
@@ -47,7 +47,7 @@ function RuleForm({ initial, onSave, onCancel }) {
     <div className="p-3 rounded-lg border border-dashed bg-muted/30 space-y-2">
       <div className="grid grid-cols-4 gap-2">
         <Select value={f.scope} onValueChange={(v) => setF({ ...f, scope: v })}>
-          <SelectTrigger className="h-7 text-[0.65rem]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="SHARED">Shared (ALL)</SelectItem>
             <SelectItem value="JOB">Job</SelectItem>
@@ -56,23 +56,23 @@ function RuleForm({ initial, onSave, onCancel }) {
           </SelectContent>
         </Select>
         <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
-          <SelectTrigger className="h-7 text-[0.65rem]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="fit">Fit score</SelectItem>
             <SelectItem value="success">Success score</SelectItem>
           </SelectContent>
         </Select>
-        <Input value={f.key} onChange={e => setF({ ...f, key: e.target.value })} placeholder="Key name" className="h-7 text-[0.65rem]" />
+        <Input value={f.key} onChange={e => setF({ ...f, key: e.target.value })} placeholder="Key name" className="h-7 text-xs" />
         <div className="flex items-center gap-1">
-          <span className="text-[0.55rem] text-muted-foreground shrink-0">W:</span>
-          <Input type="number" min="0" max="100" value={f.score_weight} onChange={e => setF({ ...f, score_weight: parseInt(e.target.value) || 0 })} className="h-7 text-[0.65rem] flex-1" />
+          <span className="text-2xs text-muted-foreground shrink-0">W:</span>
+          <Input type="number" min="0" max="100" value={f.score_weight} onChange={e => setF({ ...f, score_weight: parseInt(e.target.value) || 0 })} className="h-7 text-xs flex-1" />
         </div>
       </div>
-      <Textarea value={f.value} onChange={e => setF({ ...f, value: e.target.value })} placeholder="Value / rule" className="text-[0.65rem] min-h-[48px]" />
-      <Input value={f.description} onChange={e => setF({ ...f, description: e.target.value })} placeholder="How this affects scoring (optional)" className="h-7 text-[0.65rem]" />
+      <Textarea value={f.value} onChange={e => setF({ ...f, value: e.target.value })} placeholder="Value / rule" className="text-xs min-h-[48px]" />
+      <Input value={f.description} onChange={e => setF({ ...f, description: e.target.value })} placeholder="How this affects scoring (optional)" className="h-7 text-xs" />
       <div className="flex gap-1">
-        <Button size="sm" className="h-6 text-[0.55rem] bg-green-500 hover:bg-green-600 gap-0.5" onClick={() => { if (f.key && f.value) onSave(f) }}><Check className="w-2.5 h-2.5" /> Save</Button>
-        <Button size="sm" variant="ghost" className="h-6 text-[0.55rem] gap-0.5" onClick={onCancel}><X className="w-2.5 h-2.5" /> Cancel</Button>
+        <Button size="sm" className="h-6 text-2xs bg-green-500 hover:bg-green-600 gap-0.5" onClick={() => { if (f.key && f.value) onSave(f) }}><Check className="w-2.5 h-2.5" /> Save</Button>
+        <Button size="sm" variant="ghost" className="h-6 text-2xs gap-0.5" onClick={onCancel}><X className="w-2.5 h-2.5" /> Cancel</Button>
       </div>
     </div>
   )
@@ -101,15 +101,15 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
           <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-[0.5rem] text-muted-foreground w-3 text-right shrink-0">{idx + 1}.</span>
-              <span className="text-[0.7rem] font-semibold truncate">{pref.key}</span>
-              <Badge variant="outline" className="text-[0.4rem] px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
+              <span className="text-2xs text-muted-foreground w-3 text-right shrink-0">{idx + 1}.</span>
+              <span className="text-xs font-semibold truncate">{pref.key}</span>
+              <Badge variant="outline" className="text-3xs px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
               <ScopeBadge scope={pref.scope} />
               <PriorityBadge p={pref.priority} />
-              <span className="text-[0.45rem] text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
+              <span className="text-2xs text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
             </div>
-            <div className="text-[0.6rem] text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
-            {pref.description && <div className="text-[0.5rem] text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
+            <div className="text-2xs text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
+            {pref.description && <div className="text-2xs text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
           </div>
           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
             <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
@@ -142,11 +142,11 @@ function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle,
       <div className={cn("flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0", meta.headerBg, meta.headerBorder)}>
         <span className={meta.header}>{meta.icon}</span>
         <span className={cn("text-sm font-bold", meta.header)}>{meta.label} Rules</span>
-        <Badge variant="secondary" className="text-[0.5rem] ml-auto">{prefs.filter(p => p.enabled).length}/{prefs.length}</Badge>
+        <Badge variant="secondary" className="text-2xs ml-auto">{prefs.filter(p => p.enabled).length}/{prefs.length}</Badge>
       </div>
       <div className={cn("rounded-b-lg border p-2 space-y-0.5 max-h-[600px] overflow-y-auto", meta.headerBorder)}>
-        <div className="text-[0.5rem] text-muted-foreground mb-1">{meta.desc}</div>
-        <Button variant="ghost" size="sm" className="h-6 text-[0.55rem] gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : scope)}>
+        <div className="text-2xs text-muted-foreground mb-1">{meta.desc}</div>
+        <Button variant="ghost" size="sm" className="h-6 text-2xs gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : scope)}>
           <Plus className="w-2.5 h-2.5" /> Add rule
         </Button>
         {showAdd === scope && (
@@ -218,7 +218,7 @@ export default function RulesTab({ rules, onUpdate }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-extrabold">Scoring Rules</h2>
-          <p className="text-[0.65rem] text-muted-foreground">{enabled}/{total} active — Shared rules apply to all entity types</p>
+          <p className="text-xs text-muted-foreground">{enabled}/{total} active — Shared rules apply to all entity types</p>
         </div>
       </div>
 
@@ -231,11 +231,11 @@ export default function RulesTab({ rules, onUpdate }) {
               key={tab.id}
               variant={filter === tab.id ? 'default' : 'outline'}
               size="sm"
-              className={cn("h-6 text-[0.55rem] gap-1", filter === tab.id && "bg-primary text-primary-foreground")}
+              className={cn("h-6 text-2xs gap-1", filter === tab.id && "bg-primary text-primary-foreground")}
               onClick={() => setFilter(tab.id)}
             >
               {tab.label}
-              <span className="text-[0.45rem] opacity-70">({count})</span>
+              <span className="text-2xs opacity-70">({count})</span>
             </Button>
           )
         })}

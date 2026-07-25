@@ -35,7 +35,7 @@ function HealthGauge({ score, label }) {
           <span className={cn("text-2xl font-extrabold", color)}>{score}</span>
         </div>
       </div>
-      <span className="text-[0.6rem] text-muted-foreground mt-1">{label}</span>
+      <span className="text-2xs text-muted-foreground mt-1">{label}</span>
     </div>
   )
 }
@@ -43,7 +43,7 @@ function HealthGauge({ score, label }) {
 function BreakdownBar({ label, value, color }) {
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-[0.6rem]">
+      <div className="flex justify-between text-2xs">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-bold">{value}/100</span>
       </div>
@@ -66,15 +66,15 @@ function ActionCard({ action }) {
   return (
     <div className={cn("flex items-start gap-3 p-3 rounded-lg border-l-3 transition hover:bg-muted", impactColors[action.impact])}>
       <div className="shrink-0 mt-0.5">
-        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[0.6rem] font-bold">
+        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-2xs font-bold">
           {action.priority}
         </span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold">{action.action}</div>
-        <div className="text-[0.6rem] text-muted-foreground mt-0.5">{action.reason}</div>
+        <div className="text-2xs text-muted-foreground mt-0.5">{action.reason}</div>
       </div>
-      <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5 shrink-0", impactBadge[action.impact])}>
+      <Badge variant="secondary" className={cn("text-2xs h-3.5 shrink-0", impactBadge[action.impact])}>
         {action.impact}
       </Badge>
     </div>
@@ -103,12 +103,12 @@ export default function OverviewSection({ data, refreshing, onRefresh, status })
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Career Command Center</h3>
           {status?.overview?.lastRun && (
-            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+            <span className="text-2xs text-muted-foreground/60 flex items-center gap-0.5">
               <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.overview.lastRun)}
             </span>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.overview} className="gap-1 h-6 text-[0.55rem]">
+        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.overview} className="gap-1 h-6 text-2xs">
           <ArrowsClockwise className={cn("w-3 h-3", refreshing.overview && "animate-spin")} /> Refresh
         </Button>
       </div>
@@ -119,7 +119,7 @@ export default function OverviewSection({ data, refreshing, onRefresh, status })
           <Card key={i} className="p-3 text-center transition hover:border-primary">
             <div className={cn("mb-1", s.c)}>{s.icon}</div>
             <div className={cn("text-xl font-extrabold", s.c)}>{s.n}</div>
-            <div className="text-[0.6rem] uppercase tracking-wider text-muted-foreground">{s.l}</div>
+            <div className="text-2xs uppercase tracking-wider text-muted-foreground">{s.l}</div>
           </Card>
         ))}
       </div>
@@ -133,7 +133,7 @@ export default function OverviewSection({ data, refreshing, onRefresh, status })
           </div>
           <div className="flex flex-wrap gap-2">
             {position.biggestSkillGaps.map((gap, i) => (
-              <Badge key={i} variant="secondary" className="text-[0.6rem] bg-yellow-500/15 text-yellow-500">{gap}</Badge>
+              <Badge key={i} variant="secondary" className="text-2xs bg-yellow-500/15 text-yellow-500">{gap}</Badge>
             ))}
           </div>
         </Card>

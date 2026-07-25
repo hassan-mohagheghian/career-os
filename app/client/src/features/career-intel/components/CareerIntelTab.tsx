@@ -66,7 +66,7 @@ function SectionTimestamp({ status, sectionKey }: { status: Record<string, any>;
   if (!sectionStatus?.lastRun) return null
   const isError = sectionStatus.status === 'failed'
   return (
-    <span className={cn("text-[0.5rem] flex items-center gap-0.5 ml-1.5",
+    <span className={cn("text-2xs flex items-center gap-0.5 ml-1.5",
       isError ? "text-red-500" : "text-muted-foreground/60"
     )}>
       <Clock className="w-2.5 h-2.5" />
@@ -155,7 +155,7 @@ export default function CareerIntelTab({
         </div>
         <div className="flex items-center gap-2">
           {overallTimestamp && (
-            <span className="text-[0.55rem] text-muted-foreground flex items-center gap-1">
+            <span className="text-2xs text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" /> {formatTimestamp(overallTimestamp)}
             </span>
           )}
@@ -176,10 +176,10 @@ export default function CareerIntelTab({
             <Warning className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="text-xs font-bold text-red-500">Analysis Failed</div>
-              <div className="text-[0.6rem] text-muted-foreground mt-0.5">{lastError.error}</div>
-              <div className="text-[0.55rem] text-muted-foreground mt-1">Last attempted: {formatTimestamp(lastError.lastRun)}</div>
+              <div className="text-2xs text-muted-foreground mt-0.5">{lastError.error}</div>
+              <div className="text-2xs text-muted-foreground mt-1">Last attempted: {formatTimestamp(lastError.lastRun)}</div>
             </div>
-            <Button onClick={onRefreshAll} size="sm" variant="outline" className="gap-1 h-6 text-[0.55rem] shrink-0">
+            <Button onClick={onRefreshAll} size="sm" variant="outline" className="gap-1 h-6 text-2xs shrink-0">
               <ArrowsClockwise className="w-3 h-3" /> Retry
             </Button>
           </div>

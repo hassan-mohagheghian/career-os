@@ -108,13 +108,13 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
       )}
       <span className="font-semibold w-16 truncate shrink-0">{name}</span>
       {category && (
-        <Badge variant="secondary" className={cn("text-[0.4rem] h-2.5 shrink-0", CATEGORY_COLORS[category] || "bg-gray-500/15 text-gray-400")}>
+        <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", CATEGORY_COLORS[category] || "bg-gray-500/15 text-gray-400")}>
           {category}
         </Badge>
       )}
       {/* Source + Role tags */}
       {tags.map((tag) => (
-        <Badge key={tag.label} variant="secondary" className={cn("text-[0.35rem] h-2 shrink-0", tag.color)}>
+        <Badge key={tag.label} variant="secondary" className={cn("text-3xs h-2 shrink-0", tag.color)}>
           {tag.label}
         </Badge>
       ))}
@@ -123,7 +123,7 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[40px]">
             <div className="h-full bg-primary/60 rounded-full" style={{ width: `${marketDemand}%` }} />
           </div>
-          <span className="w-6 text-right text-[0.5rem] text-muted-foreground shrink-0">{marketDemand}%</span>
+          <span className="w-6 text-right text-2xs text-muted-foreground shrink-0">{marketDemand}%</span>
         </>
       )}
       {confidence > 0 && (
@@ -159,8 +159,8 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
     </div>
     {aliases.length > 0 && (
       <div className="flex items-center gap-1 ml-6 pl-2 border-l-2 border-muted">
-        <Badge variant="secondary" className="text-[0.35rem] h-2 bg-amber-500/15 text-amber-600 shrink-0">Variant</Badge>
-        <span className="text-[0.5rem] text-muted-foreground truncate">
+        <Badge variant="secondary" className="text-3xs h-2 bg-amber-500/15 text-amber-600 shrink-0">Variant</Badge>
+        <span className="text-2xs text-muted-foreground truncate">
           {aliases.join(", ")}
         </span>
       </div>
@@ -435,8 +435,8 @@ export default function SkillsIntelSection({
       return (
         <>
           <div className="flex-1 min-w-[60px]"><Progress value={skill.roadmapPct} className="h-1.5" /></div>
-          <span className="text-[0.6rem] text-muted-foreground w-10 text-right shrink-0">{skill.roadmapCompleted}/{skill.roadmapTotal}</span>
-          <Badge variant="secondary" className={cn("text-[0.45rem] h-3 shrink-0",
+          <span className="text-2xs text-muted-foreground w-10 text-right shrink-0">{skill.roadmapCompleted}/{skill.roadmapTotal}</span>
+          <Badge variant="secondary" className={cn("text-2xs h-3 shrink-0",
             skill.roadmapPct === 100 ? "bg-green-500/15 text-green-500" : skill.roadmapPct > 0 ? "bg-emerald-500/15 text-emerald-500" : "bg-gray-500/15 text-gray-400"
           )}>{skill.roadmapPct}%</Badge>
         </>
@@ -444,9 +444,9 @@ export default function SkillsIntelSection({
     }
     return (
       <>
-        <span className="text-[0.6rem] text-muted-foreground flex-1">No roadmap</span>
+        <span className="text-2xs text-muted-foreground flex-1">No roadmap</span>
         <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill.name); }}
-          className="h-5 text-[0.5rem] gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
+          className="h-5 text-2xs gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
       </>
     );
   };
@@ -458,24 +458,24 @@ export default function SkillsIntelSection({
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Skills Intelligence</h3>
           {status?.skills_intel?.lastRun && (
-            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+            <span className="text-2xs text-muted-foreground/60 flex items-center gap-0.5">
               <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.skills_intel.lastRun)}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant={mergeMode ? "default" : "ghost"} size="sm" onClick={() => setMergeMode(!mergeMode)}
-            className={cn("gap-1 h-6 text-[0.55rem]", mergeMode && "bg-primary/20")}>
+            className={cn("gap-1 h-6 text-2xs", mergeMode && "bg-primary/20")}>
             <GitMerge className="w-3 h-3" /> {mergeMode ? "Exit Merge" : "Merge"}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.skills} className="gap-1 h-6 text-[0.55rem]">
+          <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.skills} className="gap-1 h-6 text-2xs">
             <ArrowsClockwise className={cn("w-3 h-3", refreshing.skills && "animate-spin")} /> Refresh
           </Button>
         </div>
       </div>
 
       {mergeMode && (
-        <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-2 text-[0.6rem] text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-2 text-2xs text-muted-foreground">
           <strong className="text-foreground">Merge Mode</strong> — Drag any skill onto another. Target keeps its name, source is absorbed.
         </div>
       )}
@@ -485,10 +485,10 @@ export default function SkillsIntelSection({
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="flex-1">
           <TabsList className="bg-muted">
             {CATEGORIES.map((cat) => (
-              <TabsTrigger key={cat.id} value={cat.id} className="gap-1.5 text-[0.6rem]">
+              <TabsTrigger key={cat.id} value={cat.id} className="gap-1.5 text-2xs">
                 {cat.icon} {cat.label}
                 {categoryCounts[cat.id] > 0 && (
-                  <Badge variant="secondary" className="text-[0.4rem] h-3 ml-0.5">{categoryCounts[cat.id]}</Badge>
+                  <Badge variant="secondary" className="text-3xs h-3 ml-0.5">{categoryCounts[cat.id]}</Badge>
                 )}
               </TabsTrigger>
             ))}
@@ -499,15 +499,15 @@ export default function SkillsIntelSection({
             <>
               <Input value={customSkillInput} onChange={(e) => setCustomSkillInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddCustomSkill()}
-                placeholder={`Skill name for ${activeCategory}...`} className="h-7 text-[0.65rem] w-56" autoFocus />
+                placeholder={`Skill name for ${activeCategory}...`} className="h-7 text-xs w-56" autoFocus />
               <Button size="sm" variant="default" onClick={handleAddCustomSkill} disabled={!customSkillInput.trim()}
-                className="h-7 gap-1 text-[0.6rem] shrink-0 bg-emerald-600 hover:bg-emerald-700">
+                className="h-7 gap-1 text-2xs shrink-0 bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-3 h-3" /> Add
               </Button>
             </>
           )}
           <Button size="sm" variant={showAddSkill ? "ghost" : "outline"} onClick={() => { setShowAddSkill(!showAddSkill); if (showAddSkill) setCustomSkillInput(""); }}
-            className="h-7 gap-1 text-[0.6rem] shrink-0">
+            className="h-7 gap-1 text-2xs shrink-0">
             <Plus className="w-3 h-3" /> {showAddSkill ? "Close" : "Add Skill"}
           </Button>
         </div>
@@ -518,31 +518,31 @@ export default function SkillsIntelSection({
         <div className="flex items-center gap-1">
           <SortAscending className="w-3 h-3 text-muted-foreground" />
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-6 text-2xs w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+              {SORT_OPTIONS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-2xs">{opt.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-1">
           <FunnelSimple className="w-3 h-3 text-muted-foreground" />
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-6 text-2xs w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {ROLE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+              {ROLE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-2xs">{opt.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger className="h-6 text-[0.6rem] w-28"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-6 text-2xs w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {SOURCE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+            {SOURCE_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-2xs">{opt.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={roadmapFilter} onValueChange={setRoadmapFilter}>
-          <SelectTrigger className="h-6 text-[0.6rem] w-32"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-6 text-2xs w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {ROADMAP_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-[0.6rem]">{opt.label}</SelectItem>)}
+            {ROADMAP_FILTERS.map((opt) => <SelectItem key={opt.id} value={opt.id} className="text-2xs">{opt.label}</SelectItem>)}
           </SelectContent>
         </Select>
         {/* Level filter — multi-select toggle buttons */}
@@ -557,7 +557,7 @@ export default function SkillsIntelSection({
                   if (next.has(lvl)) next.delete(lvl); else next.add(lvl);
                   return next;
                 });
-              }} className={cn("px-1.5 py-0.5 rounded text-[0.5rem] font-semibold border transition",
+              }} className={cn("px-1.5 py-0.5 rounded text-2xs font-semibold border transition",
                 isActive ? "bg-indigo-500/15 text-indigo-500 border-indigo-500/30" : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
               )}>
                 {labels[lvl]}
@@ -565,10 +565,10 @@ export default function SkillsIntelSection({
             );
           })}
           {levelFilter.size > 0 && (
-            <button onClick={() => setLevelFilter(new Set())} className="text-[0.5rem] text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
+            <button onClick={() => setLevelFilter(new Set())} className="text-2xs text-muted-foreground hover:text-foreground ml-0.5">&times;</button>
           )}
         </div>
-        <Badge variant="secondary" className="text-[0.5rem] h-4">{displayedSkills.length} skills</Badge>
+        <Badge variant="secondary" className="text-2xs h-4">{displayedSkills.length} skills</Badge>
       </div>
 
       {/* ═══ Global DnD Context ═══ */}
@@ -617,7 +617,7 @@ export default function SkillsIntelSection({
               {showHidden ? <CaretDown className="w-4 h-4" /> : <CaretRight className="w-4 h-4" />}
               <EyeSlash className="w-4 h-4 text-gray-500" />
               <h4 className="font-extrabold text-sm">Hidden Skills</h4>
-              <Badge variant="secondary" className="text-[0.5rem] bg-gray-500/15 text-gray-500">{hiddenSkills.length}</Badge>
+              <Badge variant="secondary" className="text-2xs bg-gray-500/15 text-gray-500">{hiddenSkills.length}</Badge>
             </button>
             {showHidden && (
               <SortableContext items={hiddenSkills.map((s) => s.name)} strategy={verticalListSortingStrategy}>
@@ -631,7 +631,7 @@ export default function SkillsIntelSection({
                         : [{ label: "AI", color: "bg-blue-500/15 text-blue-500" }]}
                       onRemove={handleDeleteSkill}
                       extra={<>
-                        <span className="text-[0.6rem] text-muted-foreground flex-1">Hidden</span>
+                        <span className="text-2xs text-muted-foreground flex-1">Hidden</span>
                         <button onClick={(e) => { e.stopPropagation(); handleRestoreSkill(skill.name); }}
                           className="shrink-0 p-0.5 rounded hover:bg-green-500/10 text-muted-foreground hover:text-green-500 transition" title="Restore">
                           <Eye className="w-2.5 h-2.5" />

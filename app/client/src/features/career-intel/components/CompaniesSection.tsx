@@ -33,7 +33,7 @@ function CompanyCard({ company, type, onOpenCompany, onAddCompany, existsInSyste
         <span className="font-bold text-sm">{companyName}</span>
         <div className="flex items-center gap-1">
           {company.fitScore && (
-            <Badge variant="outline" className="text-[0.55rem]">{company.fitScore}%</Badge>
+            <Badge variant="outline" className="text-2xs">{company.fitScore}%</Badge>
           )}
           {/* Show Add button on hover if company not in system */}
           {!existsInSystem && onAddCompany && (
@@ -44,7 +44,7 @@ function CompanyCard({ company, type, onOpenCompany, onAddCompany, existsInSyste
                 e.stopPropagation()
                 onAddCompany(companyName)
               }}
-              className="h-5 text-[0.5rem] gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-5 text-2xs gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Plus className="w-2.5 h-2.5" /> Add
             </Button>
@@ -58,7 +58,7 @@ function CompanyCard({ company, type, onOpenCompany, onAddCompany, existsInSyste
                 e.stopPropagation()
                 onOpenCompany(companyName)
               }}
-              className="h-5 text-[0.5rem] gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-5 text-2xs gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <ArrowRight className="w-2.5 h-2.5" /> Open
             </Button>
@@ -66,26 +66,26 @@ function CompanyCard({ company, type, onOpenCompany, onAddCompany, existsInSyste
         </div>
       </div>
       {type === 'product' ? (
-        <div className="space-y-1.5 text-[0.6rem] text-muted-foreground">
+        <div className="space-y-1.5 text-2xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <IdentificationCard className="w-3 h-3" />
             <span>Visa: </span>
-            <Badge variant="secondary" className={cn("text-[0.45rem] h-3", visaColors[company.visaStrength] || 'bg-gray-500/15 text-gray-400')}>
+            <Badge variant="secondary" className={cn("text-2xs h-3", visaColors[company.visaStrength] || 'bg-gray-500/15 text-gray-400')}>
               {company.visaStrength}
             </Badge>
           </div>
           {company.engineeringCulture && <div><b>Culture:</b> {company.engineeringCulture}</div>}
           {company.technologyAlignment && <div><b>Tech:</b> {company.technologyAlignment}</div>}
-          {company.reason && <div className="text-primary text-[0.55rem]">{company.reason}</div>}
+          {company.reason && <div className="text-primary text-2xs">{company.reason}</div>}
         </div>
       ) : (
-        <div className="space-y-1.5 text-[0.6rem] text-muted-foreground">
+        <div className="space-y-1.5 text-2xs text-muted-foreground">
           <div className="flex items-center gap-3">
             <span><b>Jobs:</b> {company.relevantJobs}</span>
             <span><b>International:</b> {company.internationalHiring}</span>
           </div>
           {company.techSpecialization && <div><b>Specialization:</b> {company.techSpecialization}</div>}
-          {company.reason && <div className="text-primary text-[0.55rem]">{company.reason}</div>}
+          {company.reason && <div className="text-primary text-2xs">{company.reason}</div>}
         </div>
       )}
     </Card>
@@ -133,12 +133,12 @@ export default function CompaniesSection({ data, refreshing, onRefresh, onOpenCo
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Company Intelligence</h3>
           {status?.companies?.lastRun && (
-            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+            <span className="text-2xs text-muted-foreground/60 flex items-center gap-0.5">
               <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.companies.lastRun)}
             </span>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.companies} className="gap-1 h-6 text-[0.55rem]">
+        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.companies} className="gap-1 h-6 text-2xs">
           <ArrowsClockwise className={cn("w-3 h-3", refreshing.companies && "animate-spin")} /> Refresh
         </Button>
       </div>
@@ -165,12 +165,12 @@ export default function CompaniesSection({ data, refreshing, onRefresh, onOpenCo
               >
                 <div className="text-lg font-extrabold text-yellow-500">#{t.rank}</div>
                 <div className="font-bold text-xs mt-1">{t.company}</div>
-                <div className="text-[0.55rem] text-muted-foreground mt-0.5">{t.fit}% fit</div>
-                <Badge variant="secondary" className="text-[0.45rem] h-3 mt-1">{t.visa}</Badge>
-                <div className="text-[0.5rem] text-muted-foreground mt-1 line-clamp-2">{t.reason}</div>
+                <div className="text-2xs text-muted-foreground mt-0.5">{t.fit}% fit</div>
+                <Badge variant="secondary" className="text-2xs h-3 mt-1">{t.visa}</Badge>
+                <div className="text-2xs text-muted-foreground mt-1 line-clamp-2">{t.reason}</div>
                 {!checkExists(t.company) && onAddCompany && (
                   <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Badge variant="default" className="text-[0.4rem] h-3.5 bg-primary gap-0.5">
+                    <Badge variant="default" className="text-3xs h-3.5 bg-primary gap-0.5">
                       <Plus className="w-2 h-2" /> Add
                     </Badge>
                   </div>
@@ -187,7 +187,7 @@ export default function CompaniesSection({ data, refreshing, onRefresh, onOpenCo
           <div className="flex items-center gap-2 mb-3">
             <Buildings className="w-5 h-5 text-primary" />
             <h4 className="font-extrabold text-sm">Product Companies</h4>
-            <Badge variant="secondary" className="text-[0.5rem]">{productCo.length}</Badge>
+            <Badge variant="secondary" className="text-2xs">{productCo.length}</Badge>
           </div>
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {productCo.length > 0 ? productCo.map((co, i) => (
@@ -210,7 +210,7 @@ export default function CompaniesSection({ data, refreshing, onRefresh, onOpenCo
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-5 h-5 text-cyan-500" />
             <h4 className="font-extrabold text-sm">Recruiting / Staffing</h4>
-            <Badge variant="secondary" className="text-[0.5rem]">{recruitingCo.length}</Badge>
+            <Badge variant="secondary" className="text-2xs">{recruitingCo.length}</Badge>
           </div>
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {recruitingCo.length > 0 ? recruitingCo.map((co, i) => (

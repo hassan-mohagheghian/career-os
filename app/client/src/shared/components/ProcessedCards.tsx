@@ -94,7 +94,7 @@ function getMatchClass(m) {
 function LocationBadge({ loc }) {
   const lcc = CITY_COLORS[loc] || DEFAULT_CITY_COLOR
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold"
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold"
       style={{ background: lcc.bg, color: lcc.text }}>
       <MapPin className="w-2.5 h-2.5" />{loc}
     </span>
@@ -104,7 +104,7 @@ function LocationBadge({ loc }) {
 function VisaBadge({ visa }) {
   const vs = VISA_STYLES[visa] || VISA_STYLES['Uncertain']
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold"
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold"
       style={{ background: vs.bg, color: vs.text }}>
       <IdentificationCard className="w-2.5 h-2.5" />{vs.label}
     </span>
@@ -116,7 +116,7 @@ function WorkTypeTag({ type }) {
                type === 'Hybrid' ? <ArrowsClockwise className="w-2.5 h-2.5" /> :
                <Buildings className="w-2.5 h-2.5" />
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-secondary text-secondary-foreground">
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-secondary text-secondary-foreground">
       {icon}{type}
     </span>
   )
@@ -131,27 +131,27 @@ export function CompactJobCard({ job, onClick }) {
     <Card onClick={onClick} className={cn("p-3 cursor-pointer transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px]", borderColor)}>
       <div className="flex items-center gap-1.5 mb-1">
         {/* Overall score - primary */}
-        <span className={cn("text-[0.65rem] font-bold px-1.5 py-0.5 rounded shrink-0", getScoreBadge(overallGrade))} title={`Overall: ${job.overall_score ?? '?'}`}>
+        <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded shrink-0", getScoreBadge(overallGrade))} title={`Overall: ${job.overall_score ?? '?'}`}>
           {job.overall_score != null ? `${job.overall_score}` : overallGrade}
         </span>
         {/* Fit score - secondary */}
         {job.fit_score != null && (
-          <span className={cn("text-[0.55rem] font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(numericToGrade(job.fit_score)))} title={`Fit: ${job.fit_score}`}>
+          <span className={cn("text-2xs font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(numericToGrade(job.fit_score)))} title={`Fit: ${job.fit_score}`}>
             F:{job.fit_score}
           </span>
         )}
         {/* Success score - secondary */}
         {job.success_score != null && (
-          <span className={cn("text-[0.55rem] font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(numericToGrade(job.success_score)))} title={`Success: ${job.success_score}`}>
+          <span className={cn("text-2xs font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(numericToGrade(job.success_score)))} title={`Success: ${job.success_score}`}>
             S:{job.success_score}
           </span>
         )}
         {/* Fallback to old letter grades if no numeric scores */}
         {job.overall_score == null && job.fit_score == null && (
           <>
-            <span className={cn("text-[0.65rem] font-bold px-1.5 py-0.5 rounded shrink-0", getScoreBadge(job.score))} title="Fit score">{job.score}</span>
+            <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded shrink-0", getScoreBadge(job.score))} title="Fit score">{job.score}</span>
             {job.success && (
-              <span className={cn("text-[0.55rem] font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(job.success))} title="Success probability">{job.success}</span>
+              <span className={cn("text-2xs font-bold px-1 py-0.5 rounded shrink-0 opacity-80", getScoreBadge(job.success))} title="Success probability">{job.success}</span>
             )}
           </>
         )}
@@ -160,9 +160,9 @@ export function CompactJobCard({ job, onClick }) {
       <div className="text-xs text-muted-foreground truncate mb-1.5">{job.role}</div>
       <div className="flex flex-wrap gap-1">
         {locations.slice(0, 2).map((loc, i) => <LocationBadge key={i} loc={loc} />)}
-        {locations.length > 2 && <span className="text-[0.5rem] text-muted-foreground">+{locations.length - 2}</span>}
+        {locations.length > 2 && <span className="text-2xs text-muted-foreground">+{locations.length - 2}</span>}
         <WorkTypeTag type={job.work_type} />
-        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[0.55rem] font-semibold border", getMatchClass(job.match))}>{job.match}</span>
+        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold border", getMatchClass(job.match))}>{job.match}</span>
         <VisaBadge visa={job.visa} />
       </div>
     </Card>
@@ -209,12 +209,12 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
         </div>
         <span onClick={onClick} className="cursor-pointer text-xs font-semibold text-muted-foreground shrink-0">#{rank}</span>
         {job.apply_time && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-green-500/15 text-green-500 border border-green-500/30 shrink-0" title={`Applied: ${job.apply_time}`}>
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-green-500/15 text-green-500 border border-green-500/30 shrink-0" title={`Applied: ${job.apply_time}`}>
             <PaperPlaneRight className="w-2 h-2" />Applied
           </span>
         )}
         {job.response_status && (
-          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold border shrink-0",
+          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold border shrink-0",
             job.response_status === 'Interview' ? 'bg-green-500/15 text-green-500 border-green-500/30' :
             job.response_status === 'Rejected' ? 'bg-red-500/15 text-red-500 border-red-500/30' :
             'bg-secondary text-secondary-foreground border-transparent'
@@ -225,7 +225,7 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
           </span>
         )}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
-          {isRescoring && <span className="text-[0.5rem] px-1.5 py-0.5 rounded bg-primary text-primary-foreground animate-pulse">Rescore</span>}
+          {isRescoring && <span className="text-2xs px-1.5 py-0.5 rounded bg-primary text-primary-foreground animate-pulse">Rescore</span>}
           {onRescore && (
             <Button variant="ghost" size="icon" className="h-3.5 w-3.5" onClick={(e) => { e.stopPropagation(); onRescore(job.num) }} title="Rescore">
               <TrendUp className="w-2 h-2" />
@@ -254,7 +254,7 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
         <div onClick={onClick} className="cursor-pointer text-sm font-bold truncate min-w-0 flex-1">{job.company}</div>
         {job.company_id && onOpenCompany && (
           <button onClick={(e) => { e.stopPropagation(); onOpenCompany(job.company_id) }}
-            className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[0.5rem] font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition"
+            className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-2xs font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition"
             title="View company intelligence">
             <Buildings className="w-2 h-2" />Linked
           </button>
@@ -265,12 +265,12 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
       <div onClick={onClick} className="cursor-pointer text-xs text-muted-foreground truncate mb-1.5">{job.role}</div>
       <div className="flex gap-1 flex-wrap">
         {locations.slice(0, 2).map((loc, i) => <LocationBadge key={i} loc={loc} />)}
-        {locations.length > 2 && <span className="text-[0.5rem] text-muted-foreground">+{locations.length - 2}</span>}
+        {locations.length > 2 && <span className="text-2xs text-muted-foreground">+{locations.length - 2}</span>}
         <WorkTypeTag type={job.work_type} />
-        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-[0.55rem] font-semibold border", getMatchClass(job.match))}>{job.match}</span>
+        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold border", getMatchClass(job.match))}>{job.match}</span>
         <VisaBadge visa={job.visa} />
         {job.applicants && job.applicants !== 'Not specified' && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-secondary text-secondary-foreground">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-secondary text-secondary-foreground">
             <Users className="w-2.5 h-2.5" />{job.applicants}
           </span>
         )}
@@ -278,14 +278,14 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
 
       {/* Row 3: Stack */}
       {job.stack && (
-        <div className="mt-1.5 text-[0.6rem] text-muted-foreground truncate" title={job.stack}>
+        <div className="mt-1.5 text-2xs text-muted-foreground truncate" title={job.stack}>
           <b className="text-foreground/70">Stack:</b> {job.stack}
         </div>
       )}
 
       {/* Row 4: Timestamps */}
       {(job.adv_at || job.see_at) && (
-        <div className="mt-1 flex gap-2 text-[0.5rem] text-muted-foreground">
+        <div className="mt-1 flex gap-2 text-2xs text-muted-foreground">
           {job.adv_at && (
             <span className="inline-flex items-center gap-0.5" title={`Listed: ${job.adv_at}`}>
               <Calendar className="w-2 h-2" />{new Date(job.adv_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
@@ -302,7 +302,7 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
       {job.url && (
         <div className="flex items-center gap-1 mt-1.5 min-w-0 overflow-hidden">
           <LinkSimple className="w-2.5 h-2.5 text-muted-foreground shrink-0" />
-          <span className="text-[0.55rem] truncate min-w-0 flex-1 text-primary" title={job.url}>
+          <span className="text-2xs truncate min-w-0 flex-1 text-primary" title={job.url}>
             <a href={job.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
               className="hover:underline">
               {job.url}

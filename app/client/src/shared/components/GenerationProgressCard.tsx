@@ -64,11 +64,11 @@ export default function GenerationProgressCard({
       <div className={cn("flex items-center gap-2 p-2 rounded-lg border border-primary/30 bg-primary/5", className)}>
         <Spinner className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
         <span className="text-xs font-semibold">{title}</span>
-        {progress?.message && <span className="text-[0.6rem] text-muted-foreground">{progress.message}</span>}
+        {progress?.message && <span className="text-2xs text-muted-foreground">{progress.message}</span>}
         <div className="flex-1">
           <Progress value={totalSteps ? (displayStep / totalSteps) * 100 : 0} className="h-1" />
         </div>
-        <span className="text-[0.55rem] text-muted-foreground shrink-0">{displayStep}/{totalSteps}</span>
+        <span className="text-2xs text-muted-foreground shrink-0">{displayStep}/{totalSteps}</span>
       </div>
     )
   }
@@ -85,16 +85,16 @@ export default function GenerationProgressCard({
           <Check className="w-4 h-4 text-green-500" />
         )}
         <span className="text-sm font-bold">{isFailed ? 'Failed' : isCancelled ? 'Cancelled' : title}</span>
-        {isRunning && <Badge variant="default" className="text-[0.5rem] animate-pulse">LIVE</Badge>}
+        {isRunning && <Badge variant="default" className="text-2xs animate-pulse">LIVE</Badge>}
         <div className="ml-auto flex items-center gap-2">
-          {type && <span className="text-[0.55rem] text-muted-foreground">{type}</span>}
+          {type && <span className="text-2xs text-muted-foreground">{type}</span>}
           {isRunning && onCancel && (
-            <Button variant="destructive" size="sm" onClick={onCancel} className="h-6 gap-1 text-[0.55rem]">
+            <Button variant="destructive" size="sm" onClick={onCancel} className="h-6 gap-1 text-2xs">
               <X className="w-3 h-3" /> Terminate
             </Button>
           )}
           {(isFailed || isCancelled) && onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry} className="h-6 gap-1 text-[0.55rem]">
+            <Button variant="outline" size="sm" onClick={onRetry} className="h-6 gap-1 text-2xs">
               <Spinner className="w-3 h-3" /> Retry
             </Button>
           )}
@@ -110,7 +110,7 @@ export default function GenerationProgressCard({
             return (
               <div key={step.key} className="flex items-center gap-0.5 flex-1">
                 <div className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[0.45rem] font-bold transition-all border shrink-0",
+                  "w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold transition-all border shrink-0",
                   isDone ? "bg-green-500 text-white border-green-500" :
                   isActive ? "bg-primary text-primary-foreground border-primary animate-pulse" :
                   "bg-background text-muted-foreground border-border"
@@ -129,7 +129,7 @@ export default function GenerationProgressCard({
         <div className="flex gap-1 mb-2">
           {steps.map((step, i) => (
             <div key={step.key} className="flex-1 text-center">
-              <span className={cn("text-[0.5rem]",
+              <span className={cn("text-2xs",
                 i < displayStep ? "text-green-500 font-semibold" :
                 i === displayStep ? "text-primary font-semibold" : "text-muted-foreground"
               )}>
@@ -143,7 +143,7 @@ export default function GenerationProgressCard({
       {/* Error display */}
       {isFailed && progress?.error && (
         <div className="mb-3 p-2 rounded bg-red-500/10 border border-red-500/20">
-          <div className="text-[0.6rem] text-red-400 max-h-[60px] overflow-y-auto font-mono">{progress.error}</div>
+          <div className="text-2xs text-red-400 max-h-[60px] overflow-y-auto font-mono">{progress.error}</div>
         </div>
       )}
 
@@ -151,7 +151,7 @@ export default function GenerationProgressCard({
       {isRunning && (
         <div className="flex items-center gap-2">
           <Progress value={totalSteps ? (displayStep / totalSteps) * 100 : 0} className="h-1 flex-1" />
-          <span className="text-[0.55rem] text-muted-foreground shrink-0">{formatElapsed(elapsedSec)}</span>
+          <span className="text-2xs text-muted-foreground shrink-0">{formatElapsed(elapsedSec)}</span>
         </div>
       )}
     </Card>

@@ -67,7 +67,7 @@ export default function Sidebar({ sidebarOpen, tabs, tab, onSwitchTab, subTab, o
                     >
                       {t.icon && <span>{t.icon}</span>}
                       <span>{t.label}</span>
-                      {t.badge && <Badge variant="default" className="ml-auto text-[0.55rem] h-5">{t.badge}</Badge>}
+                      {t.badge && <Badge variant="default" className="ml-auto text-2xs h-5">{t.badge}</Badge>}
                       {hasChildren && (
                         <span className="ml-auto">
                           {isExpanded ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}

@@ -73,24 +73,24 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               <div className="flex items-center gap-3 mb-1">
                 <div className="flex flex-col items-center">
                   <div className="text-4xl font-black text-primary">{overallGrade}</div>
-                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Grade</div>
+                  <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Grade</div>
                 </div>
                 {fitScore != null && (
                   <div className="flex flex-col items-center">
                     <div className="text-lg font-bold text-primary">{fitScore}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
+                    <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
                   </div>
                 )}
                 {successScore != null && (
                   <div className="flex flex-col items-center">
                     <div className="text-lg font-bold text-primary">{successScore}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
+                    <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
                   </div>
                 )}
                 {overallScore != null && (
                   <div className="flex flex-col items-center">
                     <div className="text-lg font-bold text-primary">{overallScore}</div>
-                    <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
+                    <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
                   </div>
                 )}
               </div>
@@ -98,12 +98,12 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               <SheetDescription>{company.industry || 'Technology'}</SheetDescription>
               <div className="flex flex-wrap gap-1 mt-2">
                 {(company.city || company.country) && (
-                  <Badge variant="secondary" className="text-[0.55rem]"><MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}</Badge>
+                  <Badge variant="secondary" className="text-2xs"><MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}</Badge>
                 )}
-                {company.company_size && <Badge variant="secondary" className="text-[0.55rem]"><Users className="w-2.5 h-2.5 mr-1" />{company.company_size}</Badge>}
-                {company.company_type && <Badge variant="secondary" className="text-[0.55rem]">{formatCompanyType(company.company_type)}</Badge>}
+                {company.company_size && <Badge variant="secondary" className="text-2xs"><Users className="w-2.5 h-2.5 mr-1" />{company.company_size}</Badge>}
+                {company.company_type && <Badge variant="secondary" className="text-2xs">{formatCompanyType(company.company_type)}</Badge>}
                 {company.job_count > 0 && (
-                  <Badge variant="secondary" className="text-[0.55rem] bg-primary/10 text-primary">
+                  <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">
                     <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
                   </Badge>
                 )}
@@ -111,22 +111,22 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               {company.job_count > 0 && onViewAllJobs && (
-                <Button variant="outline" size="sm" className="gap-1 h-7 text-[0.6rem]" onClick={() => onViewAllJobs(company.name)}>
+                <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onViewAllJobs(company.name)}>
                   <Briefcase className="w-3 h-3" /> View All Jobs
                 </Button>
               )}
               {company.website && (
                 <a href={company.website} target="_blank" rel="noreferrer">
-                  <Button variant="outline" size="sm" className="gap-1 h-7 text-[0.6rem]"><Link className="w-3 h-3" /> Website</Button>
+                  <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs"><Link className="w-3 h-3" /> Website</Button>
                 </a>
               )}
               {onReprocess && (
-                <Button variant="ghost" size="sm" className="gap-1 h-7 text-[0.6rem]" onClick={() => onReprocess(company.id)}>
+                <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onReprocess(company.id)}>
                   <Repeat className="w-3 h-3" /> Reprocess
                 </Button>
               )}
               {onDelete && (
-                <Button variant="ghost" size="sm" className="gap-1 h-7 text-[0.6rem] text-destructive" onClick={() => onDelete(company.id)}>
+                <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs text-destructive" onClick={() => onDelete(company.id)}>
                   <Trash className="w-3 h-3" /> Delete
                 </Button>
               )}
@@ -136,10 +136,10 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-3">
           <TabsList className="bg-muted">
-            <TabsTrigger value="notes" className="gap-1.5 text-[0.6rem]"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
-            <TabsTrigger value="intelligence" className="gap-1.5 text-[0.6rem]"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
-            <TabsTrigger value="scores" className="gap-1.5 text-[0.6rem]"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
-            <TabsTrigger value="jobs" className="gap-1.5 text-[0.6rem]">
+            <TabsTrigger value="notes" className="gap-1.5 text-2xs"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
+            <TabsTrigger value="intelligence" className="gap-1.5 text-2xs"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
+            <TabsTrigger value="scores" className="gap-1.5 text-2xs"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
+            <TabsTrigger value="jobs" className="gap-1.5 text-2xs">
               <Briefcase className="w-3 h-3" />Jobs{company.job_count > 0 && ` (${company.job_count})`}
             </TabsTrigger>
           </TabsList>
@@ -352,7 +352,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex flex-col items-center">
                       <div className="text-3xl font-black text-primary">{fitScore ?? '?'}</div>
-                      <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit Score</div>
+                      <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Fit Score</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Fit Score</div>
@@ -383,7 +383,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex flex-col items-center">
                       <div className="text-3xl font-black text-primary">{successScore ?? '?'}</div>
-                      <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success Score</div>
+                      <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Success Score</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-semibold">Company Success Score</div>

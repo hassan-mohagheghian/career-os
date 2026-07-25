@@ -29,7 +29,7 @@ function parseNotes(notes) {
 function NoteItem({ note, onRemove }) {
   const isUrl = note.type === 'url' || (note.content || '').startsWith('http')
   return (
-    <div className="flex items-start gap-1 group/note rounded border bg-muted/50 px-2 py-1 text-[0.6rem]">
+    <div className="flex items-start gap-1 group/note rounded border bg-muted/50 px-2 py-1 text-2xs">
       <span className="shrink-0 mt-0.5">
         {isUrl ? <LinkSimple className="w-2.5 h-2.5 text-primary" /> : <Note className="w-2.5 h-2.5 text-muted-foreground" />}
       </span>
@@ -49,7 +49,7 @@ function NoteItem({ note, onRemove }) {
 
 function LinkItem({ link, onRemove }) {
   return (
-    <div className="flex items-start gap-1 group/link rounded border bg-muted/50 px-2 py-1 text-[0.6rem]">
+    <div className="flex items-start gap-1 group/link rounded border bg-muted/50 px-2 py-1 text-2xs">
       <LinkSimple className="w-2.5 h-2.5 text-primary shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <a href={link.url} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{link.url}</a>
@@ -294,13 +294,13 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
           <Gear className="w-4 h-4 text-primary" />
           <span className="font-bold text-xs text-primary">Company Queue</span>
-          <Badge variant="default" className="ml-auto text-[0.5rem] h-4">{stackedTotal}</Badge>
+          <Badge variant="default" className="ml-auto text-2xs h-4">{stackedTotal}</Badge>
         </div>
         <div className="flex flex-col flex-1 min-h-0 p-2">
           {/* Multi-note input area */}
           <div className="rounded border p-1.5 shrink-0 mb-1 bg-muted min-w-0">
             {editingId && (
-              <div className="flex items-center gap-1 mb-1 text-[0.5rem] text-primary">
+              <div className="flex items-center gap-1 mb-1 text-2xs text-primary">
                 <Plus className="w-2.5 h-2.5" />
                 <span>Adding to pending #{editingId}</span>
                 <button onClick={cancelEditing} className="ml-auto text-muted-foreground hover:text-foreground"><X className="w-2.5 h-2.5" /></button>
@@ -309,7 +309,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
 
             {/* Notes section */}
             <div className="mb-1">
-              <div className="flex items-center gap-1 text-[0.5rem] text-muted-foreground mb-0.5">
+              <div className="flex items-center gap-1 text-2xs text-muted-foreground mb-0.5">
                 <Note className="w-2.5 h-2.5" />
                 <span>Notes</span>
               </div>
@@ -324,7 +324,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                 <Textarea value={noteInput} onChange={e => { setNoteInput(e.target.value); setError('') }}
                   onKeyDown={handleKeyDown}
                   placeholder="Add a note: company name, description, observations..."
-                  className="w-full h-8 rounded border text-[0.6rem] min-w-0 resize-none flex-1" />
+                  className="w-full h-8 rounded border text-2xs min-w-0 resize-none flex-1" />
                 <Button onClick={addNote} disabled={!noteInput.trim()} size="sm" variant="outline" className="h-8 px-2 shrink-0">
                   <Plus className="w-3 h-3" />
                 </Button>
@@ -334,12 +334,12 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
             {/* Links section */}
             <div className="border-t pt-1 mt-1">
               <div className="flex items-center justify-between mb-0.5">
-                <div className="flex items-center gap-1 text-[0.5rem] text-muted-foreground">
+                <div className="flex items-center gap-1 text-2xs text-muted-foreground">
                   <LinkSimple className="w-2.5 h-2.5" />
                   <span>Links</span>
                 </div>
                 {!showLinkInput && (
-                  <button onClick={() => setShowLinkInput(true)} className="text-[0.5rem] text-primary hover:underline flex items-center gap-0.5">
+                  <button onClick={() => setShowLinkInput(true)} className="text-2xs text-primary hover:underline flex items-center gap-0.5">
                     <Plus className="w-2 h-2" /> Add
                   </button>
                 )}
@@ -355,13 +355,13 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                 <div className="space-y-0.5">
                   <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
                     placeholder="URL (https://...)"
-                    className="w-full h-6 rounded border text-[0.6rem] px-1.5 bg-background"
+                    className="w-full h-6 rounded border text-2xs px-1.5 bg-background"
                     onKeyDown={e => e.key === 'Enter' && addLink()} />
                   <div className="flex items-center gap-1">
                     {['LinkedIn', 'Website', 'Careers', 'GitHub'].map(label => (
                       <button key={label} type="button"
                         onClick={() => setLinkTitle(linkTitle === label ? '' : label)}
-                        className={cn("h-5 px-1.5 rounded text-[0.5rem] border transition-colors",
+                        className={cn("h-5 px-1.5 rounded text-2xs border transition-colors",
                           linkTitle === label
                             ? "bg-primary text-primary-foreground border-primary"
                             : "bg-background text-muted-foreground border-border hover:bg-muted"
@@ -369,13 +369,13 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                     ))}
                     <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)}
                       placeholder="Custom title"
-                      className="flex-1 h-5 rounded border text-[0.6rem] px-1.5 bg-background" />
+                      className="flex-1 h-5 rounded border text-2xs px-1.5 bg-background" />
                   </div>
                   <div className="flex justify-end gap-1">
-                    <Button onClick={addLink} disabled={!linkUrl.trim()} size="sm" variant="ghost" className="h-5 px-1.5 text-[0.5rem]">
+                    <Button onClick={addLink} disabled={!linkUrl.trim()} size="sm" variant="ghost" className="h-5 px-1.5 text-2xs">
                       <CheckCircle className="w-2 h-2 mr-0.5" /> Add
                     </Button>
-                    <Button onClick={() => { setShowLinkInput(false); setLinkUrl(''); setLinkTitle('') }} size="sm" variant="ghost" className="h-5 px-1 text-[0.5rem]">
+                    <Button onClick={() => { setShowLinkInput(false); setLinkUrl(''); setLinkTitle('') }} size="sm" variant="ghost" className="h-5 px-1 text-2xs">
                       Cancel
                     </Button>
                   </div>
@@ -383,17 +383,17 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
               )}
             </div>
 
-            {error && <div className="text-[0.5rem] mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {error}</div>}
+            {error && <div className="text-2xs mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {error}</div>}
 
             <div className="flex items-center gap-1 mt-1.5">
-              <Button onClick={handleSubmit} disabled={submitting || (notes.length === 0 && !noteInput.trim() && links.length === 0)} size="sm" className="flex-1 h-6 text-[0.55rem]">
+              <Button onClick={handleSubmit} disabled={submitting || (notes.length === 0 && !noteInput.trim() && links.length === 0)} size="sm" className="flex-1 h-6 text-2xs">
                 {submitting ? '...' : editingId ? 'Add Notes & Links' : processImmediately ? 'Add & Process' : 'Add'}
               </Button>
               {!editingId && (
                 <button
                   onClick={() => setProcessImmediately(v => !v)}
                   className={cn(
-                    "shrink-0 h-6 px-1.5 rounded text-[0.5rem] font-medium border transition-colors",
+                    "shrink-0 h-6 px-1.5 rounded text-2xs font-medium border transition-colors",
                     processImmediately
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-muted-foreground border-border hover:bg-muted"
@@ -415,9 +415,9 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   <div onClick={() => !isEmpty && setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
                     className={cn("px-2 py-1 flex items-center gap-1 shrink-0 transition", !isEmpty && "cursor-pointer select-none hover:bg-muted/50", s.bgClass, s.borderClass)}>
                     <span className={s.iconClass}>{s.icon}</span>
-                    <span className={cn("font-bold text-[0.6rem] uppercase tracking-wider", s.textClass)}>{s.label}</span>
-                    <Badge variant="secondary" className={cn("text-[0.5rem] h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
-                    {!isEmpty && <span className="text-[0.5rem] text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
+                    <span className={cn("font-bold text-2xs uppercase tracking-wider", s.textClass)}>{s.label}</span>
+                    <Badge variant="secondary" className={cn("text-2xs h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
+                    {!isEmpty && <span className="text-2xs text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
                   </div>
                   {isOpen && (
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
@@ -437,7 +437,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                                     <NoteItem key={i} note={n} />
                                   ))}
                                   <button onClick={() => startEditing(p.id)}
-                                    className="text-[0.5rem] text-primary hover:underline flex items-center gap-0.5">
+                                    className="text-2xs text-primary hover:underline flex items-center gap-0.5">
                                     <Plus className="w-2 h-2" /> Add note
                                   </button>
                                 </div>
@@ -452,7 +452,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
               )
             })}
           </div>
-          {stackedTotal === 0 && <div className="text-center py-8 text-[0.6rem] text-muted-foreground shrink-0">No pending companies</div>}
+          {stackedTotal === 0 && <div className="text-center py-8 text-2xs text-muted-foreground shrink-0">No pending companies</div>}
         </div>
       </div>
 
@@ -461,7 +461,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-green-500/10 to-green-500/5 border-b border-green-500/20">
           <CheckCircle className="w-4 h-4 text-green-500" />
           <span className="font-bold text-xs text-green-500">Processed Companies</span>
-          <Badge variant="secondary" className="text-[0.5rem] h-4 bg-green-500/15 text-green-500">{filteredCompanies.length}/{companies.length}</Badge>
+          <Badge variant="secondary" className="text-2xs h-4 bg-green-500/15 text-green-500">{filteredCompanies.length}/{companies.length}</Badge>
           <div className="flex items-center gap-0.5 ml-auto">
             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onRefresh} title="Refresh">
               <ArrowsClockwise className="w-3 h-3 text-green-500" />
@@ -484,10 +484,10 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   <Input value={search} onChange={e => setSearch(e.target.value)}
                     placeholder="Search by name, industry, city..."
                     className="w-full h-7 text-xs pl-7" />
-                  {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[0.55rem] text-muted-foreground">✕</button>}
+                  {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground">✕</button>}
                 </div>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="h-7 w-auto text-[0.6rem]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 w-auto text-2xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at">Newest</SelectItem>
                     <SelectItem value="name">Name</SelectItem>
@@ -497,12 +497,12 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                     <SelectItem value="priority">Priority</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-7 text-[0.6rem]" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
+                <Button variant="outline" size="sm" className="h-7 text-2xs" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}>
                   {sortDir === 'desc' ? '↓' : '↑'}
                 </Button>
                 {allIndustries.length > 0 && (
                   <Select value={filterIndustry} onValueChange={setFilterIndustry}>
-                    <SelectTrigger className="h-7 w-auto text-[0.6rem]"><SelectValue placeholder="Industry" /></SelectTrigger>
+                    <SelectTrigger className="h-7 w-auto text-2xs"><SelectValue placeholder="Industry" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Industries</SelectItem>
                       {allIndustries.map(ind => (
@@ -512,7 +512,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   </Select>
                 )}
                 {(search || filterIndustry) && (
-                  <Button variant="ghost" size="sm" className="h-7 text-[0.6rem] text-green-500" onClick={() => { setSearch(''); setFilterIndustry('') }}>Clear</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-2xs text-green-500" onClick={() => { setSearch(''); setFilterIndustry('') }}>Clear</Button>
                 )}
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>

@@ -23,16 +23,16 @@ function NetworkTarget({ target }) {
     <Card className="p-3 transition hover:border-primary">
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-sm">{target.company}</span>
-        <Badge variant="secondary" className="text-[0.45rem] h-3">Priority #{target.priority}</Badge>
+        <Badge variant="secondary" className="text-2xs h-3">Priority #{target.priority}</Badge>
       </div>
       <div className="flex flex-wrap gap-1 mb-2">
         {target.contactTypes?.map((type, i) => (
-          <Badge key={i} variant="outline" className="text-[0.45rem] h-3">{type}</Badge>
+          <Badge key={i} variant="outline" className="text-2xs h-3">{type}</Badge>
         ))}
       </div>
-      <div className="text-[0.6rem] text-muted-foreground mb-2">{target.reason}</div>
+      <div className="text-2xs text-muted-foreground mb-2">{target.reason}</div>
       {target.strategy && (
-        <div className="text-[0.55rem] text-primary p-1.5 rounded bg-primary/5">
+        <div className="text-2xs text-primary p-1.5 rounded bg-primary/5">
           <strong>Strategy:</strong> {target.strategy}
         </div>
       )}
@@ -40,7 +40,7 @@ function NetworkTarget({ target }) {
         <div className="mt-2 space-y-1">
           {target.linkedinSearchQueries.map((q, i) => (
             <a key={i} href={q} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[0.55rem] text-blue-400 hover:text-blue-300 transition">
+              className="flex items-center gap-1 text-2xs text-blue-400 hover:text-blue-300 transition">
               <ArrowSquareOut className="w-3 h-3" /> LinkedIn Search {i + 1}
             </a>
           ))}
@@ -61,12 +61,12 @@ export default function NetworkingIntelSection({ data, refreshing, onRefresh, st
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Networking Intelligence</h3>
           {status?.networking?.lastRun && (
-            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+            <span className="text-2xs text-muted-foreground/60 flex items-center gap-0.5">
               <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.networking.lastRun)}
             </span>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.networking} className="gap-1 h-6 text-[0.55rem]">
+        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.networking} className="gap-1 h-6 text-2xs">
           <ArrowsClockwise className={cn("w-3 h-3", refreshing.networking && "animate-spin")} /> Refresh
         </Button>
       </div>
@@ -80,21 +80,21 @@ export default function NetworkingIntelSection({ data, refreshing, onRefresh, st
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[0.6rem] text-muted-foreground mb-1">Who to Contact First</div>
+              <div className="text-2xs text-muted-foreground mb-1">Who to Contact First</div>
               <div className="text-xs font-bold">{strategy.whoToContactFirst}</div>
-              <div className="text-[0.6rem] text-muted-foreground mt-1">{strategy.why}</div>
+              <div className="text-2xs text-muted-foreground mt-1">{strategy.why}</div>
             </div>
             <div>
-              <div className="text-[0.6rem] text-muted-foreground mb-1">Suggested Search Queries</div>
+              <div className="text-2xs text-muted-foreground mb-1">Suggested Search Queries</div>
               <div className="space-y-1">
                 {strategy.suggestedSearchQueries?.map((q, i) => (
-                  <div key={i} className="text-[0.55rem] text-blue-400 truncate">{q}</div>
+                  <div key={i} className="text-2xs text-blue-400 truncate">{q}</div>
                 ))}
               </div>
             </div>
           </div>
           {strategy.outreachTemplate && (
-            <div className="mt-3 p-2 rounded bg-muted text-[0.6rem] text-muted-foreground">
+            <div className="mt-3 p-2 rounded bg-muted text-2xs text-muted-foreground">
               <strong>Outreach Template:</strong> {strategy.outreachTemplate}
             </div>
           )}
@@ -106,7 +106,7 @@ export default function NetworkingIntelSection({ data, refreshing, onRefresh, st
         <div className="flex items-center gap-2 mb-3">
           <Users className="w-5 h-5 text-cyan-500" />
           <h4 className="font-extrabold text-sm">Networking Targets</h4>
-          <Badge variant="secondary" className="text-[0.5rem]">{targets.length}</Badge>
+          <Badge variant="secondary" className="text-2xs">{targets.length}</Badge>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {targets.length > 0 ? targets.map((t, i) => (

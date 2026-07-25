@@ -143,8 +143,8 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           "w-2 h-2 rounded-full shrink-0",
           isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isPaused ? "bg-yellow-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
         )} />
-        {item.source === 'reprocess' && <span className="text-[0.4rem] px-0.5 rounded bg-secondary text-secondary-foreground shrink-0">R</span>}
-        <span className="text-[0.55rem] font-bold truncate min-w-0">{item.company_name || 'Processing...'}</span>
+        {item.source === 'reprocess' && <span className="text-3xs px-0.5 rounded bg-secondary text-secondary-foreground shrink-0">R</span>}
+        <span className="text-2xs font-bold truncate min-w-0">{item.company_name || 'Processing...'}</span>
       </div>
 
       {/* Row 2: Step icons */}
@@ -165,7 +165,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
                     {d ? <Check className="w-2 h-2" /> : step.icon}
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="text-[0.6rem] px-2 py-1">
+                <TooltipContent side="top" className="text-2xs px-2 py-1">
                   {d ? `${step.label} — done` : isActive ? `${step.label} — in progress...` : step.label}
                 </TooltipContent>
               </Tooltip>
@@ -176,7 +176,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
 
       {/* Row 3: Progress */}
       <div className="flex items-center gap-1 mb-1 min-w-0">
-        <span className="text-[0.45rem] font-semibold text-muted-foreground shrink-0">{done}/{STEPS.length}</span>
+        <span className="text-2xs font-semibold text-muted-foreground shrink-0">{done}/{STEPS.length}</span>
         <Progress value={progress} className="h-0.5 flex-1 min-w-0" />
       </div>
 
@@ -184,7 +184,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
       {editing ? (
         <div className="mb-1 p-1.5 rounded border border-primary/30 bg-primary/5 space-y-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[0.5rem] font-bold text-primary">Edit Notes & Links</span>
+            <span className="text-2xs font-bold text-primary">Edit Notes & Links</span>
             <div className="flex gap-0.5">
               <Button size="icon" className="h-4 w-4" onClick={saveEdit} disabled={saving} title="Save">
                 <CheckCircle className="w-2.5 h-2.5" />
@@ -199,13 +199,13 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
             {editNotes.map((n, i) => (
               <div key={i} className="flex items-center gap-1 group/note min-w-0">
                 <Note className="w-2 h-2 text-muted-foreground shrink-0" />
-                <span className="text-[0.45rem] truncate flex-1 min-w-0">{(n.content || '').slice(0, 40)}</span>
+                <span className="text-2xs truncate flex-1 min-w-0">{(n.content || '').slice(0, 40)}</span>
                 <button onClick={() => removeEditNote(i)} className="opacity-0 group-hover/note:opacity-100 text-destructive shrink-0"><X className="w-2 h-2" /></button>
               </div>
             ))}
             <div className="flex gap-0.5">
               <input value={newNote} onChange={e => setNewNote(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEditNote()}
-                placeholder="Add note..." className="flex-1 h-4 rounded border text-[0.45rem] px-1 bg-background min-w-0" />
+                placeholder="Add note..." className="flex-1 h-4 rounded border text-2xs px-1 bg-background min-w-0" />
               <Button size="icon" variant="ghost" className="h-4 w-4 shrink-0" onClick={addEditNote} disabled={!newNote.trim()}>
                 <Plus className="w-2 h-2" />
               </Button>
@@ -216,15 +216,15 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
             {editLinks.map((l, i) => (
               <div key={i} className="flex items-center gap-1 group/link min-w-0">
                 <Link className="w-2 h-2 text-primary shrink-0" />
-                <span className="text-[0.45rem] truncate flex-1 min-w-0">{l.title || l.url?.slice(0, 40) || ''}</span>
+                <span className="text-2xs truncate flex-1 min-w-0">{l.title || l.url?.slice(0, 40) || ''}</span>
                 <button onClick={() => removeEditLink(i)} className="opacity-0 group-hover/link:opacity-100 text-destructive shrink-0"><X className="w-2 h-2" /></button>
               </div>
             ))}
             <div className="flex gap-0.5">
               <input value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEditLink()}
-                placeholder="URL..." className="flex-1 h-4 rounded border text-[0.45rem] px-1 bg-background min-w-0" />
+                placeholder="URL..." className="flex-1 h-4 rounded border text-2xs px-1 bg-background min-w-0" />
               <input value={newLinkTitle} onChange={e => setNewLinkTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEditLink()}
-                placeholder="Title" className="w-14 h-4 rounded border text-[0.45rem] px-1 bg-background shrink-0" />
+                placeholder="Title" className="w-14 h-4 rounded border text-2xs px-1 bg-background shrink-0" />
               <Button size="icon" variant="ghost" className="h-4 w-4 shrink-0" onClick={addEditLink} disabled={!newLinkUrl.trim()}>
                 <Plus className="w-2 h-2" />
               </Button>
@@ -236,7 +236,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           {Array.isArray(item.notes) && item.notes.length > 0 && (
             <div className="flex items-center gap-1 min-w-0">
               <Note className="w-2 h-2 text-muted-foreground shrink-0" />
-              <div className="text-[0.45rem] text-muted-foreground truncate min-w-0 leading-tight">
+              <div className="text-2xs text-muted-foreground truncate min-w-0 leading-tight">
                 {item.notes.length} note{item.notes.length !== 1 ? 's' : ''}: {item.notes.slice(0, 2).map(n => (n.content || '').slice(0, 25)).join('; ')}{item.notes.length > 2 ? '...' : ''}
               </div>
             </div>
@@ -244,7 +244,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           {Array.isArray(item.links) && item.links.length > 0 && (
             <div className="flex items-center gap-1 min-w-0">
               <Link className="w-2 h-2 text-primary shrink-0" />
-              <div className="text-[0.45rem] text-muted-foreground truncate min-w-0 leading-tight">
+              <div className="text-2xs text-muted-foreground truncate min-w-0 leading-tight">
                 {item.links.length} link{item.links.length !== 1 ? 's' : ''}: {item.links.slice(0, 2).map(l => l.title || l.url?.slice(0, 25) || '').join(', ')}{item.links.length > 2 ? '...' : ''}
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
         </div>
       ) : isPending ? (
         <div className="mb-1">
-          <Button variant="ghost" size="sm" className="h-4 px-1 text-[0.45rem] text-muted-foreground hover:text-primary opacity-0 group-hover/card:opacity-100" onClick={startEdit}>
+          <Button variant="ghost" size="sm" className="h-4 px-1 text-2xs text-muted-foreground hover:text-primary opacity-0 group-hover/card:opacity-100" onClick={startEdit}>
             <Plus className="w-2 h-2 mr-0.5" /> Add notes/links
           </Button>
         </div>
@@ -272,7 +272,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
             <LinkSimple className="w-1.5 h-1.5 text-primary" />
           </Button>
         )}
-        <span className="text-[0.45rem] truncate flex-1 min-w-0 text-muted-foreground">
+        <span className="text-2xs truncate flex-1 min-w-0 text-muted-foreground">
           {isProcessing && <span className="text-blue-500">{statusKey}...</span>}
           {isPending && <span className="text-gray-400">pending</span>}
           {isPaused && <span className="text-yellow-500">paused</span>}
@@ -280,11 +280,11 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           {isQueued && <span className="text-yellow-500">queued</span>}
           {isDone && <span className="text-green-500">done</span>}
           {item.session_id ? (
-            <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-[0.4rem] text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
+            <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-3xs text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
               {item.session_id.slice(0, 6)}...
             </button>
           ) : !isDone ? (
-            <span className="text-[0.4rem] text-muted-foreground/50 font-mono ml-1">no_session_id</span>
+            <span className="text-3xs text-muted-foreground/50 font-mono ml-1">no_session_id</span>
           ) : null}
         </span>
         <div className="flex items-center gap-0 shrink-0">
@@ -294,7 +294,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
             </Button>
           )}
           {(isQueued || isPending) && onProcess && (
-            <Button size="sm" onClick={handleProcess} disabled={processing} className="h-3.5 px-1 text-[0.4rem] gap-0.5 shrink-0">
+            <Button size="sm" onClick={handleProcess} disabled={processing} className="h-3.5 px-1 text-3xs gap-0.5 shrink-0">
               <Rocket className="w-1.5 h-1.5" /> Start
             </Button>
           )}

@@ -34,7 +34,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
       style={{ borderLeftColor: ps.text }}>
       {/* Row 1: Grade + Scores */}
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.6rem] font-black border"
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-black border"
           style={{ background: ps.bg, color: ps.text, borderColor: ps.border }}>
           {overallGrade}
         </span>
@@ -60,7 +60,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
         {company.logo_url && <img src={company.logo_url} alt="" className="w-4 h-4 rounded inline-block align-middle" />}
         <span className="truncate">{company.name || 'Unknown Company'}</span>
         {company.job_count > 0 && (
-          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[0.5rem] font-bold bg-blue-500/15 text-blue-400 shrink-0">
+          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-2xs font-bold bg-blue-500/15 text-blue-400 shrink-0">
             <Briefcase className="w-2 h-2" />{company.job_count}
           </span>
         )}
@@ -69,17 +69,17 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
       {/* Row 3: Industry + Location */}
       <div className="flex flex-wrap gap-1 mb-1.5">
         {company.industry && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-primary/10 text-primary">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-primary/10 text-primary">
             <Buildings className="w-2.5 h-2.5" />{company.industry}
           </span>
         )}
         {(company.city || company.country) && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-secondary text-secondary-foreground">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-secondary text-secondary-foreground">
             <MapPin className="w-2.5 h-2.5" />{[company.city, company.country].filter(Boolean).join(', ')}
           </span>
         )}
         {company.company_size && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.55rem] font-semibold bg-secondary text-secondary-foreground">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-secondary text-secondary-foreground">
             <Users className="w-2.5 h-2.5" />{company.company_size}
           </span>
         )}
@@ -87,7 +87,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
 
       {/* Row 4: Description preview */}
       {company.description && (
-        <div className="text-[0.6rem] text-muted-foreground truncate">{company.description}</div>
+        <div className="text-2xs text-muted-foreground truncate">{company.description}</div>
       )}
 
       {/* Row 5: Website */}
@@ -95,7 +95,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
         <div className="flex items-center gap-1 mt-1 min-w-0">
           <Globe className="w-2.5 h-2.5 text-muted-foreground shrink-0" />
           <a href={company.website} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-            className="text-[0.55rem] text-primary hover:underline truncate">{company.website}</a>
+            className="text-2xs text-primary hover:underline truncate">{company.website}</a>
         </div>
       )}
     </Card>
@@ -111,7 +111,7 @@ function ScoreBadge({ label, value }: { label: string; value: number }) {
     v >= 40 ? 'bg-yellow-500/15 text-yellow-400' :
     'bg-red-500/15 text-red-400'
   return (
-    <span className={cn("inline-flex items-center px-1 py-0.5 rounded text-[0.55rem] font-bold", bg)} title={`${label}: ${v}`}>
+    <span className={cn("inline-flex items-center px-1 py-0.5 rounded text-2xs font-bold", bg)} title={`${label}: ${v}`}>
       {label.slice(0, 3)}:{v}
     </span>
   )

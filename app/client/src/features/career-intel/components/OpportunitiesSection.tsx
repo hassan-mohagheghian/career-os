@@ -27,9 +27,9 @@ function JobCard({ job, onClick }) {
       <span className={cn("font-bold w-8 text-right", scoreColor)}>{job.overallScore}</span>
       <div className="flex-1 min-w-0">
         <div className="font-semibold truncate">{job.company}</div>
-        <div className="text-[0.55rem] text-muted-foreground truncate">{job.role} · {job.location}</div>
+        <div className="text-2xs text-muted-foreground truncate">{job.role} · {job.location}</div>
       </div>
-      <Badge variant="secondary" className={cn("text-[0.45rem] h-3.5 shrink-0",
+      <Badge variant="secondary" className={cn("text-2xs h-3.5 shrink-0",
         job.visaProbability === 'BEST' ? 'bg-green-500/15 text-green-500' :
         job.visaProbability === 'Strong' ? 'bg-green-400/15 text-green-400' : 'bg-gray-500/15 text-gray-400'
       )}>{job.visaProbability}</Badge>
@@ -42,14 +42,14 @@ function FunnelColumn({ title, icon, jobs, color, onClickJob }) {
     <Card className="p-3">
       <div className="flex items-center gap-2 mb-2">
         <div className={cn("w-6 h-6 rounded flex items-center justify-center", color)}>{icon}</div>
-        <h4 className="font-extrabold text-[0.65rem]">{title}</h4>
-        <Badge variant="secondary" className="text-[0.5rem] ml-auto">{jobs.length}</Badge>
+        <h4 className="font-extrabold text-xs">{title}</h4>
+        <Badge variant="secondary" className="text-2xs ml-auto">{jobs.length}</Badge>
       </div>
       <div className="space-y-1 max-h-[300px] overflow-y-auto">
         {jobs.length > 0 ? jobs.map((job, i) => (
           <JobCard key={i} job={job} onClick={() => onClickJob?.(job.num)} />
         )) : (
-          <div className="text-[0.55rem] text-muted-foreground text-center py-2">No jobs</div>
+          <div className="text-2xs text-muted-foreground text-center py-2">No jobs</div>
         )}
       </div>
     </Card>
@@ -69,12 +69,12 @@ export default function OpportunitiesSection({ data, refreshing, onRefresh, onOp
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Opportunities Intelligence</h3>
           {status?.opportunities?.lastRun && (
-            <span className="text-[0.5rem] text-muted-foreground/60 flex items-center gap-0.5">
+            <span className="text-2xs text-muted-foreground/60 flex items-center gap-0.5">
               <Clock className="w-2.5 h-2.5" />{formatTimeAgo(status.opportunities.lastRun)}
             </span>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.opportunities} className="gap-1 h-6 text-[0.55rem]">
+        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={refreshing.opportunities} className="gap-1 h-6 text-2xs">
           <ArrowsClockwise className={cn("w-3 h-3", refreshing.opportunities && "animate-spin")} /> Refresh
         </Button>
       </div>
@@ -99,10 +99,10 @@ export default function OpportunitiesSection({ data, refreshing, onRefresh, onOp
               <div className="space-y-2">
                 {insights.map((insight, i) => (
                   <div key={i} className="p-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 space-y-1">
-                    <div className="text-[0.6rem] font-bold text-yellow-500">Observation</div>
-                    <div className="text-[0.6rem] text-muted-foreground">{insight.observation}</div>
-                    {insight.evidence && <div className="text-[0.55rem] text-muted-foreground/70"><strong>Evidence:</strong> {insight.evidence}</div>}
-                    {insight.action && <div className="text-[0.55rem] text-primary"><strong>Action:</strong> {insight.action}</div>}
+                    <div className="text-2xs font-bold text-yellow-500">Observation</div>
+                    <div className="text-2xs text-muted-foreground">{insight.observation}</div>
+                    {insight.evidence && <div className="text-2xs text-muted-foreground/70"><strong>Evidence:</strong> {insight.evidence}</div>}
+                    {insight.action && <div className="text-2xs text-primary"><strong>Action:</strong> {insight.action}</div>}
                   </div>
                 ))}
               </div>
@@ -138,9 +138,9 @@ export default function OpportunitiesSection({ data, refreshing, onRefresh, onOp
                   <div key={i} className="p-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs">{co.company}</span>
-                      <Badge variant="secondary" className="text-[0.45rem] h-3.5 bg-cyan-500/15 text-cyan-500">{co.count} roles</Badge>
+                      <Badge variant="secondary" className="text-2xs h-3.5 bg-cyan-500/15 text-cyan-500">{co.count} roles</Badge>
                     </div>
-                    <div className="text-[0.55rem] text-muted-foreground mt-1">
+                    <div className="text-2xs text-muted-foreground mt-1">
                       {co.roles?.join(', ')}
                     </div>
                   </div>

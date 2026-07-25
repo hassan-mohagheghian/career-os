@@ -39,21 +39,21 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
                   <div className={cn("text-4xl font-black", getScoreColor(job.overall_score != null ? job.overall_score : job.score))}>
                     {job.overall_score != null ? Math.round(job.overall_score) : job.score}
                   </div>
-                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
+                  <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Overall</div>
                 </div>
                 {/* Fit Score */}
                 <div className="flex flex-col items-center">
                   <div className={cn("text-lg font-bold", getScoreColor(job.fit_score != null ? job.fit_score : job.score))}>
                     {job.fit_score != null ? Math.round(job.fit_score) : job.score}
                   </div>
-                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
+                  <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Fit</div>
                 </div>
                 {/* Success Score */}
                 <div className="flex flex-col items-center">
                   <div className={cn("text-lg font-bold", getScoreColor(job.success_score != null ? job.success_score : job.score))}>
                     {job.success_score != null ? Math.round(job.success_score) : job.success || '?'}
                   </div>
-                  <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
+                  <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">Success</div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRescoreJob(job.num)} title="Rescore">
                   <TrendUp className="w-3.5 h-3.5" />
@@ -66,21 +66,21 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
                 {job.company}
                 {job.linked_company && (
                   <button onClick={() => onOpenCompany(job.linked_company.id)}
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.5rem] font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition">
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-2xs font-semibold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition">
                     <Buildings className="w-2 h-2" />{job.linked_company.name || 'Company'}
                   </button>
                 )}
               </SheetTitle>
               <SheetDescription>{job.role}</SheetDescription>
               <div className="flex flex-wrap gap-1 mt-2">
-                {job.industry && <Badge variant="secondary" className="text-[0.55rem] bg-primary/10 text-primary">{job.industry}</Badge>}
+                {job.industry && <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">{job.industry}</Badge>}
                 {drawerLocations.map((loc, i) => <LocationBadge key={i} loc={loc} />)}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <Badge variant="outline" className={cn("uppercase border", getMatchClass(job.match))}>{job.match}</Badge>
               {job.action && (
-                <div className="text-[0.6rem] font-semibold px-2 py-1 rounded-lg text-right max-w-[180px]"
+                <div className="text-2xs font-semibold px-2 py-1 rounded-lg text-right max-w-[180px]"
                   style={{ background: ['A','A+','A++'].includes(job.score) ? 'rgba(34,197,94,0.12)' : ['B','C'].includes(job.score) ? 'rgba(234,179,8,0.12)' : 'rgba(239,68,68,0.12)', color: ['A','A+','A++'].includes(job.score) ? '#22c55e' : ['B','C'].includes(job.score) ? '#eab308' : '#ef4444' }}>
                   {job.action}
                 </div>
@@ -88,12 +88,12 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
               {job.visa && job.visa !== 'Uncertain' && <VisaBadge visa={job.visa} />}
               {job.work_type && <Badge variant="secondary">{job.work_type}</Badge>}
               {job.apply_time && (
-                <Badge variant="outline" className="text-[0.55rem] bg-green-500/10 text-green-500 border-green-500/30 gap-0.5">
+                <Badge variant="outline" className="text-2xs bg-green-500/10 text-green-500 border-green-500/30 gap-0.5">
                   <PaperPlaneRight className="w-2.5 h-2.5" />Applied
                 </Badge>
               )}
               {job.response_status && (
-                <Badge variant="outline" className={cn("text-[0.55rem] gap-0.5",
+                <Badge variant="outline" className={cn("text-2xs gap-0.5",
                   job.response_status === 'Interview' ? 'bg-green-500/10 text-green-500 border-green-500/30' :
                   'bg-red-500/10 text-red-500 border-red-500/30'
                 )}>
@@ -121,7 +121,7 @@ export default function JobDrawer({ drawer, drawerTab, generatingResume, generat
               borderColor: ['Apply Now','Apply Soon'].includes(job.action) ? 'rgba(34,197,94,0.2)' : job.action === 'Consider' ? 'rgba(234,179,8,0.2)' : 'rgba(239,68,68,0.2)',
               color: ['Apply Now','Apply Soon'].includes(job.action) ? '#4ade80' : job.action === 'Consider' ? '#facc15' : '#f87171',
             }}>
-            <div className="text-[0.6rem] uppercase tracking-wider font-semibold mb-1 opacity-70">Why {job.action || 'Apply/Skip'}</div>
+            <div className="text-2xs uppercase tracking-wider font-semibold mb-1 opacity-70">Why {job.action || 'Apply/Skip'}</div>
             {job.apply_reason}
           </div>
         )}

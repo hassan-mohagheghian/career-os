@@ -30,9 +30,9 @@ export default function CompanyJobsTab({ companyId, companyName, onOpenJob, onNa
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold">#{j.num}</span>
               <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled'}</span>
-              {j.score && <Badge variant="secondary" className="text-[0.5rem]">{j.score}</Badge>}
+              {j.score && <Badge variant="secondary" className="text-2xs">{j.score}</Badge>}
             </div>
-            {j.location && <div className="text-[0.55rem] text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
+            {j.location && <div className="text-2xs text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
           </div>
           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onOpenJob?.(j.num)} title="Open job drawer">

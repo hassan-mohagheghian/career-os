@@ -20,7 +20,7 @@ export function TechCard({ tech }) {
     <Card className={cn("p-3 border-l-[3px] transition hover:border-primary", borderColor)}>
       <div className="flex justify-between items-center mb-2">
         <span className="font-bold text-sm">{tech.name}</span>
-        <Badge variant="outline" className={cn("text-[0.6rem] uppercase border", pc[tech.pc])}>{tech.pl}</Badge>
+        <Badge variant="outline" className={cn("text-2xs uppercase border", pc[tech.pc])}>{tech.pl}</Badge>
       </div>
       <div className="flex items-center gap-2 text-xs mb-1.5 text-muted-foreground">
         <span>{tech.usage}%</span>
@@ -31,7 +31,7 @@ export function TechCard({ tech }) {
       <div className="text-xs mb-1.5 text-muted-foreground"><b className="text-foreground">{tech.jobs}</b> — {tech.jd}</div>
       <Separator className="my-1.5" />
       <div className="text-xs text-muted-foreground pt-1.5">{tech.reason}</div>
-      <Badge variant="secondary" className="text-[0.65rem] mt-2 gap-1">
+      <Badge variant="secondary" className="text-xs mt-2 gap-1">
         <span className={cn("w-1 h-1 rounded-full", tech.dc)} /> {tech.sc} — {tech.action}
       </Badge>
     </Card>
@@ -50,7 +50,7 @@ export function StackCard({ tech }) {
     <Card className={cn("p-3 border-l-[3px] transition hover:border-primary", borderColor)}>
       <div className="flex justify-between items-center mb-2">
         <span className="font-bold text-sm">{tech.name}</span>
-        <Badge variant="outline" className={cn("text-[0.6rem] uppercase border", badgeStyle)}>{tech.ml}</Badge>
+        <Badge variant="outline" className={cn("text-2xs uppercase border", badgeStyle)}>{tech.ml}</Badge>
       </div>
       <div className="flex gap-0.5 mb-2">
         {Array.from({ length: 5 }, (_, i) => (

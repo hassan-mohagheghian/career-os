@@ -15,9 +15,9 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
           <div className="flex items-center gap-2">
             <span className="text-sm">💻</span>
             <SheetTitle className="text-sm">Workflow Terminal</SheetTitle>
-            <Badge variant="secondary" className="text-[0.6rem]">{workflowDrawer?.company || 'Job'} #{workflowDrawer?.job_num || '?'}</Badge>
+            <Badge variant="secondary" className="text-2xs">{workflowDrawer?.company || 'Job'} #{workflowDrawer?.job_num || '?'}</Badge>
             {workflowDrawer?.status === 'processing' && (
-              <Badge variant="default" className="text-[0.55rem] animate-pulse">● LIVE</Badge>
+              <Badge variant="default" className="text-2xs animate-pulse">● LIVE</Badge>
             )}
           </div>
         </SheetHeader>
@@ -32,7 +32,7 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
             return (
               <div key={s} className="flex items-center gap-0.5 shrink-0">
                 <div className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center text-[0.45rem] font-bold transition-all border",
+                  "w-4 h-4 rounded-full flex items-center justify-center text-2xs font-bold transition-all border",
                   isDone ? "bg-green-500 text-white border-green-500" :
                   isActive ? "bg-primary text-primary-foreground border-primary" :
                   "bg-background text-muted-foreground border-border"
@@ -46,13 +46,13 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
         </div>
 
         {/* Terminal output */}
-        <ScrollArea ref={workflowEndRef} className="flex-1 font-mono text-[0.7rem] leading-relaxed bg-[#0d1117] text-[#c9d1d9]">
+        <ScrollArea ref={workflowEndRef} className="flex-1 font-mono text-xs leading-relaxed bg-[#0d1117] text-[#c9d1d9]">
           <div className="p-3">
             {workflowLogs.length === 0 && (
               <div className="text-center py-12 text-[#484f58]">
                 <Spinner className="w-8 h-8 animate-spin mx-auto mb-2" />
                 <div>Waiting for workflow output...</div>
-                <div className="text-[0.6rem] mt-1 text-[#21262d]">WebSocket connecting to stream server...</div>
+                <div className="text-2xs mt-1 text-[#21262d]">WebSocket connecting to stream server...</div>
               </div>
             )}
             {workflowLogs.map((log, i) => {

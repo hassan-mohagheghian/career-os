@@ -109,7 +109,7 @@ function RoadmapNode({ item, checked, onToggle, depth = 0 }) {
             {item.title}
           </div>
           {item.description && (
-            <div className="text-[0.6rem] text-muted-foreground mt-0.5 leading-snug">
+            <div className="text-2xs text-muted-foreground mt-0.5 leading-snug">
               {item.description}
             </div>
           )}
@@ -359,7 +359,7 @@ export default function SkillRoadmapDrawer({
           <SheetTitle className="flex items-center gap-2 text-base">
             {skillName}
             {!isEmpty && version > 0 && (
-              <Badge variant="secondary" className="text-[0.5rem]">
+              <Badge variant="secondary" className="text-2xs">
                 v{version}
               </Badge>
             )}
@@ -375,7 +375,7 @@ export default function SkillRoadmapDrawer({
                   {done}/{total} items completed
                 </span>
                 {updatedAt && (
-                  <span className="text-[0.55rem] opacity-60">
+                  <span className="text-2xs opacity-60">
                     Updated {formatTimestamp(updatedAt)}
                   </span>
                 )}
@@ -417,7 +417,7 @@ export default function SkillRoadmapDrawer({
                       setGenProgress(null);
                       fetchGenProgress();
                     }}
-                    className="h-6 text-[0.6rem] gap-1"
+                    className="h-6 text-2xs gap-1"
                   >
                     <ArrowsClockwise className="w-3 h-3" /> Refresh
                   </Button>
@@ -425,7 +425,7 @@ export default function SkillRoadmapDrawer({
                     size="sm"
                     variant="default"
                     onClick={handleGenerate}
-                    className="h-6 text-[0.6rem] gap-1"
+                    className="h-6 text-2xs gap-1"
                   >
                     <TreeStructure className="w-3 h-3" /> Regenerate
                   </Button>
@@ -442,13 +442,13 @@ export default function SkillRoadmapDrawer({
                 }}
                 title={genProgress.error || "Generation failed"}
               >
-                <div className="text-[0.65rem] text-red-400 bg-red-500/10 rounded p-2 max-h-[80px] overflow-y-auto font-mono leading-relaxed">
+                <div className="text-xs text-red-400 bg-red-500/10 rounded p-2 max-h-[80px] overflow-y-auto font-mono leading-relaxed">
                   {genProgress.error || "Generation failed"}
                 </div>
                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Badge
                     variant="secondary"
-                    className="text-[0.45rem] h-4 bg-background/80"
+                    className="text-2xs h-4 bg-background/80"
                   >
                     Click to copy
                   </Badge>
@@ -463,7 +463,7 @@ export default function SkillRoadmapDrawer({
           <div className="px-6 pb-3">
             <div className="flex items-center gap-2">
               <Progress value={pct} className="h-1.5 flex-1" />
-              <span className="text-[0.6rem] text-muted-foreground font-semibold shrink-0">
+              <span className="text-2xs text-muted-foreground font-semibold shrink-0">
                 {pct}%
               </span>
             </div>
@@ -508,7 +508,7 @@ export default function SkillRoadmapDrawer({
                 size="sm"
                 variant="ghost"
                 onClick={handleGenerate}
-                className="gap-1.5 h-8 text-[0.65rem]"
+                className="gap-1.5 h-8 text-xs"
               >
                 <ArrowsClockwise className="w-3 h-3" /> Regenerate
               </Button>
@@ -528,7 +528,7 @@ export default function SkillRoadmapDrawer({
               <p className="text-sm font-semibold mb-1">
                 No roadmap for this skill
               </p>
-              <p className="text-[0.65rem] max-w-[240px] mx-auto">
+              <p className="text-xs max-w-[240px] mx-auto">
                 Generate a learning roadmap to track your progress from basic to
                 advanced.
               </p>
@@ -539,7 +539,7 @@ export default function SkillRoadmapDrawer({
               <p className="text-sm font-semibold">
                 {genProgress?.message || "Working..."}
               </p>
-              <p className="text-[0.65rem] mt-1">This may take a moment</p>
+              <p className="text-xs mt-1">This may take a moment</p>
             </div>
           ) : (
             <div className="space-y-0.5">

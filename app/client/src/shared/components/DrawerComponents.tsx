@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils'
 export function Section({ title, icon, children }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-[0.6rem] uppercase tracking-wider mb-1 text-primary">
+      <div className="flex items-center gap-2 text-2xs uppercase tracking-wider mb-1 text-primary">
         {icon}{title}
       </div>
       {children}
@@ -13,7 +13,7 @@ export function Section({ title, icon, children }) {
 
 export function TabHeader({ title, icon, className }) {
   return (
-    <h4 className={cn("text-[0.6rem] uppercase tracking-wider mb-1 text-primary", className)}>
+    <h4 className={cn("text-2xs uppercase tracking-wider mb-1 text-primary", className)}>
       {icon && <span className="inline-flex items-center gap-1.5">{icon}</span>}
       {title}
     </h4>
@@ -58,7 +58,7 @@ export function ScoreBadge({ value, label, size = 'lg', color = 'primary' }) {
   return (
     <div className="flex flex-col items-center">
       <div className={cn(sizeClasses[size], colorClasses[color])}>{value ?? '?'}</div>
-      <div className="text-[0.5rem] uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
+      <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
     </div>
   )
 }

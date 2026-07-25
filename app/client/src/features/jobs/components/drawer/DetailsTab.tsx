@@ -17,7 +17,7 @@ export default function DetailsTab({ job, onUpdateJob }) {
                 const val = e.target.value ? new Date(e.target.value + 'T00:00:00').toISOString() : null
                 onUpdateJob(job.num, { apply_time: val })
               }} />
-            {job.apply_time && <span className="text-[0.55rem] text-green-500 shrink-0">Applied</span>}
+            {job.apply_time && <span className="text-2xs text-green-500 shrink-0">Applied</span>}
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground w-20 shrink-0">Status:</label>
