@@ -378,7 +378,7 @@ function App() {
       id: "insights",
       icon: <Lightbulb className="w-4 h-4" />,
       label: "Insights",
-      section: "insights",
+      section: "jobs",
       children: [
         { id: "overview", label: "Overview" },
         { id: "opportunities", label: "Opportunities" },
