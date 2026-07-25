@@ -160,15 +160,25 @@ class TestFetchUrl:
         with pytest.raises(RuntimeError, match="Network error|Failed to fetch"):
             _fetch_url("https://this-domain-does-not-exist-12345.invalid")
 
-    def test_fetch_404_raises(self):
+    @patch('services.worker.urllib.request.urlopen')
+    def test_fetch_404_raises(self, mock_urlopen):
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url='http://test', code=404, msg='Not Found', hdrs=None, fp=None
+        )
         from services.worker import _fetch_url
-        with pytest.raises(RuntimeError, match="Page not found|HTTP error|could not fetch"):
-            _fetch_url("https://httpbin.org/status/404")
+        with pytest.raises(RuntimeError, match="Page not found"):
+            _fetch_url("http://test")
 
-    def test_fetch_403_raises(self):
+    @patch('services.worker.urllib.request.urlopen')
+    def test_fetch_403_raises(self, mock_urlopen):
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url='http://test', code=403, msg='Forbidden', hdrs=None, fp=None
+        )
         from services.worker import _fetch_url
-        with pytest.raises(RuntimeError, match="Access denied|HTTP error|could not fetch|Gateway Time-out"):
-            _fetch_url("https://httpbin.org/status/403")
+        with pytest.raises(RuntimeError, match="Access denied"):
+            _fetch_url("http://test")
 
 
 # ── Date Parsing ───────────────────────────────────────────────────
