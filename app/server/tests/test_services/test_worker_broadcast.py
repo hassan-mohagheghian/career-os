@@ -1,7 +1,6 @@
 """Tests for worker broadcasting — real-time SocketIO events during processing."""
 
 import os
-import sqlite3
 import tempfile
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -10,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 from infrastructure.database.sqlalchemy_config import Base
 import infrastructure.database.models.pending_model
+from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
 
 
 @pytest.fixture
@@ -27,26 +27,20 @@ def sa_test_db():
     os.remove(path)
 
 
-INSERT_JOB = """
-    INSERT INTO pending_jobs (url, source, status, notes, links, workflow_log,
-        version, step_fetch, step_analyze, step_resume, step_cover, step_db,
-        step_done, queue_order, step_extract_raw, step_extract_struct)
-    VALUES (?, 'cli', ?, '[]', '[]', '[]',
-        1, 0, 0, 0, 0, 0,
-        0, 0, 0, 0)
-"""
-
-INSERT_COMPANY = """
-    INSERT INTO pending_companies (input_text, source, status, notes, links,
-        input_type, workflow_log, version, step_fetch, step_extract,
-        step_analyze, step_save, step_done)
-    VALUES (?, 'web', ?, '[]', '[]',
-        'url', '[]', 1, 0, 0,
-        0, 0, 0)
-"""
+def _insert_pending_job(session, url, status):
+    m = PendingJobModel(url=url, source='cli', status=status)
+    session.add(m)
+    session.commit()
+    session.refresh(m)
+    return m.id
 
 
-# ── Worker Broadcasting Tests ──────────────────────────────────────
+def _insert_pending_company(session, input_text, status):
+    m = PendingCompanyModel(input_text=input_text, source='web', status=status, input_type='url')
+    session.add(m)
+    session.commit()
+    session.refresh(m)
+    return m.id
 
 
 class TestWorkerBroadcasting:
@@ -54,10 +48,7 @@ class TestWorkerBroadcasting:
 
     def test_update_step_emits_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.worker.get_session_sync', return_value=sa_session), \
@@ -74,10 +65,7 @@ class TestWorkerBroadcasting:
 
     def test_update_step_with_status_emits_extra(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_JOB, ('https://example.com/job', 'queued'))
-        conn.commit()
-        conn.close()
+        _insert_pending_job(sa_session, 'https://example.com/job', 'queued')
 
         mock_broadcaster = MagicMock()
         with patch('services.worker.get_session_sync', return_value=sa_session), \
@@ -91,10 +79,7 @@ class TestWorkerBroadcasting:
 
     def test_log_emits_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.worker.get_session_sync', return_value=sa_session), \
@@ -111,10 +96,7 @@ class TestWorkerBroadcasting:
 
     def test_fail_emits_error_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.worker.get_session_sync', return_value=sa_session), \
@@ -131,10 +113,7 @@ class TestWorkerBroadcasting:
 
     def test_save_session_id_persists_and_broadcasts(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.worker.get_session_sync', return_value=sa_session), \
@@ -142,10 +121,8 @@ class TestWorkerBroadcasting:
             from services.worker import _save_session_id
             _save_session_id(1, 'sess_abc123')
 
-            conn = sqlite3.connect(path)
-            row = conn.execute("SELECT session_id FROM pending_jobs WHERE id=1").fetchone()
-            conn.close()
-            assert row[0] == 'sess_abc123'
+            row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == 1).first()
+            assert row.session_id == 'sess_abc123'
 
             mock_broadcaster.step_update.assert_called_once()
             event = mock_broadcaster.step_update.call_args[0][0]
@@ -158,10 +135,7 @@ class TestCompanyWorkerBroadcasting:
 
     def test_update_step_emits_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.company_worker.get_session_sync', return_value=sa_session), \
@@ -178,10 +152,7 @@ class TestCompanyWorkerBroadcasting:
 
     def test_update_step_with_status_emits_extra(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'queued'))
-        conn.commit()
-        conn.close()
+        _insert_pending_company(sa_session, 'https://example.com/company', 'queued')
 
         mock_broadcaster = MagicMock()
         with patch('services.company_worker.get_session_sync', return_value=sa_session), \
@@ -195,10 +166,7 @@ class TestCompanyWorkerBroadcasting:
 
     def test_log_emits_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.company_worker.get_session_sync', return_value=sa_session), \
@@ -215,10 +183,7 @@ class TestCompanyWorkerBroadcasting:
 
     def test_fail_emits_error_event(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.company_worker.get_session_sync', return_value=sa_session), \
@@ -235,10 +200,7 @@ class TestCompanyWorkerBroadcasting:
 
     def test_save_session_id_persists_and_broadcasts(self, sa_test_db):
         path, sa_session = sa_test_db
-        conn = sqlite3.connect(path)
-        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
-        conn.commit()
-        conn.close()
+        _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
         with patch('services.company_worker.get_session_sync', return_value=sa_session), \
@@ -246,10 +208,8 @@ class TestCompanyWorkerBroadcasting:
             from services.company_worker import _save_session_id
             _save_session_id(1, 'sess_xyz789')
 
-            conn = sqlite3.connect(path)
-            row = conn.execute("SELECT session_id FROM pending_companies WHERE id=1").fetchone()
-            conn.close()
-            assert row[0] == 'sess_xyz789'
+            row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == 1).first()
+            assert row.session_id == 'sess_xyz789'
 
             mock_broadcaster.step_update.assert_called_once()
             event = mock_broadcaster.step_update.call_args[0][0]

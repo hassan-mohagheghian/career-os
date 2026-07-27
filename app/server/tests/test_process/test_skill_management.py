@@ -1,208 +1,223 @@
 """Tests for skill management: hide and merge."""
 
-import sqlite3
 import pytest
+from sqlalchemy.exc import IntegrityError
+
+from infrastructure.database.models.skill_model import (
+    SkillModel,
+    SkillRelationshipModel,
+)
+from infrastructure.database.models.misc_models import (
+    SkillRoadmapModel,
+    SkillRoadmapJobModel,
+    SkillRoadmapProgressModel,
+)
 
 
-def _merge(conn, target_id, source_ids):
+def _merge(session, target_id, source_ids):
     """Core merge logic extracted from the endpoint."""
-    target = conn.execute("SELECT name FROM skills WHERE id=?", (target_id,)).fetchone()
+    target = session.query(SkillModel).filter(SkillModel.id == target_id).first()
     if not target:
         return None
-    target_name = target[0]
+    target_name = target.name
     merged = []
     for sid in source_ids:
-        source = conn.execute("SELECT name FROM skills WHERE id=?", (sid,)).fetchone()
-        if not source or source[0] == target_name:
+        source = session.query(SkillModel).filter(SkillModel.id == sid).first()
+        if not source or source.name == target_name:
             continue
-        source_name = source[0]
-        conn.execute("UPDATE skill_roadmaps SET skill_name=? WHERE skill_name=?", (target_name, source_name))
-        conn.execute("UPDATE skill_roadmap_progress SET skill_name=? WHERE skill_name=?", (target_name, source_name))
-        conn.execute("UPDATE skill_roadmap_jobs SET skill_name=? WHERE skill_name=?", (target_name, source_name))
-        conn.execute("DELETE FROM skills WHERE id=?", (sid,))
+        source_name = source.name
+        session.query(SkillRoadmapModel).filter(
+            SkillRoadmapModel.skill_name == source_name
+        ).update({"skill_name": target_name})
+        session.query(SkillRoadmapProgressModel).filter(
+            SkillRoadmapProgressModel.skill_name == source_name
+        ).update({"skill_name": target_name})
+        session.query(SkillRoadmapJobModel).filter(
+            SkillRoadmapJobModel.skill_name == source_name
+        ).update({"skill_name": target_name})
+        session.delete(source)
         merged.append(source_name)
-    conn.commit()
+    session.commit()
     return merged
 
 
 class TestMergeSkills:
-    def test_merge_renames_roadmaps(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
-        conn.execute("INSERT INTO skill_roadmaps (skill_name, title, level) VALUES (?, ?, ?)", ('postgres', 'Basics', 1))
-        conn.execute("INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, ?)", (1, 'postgres', 1))
-        conn.execute("INSERT INTO skill_roadmap_jobs (skill_name, status) VALUES (?, ?)", ('postgres', 'completed'))
-        conn.commit()
+    def test_merge_renames_roadmaps(self, sa_session):
+        sa_session.add(SkillModel(name="PostgreSQL", level=3, source="user"))
+        sa_session.add(SkillModel(name="postgres", level=2, source="service"))
+        sa_session.flush()
+        sa_session.add(
+            SkillRoadmapModel(skill_name="postgres", title="Basics", level=1)
+        )
+        sa_session.flush()
+        sa_session.add(
+            SkillRoadmapProgressModel(roadmap_id=1, skill_name="postgres", completed=1)
+        )
+        sa_session.add(
+            SkillRoadmapJobModel(skill_name="postgres", status="completed")
+        )
+        sa_session.commit()
 
-        merged = _merge(conn, 1, [2])
-        assert merged == ['postgres']
+        merged = _merge(sa_session, 1, [2])
+        assert merged == ["postgres"]
 
-        roads = conn.execute("SELECT skill_name FROM skill_roadmaps").fetchall()
-        progress = conn.execute("SELECT skill_name FROM skill_roadmap_progress").fetchall()
-        jobs = conn.execute("SELECT skill_name FROM skill_roadmap_jobs").fetchall()
-        tech = conn.execute("SELECT name FROM skills").fetchall()
+        roads = sa_session.query(SkillRoadmapModel.skill_name).all()
+        progress = sa_session.query(SkillRoadmapProgressModel.skill_name).all()
+        jobs = sa_session.query(SkillRoadmapJobModel.skill_name).all()
+        tech = sa_session.query(SkillModel.name).all()
 
-        assert all(r[0] == 'PostgreSQL' for r in roads)
-        assert all(r[0] == 'PostgreSQL' for r in progress)
-        assert all(r[0] == 'PostgreSQL' for r in jobs)
+        assert all(r[0] == "PostgreSQL" for r in roads)
+        assert all(r[0] == "PostgreSQL" for r in progress)
+        assert all(r[0] == "PostgreSQL" for r in jobs)
         assert len(tech) == 1
-        assert tech[0][0] == 'PostgreSQL'
-        conn.close()
+        assert tech[0][0] == "PostgreSQL"
 
-    def test_hide_skill(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('CSS', 1, 'service'))
-        conn.commit()
+    def test_hide_skill(self, sa_session):
+        m = SkillModel(name="CSS", level=1, source="service")
+        sa_session.add(m)
+        sa_session.commit()
 
-        conn.execute("UPDATE skills SET hidden=1 WHERE id=1")
-        conn.commit()
+        m.hidden = 1
+        sa_session.commit()
 
-        row = conn.execute("SELECT hidden FROM skills WHERE id=1").fetchone()
-        assert row[0] == 1
+        row = sa_session.query(SkillModel).filter(SkillModel.id == m.id).first()
+        assert row.hidden == 1
 
-        visible = conn.execute("SELECT name FROM skills WHERE hidden=0").fetchall()
+        visible = sa_session.query(SkillModel.name).filter(SkillModel.hidden == 0).all()
         assert len(visible) == 0
-        conn.close()
 
-    def test_merge_skips_self(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('Python', 4, 'user'))
-        conn.commit()
+    def test_merge_skips_self(self, sa_session):
+        sa_session.add(SkillModel(name="Python", level=4, source="user"))
+        sa_session.commit()
 
-        merged = _merge(conn, 1, [1])
+        merged = _merge(sa_session, 1, [1])
         assert merged == []
-        assert conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0] == 1
-        conn.close()
+        assert sa_session.query(SkillModel).count() == 1
 
-    def test_merge_multiple_sources(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('React', 4, 'user'))
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('ReactJS', 3, 'service'))
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('react.js', 2, 'service'))
-        conn.execute("INSERT INTO skill_roadmaps (skill_name, title, level) VALUES (?, ?, ?)", ('ReactJS', 'Basics', 1))
-        conn.execute("INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, ?)", (1, 'ReactJS', 1))
-        conn.commit()
+    def test_merge_multiple_sources(self, sa_session):
+        sa_session.add(SkillModel(name="React", level=4, source="user"))
+        sa_session.add(SkillModel(name="ReactJS", level=3, source="service"))
+        sa_session.add(SkillModel(name="react.js", level=2, source="service"))
+        sa_session.flush()
+        sa_session.add(
+            SkillRoadmapModel(skill_name="ReactJS", title="Basics", level=1)
+        )
+        sa_session.flush()
+        sa_session.add(
+            SkillRoadmapProgressModel(roadmap_id=1, skill_name="ReactJS", completed=1)
+        )
+        sa_session.commit()
 
-        merged = _merge(conn, 1, [2, 3])
-        assert set(merged) == {'ReactJS', 'react.js'}
+        merged = _merge(sa_session, 1, [2, 3])
+        assert set(merged) == {"ReactJS", "react.js"}
 
-        roads = conn.execute("SELECT skill_name FROM skill_roadmaps").fetchall()
-        assert all(r[0] == 'React' for r in roads)
+        roads = sa_session.query(SkillRoadmapModel.skill_name).all()
+        assert all(r[0] == "React" for r in roads)
 
-        tech = conn.execute("SELECT name FROM skills ORDER BY id").fetchall()
+        tech = sa_session.query(SkillModel.name).order_by(SkillModel.id).all()
         assert len(tech) == 1
-        assert tech[0][0] == 'React'
-        conn.close()
+        assert tech[0][0] == "React"
 
-    def test_merge_user_into_service(self, test_db):
+    def test_merge_user_into_service(self, sa_session):
         """User-input skill can merge with service-detected skill and vice versa."""
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('PostgreSQL', 3, 'user'))
-        conn.execute("INSERT INTO skills (name, level, source) VALUES (?, ?, ?)", ('postgres', 2, 'service'))
-        conn.commit()
+        sa_session.add(SkillModel(name="PostgreSQL", level=3, source="user"))
+        sa_session.add(SkillModel(name="postgres", level=2, source="service"))
+        sa_session.commit()
 
-        merged = _merge(conn, 1, [2])
-        assert merged == ['postgres']
-        assert conn.execute("SELECT source FROM skills WHERE id=1").fetchone()[0] == 'user'
-        conn.close()
+        merged = _merge(sa_session, 1, [2])
+        assert merged == ["postgres"]
+        assert sa_session.query(SkillModel).filter(SkillModel.id == 1).first().source == "user"
 
 
 class TestSkillTaxonomy:
-    def test_category_filter(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, category) VALUES (?, ?, ?)", ('Python', 4, 'technical'))
-        conn.execute("INSERT INTO skills (name, level, category) VALUES (?, ?, ?)", ('Leadership', 3, 'professional'))
-        conn.commit()
+    def test_category_filter(self, sa_session):
+        sa_session.add(SkillModel(name="Python", level=4, category="technical"))
+        sa_session.add(SkillModel(name="Leadership", level=3, category="professional"))
+        sa_session.commit()
 
-        tech = conn.execute("SELECT name FROM skills WHERE category='technical'").fetchall()
+        tech = sa_session.query(SkillModel.name).filter(SkillModel.category == "technical").all()
         assert len(tech) == 1
-        assert tech[0][0] == 'Python'
+        assert tech[0][0] == "Python"
 
-        prof = conn.execute("SELECT name FROM skills WHERE category='professional'").fetchall()
+        prof = sa_session.query(SkillModel.name).filter(SkillModel.category == "professional").all()
         assert len(prof) == 1
-        assert prof[0][0] == 'Leadership'
-        conn.close()
+        assert prof[0][0] == "Leadership"
 
-    def test_hidden_skills_list(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('CSS', 1, 0))
-        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
-        conn.commit()
+    def test_hidden_skills_list(self, sa_session):
+        sa_session.add(SkillModel(name="CSS", level=1, hidden=0))
+        sa_session.add(SkillModel(name="jQuery", level=1, hidden=1))
+        sa_session.commit()
 
-        hidden = conn.execute("SELECT name FROM skills WHERE hidden=1").fetchall()
+        hidden = sa_session.query(SkillModel.name).filter(SkillModel.hidden == 1).all()
         assert len(hidden) == 1
-        assert hidden[0][0] == 'jQuery'
-        conn.close()
+        assert hidden[0][0] == "jQuery"
 
-    def test_restore_hidden_skill(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO skills (name, level, hidden) VALUES (?, ?, ?)", ('jQuery', 1, 1))
-        conn.commit()
+    def test_restore_hidden_skill(self, sa_session):
+        m = SkillModel(name="jQuery", level=1, hidden=1)
+        sa_session.add(m)
+        sa_session.commit()
 
-        conn.execute("UPDATE skills SET hidden=0 WHERE id=1")
-        conn.commit()
+        m.hidden = 0
+        sa_session.commit()
 
-        row = conn.execute("SELECT hidden FROM skills WHERE id=1").fetchone()
-        assert row[0] == 0
-        conn.close()
+        row = sa_session.query(SkillModel).filter(SkillModel.id == m.id).first()
+        assert row.hidden == 0
 
 
 class TestSkillRelationships:
-    def test_create_relationship(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-            ('React', 'ReactJS', 'similar', 0.9)
-        )
-        conn.commit()
-
-        row = conn.execute("SELECT * FROM skill_relationships WHERE skill_name='React'").fetchone()
-        assert row is not None
-        assert row[3] == 'similar'
-        conn.close()
-
-    def test_query_relationships_bidirectional(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-            ('React', 'ReactJS', 'similar', 0.9)
-        )
-        conn.commit()
-
-        rows = conn.execute(
-            "SELECT * FROM skill_relationships WHERE skill_name=? OR related_name=?",
-            ('React', 'React')
-        ).fetchall()
-        assert len(rows) == 1
-        conn.close()
-
-    def test_delete_relationship(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-            ('React', 'ReactJS', 'similar', 0.9)
-        )
-        conn.commit()
-
-        conn.execute("DELETE FROM skill_relationships WHERE id=1")
-        conn.commit()
-
-        rows = conn.execute("SELECT * FROM skill_relationships").fetchall()
-        assert len(rows) == 0
-        conn.close()
-
-    def test_unique_constraint(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-            ('React', 'ReactJS', 'similar', 0.9)
-        )
-        conn.commit()
-
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
-                "INSERT INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-                ('React', 'ReactJS', 'similar', 0.8)
+    def test_create_relationship(self, sa_session):
+        sa_session.add(
+            SkillRelationshipModel(
+                skill_name="React", related_name="ReactJS", relation_type="similar", confidence=0.9
             )
-        conn.close()
+        )
+        sa_session.commit()
+
+        row = sa_session.query(SkillRelationshipModel).filter(
+            SkillRelationshipModel.skill_name == "React"
+        ).first()
+        assert row is not None
+        assert row.relation_type == "similar"
+
+    def test_query_relationships_bidirectional(self, sa_session):
+        sa_session.add(
+            SkillRelationshipModel(
+                skill_name="React", related_name="ReactJS", relation_type="similar", confidence=0.9
+            )
+        )
+        sa_session.commit()
+
+        rows = sa_session.query(SkillRelationshipModel).filter(
+            (SkillRelationshipModel.skill_name == "React")
+            | (SkillRelationshipModel.related_name == "React")
+        ).all()
+        assert len(rows) == 1
+
+    def test_delete_relationship(self, sa_session):
+        rel = SkillRelationshipModel(
+            skill_name="React", related_name="ReactJS", relation_type="similar", confidence=0.9
+        )
+        sa_session.add(rel)
+        sa_session.commit()
+
+        sa_session.delete(rel)
+        sa_session.commit()
+
+        rows = sa_session.query(SkillRelationshipModel).all()
+        assert len(rows) == 0
+
+    def test_unique_constraint(self, sa_session):
+        sa_session.add(
+            SkillRelationshipModel(
+                skill_name="React", related_name="ReactJS", relation_type="similar", confidence=0.9
+            )
+        )
+        sa_session.commit()
+
+        with pytest.raises(IntegrityError):
+            sa_session.add(
+                SkillRelationshipModel(
+                    skill_name="React", related_name="ReactJS", relation_type="similar", confidence=0.8
+                )
+            )
+            sa_session.commit()

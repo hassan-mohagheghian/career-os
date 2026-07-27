@@ -12,7 +12,7 @@ chmod +x ~/.mimocode/bin/mimo
 
 ### Database locked
 **Symptom**: `sqlite3.OperationalError: database is locked`
-**Fix**: Close any other connections to the DB. WAL mode should handle concurrent reads, but exclusive writes can lock. Wait a few seconds and retry.
+**Fix**: Close any other connections to the DB. SQLAlchemy's session management should handle this, but WAL mode helps with concurrent reads. Wait a few seconds and retry.
 
 ### Job stuck in "processing"
 **Symptom**: Job shows "processing" but nothing happens
@@ -41,6 +41,6 @@ UPDATE pending_jobs SET status='failed' WHERE status='processing';
 
 - **Backend**: Check `app/server/logs/` for structured logs
 - **Frontend**: Use browser dev tools Network tab for API/WebSocket traffic
-- **Database**: `sqlite3 app/server/db/jobs.db` for direct queries
+- **Database**: Use SQLAlchemy ORM models or Alembic for database operations. Never use raw SQL.
 - **WebSocket**: SocketIO events visible in Network tab → WS connection → Messages
 - **AI generation**: Check `/api/insights/progress` for real-time status

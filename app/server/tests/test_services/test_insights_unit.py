@@ -3,7 +3,6 @@ Comprehensive unit tests for services/career_intel.py — 90%+ coverage target.
 """
 import json
 import os
-import sqlite3
 import tempfile
 import threading
 from datetime import datetime, timedelta
@@ -23,6 +22,7 @@ import infrastructure.database.models.job_model
 import infrastructure.database.models.company_model
 import infrastructure.database.models.skill_model
 import infrastructure.database.models.misc_models
+from infrastructure.database.models.insight_model import CareerInsightRunModel, CareerInsightModel
 
 
 @pytest.fixture(autouse=True)
@@ -44,20 +44,23 @@ def reset_state():
 def test_db():
     fd, path = tempfile.mkstemp(suffix='.db')
     os.close(fd)
+    engine = create_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(bind=engine)
+    engine.dispose()
     yield path
     os.remove(path)
 
 
 @pytest.fixture
 def db(test_db):
-    """Patch get_session_sync to use test database."""
+    """Patch get_session_sync to use test database, yield SA session."""
     engine = create_engine(f"sqlite:///{test_db}")
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     sa_session = Session()
 
     with patch('dependencies.get_session_sync', return_value=sa_session):
-        yield test_db
+        yield sa_session
 
     sa_session.close()
     engine.dispose()
@@ -112,27 +115,23 @@ class TestEmitProgress:
 
 class TestCleanupStaleRuns:
     def test_marks_stale_as_failed(self, db):
-        conn = sqlite3.connect(db)
         old = (datetime.now() - timedelta(minutes=10)).isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('overview', 'processing', 1, '{}', ?)", (old,))
-        conn.commit(); conn.close()
+        run = CareerInsightRunModel(insight_type='overview', status='processing', version=1, metadata_json='{}', started_at=old)
+        db.add(run)
+        db.commit()
         ci._cleanup_stale_runs()
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status, error_message FROM career_insight_runs").fetchone()
-        conn.close()
-        assert row[0] == 'failed'
-        assert 'Stale' in row[1]
+        row = db.query(CareerInsightRunModel).first()
+        assert row.status == 'failed'
+        assert 'Stale' in row.error_message
 
     def test_skips_recent_runs(self, db):
-        conn = sqlite3.connect(db)
         recent = datetime.now().isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('overview', 'processing', 1, '{}', ?)", (recent,))
-        conn.commit(); conn.close()
+        run = CareerInsightRunModel(insight_type='overview', status='processing', version=1, metadata_json='{}', started_at=recent)
+        db.add(run)
+        db.commit()
         ci._cleanup_stale_runs()
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status FROM career_insight_runs").fetchone()
-        conn.close()
-        assert row[0] == 'processing'
+        row = db.query(CareerInsightRunModel).first()
+        assert row.status == 'processing'
 
 
 # ── is_running ──────────────────────────────────────────────────
@@ -149,10 +148,10 @@ class TestIsRunning:
         assert info['type'] == 'overview' and info['run_id'] == 42
 
     def test_stale_db_cleaned(self, db):
-        conn = sqlite3.connect(db)
         old = (datetime.now() - timedelta(minutes=10)).isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('market', 'processing', 1, '{}', ?)", (old,))
-        conn.commit(); conn.close()
+        run = CareerInsightRunModel(insight_type='market', status='processing', version=1, metadata_json='{}', started_at=old)
+        db.add(run)
+        db.commit()
         running, _ = ci.is_running()
         assert running is False
 
@@ -185,14 +184,12 @@ class TestCancelRun:
         assert ci.cancel_run() is True
 
     def test_cancels_stale_db(self, db):
-        conn = sqlite3.connect(db)
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata) VALUES ('market', 'processing', 1, '{}')")
-        conn.commit(); conn.close()
+        run = CareerInsightRunModel(insight_type='market', status='processing', version=1, metadata_json='{}')
+        db.add(run)
+        db.commit()
         assert ci.cancel_run() is True
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status FROM career_insight_runs").fetchone()
-        conn.close()
-        assert row[0] == 'cancelled'
+        row = db.query(CareerInsightRunModel).first()
+        assert row.status == 'cancelled'
 
     def test_cancels_with_process_key(self, db):
         ci._current_run['active'] = True
@@ -212,34 +209,26 @@ class TestStartCompleteRun:
     def test_start_run(self, db):
         run_id = ci._start_run('overview')
         assert run_id > 0
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT insight_type, status FROM career_insight_runs WHERE id=?", (run_id,)).fetchone()
-        conn.close()
-        assert row[0] == 'overview' and row[1] == 'processing'
+        row = db.query(CareerInsightRunModel).filter(CareerInsightRunModel.id == run_id).first()
+        assert row.insight_type == 'overview' and row.status == 'processing'
 
     def test_complete_run(self, db):
         run_id = ci._start_run('market')
         ci._complete_run(run_id, 'completed', session_id='ses_test')
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status, session_id FROM career_insight_runs WHERE id=?", (run_id,)).fetchone()
-        conn.close()
-        assert row[0] == 'completed' and row[1] == 'ses_test'
+        row = db.query(CareerInsightRunModel).filter(CareerInsightRunModel.id == run_id).first()
+        assert row.status == 'completed' and row.session_id == 'ses_test'
 
     def test_complete_run_with_error(self, db):
         run_id = ci._start_run('companies')
         ci._complete_run(run_id, 'failed', error='timeout')
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status, error_message FROM career_insight_runs WHERE id=?", (run_id,)).fetchone()
-        conn.close()
-        assert row[0] == 'failed' and row[1] == 'timeout'
+        row = db.query(CareerInsightRunModel).filter(CareerInsightRunModel.id == run_id).first()
+        assert row.status == 'failed' and row.error_message == 'timeout'
 
     def test_complete_run_without_session_id(self, db):
         run_id = ci._start_run('networking')
         ci._complete_run(run_id, 'completed')
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status, completed_at FROM career_insight_runs WHERE id=?", (run_id,)).fetchone()
-        conn.close()
-        assert row[0] == 'completed' and row[1] is not None
+        row = db.query(CareerInsightRunModel).filter(CareerInsightRunModel.id == run_id).first()
+        assert row.status == 'completed' and row.completed_at is not None
 
 
 # ── _save_insight ───────────────────────────────────────────────
@@ -247,18 +236,14 @@ class TestStartCompleteRun:
 class TestSaveInsight:
     def test_save_with_score(self, db):
         ci._save_insight('overview', {'a': 1}, score=85.0, summary='Test')
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT insight_type, score, summary, data_json FROM career_insights").fetchone()
-        conn.close()
-        assert row[0] == 'overview' and row[1] == 85.0 and row[2] == 'Test'
-        assert json.loads(row[3]) == {'a': 1}
+        row = db.query(CareerInsightModel).first()
+        assert row.insight_type == 'overview' and row.score == 85.0 and row.summary == 'Test'
+        assert json.loads(row.data_json) == {'a': 1}
 
     def test_save_without_score(self, db):
         ci._save_insight('market', {'countries': []})
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT score, summary FROM career_insights").fetchone()
-        conn.close()
-        assert row[0] is None and row[1] is None
+        row = db.query(CareerInsightModel).first()
+        assert row.score is None and row.summary is None
 
 
 # ── _collect_*_data ─────────────────────────────────────────────
@@ -268,8 +253,6 @@ class TestCollectData:
     calls dict(r) which needs Row objects. These tests verify the functions
     execute without crashing (the dict(r) issue is a pre-existing bug)."""
     def test_jobs(self):
-        # Pre-existing: dict(r) fails on tuples with row_factory=None
-        # Just verify the function is callable
         assert callable(ci._collect_jobs_data)
 
     def test_companies(self):
@@ -283,7 +266,6 @@ class TestCollectData:
 
 class TestGenerateAll:
     def test_already_running(self, db):
-        # Hold the lock to simulate an active run
         ci._analysis_lock.acquire(blocking=False)
         try:
             result = ci.generate_all()
@@ -299,9 +281,7 @@ class TestGenerateAll:
         )
         result = ci.generate_all()
         assert result is not None and 'overview' in result
-        conn = sqlite3.connect(db)
-        types = {r[0] for r in conn.execute("SELECT insight_type FROM career_insights").fetchall()}
-        conn.close()
+        types = {r.insight_type for r in db.query(CareerInsightModel).all()}
         assert 'overview' in types and 'market' in types
 
     @patch.object(ci, '_run_mimo_prompt')
@@ -309,10 +289,8 @@ class TestGenerateAll:
         mock_run.return_value = (None, 'crashed', None)
         result = ci.generate_all()
         assert result is None
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status FROM career_insight_runs ORDER BY id DESC LIMIT 1").fetchone()
-        conn.close()
-        assert row[0] == 'failed'
+        row = db.query(CareerInsightRunModel).order_by(CareerInsightRunModel.id.desc()).first()
+        assert row.status == 'failed'
 
     @patch.object(ci, '_run_mimo_prompt')
     def test_cancellation(self, mock_run, db):
@@ -332,15 +310,13 @@ class TestGenerateAll:
             None, None
         )
         ci.generate_all()
-        conn = sqlite3.connect(db)
-        types = {r[0] for r in conn.execute("SELECT insight_type FROM career_insights").fetchall()}
-        conn.close()
+        types = {r.insight_type for r in db.query(CareerInsightModel).all()}
         assert 'overview' in types
         assert 'opportunities' in types
         assert 'companies' in types
         assert 'market' in types
         assert 'networking' in types
-        assert 'skills_intel' not in types  # skills is now independent
+        assert 'skills_intel' not in types
         assert 'skills' not in types
 
 
@@ -375,7 +351,6 @@ class TestGenerateSection:
         mock_run.return_value = ({'position': {}}, None, 'ses_ov')
         result = ci.generate_section('overview')
         assert result is not None
-        # Verify per-section prompt was used
         assert 'overview_intelligence' in str(mock_run.call_args)
 
     @patch.object(ci, '_run_mimo_prompt')
@@ -383,20 +358,16 @@ class TestGenerateSection:
         data = {'position': {'totalJobs': 10}}
         mock_run.return_value = (data, None, None)
         ci.generate_section('overview')
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT data_json FROM career_insights").fetchone()
-        conn.close()
-        assert json.loads(row[0]) == data
+        row = db.query(CareerInsightModel).first()
+        assert json.loads(row.data_json) == data
 
     @patch.object(ci, '_run_mimo_prompt')
     def test_failure(self, mock_run, db):
         mock_run.return_value = (None, 'timeout', None)
         result = ci.generate_section('market')
         assert result is None
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status FROM career_insight_runs ORDER BY id DESC LIMIT 1").fetchone()
-        conn.close()
-        assert row[0] == 'failed'
+        row = db.query(CareerInsightRunModel).order_by(CareerInsightRunModel.id.desc()).first()
+        assert row.status == 'failed'
 
     @patch.object(ci, '_run_mimo_prompt')
     def test_cancellation(self, mock_run, db):
@@ -412,10 +383,8 @@ class TestGenerateSection:
         mock_run.side_effect = RuntimeError("boom")
         result = ci.generate_section('companies')
         assert result is None
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT status FROM career_insight_runs ORDER BY id DESC LIMIT 1").fetchone()
-        conn.close()
-        assert row[0] == 'failed'
+        row = db.query(CareerInsightRunModel).order_by(CareerInsightRunModel.id.desc()).first()
+        assert row.status == 'failed'
 
 
 # ── generate_skills_intel ───────────────────────────────────────
@@ -441,10 +410,8 @@ class TestGenerateSkillsIntel:
         result = ci.generate_skills_intel()
         assert result is not None
         assert result['summary']['career_readiness_score'] == 85
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT insight_type, score FROM career_insights").fetchone()
-        conn.close()
-        assert row[0] == 'skills_intel' and row[1] == 85
+        row = db.query(CareerInsightModel).first()
+        assert row.insight_type == 'skills_intel' and row.score == 85
 
     @patch.object(ci, '_run_mimo_prompt')
     def test_failure(self, mock_run, db):
@@ -464,10 +431,8 @@ class TestGenerateSkillsIntel:
         mock_run.return_value = ({'summary': {'career_readiness_score': 50}}, None, None)
         result = ci.generate_skills_intel()
         assert result is not None
-        conn = sqlite3.connect(db)
-        row = conn.execute("SELECT summary FROM career_insights").fetchone()
-        conn.close()
-        assert 'Readiness: 50/100' in row[0]
+        row = db.query(CareerInsightModel).first()
+        assert 'Readiness: 50/100' in row.summary
 
 
 # ── get_latest ──────────────────────────────────────────────────

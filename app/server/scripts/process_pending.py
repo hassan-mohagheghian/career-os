@@ -1,88 +1,93 @@
-import sqlite3
 import json
 import os
 from datetime import datetime
+
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import sessionmaker
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
 DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+import sys
+sys.path.insert(0, os.path.join(_file_dir, '..'))
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.pending_model
+import infrastructure.database.models.job_model
+import infrastructure.database.models.misc_models
+from infrastructure.database.models.pending_model import PendingJobModel
+from infrastructure.database.models.job_model import JobModel
+from infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
-def update_step(pending_id, step, value, status=None, company=None, job_num=None, error=None):
-    conn = get_db()
-    fields = [f'{step}=?']
-    values = [value]
+
+def get_session():
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+    Session = sessionmaker(bind=engine)
+    return Session(), engine
+
+
+def update_step(session, pending_id, step, value, status=None, company=None, job_num=None, error=None):
+    m = session.query(PendingJobModel).filter(PendingJobModel.id == pending_id).first()
+    if not m:
+        return
+    setattr(m, step, value)
     if status:
-        fields.append('status=?')
-        values.append(status)
+        m.status = status
     if company:
-        fields.append('company=?')
-        values.append(company)
+        m.company = company
     if job_num:
-        fields.append('job_num=?')
-        values.append(job_num)
+        m.job_num = job_num
     if error:
-        fields.append('error=?')
-        values.append(error)
-    fields.append('updated_at=?')
-    values.append(datetime.now().isoformat())
-    values.append(pending_id)
-    conn.execute(f'UPDATE pending_jobs SET {",".join(fields)} WHERE id=?', values)
-    conn.commit()
-    conn.close()
+        m.error = error
+    m.updated_at = datetime.now().isoformat()
+    session.commit()
 
-def get_pending():
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM pending_jobs WHERE status NOT IN ('done','failed') ORDER BY created_at").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
 
-def add_job(data):
-    import json
-    conn = get_db()
-    c = conn.cursor()
-    locations = data.get('locations', [])
-    if isinstance(locations, str):
-        locations = [locations] if locations else []
-    c.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (data['num'], data['company'], data['role'], data['location'], data['match'],
-         data['score'], data['salary'], data['stack'], data['visa'], data['applicants'],
-         data['posted'], data['industry'], data['domain'], data['notes'], data['action'], data['url'],
-         data.get('work_type', 'On-site'), data.get('workflow_log', '[]'), json.dumps(locations)))
-    conn.commit()
-    conn.close()
+def get_pending(session):
+    rows = session.query(PendingJobModel).filter(
+        PendingJobModel.status.notin_(['done', 'failed'])
+    ).order_by(PendingJobModel.created_at.asc()).all()
+    return [{'id': r.id, 'url': r.url, 'source': r.source, 'status': r.status} for r in rows]
 
-def add_summary(data):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''INSERT OR REPLACE INTO summaries VALUES (?,?,?,?,?,?,?,?,?)''',
-        (data['num'], data['company'], data['match'], data['score'],
-         data['summary'], data['stack'], data['resumeFit'], data['note'], data['url']))
-    conn.commit()
-    conn.close()
 
-def add_resume(data):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num) VALUES (?,?,?,?,?,?,?,?,?)''',
-        (data['id'], data.get('title'),
-         data.get('company'), data.get('role'), data.get('content'),
-         data.get('version', 1), data.get('raw_text'), data.get('created_at'), data.get('job_num')))
-    conn.commit()
-    conn.close()
+def add_job(session, data):
+    m = session.query(JobModel).filter(JobModel.num == data['num']).first()
+    if m:
+        for k, v in data.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
+    else:
+        m = JobModel(num=data['num'], company=data.get('company'), role=data.get('role'),
+                     location=data.get('location'), match=data.get('match'), score=data.get('score'),
+                     salary=data.get('salary'), stack=data.get('stack'), visa=data.get('visa'),
+                     url=data.get('url'))
+        session.add(m)
+    session.commit()
 
-def get_next_job_num():
-    conn = get_db()
-    row = conn.execute("SELECT MAX(num) FROM jobs").fetchone()
-    conn.close()
-    return (row[0] or 0) + 1
+
+def add_summary(session, data):
+    m = session.query(SummaryModel).filter(SummaryModel.num == data['num']).first()
+    if m:
+        m.company = data.get('company')
+        m.summary = data.get('summary')
+    else:
+        m = SummaryModel(num=data['num'], company=data.get('company'), summary=data.get('summary'))
+        session.add(m)
+    session.commit()
+
+
+def get_next_job_num(session):
+    max_num = session.query(func.max(JobModel.num)).scalar()
+    return (max_num or 0) + 1
+
 
 if __name__ == '__main__':
-    pending = get_pending()
-    print(f'Pending jobs: {len(pending)}')
-    for p in pending:
-        print(f"  [{p['id']}] {p['source']} | {p['status']} | {p['url'][:60]}...")
+    session, engine = get_session()
+    try:
+        pending = get_pending(session)
+        print(f'Pending jobs: {len(pending)}')
+        for p in pending:
+            print(f"  [{p['id']}] {p['source']} | {p['status']} | {p['url'][:60]}...")
+    finally:
+        session.close()
+        engine.dispose()

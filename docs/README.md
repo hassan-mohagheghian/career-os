@@ -30,7 +30,7 @@ Frontend (React + TypeScript) → Flask API (Python) → SQLite DB
 Key patterns:
 - Feature-based frontend architecture (`features/`, `shared/`, `layout/`)
 - Flask blueprints for API routes (10 blueprints)
-- SQLite with raw SQL (no ORM)
+- SQLite with SQLAlchemy ORM + Alembic
 - **LLMService** for all AI calls (provider abstraction)
 - WebSocket for real-time updates
 - Version tracking for retry/resume

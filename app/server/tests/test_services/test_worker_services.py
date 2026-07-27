@@ -6,78 +6,19 @@ Tests cover: WorkerBase subclassing, pipeline execution, status transitions.
 
 import sys
 import os
-import sqlite3
 import json
-import tempfile
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
+from infrastructure.database.models.pending_model import (
+    PendingJobModel, PendingCompanyModel, PendingGenerationModel,
+)
 from services.process.generation_models import GenerationSource, GenerationStatus
 from services.process.models import ItemStatus, WorkflowLogEntry, StatusUpdate, ProcessingComplete
 from services.process.worker_base import WorkerBase
-
-
-ALL_TABLES = """
-CREATE TABLE IF NOT EXISTS pending_jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT NOT NULL, title TEXT, company TEXT, source TEXT DEFAULT 'web',
-    status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1,
-    notes TEXT DEFAULT '[]', links TEXT DEFAULT '[]',
-    job_num INTEGER,
-    step_fetch INTEGER DEFAULT 0, step_validate INTEGER DEFAULT 0,
-    step_extract_raw INTEGER DEFAULT 0, step_extract_struct INTEGER DEFAULT 0,
-    step_summary INTEGER DEFAULT 0, step_analyze INTEGER DEFAULT 0,
-    step_db INTEGER DEFAULT 0, step_done INTEGER DEFAULT 0,
-    workflow_log TEXT DEFAULT '[]', error TEXT,
-    queue_order INTEGER DEFAULT 0, session_id TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS pending_companies (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    input_text TEXT NOT NULL, notes TEXT DEFAULT '[]',
-    links TEXT DEFAULT '[]', input_type TEXT DEFAULT 'url',
-    source TEXT DEFAULT 'web', status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1,
-    step_fetch INTEGER DEFAULT 0, step_extract INTEGER DEFAULT 0,
-    step_analyze INTEGER DEFAULT 0, step_save INTEGER DEFAULT 0,
-    step_done INTEGER DEFAULT 0, company_id INTEGER,
-    company_name TEXT, error TEXT,
-    workflow_log TEXT DEFAULT '[]', session_id TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS pending_generations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_num INTEGER NOT NULL,
-    type TEXT NOT NULL,
-    status TEXT DEFAULT 'queued',
-    step_prepare INTEGER DEFAULT 0,
-    step_context INTEGER DEFAULT 0,
-    step_generate INTEGER DEFAULT 0,
-    step_save INTEGER DEFAULT 0,
-    step_done INTEGER DEFAULT 0,
-    result TEXT,
-    error TEXT,
-    session_id TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-"""
-
-
-@pytest.fixture
-def test_db():
-    fd2, path = tempfile.mkstemp(suffix='.db')
-    os.close(fd2)
-    conn = sqlite3.connect(path)
-    conn.executescript(ALL_TABLES)
-    conn.commit()
-    conn.close()
-    yield path
-    os.remove(path)
 
 
 # ── Concrete WorkerBase implementations for testing ──────────────
@@ -91,15 +32,15 @@ class ConcreteWorker(WorkerBase):
 
     @property
     def pipeline_steps(self):
-        return ['step_fetch', 'step_validate', 'step_done']
+        return ['step_fetch', 'step_analyze', 'step_done']
 
     def _execute_pipeline(self, pid, item):
         self._mark_step(pid, 'step_fetch')
         self._log(pid, 'fetch', 'Fetched content')
         if self._is_cancelled(pid):
             return None
-        self._mark_step(pid, 'step_validate')
-        self._log(pid, 'validate', 'Validated')
+        self._mark_step(pid, 'step_analyze')
+        self._log(pid, 'analyze', 'Analyzed')
         return {'result': 'ok', 'num': 42}
 
 
@@ -112,7 +53,7 @@ class FailingWorker(WorkerBase):
 
     @property
     def pipeline_steps(self):
-        return ['step_fetch', 'step_validate', 'step_done']
+        return ['step_fetch', 'step_analyze', 'step_done']
 
     def _execute_pipeline(self, pid, item):
         self._mark_step(pid, 'step_fetch')
@@ -143,10 +84,10 @@ class CompanyTestWorker(WorkerBase):
 class TestWorkerBase:
     """Test the abstract WorkerBase Template Method pattern."""
 
-    def _make_worker(self, test_db):
+    def _make_worker(self, sa_session):
         from services.process.repository import PendingJobRepository
 
-        repo = PendingJobRepository(test_db)
+        repo = PendingJobRepository(sa_session)
         proc_mgr = MagicMock()
         temp_mgr = MagicMock()
         mimo = MagicMock()
@@ -154,114 +95,98 @@ class TestWorkerBase:
 
         return ConcreteWorker(repo, proc_mgr, temp_mgr, mimo, broadcaster)
 
-    def _insert_pending_job(self, test_db, url='https://example.com', status='processing'):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_jobs (url, status, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (url, status, datetime.now().isoformat(), datetime.now().isoformat()),
+    def _insert_pending_job(self, sa_session, url='https://example.com', status='processing'):
+        m = PendingJobModel(
+            url=url,
+            status=status,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat(),
         )
-        conn.commit()
-        pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-        conn.close()
-        return pid
+        sa_session.add(m)
+        sa_session.commit()
+        sa_session.refresh(m)
+        return m.id
 
-    def test_successful_pipeline(self, test_db):
-        worker = self._make_worker(test_db)
-        pid = self._insert_pending_job(test_db)
+    def test_successful_pipeline(self, sa_session):
+        worker = self._make_worker(sa_session)
+        pid = self._insert_pending_job(sa_session)
 
         worker.process(pid)
 
-        # Verify final state
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'done'
+        assert row.step_fetch == 1
+        assert row.step_analyze == 1
+        assert row.step_done == 1
 
-        assert dict(row)['status'] == 'done'
-        assert dict(row)['step_fetch'] == 1
-        assert dict(row)['step_validate'] == 1
-        assert dict(row)['step_done'] == 1
-
-    def test_failed_pipeline(self, test_db):
+    def test_failed_pipeline(self, sa_session):
         from services.process.repository import PendingJobRepository
 
-        repo = PendingJobRepository(test_db)
+        repo = PendingJobRepository(sa_session)
         worker = FailingWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
-        pid = self._insert_pending_job(test_db)
+        pid = self._insert_pending_job(sa_session)
 
         worker.process(pid)
 
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'failed'
+        assert row.error is not None
 
-        assert dict(row)['status'] == 'failed'
-        assert dict(row)['error'] is not None
-
-    def test_workflow_log_recorded(self, test_db):
-        worker = self._make_worker(test_db)
-        pid = self._insert_pending_job(test_db)
+    def test_workflow_log_recorded(self, sa_session):
+        worker = self._make_worker(sa_session)
+        pid = self._insert_pending_job(sa_session)
 
         worker.process(pid)
 
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
-
-        logs = json.loads(dict(row)['workflow_log'] or '[]')
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        logs = json.loads(row.workflow_log or '[]')
         assert len(logs) >= 2
         assert logs[0]['msg'] == 'Fetched content'
-        assert logs[1]['msg'] == 'Validated'
+        assert logs[1]['msg'] == 'Analyzed'
 
-    def test_missing_item_returns_early(self, test_db):
-        worker = self._make_worker(test_db)
+    def test_missing_item_returns_early(self, sa_session):
+        worker = self._make_worker(sa_session)
         # Process non-existent item - should not raise
         worker.process(99999)
 
-    def test_cancelled_item_stops(self, test_db):
+    def test_cancelled_item_stops(self, sa_session):
         from services.process.repository import PendingJobRepository
 
-        repo = PendingJobRepository(test_db)
+        repo = PendingJobRepository(sa_session)
         worker = FailingWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
-        pid = self._insert_pending_job(test_db, status='paused')
+        pid = self._insert_pending_job(sa_session, url='https://paused.example.com', status='paused')
 
         # Paused item should be detected as cancelled
         assert worker._is_cancelled(pid) is True
 
-    def test_company_worker_table(self, test_db):
+    def test_company_worker_table(self, sa_session):
         from services.process.repository import PendingCompanyRepository
 
-        repo = PendingCompanyRepository(test_db)
+        repo = PendingCompanyRepository(sa_session)
         worker = CompanyTestWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
 
         assert worker.table == 'pending_companies'
         assert len(worker.pipeline_steps) == 5
 
-    def test_reset_steps(self, test_db):
-        worker = self._make_worker(test_db)
-        pid = self._insert_pending_job(test_db)
+    def test_reset_steps(self, sa_session):
+        worker = self._make_worker(sa_session)
+        pid = self._insert_pending_job(sa_session)
 
         # Manually set steps
-        conn = sqlite3.connect(test_db)
-        conn.execute("UPDATE pending_jobs SET step_fetch=1, step_validate=1 WHERE id=?", (pid,))
-        conn.commit()
-        conn.close()
+        m = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m.step_fetch = 1
+        m.step_analyze = 1
+        sa_session.commit()
 
         worker._reset_steps(pid)
 
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT step_fetch, step_validate FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.step_fetch == 0
+        assert row.step_analyze == 0
 
-        assert dict(row)['step_fetch'] == 0
-        assert dict(row)['step_validate'] == 0
-
-    def test_mark_step_broadcasts(self, test_db):
-        worker = self._make_worker(test_db)
-        pid = self._insert_pending_job(test_db)
+    def test_mark_step_broadcasts(self, sa_session):
+        worker = self._make_worker(sa_session)
+        pid = self._insert_pending_job(sa_session)
 
         with patch.object(worker._broadcaster, 'step_update') as mock_broadcast:
             worker._mark_step(pid, 'step_fetch', 1)
@@ -271,18 +196,14 @@ class TestWorkerBase:
             assert event.step == 'step_fetch'
             assert event.val == 1
 
-    def test_log_appends_entry(self, test_db):
-        worker = self._make_worker(test_db)
-        pid = self._insert_pending_job(test_db)
+    def test_log_appends_entry(self, sa_session):
+        worker = self._make_worker(sa_session)
+        pid = self._insert_pending_job(sa_session)
 
         worker._log(pid, 'test', 'Test message')
 
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
-
-        logs = json.loads(dict(row)['workflow_log'] or '[]')
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        logs = json.loads(row.workflow_log or '[]')
         assert len(logs) == 1
         assert logs[0]['step'] == 'test'
         assert logs[0]['msg'] == 'Test message'

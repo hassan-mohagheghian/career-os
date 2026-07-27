@@ -17,19 +17,19 @@ FastAPI's built-in `Depends()` system provides a clean, testable dependency inje
 
 ```python
 # infrastructure/database/connection.py
-import sqlite3
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from contextlib import asynccontextmanager
 
-async def get_db() -> AsyncGenerator[sqlite3.Connection, None]:
-    """Yield a database connection for the request lifetime."""
-    conn = sqlite3.connect(settings.db_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+def get_db():
+    """Yield a database session for the request lifetime."""
+    engine = create_engine(f"sqlite:///{settings.db_path}")
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
     try:
-        yield conn
+        yield db
     finally:
-        conn.close()
+        db.close()
 ```
 
 ### 2. Repository Dependencies
@@ -231,12 +231,12 @@ from app.server.database import get_db  # Implicit dependency
 @router.get("/jobs")
 async def list_jobs():
     conn = get_db()  # Where did this come from?
-    return conn.execute("SELECT * FROM jobs")
+    return conn.query(Job).all()
 
 # GOOD: Explicit dependency
 @router.get("/jobs")
 async def list_jobs(db=Depends(get_db)):
-    return db.execute("SELECT * FROM jobs")
+    return db.query(Job).all()
 ```
 
 ### Tight Coupling
@@ -307,7 +307,7 @@ socketio = SocketIO(app)
 @jobs_bp.route('/api/jobs')
 def list_jobs():
     conn = get_db()  # Global function
-    jobs = conn.execute('SELECT * FROM jobs').fetchall()
+    jobs = conn.query(Job).all()
     return jsonify(jobs)
 ```
 

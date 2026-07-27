@@ -356,23 +356,23 @@ async def test_feature_parity(
 ```python
 # tests/conftest.py
 import pytest
-import sqlite3
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from httpx import AsyncClient, ASGITransport
 from app.server.main import app
 from app.server.dependencies import get_db
+from app.server.infrastructure.database.models import Base
 
 @pytest.fixture
 def test_db():
     """Create in-memory test database."""
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine)
+    session = TestSession()
     
-    # Run migrations
-    from app.server.infrastructure.database.migrations import run_migrations
-    run_migrations(conn)
-    
-    yield conn
-    conn.close()
+    yield session
+    session.close()
 
 @pytest.fixture
 async def client(test_db):

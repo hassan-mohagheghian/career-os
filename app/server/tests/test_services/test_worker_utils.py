@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-import sqlite3
 import pytest
 from unittest.mock import patch, MagicMock
 

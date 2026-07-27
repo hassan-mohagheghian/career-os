@@ -37,7 +37,7 @@
               └───────────────────────┘
 ```
 
-**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | FastAPI + Python 3.14 + SQLite (raw SQL) | Pydantic v2 | AI Agent Layer (LLMService + LangGraph) | WebSocket (native FastAPI)
+**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | FastAPI + Python 3.14 + SQLite + SQLAlchemy ORM | Pydantic v2 | AI Agent Layer (LLMService + LangGraph) | WebSocket (native FastAPI)
 
 ## Architecture Layers
 
@@ -242,7 +242,7 @@ Click Generate → skill_roadmaps.py → LLMService → mimo CLI → save to ski
 
 ## Design Decisions
 
-- **No ORM**: Raw SQL for full control over queries and schema
+- **SQLAlchemy ORM**: Clean abstractions with type safety for database access
 - **Feature-based frontend**: Each feature owns its components, hooks, and types
 - **Concurrency lock**: Only one insights generation at a time
 - **Version tracking**: `version` column on pending_jobs/companies for retry counting

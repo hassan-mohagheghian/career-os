@@ -1,13 +1,12 @@
 """
 Backfill structured descriptions for existing jobs.
 Uses LLM service to extract structured info from raw_description.
-Includes delay between requests to avoid rate limiting.
 """
-import sqlite3
 import os
-import json
 import time
-import subprocess
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
@@ -15,7 +14,12 @@ _db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
 DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-# AI Agent Layer — unified LLM service
+import sys
+sys.path.insert(0, os.path.join(_file_dir, '..'))
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.job_model
+from infrastructure.database.models.job_model import JobModel
+
 from ai_compat import get_llm_service
 
 EXTRACT_PROMPT = """Extract structured information from this raw job description.
@@ -61,69 +65,51 @@ RULES:
 - benefits: perks, insurance, remote options, learning budget, etc.
 - Keep all fields concise but complete"""
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
+
+def get_session():
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+    Session = sessionmaker(bind=engine)
+    return Session(), engine
+
 
 def extract_structured(raw_text, num):
-    """Extract structured job info from raw description using LLM service."""
     output_file = os.path.join(PROJECT_ROOT, 'data', f'structured_{num}.json')
     prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:5000], output_file=output_file)
-
     try:
         llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": output_file, "pid": str(num)},
-            timeout=60,
-        )
+        resp = llm.generate_structured(prompt, context={"result_file": output_file, "pid": str(num)}, timeout=60)
         return resp.content
     except Exception as e:
         print(f"  LLM error: {e}")
     return None
 
+
 def main():
-    conn = get_db()
+    session, engine = get_session()
+    try:
+        rows = session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.raw_description.isnot(None),
+            JobModel.structured_description.is_(None)
+        ).order_by(JobModel.num).all()
+        print(f"Found {len(rows)} jobs needing structured extraction")
+        success, failed = 0, 0
+        for i, job in enumerate(rows):
+            print(f"#{job.num:03d} {job.company}: extracting...")
+            structured_json = extract_structured(job.raw_description, job.num)
+            if structured_json:
+                job.structured_description = structured_json
+                session.commit()
+                success += 1
+            else:
+                failed += 1
+            if i < len(rows) - 1:
+                time.sleep(3 + (i % 3))
+        print(f"\nDone: {success} extracted, {failed} failed")
+    finally:
+        session.close()
+        engine.dispose()
 
-    # Find jobs with raw_description but without structured_description
-    rows = conn.execute(
-        '''SELECT num, company, raw_description FROM jobs
-           WHERE deleted=0 AND raw_description IS NOT NULL AND structured_description IS NULL
-           ORDER BY num'''
-    ).fetchall()
-
-    print(f"Found {len(rows)} jobs needing structured extraction")
-
-    success = 0
-    failed = 0
-
-    for i, row in enumerate(rows):
-        r = dict(row)
-        num = r['num']
-        company = r['company']
-        raw_text = r['raw_description']
-
-        print(f"#{num:03d} {company}: extracting...")
-        structured_json = extract_structured(raw_text, num)
-
-        if structured_json:
-            conn.execute('UPDATE jobs SET structured_description=? WHERE num=?',
-                        (structured_json, num))
-            conn.commit()
-            success += 1
-            print(f"  Success ({len(structured_json)} chars)")
-        else:
-            failed += 1
-            print(f"  Failed")
-
-        # Delay between requests (3-5 seconds)
-        if i < len(rows) - 1:
-            delay = 3 + (i % 3)
-            time.sleep(delay)
-
-    conn.close()
-    print(f"\nDone: {success} extracted, {failed} failed")
 
 if __name__ == '__main__':
     main()

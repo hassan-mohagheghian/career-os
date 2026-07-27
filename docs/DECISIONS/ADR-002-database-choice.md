@@ -1,4 +1,4 @@
-# ADR-002: Database Choice (SQLite, No ORM)
+# ADR-002: Database Choice (SQLite + SQLAlchemy ORM)
 
 ## Context
 
@@ -6,7 +6,7 @@ Need persistent storage for jobs, companies, skills, resumes, and intelligence d
 
 ## Decision
 
-SQLite with raw SQL queries, no ORM.
+SQLite with SQLAlchemy ORM for all database access. Alembic for migrations.
 
 ## Alternatives
 
@@ -18,12 +18,11 @@ SQLite with raw SQL queries, no ORM.
 
 **Positive:**
 - Zero configuration — database file just exists
-- Full control over queries and schema
+- SQLAlchemy ORM provides type safety and clean abstractions
+- Alembic handles schema migrations cleanly
 - Easy to inspect with `sqlite3` CLI
 - WAL mode for concurrent reads during writes
-- Inline migrations (no Alembic complexity)
 
 **Negative:**
-- Manual query writing (more verbose)
-- No type safety at query level
-- Manual connection management (always close after use)
+- ORM adds abstraction layer (but provides type safety)
+- Alembic adds migration complexity (but ensures clean schema evolution)

@@ -2,7 +2,6 @@
 
 import os
 import tempfile
-import sqlite3
 import json
 import pytest
 from unittest.mock import patch, MagicMock
@@ -60,10 +59,8 @@ class TestCompanyUpdateStep:
         with patch('services.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 1)
 
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT step_fetch FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 1
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.step_fetch == 1
 
     def test_update_step_with_status(self, db_path):
         sa_session = _make_session(db_path)
@@ -73,11 +70,9 @@ class TestCompanyUpdateStep:
         with patch('services.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 0, status='processing')
 
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT step_fetch, status FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 0
-        assert row[1] == 'processing'
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.step_fetch == 0
+        assert row.status == 'processing'
 
 
 # ── Log ────────────────────────────────────────────────────────────
@@ -91,10 +86,8 @@ class TestCompanyLog:
         with patch('services.company_worker.get_session_sync', return_value=sa_session):
             _log(pid, 'fetch', 'Fetching URL...')
 
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT workflow_log FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        logs = json.loads(row[0])
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        logs = json.loads(row.workflow_log)
         assert len(logs) == 1
         assert logs[0]['step'] == 'fetch'
         assert logs[0]['msg'] == 'Fetching URL...'
@@ -137,11 +130,9 @@ class TestCompanyFail:
         with patch('services.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Something went wrong', step='fetch')
 
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status, error FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'failed'
-        assert '[Fetching content] Something went wrong' in row[1]
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.status == 'failed'
+        assert '[Fetching content] Something went wrong' in row.error
 
     def test_fail_without_step(self, db_path):
         sa_session = _make_session(db_path)
@@ -151,7 +142,5 @@ class TestCompanyFail:
         with patch('services.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Generic error')
 
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT error FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'Generic error'
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.error == 'Generic error'

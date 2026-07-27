@@ -22,7 +22,7 @@ Job Search Intelligence is an AI-powered career platform that helps software eng
 
 1. **Provider abstraction**: All AI calls go through LLMService — never call MimoRunner directly. Default provider is Mimo CLI, but OpenAI and local LLMs are supported via `AI_PROVIDER` env var
 2. **TypeScript frontend**: All client code is `.ts`/`.tsx`
-3. **Raw SQL**: No ORM, direct SQLite queries
+3. **SQLAlchemy ORM**: Use SQLAlchemy for all database access, never raw SQL
 4. **Feature-based architecture**: Frontend organized by `features/`, `shared/`, `layout/`
 5. **Single generation lock**: Only one AI analysis runs at a time
 6. **URL uniqueness**: Base URL without query params for deduplication

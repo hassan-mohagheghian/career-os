@@ -56,7 +56,7 @@ tests/test_ai/          70 AI layer tests
 - **DDD/SOLID/TDD** throughout
 
 ### Patterns to Avoid
-- Do NOT use ORM — raw SQL only
+- Use SQLAlchemy ORM for all database access. Never use raw SQL.
 - Do NOT add routes in `app.py`
 - Do NOT use `print()` — use `structlog`
 - Do NOT create new UI component libraries — use shadcn/ui

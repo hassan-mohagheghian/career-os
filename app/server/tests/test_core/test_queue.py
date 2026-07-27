@@ -1,18 +1,19 @@
 """Tests for JobQueueManager — graceful shutdown, cancel, reset, transitions."""
 
-import os
-import sqlite3
 import tempfile
-import threading
-import time
 
 import pytest
-from unittest.mock import patch, MagicMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from infrastructure.database.models.pending_model import PendingCompanyModel, PendingJobModel
+from infrastructure.database.sqlalchemy_config import Base
 
 
 @pytest.fixture
 def db_path():
     fd, path = tempfile.mkstemp(suffix='.db')
+    import os
     os.close(fd)
     yield path
     os.remove(path)
@@ -20,53 +21,35 @@ def db_path():
 
 @pytest.fixture
 def queue(db_path):
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from infrastructure.database.sqlalchemy_config import Base
-    import infrastructure.database.models.pending_model
-
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     sa_session = Session()
 
     import core.queue as q
+    from unittest.mock import patch
     with patch('core.queue.get_session_sync', return_value=sa_session):
         mgr = q.JobQueueManager(concurrency=2)
-        yield mgr
+        yield mgr, sa_session
     mgr._running = False
     sa_session.close()
     engine.dispose()
 
 
-def _insert_job(conn, url, status='pending'):
-    cur = conn.execute(
-        """INSERT INTO pending_jobs
-           (url, status, source, version, notes, links, workflow_log,
-            step_fetch, step_analyze, step_resume, step_cover, step_db, step_done,
-            queue_order, step_extract_raw, step_extract_struct)
-           VALUES (?, ?, 'cli', 1, '[]', '[]', '[]',
-                   0, 0, 0, 0, 0, 0,
-                   0, 0, 0)""",
-        (url, status),
-    )
-    conn.commit()
-    return cur.lastrowid
+def _insert_job(session, url, status='pending'):
+    m = PendingJobModel(url=url, status=status, source='cli')
+    session.add(m)
+    session.commit()
+    session.refresh(m)
+    return m.id
 
 
-def _insert_company(conn, text, status='pending'):
-    cur = conn.execute(
-        """INSERT INTO pending_companies
-           (input_text, status, notes, input_type, source, version,
-            step_fetch, step_extract, step_analyze, step_save, step_done,
-            workflow_log, links)
-           VALUES (?, ?, '[]', 'url', 'web', 1,
-                   0, 0, 0, 0, 0,
-                   '[]', '[]')""",
-        (text, status),
-    )
-    conn.commit()
-    return cur.lastrowid
+def _insert_company(session, text, status='pending'):
+    m = PendingCompanyModel(input_text=text, status=status, source='web')
+    session.add(m)
+    session.commit()
+    session.refresh(m)
+    return m.id
 
 
 class TestTransitionValidation:
@@ -85,185 +68,155 @@ class TestTransitionValidation:
 
 
 class TestEnqueue:
-    def test_enqueue_job(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_job(conn, 'https://example.com', 'pending')
-        conn.close()
+    def test_enqueue_job(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_job(sa_session, 'https://example.com', 'pending')
 
-        queue.enqueue(pid)
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status, queue_order FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'queued'
-        assert row[1] > 0
+        mgr.enqueue(pid)
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'queued'
+        assert row.queue_order > 0
 
-    def test_enqueue_company(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_company(conn, 'TestCorp', 'pending')
-        conn.close()
+    def test_enqueue_company(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_company(sa_session, 'TestCorp', 'pending')
 
-        queue.enqueue(pid, table='pending_companies')
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status FROM pending_companies WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'queued'
+        mgr.enqueue(pid, table='pending_companies')
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.status == 'queued'
 
-    def test_enqueue_bulk(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        ids = [_insert_job(conn, f'https://example{i}.com') for i in range(5)]
-        conn.close()
+    def test_enqueue_bulk(self, queue):
+        mgr, sa_session = queue
+        ids = [_insert_job(sa_session, f'https://example{i}.com') for i in range(5)]
 
-        queue.enqueue_bulk(ids)
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute("SELECT status, queue_order FROM pending_jobs WHERE id IN ({})".format(
-            ','.join('?' * len(ids))
-        ), ids).fetchall()
-        conn.close()
-        assert all(r[0] == 'queued' for r in rows)
-        orders = [r[1] for r in rows]
+        mgr.enqueue_bulk(ids)
+        rows = sa_session.query(PendingJobModel).filter(PendingJobModel.id.in_(ids)).all()
+        assert all(r.status == 'queued' for r in rows)
+        orders = [r.queue_order for r in rows]
         assert orders == sorted(orders)  # FIFO order preserved
 
 
 class TestCancelJob:
-    def test_cancel_queued(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_job(conn, 'https://example.com', 'queued')
-        conn.close()
+    def test_cancel_queued(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_job(sa_session, 'https://example.com', 'queued')
 
-        ok = queue.cancel_job(pid)
+        ok = mgr.cancel_job(pid)
         assert ok
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'pending'
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'pending'
 
     def test_cancel_nonexistent(self, queue):
-        assert not queue.cancel_job(999)
+        mgr, _ = queue
+        assert not mgr.cancel_job(999)
 
-    def test_cancel_processing_without_process(self, queue, db_path):
+    def test_cancel_processing_without_process(self, queue):
         """Cancel a 'processing' job when no subprocess exists — should set paused."""
-        conn = sqlite3.connect(db_path)
-        pid = _insert_job(conn, 'https://example.com', 'processing')
-        conn.close()
+        mgr, sa_session = queue
+        pid = _insert_job(sa_session, 'https://example.com', 'processing')
 
-        ok = queue.cancel_job(pid)
+        ok = mgr.cancel_job(pid)
         assert ok
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'paused'
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'paused'
 
 
 class TestResetJob:
-    def test_reset_processing(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_job(conn, 'https://example.com', 'processing')
-        conn.execute("UPDATE pending_jobs SET step_fetch=1, step_analyze=1 WHERE id=?", (pid,))
-        conn.commit()
-        conn.close()
+    def test_reset_processing(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_job(sa_session, 'https://example.com', 'processing')
+        job = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        job.step_fetch = 1
+        job.step_analyze = 1
+        sa_session.commit()
 
-        ok = queue.reset_job(pid)
+        ok = mgr.reset_job(pid)
         assert ok
-        conn = sqlite3.connect(db_path)
-        row = conn.execute(
-            "SELECT status, step_fetch, step_analyze, step_done FROM pending_jobs WHERE id=?", (pid,)
-        ).fetchone()
-        conn.close()
-        assert row[0] == 'queued'
-        assert row[1] == 0  # step_fetch reset
-        assert row[2] == 0  # step_analyze reset
-        assert row[3] == 0  # step_done reset
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'queued'
+        assert row.step_fetch == 0
+        assert row.step_analyze == 0
+        assert row.step_done == 0
 
-    def test_reset_company(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_company(conn, 'TestCorp', 'processing')
-        conn.execute("UPDATE pending_companies SET step_fetch=1 WHERE id=?", (pid,))
-        conn.commit()
-        conn.close()
+    def test_reset_company(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_company(sa_session, 'TestCorp', 'processing')
+        comp = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        comp.step_fetch = 1
+        sa_session.commit()
 
-        ok = queue.reset_job(pid, table='pending_companies')
+        ok = mgr.reset_job(pid, table='pending_companies')
         assert ok
-        conn = sqlite3.connect(db_path)
-        row = conn.execute(
-            "SELECT status, step_fetch FROM pending_companies WHERE id=?", (pid,)
-        ).fetchone()
-        conn.close()
-        assert row[0] == 'queued'
-        assert row[1] == 0
+        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        assert row.status == 'queued'
+        assert row.step_fetch == 0
 
     def test_reset_nonexistent(self, queue):
-        assert not queue.reset_job(999)
+        mgr, _ = queue
+        assert not mgr.reset_job(999)
 
 
 class TestDequeue:
-    def test_dequeue(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        pid = _insert_job(conn, 'https://example.com', 'queued')
-        conn.close()
+    def test_dequeue(self, queue):
+        mgr, sa_session = queue
+        pid = _insert_job(sa_session, 'https://example.com', 'queued')
 
-        queue.dequeue(pid)
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT status, queue_order FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        assert row[0] == 'pending'
-        assert row[1] == 0
+        mgr.dequeue(pid)
+        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        assert row.status == 'pending'
+        assert row.queue_order == 0
 
 
 class TestGetStatus:
     def test_empty_queue(self, queue):
-        status = queue.get_status()
+        mgr, _ = queue
+        status = mgr.get_status()
         assert status['processing_count'] == 0
         assert status['queued_count'] == 0
         assert status['pending_count'] == 0
         assert status['concurrency'] == 2
         assert status['running'] is False
 
-    def test_with_items(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        _insert_job(conn, 'https://a.com', 'pending')
-        _insert_job(conn, 'https://b.com', 'queued')
-        _insert_job(conn, 'https://c.com', 'processing')
-        conn.close()
+    def test_with_items(self, queue):
+        mgr, sa_session = queue
+        _insert_job(sa_session, 'https://a.com', 'pending')
+        _insert_job(sa_session, 'https://b.com', 'queued')
+        _insert_job(sa_session, 'https://c.com', 'processing')
 
-        status = queue.get_status()
+        status = mgr.get_status()
         assert status['pending_count'] == 1
         assert status['queued_count'] == 1
         assert status['processing_count'] == 1
 
 
 class TestMarkProcessingAsPaused:
-    def test_marks_processing_as_paused(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        _insert_job(conn, 'https://a.com', 'processing')
-        _insert_job(conn, 'https://b.com', 'processing')
-        _insert_job(conn, 'https://c.com', 'queued')
-        conn.close()
+    def test_marks_processing_as_paused(self, queue):
+        mgr, sa_session = queue
+        _insert_job(sa_session, 'https://a.com', 'processing')
+        _insert_job(sa_session, 'https://b.com', 'processing')
+        _insert_job(sa_session, 'https://c.com', 'queued')
 
-        queue._mark_processing_as_paused()
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute("SELECT status FROM pending_jobs ORDER BY id").fetchall()
-        conn.close()
-        statuses = [r[0] for r in rows]
+        mgr._mark_processing_as_paused()
+        rows = sa_session.query(PendingJobModel).order_by(PendingJobModel.id).all()
+        statuses = [r.status for r in rows]
         assert statuses.count('paused') == 2
         assert statuses.count('queued') == 1
 
 
 class TestOrphanRecovery:
-    def test_reset_orphans(self, queue, db_path):
-        conn = sqlite3.connect(db_path)
-        _insert_job(conn, 'https://a.com', 'processing')
-        _insert_job(conn, 'https://b.com', 'processing')
-        conn.close()
+    def test_reset_orphans(self, queue):
+        mgr, sa_session = queue
+        _insert_job(sa_session, 'https://a.com', 'processing')
+        _insert_job(sa_session, 'https://b.com', 'processing')
 
-        queue._reset_processing_orphans()
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute("SELECT status FROM pending_jobs").fetchall()
-        conn.close()
-        assert all(r[0] == 'queued' for r in rows)
+        mgr._reset_processing_orphans()
+        rows = sa_session.query(PendingJobModel).all()
+        assert all(r.status == 'queued' for r in rows)
 
 
 class TestGracefulShutdown:
     def test_stop_sets_running_false(self, queue):
-        queue._running = True
-        queue.stop(timeout=1)
-        assert not queue._running
+        mgr, _ = queue
+        mgr._running = True
+        mgr.stop(timeout=1)
+        assert not mgr._running

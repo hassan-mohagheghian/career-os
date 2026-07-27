@@ -61,7 +61,7 @@ cd app/client && npx vitest run
 ### Python (Backend)
 - Follow OOP, SOLID, DDD, TDD principles
 - Use `structlog` for logging (no `print()`)
-- Raw SQL via `get_db()` helper (no ORM)
+- SQLAlchemy ORM for all database access
 - Flask Blueprints for API routes
 - Background threading for long operations
 - **AI calls via LLMService** — `from ai_compat import get_llm_service`
@@ -90,5 +90,5 @@ cd app/client && npx vitest run
 - **Backend logs**: `app/server/logs/` directory
 - **Frontend**: Browser dev tools, Vite HMR
 - **WebSocket**: SocketIO events visible in Network tab
-- **Database**: `sqlite3 app/server/db/jobs.db` for direct queries
+- **Database**: Use SQLAlchemy ORM models or Alembic for database operations. Never use raw SQL.
 - **AI Provider**: Check `AI_PROVIDER` env var and `~/.mimocode/bin/mimo`

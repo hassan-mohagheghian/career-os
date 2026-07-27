@@ -49,9 +49,9 @@
 - **Libraries**: structlog, python-dotenv, typer, rich, langgraph, langchain-core
 
 ### Database
-- **Engine**: SQLite (raw SQL, no ORM)
+- **Engine**: SQLite + SQLAlchemy ORM + Alembic migrations
 - **Key Tables**: jobs, companies, company_intelligence, skills, skill_roadmaps, career_insights, pending_jobs, pending_companies, pending_generations
-- **Migrations**: Inline system in `core/db.py` + `migrations.py`
+- **Migrations**: Alembic migration scripts
 
 ### AI Layer
 - **LLMService**: Unified entry point for all AI calls
@@ -138,7 +138,7 @@ React SPA → Flask API → SQLite DB
 ### Must Follow
 - TypeScript for all frontend code (no .js/.jsx)
 - Feature-based architecture (`features/`, `shared/`, `layout/`)
-- Raw SQL (no ORM)
+- SQLAlchemy ORM for all database access
 - structlog for logging (no print())
 - Single generation lock (one AI analysis at a time)
 - Version tracking for retries
@@ -147,7 +147,7 @@ React SPA → Flask API → SQLite DB
 
 ### Must Not
 - Add paid API dependencies
-- Use ORM
+- Use raw SQL (use SQLAlchemy ORM instead)
 - Add routes in `app.py`
 - Create duplicate prompt systems
 - Mix feature boundaries

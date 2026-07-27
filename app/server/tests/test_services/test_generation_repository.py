@@ -6,7 +6,7 @@ Tests cover: unified history reads from all 5 source tables.
 
 import sys
 import os
-import sqlite3
+import tempfile
 import pytest
 from datetime import datetime
 from unittest.mock import patch
@@ -17,9 +17,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.pending_model
-import infrastructure.database.models.insight_model
-import infrastructure.database.models.misc_models
+from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
+from infrastructure.database.models.misc_models import SkillRoadmapJobModel
+from infrastructure.database.models.insight_model import CareerInsightRunModel
 
 from services.process.generation_models import GenerationHistoryItem
 from services.process.generation_repository import GenerationHistoryRepository
@@ -27,25 +27,27 @@ from services.process.generation_repository import GenerationHistoryRepository
 
 @pytest.fixture
 def test_db():
-    import tempfile
     fd2, path = tempfile.mkstemp(suffix='.db')
     os.close(fd2)
-    engine = create_engine(f"sqlite:///{path}")
-    Base.metadata.create_all(bind=engine)
-    engine.dispose()
     yield path
     os.remove(path)
 
 
 @pytest.fixture
-def repo(test_db):
+def sa_session(test_db):
     engine = create_engine(f"sqlite:///{test_db}")
-    Session = sessionmaker(bind=engine)
-    sa_session = Session()
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+    yield session
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture
+def repo(sa_session):
     with patch('services.process.generation_repository.get_session_sync', return_value=sa_session):
         yield GenerationHistoryRepository()
-    sa_session.close()
-    engine.dispose()
 
 
 class TestGenerationHistoryRepository:
@@ -56,22 +58,31 @@ class TestGenerationHistoryRepository:
         assert result['items'] == []
         assert result['total'] == 0
 
-    def test_reads_pending_jobs(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_jobs "
-            "(url, source, company, status, version, notes, links, "
-            "step_fetch, step_analyze, step_resume, step_cover, step_db, step_done, "
-            "workflow_log, queue_order, step_extract_raw, step_extract_struct, "
-            "session_id, created_at, updated_at) "
-            "VALUES (?, 'web', ?, 'done', 1, '[]', '[]', "
-            "0, 0, 0, 0, 0, 0, "
-            "'[]', 0, 0, 0, "
-            "?, ?, ?)",
-            ('https://example.com/job1', 'Acme', 'sess_1', '2026-07-27T10:00:00', '2026-07-27T10:05:00'),
+    def test_reads_pending_jobs(self, repo, sa_session):
+        m = PendingJobModel(
+            url='https://example.com/job1',
+            source='web',
+            company='Acme',
+            status='done',
+            version=1,
+            notes='[]',
+            links='[]',
+            step_fetch=0,
+            step_analyze=0,
+            step_resume=0,
+            step_cover=0,
+            step_db=0,
+            step_done=0,
+            workflow_log='[]',
+            queue_order=0,
+            step_extract_raw=0,
+            step_extract_struct=0,
+            session_id='sess_1',
+            created_at='2026-07-27T10:00:00',
+            updated_at='2026-07-27T10:05:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 1
@@ -81,20 +92,27 @@ class TestGenerationHistoryRepository:
         assert item.status == 'done'
         assert item.session_id == 'sess_1'
 
-    def test_reads_pending_companies(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_companies "
-            "(input_text, source, company_name, status, version, notes, links, input_type, "
-            "step_fetch, step_extract, step_analyze, step_save, step_done, "
-            "workflow_log, created_at, updated_at) "
-            "VALUES (?, 'web', ?, 'done', 1, '[]', '[]', 'url', "
-            "0, 0, 0, 0, 0, "
-            "'[]', ?, ?)",
-            ('https://example.com/co1', 'TechCorp', '2026-07-27T10:00:00', '2026-07-27T10:03:00'),
+    def test_reads_pending_companies(self, repo, sa_session):
+        m = PendingCompanyModel(
+            input_text='https://example.com/co1',
+            source='web',
+            company_name='TechCorp',
+            status='done',
+            version=1,
+            notes='[]',
+            links='[]',
+            input_type='url',
+            step_fetch=0,
+            step_extract=0,
+            step_analyze=0,
+            step_save=0,
+            step_done=0,
+            workflow_log='[]',
+            created_at='2026-07-27T10:00:00',
+            updated_at='2026-07-27T10:03:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 1
@@ -102,18 +120,22 @@ class TestGenerationHistoryRepository:
         assert item.source == 'company-processing'
         assert item.title == 'TechCorp'
 
-    def test_reads_pending_generations(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_generations "
-            "(job_num, type, status, step_prepare, step_context, step_generate, step_save, step_done, "
-            "session_id, created_at, updated_at) "
-            "VALUES (1, 'resume', 'queued', 0, 0, 0, 0, 0, "
-            "?, ?, ?)",
-            ('sess_gen', '2026-07-27T10:00:00', '2026-07-27T10:02:00'),
+    def test_reads_pending_generations(self, repo, sa_session):
+        m = PendingGenerationModel(
+            job_num=1,
+            type='resume',
+            status='queued',
+            step_prepare=0,
+            step_context=0,
+            step_generate=0,
+            step_save=0,
+            step_done=0,
+            session_id='sess_gen',
+            created_at='2026-07-27T10:00:00',
+            updated_at='2026-07-27T10:02:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 1
@@ -121,18 +143,20 @@ class TestGenerationHistoryRepository:
         assert item.source == 'generation'
         assert item.title == 'Resume'
 
-    def test_reads_skill_roadmap_jobs(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO skill_roadmap_jobs "
-            "(skill_name, job_type, status, step, total_steps, message, "
-            "session_id, started_at, completed_at) "
-            "VALUES ('Python', 'generate', 'completed', 0, 4, '', "
-            "?, ?, ?)",
-            ('sess_rm', '2026-07-27T10:00:00', '2026-07-27T10:04:00'),
+    def test_reads_skill_roadmap_jobs(self, repo, sa_session):
+        m = SkillRoadmapJobModel(
+            skill_name='Python',
+            job_type='generate',
+            status='completed',
+            step=0,
+            total_steps=4,
+            message='',
+            session_id='sess_rm',
+            started_at='2026-07-27T10:00:00',
+            completed_at='2026-07-27T10:04:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 1
@@ -141,16 +165,18 @@ class TestGenerationHistoryRepository:
         assert 'Python' in item.title
         assert 'generate' in item.title
 
-    def test_reads_career_insight_runs(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO career_insight_runs "
-            "(insight_type, version, status, metadata, session_id, started_at, completed_at) "
-            "VALUES ('overview', 1, 'completed', '{}', ?, ?, ?)",
-            ('sess_ci', '2026-07-27T10:00:00', '2026-07-27T10:06:00'),
+    def test_reads_career_insight_runs(self, repo, sa_session):
+        m = CareerInsightRunModel(
+            insight_type='overview',
+            version=1,
+            status='completed',
+            metadata_json='{}',
+            session_id='sess_ci',
+            started_at='2026-07-27T10:00:00',
+            completed_at='2026-07-27T10:06:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 1
@@ -158,36 +184,47 @@ class TestGenerationHistoryRepository:
         assert item.source == 'insights'
         assert item.title == 'Overview'
 
-    def test_unified_sorting(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_jobs "
-            "(url, source, status, version, notes, links, "
-            "step_fetch, step_analyze, step_resume, step_cover, step_db, step_done, "
-            "workflow_log, queue_order, step_extract_raw, step_extract_struct, "
-            "created_at, updated_at) "
-            "VALUES ('url1', 'web', 'done', 1, '[]', '[]', "
-            "0, 0, 0, 0, 0, 0, "
-            "'[]', 0, 0, 0, "
-            "?, ?)",
-            ('2026-07-27T09:00:00', '2026-07-27T09:05:00'),
+    def test_unified_sorting(self, repo, sa_session):
+        job = PendingJobModel(
+            url='url1',
+            source='web',
+            status='done',
+            version=1,
+            notes='[]',
+            links='[]',
+            step_fetch=0,
+            step_analyze=0,
+            step_resume=0,
+            step_cover=0,
+            step_db=0,
+            step_done=0,
+            workflow_log='[]',
+            queue_order=0,
+            step_extract_raw=0,
+            step_extract_struct=0,
+            created_at='2026-07-27T09:00:00',
+            updated_at='2026-07-27T09:05:00',
         )
-        conn.execute(
-            "INSERT INTO career_insight_runs "
-            "(insight_type, version, status, metadata, started_at, completed_at) "
-            "VALUES ('market', 1, 'completed', '{}', ?, ?)",
-            ('2026-07-27T10:00:00', '2026-07-27T10:03:00'),
+        insight = CareerInsightRunModel(
+            insight_type='market',
+            version=1,
+            status='completed',
+            metadata_json='{}',
+            started_at='2026-07-27T10:00:00',
+            completed_at='2026-07-27T10:03:00',
         )
-        conn.execute(
-            "INSERT INTO skill_roadmap_jobs "
-            "(skill_name, job_type, status, step, total_steps, message, "
-            "started_at, completed_at) "
-            "VALUES ('React', 'extend', 'completed', 0, 4, '', "
-            "?, ?)",
-            ('2026-07-27T11:00:00', '2026-07-27T11:02:00'),
+        roadmap = SkillRoadmapJobModel(
+            skill_name='React',
+            job_type='extend',
+            status='completed',
+            step=0,
+            total_steps=4,
+            message='',
+            started_at='2026-07-27T11:00:00',
+            completed_at='2026-07-27T11:02:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add_all([job, insight, roadmap])
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['total'] == 3
@@ -195,17 +232,17 @@ class TestGenerationHistoryRepository:
         assert result['items'][1].source == 'insights'
         assert result['items'][2].source == 'job-processing'
 
-    def test_pagination(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
+    def test_pagination(self, repo, sa_session):
         for i in range(5):
-            conn.execute(
-                "INSERT INTO career_insight_runs "
-                "(insight_type, version, status, metadata, started_at) "
-                "VALUES (?, 1, 'completed', '{}', ?)",
-                (f'type_{i}', f'2026-07-27T10:0{i}:00'),
+            m = CareerInsightRunModel(
+                insight_type=f'type_{i}',
+                version=1,
+                status='completed',
+                metadata_json='{}',
+                started_at=f'2026-07-27T10:0{i}:00',
             )
-        conn.commit()
-        conn.close()
+            sa_session.add(m)
+        sa_session.commit()
 
         page1 = repo.get_all(limit=2, offset=0)
         assert len(page1['items']) == 2
@@ -218,49 +255,65 @@ class TestGenerationHistoryRepository:
         page3 = repo.get_all(limit=2, offset=4)
         assert len(page3['items']) == 1
 
-    def test_filter_by_source(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_jobs "
-            "(url, source, status, version, notes, links, "
-            "step_fetch, step_analyze, step_resume, step_cover, step_db, step_done, "
-            "workflow_log, queue_order, step_extract_raw, step_extract_struct, "
-            "created_at, updated_at) "
-            "VALUES ('url1', 'web', 'done', 1, '[]', '[]', "
-            "0, 0, 0, 0, 0, 0, "
-            "'[]', 0, 0, 0, "
-            "?, ?)",
-            ('2026-07-27T10:00:00', '2026-07-27T10:01:00'),
+    def test_filter_by_source(self, repo, sa_session):
+        job = PendingJobModel(
+            url='url1',
+            source='web',
+            status='done',
+            version=1,
+            notes='[]',
+            links='[]',
+            step_fetch=0,
+            step_analyze=0,
+            step_resume=0,
+            step_cover=0,
+            step_db=0,
+            step_done=0,
+            workflow_log='[]',
+            queue_order=0,
+            step_extract_raw=0,
+            step_extract_struct=0,
+            created_at='2026-07-27T10:00:00',
+            updated_at='2026-07-27T10:01:00',
         )
-        conn.execute(
-            "INSERT INTO career_insight_runs "
-            "(insight_type, version, status, metadata, started_at) "
-            "VALUES ('overview', 1, 'completed', '{}', ?)",
-            ('2026-07-27T10:00:00',),
+        insight = CareerInsightRunModel(
+            insight_type='overview',
+            version=1,
+            status='completed',
+            metadata_json='{}',
+            started_at='2026-07-27T10:00:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add_all([job, insight])
+        sa_session.commit()
 
         result = repo.get_all(source_filter='job-processing')
         assert result['total'] == 1
         assert result['items'][0].source == 'job-processing'
 
-    def test_error_captured(self, repo, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute(
-            "INSERT INTO pending_jobs "
-            "(url, source, status, error, version, notes, links, "
-            "step_fetch, step_analyze, step_resume, step_cover, step_db, step_done, "
-            "workflow_log, queue_order, step_extract_raw, step_extract_struct, "
-            "created_at, updated_at) "
-            "VALUES ('url1', 'web', 'failed', 'Connection timeout', 1, '[]', '[]', "
-            "0, 0, 0, 0, 0, 0, "
-            "'[]', 0, 0, 0, "
-            "?, ?)",
-            ('2026-07-27T10:00:00', '2026-07-27T10:01:00'),
+    def test_error_captured(self, repo, sa_session):
+        m = PendingJobModel(
+            url='url1',
+            source='web',
+            status='failed',
+            error='Connection timeout',
+            version=1,
+            notes='[]',
+            links='[]',
+            step_fetch=0,
+            step_analyze=0,
+            step_resume=0,
+            step_cover=0,
+            step_db=0,
+            step_done=0,
+            workflow_log='[]',
+            queue_order=0,
+            step_extract_raw=0,
+            step_extract_struct=0,
+            created_at='2026-07-27T10:00:00',
+            updated_at='2026-07-27T10:01:00',
         )
-        conn.commit()
-        conn.close()
+        sa_session.add(m)
+        sa_session.commit()
 
         result = repo.get_all()
         assert result['items'][0].error == 'Connection timeout'

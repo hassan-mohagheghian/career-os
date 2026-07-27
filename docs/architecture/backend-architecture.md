@@ -147,7 +147,7 @@ HTTP Request
        │
        ▼
 ┌─────────────┐
-│  Repository │  Database queries (raw SQL)
+│  Repository │  Database queries (SQLAlchemy ORM)
 └──────┬──────┘
        │
        ▼
