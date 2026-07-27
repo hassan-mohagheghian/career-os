@@ -116,7 +116,7 @@ class MimoProvider(LLMProvider):
                     pass
                 return ProviderResponse(
                     content=json.dumps(result, ensure_ascii=False),
-                    metadata={"result_file": result_file, "returncode": returncode},
+                    metadata={"result_file": result_file, "returncode": returncode, "session_id": discovered_session_id},
                     provider="mimo",
                     model="mimo-cli",
                 )

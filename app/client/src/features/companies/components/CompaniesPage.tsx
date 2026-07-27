@@ -76,7 +76,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [collapsedSections, setCollapsedSections] = useState({})
   const [editingId, setEditingId] = useState(null)
-  const [processImmediately, setProcessImmediately] = useState(true)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
@@ -210,8 +209,8 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
         }
         setEditingId(null)
       } else {
-        // Create new pending company with links stored in pending_companies
-        const res = await fetch(`${API}/companies`, {
+        // Create pending company — goes through processing pipeline
+        const res = await fetch(`${API}/pending-companies`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ notes: allNotes, links, source: 'web' })
@@ -221,9 +220,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
           setError(data.error || 'Failed to add')
           setSubmitting(false)
           return
-        }
-        if (processImmediately && data.id) {
-          await fetch(`${API}/pending-companies/${data.id}/process`, { method: 'POST' })
         }
       }
       setNotes([])
@@ -387,21 +383,8 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
 
             <div className="flex items-center gap-1 mt-1.5">
               <Button onClick={handleSubmit} disabled={submitting || (notes.length === 0 && !noteInput.trim() && links.length === 0)} size="sm" className="flex-1 h-6 text-2xs">
-                {submitting ? '...' : editingId ? 'Add Notes & Links' : processImmediately ? 'Add & Process' : 'Add'}
+                {submitting ? '...' : editingId ? 'Add Notes & Links' : 'Add & Process'}
               </Button>
-              {!editingId && (
-                <button
-                  onClick={() => setProcessImmediately(v => !v)}
-                  className={cn(
-                    "shrink-0 h-6 px-1.5 rounded text-2xs font-medium border transition-colors",
-                    processImmediately
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border hover:bg-muted"
-                  )}
-                >
-                  {processImmediately ? 'Auto' : 'Queue'}
-                </button>
-              )}
             </div>
           </div>
 

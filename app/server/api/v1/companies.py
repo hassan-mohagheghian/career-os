@@ -16,9 +16,25 @@ def _get_repo(db: sqlite3.Connection = Depends(get_db)) -> CompanyRepository:
 
 
 @router.get("")
-def list_companies(repo: CompanyRepository = Depends(_get_repo)):
-    """List all companies."""
-    return repo.list_all()
+def list_companies(db: sqlite3.Connection = Depends(get_db)):
+    """List all companies with intelligence scores."""
+    import json
+    rows = db.execute("SELECT * FROM companies ORDER BY name").fetchall()
+    companies = []
+    for row in rows:
+        c = dict(row)
+        intel_row = db.execute(
+            "SELECT scores FROM company_intelligence WHERE company_id=?", (c["id"],)
+        ).fetchone()
+        if intel_row and intel_row["scores"]:
+            try:
+                c["scores"] = json.loads(intel_row["scores"])
+            except (json.JSONDecodeError, TypeError):
+                c["scores"] = {}
+        else:
+            c["scores"] = {}
+        companies.append(c)
+    return companies
 
 
 @router.get("/{id}")

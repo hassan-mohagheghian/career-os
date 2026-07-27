@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.3.0] — 2026-07-27
+
+### Added
+- **Generation Domain Models** — `GenerationSource`, `GenerationStatus`, `GenerationRun`, `GenerationHistoryItem` (DDD)
+- **Unified Generation History Repository** — reads from ALL 5 source tables (pending_jobs, pending_companies, pending_generations, skill_roadmap_jobs, career_insight_runs)
+- **JobWorker(WorkerBase)** — Template Method pattern for job processing pipeline
+- **CompanyWorker(WorkerBase)** — Template Method pattern for company processing pipeline
+- **GenerationWorker(WorkerBase)** — Template Method pattern for resume/cover letter generation
+- **InsightsService** — OOP wrapper for career intelligence with source type mapping
+- **SkillRoadmapService** — OOP wrapper for skill roadmap operations
+- **STEP_CONFIGS** — Frontend step configuration map for all 13 generation source types
+- **35 new TDD tests** — domain models (16), repository (10), workers (9)
+
+### Changed
+- **Generation History API** — `/api/generation-history` now reads from ALL 5 source tables via `GenerationHistoryRepository`
+- **GenerationProgressCard** — supports all 13 source types with correct step configurations
+- **GenerationHistoryDrawer** — shows all 5 source types with proper icons and colors
+- **WorkerBase._reset_steps()** — fixed string-to-enum conversion bug
+- **WorkerBase.process()** — now persists `step_done` to DB via `_mark_step()`
+
+### Fixed
+- **Generation history incomplete** — was only showing pending_generations + skill_roadmap_jobs, now shows all 5 sources
+- **Status display** — `done` status (from pending_jobs/companies) now properly displayed as green
+- **Duration calculation** — uses `duration_seconds` from API when available
+
 ## [2.2.0] — 2026-07-25
 
 ### Added

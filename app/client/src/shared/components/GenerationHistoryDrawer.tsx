@@ -1,83 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { List, Clock, Warning, Spinner, Briefcase, Buildings, TreeStructure, Lightbulb } from '@phosphor-icons/react'
-import { cn } from '@/shared/lib/utils'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { List, Spinner, Funnel } from '@phosphor-icons/react'
+import { AppDrawer } from './DrawerComponents'
+import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/shared/ui/sheet'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import GenerationHistoryItem from './GenerationHistoryItem'
+import { SOURCE_CONFIG, type HistoryItemData } from '@/shared/lib/sourceConfig'
 
 const API = '/api'
 const PAGE_SIZE = 100
 
-interface HistoryItemData {
-  source: 'insights' | 'roadmap' | 'job-processing' | 'company-processing'
-  title: string
-  status: string
-  started_at: string | null
-  completed_at: string | null
-  error: string | null
-  session_id: string | null
-  id: number
-}
+const FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'job-processing', label: 'Job' },
+  { value: 'company-processing', label: 'Company' },
+  { value: 'generation:resume', label: 'Resume' },
+  { value: 'generation:cover', label: 'Cover Letter' },
+  { value: 'generation', label: 'All Generation' },
+  { value: 'insights', label: 'Insights' },
+  { value: 'roadmap', label: 'Roadmap' },
+]
 
-const SOURCE_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  'insights': { icon: Lightbulb, color: 'bg-amber-500/15 text-amber-500', label: 'Intel' },
-  'roadmap': { icon: TreeStructure, color: 'bg-emerald-500/15 text-emerald-500', label: 'Roadmap' },
-  'job-processing': { icon: Briefcase, color: 'bg-blue-500/15 text-blue-500', label: 'Job' },
-  'company-processing': { icon: Buildings, color: 'bg-purple-500/15 text-purple-500', label: 'Company' },
-}
-
-function formatTimeAgo(ts: string | null): string {
-  if (!ts) return ''
-  const diffMs = Date.now() - new Date(ts).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(ts).toLocaleDateString()
-}
-
-function HistoryItem({ item }: { item: HistoryItemData }) {
-  const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['insights']
-  const statusColor = item.status === 'completed' ? 'bg-green-500' :
-    item.status === 'failed' ? 'bg-red-500' :
-    item.status === 'cancelled' ? 'bg-yellow-500' :
-    item.status === 'processing' || item.status === 'running' ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
-
-  return (
-    <div className="flex items-start gap-2 p-2 rounded hover:bg-muted transition text-xs">
-      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-1", statusColor)} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold truncate">{item.title}</span>
-          <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", cfg.color)}>
-            {cfg.label}
-          </Badge>
-          <span className={cn("font-semibold text-2xs shrink-0",
-            item.status === 'completed' ? "text-green-500" :
-            item.status === 'failed' ? "text-red-500" :
-            item.status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
-          )}>{item.status}</span>
-        </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-muted-foreground text-2xs flex items-center gap-0.5">
-            <Clock className="w-2.5 h-2.5" />
-            {formatTimeAgo(item.completed_at || item.started_at)}
-          </span>
-          <span className="text-muted-foreground/70 text-2xs font-mono truncate max-w-[140px]" title={item.session_id || 'No session ID'}>
-            {item.session_id || '—'}
-          </span>
-        </div>
-        {item.error && (
-          <div className="text-red-500 text-2xs mt-0.5 flex items-center gap-1">
-            <Warning className="w-2.5 h-2.5 shrink-0" />
-            <span className="truncate">{item.error}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+function matchesFilter(item: HistoryItemData, filter: string): boolean {
+  if (filter === 'all') return true
+  if (filter === 'generation:resume') return item.source === 'generation' && item.title === 'Resume'
+  if (filter === 'generation:cover') return item.source === 'generation' && item.title === 'Cover Letter'
+  if (filter === 'generation') return item.source === 'generation'
+  return item.source === filter
 }
 
 interface GenerationHistoryDrawerProps {
@@ -90,6 +39,8 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadedCount, setLoadedCount] = useState(0)
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
+  const [filter, setFilter] = useState('all')
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef(false)
   const loadedCountRef = useRef(0)
@@ -129,43 +80,86 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
     }
   }, [total, fetchHistory])
 
+  const sortedAndFiltered = useMemo(() => {
+    const filtered = items.filter(item => matchesFilter(item, filter))
+    const sorted = [...filtered].sort((a, b) => {
+      const aTime = a.started_at || a.completed_at || ''
+      const bTime = b.started_at || b.completed_at || ''
+      return sortDir === 'desc' ? bTime.localeCompare(aTime) : aTime.localeCompare(bTime)
+    })
+    return sorted
+  }, [items, filter, sortDir])
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[380px] sm:w-[440px] p-0">
-        <SheetHeader className="p-5 pb-3">
-          <SheetTitle className="flex items-center gap-2">
-            <List className="w-5 h-5" />
-            Generation History
-          </SheetTitle>
-          <SheetDescription>
-            {total} total runs across all systems
-          </SheetDescription>
-        </SheetHeader>
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="px-5 pb-5 space-y-0.5 overflow-y-auto h-[calc(100vh-120px)]"
-        >
-          {items.map((item, i) => (
-            <HistoryItem key={`${item.source}-${item.id}-${i}`} item={item} />
-          ))}
-          {items.length === 0 && !loading && (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              No generation history yet
-            </div>
-          )}
-          {loading && (
-            <div className="text-center py-2 text-muted-foreground text-2xs flex items-center justify-center gap-1">
-              <Spinner className="w-3 h-3 animate-spin" /> Loading...
-            </div>
-          )}
-          {!loading && loadedCount < total && items.length > 0 && (
-            <div className="text-center py-2 text-muted-foreground text-2xs">
-              Scroll for more...
-            </div>
-          )}
+    <AppDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <div className="p-6 pb-3">
+        <div className="flex items-center gap-2 text-lg font-semibold">
+          <List className="w-5 h-5" />
+          Generation History
         </div>
-      </SheetContent>
-    </Sheet>
+        <div className="text-sm text-muted-foreground">
+          {sortedAndFiltered.length}{filter !== 'all' ? ` of ${total}` : ''} runs
+        </div>
+      </div>
+
+      {/* Sort + Filter controls */}
+      <div className="px-5 pb-3 flex items-center gap-2">
+        <Select value={sortDir} onValueChange={(v) => setSortDir(v as 'desc' | 'asc')}>
+          <SelectTrigger className="h-7 text-2xs w-[100px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="desc">Newest first</SelectItem>
+            <SelectItem value="asc">Oldest first</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="h-7 text-2xs w-[140px]">
+            <Funnel className="w-2.5 h-2.5 mr-1 opacity-50" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FILTER_OPTIONS.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {filter !== 'all' && (
+          <Badge variant="secondary" className="text-2xs h-5 gap-1 cursor-pointer" onClick={() => setFilter('all')}>
+            Clear
+          </Badge>
+        )}
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="px-5 pb-5 space-y-0.5 flex-1 overflow-y-auto"
+      >
+        {sortedAndFiltered.map((item, i) => (
+          <GenerationHistoryItem key={`${item.source}-${item.id}-${i}`} item={item} showFullDatetime />
+        ))}
+        {sortedAndFiltered.length === 0 && !loading && (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            {filter !== 'all' ? 'No matching history' : 'No generation history yet'}
+          </div>
+        )}
+        {loading && (
+          <div className="text-center py-2 text-muted-foreground text-2xs flex items-center justify-center gap-1">
+            <Spinner className="w-3 h-3 animate-spin" /> Loading...
+          </div>
+        )}
+        {!loading && loadedCount < total && items.length > 0 && (
+          <div className="text-center py-2 text-muted-foreground text-2xs">
+            Scroll for more...
+          </div>
+        )}
+      </div>
+    </AppDrawer>
   )
 }

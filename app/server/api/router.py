@@ -23,6 +23,24 @@ api_router.include_router(websocket.router, tags=["websocket"])
 api_router.include_router(sse.router, tags=["sse"])
 
 
+# ── Generation cancel ────────────────────────────────────────────
+
+@api_router.post("/generations/{gen_id}/cancel")
+def cancel_generation(gen_id: int):
+    """Cancel a running generation."""
+    from exceptions import NotFoundError
+    db = get_db_sync()
+    try:
+        row = db.execute("SELECT id, status FROM pending_generations WHERE id=?", (gen_id,)).fetchone()
+        if not row:
+            raise NotFoundError(f"Generation {gen_id} not found")
+        db.execute("UPDATE pending_generations SET status='cancelled' WHERE id=?", (gen_id,))
+        db.commit()
+        return {"status": "cancelled", "gen_id": gen_id}
+    finally:
+        db.close()
+
+
 # ── Flask compat routes ─────────────────────────────────────────
 
 @api_router.get("/summaries")
@@ -187,11 +205,11 @@ def update_roadmap_progress(id: int, data: dict = None):
 
 
 @api_router.get("/skill-roadmap-jobs")
-def skill_roadmap_jobs_compat():
+def skill_roadmap_jobs_compat(limit: int = 50):
     db = get_db_sync()
     try:
-        rows = db.execute("SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC").fetchall()
-        return [dict(r) for r in rows]
+        rows = db.execute("SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return {"items": [dict(r) for r in rows]}
     finally:
         db.close()
 
@@ -260,7 +278,7 @@ def delete_pending_company_link(id: str, link_id: int):
 @api_router.post("/pending-companies/{id}/process")
 def process_pending_company(id: str):
     from core.queue import get_queue_manager
-    get_queue_manager().enqueue(id)
+    get_queue_manager().enqueue(id, table='pending_companies')
     return {"status": "queued", "id": id}
 
 
@@ -302,7 +320,7 @@ def reprocess_company(id: int):
         )
         db.commit()
         from core.queue import get_queue_manager
-        get_queue_manager().enqueue(cur.lastrowid)
+        get_queue_manager().enqueue(cur.lastrowid, table='pending_companies')
         return {"status": "queued"}
     finally:
         db.close()

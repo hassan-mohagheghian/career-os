@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   X, TrendUp, Brain, BookOpen, EyeSlash, GitMerge, TreeStructure,
   Link, Target, Lightbulb, Spinner, CaretDown, CaretRight, Check, PencilSimple, Tag,
+  ArrowsClockwise, Plus,
 } from "@phosphor-icons/react";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
@@ -10,9 +11,12 @@ import { Badge } from "@/shared/ui/badge";
 import { Card } from "@/shared/ui/card";
 import { Progress } from "@/shared/ui/progress";
 import { Input } from "@/shared/ui/input";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/shared/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { AppDrawer } from "@/shared/components/DrawerComponents";
+import GenerationProgressCard from "@/shared/components/GenerationProgressCard";
+import GenerationHistoryItem from "@/shared/components/GenerationHistoryItem";
+import { useLocalHistory } from "@/shared/hooks";
+import { useSocketIO, watchSkills, unwatchSkills } from "@/shared/hooks/useSocketIO";
 
 const API = "/api";
 
@@ -77,8 +81,9 @@ function RoadmapItem({ item, checked, onToggle, depth = 0 }) {
 
 export default function SkillDetailDrawer({
   skillName, open, onOpenChange, techStackSkills = [],
-  roadmapProgress = {}, onHide, onGenerate,
+  roadmapProgress = {}, onHide,
 }) {
+  const socket = useSocketIO();
   const [relationships, setRelationships] = useState([]);
   const [aliases, setVariantes] = useState([]);
   const [roadmapItems, setRoadmapItems] = useState([]);
@@ -90,6 +95,14 @@ export default function SkillDetailDrawer({
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
   const [marketJobs, setMarketJobs] = useState<any[]>([]);
+  const [genProgress, setGenProgress] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"details" | "roadmap">("details");
+
+  const { items: localHistory, singleRunning } = useLocalHistory({
+    context: 'skill',
+    skill_name: skillName,
+    enabled: !!skillName && open,
+  });
 
   const skill = techStackSkills.find((s) => s.name === skillName) || {};
 
@@ -156,6 +169,42 @@ export default function SkillDetailDrawer({
       if (items.length > 0) setRoadmapExpanded(true);
     } catch { setRoadmapItems([]); }
   }, [skillName, open]);
+
+  const fetchGenProgress = useCallback(async () => {
+    if (!skillName) return null;
+    try {
+      const res = await fetch(`${API}/skill-roadmaps/progress?skill=${encodeURIComponent(skillName)}`);
+      const data = await res.json();
+      setGenProgress(data);
+      return data;
+    } catch { return null; }
+  }, [skillName]);
+
+  // SocketIO: real-time generation progress
+  useEffect(() => {
+    if (!skillName || !open) return;
+    watchSkills();
+    const handleUpdate = (data) => {
+      if (data.skill !== skillName) return;
+      setGenProgress((prev) => ({ ...prev, ...data }));
+      if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
+        fetchRoadmap();
+      }
+    };
+    socket.on("skill_roadmap:update", handleUpdate);
+    return () => {
+      unwatchSkills();
+      socket.off("skill_roadmap:update", handleUpdate);
+    };
+  }, [skillName, open, socket, fetchRoadmap]);
+
+  useEffect(() => {
+    if (!open) {
+      setGenProgress(null);
+    } else {
+      fetchGenProgress();
+    }
+  }, [fetchGenProgress, open]);
 
   // Load checked state from roadmapProgress
   useEffect(() => {
@@ -257,10 +306,9 @@ export default function SkillDetailDrawer({
   const evidence = (() => { try { return JSON.parse(skill.evidence || "[]"); } catch { return []; } })();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:w-[450px] p-0 flex flex-col">
-        <SheetHeader className="p-6 pb-3">
-          <SheetTitle className="flex items-center gap-2 text-base">
+    <AppDrawer open={open} onOpenChange={onOpenChange}>
+        <div className="p-6 pb-3">
+          <div className="flex items-center gap-2 text-base">
             {renaming ? (
               <div className="flex items-center gap-1.5 flex-1">
                 <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
@@ -283,219 +331,327 @@ export default function SkillDetailDrawer({
                 </Button>
               </>
             )}
-          </SheetTitle>
-          <SheetDescription className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-2 text-2xs text-muted-foreground">
             {skill.source && <Badge variant="secondary" className="text-2xs">{skill.source?.replace("_", " ")}</Badge>}
             {skill.confidence > 0 && (
               <span className="text-2xs text-muted-foreground">Confidence: {Math.round(skill.confidence * 100)}%</span>
             )}
-          </SheetDescription>
-        </SheetHeader>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="px-6 pb-2">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <TabsList className="bg-muted h-8">
+              <TabsTrigger value="details" className="text-2xs h-6">Details</TabsTrigger>
+              <TabsTrigger value="roadmap" className="text-2xs h-6 gap-1">
+                <TreeStructure className="w-2.5 h-2.5" /> Roadmap
+                {hasRoadmap && <Badge variant="secondary" className="text-3xs h-2 ml-0.5">{prog.pct}%</Badge>}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
-          {/* Market Demand */}
-          {skill.market_relevance > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendUp className="w-4 h-4 text-primary" />
-                <span className="text-xs font-bold">Market Demand</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={skill.market_relevance} className="h-2 flex-1" />
-                <span className="text-sm font-extrabold text-primary">{Math.round(skill.market_relevance)}%</span>
-              </div>
-            </Card>
-          )}
-
-          {/* Evidence */}
-          {evidence.length > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-yellow-500" />
-                <span className="text-xs font-bold">Why This Skill Matters</span>
-              </div>
-              <div className="space-y-1.5">
-                {evidence.map((e, i) => (
-                  <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                    <span className="text-yellow-500 shrink-0">•</span> {e}
+          {/* ═══ Details Tab ═══ */}
+          {activeTab === "details" && (
+            <>
+              {/* Market Demand */}
+              {skill.market_relevance > 0 && (
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendUp className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold">Market Demand</span>
                   </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Job Market Evidence */}
-          {marketJobs.length > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-blue-500" />
-                <span className="text-xs font-bold">Job Market</span>
-                <Badge variant="secondary" className="text-3xs h-2.5 bg-blue-500/15 text-blue-500">
-                  {marketJobs.length} jobs
-                </Badge>
-              </div>
-              <div className="space-y-1.5">
-                {marketJobs.map((job) => (
-                  <div key={job.num} className="flex items-center gap-2 text-2xs">
-                    {job.score && (
-                      <Badge variant="secondary" className={cn("text-3xs h-2 shrink-0",
-                        job.score === 'A++' || job.score === 'A+' ? "bg-green-500/15 text-green-500" :
-                        job.score === 'A' || job.score === 'B' ? "bg-blue-500/15 text-blue-500" :
-                        "bg-muted text-muted-foreground"
-                      )}>{job.score}</Badge>
-                    )}
-                    <span className="font-medium truncate">{job.role || 'Unknown Role'}</span>
-                    <span className="text-muted-foreground truncate">{job.company}</span>
+                  <div className="flex items-center gap-2">
+                    <Progress value={skill.market_relevance} className="h-2 flex-1" />
+                    <span className="text-sm font-extrabold text-primary">{Math.round(skill.market_relevance)}%</span>
                   </div>
-                ))}
-              </div>
-            </Card>
+                </Card>
+              )}
+
+              {/* Evidence */}
+              {evidence.length > 0 && (
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb className="w-4 h-4 text-yellow-500" />
+                    <span className="text-xs font-bold">Why This Skill Matters</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {evidence.map((e, i) => (
+                      <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <span className="text-yellow-500 shrink-0">•</span> {e}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Job Market Evidence */}
+              {marketJobs.length > 0 && (
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs font-bold">Job Market</span>
+                    <Badge variant="secondary" className="text-3xs h-2.5 bg-blue-500/15 text-blue-500">
+                      {marketJobs.length} jobs
+                    </Badge>
+                  </div>
+                  <div className="space-y-1.5">
+                    {marketJobs.map((job) => (
+                      <div key={job.num} className="flex items-center gap-2 text-2xs">
+                        {job.score && (
+                          <Badge variant="secondary" className={cn("text-3xs h-2 shrink-0",
+                            job.score === 'A++' || job.score === 'A+' ? "bg-green-500/15 text-green-500" :
+                            job.score === 'A' || job.score === 'B' ? "bg-blue-500/15 text-blue-500" :
+                            "bg-muted text-muted-foreground"
+                          )}>{job.score}</Badge>
+                        )}
+                        <span className="font-medium truncate">{job.role || 'Unknown Role'}</span>
+                        <span className="text-muted-foreground truncate">{job.company}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Proficiency Level */}
+              <Card className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-green-500" />
+                  <span className="text-xs font-bold">Proficiency Level</span>
+                </div>
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4, 5].map((lvl) => {
+                    const labels = { 1: "Beginner", 2: "Basic", 3: "Intermediate", 4: "Advanced", 5: "Expert" };
+                    const colors = {
+                      1: "bg-orange-500/15 text-orange-500 border-orange-500/30",
+                      2: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30",
+                      3: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+                      4: "bg-green-500/15 text-green-500 border-green-500/30",
+                      5: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+                    };
+                    const isActive = skill.level === lvl;
+                    return (
+                      <button key={lvl} onClick={() => handleSetLevel(lvl)}
+                        className={cn("px-2 py-1 rounded text-2xs font-semibold border transition",
+                          isActive ? colors[lvl] : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                        )}>
+                        {labels[lvl]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Merged Variantes */}
+              {aliases.length > 0 && (
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <GitMerge className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs font-bold">Merged Skills</span>
+                    <Badge variant="secondary" className="text-3xs h-2.5 bg-amber-500/15 text-amber-600">{aliases.length}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aliases.map((alias) => (
+                      <Badge key={alias} variant="secondary" className="text-2xs h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                        {alias}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="text-2xs text-muted-foreground mt-1.5">
+                    These skills are variants of {skillName} — they were merged into this skill.
+                  </div>
+                </Card>
+              )}
+
+              {/* Tags */}
+              <Card className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs font-bold">Tags</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-2xs h-4 bg-orange-500/10 text-orange-600 border border-orange-500/20 gap-1 pr-1">
+                      {tag}
+                      <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-red-500 transition">&times;</button>
+                    </Badge>
+                  ))}
+                  {tags.length === 0 && <span className="text-2xs text-muted-foreground">No tags</span>}
+                </div>
+                <div className="flex gap-1">
+                  <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
+                    placeholder="Add tag..." className="h-6 text-2xs flex-1" />
+                  <Button size="sm" variant="outline" onClick={handleAddTag} disabled={!tagInput.trim()}
+                    className="h-6 text-2xs px-2">Add</Button>
+                </div>
+              </Card>
+
+              {/* Related Skills */}
+              {relationships.length > 0 && (
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Link className="w-4 h-4 text-cyan-500" />
+                    <span className="text-xs font-bold">Related Skills</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {relationships.map((rel) => {
+                      const otherName = rel.skill_name === skillName ? rel.related_name : rel.skill_name;
+                      const relInfo = RELATION_LABELS[rel.relation_type] || RELATION_LABELS.related;
+                      return (
+                        <div key={rel.id} className="flex items-center gap-2">
+                          <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", relInfo.color)}>
+                            {relInfo.label}
+                          </Badge>
+                          <span className="text-xs font-semibold">{otherName}</span>
+                          {rel.confidence > 0 && (
+                            <span className="text-2xs text-muted-foreground ml-auto">{Math.round(rel.confidence * 100)}%</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              {/* Hide Skill */}
+              <Button size="sm" variant="outline" onClick={() => { onHide?.(skillName); onOpenChange?.(false); }}
+                className="gap-1 h-7 text-2xs text-red-500 hover:bg-red-500/10">
+                <EyeSlash className="w-3 h-3" /> Hide Skill
+              </Button>
+            </>
           )}
 
-          {/* Proficiency Level */}
-          {/* Proficiency Level — editable */}
-          <Card className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-4 h-4 text-green-500" />
-              <span className="text-xs font-bold">Proficiency Level</span>
-            </div>
-            <div className="flex gap-1.5">
-              {[1, 2, 3, 4, 5].map((lvl) => {
-                const labels = { 1: "Beginner", 2: "Basic", 3: "Intermediate", 4: "Advanced", 5: "Expert" };
-                const colors = {
-                  1: "bg-orange-500/15 text-orange-500 border-orange-500/30",
-                  2: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30",
-                  3: "bg-blue-500/15 text-blue-500 border-blue-500/30",
-                  4: "bg-green-500/15 text-green-500 border-green-500/30",
-                  5: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
-                };
-                const isActive = skill.level === lvl;
-                return (
-                  <button key={lvl} onClick={() => handleSetLevel(lvl)}
-                    className={cn("px-2 py-1 rounded text-2xs font-semibold border transition",
-                      isActive ? colors[lvl] : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
-                    )}>
-                    {labels[lvl]}
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
+          {/* ═══ Roadmap Tab ═══ */}
+          {activeTab === "roadmap" && (
+            <>
+              {/* Generation Progress */}
+              {genProgress && (genProgress.status === 'running' || genProgress.status === 'queued') && (
+                <div className="space-y-2">
+                  <GenerationProgressCard
+                    title={skillName}
+                    progress={{ running: true, ...genProgress }}
+                    onCancel={async () => {
+                      try {
+                        await fetch(`${API}/skill-roadmaps/cancel?skill=${encodeURIComponent(skillName)}`, { method: "POST" });
+                        setGenProgress((prev) => ({ ...prev, status: "cancelled", message: "Cancelled" }));
+                      } catch {}
+                    }}
+                  />
+                  {genProgress.session_id && (
+                    <button
+                      className="flex items-center gap-1.5 text-2xs bg-muted px-1.5 py-0.5 rounded font-mono hover:bg-muted/80 transition cursor-pointer w-fit"
+                      onClick={() => {
+                        navigator.clipboard.writeText(genProgress.session_id);
+                        toast.success("Session ID copied");
+                      }}
+                      title={`Click to copy: ${genProgress.session_id}`}
+                    >
+                      <span className="text-muted-foreground">{genProgress.provider_name || 'ai'}</span>
+                      <span className="text-foreground">({genProgress.session_id})</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
-          {/* Merged Variantes */}
-          {aliases.length > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <GitMerge className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold">Merged Skills</span>
-                <Badge variant="secondary" className="text-3xs h-2.5 bg-amber-500/15 text-amber-600">{aliases.length}</Badge>
+              {/* Action buttons */}
+              <div className="flex items-center gap-1.5">
+                {hasRoadmap && !genProgress?.status?.match(/running|queued/) && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                        try {
+                          await fetch(`${API}/skill-roadmaps/generate`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ skill_name: skillName }),
+                          });
+                          setGenProgress({ status: "queued", step: 0, total_steps: 4, message: "Regenerating...", job_type: "generate" });
+                          toast.success(`Regenerating roadmap for ${skillName}`);
+                        } catch { toast.error("Failed to start"); }
+                      }} className="gap-1 h-6 text-2xs">
+                      <ArrowsClockwise className="w-2.5 h-2.5" /> Regenerate
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                        try {
+                          await fetch(`${API}/skill-roadmaps/extend`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ skill_name: skillName }),
+                          });
+                          setGenProgress({ status: "queued", step: 0, total_steps: 4, message: "Extending...", job_type: "extend" });
+                          toast.success(`Extending roadmap for ${skillName}`);
+                        } catch { toast.error("Failed to start"); }
+                      }} className="gap-1 h-6 text-2xs">
+                      <Plus className="w-2.5 h-2.5" /> Extend
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                        try {
+                          await fetch(`${API}/skill-roadmaps/finegrain`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ skill_name: skillName }),
+                          });
+                          setGenProgress({ status: "queued", step: 0, total_steps: 4, message: "Fine-graining...", job_type: "finegrain" });
+                          toast.success(`Fine-graining roadmap for ${skillName}`);
+                        } catch { toast.error("Failed to start"); }
+                      }} className="gap-1 h-6 text-2xs">
+                      <Target className="w-2.5 h-2.5" /> Finegrain
+                    </Button>
+                  </>
+                )}
+                {!hasRoadmap && !genProgress?.status?.match(/running|queued/) && (
+                  <Button size="sm" onClick={async () => {
+                      try {
+                        await fetch(`${API}/skill-roadmaps/generate`, {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ skill_name: skillName }),
+                        });
+                        setGenProgress({ status: "queued", step: 0, total_steps: 4, message: "Queued...", job_type: "generate" });
+                        toast.success(`Generating roadmap for ${skillName}`);
+                      } catch { toast.error("Failed to start"); }
+                    }} className="gap-1 h-6 text-2xs">
+                    <TreeStructure className="w-2.5 h-2.5" /> Generate Roadmap
+                  </Button>
+                )}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {aliases.map((alias) => (
-                  <Badge key={alias} variant="secondary" className="text-2xs h-4 bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                    {alias}
-                  </Badge>
-                ))}
-              </div>
-              <div className="text-2xs text-muted-foreground mt-1.5">
-                These skills are variants of {skillName} — they were merged into this skill.
-              </div>
-            </Card>
-          )}
 
-          {/* Tags */}
-          <Card className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Tag className="w-4 h-4 text-orange-500" />
-              <span className="text-xs font-bold">Tags</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-2xs h-4 bg-orange-500/10 text-orange-600 border border-orange-500/20 gap-1 pr-1">
-                  {tag}
-                  <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-red-500 transition">&times;</button>
-                </Badge>
-              ))}
-              {tags.length === 0 && <span className="text-2xs text-muted-foreground">No tags</span>}
-            </div>
-            <div className="flex gap-1">
-              <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
-                placeholder="Add tag..." className="h-6 text-2xs flex-1" />
-              <Button size="sm" variant="outline" onClick={handleAddTag} disabled={!tagInput.trim()}
-                className="h-6 text-2xs px-2">Add</Button>
-            </div>
-          </Card>
+              {/* Generation history */}
+              {localHistory.length > 0 && (
+                <div className="space-y-0.5">
+                  <span className="text-2xs text-muted-foreground font-medium">Recent generations</span>
+                  {localHistory.slice(0, 5).map((item) => (
+                    <GenerationHistoryItem key={`${item.source}-${item.id}`} item={item} compact />
+                  ))}
+                </div>
+              )}
 
-          {/* Learning Roadmap — collapsible with items */}
-          {hasRoadmap && (
-            <Card className="p-3">
-              <button onClick={() => setRoadmapExpanded(!roadmapExpanded)}
-                className="flex items-center gap-2 mb-2 w-full text-left">
-                {roadmapExpanded ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
-                <TreeStructure className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs font-bold">Learning Roadmap</span>
-                <Badge variant="secondary" className="text-3xs h-2.5 bg-emerald-500/15 text-emerald-500">
-                  {prog.completed}/{prog.total}
-                </Badge>
-                <div className="flex-1" />
-                <span className="text-2xs text-muted-foreground">{prog.pct}%</span>
-              </button>
-              <div className="flex items-center gap-2 mb-2">
-                <Progress value={prog.pct} className="h-1.5 flex-1" />
-              </div>
-              {roadmapExpanded && roadmapItems.length > 0 && (
-                <div className="space-y-1 mt-2 border-t pt-2 max-h-[200px] overflow-y-auto">
+              {/* Roadmap progress bar */}
+              {hasRoadmap && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs text-muted-foreground">Progress</span>
+                    <span className="text-2xs text-muted-foreground">{prog.completed}/{prog.total} ({prog.pct}%)</span>
+                  </div>
+                  <Progress value={prog.pct} className="h-1.5" />
+                </div>
+              )}
+
+              {/* Roadmap tree */}
+              {roadmapItems.length > 0 && (
+                <div className="space-y-1 max-h-[300px] overflow-y-auto">
                   {roadmapItems.map((item) => (
                     <RoadmapItem key={item.id} item={item} checked={checked} onToggle={handleToggle} />
                   ))}
                 </div>
               )}
-            </Card>
+              {roadmapItems.length === 0 && !genProgress?.status?.match(/running|queued/) && (
+                <div className="text-2xs text-muted-foreground text-center py-4">
+                  No roadmap yet. Click Generate to create one.
+                </div>
+              )}
+            </>
           )}
-
-          {/* Related Skills */}
-          {relationships.length > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Link className="w-4 h-4 text-cyan-500" />
-                <span className="text-xs font-bold">Related Skills</span>
-              </div>
-              <div className="space-y-1.5">
-                {relationships.map((rel) => {
-                  const otherName = rel.skill_name === skillName ? rel.related_name : rel.skill_name;
-                  const relInfo = RELATION_LABELS[rel.relation_type] || RELATION_LABELS.related;
-                  return (
-                    <div key={rel.id} className="flex items-center gap-2">
-                      <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", relInfo.color)}>
-                        {relInfo.label}
-                      </Badge>
-                      <span className="text-xs font-semibold">{otherName}</span>
-                      {rel.confidence > 0 && (
-                        <span className="text-2xs text-muted-foreground ml-auto">{Math.round(rel.confidence * 100)}%</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            {!hasRoadmap && (
-              <Button size="sm" onClick={() => { onGenerate?.(skillName); onOpenChange?.(false); }}
-                className="gap-1 h-7 text-2xs">
-                <TreeStructure className="w-3 h-3" /> Generate Roadmap
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => { onHide?.(skillName); onOpenChange?.(false); }}
-              className="gap-1 h-7 text-2xs text-red-500 hover:bg-red-500/10">
-              <EyeSlash className="w-3 h-3" /> Hide Skill
-            </Button>
-          </div>
         </div>
-      </SheetContent>
-    </Sheet>
+    </AppDrawer>
   );
 }

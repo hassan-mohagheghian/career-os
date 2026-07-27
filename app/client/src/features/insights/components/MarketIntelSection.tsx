@@ -2,23 +2,15 @@ import {
   Globe, MapPin, House, IdentificationCard, Lightbulb, ArrowsClockwise, Clock
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
+import { formatTimeAgo } from '@/shared/lib/formatTimeAgo'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Card } from '@/shared/ui/card'
+import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
+import GenerationHistoryItem from '@/shared/components/GenerationHistoryItem'
+import { STEP_CONFIGS } from '@/shared/components/GenerationProgressCard'
 
-function formatTimeAgo(ts) {
-  if (!ts) return ''
-  const diffMs = Date.now() - new Date(ts).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return days < 7 ? `${days}d ago` : new Date(ts).toLocaleDateString()
-}
-
-export default function MarketIntelSection({ data, refreshing, onRefresh, status }) {
+export default function MarketIntelSection({ data, refreshing, onRefresh, status, localHistory = [], singleRunning, onCancel }) {
   const market = data?.market || {}
   const countries = market.countries || []
   const cities = market.cities || []
@@ -28,6 +20,16 @@ export default function MarketIntelSection({ data, refreshing, onRefresh, status
 
   return (
     <div className="space-y-5">
+      {singleRunning && (
+        <GenerationProgressCard
+          title={singleRunning.title}
+          type={singleRunning.source}
+          progress={{ running: true, status: singleRunning.status, step: (singleRunning as any).step }}
+          steps={STEP_CONFIGS['insights']?.steps}
+          onCancel={onCancel}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <h3 className="font-extrabold text-sm">Market Intelligence</h3>
@@ -161,6 +163,15 @@ export default function MarketIntelSection({ data, refreshing, onRefresh, status
           )}
         </div>
       </div>
+
+      {localHistory.length > 0 && (
+        <div className="space-y-0.5 border-t border-border pt-3">
+          <p className="text-2xs font-semibold text-muted-foreground">Generation History</p>
+          {localHistory.map(h => (
+            <GenerationHistoryItem key={`${h.source}-${h.id}`} item={h} compact />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

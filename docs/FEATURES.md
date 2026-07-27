@@ -40,9 +40,13 @@
 - Skill relationships (related, similar, parent, child, alternative)
 - Checkable learning roadmaps per skill
 - AI-powered roadmap generation, extension, fine-graining
+- URL-addressable skill drawer (`#skills/{skillName}` deep linking)
+- Two-tab skill drawer: Details + Roadmap
+- Generation history per skill with provider/session tracking
+- Action buttons: Regenerate, Extend, Finegrain (inline in drawer)
 
-**Components**: `SkillsIntelSection`, `SkillDetailDrawer`, `SkillRoadmapDrawer`
-**API**: `GET /api/tech-stack`, `POST /api/skill-roadmaps/generate`
+**Components**: `SkillsIntelSection`, `SkillDetailDrawer`, `SkillRoadmapDrawer` (dashboard recommendations)
+**API**: `GET /api/tech-stack`, `POST /api/skill-roadmaps/generate`, `GET /api/skill-roadmaps/jobs`
 **Status**: Complete
 
 ## Career Insights

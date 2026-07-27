@@ -141,6 +141,7 @@ def init_db():
         count INTEGER,
         error TEXT,
         session_id TEXT,
+        provider_name TEXT,
         pid INTEGER,
         started_at TIMESTAMP,
         completed_at TIMESTAMP,

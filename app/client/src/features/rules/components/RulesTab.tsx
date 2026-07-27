@@ -78,7 +78,7 @@ function RuleForm({ initial, onSave, onCancel }) {
   )
 }
 
-function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority }) {
+function SortableRule({ pref, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pref.id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -98,24 +98,23 @@ function SortableRule({ pref, idx, editing, onEdit, onSave, onCancel, onToggle, 
           <div {...attributes} {...listeners} className="shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition">
             <DotsSixVertical className="w-3 h-3" />
           </div>
-          <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-2xs text-muted-foreground w-3 text-right shrink-0">{idx + 1}.</span>
               <span className="text-xs font-semibold truncate">{pref.key}</span>
               <Badge variant="outline" className="text-3xs px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
               <ScopeBadge scope={pref.scope} />
               <PriorityBadge p={pref.priority} />
               <span className="text-2xs text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
+              <div className="flex items-center gap-0.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition">
+                <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75" title="Enable/Disable" />
+                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
+                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, -5, pref.priority)} title="Priority -5"><ArrowDown className="w-2 h-2" /></Button>
+                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onEdit(pref.id)} title="Edit"><PencilSimple className="w-2 h-2" /></Button>
+                <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onClick={() => onDelete(pref.id)} title="Delete"><Trash className="w-2 h-2" /></Button>
+              </div>
             </div>
             <div className="text-2xs text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
             {pref.description && <div className="text-2xs text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
-            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
-            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, -5, pref.priority)} title="Priority -5"><ArrowDown className="w-2 h-2" /></Button>
-            <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onEdit(pref.id)} title="Edit"><PencilSimple className="w-2 h-2" /></Button>
-            <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onClick={() => onDelete(pref.id)} title="Delete"><Trash className="w-2 h-2" /></Button>
           </div>
         </div>
       )}
@@ -139,7 +138,7 @@ function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle,
 
   return (
     <div className="flex flex-col min-w-0">
-      <div className={cn("flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0", meta.headerBg, meta.headerBorder)}>
+      <div className={cn("group/header flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0", meta.headerBg, meta.headerBorder)}>
         <span className={meta.header}>{meta.icon}</span>
         <span className={cn("text-sm font-bold", meta.header)}>{meta.label} Rules</span>
         <Badge variant="secondary" className="text-2xs ml-auto">{prefs.filter(p => p.enabled).length}/{prefs.length}</Badge>
@@ -154,8 +153,8 @@ function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle,
         )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            {prefs.map((pref, idx) => (
-              <SortableRule key={pref.id} pref={pref} idx={idx} editing={editing}
+            {prefs.map((pref) => (
+              <SortableRule key={pref.id} pref={pref} editing={editing}
                 onEdit={onEdit} onSave={onSave} onCancel={onCancel}
                 onToggle={onToggle} onDelete={onDelete} onPriority={onPriority} />
             ))}

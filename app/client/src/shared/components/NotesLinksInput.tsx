@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
-  Plus, X, CheckCircle, Warning, LinkSimple, Note,
+  Plus, X, CheckCircle, Warning, LinkSimple, Note, ArrowSquareUp,
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
+import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/textarea'
 
 interface NoteItem {
@@ -17,6 +18,8 @@ interface LinkItem {
 }
 
 interface NotesLinksInputProps {
+  urlInput: string
+  setUrlInput: (val: string) => void
   notes: NoteItem[]
   links: LinkItem[]
   onAddNote: (note: NoteItem) => void
@@ -73,7 +76,7 @@ function LinkItemDisplay({ link, onRemove }: { link: LinkItem; onRemove?: () => 
 }
 
 export default function NotesLinksInput({
-  notes, links, onAddNote, onRemoveNote, onAddLink, onRemoveLink,
+  urlInput, setUrlInput, notes, links, onAddNote, onRemoveNote, onAddLink, onRemoveLink,
   onSubmit, submitting, processImmediately, onToggleProcess,
   error, placeholder = 'Add a note...', disabled, editingId, onCancelEdit,
 }: NotesLinksInputProps) {
@@ -84,8 +87,7 @@ export default function NotesLinksInput({
 
   const handleAddNote = () => {
     if (!noteInput.trim()) return
-    const type = noteInput.trim().startsWith('http') ? 'url' : 'text'
-    onAddNote({ type, content: noteInput.trim() })
+    onAddNote({ type: 'text', content: noteInput.trim() })
     setNoteInput('')
   }
 
@@ -106,7 +108,7 @@ export default function NotesLinksInput({
     }
   }
 
-  const canSubmit = notes.length > 0 || noteInput.trim() || links.length > 0
+  const canSubmit = !!urlInput.trim()
 
   return (
     <div className="rounded border p-1.5 shrink-0 mb-1 bg-muted min-w-0">
@@ -118,11 +120,34 @@ export default function NotesLinksInput({
         </div>
       )}
 
-      {/* Notes section */}
+      {/* Job URL (required) */}
       <div className="mb-1">
+        <div className="flex items-center gap-1 text-2xs text-muted-foreground mb-0.5">
+          <ArrowSquareUp className="w-2.5 h-2.5" />
+          <span>Job Link</span>
+          <span className="text-destructive">*</span>
+        </div>
+        <Input
+          type="url"
+          value={urlInput}
+          onChange={e => setUrlInput(e.target.value)}
+          placeholder="https://linkedin.com/jobs/view/..."
+          className={cn(
+            "w-full h-7 rounded border text-2xs px-2 bg-background",
+            urlInput && !urlInput.startsWith('http') && "border-destructive"
+          )}
+        />
+        {urlInput && !urlInput.startsWith('http') && (
+          <div className="text-2xs text-destructive mt-0.5 px-0.5">URL must start with http:// or https://</div>
+        )}
+      </div>
+
+      {/* Notes section (optional) */}
+      <div className="mb-1 border-t pt-1 mt-1">
         <div className="flex items-center gap-1 text-2xs text-muted-foreground mb-0.5">
           <Note className="w-2.5 h-2.5" />
           <span>Notes</span>
+          <span className="text-muted-foreground/60">(optional)</span>
         </div>
         {notes.length > 0 && (
           <div className="space-y-0.5 mb-1 max-h-16 overflow-y-auto">
@@ -134,7 +159,7 @@ export default function NotesLinksInput({
         <div className="flex gap-1">
           <Textarea value={noteInput} onChange={e => setNoteInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder="Paste job description text..."
             className="w-full h-8 rounded border text-2xs min-w-0 resize-none flex-1" />
           <Button onClick={handleAddNote} disabled={!noteInput.trim()} size="sm" variant="outline" className="h-8 px-2 shrink-0">
             <Plus className="w-3 h-3" />
@@ -148,6 +173,7 @@ export default function NotesLinksInput({
           <div className="flex items-center gap-1 text-2xs text-muted-foreground">
             <LinkSimple className="w-2.5 h-2.5" />
             <span>Links</span>
+            <span className="text-muted-foreground/60">(optional)</span>
           </div>
           {!showLinkInput && (
             <button onClick={() => setShowLinkInput(true)} className="text-2xs text-primary hover:underline flex items-center gap-0.5">
@@ -198,7 +224,7 @@ export default function NotesLinksInput({
 
       <div className="flex items-center gap-1 mt-1.5">
         <Button onClick={onSubmit} disabled={submitting || disabled || !canSubmit} size="sm" className="flex-1 h-6 text-2xs">
-          {submitting ? '...' : editingId ? 'Add Notes & Links' : processImmediately ? 'Add & Process' : 'Add'}
+          {submitting ? '...' : editingId ? 'Add & Process' : processImmediately ? 'Add & Process' : 'Add'}
         </Button>
         {!editingId && (
           <button

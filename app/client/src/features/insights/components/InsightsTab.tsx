@@ -9,6 +9,9 @@ import { Card } from '@/shared/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { toast } from 'sonner'
 import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
+import GenerationHistoryItem from '@/shared/components/GenerationHistoryItem'
+import { useLocalHistory } from '@/shared/hooks'
+import { STEP_CONFIGS } from '@/shared/components/GenerationProgressCard'
 
 import OverviewSection from './OverviewSection'
 import OpportunitiesSection from './OpportunitiesSection'
@@ -117,6 +120,12 @@ export default function InsightsTab({
 
   const [elapsed, setElapsed] = useState(0)
 
+  const { items: insightHistory, singleRunning: insightRunning } = useLocalHistory({
+    context: 'insight',
+    insight_type: activeTab,
+    enabled: true,
+  })
+
   useEffect(() => {
     if (!progress.running) { setElapsed(0); return }
     const start = progress.started_at ? new Date(progress.started_at).getTime() : Date.now()
@@ -197,7 +206,8 @@ export default function InsightsTab({
 
       {/* Sections */}
       {hasData && activeTab === 'overview' && (
-        <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status} />
+        <OverviewSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('overview')} status={status}
+          localHistory={insightHistory} singleRunning={insightRunning} onCancel={onCancel} />
       )}
       {hasData && activeTab === 'skills' && (
         <SkillsIntelDashboard
@@ -205,19 +215,26 @@ export default function InsightsTab({
           onRefresh={() => onRefreshSection('skills_intel')}
           status={status}
           onOpenDrawer={onOpenDrawer}
+          localHistory={insightHistory}
+          singleRunning={insightRunning}
+          onCancel={onCancel}
         />
       )}
       {hasData && activeTab === 'opportunities' && (
-        <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status} />
+        <OpportunitiesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('opportunities')} onOpenDrawer={onOpenDrawer} status={status}
+          localHistory={insightHistory} singleRunning={insightRunning} onCancel={onCancel} />
       )}
       {hasData && activeTab === 'companies' && (
-        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} status={status} />
+        <CompaniesSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('companies')} onOpenCompany={onOpenCompany} onAddCompany={onAddCompany} status={status}
+          localHistory={insightHistory} singleRunning={insightRunning} onCancel={onCancel} />
       )}
       {hasData && activeTab === 'market' && (
-        <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} status={status} />
+        <MarketIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('market')} status={status}
+          localHistory={insightHistory} singleRunning={insightRunning} onCancel={onCancel} />
       )}
       {hasData && activeTab === 'networking' && (
-        <NetworkingIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('networking')} status={status} />
+        <NetworkingIntelSection data={unwrappedData} refreshing={refreshing} onRefresh={() => onRefreshSection('networking')} status={status}
+          localHistory={insightHistory} singleRunning={insightRunning} onCancel={onCancel} />
       )}
     </div>
   )

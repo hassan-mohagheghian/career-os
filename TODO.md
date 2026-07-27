@@ -24,3 +24,9 @@ Add tag...
 Add
 Generate Roadmap
 Hide Skill
+
+[ ] also with restart the page the current generations must be show correctly. also the roadamps generation must be shown in generation histroy. also add datetime of start of generation and ennd of generation to item of generation history.
+
+[ ] todo: after the implementation make sure to add/edit docs in docs/architecture/session
+
+[ ] remove v1 from api. we don't need api version for now to reach a stable version. then we can decide for api versioning.

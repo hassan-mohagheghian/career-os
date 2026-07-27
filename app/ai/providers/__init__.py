@@ -51,8 +51,11 @@ def _create_provider(name: str, config: Optional[ProviderConfig] = None) -> LLMP
     elif name == "agy":
         from .agy.adapter import AGYProvider
         return AGYProvider(config)
+    elif name == "opencode":
+        from .opencode.adapter import OpencodeProvider
+        return OpencodeProvider(config)
     else:
-        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local, gemini, agy")
+        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local, gemini, agy, opencode")
 
 
 def reset_providers():

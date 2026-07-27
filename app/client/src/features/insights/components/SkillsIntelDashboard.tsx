@@ -12,7 +12,9 @@ import { Card } from "@/shared/ui/card";
 import { Progress } from "@/shared/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import SkillRoadmapDrawer from "./SkillRoadmapDrawer";
+import GenerationProgressCard from "@/shared/components/GenerationProgressCard";
+import GenerationHistoryItem from "@/shared/components/GenerationHistoryItem";
+import { STEP_CONFIGS } from "@/shared/components/GenerationProgressCard";
 
 const API = "/api";
 
@@ -183,7 +185,7 @@ function GapMatrix({ gaps, activeCategory }: { gaps: any[]; activeCategory: stri
   );
 }
 
-function RecommendationsSection({ recommendations, onLearn }: { recommendations: any[]; onLearn: (skill: string) => void }) {
+function RecommendationsSection({ recommendations, generatingSkills }: { recommendations: any[]; generatingSkills?: Set<string> }) {
   const [expanded, setExpanded] = useState(false);
   const p1Recs = recommendations.filter(r => r.priority === "P1");
   const displayRecs = expanded ? recommendations : p1Recs.slice(0, 5);
@@ -227,6 +229,11 @@ function RecommendationsSection({ recommendations, onLearn }: { recommendations:
                       {rec.category}
                     </Badge>
                   )}
+                  {generatingSkills?.has(rec.skill) && (
+                    <Badge variant="default" className="text-3xs h-2 animate-pulse bg-yellow-500/20 text-yellow-600">
+                      Generating...
+                    </Badge>
+                  )}
                 </div>
                 {rec.reasoning && (
                   <p className="text-2xs text-muted-foreground line-clamp-2">{rec.reasoning}</p>
@@ -238,10 +245,9 @@ function RecommendationsSection({ recommendations, onLearn }: { recommendations:
                   {rec.estimated_effort && <span>{rec.estimated_effort}</span>}
                 </div>
               </div>
-              <Button size="sm" variant="ghost" className="h-6 text-2xs gap-0.5 shrink-0"
-                onClick={() => onLearn(rec.skill)}>
-                <Lightning className="w-2.5 h-2.5" /> Learn
-              </Button>
+              <span className="text-2xs text-muted-foreground shrink-0">
+                <Lightning className="w-2.5 h-2.5 inline" /> Learn
+              </span>
             </div>
           </div>
         ))}
@@ -313,15 +319,16 @@ function RoadmapPreview({ roadmap, roadmapProgress }: { roadmap: any; roadmapPro
 }
 
 export default function SkillsIntelDashboard({
-  refreshing, onRefresh, status, onOpenDrawer,
+  refreshing, onRefresh, status, onOpenDrawer, localHistory = [], singleRunning, onCancel,
 }: {
   refreshing?: any; onRefresh?: () => void;
   status?: any; onOpenDrawer?: (num: number) => void;
+  localHistory?: any[]; singleRunning?: any; onCancel?: () => void;
 }) {
-  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [activeSkillJobs, setActiveSkillJobs] = useState<any[]>([]);
 
   const fetchDashboard = useCallback(() => {
     setLoading(true);
@@ -332,7 +339,19 @@ export default function SkillsIntelDashboard({
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  const fetchActiveSkillJobs = useCallback(() => {
+    fetch(`${API}/skill-roadmap-jobs?limit=10`)
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(d => {
+        const active = (d.items || []).filter((j: any) =>
+          j.status === 'running' || j.status === 'queued'
+        );
+        setActiveSkillJobs(active);
+      })
+      .catch(() => setActiveSkillJobs([]));
+  }, []);
+
+  useEffect(() => { fetchDashboard(); fetchActiveSkillJobs(); }, [fetchDashboard, fetchActiveSkillJobs]);
 
   // Auto-refresh when insights generation completes
   useEffect(() => {
@@ -341,6 +360,15 @@ export default function SkillsIntelDashboard({
       fetchDashboard();
     }
   }, [refreshing]);
+
+  // Set of skills currently being generated
+  const generatingSkills = useMemo(() => {
+    const skills = new Set<string>();
+    for (const job of activeSkillJobs) {
+      if (job.skill_name) skills.add(job.skill_name);
+    }
+    return skills;
+  }, [activeSkillJobs]);
 
   // Extract data from the dashboard response
   const data = dashboardData || {};
@@ -383,6 +411,16 @@ export default function SkillsIntelDashboard({
 
   return (
     <div className="space-y-5">
+      {singleRunning && (
+        <GenerationProgressCard
+          title={singleRunning.title}
+          type={singleRunning.source}
+          progress={{ running: true, status: singleRunning.status, step: (singleRunning as any).step }}
+          steps={STEP_CONFIGS['insights']?.steps}
+          onCancel={onCancel}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -490,17 +528,19 @@ export default function SkillsIntelDashboard({
       <div className="grid grid-cols-2 gap-4">
         <RecommendationsSection
           recommendations={allRecommendations}
-          onLearn={(skill) => setSelectedSkill(skill)}
+          generatingSkills={generatingSkills}
         />
         <RoadmapPreview roadmap={roadmap} roadmapProgress={roadmapProgress} />
       </div>
 
-      {/* Skill Roadmap Drawer */}
-      <SkillRoadmapDrawer
-        skillName={selectedSkill}
-        open={!!selectedSkill}
-        onOpenChange={(open) => { if (!open) setSelectedSkill(null); }}
-      />
+      {localHistory.length > 0 && (
+        <div className="space-y-0.5 border-t border-border pt-3">
+          <p className="text-2xs font-semibold text-muted-foreground">Generation History</p>
+          {localHistory.map(h => (
+            <GenerationHistoryItem key={`${h.source}-${h.id}`} item={h} compact />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_db
 
@@ -30,19 +30,75 @@ def get_dashboard(db=Depends(get_db)):
 
 @router.get("/generation-history")
 def get_generation_history(db=Depends(get_db), limit: int = 50, offset: int = 0):
-    """Get generation history from pending_generations table."""
-    # Try pending_generations first (real data), fall back to generation_history
-    for table in ["pending_generations", "generation_history"]:
-        try:
-            total = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            rows = db.execute(
-                f"SELECT * FROM {table} ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (limit, offset),
-            ).fetchall()
-            return {"items": [dict(r) for r in rows], "total": total, "offset": offset, "limit": limit}
-        except Exception:
-            continue
-    return {"items": [], "total": 0, "offset": offset, "limit": limit}
+    """Get unified generation history from ALL sources:
+    pending_jobs, pending_companies, pending_generations, skill_roadmap_jobs, career_insight_runs.
+    """
+    from services.process.generation_repository import GenerationHistoryRepository
+
+    repo = GenerationHistoryRepository(db)
+    result = repo.get_all(limit=limit, offset=offset)
+
+    return {
+        "items": [item.to_dict() for item in result['items']],
+        "total": result['total'],
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+@router.get("/local-history")
+def get_local_history(
+    context: str = Query(..., description="Context: job, company, skill, insight"),
+    job_num: int | None = Query(None),
+    company_id: int | None = Query(None),
+    skill_name: str | None = Query(None),
+    insight_type: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    db=Depends(get_db),
+):
+    """Get local generation history filtered by context."""
+    from services.process.generation_repository import GenerationHistoryRepository
+
+    repo = GenerationHistoryRepository(db)
+
+    if context == 'job' and job_num is not None:
+        result = repo.get_for_job(job_num, limit)
+    elif context == 'company' and company_id is not None:
+        result = repo.get_for_company(company_id, limit)
+    elif context == 'skill' and skill_name is not None:
+        result = repo.get_for_skill(skill_name, limit)
+    elif context == 'insight' and insight_type is not None:
+        result = repo.get_for_insight(insight_type, limit)
+    else:
+        result = {'items': [], 'total': 0}
+
+    return {
+        'items': [item.to_dict() for item in result['items']],
+        'total': result['total'],
+    }
+
+
+@router.get("/local-history/active")
+def get_local_active_count(
+    context: str = Query(...),
+    job_num: int | None = Query(None),
+    company_id: int | None = Query(None),
+    skill_name: str | None = Query(None),
+    insight_type: str | None = Query(None),
+    db=Depends(get_db),
+):
+    """Get count of currently running/queued items for a context."""
+    from services.process.generation_repository import GenerationHistoryRepository
+
+    repo = GenerationHistoryRepository(db)
+    count = repo.get_active_count(
+        context,
+        job_num=job_num,
+        company_id=company_id,
+        skill_name=skill_name,
+        insight_type=insight_type,
+    )
+    return {'active_count': count}
 
 
 @router.get("/cities")

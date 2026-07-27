@@ -3,6 +3,7 @@ import {
   TrendUp, Brain, BookOpen, Wrench, ArrowsClockwise, Target,
   TreeStructure, Plus, User, EyeSlash, DotsSixVertical, GitMerge,
   Eye, CaretDown, CaretRight, FunnelSimple, SortAscending, Trash, Clock,
+  Spinner,
 } from "@phosphor-icons/react";
 import { cn } from "@/shared/lib/utils";
 import { resolveSkillCategory } from "@/shared/lib/skills";
@@ -17,9 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import GenerationProgressCard from "@/shared/components/GenerationProgressCard";
+
 import ConfirmDialog, { useConfirmDialog } from "@/shared/components/ConfirmDialog";
-import SkillRoadmapDrawer from "./SkillRoadmapDrawer";
 import SkillDetailDrawer from "./SkillDetailDrawer";
 
 const API = "/api";
@@ -81,7 +81,7 @@ const ROADMAP_FILTERS = [
 ];
 
 // ── Sortable skill row ────────────────────────────────────────
-function SortableSkillRow({ id, name, category, confidence, source, marketDemand, tags, onClick, onHide, onRemove, mergeMode, extra, aliases = [], skillId }) {
+function SortableSkillRow({ id, name, category, confidence, source, marketDemand, tags, onClick, onHide, onRemove, mergeMode, extra, generatingJob, aliases = [], skillId }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -108,6 +108,35 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
         </button>
       )}
       <span className="font-semibold w-16 truncate shrink-0">{name}</span>
+      {generatingJob && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Spinner className="w-3 h-3 text-primary animate-spin" />
+          <Badge variant="default" className="text-3xs h-2 animate-pulse bg-primary">
+            {generatingJob.message || 'Generating...'}
+          </Badge>
+          {(generatingJob.provider_name || generatingJob.session_id) && (
+            <button
+              className="flex items-center gap-1 text-3xs h-2 shrink-0 bg-muted/50 hover:bg-muted rounded px-1 transition cursor-pointer border border-transparent hover:border-border font-mono"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (generatingJob.session_id) {
+                  navigator.clipboard.writeText(generatingJob.session_id)
+                  toast.success('Session ID copied')
+                }
+              }}
+              title={generatingJob.session_id ? `Click to copy: ${generatingJob.session_id}` : ''}
+            >
+              <span className="text-muted-foreground">{generatingJob.provider_name || 'ai'}</span>
+              {generatingJob.session_id && (
+                <span className="text-foreground">({generatingJob.session_id})</span>
+              )}
+            </button>
+          )}
+          <span className="text-2xs text-muted-foreground">
+            {generatingJob.step || 0}/{generatingJob.total_steps || 4}
+          </span>
+        </div>
+      )}
       {category && (
         <Badge variant="secondary" className={cn("text-3xs h-2.5 shrink-0", CATEGORY_COLORS[category] || "bg-gray-500/15 text-gray-400")}>
           {category}
@@ -173,7 +202,17 @@ function SortableSkillRow({ id, name, category, confidence, source, marketDemand
 // ── Main component ─────────────────────────────────────────────
 export default function SkillsIntelSection({
   data, refreshing, onRefresh, roadmapProgress = {}, onRefreshProgress, genJobs = [], status,
+  deepLinkSkill, onClearDeepLink,
 }) {
+  // Map of skill name → active job (for generating indicators)
+  const generatingJobMap = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const job of genJobs) {
+      const name = job.skill_name || job.skill
+      if (name) map.set(name.toLowerCase(), job)
+    }
+    return map
+  }, [genJobs]);
   // Prefer full skills_intel data (from dedicated prompt) over minimal skills data (from combined prompt)
   const skillsIntel = data?.skills_intel || {};
   const skillsMinimal = data?.skills || {};
@@ -182,7 +221,6 @@ export default function SkillsIntelSection({
   const gaps = currentState.gaps || skillsMinimal.gaps || [];
   const recommendations = skillsIntel.recommendations || skillsMinimal.learningRecommendations || [];
 
-  const [selectedSkill, setSelectedSkill] = useState(null);
   const [detailSkill, setDetailSkill] = useState(null);
   const [customSkillInput, setCustomSkillInput] = useState("");
   const [techStackSkills, setTechStackSkills] = useState([]);
@@ -199,6 +237,24 @@ export default function SkillsIntelSection({
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const { dialog, showConfirm, onClose: closeConfirm } = useConfirmDialog();
+
+  // Deep link: open skill drawer from URL
+  useEffect(() => {
+    if (deepLinkSkill) {
+      setDetailSkill(deepLinkSkill);
+      onClearDeepLink?.();
+    }
+  }, [deepLinkSkill, onClearDeepLink]);
+
+  // Update hash when skill drawer opens/closes
+  const handleOpenDetail = useCallback((name: string | null) => {
+    if (name) {
+      window.history.replaceState(null, "", `#skills/${encodeURIComponent(name)}`);
+    } else {
+      window.history.replaceState(null, "", "#skills");
+    }
+    setDetailSkill(name);
+  }, []);
 
   const fetchTechStack = useCallback(() => {
     fetch(`${API}/skills`).then((r) => r.json()).then((list) => setTechStackSkills(Array.isArray(list) ? list : [])).catch(() => {});
@@ -447,7 +503,7 @@ export default function SkillsIntelSection({
     return (
       <>
         <span className="text-2xs text-muted-foreground flex-1">No roadmap</span>
-        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedSkill(skill.name); }}
+        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleOpenDetail(skill.name); }}
           className="h-5 text-2xs gap-0.5"><TreeStructure className="w-2.5 h-2.5" /> Generate</Button>
       </>
     );
@@ -578,11 +634,6 @@ export default function SkillsIntelSection({
 
         {/* ═══ Unified Skills Card ═══ */}
         <Card className="p-4">
-          {genJobs.length > 0 && genJobs.map((job) => (
-            <div key={job.skill} className="cursor-pointer mb-2" onClick={() => setSelectedSkill(job.skill)}>
-              <GenerationProgressCard title={job.skill} progress={{ running: true, ...job }} compact />
-            </div>
-          ))}
           <SortableContext items={displayedSkills.map((s) => s.name)} strategy={verticalListSortingStrategy}>
             <div className="space-y-0.5 max-h-[500px] overflow-y-auto">
               {displayedSkills.length > 0 ? displayedSkills.map((skill) => (
@@ -595,12 +646,13 @@ export default function SkillsIntelSection({
                   source={skill.source}
                   marketDemand={skill.marketDemand}
                   tags={skill.tags}
-                  onClick={(n) => setDetailSkill(n)}
+                  onClick={(n) => handleOpenDetail(n)}
                   onHide={handleHideSkill}
                   onRemove={handleRemoveSkill}
                   mergeMode={mergeMode}
                   aliases={skill.aliases}
                   skillId={skill.skillId}
+                  generatingJob={generatingJobMap.get(skill.name.toLowerCase())}
                   extra={getRoadmapExtra(skill)}
                 />
               )) : (
@@ -650,11 +702,9 @@ export default function SkillsIntelSection({
       </DndContext>
 
       {/* Drawers */}
-      <SkillRoadmapDrawer skillName={selectedSkill} open={!!selectedSkill}
-        onOpenChange={(open) => { if (!open) setSelectedSkill(null); }} onRefreshProgress={onRefreshProgress} />
       <SkillDetailDrawer skillName={detailSkill} open={!!detailSkill}
-        onOpenChange={(open) => { if (!open) setDetailSkill(null); }} techStackSkills={techStackSkills}
-        roadmapProgress={roadmapProgress} onHide={handleHideSkill} onGenerate={setSelectedSkill} />
+        onOpenChange={(open) => { if (!open) handleOpenDetail(null); }} techStackSkills={techStackSkills}
+        roadmapProgress={roadmapProgress} onHide={handleHideSkill} />
       <ConfirmDialog dialog={dialog} onClose={closeConfirm} />
     </div>
   );

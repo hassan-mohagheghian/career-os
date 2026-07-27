@@ -225,6 +225,7 @@ def process_generation(gen_id):
             timeout=300,
         )
         data = json.loads(resp.content)
+        session_id = resp.metadata.get("session_id")
 
         # Cleanup temp files
         for f in [job_file, resume_file]:
@@ -273,7 +274,7 @@ def process_generation(gen_id):
         conn = _db()
         conn.execute(
             'UPDATE pending_generations SET result=?, status=?, session_id=? WHERE id=?',
-            (json.dumps({'id': resume_id, 'content': content, 'title': title}), 'done', pid, gen_id)
+            (json.dumps({'id': resume_id, 'content': content, 'title': title}), 'done', session_id or pid, gen_id)
         )
         conn.commit()
         conn.close()
@@ -283,7 +284,7 @@ def process_generation(gen_id):
             table='pending_generations', pid=gen_id,
             result={
                 'id': resume_id, 'content': content, 'title': title,
-                'type': gen_type, 'job_num': job_num, 'session_id': pid,
+                'type': gen_type, 'job_num': job_num, 'session_id': session_id or pid,
             },
         ))
 

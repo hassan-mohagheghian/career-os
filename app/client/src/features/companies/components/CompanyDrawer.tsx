@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import {
   Buildings, MapPin, Globe, Users, Repeat, Trash, Link, Lightbulb,
-  Shield, Briefcase, Star, Cpu, Rocket, Spinner, Note, Plus, PencilSimple, X, Check, TrendUp, TrendDown
+  Shield, Briefcase, Star, Cpu, Rocket, Spinner, Note, Plus, PencilSimple, X, Check, TrendUp, TrendDown, Clock, CaretDown, CaretRight
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Card } from '@/shared/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/tabs'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/shared/ui/sheet'
-import { Section, Field, TagList } from '@/shared/components/DrawerComponents'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/shared/ui/collapsible'
+import { AppDrawer, Section, Field, TagList } from '@/shared/components/DrawerComponents'
+import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
+import GenerationHistoryItem from '@/shared/components/GenerationHistoryItem'
+import { useLocalHistory } from '@/shared/hooks'
+import { STEP_CONFIGS } from '@/shared/components/GenerationProgressCard'
 import ScoreBar from './ScoreBar'
 import CompanyJobsTab from './CompanyJobsTab'
 import CompanyNotesTab from './CompanyNotesTab'
@@ -45,6 +49,12 @@ function ScoreRow({ label, value }: { label: string; value: number }) {
 
 export default function CompanyDrawer({ company, onClose, onDelete, onReprocess, onOpenJob, onNavigateToJob, onViewAllJobs }) {
   const [activeTab, setActiveTab] = useState('notes')
+  const [showProcessing, setShowProcessing] = useState(false)
+  const { items: companyHistory, singleRunning } = useLocalHistory({
+    context: 'company',
+    company_id: company?.id,
+    enabled: !!company?.id,
+  })
 
   if (!company) return null
 
@@ -65,9 +75,8 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
   const overallGrade = scores.overall_grade || scores.fit_grade || '—'
 
   return (
-    <Sheet open={!!company} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-[min(640px,92vw)] sm:max-w-[640px] overflow-y-auto p-4 pr-12">
-        <SheetHeader className="mb-4">
+    <AppDrawer open={!!company} onOpenChange={(open) => !open && onClose()}>
+      <div className="p-6 pb-3">
           <div className="flex gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
@@ -94,8 +103,8 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
                   </div>
                 )}
               </div>
-              <SheetTitle className="text-lg">{company.name}</SheetTitle>
-              <SheetDescription>{company.industry || 'Technology'}</SheetDescription>
+              <div className="text-lg font-semibold">{company.name}</div>
+              <div className="text-sm text-muted-foreground">{company.industry || 'Technology'}</div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {(company.city || company.country) && (
                   <Badge variant="secondary" className="text-2xs"><MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}</Badge>
@@ -132,16 +141,34 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               )}
             </div>
           </div>
-        </SheetHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-3">
+        {/* Processing History - Collapsible */}
+        {companyHistory.length > 0 && (
+          <Collapsible open={showProcessing} onOpenChange={setShowProcessing}>
+            <div className="mb-3">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-1.5 text-2xs font-semibold text-muted-foreground hover:text-foreground transition w-full text-left">
+                  {showProcessing ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
+                  <Clock className="w-3 h-3" />
+                  Processing History
+                  <Badge variant="secondary" className="ml-auto text-2xs h-4">{companyHistory.length}</Badge>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1.5 space-y-0.5 pl-1">
+                {companyHistory.map(h => (
+                  <GenerationHistoryItem key={`${h.source}-${h.id}`} item={h} compact />
+                ))}
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-3">
           <TabsList className="bg-muted">
-            <TabsTrigger value="notes" className="gap-1.5 text-2xs"><Note className="w-3 h-3" />Original Notes</TabsTrigger>
-            <TabsTrigger value="intelligence" className="gap-1.5 text-2xs"><Lightbulb className="w-3 h-3" />Intelligence</TabsTrigger>
-            <TabsTrigger value="scores" className="gap-1.5 text-2xs"><TrendUp className="w-3 h-3" />Scores</TabsTrigger>
-            <TabsTrigger value="jobs" className="gap-1.5 text-2xs">
-              <Briefcase className="w-3 h-3" />Jobs{company.job_count > 0 && ` (${company.job_count})`}
-            </TabsTrigger>
+            <TabsTrigger value="notes">Original Notes</TabsTrigger>
+            <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
+            <TabsTrigger value="scores">Scores</TabsTrigger>
+            <TabsTrigger value="jobs">Jobs{company.job_count > 0 && ` (${company.job_count})`}</TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Original Notes */}
@@ -151,6 +178,16 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
 
           {/* Tab 2: Company Intelligence */}
           <TabsContent value="intelligence" className="mt-3 space-y-4">
+            {/* Running progress */}
+            {singleRunning && (
+              <GenerationProgressCard
+                title={singleRunning.title}
+                type={singleRunning.source}
+                progress={{ running: true, status: singleRunning.status, step: (singleRunning as any).step }}
+                steps={STEP_CONFIGS[singleRunning.source]?.steps || STEP_CONFIGS['company-processing'].steps}
+              />
+            )}
+
             {!intel && (
               <Card className="p-6 text-center border-dashed">
                 <Buildings className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
@@ -324,8 +361,6 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
               </>
             )}
           </TabsContent>
-
-          {/* Tab 3: Scores */}
           <TabsContent value="scores" className="mt-3 space-y-4">
             {!intel && (
               <Card className="p-6 text-center border-dashed">
@@ -427,7 +462,7 @@ export default function CompanyDrawer({ company, onClose, onDelete, onReprocess,
             <CompanyJobsTab companyId={company.id} onOpenJob={onOpenJob} onNavigateToJob={onNavigateToJob} />
           </TabsContent>
         </Tabs>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </AppDrawer>
   )
 }

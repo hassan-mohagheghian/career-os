@@ -1,22 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   TrendUp, Repeat, Link, Lightning, ListChecks, Star, Gift, Shield,
-  FileText, Spinner, PaperPlaneRight, CheckCircle, Buildings, MapPin, X, ArrowSquareOut, ArrowRight
+  FileText, Spinner, PaperPlaneRight, CheckCircle, Buildings, MapPin, X, ArrowSquareOut, ArrowRight, Clock, CaretDown, CaretRight
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/shared/ui/sheet'
-import { TabHeader } from '@/shared/components/DrawerComponents'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/shared/ui/collapsible'
+import { AppDrawer, TabHeader } from '@/shared/components/DrawerComponents'
 import { LocationBadge, VisaBadge, getScoreColor, getMatchClass } from '@/shared/components/ProcessedCards'
+import GenerationHistoryItem from '@/shared/components/GenerationHistoryItem'
+import { useLocalHistory } from '@/shared/hooks'
 import DetailsTab from './DetailsTab'
 import StructuredTab from './StructuredTab'
 import SummaryTab from './SummaryTab'
 import DocumentsTab from './DocumentsTab'
 import CompanyTab from './CompanyTab'
 
-export default function JobDrawer({ drawer, drawerTab, generationProgress, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onCancelGeneration, onLinkCompany, onOpenCompany, onNavigateToCompany }) {
+export default function JobDrawer({ drawer, drawerTab, activeGens, companies, onClose, onSetDrawerTab, onRescoreJob, onRequeueJob, onUpdateJob, onSetToast, onGenerateResume, onGenerateCover, onCancelGeneration, onLinkCompany, onOpenCompany, onNavigateToCompany }) {
+  const [showProcessing, setShowProcessing] = useState(false)
+  const { items: localHistory, refresh } = useLocalHistory({
+    context: 'job',
+    job_num: drawer?.job?.num,
+  })
+
+  const processingHistory = localHistory.filter(h => h.source === 'job-processing')
+
+  useEffect(() => {
+    refresh()
+  }, [drawer]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!drawer) return null
 
   const job = drawer.job
@@ -28,9 +42,8 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
   })()
 
   return (
-    <Sheet open={!!drawer} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-[min(640px,92vw)] sm:max-w-[640px] overflow-y-auto p-4 pr-12">
-        <SheetHeader className="mb-4">
+    <AppDrawer open={!!drawer} onOpenChange={(open) => !open && onClose()}>
+      <div className="p-6 pb-3">
           <div className="flex gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
@@ -62,7 +75,7 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
                   <Repeat className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              <SheetTitle className="text-lg flex items-center gap-2">
+              <div className="text-lg font-semibold flex items-center gap-2">
                 {job.company}
                 {job.linked_company && (
                   <button onClick={() => onOpenCompany(job.linked_company.id)}
@@ -70,8 +83,8 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
                     <Buildings className="w-2 h-2" />{job.linked_company.name || 'Company'}
                   </button>
                 )}
-              </SheetTitle>
-              <SheetDescription>{job.role}</SheetDescription>
+              </div>
+              <div className="text-sm text-muted-foreground">{job.role}</div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {job.industry && <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">{job.industry}</Badge>}
                 {drawerLocations.map((loc, i) => <LocationBadge key={i} loc={loc} />)}
@@ -103,7 +116,6 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
               )}
             </div>
           </div>
-        </SheetHeader>
 
         <div className="flex gap-2 mb-3">
           <a href={job.url} target="_blank" rel="noreferrer" className="flex-1">
@@ -126,6 +138,27 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
           </div>
         )}
 
+        {/* Processing History - Collapsible */}
+        {processingHistory.length > 0 && (
+          <Collapsible open={showProcessing} onOpenChange={setShowProcessing}>
+            <div className="mb-3">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-1.5 text-2xs font-semibold text-muted-foreground hover:text-foreground transition w-full text-left">
+                  {showProcessing ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
+                  <Clock className="w-3 h-3" />
+                  Processing History
+                  <Badge variant="secondary" className="ml-auto text-2xs h-4">{processingHistory.length}</Badge>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1.5 space-y-0.5 pl-1">
+                {processingHistory.map(h => (
+                  <GenerationHistoryItem key={`${h.source}-${h.id}`} item={h} compact />
+                ))}
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
+
         <Tabs value={drawerTab} onValueChange={onSetDrawerTab} className="mb-3">
           <TabsList className="bg-muted">
             <TabsTrigger value="details">Details</TabsTrigger>
@@ -140,8 +173,8 @@ export default function JobDrawer({ drawer, drawerTab, generationProgress, compa
         {drawerTab === 'structured' && <StructuredTab job={job} />}
         {drawerTab === 'summary' && <SummaryTab summary={drawer.summary} />}
         {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} onOpenCompany={onOpenCompany} onNavigateToCompany={onNavigateToCompany} onClose={onClose} />}
-        {drawerTab === 'documents' && <DocumentsTab job={job} resume={drawer.resume} coverLetter={drawer.coverLetter} generationProgress={generationProgress} onGenerateResume={onGenerateResume} onGenerateCover={onGenerateCover} onCancelGeneration={onCancelGeneration} />}
-      </SheetContent>
-    </Sheet>
+        {drawerTab === 'documents' && <DocumentsTab job={job} resume={drawer.resume} coverLetter={drawer.coverLetter} activeGens={activeGens} onGenerateResume={onGenerateResume} onGenerateCover={onGenerateCover} onCancelGeneration={onCancelGeneration} />}
+      </div>
+    </AppDrawer>
   )
 }

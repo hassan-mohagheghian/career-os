@@ -1,5 +1,6 @@
 """Company processing queue endpoints."""
 
+import json
 import sqlite3
 
 from fastapi import APIRouter, Depends
@@ -12,7 +13,7 @@ router = APIRouter()
 
 @router.get("")
 def list_pending_companies(db=Depends(get_db)):
-    """List pending companies."""
+    """List pending companies (pending, queued, processing, failed)."""
     rows = db.execute(
         "SELECT * FROM pending_companies WHERE status != 'done' ORDER BY created_at DESC"
     ).fetchall()
@@ -21,13 +22,44 @@ def list_pending_companies(db=Depends(get_db)):
 
 @router.post("")
 def create_pending_company(data: dict, db=Depends(get_db)):
-    """Queue a new company for processing."""
+    """Create a pending company and enqueue for processing.
+
+    Accepts:
+      - notes: list of {type, content} (url or text)
+      - links: list of {url, title}
+      - input_text: fallback single text/url
+      - source: origin string
+    """
+    notes = data.get("notes", [])
+    links = data.get("links", [])
+
+    all_notes = list(notes)
+    for link in links:
+        url = link.get("url", link) if isinstance(link, dict) else str(link)
+        title = link.get("title", "") if isinstance(link, dict) else ""
+        all_notes.append({"type": "url", "content": url, "title": title})
+
+    input_text = data.get("input_text", data.get("name", ""))
+    if not input_text and all_notes:
+        input_text = all_notes[0].get("content", "")
+
     cur = db.execute(
         "INSERT INTO pending_companies (input_text, input_type, source, status, notes) VALUES (?, ?, ?, ?, ?)",
-        (data.get("name", data.get("input_text", "")), data.get("input_type", "url"), data.get("source", "api"), "pending", data.get("notes", "[]")),
+        (
+            input_text,
+            data.get("input_type", "url"),
+            data.get("source", "web"),
+            "pending",
+            json.dumps(all_notes),
+        ),
     )
     db.commit()
-    row = db.execute("SELECT * FROM pending_companies WHERE id=?", (cur.lastrowid,)).fetchone()
+    pid = cur.lastrowid
+
+    from core.queue import get_queue_manager
+    get_queue_manager().enqueue(pid, table='pending_companies')
+
+    row = db.execute("SELECT * FROM pending_companies WHERE id=?", (pid,)).fetchone()
     return dict(row)
 
 
@@ -54,9 +86,11 @@ def add_company_notes(id: str, data: dict, db=Depends(get_db)):
     existing = db.execute("SELECT notes FROM pending_companies WHERE id=?", (id,)).fetchone()
     if not existing:
         raise NotFoundError(f"Pending company {id} not found")
-    import json
     notes = json.loads(existing[0]) if existing[0] else []
-    notes.append(data.get("note", ""))
+    note_content = data.get("note", "")
+    note_type = data.get("note_type", "text")
+    if note_content:
+        notes.append({"type": note_type, "content": note_content})
     db.execute("UPDATE pending_companies SET notes=? WHERE id=?", (json.dumps(notes), id))
     db.commit()
     return {"status": "updated"}
@@ -64,13 +98,16 @@ def add_company_notes(id: str, data: dict, db=Depends(get_db)):
 
 @router.post("/{id}/links")
 def add_company_links(id: str, data: dict, db=Depends(get_db)):
-    """Add links to a pending company."""
-    existing = db.execute("SELECT links FROM pending_companies WHERE id=?", (id,)).fetchone()
+    """Add links to a pending company (stored as url-type notes)."""
+    existing = db.execute("SELECT notes FROM pending_companies WHERE id=?", (id,)).fetchone()
     if not existing:
         raise NotFoundError(f"Pending company {id} not found")
-    import json
-    links = json.loads(existing[0]) if existing[0] else []
-    links.append(data.get("link", ""))
-    db.execute("UPDATE pending_companies SET links=? WHERE id=?", (json.dumps(links), id))
+    notes = json.loads(existing[0]) if existing[0] else []
+    links = data.get("links", [])
+    for link in links:
+        url = link.get("url", link) if isinstance(link, dict) else str(link)
+        title = link.get("title", "") if isinstance(link, dict) else ""
+        notes.append({"type": "url", "content": url, "title": title})
+    db.execute("UPDATE pending_companies SET notes=? WHERE id=?", (json.dumps(notes), id))
     db.commit()
     return {"status": "updated"}

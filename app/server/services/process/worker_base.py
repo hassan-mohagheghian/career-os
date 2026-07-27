@@ -95,9 +95,7 @@ class WorkerBase(abc.ABC):
                 return
 
             # Mark complete
-            self._broadcaster.step_update(StatusUpdate(
-                table=self.table, pid=pid, step='step_done', val=1,
-            ))
+            self._mark_step(pid, 'step_done', 1)
             self._pending_repo.update_status(pid, ItemStatus.DONE)
 
             self._broadcaster.complete(ProcessingComplete(
@@ -121,7 +119,9 @@ class WorkerBase(abc.ABC):
         """Reset all pipeline steps to 0."""
         updates = {step: 0 for step in self.pipeline_steps}
         updates['workflow_log'] = '[]'
-        self._pending_repo.update_status(pid, self._pending_repo.get(pid)['status'], **updates)
+        current = self._pending_repo.get(pid)
+        status = ItemStatus(current['status']) if current else ItemStatus.PENDING
+        self._pending_repo.update_status(pid, status, **updates)
 
     def _is_cancelled(self, pid: int) -> bool:
         """Check if processing should stop (pause/stop/restart)."""

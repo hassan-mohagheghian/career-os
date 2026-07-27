@@ -97,7 +97,8 @@ export function useSkills() {
     fetchProgress()
     fetchSkillProgress()
     fetchDashboard()
-  }, [fetchData, fetchStatus, fetchProgress, fetchSkillProgress, fetchDashboard])
+    pollActiveSkillJobs()
+  }, [fetchData, fetchStatus, fetchProgress, fetchSkillProgress, fetchDashboard, pollActiveSkillJobs])
 
   // SocketIO for real-time updates
   useEffect(() => {
@@ -114,9 +115,35 @@ export function useSkills() {
       }
     }
 
-    const handleSkillUpdate = () => {
+    const handleSkillUpdate = (evt: any) => {
+      const { skill, job_id, status: jobStatus, ...rest } = evt
+      if (!skill) return
+
+      setSkillGenJobs(prev => {
+        const idx = prev.findIndex((j: any) => j.skill_name === skill || j.job_id === job_id)
+        const merged = {
+          skill_name: skill,
+          job_id,
+          ...rest,
+          status: jobStatus,
+        }
+
+        if (jobStatus === 'completed' || jobStatus === 'cancelled') {
+          return idx >= 0 ? [...prev.slice(0, idx), ...prev.slice(idx + 1)] : prev
+        }
+
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = { ...next[idx], ...merged }
+          return next
+        }
+        return [...prev, merged]
+      })
+
       fetchSkillProgress()
-      pollActiveSkillJobs()
+      if (jobStatus === 'completed' || jobStatus === 'failed' || jobStatus === 'cancelled') {
+        pollActiveSkillJobs()
+      }
     }
 
     socket.on('insights:progress', handleProgress)
@@ -130,13 +157,14 @@ export function useSkills() {
     }
   }, [socket, fetchStatus, fetchData, fetchSkillProgress, pollActiveSkillJobs])
 
-  // Poll active skill jobs when generation is running
+  // Poll active skill jobs — always if there are active jobs, or during insights generation
   useEffect(() => {
-    if (progress.running && progress.type === 'skills_intel') {
+    const shouldPoll = (progress.running && progress.type === 'skills_intel') || skillGenJobs.some((j: any) => j.status === 'running' || j.status === 'queued')
+    if (shouldPoll) {
       pollRef.current = setInterval(pollActiveSkillJobs, 3000)
     }
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [progress.running, progress.type, pollActiveSkillJobs])
+  }, [progress.running, progress.type, skillGenJobs, pollActiveSkillJobs])
 
   const refresh = useCallback(async () => {
     setError(null)

@@ -15,6 +15,18 @@ def list_resumes(db=Depends(get_db)):
     return [dict(r) for r in rows]
 
 
+@router.get("/active-generations")
+def get_active_generations(db=Depends(get_db)):
+    """Get any active (queued/processing) resume or cover generations."""
+    rows = db.execute(
+        "SELECT id, job_num, type, status, step_prepare, step_context, "
+        "step_generate, step_save, step_done, error "
+        "FROM pending_generations WHERE status IN ('queued', 'processing') "
+        "ORDER BY created_at DESC"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 @router.get("/{id}")
 def get_resume(id: str, db=Depends(get_db)):
     """Get a resume by ID."""

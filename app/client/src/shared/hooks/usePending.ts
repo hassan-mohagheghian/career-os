@@ -65,7 +65,7 @@ export function usePending(onJobDone?: () => void) {
   }, [fetchPending])
 
   const submitUrl = useCallback(async (extraNotes?: Array<{ type: string; content: string }>, extraLinks?: Array<{ url: string; title: string }>) => {
-    if (!urlInput.trim() && (!extraNotes || extraNotes.length === 0)) return
+    if (!urlInput.trim()) return
     setUrlError('')
     setSubmitting(true)
     try {

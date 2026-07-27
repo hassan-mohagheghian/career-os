@@ -132,7 +132,7 @@ function App() {
     resumes,
     setResumes,
     linkedinProfiles,
-    generationProgress,
+    activeGens,
     generationResult,
     fetchResumes,
     fetchLinkedin,
@@ -144,11 +144,11 @@ function App() {
   // Update drawer immediately when generation completes
   useEffect(() => {
     if (!generationResult) return
-    const { type, content, id, job_num, title } = generationResult
+    const { type, content, content_id, job_num, title } = generationResult
     if (type === 'resume') {
-      setDrawer(prev => prev ? { ...prev, resume: { id, content, job_num, title } } : null)
+      setDrawer(prev => prev ? { ...prev, resume: { id: content_id, content, job_num, title } } : null)
     } else if (type === 'cover') {
-      setDrawer(prev => prev ? { ...prev, coverLetter: { id, content, job_num, title } } : null)
+      setDrawer(prev => prev ? { ...prev, coverLetter: { id: content_id, content, job_num, title } } : null)
     }
   }, [generationResult])
 
@@ -186,7 +186,26 @@ function App() {
   const [deepLinkId, setDeepLinkId] = useState(() => {
     const h = window.location.hash.replace("#", "") || "jobs";
     const parts = h.split("/");
+    if (parts[0] === "companies" && parts[1]) return null;
     return parts[1] ? parseInt(parts[1]) : null;
+  });
+  const [deepLinkCompanyId, setDeepLinkCompanyId] = useState<string | null>(() => {
+    const h = window.location.hash.replace("#", "") || "";
+    const parts = h.split("/");
+    if (parts[0] === "companies" && parts[1]) return parts[1];
+    return null;
+  });
+  const [deepLinkSkill, setDeepLinkSkill] = useState<string | null>(() => {
+    const h = window.location.hash.replace("#", "") || "";
+    const parts = h.split("/");
+    // #skills/Kafka or #insights/skills/Kafka
+    if ((parts[0] === "skills" || parts[0] === "insights") && parts[1] && isNaN(parseInt(parts[1]))) {
+      return decodeURIComponent(parts[1]);
+    }
+    if (parts[0] === "insights" && parts[2] && isNaN(parseInt(parts[2]))) {
+      return decodeURIComponent(parts[2]);
+    }
+    return null;
   });
   const [drawer, setDrawer] = useState(null);
   const [drawerTab, setDrawerTab] = useState("details");
@@ -235,6 +254,17 @@ function App() {
       // For insights, second part is sub-tab (e.g. #insights/skills)
       if (newTab === "insights" && second && !parseInt(second)) {
         setCareerSubTab(second);
+        // #insights/skills/Kafka — skill name in third segment
+        const third = parts[2] || null;
+        if (second === "skills" && third && isNaN(parseInt(third))) {
+          setDeepLinkSkill(decodeURIComponent(third));
+        }
+      } else if (newTab === "skills" && second && isNaN(parseInt(second))) {
+        // #skills/Kafka — skill name in second segment
+        setDeepLinkSkill(decodeURIComponent(second));
+      } else if (newTab === "companies" && second) {
+        // #companies/{id} — company drawer
+        setDeepLinkCompanyId(second);
       } else if (second) {
         setDeepLinkId(parseInt(second));
       }
@@ -250,6 +280,14 @@ function App() {
       setDeepLinkId(null);
     }
   }, [deepLinkId, tab, jobs, drawer]);
+
+  useEffect(() => {
+    if (!deepLinkCompanyId) return;
+    if (tab === "companies" && !companyDrawer) {
+      openCompanyDrawer(deepLinkCompanyId);
+      setDeepLinkCompanyId(null);
+    }
+  }, [deepLinkCompanyId, tab, companyDrawer]);
 
   useEffect(() => {
     const handleOpenJob = (e) => {
@@ -320,25 +358,12 @@ function App() {
       const res = await fetch(`${API}/jobs/${num}`);
       if (res.ok) fullJob = await res.json();
     } catch {}
-    const r =
-      resumes?.find((x) => x.job_num === num && !x.id.startsWith("cover_")) ||
-      resumes?.find(
-        (x) =>
-          !x.id.startsWith("original") &&
-          !x.id.startsWith("cover_") &&
-          fullJob.company
-            .toLowerCase()
-            .includes(
-              (x.company || "")
-                .split(" ")[0]
-                .toLowerCase()
-                .replace(/[()]/g, ""),
-            ),
-      );
-    const cl = resumes?.find(
-      (x) => x.job_num === num && x.id.startsWith("cover_"),
-    );
-    setDrawer({ job: fullJob, summary: s, resume: r, coverLetter: cl });
+    setDrawer({
+      job: fullJob,
+      summary: s,
+      resume: fullJob.resume || null,
+      coverLetter: fullJob.coverLetter || null,
+    });
     setDrawerTab("details");
     window.history.replaceState(null, "", `#jobs/${num}`);
   };
@@ -348,6 +373,7 @@ function App() {
       const res = await fetch(`${API}/companies/${id}`);
       const data = await res.json();
       setCompanyDrawer(data);
+      window.history.replaceState(null, "", `#companies/${id}`);
     } catch (e) {
       console.error("Failed to load company", e);
     }
@@ -538,8 +564,8 @@ function App() {
               <CompaniesPage
                 companies={companies}
                 pendingCompanies={pendingCompanies}
-                deepLinkId={deepLinkId}
-                onClearDeepLink={() => setDeepLinkId(null)}
+                deepLinkId={deepLinkCompanyId}
+                onClearDeepLink={() => setDeepLinkCompanyId(null)}
                 onRefresh={() => {
                   fetchCompanies();
                   fetchPendingCompanies();
@@ -570,7 +596,7 @@ function App() {
               />
             )}
             {tab === "skills" && (
-              <SkillsTab />
+              <SkillsTab deepLinkSkill={deepLinkSkill} onClearDeepLink={() => setDeepLinkSkill(null)} />
             )}
             {tab === "resume" && (
               <ResumeTab
@@ -590,7 +616,7 @@ function App() {
       <JobDrawer
         drawer={drawer}
         drawerTab={drawerTab}
-        generationProgress={generationProgress}
+        activeGens={activeGens}
         companies={companies}
         onClose={() => {
           setDrawer(null);
@@ -601,8 +627,8 @@ function App() {
         onRequeueJob={handleRequeueJob}
         onUpdateJob={handleUpdateJob}
         onSetToast={(msg) => toast.success(msg)}
-        onGenerateResume={(num) => generateResume(num, setDrawer)}
-        onGenerateCover={(num) => generateCover(num, setDrawer)}
+        onGenerateResume={(num) => generateResume(num)}
+        onGenerateCover={(num) => generateCover(num)}
         onCancelGeneration={cancelGeneration}
         onLinkCompany={async (num, companyId) => {
           await fetch(`${API}/jobs/${num}/link-company`, {

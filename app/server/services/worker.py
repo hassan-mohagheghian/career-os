@@ -673,6 +673,17 @@ def _fetch_multi_source(url, notes, links, pid):
         except Exception as e:
             _log(pid, 'fetch', f'URL fetch failed: {e}')
 
+    # Fetch URL-type notes (e.g. LinkedIn URLs submitted via notes field)
+    for note in notes:
+        if note.get('type') == 'url' and note.get('content'):
+            note_url = note['content'].strip()
+            if note_url.startswith('http') and note_url not in url:
+                try:
+                    fetched = _fetch_url(note_url)
+                    parts.append(f"[URL] {fetched}")
+                except Exception as e:
+                    _log(pid, 'fetch', f'Note URL fetch failed ({note_url[:60]}): {e}')
+
     # Fetch each link URL
     for link in links:
         link_url = link.get('url', '')
@@ -1093,6 +1104,12 @@ def process_job(pid):
         else:
             # Legacy: URL-only fetch
             raw_text = _fetch_url(url)
+
+        if not raw_text or len(raw_text.strip()) < 50:
+            raise RuntimeError(
+                f"No content fetched — the URL may require login, be blocked, or be invalid. "
+                f"Check the URL and try again."
+            )
 
         with open(job_file, 'w') as f:
             f.write(raw_text)

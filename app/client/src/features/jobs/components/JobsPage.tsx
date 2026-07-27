@@ -63,24 +63,19 @@ export default function JobsPage({
         <div className="flex flex-col flex-1 min-h-0 p-2">
           {/* Add Job — URL + Notes + Links */}
           <NotesLinksInput
+            urlInput={urlInput}
+            setUrlInput={setUrlInput}
             notes={jobNotes}
             links={jobLinks}
             onAddNote={(note) => setJobNotes(prev => [...prev, note])}
             onRemoveNote={(i) => setJobNotes(prev => prev.filter((_, idx) => idx !== i))}
             onAddLink={(link) => setJobLinks(prev => [...prev, link])}
             onRemoveLink={(i) => setJobLinks(prev => prev.filter((_, idx) => idx !== i))}
-            onSubmit={() => {
-              // Build URL from first URL-type note, or use urlInput
-              const urlNote = jobNotes.find(n => n.type === 'url')
-              const url = urlNote?.content || urlInput
-              if (url) setUrlInput(url)
-              submitUrl(jobNotes, jobLinks)
-            }}
+            onSubmit={() => submitUrl(jobNotes, jobLinks)}
             submitting={submitting}
             processImmediately={processImmediately}
             onToggleProcess={() => setProcessImmediately(v => !v)}
             error={urlError}
-            placeholder="Paste LinkedIn URL or add a note..."
           />
           {/* Stacked sections */}
           <div className="flex flex-col flex-1 min-h-0 gap-1">

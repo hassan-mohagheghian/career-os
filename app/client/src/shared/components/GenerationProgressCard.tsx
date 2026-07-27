@@ -6,12 +6,77 @@ import { Card } from '@/shared/ui/card'
 import { Progress } from '@/shared/ui/progress'
 import { toast } from 'sonner'
 
-const DEFAULT_STEPS = [
-  { key: 'prepare', label: 'Preparing' },
-  { key: 'prompt', label: 'Prompt' },
-  { key: 'ai', label: 'AI' },
-  { key: 'save', label: 'Saving' },
-]
+// Step configurations for each generation source type
+export const STEP_CONFIGS: Record<string, { steps: Array<{ key: string; label: string }>; totalSteps: number }> = {
+  // Job processing: 8 steps
+  'job-processing': {
+    totalSteps: 8,
+    steps: [
+      { key: 'step_fetch', label: 'Fetching' },
+      { key: 'step_validate', label: 'Validating' },
+      { key: 'step_extract_raw', label: 'Extracting' },
+      { key: 'step_extract_struct', label: 'Structuring' },
+      { key: 'step_summary', label: 'Summarizing' },
+      { key: 'step_analyze', label: 'Analyzing' },
+      { key: 'step_db', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+  // Company processing: 5 steps
+  'company-processing': {
+    totalSteps: 5,
+    steps: [
+      { key: 'step_fetch', label: 'Fetching' },
+      { key: 'step_extract', label: 'Extracting' },
+      { key: 'step_analyze', label: 'Analyzing' },
+      { key: 'step_save', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+  // Resume/Cover letter generation: 5 steps
+  'resume': {
+    totalSteps: 5,
+    steps: [
+      { key: 'step_prepare', label: 'Preparing' },
+      { key: 'step_context', label: 'Context' },
+      { key: 'step_generate', label: 'Generating' },
+      { key: 'step_save', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+  'cover-letter': {
+    totalSteps: 5,
+    steps: [
+      { key: 'step_prepare', label: 'Preparing' },
+      { key: 'step_context', label: 'Context' },
+      { key: 'step_generate', label: 'Generating' },
+      { key: 'step_save', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+  // Insight generation: 4 steps
+  'insights': {
+    totalSteps: 4,
+    steps: [
+      { key: 'step_prepare', label: 'Preparing' },
+      { key: 'step_generate', label: 'Generating' },
+      { key: 'step_save', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+  // Skill roadmap: 4 steps
+  'roadmap': {
+    totalSteps: 4,
+    steps: [
+      { key: 'step_prepare', label: 'Preparing' },
+      { key: 'step_generate', label: 'Generating' },
+      { key: 'step_save', label: 'Saving' },
+      { key: 'step_done', label: 'Done' },
+    ],
+  },
+}
+
+const DEFAULT_STEPS = STEP_CONFIGS['insights'].steps
 
 function formatElapsed(seconds) {
   if (!seconds && seconds !== 0) return ''

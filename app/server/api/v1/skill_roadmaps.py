@@ -70,6 +70,22 @@ def get_roadmap_job_progress(skill: Optional[str] = Query(None), db=Depends(get_
     return dict(row)
 
 
+@router.get("/jobs")
+def get_roadmap_jobs(skill: Optional[str] = Query(None), limit: int = 20, db=Depends(get_db)):
+    """Get all roadmap jobs, optionally filtered by skill."""
+    if skill:
+        rows = db.execute(
+            "SELECT * FROM skill_roadmap_jobs WHERE LOWER(skill_name) = LOWER(?) ORDER BY created_at DESC LIMIT ?",
+            (skill, limit),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return {"items": [dict(r) for r in rows]}
+
+
 @router.get("/progress/all")
 def get_all_progress(db=Depends(get_db)):
     """Get all roadmap progress."""
@@ -137,11 +153,11 @@ async def finegrain_roadmap(data: dict):
     return {"status": "started", "skill_name": skill_name}
 
 
-@router.post("/{skill_name}/cancel")
-def cancel_roadmap(skill_name: str):
-    """Cancel roadmap generation."""
+@router.post("/cancel")
+def cancel_roadmap(skill: str = Query(...)):
+    """Cancel roadmap generation for a skill."""
     manager = get_task_manager()
-    manager.cancel(f"roadmap_generate_{skill_name}")
-    manager.cancel(f"roadmap_extend_{skill_name}")
-    manager.cancel(f"roadmap_finegrain_{skill_name}")
-    return {"status": "cancelled", "skill_name": skill_name}
+    manager.cancel(f"roadmap_generate_{skill}")
+    manager.cancel(f"roadmap_extend_{skill}")
+    manager.cancel(f"roadmap_finegrain_{skill}")
+    return {"status": "cancelled", "skill_name": skill}

@@ -264,6 +264,8 @@ def ensure_db_schema():
             conn.execute("ALTER TABLE skill_roadmap_jobs ADD COLUMN session_id TEXT")
         if "pid" not in job_cols:
             conn.execute("ALTER TABLE skill_roadmap_jobs ADD COLUMN pid INTEGER")
+        if "provider_name" not in job_cols:
+            conn.execute("ALTER TABLE skill_roadmap_jobs ADD COLUMN provider_name TEXT")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_skill_roadmaps_skill ON skill_roadmaps(skill_name, parent_id)"
     )

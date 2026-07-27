@@ -1,5 +1,7 @@
 """Job CRUD, rescore, and reprocess routes."""
 
+import json
+import threading
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
@@ -67,13 +69,50 @@ def get_summaries(db: sqlite3.Connection = Depends(get_db)):
     return [dict(r) for r in rows]
 
 
+@router.get("/{num}/generation-history")
+def get_job_generation_history(num: int, db: sqlite3.Connection = Depends(get_db)):
+    """Get generation history (resume + cover) for a specific job."""
+    rows = db.execute(
+        "SELECT id, type, status, error, created_at, updated_at "
+        "FROM pending_generations WHERE job_num=? ORDER BY created_at DESC",
+        (num,),
+    ).fetchall()
+    title_map = {'resume': 'Resume', 'cover': 'Cover Letter', 'cover_letter': 'Cover Letter'}
+    return [
+        {
+            "id": r["id"],
+            "type": r["type"],
+            "title": title_map.get(r["type"], r["type"]),
+            "status": r["status"],
+            "error": r["error"],
+            "started_at": r["created_at"],
+            "completed_at": r["updated_at"] if r["status"] in ("done", "failed") else None,
+        }
+        for r in rows
+    ]
+
+
 @router.get("/{num}")
-def get_job(num: int, repo: JobRepository = Depends(_get_repo)):
-    """Get a single job by number."""
+def get_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+    """Get a single job by number with its resume and cover letter."""
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
-    return job
+
+    resume = db.execute(
+        "SELECT id, title, content, job_num FROM resumes WHERE job_num=? AND id NOT LIKE 'cover_%' ORDER BY created_at DESC LIMIT 1",
+        (num,),
+    ).fetchone()
+    cover = db.execute(
+        "SELECT id, title, content, job_num FROM resumes WHERE job_num=? AND id LIKE 'cover_%' ORDER BY created_at DESC LIMIT 1",
+        (num,),
+    ).fetchone()
+
+    return {
+        **job,
+        "resume": dict(resume) if resume else None,
+        "coverLetter": dict(cover) if cover else None,
+    }
 
 
 @router.put("/{num}")
@@ -213,3 +252,75 @@ def reprocess_all(repo: JobRepository = Depends(_get_repo), db: sqlite3.Connecti
     if pending_ids:
         get_queue_manager().enqueue_bulk(pending_ids)
     return {"status": "reprocessing", "count": len(pending_ids)}
+
+
+@router.post("/{num}/generate-resume")
+def generate_resume(num: int, db: sqlite3.Connection = Depends(get_db)):
+    """Start background resume generation for a job."""
+    job = db.execute("SELECT num, company, role FROM jobs WHERE num=? AND deleted=0", (num,)).fetchone()
+    if not job:
+        raise NotFoundError(f"Job {num} not found")
+
+    running = db.execute(
+        "SELECT id FROM pending_generations WHERE job_num=? AND type='resume' AND status IN ('queued','processing')",
+        (num,),
+    ).fetchone()
+    if running:
+        raise BadRequestError("A resume generation is already running for this job")
+
+    cur = db.execute(
+        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, ?, ?)",
+        (num, 'resume', 'queued'),
+    )
+    db.commit()
+    gen_id = cur.lastrowid
+
+    def _run():
+        from services.generation_worker import process_generation
+        try:
+            process_generation(gen_id)
+        except Exception as e:
+            import logging
+            logging.getLogger('jobs').error(f"Generation {gen_id} failed: {e}")
+            try:
+                db2 = get_db()
+                db2.execute("UPDATE pending_generations SET status='failed', error=? WHERE id=?", (str(e), gen_id))
+                db2.commit()
+                db2.close()
+            except Exception:
+                pass
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"gen_id": gen_id, "status": "queued", "job_num": num}
+
+
+@router.post("/{num}/generate-cover")
+def generate_cover(num: int, db: sqlite3.Connection = Depends(get_db)):
+    """Start background cover letter generation for a job."""
+    job = db.execute("SELECT num, company, role FROM jobs WHERE num=? AND deleted=0", (num,)).fetchone()
+    if not job:
+        raise NotFoundError(f"Job {num} not found")
+
+    running = db.execute(
+        "SELECT id FROM pending_generations WHERE job_num=? AND type='cover' AND status IN ('queued','processing')",
+        (num,),
+    ).fetchone()
+    if running:
+        raise BadRequestError("A cover letter generation is already running for this job")
+
+    cur = db.execute(
+        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, ?, ?)",
+        (num, 'cover', 'queued'),
+    )
+    db.commit()
+    gen_id = cur.lastrowid
+
+    def _run():
+        from services.generation_worker import process_generation
+        try:
+            process_generation(gen_id)
+        except Exception:
+            pass
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"gen_id": gen_id, "status": "queued", "job_num": num}

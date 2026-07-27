@@ -187,3 +187,11 @@ class TestProviderFactory:
             assert isinstance(provider, LLMProvider)
             assert provider.name == "gemini"
         reset_providers()
+
+    def test_get_provider_opencode_stub(self):
+        from app.ai.providers import get_provider, reset_providers
+        reset_providers()
+        provider = get_provider("opencode")
+        assert isinstance(provider, LLMProvider)
+        assert provider.name == "opencode"
+        reset_providers()

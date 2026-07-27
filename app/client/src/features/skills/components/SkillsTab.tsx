@@ -2,7 +2,6 @@ import {
   Brain, Target, Warning, Lightning, ArrowsClockwise, ArrowRight,
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
-import GenerationProgressCard from '@/shared/components/GenerationProgressCard'
 import SkillsIntelSection from '@/features/insights/components/SkillsIntelSection'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -18,7 +17,7 @@ function MiniStat({ label, value, color }: { label: string; value: number | stri
   )
 }
 
-export default function SkillsTab() {
+export default function SkillsTab({ deepLinkSkill, onClearDeepLink }: { deepLinkSkill?: string | null; onClearDeepLink?: () => void } = {}) {
   const {
     skillRoadmapProgress, skillGenJobs,
     refreshSkillRoadmapProgress, dashboardData,
@@ -76,20 +75,6 @@ export default function SkillsTab() {
         </Card>
       )}
 
-      {/* Active Generation Jobs */}
-      {activeJobs.length > 0 && (
-        <div className="space-y-1">
-          {activeJobs.map((job: any) => (
-            <GenerationProgressCard
-              key={job.skill}
-              title={job.skill}
-              progress={{ running: true, ...job }}
-              compact
-            />
-          ))}
-        </div>
-      )}
-
       {/* Full Skills Management — with intelligence data */}
       <SkillsIntelSection
         data={dashboardData?.intel_report ? { skills_intel: dashboardData.intel_report.data } : {}}
@@ -99,6 +84,8 @@ export default function SkillsTab() {
         onRefreshProgress={refreshSkillRoadmapProgress}
         genJobs={activeJobs}
         status={{}}
+        deepLinkSkill={deepLinkSkill}
+        onClearDeepLink={onClearDeepLink}
       />
     </div>
   )

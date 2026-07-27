@@ -7,6 +7,7 @@ receive the same domain events.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Optional, List, Callable
@@ -36,11 +37,25 @@ class Broadcaster(IBroadcaster):
         self._listeners.append(listener)
 
     def _emit(self, event: str, data: dict, room: Optional[str] = None) -> None:
-        if self._socketio:
-            try:
-                self._socketio.emit(event, data, room=room)
-            except Exception as e:
-                logger.debug(f"[broadcaster] SocketIO emit failed: {e}")
+        if not self._socketio:
+            return
+
+        async def _send():
+            if room:
+                await self._socketio.emit(event, data, room=room)
+            else:
+                await self._socketio.emit(event, data)
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(_send())
+            else:
+                loop.run_until_complete(_send())
+        except RuntimeError:
+            asyncio.run(_send())
+        except Exception as e:
+            logger.debug(f"[broadcaster] SocketIO emit failed: {e}")
 
     def _notify_listeners(self, event_type: str, data: dict) -> None:
         for listener in self._listeners:
