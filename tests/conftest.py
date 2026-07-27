@@ -337,3 +337,30 @@ async def async_client(test_db):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+# ── SQLAlchemy Session Fixtures ──────────────────────────────────
+
+@pytest.fixture
+def sa_session():
+    """Create a SQLAlchemy session for testing with in-memory SQLite."""
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import sessionmaker
+    from infrastructure.database.sqlalchemy_config import Base
+
+    engine = create_engine("sqlite:///:memory:", echo=False, connect_args={"check_same_thread": False})
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine)
+    session = TestSession()
+
+    yield session
+    session.close()
+    engine.dispose()

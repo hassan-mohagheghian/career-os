@@ -1,0 +1,69 @@
+"""SQLAlchemy ORM models for the skills tables."""
+
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from infrastructure.database.sqlalchemy_config import Base
+
+
+class SkillModel(Base):
+    """SQLAlchemy model for the skills table."""
+
+    __tablename__ = "skills"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    ml: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    mc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    roles: Mapped[str] = mapped_column(String, default="")
+    path: Mapped[str] = mapped_column(String, default="")
+    source: Mapped[str] = mapped_column(String, default="service")
+    hidden: Mapped[int] = mapped_column(Integer, default=0)
+    merged_into: Mapped[str] = mapped_column(String, default="")
+    category: Mapped[str] = mapped_column(String, default="")
+    confidence: Mapped[float] = mapped_column(Float, default=0)
+    market_relevance: Mapped[float] = mapped_column(Float, default=0)
+    evidence: Mapped[str] = mapped_column(Text, default="[]")
+    source_type: Mapped[str] = mapped_column(String, default="service")
+    tags: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+    # Relationships
+    aliases: Mapped[list["SkillAliasModel"]] = relationship(
+        back_populates="skill", cascade="all, delete-orphan"
+    )
+
+
+class SkillAliasModel(Base):
+    """SQLAlchemy model for the skill_aliases table."""
+
+    __tablename__ = "skill_aliases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skills.id"), nullable=False)
+    alias_name: Mapped[str] = mapped_column(String, nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+    # Relationships
+    skill: Mapped["SkillModel"] = relationship(back_populates="aliases")
+
+
+class SkillRelationshipModel(Base):
+    """SQLAlchemy model for the skill_relationships table."""
+
+    __tablename__ = "skill_relationships"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    skill_name: Mapped[str] = mapped_column(String, nullable=False)
+    related_name: Mapped[str] = mapped_column(String, nullable=False)
+    relation_type: Mapped[str] = mapped_column(String, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("skill_name", "related_name", "relation_type"),
+    )

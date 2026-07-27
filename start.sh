@@ -76,6 +76,15 @@ start_backend() {
     log "Starting backend server..."
     log "Using Python: $PYTHON"
     cd "$SERVER_DIR"
+
+    # Run Alembic migrations before starting
+    if [ -f "$SCRIPT_DIR/.venv/bin/alembic" ]; then
+        log "Running database migrations..."
+        cd "$SCRIPT_DIR"
+        .venv/bin/alembic upgrade head 2>&1 || warn "Alembic migration warning (non-fatal)"
+        cd "$SERVER_DIR"
+    fi
+
     $PYTHON -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload &
     echo $! > "$PID_FILE"
     ok "Backend started (PID: $(cat $PID_FILE)) on http://localhost:5000"

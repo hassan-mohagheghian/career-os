@@ -1,6 +1,7 @@
 """FastAPI dependency injection functions.
 
 These functions provide dependencies for route handlers via FastAPI's Depends() system.
+Supports both legacy sqlite3 connections and new SQLAlchemy sessions.
 """
 
 import sqlite3
@@ -8,6 +9,8 @@ from typing import Generator
 
 from config import DB_PATH
 
+
+# ── Legacy sqlite3 dependencies (kept for backward compatibility) ──
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
     """Get a database connection for the request lifetime."""
@@ -30,7 +33,32 @@ def get_db_sync() -> sqlite3.Connection:
     return conn
 
 
-# ── Repository Dependencies ──────────────────────────────────────
+# ── SQLAlchemy Session Dependencies ──────────────────────────────
+
+def get_sqlalchemy_session() -> Generator:
+    """Get a SQLAlchemy session for the request lifetime.
+
+    Yields a Session and auto-commits on success, rolls back on error.
+    """
+    from infrastructure.database.sqlalchemy_config import SessionLocal
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_sqlalchemy_session_sync():
+    """Get a synchronous SQLAlchemy session (for non-async contexts)."""
+    from infrastructure.database.sqlalchemy_config import SessionLocal
+    return SessionLocal()
+
+
+# ── Legacy Repository Dependencies ──────────────────────────────
 
 def get_job_repository(db: sqlite3.Connection = None) -> "JobRepository":
     """Get job repository instance."""
@@ -72,7 +100,49 @@ def get_insight_repository(db: sqlite3.Connection = None) -> "InsightRepository"
     return InsightRepository(db)
 
 
-# ── FastAPI Depends() wrappers ──────────────────────────────────
+# ── SQLAlchemy Repository Dependencies ───────────────────────────
+
+def get_sa_job_repository():
+    """FastAPI dependency for SQLAlchemy job repository."""
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from fastapi import Depends
+    session = Depends(get_sqlalchemy_session)
+    return SQLAlchemyJobRepository(session)
+
+
+def get_sa_skill_repository():
+    """FastAPI dependency for SQLAlchemy skill repository."""
+    from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+    from fastapi import Depends
+    session = Depends(get_sqlalchemy_session)
+    return SQLAlchemySkillRepository(session)
+
+
+def get_sa_company_repository():
+    """FastAPI dependency for SQLAlchemy company repository."""
+    from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+    from fastapi import Depends
+    session = Depends(get_sqlalchemy_session)
+    return SQLAlchemyCompanyRepository(session)
+
+
+def get_sa_pending_repository():
+    """FastAPI dependency for SQLAlchemy pending repository."""
+    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from fastapi import Depends
+    session = Depends(get_sqlalchemy_session)
+    return SQLAlchemyPendingRepository(session)
+
+
+def get_sa_insight_repository():
+    """FastAPI dependency for SQLAlchemy insight repository."""
+    from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
+    from fastapi import Depends
+    session = Depends(get_sqlalchemy_session)
+    return SQLAlchemyInsightRepository(session)
+
+
+# ── FastAPI Depends() wrappers (legacy) ─────────────────────────
 
 def DependsJobRepository():
     """FastAPI dependency for job repository."""
