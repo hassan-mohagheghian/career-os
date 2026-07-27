@@ -178,10 +178,12 @@ class TestProviderFactory:
         assert provider.name == "openai"
         reset_providers()
 
-    def test_get_provider_local_stub(self):
+    def test_get_provider_gemini_stub(self):
         from app.ai.providers import get_provider, reset_providers
         reset_providers()
-        provider = get_provider("local")
-        assert isinstance(provider, LLMProvider)
-        assert provider.name == "local"
+        # Mock API key to avoid errors in initialization or ensure it checks for key
+        with patch.dict("os.environ", {"GOOGLE_API_KEY": "fake-key"}):
+            provider = get_provider("gemini")
+            assert isinstance(provider, LLMProvider)
+            assert provider.name == "gemini"
         reset_providers()

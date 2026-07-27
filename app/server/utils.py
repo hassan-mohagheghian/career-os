@@ -5,8 +5,6 @@ import re
 import json
 from urllib.parse import urlparse
 
-from flask import Response
-
 
 def normalize_url(url):
     """Remove query parameters and trailing slash from URL for duplicate detection."""
@@ -20,10 +18,8 @@ def normalize_url(url):
 
 
 def stream_json(data):
-    """Stream JSON response for large payloads."""
-    def generate():
-        yield json.dumps(data, ensure_ascii=False)
-    return Response(generate(), mimetype='application/json')
+    """Return JSON data as a dictionary (for FastAPI auto-serialization)."""
+    return data
 
 
 def mask_pii(text):

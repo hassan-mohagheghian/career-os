@@ -151,7 +151,9 @@ export default function SkillDetailDrawer({
     try {
       const res = await fetch(`${API}/skill-roadmaps?skill=${encodeURIComponent(skillName)}`);
       const data = await res.json();
-      setRoadmapItems(data.roadmap || []);
+      const items = data.roadmap || [];
+      setRoadmapItems(items);
+      if (items.length > 0) setRoadmapExpanded(true);
     } catch { setRoadmapItems([]); }
   }, [skillName, open]);
 
@@ -251,7 +253,7 @@ export default function SkillDetailDrawer({
   if (!skillName) return null;
 
   const prog = roadmapProgress[skillName];
-  const hasRoadmap = prog && prog.total > 0;
+  const hasRoadmap = (prog && prog.total > 0) || roadmapItems.length > 0;
   const evidence = (() => { try { return JSON.parse(skill.evidence || "[]"); } catch { return []; } })();
 
   return (

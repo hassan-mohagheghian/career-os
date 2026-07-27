@@ -45,8 +45,14 @@ def _create_provider(name: str, config: Optional[ProviderConfig] = None) -> LLMP
     elif name == "local":
         from .local.adapter import LocalLLMProvider
         return LocalLLMProvider(config)
+    elif name == "gemini":
+        from .gemini.adapter import GeminiProvider
+        return GeminiProvider(config)
+    elif name == "agy":
+        from .agy.adapter import AGYProvider
+        return AGYProvider(config)
     else:
-        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local")
+        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local, gemini, agy")
 
 
 def reset_providers():

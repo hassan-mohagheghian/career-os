@@ -65,3 +65,4 @@ app/server/logs/
 
 # Generated schema
 sql_roadmap.json
+.aider*

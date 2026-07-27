@@ -4,9 +4,9 @@
 # ─────────────────────────────────────────────────────────────────
 #
 # Usage:
-#   ./start.sh              Start both backend and frontend
-#   ./start.sh backend      Start only backend
-#   ./start.sh frontend     Start only frontend
+#   ./start.sh              Start FastAPI backend + frontend
+#   ./start.sh backend      Start FastAPI backend only
+#   ./start.sh frontend     Start only frontend dev server
 #   ./start.sh stop         Stop all running processes
 #   ./start.sh status       Show running processes
 #
@@ -76,7 +76,7 @@ start_backend() {
     log "Starting backend server..."
     log "Using Python: $PYTHON"
     cd "$SERVER_DIR"
-    $PYTHON app.py &
+    $PYTHON -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload &
     echo $! > "$PID_FILE"
     ok "Backend started (PID: $(cat $PID_FILE)) on http://localhost:5000"
 }
@@ -126,12 +126,6 @@ show_status() {
     if [ -f "$SCRIPT_DIR/.env" ]; then
         AI_PROVIDER=$(grep -E "^AI_PROVIDER=" "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2 || echo "mimo")
         ok "AI Provider: ${AI_PROVIDER:-mimo}"
-    fi
-
-    # Background workers
-    PYTHON_COUNT=$(pgrep -f "python.*app.py" 2>/dev/null | wc -l)
-    if [ "$PYTHON_COUNT" -gt 0 ]; then
-        warn "Python:   $PYTHON_COUNT process(es) running"
     fi
 
     echo ""

@@ -13,11 +13,15 @@
 └─────────────────────────┬───────────────────────────────┘
                           │ HTTP/WebSocket
 ┌─────────────────────────┼───────────────────────────────┐
-│                 Flask API (port 5000)                     │
-│            ┌────────────▼────────────┐                   │
-│            │      SQLite DB          │                   │
-│            │      (jobs.db)          │                   │
-│            └─────────────────────────┘                   │
+│               FastAPI (port 5000)                         │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+│  │  Routers │ │Services  │ │  Repos   │ │ WebSocket│  │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘  │
+│       └────────────┴────────────┴────────────┘         │
+│            ┌────────────▼────────────┐                  │
+│            │      SQLite DB          │                  │
+│            │      (jobs.db)          │                  │
+│            └─────────────────────────┘                  │
 └─────────────────────────┬───────────────────────────────┘
                           │
               ┌───────────▼───────────┐
@@ -33,7 +37,33 @@
               └───────────────────────┘
 ```
 
-**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | Flask 3.1 + Python 3.14 + SQLite (raw SQL) | AI Agent Layer (LLMService + LangGraph) | WebSocket (SocketIO, threading mode)
+**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | FastAPI + Python 3.14 + SQLite (raw SQL) | Pydantic v2 | AI Agent Layer (LLMService + LangGraph) | WebSocket (native FastAPI)
+
+## Architecture Layers
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Presentation Layer                     │
+│              (FastAPI Routers + WebSocket)                │
+│         request validation, response serialization       │
+├─────────────────────────────────────────────────────────┤
+│                   Application Layer                      │
+│            (Services + Use Cases + DTOs)                  │
+│         orchestration, business workflow                  │
+├─────────────────────────────────────────────────────────┤
+│                     Domain Layer                         │
+│          (Entities + Value Objects + Events)              │
+│         business rules, invariants                        │
+├─────────────────────────────────────────────────────────┤
+│                 Infrastructure Layer                     │
+│        (DB + External APIs + File System)                 │
+│         persistence, third-party integration              │
+├─────────────────────────────────────────────────────────┤
+│                    Shared/Core Layer                      │
+│          (Config + Logging + Dependencies)                │
+│         cross-cutting concerns                            │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Core Entities
 
@@ -103,38 +133,44 @@ app/
 │   ├── prompts/           Centralized prompt registry
 │   └── logging.py         Structured agent events
 ├── server/
-│   ├── app.py              Flask entry point, SocketIO, blueprints
-│   ├── ai_compat.py        Bridge for server → ai imports
-│   ├── config.py           Centralized path constants + AI_PROVIDER
-│   ├── database.py         get_db() helper
-│   ├── migrations.py       Schema + data migrations
-│   ├── blueprints/         API routes (10 blueprints)
-│   │   ├── jobs.py         Job CRUD, scoring
-│   │   ├── pending.py      Processing queue (accepts notes+links)
-│   │   ├── companies.py    Company CRUD, intelligence
-│   │   ├── insights.py     Career intelligence endpoints
-│   │   ├── tech_stack.py   Skills CRUD, merge, taxonomy
-│   │   ├── skill_roadmaps.py  Roadmap generation, progress
-│   │   ├── resumes.py      Resume/cover letter generation
-│   │   ├── rules.py        Scoring rules
-│   │   ├── misc.py         Generation history, dashboard
-│   │   ├── api_docs.py     Swagger UI + ReDoc
-│   │   └── static.py       SPA static serving
-│   ├── services/
-│   │   ├── worker.py       Job processing pipeline (uses LLMService)
-│   │   ├── company_worker.py  Company processing (uses LLMService)
-│   │   ├── insights.py     Career intelligence (uses LLMService)
-│   │   └── process/        Broadcaster, models, process_manager
-│   ├── core/
-│   │   ├── db.py           DB schema, migrations
-│   │   └── queue.py        Job queue manager (shared for jobs + companies)
-│   ├── prompts/            AI prompt templates
-│   │   ├── insights/       Career intelligence (7 prompts)
-│   │   ├── skill_roadmaps/ Skill roadmap generation
-│   │   ├── job_processing/ Job processing steps
-│   │   ├── company/        Company analysis
-│   │   └── resume/         Resume generation
-│   └── tests/              306 tests mirroring server structure
+│   ├── main.py              FastAPI entry point (primary server)
+│   ├── app.py               Flask entry point (legacy, optional)
+│   ├── config.py            Centralized path constants + AI_PROVIDER
+│   ├── database.py          get_db() helper (Flask compatibility)
+│   ├── dependencies.py      FastAPI dependency injection
+│   ├── exceptions.py        Custom exception classes
+│   ├── migrations.py        Schema + data migrations
+│   ├── api/                 FastAPI routers (presentation layer)
+│   │   ├── router.py        Root API router
+│   │   └── v1/             API v1 endpoints
+│   │       ├── jobs.py      Job CRUD, scoring
+│   │       ├── companies.py Company CRUD, intelligence
+│   │       ├── skills.py    Skills CRUD, merge, taxonomy
+│   │       ├── insights.py  Career intelligence endpoints
+│   │       ├── pending.py   Processing queue
+│   │       ├── resumes.py   Resume/cover letter generation
+│   │       ├── skill_roadmaps.py  Roadmap generation
+│   │       ├── rules.py     Scoring rules
+│   │       ├── dashboard.py Dashboard data, cities
+│   │       ├── websocket.py WebSocket endpoint
+│   │       └── sse.py       SSE streaming endpoints
+│   ├── domain/              Domain layer (interfaces)
+│   │   └── repositories/    Repository interfaces (ABCs)
+│   ├── infrastructure/      Infrastructure layer (implementations)
+│   │   ├── database/        Repository implementations
+│   │   ├── websocket/       WebSocket manager + broadcaster
+│   │   └── workers/         Background task management
+│   ├── schemas/             Pydantic request/response models
+│   ├── services/            Business logic services
+│   │   ├── worker.py        Job processing pipeline
+│   │   ├── company_worker.py Company processing
+│   │   ├── insights.py      Career intelligence
+│   │   └── process/         Broadcaster, models, process_manager
+│   ├── core/                Core infrastructure
+│   │   ├── db.py            DB schema, migrations
+│   │   └── queue.py         Job queue manager
+│   ├── prompts/             AI prompt templates
+│   └── tests/               Test suite
 └── client/
     └── src/
         ├── features/       Feature-based (each has components/, hooks/)
