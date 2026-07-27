@@ -1,55 +1,52 @@
 """Company CRUD, intelligence, notes, links."""
 
-import sqlite3
+import json
 
 from fastapi import APIRouter, Depends
 
-from dependencies import get_db
-from infrastructure.database.company_repository import CompanyRepository
+from dependencies import get_company_repo, get_company_link_repo, get_company_intelligence_repo, get_job_repo
+from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
+from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
 from exceptions import NotFoundError
 
 router = APIRouter()
 
 
-def _get_repo(db: sqlite3.Connection = Depends(get_db)) -> CompanyRepository:
-    return CompanyRepository(db)
-
-
 @router.get("")
-def list_companies(db: sqlite3.Connection = Depends(get_db)):
+def list_companies(
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+):
     """List all companies with intelligence scores."""
-    import json
-    rows = db.execute("SELECT * FROM companies ORDER BY name").fetchall()
-    companies = []
-    for row in rows:
-        c = dict(row)
-        intel_row = db.execute(
-            "SELECT scores FROM company_intelligence WHERE company_id=?", (c["id"],)
-        ).fetchone()
-        if intel_row and intel_row["scores"]:
+    companies = repo.list_all()
+    for c in companies:
+        intel = intel_repo.get_by_company_id(c["id"])
+        if intel and intel.get("scores"):
             try:
-                c["scores"] = json.loads(intel_row["scores"])
+                c["scores"] = json.loads(intel["scores"])
             except (json.JSONDecodeError, TypeError):
                 c["scores"] = {}
         else:
             c["scores"] = {}
-        companies.append(c)
     return companies
 
 
 @router.get("/{id}")
-def get_company(id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_company(
+    id: int,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
     """Get a company by ID with intelligence and linked jobs."""
-    import json
-    row = db.execute("SELECT * FROM companies WHERE id=?", (id,)).fetchone()
-    if not row:
+    company = repo.get_by_id(id)
+    if not company:
         raise NotFoundError(f"Company {id} not found")
-    company = dict(row)
 
-    # Attach intelligence (parse JSON fields)
-    intel_row = db.execute("SELECT * FROM company_intelligence WHERE company_id=?", (id,)).fetchone()
-    if intel_row:
-        intel = dict(intel_row)
+    intel = intel_repo.get_by_company_id(id)
+    if intel:
         for field in ["overview", "culture_analysis", "international_analysis", "career_analysis",
                        "benefits_analysis", "visa_analysis", "technology_analysis", "recommendation",
                        "scores", "raw_source_data"]:
@@ -58,28 +55,22 @@ def get_company(id: int, db: sqlite3.Connection = Depends(get_db)):
                     intel[field] = json.loads(intel[field])
                 except (json.JSONDecodeError, TypeError):
                     pass
-        company["intelligence"] = intel
-    else:
-        company["intelligence"] = None
+    company["intelligence"] = intel
 
-    # Attach linked jobs
-    jobs = db.execute(
-        "SELECT num, company, role, location, match, score, fit_score, success_score, overall_score FROM jobs WHERE company_id=? AND deleted=0",
-        (id,),
-    ).fetchall()
-    company["jobs"] = [dict(j) for j in jobs]
+    jobs = job_repo.get_jobs_by_company_id(id)
+    company["jobs"] = [{k: j[k] for k in ["num", "company", "role", "location", "match", "score", "fit_score", "success_score", "overall_score"] if k in j} for j in jobs]
 
     return company
 
 
 @router.post("")
-def create_company(data: dict, repo: CompanyRepository = Depends(_get_repo)):
+def create_company(data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
     """Create a new company."""
     return repo.create(data)
 
 
 @router.put("/{id}")
-def update_company(id: int, data: dict, repo: CompanyRepository = Depends(_get_repo)):
+def update_company(id: int, data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
     """Update a company."""
     company = repo.update(id, data)
     if not company:
@@ -88,20 +79,18 @@ def update_company(id: int, data: dict, repo: CompanyRepository = Depends(_get_r
 
 
 @router.delete("/{id}")
-def delete_company(id: int, repo: CompanyRepository = Depends(_get_repo)):
+def delete_company(id: int, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
     """Delete a company."""
     repo.delete(id)
     return {"status": "deleted", "id": id}
 
 
 @router.get("/{id}/intelligence")
-def get_company_intelligence(id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_company_intelligence(id: int, repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo)):
     """Get company intelligence."""
-    import json
-    row = db.execute("SELECT * FROM company_intelligence WHERE company_id=?", (id,)).fetchone()
-    if not row:
+    intel = repo.get_by_company_id(id)
+    if not intel:
         return {"company_id": id, "overview": None}
-    intel = dict(row)
     for field in ["overview", "culture_analysis", "international_analysis", "career_analysis",
                    "benefits_analysis", "visa_analysis", "technology_analysis", "recommendation",
                    "scores", "raw_source_data"]:
@@ -114,67 +103,47 @@ def get_company_intelligence(id: int, db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/{id}/jobs")
-def get_company_jobs(id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_company_jobs(id: int, job_repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Get jobs linked to this company."""
-    rows = db.execute(
-        "SELECT * FROM jobs WHERE company_id=? AND deleted=0 ORDER BY created_at DESC",
-        (id,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    return job_repo.get_jobs_by_company_id(id)
 
 
 @router.get("/{id}/links")
-def get_company_links(id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_company_links(id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Get all links for a company."""
-    rows = db.execute("SELECT * FROM company_links WHERE company_id=?", (id,)).fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_by_company_id(id)
 
 
 @router.post("/{id}/links")
-def add_company_link(id: int, data: dict, db: sqlite3.Connection = Depends(get_db)):
+def add_company_link(id: int, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Add a link to a company."""
-    cur = db.execute(
-        "INSERT INTO company_links (company_id, url, title, description) VALUES (?, ?, ?, ?)",
-        (id, data.get("url", ""), data.get("title", ""), data.get("description", "")),
-    )
-    db.commit()
-    row = db.execute("SELECT * FROM company_links WHERE id=?", (cur.lastrowid,)).fetchone()
-    return dict(row)
+    return repo.create(id, data.get("url", ""), data.get("title", ""), data.get("description", ""))
 
 
 @router.delete("/{id}/links/{link_id}")
-def delete_company_link(id: int, link_id: int, db: sqlite3.Connection = Depends(get_db)):
+def delete_company_link(id: int, link_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Delete a company link."""
-    db.execute("DELETE FROM company_links WHERE id=? AND company_id=?", (link_id, id))
-    db.commit()
+    repo.delete(link_id, id)
     return {"status": "deleted"}
 
 
 @router.post("/{id}/notes")
-def add_note(id: int, data: dict, db: sqlite3.Connection = Depends(get_db)):
+def add_note(id: int, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Add a note to a company."""
     content = data.get("content", "")
-    db.execute(
-        "INSERT INTO company_links (company_id, url, title) VALUES (?, ?, ?)",
-        (id, "", f"note:{content}"),
-    )
-    db.commit()
+    repo.create(id, "", f"note:{content}")
     return {"status": "created"}
 
 
 @router.get("/{id}/notes")
-def get_company_notes(id: int, db: sqlite3.Connection = Depends(get_db)):
+def get_company_notes(id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Get all notes for a company."""
-    rows = db.execute(
-        "SELECT * FROM company_links WHERE company_id=? AND title LIKE 'note:%'",
-        (id,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    links = repo.get_by_company_id(id)
+    return [l for l in links if l.get("title", "").startswith("note:")]
 
 
 @router.delete("/{id}/notes/{note_id}")
-def delete_company_note(id: int, note_id: int, db: sqlite3.Connection = Depends(get_db)):
+def delete_company_note(id: int, note_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Delete a company note."""
-    db.execute("DELETE FROM company_links WHERE id=? AND company_id=?", (note_id, id))
-    db.commit()
+    repo.delete(note_id, id)
     return {"status": "deleted"}

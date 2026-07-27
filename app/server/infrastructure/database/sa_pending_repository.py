@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from domain.repositories.pending_repository import IPendingRepository
@@ -98,3 +99,165 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         elif table == "pending_companies":
             return self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status != "done").count()
         return 0
+
+    # ── Extended methods for queue and services ─────────────────────
+
+    def get_by_url(self, url: str) -> dict[str, Any] | None:
+        m = self._session.query(PendingJobModel).filter(PendingJobModel.url == url).first()
+        return pending_job_model_to_dict(m) if m else None
+
+    def update_fields(self, item_id: int, table: str = "pending_jobs", **fields) -> bool:
+        if table == "pending_jobs":
+            m = self._session.query(PendingJobModel).filter(PendingJobModel.id == item_id).first()
+        elif table == "pending_companies":
+            m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == item_id).first()
+        else:
+            return False
+        if not m:
+            return False
+        for k, v in fields.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
+        self._session.commit()
+        return True
+
+    def update_step(self, item_id: int, step_field: str, value: int, table: str = "pending_jobs", **extra) -> bool:
+        fields = {step_field: value}
+        fields.update(extra)
+        return self.update_fields(item_id, table, **fields)
+
+    def save_session_id(self, item_id: int, session_id: str, table: str = "pending_jobs") -> bool:
+        return self.update_fields(item_id, table, session_id=session_id)
+
+    def update_workflow_log(self, item_id: int, log_json: str, table: str = "pending_jobs") -> bool:
+        return self.update_fields(item_id, table, workflow_log=log_json)
+
+    def get_max_queue_order(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            result = self._session.query(func.max(PendingJobModel.queue_order)).scalar()
+        elif table == "pending_companies":
+            result = 0
+        else:
+            result = 0
+        return result or 0
+
+    def get_processing_count(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            return self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").count()
+        elif table == "pending_companies":
+            return self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").count()
+        return 0
+
+    def get_queued_count(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            return self._session.query(PendingJobModel).filter(PendingJobModel.status == "queued").count()
+        elif table == "pending_companies":
+            return self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "queued").count()
+        return 0
+
+    def get_processing_items(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
+        if table == "pending_jobs":
+            rows = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").all()
+            return [pending_job_model_to_dict(r) for r in rows]
+        elif table == "pending_companies":
+            rows = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").all()
+            return [pending_company_model_to_dict(r) for r in rows]
+        return []
+
+    def mark_processing_as_paused(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            count = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").update({"status": "paused"})
+        elif table == "pending_companies":
+            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "paused"})
+        else:
+            count = 0
+        self._session.commit()
+        return count
+
+    def reset_processing_orphans(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            count = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").update({"status": "queued"})
+        elif table == "pending_companies":
+            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "queued"})
+        else:
+            count = 0
+        self._session.commit()
+        return count
+
+    def pick_queued_item(self, table: str = "pending_jobs") -> dict[str, Any] | None:
+        if table == "pending_jobs":
+            m = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status == "queued"
+            ).order_by(PendingJobModel.queue_order.asc(), PendingJobModel.id.asc()).first()
+            if m:
+                m.status = "processing"
+                self._session.commit()
+                self._session.refresh(m)
+                return pending_job_model_to_dict(m)
+        elif table == "pending_companies":
+            m = self._session.query(PendingCompanyModel).filter(
+                PendingCompanyModel.status == "queued"
+            ).order_by(PendingCompanyModel.id.asc()).first()
+            if m:
+                m.status = "processing"
+                self._session.commit()
+                self._session.refresh(m)
+                return pending_company_model_to_dict(m)
+        return None
+
+    def get_queued_items(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
+        if table == "pending_jobs":
+            rows = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status == "queued"
+            ).order_by(PendingJobModel.queue_order.asc(), PendingJobModel.id.asc()).all()
+            return [pending_job_model_to_dict(r) for r in rows]
+        elif table == "pending_companies":
+            rows = self._session.query(PendingCompanyModel).filter(
+                PendingCompanyModel.status == "queued"
+            ).order_by(PendingCompanyModel.id.asc()).all()
+            return [pending_company_model_to_dict(r) for r in rows]
+        return []
+
+    def reset_steps(self, item_id: int, version: int, table: str = "pending_jobs") -> bool:
+        if table == "pending_jobs":
+            self._session.query(PendingJobModel).filter(PendingJobModel.id == item_id).update({
+                "step_fetch": 0, "step_analyze": 0, "step_resume": 0, "step_cover": 0,
+                "step_db": 0, "step_done": 0, "step_extract_raw": 0, "step_extract_struct": 0,
+                "status": "queued", "error": None, "version": version, "workflow_log": "[]",
+            })
+        elif table == "pending_companies":
+            self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == item_id).update({
+                "step_fetch": 0, "step_extract": 0, "step_analyze": 0, "step_save": 0, "step_done": 0,
+                "status": "queued", "error": None, "version": version, "workflow_log": "[]",
+            })
+        self._session.commit()
+        return True
+
+    def get_all_for_stream(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
+        if table == "pending_jobs":
+            rows = self._session.query(PendingJobModel).order_by(PendingJobModel.created_at.desc()).all()
+            return [pending_job_model_to_dict(r) for r in rows]
+        elif table == "pending_companies":
+            rows = self._session.query(PendingCompanyModel).order_by(PendingCompanyModel.created_at.desc()).all()
+            return [pending_company_model_to_dict(r) for r in rows]
+        return []
+
+    def get_by_url_pending(self, url: str) -> dict[str, Any] | None:
+        m = self._session.query(PendingJobModel).filter(PendingJobModel.url == url).first()
+        return pending_job_model_to_dict(m) if m else None
+
+    def create_pending_job(self, url: str, source: str, company: str, status: str = "pending") -> dict[str, Any]:
+        model = PendingJobModel(url=url, source=source, company=company, status=status)
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return pending_job_model_to_dict(model)
+
+    def create_pending_company(self, input_text: str, input_type: str, source: str, status: str, notes: str) -> dict[str, Any]:
+        model = PendingCompanyModel(
+            input_text=input_text, input_type=input_type, source=source, status=status, notes=notes,
+        )
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return pending_company_model_to_dict(model)

@@ -17,48 +17,36 @@ Features:
 """
 
 import os
-import sqlite3
 import threading
 import time
 import logging
 from datetime import datetime
 from typing import Optional
 
+from dependencies import get_session_sync
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+
 logger = logging.getLogger(__name__)
 
-DB_PATH = None  # Set by init_queue_manager()
 CONCURRENCY = int(os.environ.get("QUEUE_CONCURRENCY", "2"))
 
-# Valid state transitions — enforced on every status change
 VALID_TRANSITIONS = {
     'pending':    {'queued', 'failed'},
     'queued':     {'processing', 'pending', 'failed'},
     'processing': {'done', 'failed', 'paused', 'queued'},
     'paused':     {'queued', 'failed', 'pending'},
-    'done':       {'pending'},        # only via reprocess
-    'failed':     {'pending', 'queued'},  # only via retry
+    'done':       {'pending'},
+    'failed':     {'pending', 'queued'},
 }
 
 
-def _db():
-    """Open a fresh DB connection with WAL mode and retry on lock."""
-    for attempt in range(5):
-        try:
-            conn = sqlite3.connect(DB_PATH, timeout=5)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA journal_mode=WAL")
-            return conn
-        except sqlite3.OperationalError as e:
-            if "locked" in str(e) and attempt < 4:
-                time.sleep(0.5 * (attempt + 1))
-            else:
-                raise
-
-
 def _validate_transition(from_status: str, to_status: str) -> bool:
-    """Check if a state transition is valid."""
     valid = VALID_TRANSITIONS.get(from_status, set())
     return to_status in valid
+
+
+def _repo(session):
+    return SQLAlchemyPendingRepository(session)
 
 
 class JobQueueManager:
@@ -87,18 +75,15 @@ class JobQueueManager:
         logger.info(f"[queue] Started {self._concurrency} workers")
 
     def stop(self, timeout: float = 15.0):
-        """Graceful shutdown: stop accepting new jobs, wait for in-flight to finish."""
         if not self._running:
             return
         logger.info("[queue] Shutting down...")
         self._running = False
         self._slot_event.set()
 
-        # Wait for workers to finish
         for t in self._workers:
             t.join(timeout=timeout / len(self._workers) if self._workers else timeout)
 
-        # Cleanup any remaining processes and temp files
         try:
             from services.process.process_manager import ProcessManager
             from services.process.temp_manager import TempFileManager
@@ -109,73 +94,60 @@ class JobQueueManager:
         except Exception as e:
             logger.warning(f"[queue] Cleanup error: {e}")
 
-        # Mark any still-processing items as paused
         self._mark_processing_as_paused()
         self._shutdown_event.set()
         logger.info("[queue] Shutdown complete")
 
     def enqueue(self, pending_id: int, table: str = 'pending_jobs'):
-        conn = _db()
+        session = get_session_sync()
         try:
+            repo = _repo(session)
+            now = datetime.now().isoformat()
             if table == 'pending_companies':
-                conn.execute(
-                    "UPDATE pending_companies SET status='queued', error=NULL, updated_at=? WHERE id=?",
-                    (datetime.now().isoformat(), pending_id),
-                )
-                conn.commit()
+                repo.update_fields(pending_id, table, status='queued', error=None, updated_at=now)
                 logger.info(f"[queue] Enqueued company {pending_id}")
             else:
-                row = conn.execute("SELECT MAX(queue_order) as max_q FROM pending_jobs WHERE status='queued'").fetchone()
-                next_order = (dict(row)["max_q"] or 0) + 1
-                conn.execute(
-                    "UPDATE pending_jobs SET status='queued', queue_order=?, error=NULL, updated_at=? WHERE id=?",
-                    (next_order, datetime.now().isoformat(), pending_id),
-                )
-                conn.commit()
-                logger.info(f"[queue] Enqueued job {pending_id} (order={next_order})")
+                order = repo.get_max_queue_order(table) + 1
+                repo.update_fields(pending_id, table, status='queued', queue_order=order, error=None, updated_at=now)
+                logger.info(f"[queue] Enqueued job {pending_id} (order={order})")
         finally:
-            conn.close()
+            session.close()
         self._slot_event.set()
 
     def enqueue_bulk(self, pending_ids: list):
-        conn = _db()
+        session = get_session_sync()
         try:
-            row = conn.execute("SELECT MAX(queue_order) as max_q FROM pending_jobs WHERE status='queued'").fetchone()
-            next_order = (dict(row)["max_q"] or 0) + 1
+            repo = _repo(session)
+            now = datetime.now().isoformat()
+            order = repo.get_max_queue_order('pending_jobs') + 1
             for pid in pending_ids:
-                conn.execute(
-                    "UPDATE pending_jobs SET status='queued', queue_order=?, error=NULL, updated_at=? WHERE id=?",
-                    (next_order, datetime.now().isoformat(), pid),
-                )
-                next_order += 1
-            conn.commit()
+                repo.update_fields(pid, 'pending_jobs', status='queued', queue_order=order, error=None, updated_at=now)
+                order += 1
             logger.info(f"[queue] Bulk enqueued {len(pending_ids)} jobs")
         finally:
-            conn.close()
+            session.close()
         self._slot_event.set()
 
     def dequeue(self, pending_id: int):
-        conn = _db()
+        session = get_session_sync()
         try:
-            conn.execute(
-                "UPDATE pending_jobs SET status='pending', queue_order=0, error=NULL, updated_at=? WHERE id=?",
-                (datetime.now().isoformat(), pending_id),
-            )
-            conn.commit()
+            repo = _repo(session)
+            now = datetime.now().isoformat()
+            repo.update_fields(pending_id, 'pending_jobs', status='pending', queue_order=0, error=None, updated_at=now)
             logger.info(f"[queue] Dequeued job {pending_id}")
         finally:
-            conn.close()
+            session.close()
 
     def cancel_job(self, pending_id: int, table: str = 'pending_jobs') -> bool:
-        """Cancel a processing/queued job: kill subprocess, set paused."""
-        conn = _db()
+        session = get_session_sync()
         try:
-            row = conn.execute(f"SELECT status FROM {table} WHERE id=?", (pending_id,)).fetchone()
-            if not row:
+            repo = _repo(session)
+            item = repo.get_by_id(pending_id, table)
+            if not item:
                 return False
-            status = dict(row)['status']
 
-            # Kill subprocess if processing
+            status = item['status']
+
             if status == 'processing':
                 try:
                     from services.process.process_manager import ProcessManager
@@ -185,31 +157,23 @@ class JobQueueManager:
                 except Exception:
                     pass
 
-            # Set status to paused (or pending if queued)
             new_status = 'paused' if status == 'processing' else 'pending'
-            conn.execute(
-                f"UPDATE {table} SET status=?, error=NULL, updated_at=? WHERE id=?",
-                (new_status, datetime.now().isoformat(), pending_id),
-            )
-            conn.commit()
+            now = datetime.now().isoformat()
+            repo.update_fields(pending_id, table, status=new_status, error=None, updated_at=now)
             logger.info(f"[queue] Cancelled {table}:{pending_id} -> {new_status}")
             return True
         finally:
-            conn.close()
+            session.close()
 
     def reset_job(self, pending_id: int, table: str = 'pending_jobs') -> bool:
-        """Reset a job: kill subprocess, clear steps, increment version, re-queue."""
-        conn = _db()
+        session = get_session_sync()
         try:
-            row = conn.execute(f"SELECT status, version FROM {table} WHERE id=?", (pending_id,)).fetchone()
-            if not row:
+            repo = _repo(session)
+            item = repo.get_by_id(pending_id, table)
+            if not item:
                 return False
 
-            row_dict = dict(row)
-            current_version = row_dict.get('version') or 1
-
-            # Kill subprocess if processing
-            status = row_dict['status']
+            status = item['status']
             if status == 'processing':
                 try:
                     from services.process.process_manager import ProcessManager
@@ -219,35 +183,13 @@ class JobQueueManager:
                 except Exception:
                     pass
 
+            current_version = item.get('version') or 1
             new_version = current_version + 1
-
-            # Reset all steps and increment version
-            if table == 'pending_jobs':
-                conn.execute(
-                    """UPDATE pending_jobs SET
-                       status='pending', error=NULL, queue_order=0,
-                       version=?,
-                       step_fetch=0, step_validate=0, step_extract_raw=0,
-                       step_extract_struct=0, step_analyze=0, step_summary=0,
-                       step_db=0, step_done=0, workflow_log='[]',
-                       updated_at=? WHERE id=?""",
-                    (new_version, datetime.now().isoformat(), pending_id),
-                )
-            else:
-                conn.execute(
-                    """UPDATE pending_companies SET
-                       status='pending', error=NULL,
-                       version=?,
-                       step_fetch=0, step_extract=0, step_analyze=0,
-                       step_save=0, step_done=0, workflow_log='[]',
-                       updated_at=? WHERE id=?""",
-                    (new_version, datetime.now().isoformat(), pending_id),
-                )
-            conn.commit()
-            logger.info(f"[queue] Reset {table}:{pending_id} → version {new_version}")
+            repo.reset_steps(pending_id, new_version, table)
+            logger.info(f"[queue] Reset {table}:{pending_id} -> version {new_version}")
             return True
         finally:
-            conn.close()
+            session.close()
 
     def signal_job_done(self, pending_id: int):
         with self._lock:
@@ -255,19 +197,20 @@ class JobQueueManager:
         self._slot_event.set()
 
     def get_status(self) -> dict:
-        conn = _db()
+        session = get_session_sync()
         try:
-            processing_rows = conn.execute(
-                "SELECT id, company, url FROM pending_jobs WHERE status='processing'"
-            ).fetchall()
-            queued_count = conn.execute("SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='queued'").fetchone()["cnt"]
-            pending_count = conn.execute("SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='pending'").fetchone()["cnt"]
-            company_processing = conn.execute("SELECT COUNT(*) as cnt FROM pending_companies WHERE status='processing'").fetchone()["cnt"]
-            company_queued = conn.execute("SELECT COUNT(*) as cnt FROM pending_companies WHERE status='queued'").fetchone()["cnt"]
-            company_pending = conn.execute("SELECT COUNT(*) as cnt FROM pending_companies WHERE status='pending'").fetchone()["cnt"]
+            repo = _repo(session)
+            from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
+
+            processing_items = repo.get_processing_items('pending_jobs')
+            queued_count = repo.get_queued_count('pending_jobs')
+            pending_count = session.query(PendingJobModel).filter(PendingJobModel.status == 'pending').count()
+            company_processing = repo.get_processing_count('pending_companies')
+            company_queued = repo.get_queued_count('pending_companies')
+            company_pending = session.query(PendingCompanyModel).filter(PendingCompanyModel.status == 'pending').count()
             return {
-                "processing": [dict(r) for r in processing_rows],
-                "processing_count": len(processing_rows),
+                "processing": [{"id": r["id"], "company": r.get("company"), "url": r.get("url")} for r in processing_items],
+                "processing_count": len(processing_items),
                 "queued_count": queued_count,
                 "pending_count": pending_count,
                 "company_processing_count": company_processing,
@@ -277,55 +220,39 @@ class JobQueueManager:
                 "running": self._running,
             }
         finally:
-            conn.close()
+            session.close()
 
     # ── Internal ───────────────────────────────────────────────────
 
     def _mark_processing_as_paused(self):
-        """On shutdown: mark any 'processing' items as 'paused'."""
-        conn = _db()
+        session = get_session_sync()
         try:
+            repo = _repo(session)
             for table in ('pending_jobs', 'pending_companies'):
-                row = conn.execute(f"SELECT COUNT(*) as cnt FROM {table} WHERE status='processing'").fetchone()
-                if row["cnt"] > 0:
-                    conn.execute(
-                        f"UPDATE {table} SET status='paused', updated_at=? WHERE status='processing'",
-                        (datetime.now().isoformat(),),
-                    )
-                    logger.info(f"[queue] Marked {row['cnt']} {table} item(s) as paused")
-            conn.commit()
+                count = repo.mark_processing_as_paused(table)
+                if count > 0:
+                    logger.info(f"[queue] Marked {count} {table} item(s) as paused")
         finally:
-            conn.close()
+            session.close()
 
     def _reset_processing_orphans(self):
-        conn = _db()
+        session = get_session_sync()
         try:
+            repo = _repo(session)
             for table in ('pending_jobs', 'pending_companies'):
-                row = conn.execute(f"SELECT COUNT(*) as cnt FROM {table} WHERE status='processing'").fetchone()
-                if row["cnt"] > 0:
-                    conn.execute(
-                        f"UPDATE {table} SET status='queued', error=NULL, updated_at=? WHERE status='processing'",
-                        (datetime.now().isoformat(),),
-                    )
-                    conn.commit()
-                    logger.info(f"[queue] Recovered {row['cnt']} orphaned {table} item(s)")
+                count = repo.reset_processing_orphans(table)
+                if count > 0:
+                    logger.info(f"[queue] Recovered {count} orphaned {table} item(s)")
         finally:
-            conn.close()
+            session.close()
 
-    def _reset_steps(self, pending_id: int):
-        conn = _db()
+    def _reset_steps(self, pending_id: int, version: int, table: str = 'pending_jobs'):
+        session = get_session_sync()
         try:
-            conn.execute(
-                """UPDATE pending_jobs SET
-                   step_fetch=0, step_validate=0, step_extract_raw=0,
-                   step_extract_struct=0, step_analyze=0, step_summary=0,
-                   step_db=0, step_done=0, workflow_log='[]',
-                   updated_at=? WHERE id=?""",
-                (datetime.now().isoformat(), pending_id),
-            )
-            conn.commit()
+            repo = _repo(session)
+            repo.reset_steps(pending_id, version, table)
         finally:
-            conn.close()
+            session.close()
 
     def _has_partial_steps(self, item: dict) -> bool:
         step_cols = ["step_fetch", "step_validate", "step_extract_raw",
@@ -335,64 +262,37 @@ class JobQueueManager:
         return any_done and not all_done
 
     def _pick_and_claim(self) -> Optional[dict]:
-        conn = _db()
+        session = get_session_sync()
         try:
-            proc_row = conn.execute("SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'").fetchone()
-            proc_company_row = conn.execute("SELECT COUNT(*) as cnt FROM pending_companies WHERE status='processing'").fetchone()
-            total_processing = (proc_row["cnt"] or 0) + (proc_company_row["cnt"] or 0)
+            repo = _repo(session)
+            total_processing = (
+                repo.get_processing_count('pending_jobs')
+                + repo.get_processing_count('pending_companies')
+            )
             if total_processing >= self._concurrency:
                 return None
 
-            # Try companies first
-            row = conn.execute(
-                "SELECT id, input_text, company_name FROM pending_companies WHERE status='queued' ORDER BY created_at ASC LIMIT 1"
-            ).fetchone()
-            if row:
-                pid = dict(row)["id"]
-                updated = conn.execute(
-                    "UPDATE pending_companies SET status='processing', updated_at=? WHERE id=? AND status='queued'",
-                    (datetime.now().isoformat(), pid),
-                ).rowcount
-                conn.commit()
-                if updated == 0:
-                    return None
-                full_row = conn.execute("SELECT * FROM pending_companies WHERE id=?", (pid,)).fetchone()
-                result = dict(full_row) if full_row else None
-                if result:
-                    result['table'] = 'pending_companies'
+            result = repo.pick_queued_item('pending_companies')
+            if result:
+                result['table'] = 'pending_companies'
                 return result
 
-            # Then jobs
-            row = conn.execute(
-                "SELECT id FROM pending_jobs WHERE status='queued' ORDER BY queue_order ASC, created_at ASC LIMIT 1"
-            ).fetchone()
-            if not row:
-                return None
-            pid = dict(row)["id"]
-            updated = conn.execute(
-                "UPDATE pending_jobs SET status='processing', updated_at=? WHERE id=? AND status='queued'",
-                (datetime.now().isoformat(), pid),
-            ).rowcount
-            conn.commit()
-            if updated == 0:
-                return None
-            row = conn.execute("SELECT * FROM pending_jobs WHERE id=?", (pid,)).fetchone()
-            result = dict(row) if row else None
+            result = repo.pick_queued_item('pending_jobs')
             if result:
                 result['table'] = 'pending_jobs'
             return result
         finally:
-            conn.close()
+            session.close()
 
     def _worker_loop(self):
         while self._running:
             try:
-                conn = _db()
+                session = get_session_sync()
                 try:
-                    row = conn.execute("SELECT COUNT(*) as cnt FROM pending_jobs WHERE status='processing'").fetchone()
-                    db_count = row["cnt"]
+                    repo = _repo(session)
+                    db_count = repo.get_processing_count('pending_jobs')
                 finally:
-                    conn.close()
+                    session.close()
 
                 with self._lock:
                     self._active_count = db_count
@@ -415,7 +315,8 @@ class JobQueueManager:
                 logger.info(f"[queue] {threading.current_thread().name} picked up {item.get('table', 'job')} {pid}")
 
                 if self._has_partial_steps(item):
-                    self._reset_steps(pid)
+                    version = item.get('version', 1)
+                    self._reset_steps(pid, version, item.get('table', 'pending_jobs'))
 
                 from services.worker import process_job
                 from services.company_worker import process_company
@@ -438,8 +339,7 @@ _queue_manager: Optional[JobQueueManager] = None
 
 
 def init_queue_manager(db_path: str) -> JobQueueManager:
-    global _queue_manager, DB_PATH
-    DB_PATH = db_path
+    global _queue_manager
     _queue_manager = JobQueueManager()
     _queue_manager.start()
     return _queue_manager

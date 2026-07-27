@@ -8,7 +8,6 @@ load_dotenv()
 
 import os
 import sys
-import sqlite3
 import subprocess
 import threading
 from datetime import datetime
@@ -39,53 +38,76 @@ def normalize_url(url):
         base_url = base_url[:-1]
     return base_url
 
-# --- DB helpers ---
+# --- Helpers ---
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
+def _get_job_repo():
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    session = get_session_sync()
+    return session, SQLAlchemyJobRepository(session)
+
+def _get_pending_repo():
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    session = get_session_sync()
+    return session, SQLAlchemyPendingRepository(session)
+
+def _get_pref_repo():
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+    session = get_session_sync()
+    return session, SQLAlchemyPreferenceRepository(session)
 
 def get_next_num():
-    conn = get_db()
-    row = conn.execute("SELECT MAX(num) FROM jobs").fetchone()
-    conn.close()
-    return (row[0] or 0) + 1
+    session, repo = _get_job_repo()
+    try:
+        return repo.get_next_num()
+    finally:
+        session.close()
 
 def get_pending(status=None):
-    conn = get_db()
-    if status:
-        rows = conn.execute("SELECT * FROM pending_jobs WHERE status=? ORDER BY created_at", (status,)).fetchall()
-    else:
-        rows = conn.execute("SELECT * FROM pending_jobs WHERE status NOT IN ('done') ORDER BY created_at").fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    session, repo = _get_pending_repo()
+    try:
+        rows = repo.list_pending()
+        if status:
+            rows = [r for r in rows if r['status'] == status]
+        else:
+            rows = [r for r in rows if r['status'] != 'done']
+        rows.sort(key=lambda r: r.get('created_at', '') or '')
+        return rows
+    finally:
+        session.close()
 
 def add_pending(url, source='cli', company=''):
-    conn = get_db()
+    session, repo = _get_pending_repo()
     try:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)', (url, source, company))
-        conn.commit()
-        new_id = cur.lastrowid
-        conn.close()
-        return new_id
-    except sqlite3.IntegrityError:
-        conn.close()
+        existing = repo.get_by_url(url)
+        if existing:
+            return None
+        result = repo.create({'url': url, 'source': source, 'company': company})
+        return result['id']
+    except Exception:
         return None
+    finally:
+        session.close()
 
 def reset_pending(pid):
-    conn = get_db()
-    conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL,
-        step_fetch=0, step_analyze=0, step_db=0, step_done=0,
-        updated_at=? WHERE id=?''', (datetime.now().isoformat(), pid))
-    conn.commit()
-    conn.close()
+    session, repo = _get_pending_repo()
+    try:
+        repo.update_fields(pid, status='queued', error=None,
+            step_fetch=0, step_analyze=0, step_db=0, step_done=0,
+            workflow_log='[]', updated_at=datetime.now().isoformat())
+    finally:
+        session.close()
 
 def delete_pending(pid):
-    conn = get_db()
-    conn.execute('DELETE FROM pending_jobs WHERE id=?', (pid,))
-    conn.commit()
-    conn.close()
+    session, repo = _get_pending_repo()
+    try:
+        from infrastructure.database.models.pending_model import PendingJobModel
+        session.query(PendingJobModel).filter(PendingJobModel.id == pid).delete()
+        session.commit()
+    finally:
+        session.close()
 
 def process_pending_sync(pid):
     """Run worker.process_job in current thread (blocking)."""
@@ -100,27 +122,28 @@ def add(url: str = typer.Argument(..., help="LinkedIn job URL to add"),
         no_process: bool = typer.Option(False, "--no-process", "-n", help="Just queue, don't process")):
     """Add a new job URL to the queue."""
     normalized = normalize_url(url)
-    conn = get_db()
 
     # Check pending_jobs for duplicate (normalized URL)
-    existing = conn.execute("SELECT id, status, url FROM pending_jobs").fetchall()
-    for row in existing:
-        r = dict(row)
-        if normalize_url(r['url']) == normalized:
-            console.print(f"[yellow]Already in queue (ID:{r['id']}, status:{r['status']})[/yellow]")
-            conn.close()
-            return
+    session_p, pending_repo = _get_pending_repo()
+    try:
+        existing_pending = pending_repo.list_pending()
+        for r in existing_pending:
+            if normalize_url(r['url']) == normalized:
+                console.print(f"[yellow]Already in queue (ID:{r['id']}, status:{r['status']})[/yellow]")
+                return
+    finally:
+        session_p.close()
 
     # Check jobs table for duplicate (normalized URL)
-    jobs = conn.execute("SELECT num, company, url FROM jobs").fetchall()
-    for row in jobs:
-        j = dict(row)
-        if normalize_url(j['url']) == normalized:
-            console.print(f"[yellow]Already processed as #{j['num']} ({j['company']})[/yellow]")
-            conn.close()
-            return
-
-    conn.close()
+    session_j, job_repo = _get_job_repo()
+    try:
+        active_jobs = job_repo.get_all_active()
+        for j in active_jobs:
+            if normalize_url(j['url']) == normalized:
+                console.print(f"[yellow]Already processed as #{j['num']} ({j['company']})[/yellow]")
+                return
+    finally:
+        session_j.close()
 
     pid = add_pending(url, source='cli')
     if not pid:
@@ -143,10 +166,17 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
     if all_jobs:
         rows = get_pending(status=None)
         # Include done too
-        conn = get_db()
-        done = conn.execute("SELECT * FROM pending_jobs WHERE status='done' ORDER BY created_at DESC LIMIT 10").fetchall()
-        conn.close()
-        rows = [dict(r) for r in done] + rows
+        session, _repo = _get_pending_repo()
+        try:
+            from infrastructure.database.models.pending_model import PendingJobModel
+            done_rows = session.query(PendingJobModel).filter(
+                PendingJobModel.status == 'done'
+            ).order_by(PendingJobModel.created_at.desc()).limit(10).all()
+            from infrastructure.database.mappers import pending_job_model_to_dict
+            done = [pending_job_model_to_dict(r) for r in done_rows]
+            rows = done + rows
+        finally:
+            session.close()
     else:
         rows = get_pending(status=status)
 
@@ -224,29 +254,31 @@ def remove(pid: int = typer.Argument(..., help="Job ID to remove")):
 @app.command()
 def rescore(num: int = typer.Argument(..., help="Job number to rescore")):
     """Re-score a processed job by re-analyzing it."""
-    conn = get_db()
-    job = conn.execute("SELECT * FROM jobs WHERE num=?", (num,)).fetchone()
-    conn.close()
+    session_j, job_repo = _get_job_repo()
+    try:
+        job = job_repo.get_by_num(num)
+    finally:
+        session_j.close()
     if not job:
         console.print(f"[red]Job #{num} not found[/red]")
         return
-    j = dict(job)
-    console.print(f"[cyan]Rescoring #{num} ({j['company']})...[/cyan]")
-    # Find or create pending entry — reset existing one to avoid duplicates
-    conn = get_db()
-    row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (j['url'],)).fetchone()
-    if row:
-        pid = dict(row)['id']
-        conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-            company=?, step_fetch=0, step_analyze=0, step_db=0, step_done=0,
-            workflow_log='[]', updated_at=? WHERE id=?''',
-            (j.get('company', ''), datetime.now().isoformat(), pid))
-    else:
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
-            (j['url'], 'rescore', j.get('company', '')))
-        pid = cur.lastrowid
-    conn.commit()
-    conn.close()
+    console.print(f"[cyan]Rescoring #{num} ({job['company']})...[/cyan]")
+
+    session_p, pending_repo = _get_pending_repo()
+    try:
+        existing = pending_repo.get_by_url(job['url'])
+        if existing:
+            pid = existing['id']
+            pending_repo.update_fields(pid, status='queued', error=None, source='rescore',
+                company=job.get('company', ''),
+                step_fetch=0, step_analyze=0, step_db=0, step_done=0,
+                workflow_log='[]', updated_at=datetime.now().isoformat())
+        else:
+            result = pending_repo.create({'url': job['url'], 'source': 'rescore', 'company': job.get('company', '')})
+            pid = result['id']
+    finally:
+        session_p.close()
+
     try:
         process_pending_sync(pid)
         console.print(f"[green]Done![/green]")
@@ -256,31 +288,33 @@ def rescore(num: int = typer.Argument(..., help="Job number to rescore")):
 @app.command()
 def rescore_all():
     """Re-score all processed jobs."""
-    conn = get_db()
-    jobs = conn.execute("SELECT num, company, url FROM jobs ORDER BY num").fetchall()
-    conn.close()
+    session_j, job_repo = _get_job_repo()
+    try:
+        jobs = job_repo.get_all_active()
+    finally:
+        session_j.close()
     if not jobs:
         console.print("[dim]No processed jobs[/dim]")
         return
     console.print(f"[cyan]Rescoring {len(jobs)} jobs...[/cyan]")
-    for job in jobs:
-        j = dict(job)
+    for j in jobs:
         console.print(f"  [#{j['num']}] {j['company']}...", end=" ")
-        # Find or create pending entry — reset existing one to avoid duplicates
-        conn = get_db()
-        row = conn.execute('SELECT id FROM pending_jobs WHERE url=?', (j['url'],)).fetchone()
-        if row:
-            pid = dict(row)['id']
-            conn.execute('''UPDATE pending_jobs SET status='queued', error=NULL, source='rescore',
-                company=?, step_fetch=0, step_analyze=0, step_db=0, step_done=0,
-                workflow_log='[]', updated_at=? WHERE id=?''',
-                (j.get('company', ''), datetime.now().isoformat(), pid))
-        else:
-            cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
-                (j['url'], 'rescore', j.get('company', '')))
-            pid = cur.lastrowid
-        conn.commit()
-        conn.close()
+
+        session_p, pending_repo = _get_pending_repo()
+        try:
+            existing = pending_repo.get_by_url(j['url'])
+            if existing:
+                pid = existing['id']
+                pending_repo.update_fields(pid, status='queued', error=None, source='rescore',
+                    company=j.get('company', ''),
+                    step_fetch=0, step_analyze=0, step_db=0, step_done=0,
+                    workflow_log='[]', updated_at=datetime.now().isoformat())
+            else:
+                result = pending_repo.create({'url': j['url'], 'source': 'rescore', 'company': j.get('company', '')})
+                pid = result['id']
+        finally:
+            session_p.close()
+
         try:
             process_pending_sync(pid)
             console.print("[green]done[/green]")
@@ -290,14 +324,18 @@ def rescore_all():
 @app.command()
 def status():
     """Show summary of all job states."""
-    conn = get_db()
-    counts = {}
-    for s in ['queued','processing','failed','done']:
-        row = conn.execute("SELECT COUNT(*) as c FROM pending_jobs WHERE status=?", (s,)).fetchone()
-        counts[s] = row['c']
-    total = conn.execute("SELECT COUNT(*) as c FROM pending_jobs").fetchone()['c']
-    jobs_count = conn.execute("SELECT COUNT(*) as c FROM jobs").fetchone()['c']
-    conn.close()
+    from infrastructure.database.models.pending_model import PendingJobModel
+    from infrastructure.database.models.job_model import JobModel
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        counts = {}
+        for s in ['queued','processing','failed','done']:
+            counts[s] = session.query(PendingJobModel).filter(PendingJobModel.status == s).count()
+        total = session.query(PendingJobModel).count()
+        jobs_count = session.query(JobModel).count()
+    finally:
+        session.close()
 
     panel = Panel.fit(
         f"[yellow]Queued:[/yellow] {counts['queued']}  "
@@ -350,17 +388,20 @@ def update_skills():
 @app.command()
 def rules():
     """Show all scoring rules."""
-    conn = get_db()
-    rows = conn.execute('SELECT category, rule_type, key, value, description, priority, score_weight, enabled FROM preferences ORDER BY rule_type, category, priority').fetchall()
-    conn.close()
+    session, repo = _get_pref_repo()
+    try:
+        rows = repo.get_all()
+    finally:
+        session.close()
     if not rows:
         console.print("[dim]No scoring rules set[/dim]")
         return
 
+    rows.sort(key=lambda r: (r.get('rule_type', 'job'), r.get('category', ''), -(r.get('priority') or 0)))
+
     current_type = None
     current_cat = None
-    for row in rows:
-        r = dict(row)
+    for r in rows:
         rt = r.get('rule_type', 'job')
         if rt != current_type:
             current_type = rt
@@ -383,16 +424,21 @@ def add_rule(category: str = typer.Argument(..., help="Category: fit or success"
              description: str = typer.Option("", help="Description"),
              score_weight: int = typer.Option(0, help="Score weight (0 = use priority)")):
     """Add a new scoring rule."""
-    conn = get_db()
+    session, repo = _get_pref_repo()
     try:
-        conn.execute('''INSERT INTO preferences (category, rule_type, key, value, description, score_weight) VALUES (?, ?, ?, ?, ?, ?)''',
-            (category, rule_type, key, value, description, score_weight))
-        conn.commit()
+        repo.create({
+            'category': category,
+            'rule_type': rule_type,
+            'key': key,
+            'value': value,
+            'description': description,
+            'score_weight': score_weight,
+        })
         console.print(f"[green]Added: {rule_type}/{category}/{key} = {value} (weight: {score_weight})[/green]")
     except Exception as e:
         console.print(f"[red]Failed: {e}[/red]")
     finally:
-        conn.close()
+        session.close()
 
 def _load_env():
     """Read .env file from project root into os.environ."""
@@ -411,12 +457,17 @@ EXPORT_DIR = os.path.abspath(os.environ.get('EXPORT_DIR', os.path.join(PROJECT_R
 def generate_files(job_num: int = typer.Option(None, help="Generate files for a specific job number (all jobs if omitted)"),
                    force: bool = typer.Option(False, help="Overwrite existing files")):
     """Generate raw and structured files for processed jobs."""
-    conn = get_db()
-    if job_num:
-        rows = conn.execute('SELECT * FROM jobs WHERE num=? AND deleted=0', (job_num,)).fetchall()
-    else:
-        rows = conn.execute('SELECT * FROM jobs WHERE deleted=0 ORDER BY num').fetchall()
-    conn.close()
+    session, job_repo = _get_job_repo()
+    try:
+        if job_num:
+            rows, _ = job_repo.list_jobs(offset=0, limit=1, sort_by='num', sort_dir='asc',
+                                          filters={})
+            job = job_repo.get_by_num(job_num)
+            rows = [job] if job and job.get('deleted', 0) == 0 else []
+        else:
+            rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='num', sort_dir='asc')
+    finally:
+        session.close()
 
     if not rows:
         console.print("[yellow]No jobs found[/yellow]")
@@ -429,8 +480,7 @@ def generate_files(job_num: int = typer.Option(None, help="Generate files for a 
 
     created = 0
     skipped = 0
-    for row in rows:
-        j = dict(row)
+    for j in rows:
         num = j['num']
         co = (j.get('company') or 'Unknown').replace(' ', '_').replace('/', '_')
         ro = (j.get('role') or 'Unknown').replace(' ', '_').replace('/', '_')
@@ -472,14 +522,15 @@ def generate_files(job_num: int = typer.Option(None, help="Generate files for a 
 @app.command()
 def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by default)")):
     """Check jobs with missing raw_description or structured_description."""
-    conn = get_db()
-    rows = conn.execute('SELECT num, company, role, raw_description, structured_description FROM jobs WHERE deleted=0 ORDER BY num').fetchall()
-    conn.close()
+    session, job_repo = _get_job_repo()
+    try:
+        rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='num', sort_dir='asc')
+    finally:
+        session.close()
 
     missing_raw = []
     missing_struct = []
-    for row in rows:
-        j = dict(row)
+    for j in rows:
         if not j.get('raw_description'):
             missing_raw.append(j)
         if not j.get('structured_description'):
@@ -507,14 +558,12 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
         num = j['num']
         console.print(f"  Re-processing #{num} {j['company']}...")
         # Create a temp pending entry and process it
-        conn = get_db()
-        cur = conn.execute('INSERT INTO pending_jobs (url, source, company) VALUES (?, ?, ?)',
-            ('', 'sync', j['company']))
-        pid = cur.lastrowid
-        conn.commit()
-        conn.close()
-        # Note: this needs the URL — we can't re-process without it
-        console.print(f"  [yellow]Skipped #{num} — URL not available in DB for re-processing[/yellow]")
+        pid = add_pending('', source='sync', company=j['company'])
+        if pid:
+            # Note: this needs the URL — we can't re-process without it
+            console.print(f"  [yellow]Skipped #{num} — URL not available in DB for re-processing[/yellow]")
+        else:
+            console.print(f"  [yellow]Skipped #{num} — could not create pending entry[/yellow]")
 
 @app.command()
 def cleanup(
@@ -549,22 +598,30 @@ def cleanup(
 
     if reset_jobs:
         console.print("\n[bold]Resetting stuck insights jobs...[/bold]")
-        conn = get_db()
-        count = conn.execute(
-            "UPDATE career_insight_runs SET status='failed', error_message='Reset by CLI' WHERE status IN ('processing','queued')"
-        ).rowcount
-        conn.commit()
-        conn.close()
+        from infrastructure.database.models.insight_model import CareerInsightRunModel as InsightRunModel
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            count = session.query(InsightRunModel).filter(
+                InsightRunModel.status.in_(['processing', 'queued'])
+            ).update({'status': 'failed', 'error_message': 'Reset by CLI'})
+            session.commit()
+        finally:
+            session.close()
         console.print(f"  [green]Reset {count} jobs[/green]")
 
     if reset_roadmaps:
         console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
-        conn = get_db()
-        count = conn.execute(
-            "UPDATE skill_roadmap_jobs SET status='failed', error='Reset by CLI' WHERE status IN ('running','queued')"
-        ).rowcount
-        conn.commit()
-        conn.close()
+        from infrastructure.database.models.misc_models import SkillRoadmapJobModel
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            count = session.query(SkillRoadmapJobModel).filter(
+                SkillRoadmapJobModel.status.in_(['running', 'queued'])
+            ).update({'status': 'failed', 'error': 'Reset by CLI'})
+            session.commit()
+        finally:
+            session.close()
         console.print(f"  [green]Reset {count} jobs[/green]")
 
     if not (kill_mimo or reset_jobs or reset_roadmaps):

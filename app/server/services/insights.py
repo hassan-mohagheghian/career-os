@@ -5,14 +5,12 @@ Only one analysis can run at a time (concurrency lock).
 """
 import json
 import os
-import sqlite3
 import subprocess
 import threading
 import time
 import traceback
 from datetime import datetime
 
-from core.db import get_db
 from prompts import load_prompt
 
 # AI Agent Layer — unified LLM service
@@ -53,10 +51,6 @@ _current_run = {'active': False, 'type': None, 'started_at': None, 'run_id': Non
 _cancel_requested = False
 
 
-def _db():
-    return get_db()
-
-
 def _emit_progress(progress_data):
     """Emit progress update via SocketIO to the insights room."""
     if _socketio is not None:
@@ -75,17 +69,18 @@ def _cleanup_stale_runs():
     from datetime import timedelta
     for attempt in range(3):
         try:
-            conn = _db()
-            cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
-            conn.execute(
-                "UPDATE career_insight_runs SET status='failed', error_message='Stale run cleaned up', completed_at=? WHERE status='processing' AND started_at < ?",
-                (datetime.now().isoformat(), cutoff)
-            )
-            conn.commit()
-            conn.close()
+            from dependencies import get_session_sync
+            session = get_session_sync()
+            try:
+                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
+                repo.cleanup_stale_runs(cutoff)
+            finally:
+                session.close()
             return
-        except sqlite3.OperationalError as e:
-            if 'locked' in str(e) and attempt < 2:
+        except Exception:
+            if attempt < 2:
                 time.sleep(0.5 * (attempt + 1))
             else:
                 return  # non-fatal, just skip cleanup
@@ -104,19 +99,21 @@ def is_running():
     # Clean up stale processing records from crashed sessions
     _cleanup_stale_runs()
     # Also check DB for any recent in-progress runs
-    conn = _db()
-    row = conn.execute(
-        "SELECT id, insight_type, started_at FROM career_insight_runs WHERE status='processing' ORDER BY started_at DESC LIMIT 1"
-    ).fetchone()
-    conn.close()
-    if row:
-        # row is a tuple (id, insight_type, started_at) since row_factory=None
-        return True, {
-            'type': row[1],
-            'started_at': row[2],
-            'run_id': row[0],
-            'cancellable': False
-        }
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        repo = SQLAlchemyCareerInsightRunRepository(session)
+        row = repo.get_latest_processing()
+        if row:
+            return True, {
+                'type': row['insight_type'],
+                'started_at': row['started_at'],
+                'run_id': row['id'],
+                'cancellable': False
+            }
+    finally:
+        session.close()
     return False, None
 
 
@@ -181,47 +178,44 @@ def cancel_run():
         print(f"[insights] Run {run_id} cancelled")
         return True
     # Also handle stale DB records (from crashed sessions)
-    conn = _db()
-    row = conn.execute(
-        "SELECT id FROM career_insight_runs WHERE status='processing' ORDER BY started_at DESC LIMIT 1"
-    ).fetchone()
-    if row:
-        _complete_run(row[0], 'cancelled', 'Cancelled by user (stale)')
-        _emit_progress({'running': False, 'status': 'cancelled', 'run_id': row[0]})
-        conn.close()
-        print(f"[insights] Stale run {row[0]} cancelled")
-        return True
-    conn.close()
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        repo = SQLAlchemyCareerInsightRunRepository(session)
+        row = repo.get_latest_processing()
+        if row:
+            _complete_run(row['id'], 'cancelled', 'Cancelled by user (stale)')
+            _emit_progress({'running': False, 'status': 'cancelled', 'run_id': row['id']})
+            print(f"[insights] Stale run {row['id']} cancelled")
+            return True
+    finally:
+        session.close()
     return False
 
 
 def _start_run(insight_type):
     """Create a career_insight_runs row and return its id."""
-    conn = _db()
-    cur = conn.execute(
-        "INSERT INTO career_insight_runs (insight_type, version, status, started_at) VALUES (?, ?, 'processing', ?)",
-        (insight_type, CURRENT_VERSION, datetime.now().isoformat())
-    )
-    run_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return run_id
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        repo = SQLAlchemyCareerInsightRunRepository(session)
+        run = repo.create(insight_type, version=CURRENT_VERSION, status='processing')
+        return run['id']
+    finally:
+        session.close()
 
 
 def _complete_run(run_id, status='completed', error=None, session_id=None):
-    conn = _db()
-    if session_id:
-        conn.execute(
-            "UPDATE career_insight_runs SET status=?, completed_at=?, error_message=?, session_id=? WHERE id=?",
-            (status, datetime.now().isoformat(), error, session_id, run_id)
-        )
-    else:
-        conn.execute(
-            "UPDATE career_insight_runs SET status=?, completed_at=?, error_message=? WHERE id=?",
-            (status, datetime.now().isoformat(), error, run_id)
-        )
-    conn.commit()
-    conn.close()
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        repo = SQLAlchemyCareerInsightRunRepository(session)
+        repo.complete(run_id, status, error_message=error, session_id=session_id)
+    finally:
+        session.close()
 
 
 def _save_session_id(run_id, session_id):
@@ -229,23 +223,28 @@ def _save_session_id(run_id, session_id):
     if not run_id or not session_id:
         return
     try:
-        conn = _db()
-        conn.execute("UPDATE career_insight_runs SET session_id=? WHERE id=?", (session_id, run_id))
-        conn.commit()
-        conn.close()
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+            repo = SQLAlchemyCareerInsightRunRepository(session)
+            repo.update_session_id(run_id, session_id)
+        finally:
+            session.close()
     except Exception:
         pass
 
 
 def _save_insight(insight_type, data, score=None, summary=None):
     """Save generated insight to career_insights table."""
-    conn = _db()
-    conn.execute(
-        "INSERT INTO career_insights (insight_type, version, score, summary, data_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (insight_type, CURRENT_VERSION, score, summary, json.dumps(data, ensure_ascii=False), datetime.now().isoformat())
-    )
-    conn.commit()
-    conn.close()
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
+        repo = SQLAlchemyCareerInsightRepository(session)
+        repo.upsert(insight_type, data, version=CURRENT_VERSION, score=score, summary=summary)
+    finally:
+        session.close()
 
 
 def _parse_session_id(stdout):
@@ -334,37 +333,41 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
 
 def _collect_jobs_data():
     """Collect summarized job data for the prompt (avoids passing raw DB)."""
-    conn = _db()
-    rows = conn.execute(
-        "SELECT num, company, role, location, score, match, fit_score, success_score, overall_score, "
-        "stack, visa, work_type, employment_type, posted, applicants "
-        "FROM jobs WHERE deleted=0 ORDER BY overall_score DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows] if rows else []
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        repo = SQLAlchemyJobRepository(session)
+        return repo.get_all_for_insights()
+    finally:
+        session.close()
 
 
 def _collect_companies_data():
-    conn = _db()
-    rows = conn.execute(
-        "SELECT c.id, c.name, c.industry, c.company_type, c.country, c.city, c.skills, "
-        "c.funding_stage, c.company_size, "
-        "(SELECT COUNT(*) FROM jobs j WHERE j.company=c.name AND j.deleted=0) as job_count "
-        "FROM companies c ORDER BY job_count DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows] if rows else []
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+        repo = SQLAlchemyCompanyRepository(session)
+        return repo.get_all_with_job_counts()
+    finally:
+        session.close()
 
 
 def _collect_skills_data():
-    conn = _db()
-    stack = conn.execute("SELECT * FROM skills ORDER BY level DESC").fetchall()
-    learning = conn.execute("SELECT * FROM tech_learning ORDER BY priority").fetchall()
-    conn.close()
-    return {
-        'techStack': [dict(r) for r in stack] if stack else [],
-        'techLearning': [dict(r) for r in learning] if learning else [],
-    }
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+        from infrastructure.database.sa_tech_learning_repository import SQLAlchemyTechLearningRepository
+        skill_repo = SQLAlchemySkillRepository(session)
+        learning_repo = SQLAlchemyTechLearningRepository(session)
+        return {
+            'techStack': skill_repo.get_all(),
+            'techLearning': learning_repo.get_all(),
+        }
+    finally:
+        session.close()
 
 
 def generate_skills_intel(pid=0):
@@ -389,13 +392,14 @@ def generate_skills_intel(pid=0):
         # Read previous session_id for retry resumption
         prev_sid = None
         try:
-            conn = _db()
-            row = conn.execute(
-                "SELECT session_id FROM career_insight_runs WHERE insight_type='skills_intel' AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1"
-            ).fetchone()
-            if row and row[0]:
-                prev_sid = row[0]
-            conn.close()
+            from dependencies import get_session_sync
+            session = get_session_sync()
+            try:
+                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                prev_sid = repo.get_latest_session_id('skills_intel')
+            finally:
+                session.close()
         except Exception:
             pass
 
@@ -437,24 +441,21 @@ def _normalize_skill_name(name):
     return ' '.join(name.strip().lower().split())
 
 
-def _resolve_skill_name(conn, name):
+def _resolve_skill_name(skill_alias_repo, skill_repo, name):
     """Resolve a skill name to its canonical form via skill_aliases."""
     normalized = _normalize_skill_name(name)
     # Check if this name is an alias
-    alias_row = conn.execute(
-        "SELECT ts.name FROM skill_aliases sa JOIN skills ts ON ts.id=sa.skill_id "
-        "WHERE LOWER(sa.alias_name)=?", (normalized,)
-    ).fetchone()
-    if alias_row:
-        return alias_row[0]
+    alias_result = skill_alias_repo.resolve_name(normalized)
+    if alias_result:
+        return alias_result['name']
     # Check exact match
-    exact = conn.execute("SELECT name FROM skills WHERE name=?", (name,)).fetchone()
+    exact = skill_repo.get_by_name(name)
     if exact:
-        return exact[0]
+        return exact['name']
     # Check case-insensitive match
-    ci = conn.execute("SELECT name FROM skills WHERE LOWER(name)=?", (normalized,)).fetchone()
+    ci = skill_repo.get_by_name(normalized)
     if ci:
-        return ci[0]
+        return ci['name']
     return name
 
 
@@ -464,110 +465,102 @@ def _fill_skills_from_insights(result):
         return
 
     try:
-        conn = _db()
-        current_state = result.get('current_state', {})
-        recommendations = result.get('recommendations', [])
-        relationships = result.get('relationships', [])
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+            from infrastructure.database.sa_skill_alias_repository import SQLAlchemySkillAliasRepository
+            from infrastructure.database.sa_skill_relationship_repository import SQLAlchemySkillRelationshipRepository
 
-        # 1. Update existing skills with AI-derived data
-        all_ai_skills = current_state.get('strengths', []) + current_state.get('gaps', []) + current_state.get('maintain', [])
-        for skill_data in all_ai_skills:
-            name = skill_data.get('skill', '')
-            if not name:
-                continue
-            # Resolve to canonical name (handles aliases)
-            canonical = _resolve_skill_name(conn, name)
-            market_demand = skill_data.get('market_demand', 0)
-            confidence = skill_data.get('confidence', 0)
-            evidence = json.dumps(skill_data.get('evidence', []))
-            category = skill_data.get('category', '')
+            skill_repo = SQLAlchemySkillRepository(session)
+            alias_repo = SQLAlchemySkillAliasRepository(session)
+            rel_repo = SQLAlchemySkillRelationshipRepository(session)
 
-            # Try to update existing skill
-            row = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
-            if row:
-                updates = []
-                params = []
+            current_state = result.get('current_state', {})
+            recommendations = result.get('recommendations', [])
+            relationships = result.get('relationships', [])
+
+            # 1. Update existing skills with AI-derived data
+            all_ai_skills = current_state.get('strengths', []) + current_state.get('gaps', []) + current_state.get('maintain', [])
+            for skill_data in all_ai_skills:
+                name = skill_data.get('skill', '')
+                if not name:
+                    continue
+                # Resolve to canonical name (handles aliases)
+                canonical = _resolve_skill_name(alias_repo, skill_repo, name)
+                market_demand = skill_data.get('market_demand', 0)
+                confidence = skill_data.get('confidence', 0)
+                evidence = json.dumps(skill_data.get('evidence', []))
+                category = skill_data.get('category', '')
+
+                # Try to update existing skill
+                updates = {}
                 if market_demand and market_demand > 0:
-                    updates.append("market_relevance=?")
-                    params.append(market_demand)
+                    updates['market_relevance'] = market_demand
                 if confidence and confidence > 0:
-                    updates.append("confidence=?")
-                    params.append(confidence)
+                    updates['confidence'] = confidence
                 if evidence and evidence != '[]':
-                    updates.append("evidence=?")
-                    params.append(evidence)
+                    updates['evidence'] = evidence
                 if category:
-                    updates.append("category=?")
-                    params.append(category)
+                    updates['category'] = category
                 if updates:
-                    params.append(canonical)
-                    conn.execute(f"UPDATE skills SET {', '.join(updates)} WHERE name=?", params)
+                    skill_repo.update_fields_by_name(canonical, **updates)
 
-        # 2. Add new skills from recommendations that don't exist in skills
-        for rec in recommendations:
-            name = rec.get('skill', '')
-            if not name:
-                continue
-            canonical = _resolve_skill_name(conn, name)
-            existing = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
-            if not existing:
-                category = rec.get('category', 'technical')
-                confidence = rec.get('confidence', 0.5)
-                market_demand = rec.get('market_demand', 0)
-                evidence = json.dumps(rec.get('evidence', []))
-                conn.execute(
-                    "INSERT INTO skills (name, level, source, source_type, category, confidence, market_relevance, evidence) "
-                    "VALUES (?, 1, 'service', 'ai_generated', ?, ?, ?, ?)",
-                    (canonical, category, confidence, market_demand, evidence)
-                )
-                print(f"[insights] Added new skill: {canonical}")
+            # 2. Add new skills from recommendations that don't exist in skills
+            for rec in recommendations:
+                name = rec.get('skill', '')
+                if not name:
+                    continue
+                canonical = _resolve_skill_name(alias_repo, skill_repo, name)
+                existing = skill_repo.get_by_name(canonical)
+                if not existing:
+                    category = rec.get('category', 'technical')
+                    confidence = rec.get('confidence', 0.5)
+                    market_demand = rec.get('market_demand', 0)
+                    evidence = json.dumps(rec.get('evidence', []))
+                    skill_repo.create_from_dict({
+                        'name': canonical,
+                        'level': 1,
+                        'source': 'service',
+                        'source_type': 'ai_generated',
+                        'category': category,
+                        'confidence': confidence,
+                        'market_relevance': market_demand,
+                        'evidence': evidence,
+                    })
+                    print(f"[insights] Added new skill: {canonical}")
 
-        # 3. Create skill relationships
-        for rel in relationships:
-            skill_name = rel.get('skill', '')
-            related_name = rel.get('related', '')
-            rel_type = rel.get('type', 'related')
-            confidence = rel.get('confidence', 0.5)
-            if not skill_name or not related_name:
-                continue
-            # Resolve both names
-            skill_name = _resolve_skill_name(conn, skill_name)
-            related_name = _resolve_skill_name(conn, related_name)
-            # Check if relationship already exists
-            existing = conn.execute(
-                "SELECT id FROM skill_relationships WHERE skill_name=? AND related_name=? AND relation_type=?",
-                (skill_name, related_name, rel_type)
-            ).fetchone()
-            if not existing:
-                conn.execute(
-                    "INSERT OR IGNORE INTO skill_relationships (skill_name, related_name, relation_type, confidence) VALUES (?, ?, ?, ?)",
-                    (skill_name, related_name, rel_type, confidence)
-                )
+            # 3. Create skill relationships
+            for rel in relationships:
+                skill_name = rel.get('skill', '')
+                related_name = rel.get('related', '')
+                rel_type = rel.get('type', 'related')
+                confidence = rel.get('confidence', 0.5)
+                if not skill_name or not related_name:
+                    continue
+                # Resolve both names
+                skill_name = _resolve_skill_name(alias_repo, skill_repo, skill_name)
+                related_name = _resolve_skill_name(alias_repo, skill_repo, related_name)
+                # Create if not exists
+                rel_repo.create(skill_name, related_name, rel_type, confidence)
 
-        # 4. Auto-create aliases from AI-reported synonyms/variants
-        for skill_data in all_ai_skills:
-            name = skill_data.get('skill', '')
-            if not name:
-                continue
-            canonical = _resolve_skill_name(conn, name)
-            canonical_row = conn.execute("SELECT id FROM skills WHERE name=?", (canonical,)).fetchone()
-            if not canonical_row:
-                continue
-            # If the original name differs from canonical, create an alias
-            if name != canonical:
-                existing_alias = conn.execute(
-                    "SELECT id FROM skill_aliases WHERE skill_id=? AND alias_name=?",
-                    (canonical_row[0], name)
-                ).fetchone()
-                if not existing_alias:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO skill_aliases (skill_id, alias_name, normalized_name) VALUES (?, ?, ?)",
-                        (canonical_row[0], name, _normalize_skill_name(name))
-                    )
+            # 4. Auto-create aliases from AI-reported synonyms/variants
+            for skill_data in all_ai_skills:
+                name = skill_data.get('skill', '')
+                if not name:
+                    continue
+                canonical = _resolve_skill_name(alias_repo, skill_repo, name)
+                canonical_skill = skill_repo.get_by_name(canonical)
+                if not canonical_skill:
+                    continue
+                # If the original name differs from canonical, create an alias
+                if name != canonical:
+                    if not alias_repo.exists(canonical_skill['id'], name):
+                        alias_repo.create(canonical_skill['id'], name, _normalize_skill_name(name))
 
-        conn.commit()
-        conn.close()
-        print(f"[insights] Skills DB filled from insights report")
+            print(f"[insights] Skills DB filled from insights report")
+        finally:
+            session.close()
     except Exception as e:
         print(f"[insights] Error filling skills from insights: {e}")
 
@@ -653,15 +646,17 @@ def generate_all(pid=0):
         # Read previous session_ids for retry resumption
         prev_sessions = {}
         try:
-            conn = _db()
-            for section in sections:
-                row = conn.execute(
-                    "SELECT session_id FROM career_insight_runs WHERE insight_type=? AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1",
-                    (section,)
-                ).fetchone()
-                if row and row[0]:
-                    prev_sessions[section] = row[0]
-            conn.close()
+            from dependencies import get_session_sync
+            session = get_session_sync()
+            try:
+                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                for section in sections:
+                    sid = repo.get_latest_session_id(section)
+                    if sid:
+                        prev_sessions[section] = sid
+            finally:
+                session.close()
         except Exception:
             pass
 
@@ -754,14 +749,14 @@ def generate_section(section, pid=0):
         # Read previous session_id for retry resumption
         prev_sid = None
         try:
-            conn = _db()
-            row = conn.execute(
-                "SELECT session_id FROM career_insight_runs WHERE insight_type=? AND session_id IS NOT NULL ORDER BY started_at DESC LIMIT 1",
-                (section,)
-            ).fetchone()
-            if row and row[0]:
-                prev_sid = row[0]
-            conn.close()
+            from dependencies import get_session_sync
+            session = get_session_sync()
+            try:
+                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                prev_sid = repo.get_latest_session_id(section)
+            finally:
+                session.close()
         except Exception:
             pass
 
@@ -794,55 +789,39 @@ def generate_section(section, pid=0):
 
 def get_latest(insight_type=None):
     """Get the latest career insight(s)."""
-    conn = _db()
-    conn.row_factory = None
-    cols = ['id', 'insight_type', 'version', 'score', 'summary', 'data_json', 'created_at']
-    if insight_type:
-        row = conn.execute(
-            f"SELECT {', '.join(cols)} FROM career_insights WHERE insight_type=? ORDER BY created_at DESC LIMIT 1",
-            (insight_type,)
-        ).fetchone()
-        conn.close()
-        if row:
-            r = dict(zip(cols, row))
-            r['data'] = json.loads(r['data_json'])
-            del r['data_json']
-            return r
-        return None
-    else:
-        results = {}
-        for it in INSIGHT_TYPES:
-            row = conn.execute(
-                f"SELECT {', '.join(cols)} FROM career_insights WHERE insight_type=? ORDER BY created_at DESC LIMIT 1",
-                (it,)
-            ).fetchone()
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
+        repo = SQLAlchemyCareerInsightRepository(session)
+        if insight_type:
+            row = repo.get_section(insight_type)
             if row:
-                r = dict(zip(cols, row))
-                r['data'] = json.loads(r['data_json'])
-                del r['data_json']
-                results[it] = r
-        conn.close()
-        return results
+                row['data'] = row.pop('data_json', {})
+                return row
+            return None
+        else:
+            results = {}
+            all_insights = repo.get_all()
+            for it in INSIGHT_TYPES:
+                if it in all_insights:
+                    row = all_insights[it]
+                    row['data'] = row.pop('data_json', {})
+                    results[it] = row
+            return results
+    finally:
+        session.close()
 
 
 def get_runs(insight_type=None, limit=10, offset=0):
     """Get recent insight generation runs with total count for infinite scroll."""
-    conn = _db()
-    conn.row_factory = None
-    cols = ['id', 'insight_type', 'version', 'status', 'started_at', 'completed_at', 'error_message', 'session_id']
-    if insight_type:
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM career_insight_runs WHERE insight_type=?", (insight_type,)
-        ).fetchone()[0]
-        rows = conn.execute(
-            f"SELECT {', '.join(cols)} FROM career_insight_runs WHERE insight_type=? ORDER BY started_at DESC LIMIT ? OFFSET ?",
-            (insight_type, limit, offset)
-        ).fetchall()
-    else:
-        total = conn.execute("SELECT COUNT(*) FROM career_insight_runs").fetchone()[0]
-        rows = conn.execute(
-            f"SELECT {', '.join(cols)} FROM career_insight_runs ORDER BY started_at DESC LIMIT ? OFFSET ?",
-            (limit, offset)
-        ).fetchall()
-    conn.close()
-    return {'items': [dict(zip(cols, r)) for r in rows] if rows else [], 'total': total}
+    from dependencies import get_session_sync
+    session = get_session_sync()
+    try:
+        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        repo = SQLAlchemyCareerInsightRunRepository(session)
+        total = repo.get_total_count(insight_type)
+        items = repo.get_runs(insight_type, limit=limit, offset=offset)
+        return {'items': items, 'total': total}
+    finally:
+        session.close()

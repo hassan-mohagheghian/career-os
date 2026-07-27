@@ -4,23 +4,31 @@ import json
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_db
+from dependencies import get_job_repo, get_company_repo, get_skill_repo, get_pending_repo
+from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 
 router = APIRouter()
 
 
 @router.get("/dashboard")
-def get_dashboard(db=Depends(get_db)):
+def get_dashboard(
+    job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    skill_repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
+):
     """Get dashboard summary data."""
-    jobs_total = db.execute("SELECT COUNT(*) FROM jobs WHERE deleted=0").fetchone()[0]
-    jobs_high = db.execute("SELECT COUNT(*) FROM jobs WHERE deleted=0 AND match='High'").fetchone()[0]
-    companies_total = db.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
-    skills_total = db.execute("SELECT COUNT(*) FROM skills WHERE hidden=0").fetchone()[0]
-    pending_count = db.execute("SELECT COUNT(*) FROM pending_jobs WHERE status != 'done'").fetchone()[0]
+    job_counts = job_repo.get_dashboard_counts()
+    companies_total = company_repo.get_total_count()
+    skills_total = len([s for s in skill_repo.list_visible() if not s.get("hidden")])
+    pending_count = pending_repo.count_pending("pending_jobs")
 
     return {
-        "jobs_total": jobs_total,
-        "jobs_high_match": jobs_high,
+        "jobs_total": job_counts["jobs_total"],
+        "jobs_high_match": job_counts["jobs_high_match"],
         "companies_total": companies_total,
         "skills_total": skills_total,
         "pending_count": pending_count,
@@ -29,21 +37,23 @@ def get_dashboard(db=Depends(get_db)):
 
 
 @router.get("/generation-history")
-def get_generation_history(db=Depends(get_db), limit: int = 50, offset: int = 0):
-    """Get unified generation history from ALL sources:
-    pending_jobs, pending_companies, pending_generations, skill_roadmap_jobs, career_insight_runs.
-    """
+def get_generation_history(limit: int = 50, offset: int = 0):
+    """Get unified generation history from ALL source tables."""
     from services.process.generation_repository import GenerationHistoryRepository
+    from dependencies import get_session_sync
 
-    repo = GenerationHistoryRepository(db)
-    result = repo.get_all(limit=limit, offset=offset)
-
-    return {
-        "items": [item.to_dict() for item in result['items']],
-        "total": result['total'],
-        "offset": offset,
-        "limit": limit,
-    }
+    session = get_session_sync()
+    try:
+        repo = GenerationHistoryRepository(session)
+        result = repo.get_all(limit=limit, offset=offset)
+        return {
+            "items": [item.to_dict() for item in result['items']],
+            "total": result['total'],
+            "offset": offset,
+            "limit": limit,
+        }
+    finally:
+        session.close()
 
 
 @router.get("/local-history")
@@ -54,28 +64,31 @@ def get_local_history(
     skill_name: str | None = Query(None),
     insight_type: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    db=Depends(get_db),
 ):
     """Get local generation history filtered by context."""
     from services.process.generation_repository import GenerationHistoryRepository
+    from dependencies import get_session_sync
 
-    repo = GenerationHistoryRepository(db)
+    session = get_session_sync()
+    try:
+        repo = GenerationHistoryRepository(session)
+        if context == 'job' and job_num is not None:
+            result = repo.get_for_job(job_num, limit)
+        elif context == 'company' and company_id is not None:
+            result = repo.get_for_company(company_id, limit)
+        elif context == 'skill' and skill_name is not None:
+            result = repo.get_for_skill(skill_name, limit)
+        elif context == 'insight' and insight_type is not None:
+            result = repo.get_for_insight(insight_type, limit)
+        else:
+            result = {'items': [], 'total': 0}
 
-    if context == 'job' and job_num is not None:
-        result = repo.get_for_job(job_num, limit)
-    elif context == 'company' and company_id is not None:
-        result = repo.get_for_company(company_id, limit)
-    elif context == 'skill' and skill_name is not None:
-        result = repo.get_for_skill(skill_name, limit)
-    elif context == 'insight' and insight_type is not None:
-        result = repo.get_for_insight(insight_type, limit)
-    else:
-        result = {'items': [], 'total': 0}
-
-    return {
-        'items': [item.to_dict() for item in result['items']],
-        'total': result['total'],
-    }
+        return {
+            'items': [item.to_dict() for item in result['items']],
+            'total': result['total'],
+        }
+    finally:
+        session.close()
 
 
 @router.get("/local-history/active")
@@ -85,44 +98,45 @@ def get_local_active_count(
     company_id: int | None = Query(None),
     skill_name: str | None = Query(None),
     insight_type: str | None = Query(None),
-    db=Depends(get_db),
 ):
     """Get count of currently running/queued items for a context."""
     from services.process.generation_repository import GenerationHistoryRepository
+    from dependencies import get_session_sync
 
-    repo = GenerationHistoryRepository(db)
-    count = repo.get_active_count(
-        context,
-        job_num=job_num,
-        company_id=company_id,
-        skill_name=skill_name,
-        insight_type=insight_type,
-    )
-    return {'active_count': count}
+    session = get_session_sync()
+    try:
+        repo = GenerationHistoryRepository(session)
+        count = repo.get_active_count(
+            context,
+            job_num=job_num,
+            company_id=company_id,
+            skill_name=skill_name,
+            insight_type=insight_type,
+        )
+        return {'active_count': count}
+    finally:
+        session.close()
 
 
 @router.get("/cities")
-def get_cities(db=Depends(get_db)):
+def get_cities(job_repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Get all unique cities with job counts."""
-    rows = db.execute(
-        "SELECT location, locations FROM jobs WHERE deleted=0"
-    ).fetchall()
+    location_data = job_repo.get_location_data()
 
     city_counts = {}
-    for row in rows:
-        r = dict(row)
+    for row in location_data:
         locations = []
-        if r.get("locations"):
+        if row.get("locations"):
             try:
                 locations = (
-                    json.loads(r["locations"])
-                    if isinstance(r["locations"], str)
-                    else r["locations"]
+                    json.loads(row["locations"])
+                    if isinstance(row["locations"], str)
+                    else row["locations"]
                 )
             except (json.JSONDecodeError, TypeError):
                 pass
-        if not locations and r.get("location"):
-            locations = [r["location"]]
+        if not locations and row.get("location"):
+            locations = [row["location"]]
         for loc in locations:
             if loc and loc != "Not specified":
                 city_counts[loc] = city_counts.get(loc, 0) + 1

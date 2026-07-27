@@ -1,87 +1,70 @@
 """Resume/cover letter generation endpoints."""
 
+import uuid
+
 from fastapi import APIRouter, Depends
 
-from dependencies import get_db
+from dependencies import get_resume_repo, get_pending_generation_repo
+from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
 from exceptions import NotFoundError
 
 router = APIRouter()
 
 
 @router.get("")
-def list_resumes(db=Depends(get_db)):
+def list_resumes(repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """List all resumes."""
-    rows = db.execute("SELECT * FROM resumes ORDER BY created_at DESC").fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_all()
 
 
 @router.get("/active-generations")
-def get_active_generations(db=Depends(get_db)):
+def get_active_generations(repo: SQLAlchemyPendingGenerationRepository = Depends(get_pending_generation_repo)):
     """Get any active (queued/processing) resume or cover generations."""
-    rows = db.execute(
-        "SELECT id, job_num, type, status, step_prepare, step_context, "
-        "step_generate, step_save, step_done, error "
-        "FROM pending_generations WHERE status IN ('queued', 'processing') "
-        "ORDER BY created_at DESC"
-    ).fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_all_active()
 
 
 @router.get("/{id}")
-def get_resume(id: str, db=Depends(get_db)):
+def get_resume(id: str, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """Get a resume by ID."""
-    row = db.execute("SELECT * FROM resumes WHERE id=?", (id,)).fetchone()
-    if not row:
+    resume = repo.get_by_id(id)
+    if not resume:
         raise NotFoundError(f"Resume {id} not found")
-    return dict(row)
+    return resume
 
 
 @router.post("")
-def create_resume(data: dict, db=Depends(get_db)):
+def create_resume(data: dict, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """Create a new resume."""
-    import uuid
     resume_id = f"resume_{uuid.uuid4().hex[:8]}"
-    db.execute(
-        "INSERT INTO resumes (id, title, content) VALUES (?, ?, ?)",
-        (resume_id, data.get("title", "Original"), data.get("content", "")),
-    )
-    db.commit()
-    row = db.execute("SELECT * FROM resumes WHERE id=?", (resume_id,)).fetchone()
-    return dict(row)
+    return repo.upsert({
+        "id": resume_id,
+        "title": data.get("title", "Original"),
+        "content": data.get("content", ""),
+    })
 
 
 @router.put("/{id}")
-def update_resume(id: str, data: dict, db=Depends(get_db)):
+def update_resume(id: str, data: dict, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """Update a resume."""
-    row = db.execute("SELECT * FROM resumes WHERE id=?", (id,)).fetchone()
-    if not row:
+    existing = repo.get_by_id(id)
+    if not existing:
         raise NotFoundError(f"Resume {id} not found")
-
-    fields = []
-    values = []
-    for field in ["title", "content"]:
-        if field in data:
-            fields.append(f"{field}=?")
-            values.append(data[field])
-
-    if fields:
-        values.append(id)
-        db.execute(f"UPDATE resumes SET {','.join(fields)} WHERE id=?", values)
-        db.commit()
-
-    row = db.execute("SELECT * FROM resumes WHERE id=?", (id,)).fetchone()
-    return dict(row)
+    updates = {k: v for k, v in data.items() if k in ("title", "content")}
+    if updates:
+        updates["id"] = id
+        repo.upsert(updates)
+    return repo.get_by_id(id)
 
 
 @router.delete("/{id}")
-def delete_resume(id: str, db=Depends(get_db)):
+def delete_resume(id: str, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """Delete a resume."""
-    db.execute("DELETE FROM resumes WHERE id=?", (id,))
-    db.commit()
+    repo.delete_by_id(id)
     return {"status": "deleted", "id": id}
 
 
 @router.post("/{id}/generate-cover")
-def generate_cover_letter(id: str, data: dict, db=Depends(get_db)):
+def generate_cover_letter(id: str, data: dict):
     """Generate a cover letter for a job."""
     return {"status": "started", "resume_id": id, "job_num": data.get("job_num")}

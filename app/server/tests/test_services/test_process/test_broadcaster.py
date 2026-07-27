@@ -1,7 +1,7 @@
 """Tests for Broadcaster — observer pattern for status delivery."""
 
 import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, AsyncMock
 from services.process.broadcaster import Broadcaster
 from services.process.models import (
     StatusUpdate, LogEntry, ProcessingComplete, ProcessingError,
@@ -12,6 +12,7 @@ class TestBroadcaster:
     def setup_method(self):
         self.b = Broadcaster()
         self.mock_socketio = MagicMock()
+        self.mock_socketio.emit = AsyncMock()
         self.b.set_socketio(self.mock_socketio)
 
     def test_step_update_emits_to_room(self):

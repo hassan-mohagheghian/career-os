@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from domain.repositories.company_repository import ICompanyRepository
@@ -67,3 +68,33 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         if not model:
             return None
         return company_intelligence_model_to_dict(model)
+
+    # ── Extended methods for services ───────────────────────────────
+
+    def insert(self, data: dict[str, Any]) -> dict[str, Any]:
+        model = CompanyModel(**{k: v for k, v in data.items() if hasattr(CompanyModel, k)})
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return self.get_by_id(model.id)
+
+    def get_intelligence_by_company_id(self, company_id: int) -> dict[str, Any] | None:
+        return self.get_intelligence(company_id)
+
+    def get_total_count(self) -> int:
+        return self._session.query(func.count(CompanyModel.id)).scalar() or 0
+
+    def get_all_with_job_counts(self) -> list[dict[str, Any]]:
+        from infrastructure.database.models.job_model import JobModel
+        rows = self._session.query(
+            CompanyModel,
+            func.count(JobModel.num).label("job_count"),
+        ).outerjoin(
+            JobModel, (JobModel.company_id == CompanyModel.id) & (JobModel.deleted == 0)
+        ).group_by(CompanyModel.id).order_by(CompanyModel.name).all()
+        result = []
+        for company, job_count in rows:
+            d = company_model_to_dict(company)
+            d["job_count"] = job_count
+            result.append(d)
+        return result

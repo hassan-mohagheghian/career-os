@@ -11,9 +11,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import services.insights as ci
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.insight_model
+import infrastructure.database.models.job_model
+import infrastructure.database.models.company_model
+import infrastructure.database.models.skill_model
+import infrastructure.database.models.misc_models
 
 
 @pytest.fixture(autouse=True)
@@ -35,58 +44,23 @@ def reset_state():
 def test_db():
     fd, path = tempfile.mkstemp(suffix='.db')
     os.close(fd)
-    conn = sqlite3.connect(path)
-    conn.executescript("""
-        CREATE TABLE career_insight_runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, insight_type TEXT NOT NULL,
-            version INTEGER DEFAULT 1, status TEXT DEFAULT 'pending',
-            started_at TIMESTAMP, completed_at TIMESTAMP,
-            error_message TEXT, metadata TEXT DEFAULT '{}', session_id TEXT
-        );
-        CREATE TABLE career_insights (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, insight_type TEXT NOT NULL,
-            version INTEGER DEFAULT 1, score REAL, summary TEXT,
-            data_json TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE jobs (
-            num INTEGER PRIMARY KEY, company TEXT, role TEXT, location TEXT,
-            score TEXT, match TEXT, fit_score REAL, success_score REAL,
-            overall_score REAL, stack TEXT, visa TEXT, work_type TEXT,
-            employment_type TEXT, posted TEXT, applicants TEXT, deleted INTEGER DEFAULT 0
-        );
-        CREATE TABLE companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, industry TEXT,
-            company_type TEXT, country TEXT, city TEXT, tech_stack TEXT,
-            funding_stage TEXT, company_size TEXT
-        );
-        CREATE TABLE skills (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, level INTEGER,
-            source TEXT DEFAULT 'service', category TEXT DEFAULT 'technical'
-        );
-        CREATE TABLE tech_learning (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, priority INTEGER,
-            usage TEXT, reason TEXT, action TEXT
-        );
-    """)
-    conn.commit()
-    conn.close()
     yield path
     os.remove(path)
 
 
 @pytest.fixture
 def db(test_db):
-    """Patch ci._db to use test database with Row factory."""
-    original = ci._db
+    """Patch get_session_sync to use test database."""
+    engine = create_engine(f"sqlite:///{test_db}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    sa_session = Session()
 
-    def _test_db():
-        conn = sqlite3.connect(test_db)
-        conn.row_factory = sqlite3.Row
-        return conn
+    with patch('dependencies.get_session_sync', return_value=sa_session):
+        yield test_db
 
-    ci._db = _test_db
-    yield test_db
-    ci._db = original
+    sa_session.close()
+    engine.dispose()
 
 
 # ── set_socketio ─────────────────────────────────────────────────
@@ -140,7 +114,7 @@ class TestCleanupStaleRuns:
     def test_marks_stale_as_failed(self, db):
         conn = sqlite3.connect(db)
         old = (datetime.now() - timedelta(minutes=10)).isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, started_at) VALUES ('overview', 'processing', ?)", (old,))
+        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('overview', 'processing', 1, '{}', ?)", (old,))
         conn.commit(); conn.close()
         ci._cleanup_stale_runs()
         conn = sqlite3.connect(db)
@@ -152,7 +126,7 @@ class TestCleanupStaleRuns:
     def test_skips_recent_runs(self, db):
         conn = sqlite3.connect(db)
         recent = datetime.now().isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, started_at) VALUES ('overview', 'processing', ?)", (recent,))
+        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('overview', 'processing', 1, '{}', ?)", (recent,))
         conn.commit(); conn.close()
         ci._cleanup_stale_runs()
         conn = sqlite3.connect(db)
@@ -177,7 +151,7 @@ class TestIsRunning:
     def test_stale_db_cleaned(self, db):
         conn = sqlite3.connect(db)
         old = (datetime.now() - timedelta(minutes=10)).isoformat()
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status, started_at) VALUES ('market', 'processing', ?)", (old,))
+        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata, started_at) VALUES ('market', 'processing', 1, '{}', ?)", (old,))
         conn.commit(); conn.close()
         running, _ = ci.is_running()
         assert running is False
@@ -212,7 +186,7 @@ class TestCancelRun:
 
     def test_cancels_stale_db(self, db):
         conn = sqlite3.connect(db)
-        conn.execute("INSERT INTO career_insight_runs (insight_type, status) VALUES ('market', 'processing')")
+        conn.execute("INSERT INTO career_insight_runs (insight_type, status, version, metadata) VALUES ('market', 'processing', 1, '{}')")
         conn.commit(); conn.close()
         assert ci.cancel_run() is True
         conn = sqlite3.connect(db)

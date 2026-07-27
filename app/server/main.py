@@ -136,7 +136,7 @@ async def reset_job(sid, data):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
-    from migrations import run_migrations
+    from core.db import init_db
     from core.queue import init_queue_manager
 
     # Startup
@@ -146,8 +146,8 @@ async def lifespan(app: FastAPI):
     _run_alembic_migrations()
     log.info("fastapi.alembic_migrations_complete")
 
-    # Run data migrations (backfills, transforms, etc.)
-    run_migrations()
+    # Initialize database tables and seed data
+    init_db()
     log.info("fastapi.database_ready")
 
     init_queue_manager(DB_PATH)
@@ -195,39 +195,45 @@ def _run_alembic_migrations():
 
 def _recover_tasks():
     """On startup, check for interrupted tasks and mark them as failed."""
-    import sqlite3
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=5)
-        conn.row_factory = sqlite3.Row
+        from dependencies import get_session_sync
+        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
+        from datetime import datetime
 
-        # Mark stuck pending jobs as failed
-        stuck_jobs = conn.execute(
-            "SELECT id, version FROM pending_jobs WHERE status='processing'"
-        ).fetchall()
-        if stuck_jobs:
-            log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))
-            for job_id, version in stuck_jobs:
-                new_version = (version or 1) + 1
-                conn.execute(
-                    "UPDATE pending_jobs SET status='failed', error='Interrupted by server restart', version=?, updated_at=datetime('now') WHERE id=?",
-                    (new_version, job_id),
-                )
+        session = get_session_sync()
+        try:
+            repo = SQLAlchemyPendingRepository(session)
 
-        # Mark stuck pending companies as failed
-        stuck_companies = conn.execute(
-            "SELECT id, version FROM pending_companies WHERE status='processing'"
-        ).fetchall()
-        if stuck_companies:
-            log.info("fastapi.recovery_stuck_companies", count=len(stuck_companies))
-            for company_id, version in stuck_companies:
-                new_version = (version or 1) + 1
-                conn.execute(
-                    "UPDATE pending_companies SET status='failed', error='Interrupted by server restart', version=?, updated_at=datetime('now') WHERE id=?",
-                    (new_version, company_id),
-                )
+            # Mark stuck pending jobs as failed
+            stuck_jobs = session.query(PendingJobModel).filter(
+                PendingJobModel.status == 'processing'
+            ).all()
+            if stuck_jobs:
+                log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))
+                for job in stuck_jobs:
+                    new_version = (job.version or 1) + 1
+                    repo.update_fields(
+                        job.id, table="pending_jobs",
+                        status='failed', error='Interrupted by server restart',
+                        version=new_version, updated_at=datetime.now().isoformat(),
+                    )
 
-        conn.commit()
-        conn.close()
+            # Mark stuck pending companies as failed
+            stuck_companies = session.query(PendingCompanyModel).filter(
+                PendingCompanyModel.status == 'processing'
+            ).all()
+            if stuck_companies:
+                log.info("fastapi.recovery_stuck_companies", count=len(stuck_companies))
+                for company in stuck_companies:
+                    new_version = (company.version or 1) + 1
+                    repo.update_fields(
+                        company.id, table="pending_companies",
+                        status='failed', error='Interrupted by server restart',
+                        version=new_version, updated_at=datetime.now().isoformat(),
+                    )
+        finally:
+            session.close()
     except Exception as e:
         log.warning("fastapi.recovery_failed", error=str(e))
 
@@ -297,7 +303,16 @@ def create_app() -> FastAPI:
 
     # ── Static Files (Frontend) ──────────────────────────────────
     if os.path.isdir(STATIC_FOLDER):
+        from fastapi.responses import FileResponse
         app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_FOLDER, "assets")), name="assets")
+        index_html = os.path.join(STATIC_FOLDER, "index.html")
+
+        @app.get("/{full_path:path}")
+        async def serve_spa(full_path: str):
+            file_path = os.path.join(STATIC_FOLDER, full_path)
+            if os.path.isfile(file_path):
+                return FileResponse(file_path)
+            return FileResponse(index_html)
 
     return app
 

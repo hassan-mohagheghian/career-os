@@ -61,6 +61,7 @@ class PendingCompanyModel(Base):
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     workflow_log: Mapped[str] = mapped_column(Text, default="[]")
     links: Mapped[str] = mapped_column(Text, default="[]")
+    session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 

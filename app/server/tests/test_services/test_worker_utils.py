@@ -6,6 +6,11 @@ import sqlite3
 import pytest
 from unittest.mock import patch, MagicMock
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.job_model
+
 
 # ── Score Normalization ────────────────────────────────────────────
 
@@ -224,43 +229,69 @@ class TestParsePostedDate:
 class TestGetNextNum:
     def test_empty_table_returns_1(self):
         from services.worker import _get_next_num
-        with patch('services.worker._db') as mock_db:
-            mock_conn = MagicMock()
-            mock_row = MagicMock()
-            mock_row.__getitem__ = lambda self, key: None if key == 0 else None
-            mock_conn.execute.return_value.fetchone.return_value = mock_row
-            mock_db.return_value = mock_conn
-            assert _get_next_num() == 1
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            test_db = f.name
+        try:
+            engine = create_engine(f"sqlite:///{test_db}")
+            Base.metadata.create_all(bind=engine)
+            Session = sessionmaker(bind=engine)
+            sa_session = Session()
+            with patch('services.worker.get_session_sync', return_value=sa_session):
+                assert _get_next_num() == 1
+        finally:
+            os.unlink(test_db)
 
     def test_existing_jobs(self):
         from services.worker import _get_next_num
-        with patch('services.worker._db') as mock_db:
-            mock_conn = MagicMock()
-            mock_row = MagicMock()
-            mock_row.__getitem__ = lambda self, key: 42 if key == 0 else None
-            mock_conn.execute.return_value.fetchone.return_value = mock_row
-            mock_db.return_value = mock_conn
-            assert _get_next_num() == 43
+        from infrastructure.database.models.job_model import JobModel
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            test_db = f.name
+        try:
+            engine = create_engine(f"sqlite:///{test_db}")
+            Base.metadata.create_all(bind=engine)
+            Session = sessionmaker(bind=engine)
+            sa_session = Session()
+            job = JobModel(num=42, company="Test", role="Dev", url="https://example.com")
+            sa_session.add(job)
+            sa_session.commit()
+            with patch('services.worker.get_session_sync', return_value=sa_session):
+                assert _get_next_num() == 43
+        finally:
+            os.unlink(test_db)
 
 
 class TestGetExistingNum:
     def test_existing_url(self):
         from services.worker import _get_existing_num
-        with patch('services.worker._db') as mock_db:
-            mock_conn = MagicMock()
-            # Return a real dict-like object that supports dict(row)
-            mock_row = {'num': 10}
-            mock_conn.execute.return_value.fetchone.return_value = mock_row
-            mock_db.return_value = mock_conn
-            assert _get_existing_num('https://example.com') == 10
+        from infrastructure.database.models.job_model import JobModel
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            test_db = f.name
+        try:
+            engine = create_engine(f"sqlite:///{test_db}")
+            Base.metadata.create_all(bind=engine)
+            Session = sessionmaker(bind=engine)
+            sa_session = Session()
+            job = JobModel(num=10, company="Test", role="Dev", url="https://example.com")
+            sa_session.add(job)
+            sa_session.commit()
+            with patch('services.worker.get_session_sync', return_value=sa_session):
+                assert _get_existing_num('https://example.com') == 10
+        finally:
+            os.unlink(test_db)
 
     def test_new_url(self):
         from services.worker import _get_existing_num
-        with patch('services.worker._db') as mock_db:
-            mock_conn = MagicMock()
-            mock_conn.execute.return_value.fetchone.return_value = None
-            mock_db.return_value = mock_conn
-            assert _get_existing_num('https://new.com') is None
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            test_db = f.name
+        try:
+            engine = create_engine(f"sqlite:///{test_db}")
+            Base.metadata.create_all(bind=engine)
+            Session = sessionmaker(bind=engine)
+            sa_session = Session()
+            with patch('services.worker.get_session_sync', return_value=sa_session):
+                assert _get_existing_num('https://new.com') is None
+        finally:
+            os.unlink(test_db)
 
 
 # ── Pause/Stop Detection ───────────────────────────────────────────

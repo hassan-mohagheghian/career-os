@@ -258,3 +258,42 @@ class SQLAlchemySkillRepository(ISkillRepository):
         self._session.query(SkillRelationshipModel).filter(SkillRelationshipModel.id == rel_id).delete()
         self._session.commit()
         return True
+
+    # ── Extended methods for services ───────────────────────────────
+
+    def get_all(self) -> list[dict[str, Any]]:
+        rows = self._session.query(SkillModel).all()
+        return [skill_model_to_dict(r) for r in rows]
+
+    def get_level_by_name(self, name: str) -> int | None:
+        m = self._session.query(SkillModel.level).filter(SkillModel.name == name).first()
+        return m[0] if m else None
+
+    def update_fields_by_name(self, name: str, **fields) -> bool:
+        m = self._session.query(SkillModel).filter(SkillModel.name == name).first()
+        if not m:
+            return False
+        for k, v in fields.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
+        self._session.commit()
+        return True
+
+    def create_from_dict(self, data: dict[str, Any]) -> dict[str, Any]:
+        m = SkillModel(
+            name=data.get("name", ""),
+            level=data.get("level", 1),
+            roles=data.get("roles", ""),
+            path=data.get("path", ""),
+            source=data.get("source", "service"),
+            source_type=data.get("source_type", "ai_generated"),
+            category=data.get("category", ""),
+            confidence=data.get("confidence", 0),
+            market_relevance=data.get("market_relevance", 0),
+            evidence=data.get("evidence", "[]"),
+            tags=data.get("tags", "[]"),
+        )
+        self._session.add(m)
+        self._session.commit()
+        self._session.refresh(m)
+        return skill_model_to_dict(m)

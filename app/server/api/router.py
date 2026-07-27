@@ -1,9 +1,13 @@
 """Root API router. Matches the exact paths the frontend expects."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends
 
 from api.v1 import jobs, skills, companies, insights, pending, pending_companies, resumes, skill_roadmaps, rules, dashboard, websocket, sse
-from dependencies import get_db_sync
+from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_pending_repo, get_insight_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
+from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 
 api_router = APIRouter(prefix="/api")
 
@@ -29,226 +33,165 @@ api_router.include_router(sse.router, tags=["sse"])
 def cancel_generation(gen_id: int):
     """Cancel a running generation."""
     from exceptions import NotFoundError
-    db = get_db_sync()
+    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+
+    session = get_session_sync()
     try:
-        row = db.execute("SELECT id, status FROM pending_generations WHERE id=?", (gen_id,)).fetchone()
-        if not row:
+        repo = SQLAlchemyPendingGenerationRepository(session)
+        gen = repo.get_by_id(gen_id)
+        if not gen:
             raise NotFoundError(f"Generation {gen_id} not found")
-        db.execute("UPDATE pending_generations SET status='cancelled' WHERE id=?", (gen_id,))
-        db.commit()
+        repo.update_fields(gen_id, status="cancelled")
+        session.commit()
         return {"status": "cancelled", "gen_id": gen_id}
     finally:
-        db.close()
+        session.close()
 
 
 # ── Flask compat routes ─────────────────────────────────────────
 
 @api_router.get("/summaries")
 def summaries_compat():
-    db = get_db_sync()
+    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+    session = get_session_sync()
     try:
-        grade_order = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-        rows = db.execute(f"SELECT * FROM summaries ORDER BY {grade_order} DESC").fetchall()
-        return [dict(r) for r in rows]
+        repo = SQLAlchemySummaryRepository(session)
+        return repo.get_all()
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.get("/linkedin")
 def linkedin_compat():
-    db = get_db_sync()
+    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+    session = get_session_sync()
     try:
-        rows = db.execute("SELECT * FROM resumes WHERE id='original' OR id LIKE 'linkedin_%'").fetchall()
-        return [dict(r) for r in rows]
+        repo = SQLAlchemyResumeRepository(session)
+        rows = repo.get_all()
+        return [r for r in rows if r.get("id") == "original" or r.get("id", "").startswith("linkedin_")]
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.get("/tech-stack")
 def tech_stack_compat():
-    from infrastructure.database.skill_repository import SkillRepository
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        return SkillRepository(db).list_visible()
+        repo = SQLAlchemySkillRepository(session)
+        return repo.list_visible()
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.get("/skills-intelligence/dashboard")
 def skills_intel_dashboard_compat():
-    from infrastructure.database.insight_repository import InsightRepository
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        result = InsightRepository(db).get_section("skills")
+        repo = SQLAlchemyInsightRepository(session)
+        result = repo.get_section("skills")
         return result or {"skills": [], "summary": None}
     finally:
-        db.close()
+        session.close()
 
 
 # ── Skill roadmap progress routes ───────────────────────────────
 
 @api_router.get("/skill-roadmap-progress/all")
 def skill_roadmap_progress_all():
-    db = get_db_sync()
+    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    session = get_session_sync()
     try:
-        total_rows = db.execute(
-            "SELECT skill_name, COUNT(*) as total_count FROM skill_roadmaps GROUP BY skill_name"
-        ).fetchall()
-        completed_rows = db.execute(
-            "SELECT skill_name, COUNT(*) as completed_count FROM skill_roadmap_progress WHERE completed=1 GROUP BY skill_name"
-        ).fetchall()
-        completed_map = {r["skill_name"]: r["completed_count"] for r in completed_rows}
-
-        progress_rows = db.execute("SELECT skill_name, roadmap_id, completed FROM skill_roadmap_progress").fetchall()
-        checked_map = {}
-        for r in progress_rows:
-            sname = r["skill_name"]
-            if sname not in checked_map:
-                checked_map[sname] = {}
-            checked_map[sname][r["roadmap_id"]] = r["completed"]
-
-        result = {}
-        for r in total_rows:
-            sname = r["skill_name"]
-            tot = r["total_count"]
-            comp = completed_map.get(sname, 0)
-            pct = round((comp / tot) * 100) if tot > 0 else 0
-            result[sname] = {
-                "total": tot,
-                "completed": comp,
-                "pct": pct,
-                "checked": checked_map.get(sname, {}),
-            }
-        return result
+        repo = SQLAlchemySkillRoadmapProgressRepository(session)
+        return repo.get_all_aggregated()
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.get("/skill-roadmap-progress")
-def skill_roadmap_progress_compat(skill: str = Query(None)):
-    db = get_db_sync()
+def skill_roadmap_progress_compat(skill: str = None):
+    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    session = get_session_sync()
     try:
+        repo = SQLAlchemySkillRoadmapProgressRepository(session)
         if skill:
-            rows = db.execute("SELECT * FROM skill_roadmap_progress WHERE LOWER(skill_name)=LOWER(?)", (skill,)).fetchall()
-            return {r["roadmap_id"]: r["completed"] for r in rows}
+            return repo.get_by_skill(skill)
         else:
             return skill_roadmap_progress_all()
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.patch("/skill-roadmap-progress/{id}")
-def toggle_roadmap_progress(id: int, data: dict = None, db=None):
-    db = get_db_sync()
+def toggle_roadmap_progress(id: int, data: dict = None):
+    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    session = get_session_sync()
     try:
-        row = db.execute(
-            "SELECT * FROM skill_roadmap_progress WHERE id=? OR roadmap_id=?", 
-            (id, id)
-        ).fetchone()
-        
-        if row:
-            new_completed = 0 if row["completed"] else 1
-            db.execute(
-                "UPDATE skill_roadmap_progress SET completed=?, updated_at=datetime('now') WHERE id=?", 
-                (new_completed, row["id"])
-            )
-            db.commit()
-            updated_row = db.execute("SELECT * FROM skill_roadmap_progress WHERE id=?", (row["id"],)).fetchone()
-            return dict(updated_row)
-        else:
-            rm_row = db.execute("SELECT skill_name FROM skill_roadmaps WHERE id=?", (id,)).fetchone()
-            skill_name = rm_row["skill_name"] if rm_row else ""
-            cur = db.execute(
-                "INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, 1)",
-                (id, skill_name)
-            )
-            db.commit()
-            new_row = db.execute("SELECT * FROM skill_roadmap_progress WHERE id=?", (cur.lastrowid,)).fetchone()
-            return dict(new_row)
+        repo = SQLAlchemySkillRoadmapProgressRepository(session)
+        result = repo.toggle(id, "")
+        return result
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.put("/skill-roadmap-progress/{id}")
 def update_roadmap_progress(id: int, data: dict = None):
-    db = get_db_sync()
+    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    session = get_session_sync()
     try:
+        repo = SQLAlchemySkillRoadmapProgressRepository(session)
         data = data or {}
         completed = 1 if data.get("completed") else 0
-        
-        row = db.execute(
-            "SELECT * FROM skill_roadmap_progress WHERE id=? OR roadmap_id=?", 
-            (id, id)
-        ).fetchone()
-
-        if row:
-            db.execute(
-                "UPDATE skill_roadmap_progress SET completed=?, updated_at=datetime('now') WHERE id=?", 
-                (completed, row["id"])
-            )
-            db.commit()
-            updated_row = db.execute("SELECT * FROM skill_roadmap_progress WHERE id=?", (row["id"],)).fetchone()
-            return dict(updated_row)
-        else:
-            rm_row = db.execute("SELECT skill_name FROM skill_roadmaps WHERE id=?", (id,)).fetchone()
-            skill_name = rm_row["skill_name"] if rm_row else ""
-            
-            cur = db.execute(
-                "INSERT INTO skill_roadmap_progress (roadmap_id, skill_name, completed) VALUES (?, ?, ?)",
-                (id, skill_name, completed)
-            )
-            db.commit()
-            new_row = db.execute("SELECT * FROM skill_roadmap_progress WHERE id=?", (cur.lastrowid,)).fetchone()
-            return dict(new_row)
+        return repo.set_completed(id, completed)
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.get("/skill-roadmap-jobs")
 def skill_roadmap_jobs_compat(limit: int = 50):
-    db = get_db_sync()
+    from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    session = get_session_sync()
     try:
-        rows = db.execute("SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
-        return {"items": [dict(r) for r in rows]}
+        repo = SQLAlchemySkillRoadmapJobRepository(session)
+        return {"items": repo.get_all(limit)}
     finally:
-        db.close()
+        session.close()
 
 
 # ── Skill relationships compat routes ───────────────────────────
 
 @api_router.get("/skill-relationships/{skill_name}")
 def get_skill_relationships_compat(skill_name: str):
-    from infrastructure.database.skill_repository import SkillRepository
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        return SkillRepository(db).get_relationships(skill_name)
+        repo = SQLAlchemySkillRepository(session)
+        return repo.get_relationships(skill_name)
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.post("/skill-relationships")
 def create_skill_relationship_compat(data: dict):
-    from infrastructure.database.skill_repository import SkillRepository
     from exceptions import ConflictError
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        success = SkillRepository(db).create_relationship(data)
+        repo = SQLAlchemySkillRepository(session)
+        success = repo.create_relationship(data)
         if not success:
             raise ConflictError("Relationship already exists")
         return {"status": "created"}
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.delete("/skill-relationships/{id}")
 def delete_skill_relationship_compat(id: int):
-    from infrastructure.database.skill_repository import SkillRepository
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        SkillRepository(db).delete_relationship(id)
+        repo = SQLAlchemySkillRepository(session)
+        repo.delete_relationship(id)
         return {"status": "deleted"}
     finally:
-        db.close()
+        session.close()
 
 
 # ── Missing CRUD routes ─────────────────────────────────────────
@@ -284,43 +227,53 @@ def process_pending_company(id: str):
 
 @api_router.post("/pending-companies/queue-all")
 def queue_all_pending_companies():
-    db = get_db_sync()
+    session = get_session_sync()
     try:
-        rows = db.execute("SELECT id FROM pending_companies WHERE status='pending' ORDER BY created_at ASC").fetchall()
+        repo = SQLAlchemyPendingRepository(session)
+        pending_items = repo.list_pending("pending_companies")
+        pending_ids = [item["id"] for item in pending_items if item.get("status") == "pending"]
         from core.queue import get_queue_manager
-        get_queue_manager().enqueue_bulk([dict(r)["id"] for r in rows])
-        return {"status": "queued", "count": len(rows)}
+        get_queue_manager().enqueue_bulk(pending_ids)
+        return {"status": "queued", "count": len(pending_ids)}
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.post("/jobs/{num}/link-company")
 def link_job_to_company(num: int, data: dict):
-    db = get_db_sync()
+    session = get_session_sync()
     try:
+        repo = SQLAlchemyJobRepository(session)
         company_id = data.get("company_id")
         if company_id:
-            db.execute("UPDATE jobs SET company_id=? WHERE num=?", (company_id, num))
-            db.commit()
+            repo.update_fields(num, company_id=company_id)
+            session.commit()
         return {"status": "linked"}
     finally:
-        db.close()
+        session.close()
 
 
 @api_router.post("/companies/{id}/reprocess")
 def reprocess_company(id: int):
-    db = get_db_sync()
+    from core.queue import get_queue_manager
+    session = get_session_sync()
     try:
-        company = db.execute("SELECT name FROM companies WHERE id=?", (id,)).fetchone()
+        from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        company_repo = SQLAlchemyCompanyRepository(session)
+        pending_repo = SQLAlchemyPendingRepository(session)
+        company = company_repo.get_by_id(id)
         if not company:
             return {"error": "Not found"}
-        cur = db.execute(
-            "INSERT INTO pending_companies (input_text, input_type, source, status) VALUES (?, ?, ?, ?)",
-            (dict(company)["name"], "text", "reprocess", "pending"),
+        result = pending_repo.create_pending_company(
+            input_text=company.get("name", ""),
+            input_type="text",
+            source="reprocess",
+            status="pending",
+            notes="[]",
         )
-        db.commit()
-        from core.queue import get_queue_manager
-        get_queue_manager().enqueue(cur.lastrowid, table='pending_companies')
+        session.commit()
+        get_queue_manager().enqueue(result["id"], table='pending_companies')
         return {"status": "queued"}
     finally:
-        db.close()
+        session.close()

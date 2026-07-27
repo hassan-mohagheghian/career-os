@@ -1,18 +1,49 @@
 """Tests for worker broadcasting — real-time SocketIO events during processing."""
 
+import os
 import sqlite3
+import tempfile
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.pending_model
 
 
-def _make_db(path, row_factory=None):
-    """Create a _db() function bound to a specific path."""
-    def _db():
-        conn = sqlite3.connect(path)
-        conn.row_factory = row_factory
-        return conn
-    return _db
+@pytest.fixture
+def sa_test_db():
+    """Create a temp DB with SA schema, return (path, sa_session)."""
+    fd, path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+    engine = create_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield path, session
+    session.close()
+    engine.dispose()
+    os.remove(path)
+
+
+INSERT_JOB = """
+    INSERT INTO pending_jobs (url, source, status, notes, links, workflow_log,
+        version, step_fetch, step_analyze, step_resume, step_cover, step_db,
+        step_done, queue_order, step_extract_raw, step_extract_struct)
+    VALUES (?, 'cli', ?, '[]', '[]', '[]',
+        1, 0, 0, 0, 0, 0,
+        0, 0, 0, 0)
+"""
+
+INSERT_COMPANY = """
+    INSERT INTO pending_companies (input_text, source, status, notes, links,
+        input_type, workflow_log, version, step_fetch, step_extract,
+        step_analyze, step_save, step_done)
+    VALUES (?, 'web', ?, '[]', '[]',
+        'url', '[]', 1, 0, 0,
+        0, 0, 0)
+"""
 
 
 # ── Worker Broadcasting Tests ──────────────────────────────────────
@@ -21,14 +52,15 @@ def _make_db(path, row_factory=None):
 class TestWorkerBroadcasting:
     """Test that worker.py emits SocketIO events via broadcaster."""
 
-    def test_update_step_emits_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_jobs (url, status) VALUES (?, ?)", ('https://example.com/job', 'processing'))
+    def test_update_step_emits_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.worker.get_session_sync', return_value=sa_session), \
              patch('services.worker.broadcaster', mock_broadcaster):
             from services.worker import _update_step
             _update_step(1, 'step_fetch', 1)
@@ -40,14 +72,15 @@ class TestWorkerBroadcasting:
             assert event.step == 'step_fetch'
             assert event.val == 1
 
-    def test_update_step_with_status_emits_extra(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_jobs (url, status) VALUES (?, ?)", ('https://example.com/job', 'queued'))
+    def test_update_step_with_status_emits_extra(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_JOB, ('https://example.com/job', 'queued'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.worker.get_session_sync', return_value=sa_session), \
              patch('services.worker.broadcaster', mock_broadcaster):
             from services.worker import _update_step
             _update_step(1, 'step_fetch', 0, status='processing')
@@ -56,14 +89,15 @@ class TestWorkerBroadcasting:
             assert event.val == 0
             assert event.extra['status'] == 'processing'
 
-    def test_log_emits_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_jobs (url, status) VALUES (?, ?)", ('https://example.com/job', 'processing'))
+    def test_log_emits_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.worker.get_session_sync', return_value=sa_session), \
              patch('services.worker.broadcaster', mock_broadcaster):
             from services.worker import _log
             _log(1, 'fetch', 'Fetching page...')
@@ -75,14 +109,15 @@ class TestWorkerBroadcasting:
             assert event.step == 'fetch'
             assert event.msg == 'Fetching page...'
 
-    def test_fail_emits_error_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_jobs (url, status) VALUES (?, ?)", ('https://example.com/job', 'processing'))
+    def test_fail_emits_error_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.worker.get_session_sync', return_value=sa_session), \
              patch('services.worker.broadcaster', mock_broadcaster):
             from services.worker import _fail
             _fail(1, 'Network timeout', step='fetch')
@@ -94,19 +129,20 @@ class TestWorkerBroadcasting:
             assert 'Network timeout' in event.msg
             assert event.step == 'fetch'
 
-    def test_save_session_id_persists_and_broadcasts(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_jobs (url, status) VALUES (?, ?)", ('https://example.com/job', 'processing'))
+    def test_save_session_id_persists_and_broadcasts(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_JOB, ('https://example.com/job', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.worker.get_session_sync', return_value=sa_session), \
              patch('services.worker.broadcaster', mock_broadcaster):
             from services.worker import _save_session_id
             _save_session_id(1, 'sess_abc123')
 
-            conn = sqlite3.connect(test_db)
+            conn = sqlite3.connect(path)
             row = conn.execute("SELECT session_id FROM pending_jobs WHERE id=1").fetchone()
             conn.close()
             assert row[0] == 'sess_abc123'
@@ -120,14 +156,15 @@ class TestWorkerBroadcasting:
 class TestCompanyWorkerBroadcasting:
     """Test that company_worker.py emits SocketIO events via broadcaster."""
 
-    def test_update_step_emits_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", ('https://example.com/company', 'processing'))
+    def test_update_step_emits_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
              patch('services.company_worker.broadcaster', mock_broadcaster):
             from services.company_worker import _update_step
             _update_step(1, 'step_fetch', 1)
@@ -139,14 +176,15 @@ class TestCompanyWorkerBroadcasting:
             assert event.step == 'step_fetch'
             assert event.val == 1
 
-    def test_update_step_with_status_emits_extra(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", ('https://example.com/company', 'queued'))
+    def test_update_step_with_status_emits_extra(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'queued'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
              patch('services.company_worker.broadcaster', mock_broadcaster):
             from services.company_worker import _update_step
             _update_step(1, 'step_fetch', 0, status='processing')
@@ -155,14 +193,15 @@ class TestCompanyWorkerBroadcasting:
             assert event.val == 0
             assert event.extra['status'] == 'processing'
 
-    def test_log_emits_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", ('https://example.com/company', 'processing'))
+    def test_log_emits_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
              patch('services.company_worker.broadcaster', mock_broadcaster):
             from services.company_worker import _log
             _log(1, 'fetch', 'Fetching URL...')
@@ -174,14 +213,15 @@ class TestCompanyWorkerBroadcasting:
             assert event.step == 'fetch'
             assert event.msg == 'Fetching URL...'
 
-    def test_fail_emits_error_event(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", ('https://example.com/company', 'processing'))
+    def test_fail_emits_error_event(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
              patch('services.company_worker.broadcaster', mock_broadcaster):
             from services.company_worker import _fail
             _fail(1, 'Page not found', step='fetch')
@@ -193,19 +233,20 @@ class TestCompanyWorkerBroadcasting:
             assert 'Page not found' in event.msg
             assert event.step == 'fetch'
 
-    def test_save_session_id_persists_and_broadcasts(self, test_db):
-        conn = sqlite3.connect(test_db)
-        conn.execute("INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", ('https://example.com/company', 'processing'))
+    def test_save_session_id_persists_and_broadcasts(self, sa_test_db):
+        path, sa_session = sa_test_db
+        conn = sqlite3.connect(path)
+        conn.execute(INSERT_COMPANY, ('https://example.com/company', 'processing'))
         conn.commit()
         conn.close()
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker._db', _make_db(test_db, sqlite3.Row)), \
+        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
              patch('services.company_worker.broadcaster', mock_broadcaster):
             from services.company_worker import _save_session_id
             _save_session_id(1, 'sess_xyz789')
 
-            conn = sqlite3.connect(test_db)
+            conn = sqlite3.connect(path)
             row = conn.execute("SELECT session_id FROM pending_companies WHERE id=1").fetchone()
             conn.close()
             assert row[0] == 'sess_xyz789'
@@ -222,7 +263,9 @@ class TestBroadcasterLogging:
     def test_step_update_logs(self, caplog):
         from services.process.broadcaster import Broadcaster
         b = Broadcaster()
-        b.set_socketio(MagicMock())
+        mock_sio = MagicMock()
+        mock_sio.emit = AsyncMock()
+        b.set_socketio(mock_sio)
 
         with caplog.at_level('INFO', logger='services.process.broadcaster'):
             b.step_update(StatusUpdate(table='pending_jobs', pid=42, step='step_fetch', val=1))
@@ -233,7 +276,9 @@ class TestBroadcasterLogging:
     def test_log_event_logs(self, caplog):
         from services.process.broadcaster import Broadcaster
         b = Broadcaster()
-        b.set_socketio(MagicMock())
+        mock_sio = MagicMock()
+        mock_sio.emit = AsyncMock()
+        b.set_socketio(mock_sio)
 
         with caplog.at_level('INFO', logger='services.process.broadcaster'):
             b.log(LogEntry(table='pending_jobs', pid=10, step='fetch', msg='Done'))
@@ -243,7 +288,9 @@ class TestBroadcasterLogging:
     def test_complete_logs(self, caplog):
         from services.process.broadcaster import Broadcaster
         b = Broadcaster()
-        b.set_socketio(MagicMock())
+        mock_sio = MagicMock()
+        mock_sio.emit = AsyncMock()
+        b.set_socketio(mock_sio)
 
         with caplog.at_level('INFO', logger='services.process.broadcaster'):
             b.complete(ProcessingComplete(table='pending_jobs', pid=10, result={'num': 99}))
@@ -253,7 +300,9 @@ class TestBroadcasterLogging:
     def test_error_logs(self, caplog):
         from services.process.broadcaster import Broadcaster
         b = Broadcaster()
-        b.set_socketio(MagicMock())
+        mock_sio = MagicMock()
+        mock_sio.emit = AsyncMock()
+        b.set_socketio(mock_sio)
 
         with caplog.at_level('ERROR', logger='services.process.broadcaster'):
             b.error(ProcessingError(table='pending_jobs', pid=10, msg='boom', step='fetch'))

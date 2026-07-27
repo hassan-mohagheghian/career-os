@@ -14,53 +14,41 @@ from unittest.mock import patch, MagicMock
 def db_path():
     fd, path = tempfile.mkstemp(suffix='.db')
     os.close(fd)
-    conn = sqlite3.connect(path)
-    conn.execute("""CREATE TABLE IF NOT EXISTS pending_jobs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT UNIQUE, source TEXT DEFAULT 'cli',
-        status TEXT DEFAULT 'queued', version INTEGER DEFAULT 1,
-        queue_order INTEGER DEFAULT 0,
-        step_fetch INTEGER DEFAULT 0, step_validate INTEGER DEFAULT 0,
-        step_extract_raw INTEGER DEFAULT 0, step_extract_struct INTEGER DEFAULT 0,
-        step_analyze INTEGER DEFAULT 0, step_summary INTEGER DEFAULT 0,
-        step_db INTEGER DEFAULT 0, step_done INTEGER DEFAULT 0,
-        job_num INTEGER, company TEXT, error TEXT,
-        workflow_log TEXT DEFAULT '[]',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )""")
-    conn.execute("""CREATE TABLE IF NOT EXISTS pending_companies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        input_text TEXT NOT NULL, notes TEXT DEFAULT '[]',
-        input_type TEXT DEFAULT 'url', source TEXT DEFAULT 'web',
-        status TEXT DEFAULT 'pending', version INTEGER DEFAULT 1,
-        step_fetch INTEGER DEFAULT 0, step_extract INTEGER DEFAULT 0,
-        step_analyze INTEGER DEFAULT 0, step_save INTEGER DEFAULT 0,
-        step_done INTEGER DEFAULT 0,
-        company_id INTEGER, company_name TEXT, error TEXT,
-        links TEXT DEFAULT '[]',
-        workflow_log TEXT DEFAULT '[]',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )""")
-    conn.commit()
-    conn.close()
     yield path
     os.remove(path)
 
 
 @pytest.fixture
 def queue(db_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from infrastructure.database.sqlalchemy_config import Base
+    import infrastructure.database.models.pending_model
+
+    engine = create_engine(f"sqlite:///{db_path}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    sa_session = Session()
+
     import core.queue as q
-    q.DB_PATH = db_path
-    mgr = q.JobQueueManager(concurrency=2)
-    yield mgr
+    with patch('core.queue.get_session_sync', return_value=sa_session):
+        mgr = q.JobQueueManager(concurrency=2)
+        yield mgr
     mgr._running = False
+    sa_session.close()
+    engine.dispose()
 
 
 def _insert_job(conn, url, status='pending'):
     cur = conn.execute(
-        "INSERT INTO pending_jobs (url, status) VALUES (?, ?)", (url, status)
+        """INSERT INTO pending_jobs
+           (url, status, source, version, notes, links, workflow_log,
+            step_fetch, step_analyze, step_resume, step_cover, step_db, step_done,
+            queue_order, step_extract_raw, step_extract_struct)
+           VALUES (?, ?, 'cli', 1, '[]', '[]', '[]',
+                   0, 0, 0, 0, 0, 0,
+                   0, 0, 0)""",
+        (url, status),
     )
     conn.commit()
     return cur.lastrowid
@@ -68,7 +56,14 @@ def _insert_job(conn, url, status='pending'):
 
 def _insert_company(conn, text, status='pending'):
     cur = conn.execute(
-        "INSERT INTO pending_companies (input_text, status) VALUES (?, ?)", (text, status)
+        """INSERT INTO pending_companies
+           (input_text, status, notes, input_type, source, version,
+            step_fetch, step_extract, step_analyze, step_save, step_done,
+            workflow_log, links)
+           VALUES (?, ?, '[]', 'url', 'web', 1,
+                   0, 0, 0, 0, 0,
+                   '[]', '[]')""",
+        (text, status),
     )
     conn.commit()
     return cur.lastrowid
@@ -174,7 +169,7 @@ class TestResetJob:
             "SELECT status, step_fetch, step_analyze, step_done FROM pending_jobs WHERE id=?", (pid,)
         ).fetchone()
         conn.close()
-        assert row[0] == 'pending'
+        assert row[0] == 'queued'
         assert row[1] == 0  # step_fetch reset
         assert row[2] == 0  # step_analyze reset
         assert row[3] == 0  # step_done reset
@@ -193,7 +188,7 @@ class TestResetJob:
             "SELECT status, step_fetch FROM pending_companies WHERE id=?", (pid,)
         ).fetchone()
         conn.close()
-        assert row[0] == 'pending'
+        assert row[0] == 'queued'
         assert row[1] == 0
 
     def test_reset_nonexistent(self, queue):

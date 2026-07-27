@@ -7,25 +7,15 @@ SOLID: Single responsibility — only reads and normalizes generation history.
 
 from __future__ import annotations
 
-import sqlite3
-import time
 from typing import Optional, List, Dict
 
 from .generation_models import GenerationHistoryItem
-
-
-def _open_db(db_path: str) -> sqlite3.Connection:
-    for attempt in range(5):
-        try:
-            conn = sqlite3.connect(db_path, timeout=5)
-            conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA journal_mode=WAL')
-            return conn
-        except sqlite3.OperationalError as e:
-            if 'locked' in str(e) and attempt < 4:
-                time.sleep(0.5 * (attempt + 1))
-            else:
-                raise
+from dependencies import get_session_sync
+from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
 
 
 class GenerationHistoryRepository:
@@ -34,26 +24,14 @@ class GenerationHistoryRepository:
     DDD: Read-only repository for the generation history projection.
     SRP: Only handles reading and normalizing generation history.
     OCP: New source tables added via new _query_* methods.
-
-    Accepts either a db_path (str) or an existing connection.
     """
 
-    def __init__(self, db_or_path):
-        if isinstance(db_or_path, str):
-            self._db_path = db_or_path
-            self._conn = None
-        else:
-            self._db_path = None
-            self._conn = db_or_path
+    def __init__(self, db_or_path=None):
+        # Accept legacy signature but ignore it — we use SA sessions
+        pass
 
-    def _db(self) -> sqlite3.Connection:
-        if self._conn is not None:
-            return self._conn
-        return _open_db(self._db_path)
-
-    def _owns_conn(self) -> bool:
-        """Whether we own the connection and should close it."""
-        return self._db_path is not None
+    def _session(self):
+        return get_session_sync()
 
     def get_all(
         self,
@@ -87,15 +65,11 @@ class GenerationHistoryRepository:
     def _query_pending_jobs(self) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, company, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_jobs ORDER BY created_at DESC LIMIT 200"
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyPendingRepository(session)
+                rows = repo.get_all_for_stream("pending_jobs")[:200]
+                for r in rows:
                     items.append(GenerationHistoryItem(
                         id=r['id'],
                         source='job-processing',
@@ -107,8 +81,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -116,15 +89,11 @@ class GenerationHistoryRepository:
     def _query_pending_companies(self) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, company_name, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_companies ORDER BY created_at DESC LIMIT 200"
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyPendingRepository(session)
+                rows = repo.get_all_for_stream("pending_companies")[:200]
+                for r in rows:
                     items.append(GenerationHistoryItem(
                         id=r['id'],
                         source='company-processing',
@@ -136,8 +105,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -145,15 +113,11 @@ class GenerationHistoryRepository:
     def _query_pending_generations(self) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, type, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_generations ORDER BY created_at DESC LIMIT 200"
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyPendingGenerationRepository(session)
+                rows = repo.get_all_active()[:200]
+                for r in rows:
                     gen_type = r.get('type', 'unknown')
                     title_map = {
                         'resume': 'Resume',
@@ -171,8 +135,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -180,25 +143,11 @@ class GenerationHistoryRepository:
     def _query_roadmap_jobs(self) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                cols = {r[1] for r in conn.execute("PRAGMA table_info(skill_roadmap_jobs)").fetchall()}
-                has_provider = 'provider_name' in cols
-
-                if has_provider:
-                    rows = conn.execute(
-                        "SELECT id, skill_name, job_type, status, error, session_id, "
-                        "provider_name, started_at, completed_at "
-                        "FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT 200"
-                    ).fetchall()
-                else:
-                    rows = conn.execute(
-                        "SELECT id, skill_name, job_type, status, error, session_id, "
-                        "started_at, completed_at "
-                        "FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT 200"
-                    ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemySkillRoadmapJobRepository(session)
+                rows = repo.get_all(limit=200)
+                for r in rows:
                     skill = r.get('skill_name', '?')
                     job_type = r.get('job_type', 'generate')
                     items.append(GenerationHistoryItem(
@@ -213,8 +162,7 @@ class GenerationHistoryRepository:
                         provider=r.get('provider_name'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -222,15 +170,11 @@ class GenerationHistoryRepository:
     def _query_insight_runs(self) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, insight_type, status, error_message, session_id, "
-                    "started_at, completed_at "
-                    "FROM career_insight_runs ORDER BY started_at DESC LIMIT 200"
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                rows = repo.get_runs(limit=200)
+                for r in rows:
                     insight_type = r.get('insight_type', 'unknown')
                     title_map = {
                         'overview': 'Overview',
@@ -253,8 +197,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -301,45 +244,38 @@ class GenerationHistoryRepository:
         """Count currently running/queued items for a context."""
         count = 0
         try:
-            conn = self._db()
+            session = self._session()
             try:
                 if context == 'job' and job_num is not None:
-                    row = conn.execute(
-                        "SELECT COUNT(*) FROM pending_generations "
-                        "WHERE job_num=? AND status IN ('queued', 'processing')",
-                        (job_num,),
-                    ).fetchone()
-                    count += row[0] if row else 0
-                    row2 = conn.execute(
-                        "SELECT COUNT(*) FROM pending_jobs "
-                        "WHERE job_num=? AND status IN ('queued', 'processing')",
-                        (job_num,),
-                    ).fetchone()
-                    count += row2[0] if row2 else 0
+                    repo_gen = SQLAlchemyPendingGenerationRepository(session)
+                    count += repo_gen.get_active_count(job_num)
+                    repo_pending = SQLAlchemyPendingRepository(session)
+                    # Count pending jobs with job_num in processing/queued status
+                    from infrastructure.database.models.pending_model import PendingJobModel
+                    count += session.query(PendingJobModel).filter(
+                        PendingJobModel.job_num == job_num,
+                        PendingJobModel.status.in_(["processing", "queued"]),
+                    ).count()
                 elif context == 'company' and company_id is not None:
-                    row = conn.execute(
-                        "SELECT COUNT(*) FROM pending_companies "
-                        "WHERE company_id=? AND status IN ('queued', 'processing')",
-                        (company_id,),
-                    ).fetchone()
-                    count = row[0] if row else 0
+                    from infrastructure.database.models.pending_model import PendingCompanyModel
+                    count = session.query(PendingCompanyModel).filter(
+                        PendingCompanyModel.company_id == company_id,
+                        PendingCompanyModel.status.in_(["processing", "queued"]),
+                    ).count()
                 elif context == 'skill' and skill_name is not None:
-                    row = conn.execute(
-                        "SELECT COUNT(*) FROM skill_roadmap_jobs "
-                        "WHERE LOWER(skill_name)=LOWER(?) AND status IN ('queued', 'running')",
-                        (skill_name,),
-                    ).fetchone()
-                    count = row[0] if row else 0
+                    from infrastructure.database.models.misc_models import SkillRoadmapJobModel
+                    count = session.query(SkillRoadmapJobModel).filter(
+                        SkillRoadmapJobModel.skill_name.ilike(skill_name),
+                        SkillRoadmapJobModel.status.in_(["queued", "running"]),
+                    ).count()
                 elif context == 'insight' and insight_type is not None:
-                    row = conn.execute(
-                        "SELECT COUNT(*) FROM career_insight_runs "
-                        "WHERE insight_type=? AND status='processing'",
-                        (insight_type,),
-                    ).fetchone()
-                    count = row[0] if row else 0
+                    from infrastructure.database.models.insight_model import CareerInsightRunModel
+                    count = session.query(CareerInsightRunModel).filter(
+                        CareerInsightRunModel.insight_type == insight_type,
+                        CareerInsightRunModel.status == "processing",
+                    ).count()
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return count
@@ -347,16 +283,11 @@ class GenerationHistoryRepository:
     def _query_pending_generations_for_job(self, job_num: int) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, type, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_generations WHERE job_num=? ORDER BY created_at DESC",
-                    (job_num,),
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyPendingGenerationRepository(session)
+                rows = repo.get_history_for_job(job_num)
+                for r in rows:
                     gen_type = r.get('type', 'unknown')
                     title_map = {
                         'resume': 'Resume',
@@ -374,8 +305,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -383,29 +313,27 @@ class GenerationHistoryRepository:
     def _query_pending_jobs_for_job(self, job_num: int) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, company, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_jobs WHERE job_num=? ORDER BY created_at DESC",
-                    (job_num,),
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                from infrastructure.database.models.pending_model import PendingJobModel
+                rows = session.query(PendingJobModel).filter(
+                    PendingJobModel.job_num == job_num,
+                ).order_by(PendingJobModel.created_at.desc()).all()
+                from infrastructure.database.mappers import pending_job_model_to_dict
+                for r in rows:
+                    d = pending_job_model_to_dict(r)
                     items.append(GenerationHistoryItem(
-                        id=r['id'],
+                        id=d['id'],
                         source='job-processing',
-                        title=r.get('company') or 'Job Processing',
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('created_at'),
-                        completed_at=r.get('updated_at') if r.get('status') in ('done', 'failed') else None,
-                        error=r.get('error'),
-                        session_id=r.get('session_id'),
+                        title=d.get('company') or 'Job Processing',
+                        status=d.get('status', 'unknown'),
+                        started_at=d.get('created_at'),
+                        completed_at=d.get('updated_at') if d.get('status') in ('done', 'failed') else None,
+                        error=d.get('error'),
+                        session_id=d.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -413,29 +341,27 @@ class GenerationHistoryRepository:
     def _query_pending_companies_for_company(self, company_id: int) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, company_name, status, error, session_id, "
-                    "created_at, updated_at "
-                    "FROM pending_companies WHERE company_id=? ORDER BY created_at DESC",
-                    (company_id,),
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                from infrastructure.database.models.pending_model import PendingCompanyModel
+                rows = session.query(PendingCompanyModel).filter(
+                    PendingCompanyModel.company_id == company_id,
+                ).order_by(PendingCompanyModel.created_at.desc()).all()
+                from infrastructure.database.mappers import pending_company_model_to_dict
+                for r in rows:
+                    d = pending_company_model_to_dict(r)
                     items.append(GenerationHistoryItem(
-                        id=r['id'],
+                        id=d['id'],
                         source='company-processing',
-                        title=r.get('company_name') or 'Company Processing',
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('created_at'),
-                        completed_at=r.get('updated_at') if r.get('status') in ('done', 'failed') else None,
-                        error=r.get('error'),
-                        session_id=r.get('session_id'),
+                        title=d.get('company_name') or 'Company Processing',
+                        status=d.get('status', 'unknown'),
+                        started_at=d.get('created_at'),
+                        completed_at=d.get('updated_at') if d.get('status') in ('done', 'failed') else None,
+                        error=d.get('error'),
+                        session_id=d.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -443,28 +369,11 @@ class GenerationHistoryRepository:
     def _query_roadmap_jobs_for_skill(self, skill_name: str) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                cols = {r[1] for r in conn.execute("PRAGMA table_info(skill_roadmap_jobs)").fetchall()}
-                has_provider = 'provider_name' in cols
-                if has_provider:
-                    rows = conn.execute(
-                        "SELECT id, skill_name, job_type, status, error, session_id, "
-                        "provider_name, started_at, completed_at "
-                        "FROM skill_roadmap_jobs WHERE LOWER(skill_name)=LOWER(?) "
-                        "ORDER BY created_at DESC",
-                        (skill_name,),
-                    ).fetchall()
-                else:
-                    rows = conn.execute(
-                        "SELECT id, skill_name, job_type, status, error, session_id, "
-                        "started_at, completed_at "
-                        "FROM skill_roadmap_jobs WHERE LOWER(skill_name)=LOWER(?) "
-                        "ORDER BY created_at DESC",
-                        (skill_name,),
-                    ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemySkillRoadmapJobRepository(session)
+                rows = repo.get_for_skill(skill_name)
+                for r in rows:
                     job_type = r.get('job_type', 'generate')
                     items.append(GenerationHistoryItem(
                         id=r['id'],
@@ -478,8 +387,7 @@ class GenerationHistoryRepository:
                         provider=r.get('provider_name'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items
@@ -487,16 +395,11 @@ class GenerationHistoryRepository:
     def _query_insight_runs_for_type(self, insight_type: str) -> List[GenerationHistoryItem]:
         items = []
         try:
-            conn = self._db()
+            session = self._session()
             try:
-                rows = conn.execute(
-                    "SELECT id, insight_type, status, error_message, session_id, "
-                    "started_at, completed_at "
-                    "FROM career_insight_runs WHERE insight_type=? ORDER BY started_at DESC",
-                    (insight_type,),
-                ).fetchall()
-                for row in rows:
-                    r = dict(row)
+                repo = SQLAlchemyCareerInsightRunRepository(session)
+                rows = repo.get_runs(insight_type=insight_type)
+                for r in rows:
                     title_map = {
                         'overview': 'Overview',
                         'opportunities': 'Opportunities',
@@ -518,8 +421,7 @@ class GenerationHistoryRepository:
                         session_id=r.get('session_id'),
                     ))
             finally:
-                if self._owns_conn():
-                    conn.close()
+                session.close()
         except Exception:
             pass
         return items

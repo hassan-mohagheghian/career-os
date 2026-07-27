@@ -1,21 +1,18 @@
 """Job CRUD, rescore, and reprocess routes."""
 
-import json
 import threading
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-import sqlite3
 
-from dependencies import get_db
-from infrastructure.database.job_repository import JobRepository
+from dependencies import get_job_repo, get_pending_repo, get_summary_repo, get_resume_repo
+from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
 from exceptions import NotFoundError, BadRequestError
 
 router = APIRouter()
-
-
-def _get_repo(db: sqlite3.Connection = Depends(get_db)) -> JobRepository:
-    return JobRepository(db)
 
 
 @router.get("")
@@ -33,7 +30,7 @@ def list_jobs(
     filter_response_status: str = Query(""),
     filter_applied: str = Query(""),
     filter_scores: str = Query(""),
-    repo: JobRepository = Depends(_get_repo),
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Get paginated list of processed jobs."""
     filters = {
@@ -47,7 +44,6 @@ def list_jobs(
         "filter_applied": filter_applied,
         "filter_scores": filter_scores,
     }
-    # Remove empty filters
     filters = {k: v for k, v in filters.items() if v}
 
     jobs, total = repo.list_jobs(
@@ -62,61 +58,53 @@ def list_jobs(
 
 
 @router.get("/summaries")
-def get_summaries(db: sqlite3.Connection = Depends(get_db)):
+def get_summaries(repo: SQLAlchemySummaryRepository = Depends(get_summary_repo)):
     """Get job summaries sorted by grade."""
-    grade_order = "CASE score WHEN 'A++' THEN 7 WHEN 'A+' THEN 6 WHEN 'A' THEN 5 WHEN 'B' THEN 4 WHEN 'C' THEN 3 WHEN 'D' THEN 2 WHEN 'E' THEN 1 ELSE 0 END"
-    rows = db.execute(f"SELECT * FROM summaries ORDER BY {grade_order} DESC").fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_all()
 
 
 @router.get("/{num}/generation-history")
-def get_job_generation_history(num: int, db: sqlite3.Connection = Depends(get_db)):
+def get_job_generation_history(num: int, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Get generation history (resume + cover) for a specific job."""
-    rows = db.execute(
-        "SELECT id, type, status, error, created_at, updated_at "
-        "FROM pending_generations WHERE job_num=? ORDER BY created_at DESC",
-        (num,),
-    ).fetchall()
     title_map = {'resume': 'Resume', 'cover': 'Cover Letter', 'cover_letter': 'Cover Letter'}
+    items = repo.get_history_for_job(num) if hasattr(repo, 'get_history_for_job') else []
     return [
         {
             "id": r["id"],
-            "type": r["type"],
-            "title": title_map.get(r["type"], r["type"]),
+            "type": r.get("type", "unknown"),
+            "title": title_map.get(r.get("type", ""), r.get("type", "")),
             "status": r["status"],
-            "error": r["error"],
-            "started_at": r["created_at"],
-            "completed_at": r["updated_at"] if r["status"] in ("done", "failed") else None,
+            "error": r.get("error"),
+            "started_at": r.get("created_at"),
+            "completed_at": r.get("updated_at") if r.get("status") in ("done", "failed") else None,
         }
-        for r in rows
+        for r in items
     ]
 
 
 @router.get("/{num}")
-def get_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+def get_job(
+    num: int,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    resume_repo: SQLAlchemyResumeRepository = Depends(get_resume_repo),
+):
     """Get a single job by number with its resume and cover letter."""
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    resume = db.execute(
-        "SELECT id, title, content, job_num FROM resumes WHERE job_num=? AND id NOT LIKE 'cover_%' ORDER BY created_at DESC LIMIT 1",
-        (num,),
-    ).fetchone()
-    cover = db.execute(
-        "SELECT id, title, content, job_num FROM resumes WHERE job_num=? AND id LIKE 'cover_%' ORDER BY created_at DESC LIMIT 1",
-        (num,),
-    ).fetchone()
+    resume = resume_repo.get_for_job(num)
+    cover = resume_repo.get_cover_for_job(num)
 
     return {
         **job,
-        "resume": dict(resume) if resume else None,
-        "coverLetter": dict(cover) if cover else None,
+        "resume": resume,
+        "coverLetter": cover,
     }
 
 
 @router.put("/{num}")
-def update_job(num: int, data: dict, repo: JobRepository = Depends(_get_repo)):
+def update_job(num: int, data: dict, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Update a job."""
     job = repo.update(num, data)
     if not job:
@@ -125,14 +113,18 @@ def update_job(num: int, data: dict, repo: JobRepository = Depends(_get_repo)):
 
 
 @router.delete("/{num}")
-def delete_job(num: int, repo: JobRepository = Depends(_get_repo)):
+def delete_job(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Delete a job and related data."""
     repo.delete(num)
     return {"status": "deleted", "num": num}
 
 
 @router.post("/{num}/requeue")
-def requeue_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+def requeue_job(
+    num: int,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
+):
     """Re-queue a job for processing."""
     from core.queue import get_queue_manager
 
@@ -144,31 +136,30 @@ def requeue_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.
     company = job.get("company", "")
 
     repo.mark_deleted(num)
-    row = db.execute("SELECT id FROM pending_jobs WHERE url=?", (url,)).fetchone()
+    existing = pending_repo.get_by_url(url)
 
-    if row:
-        pid = dict(row)["id"]
-        db.execute(
-            """UPDATE pending_jobs SET status='pending', error=NULL, source='requeue',
-            company=?, queue_order=0, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-            step_analyze=0, step_summary=0, step_db=0, step_done=0,
-            workflow_log='[]', updated_at=? WHERE id=?""",
-            (company, datetime.now().isoformat(), pid),
-        )
+    if existing:
+        pid = existing["id"]
+        pending_repo.update_fields(pid, table="pending_jobs",
+            status="pending", error=None, source="requeue",
+            company=company, queue_order=0, step_fetch=0, step_analyze=0,
+            step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
+            step_db=0, step_done=0, workflow_log="[]",
+            updated_at=datetime.now().isoformat())
     else:
-        cur = db.execute(
-            "INSERT INTO pending_jobs (url, source, company, status) VALUES (?, ?, ?, ?)",
-            (url, "requeue", company, "pending"),
-        )
-        pid = cur.lastrowid
+        result = pending_repo.create_pending_job(url, "requeue", company, "pending")
+        pid = result["id"]
 
-    db.commit()
     get_queue_manager().enqueue(pid)
     return {"status": "queued", "pid": pid, "num": num, "company": company}
 
 
 @router.post("/{num}/rescore")
-def rescore_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+def rescore_job(
+    num: int,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
+):
     """Rescore an existing job."""
     from core.queue import get_queue_manager
 
@@ -178,102 +169,114 @@ def rescore_job(num: int, repo: JobRepository = Depends(_get_repo), db: sqlite3.
 
     url = job["url"]
     repo.mark_rescoring(num)
-    db.execute("DELETE FROM pending_jobs WHERE url=?", (url,))
-    cur = db.execute(
-        "INSERT INTO pending_jobs (url, source, company, job_num, status) VALUES (?, ?, ?, ?, ?)",
-        (url, "rescore", job.get("company", ""), num, "pending"),
-    )
-    db.commit()
-    pending_id = cur.lastrowid
+
+    existing = pending_repo.get_by_url(url)
+    if existing:
+        pending_repo.update_status(str(existing["id"]), "cancelled", table="pending_jobs")
+
+    result = pending_repo.create(url, {
+        "url": url,
+        "source": "rescore",
+        "company": job.get("company", ""),
+    })
+    pending_id = result["id"]
     get_queue_manager().enqueue(pending_id)
     return {"status": "queued", "num": num, "company": job.get("company", ""), "pending_id": pending_id}
 
 
 @router.post("/rescore-all")
-def rescore_all(repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+def rescore_all(
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
+):
     """Rescore all non-deleted jobs."""
     from core.queue import get_queue_manager
 
     jobs = repo.get_all_active()
-    count = 0
     pending_ids = []
 
     for job in jobs:
         num = job["num"]
         url = job["url"]
         repo.mark_rescoring(num)
-        cur = db.execute(
-            "INSERT INTO pending_jobs (url, source, company, job_num, status) VALUES (?, ?, ?, ?, ?)",
-            (url, "rescore", job.get("company", ""), num, "pending"),
-        )
-        pending_ids.append(cur.lastrowid)
-        count += 1
+        result = pending_repo.create(url, {
+            "url": url,
+            "source": "rescore",
+            "company": job.get("company", ""),
+        })
+        pending_ids.append(result["id"])
 
-    db.commit()
     if pending_ids:
         get_queue_manager().enqueue_bulk(pending_ids)
-    return {"status": "rescoring", "count": count}
+    return {"status": "rescoring", "count": len(pending_ids)}
 
 
 @router.post("/reprocess-all")
-def reprocess_all(repo: JobRepository = Depends(_get_repo), db: sqlite3.Connection = Depends(get_db)):
+def reprocess_all(
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
+    summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
+):
     """Reprocess all jobs from scratch."""
     from core.queue import get_queue_manager
 
     jobs = repo.get_all_active()
-    db.execute("DELETE FROM jobs WHERE deleted=0")
-    db.execute("DELETE FROM summaries")
-    db.execute("DELETE FROM resumes WHERE id != 'original'")
+    repo.delete_all_active()
+    summary_repo.delete_all()
 
     pending_ids = []
     for job in jobs:
         url = job["url"]
         company = job.get("company", "")
-        row = db.execute("SELECT id FROM pending_jobs WHERE url=?", (url,)).fetchone()
+        existing = pending_repo.get_by_url(url)
 
-        if row:
-            pid = dict(row)["id"]
-            db.execute(
-                """UPDATE pending_jobs SET status='pending', error=NULL, source='requeue',
-                company=?, queue_order=0, step_fetch=0, step_validate=0, step_extract_raw=0, step_extract_struct=0,
-                step_analyze=0, step_summary=0, step_db=0, step_done=0,
-                workflow_log='[]', updated_at=? WHERE id=?""",
-                (company, datetime.now().isoformat(), pid),
-            )
+        if existing:
+            pid = existing["id"]
+            pending_repo.update_fields(pid, table="pending_jobs",
+                status="pending", error=None, source="requeue",
+                company=company, queue_order=0, step_fetch=0, step_analyze=0,
+                step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
+                step_db=0, step_done=0, workflow_log="[]",
+                updated_at=datetime.now().isoformat())
             pending_ids.append(pid)
         else:
-            cur = db.execute(
-                "INSERT INTO pending_jobs (url, source, company, status) VALUES (?, ?, ?, ?)",
-                (url, "requeue", company, "pending"),
-            )
-            pending_ids.append(cur.lastrowid)
+            result = pending_repo.create(url, {
+                "url": url,
+                "source": "requeue",
+                "company": company,
+            })
+            pending_ids.append(result["id"])
 
-    db.commit()
     if pending_ids:
         get_queue_manager().enqueue_bulk(pending_ids)
     return {"status": "reprocessing", "count": len(pending_ids)}
 
 
 @router.post("/{num}/generate-resume")
-def generate_resume(num: int, db: sqlite3.Connection = Depends(get_db)):
+def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Start background resume generation for a job."""
-    job = db.execute("SELECT num, company, role FROM jobs WHERE num=? AND deleted=0", (num,)).fetchone()
-    if not job:
-        raise NotFoundError(f"Job {num} not found")
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
 
-    running = db.execute(
-        "SELECT id FROM pending_generations WHERE job_num=? AND type='resume' AND status IN ('queued','processing')",
-        (num,),
-    ).fetchone()
-    if running:
-        raise BadRequestError("A resume generation is already running for this job")
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        job = repo.get_by_num(num)
+        if not job:
+            raise NotFoundError(f"Job {num} not found")
 
-    cur = db.execute(
-        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, ?, ?)",
-        (num, 'resume', 'queued'),
-    )
-    db.commit()
-    gen_id = cur.lastrowid
+        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        gen_repo = SQLAlchemyPendingGenerationRepository(session)
+
+        running = gen_repo.get_active_for_job(num, "resume")
+        if running:
+            raise BadRequestError("A resume generation is already running for this job")
+
+        gen = gen_repo.create(num, "resume", "queued")
+        gen_id = gen["id"]
+        session.commit()
+    finally:
+        session.close()
 
     def _run():
         from services.generation_worker import process_generation
@@ -283,10 +286,13 @@ def generate_resume(num: int, db: sqlite3.Connection = Depends(get_db)):
             import logging
             logging.getLogger('jobs').error(f"Generation {gen_id} failed: {e}")
             try:
-                db2 = get_db()
-                db2.execute("UPDATE pending_generations SET status='failed', error=? WHERE id=?", (str(e), gen_id))
-                db2.commit()
-                db2.close()
+                s = get_session_sync()
+                try:
+                    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+                    SQLAlchemyPendingGenerationRepository(s).update_fields(gen_id, status="failed", error=str(e))
+                    s.commit()
+                finally:
+                    s.close()
             except Exception:
                 pass
 
@@ -295,25 +301,30 @@ def generate_resume(num: int, db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.post("/{num}/generate-cover")
-def generate_cover(num: int, db: sqlite3.Connection = Depends(get_db)):
+def generate_cover(num: int):
     """Start background cover letter generation for a job."""
-    job = db.execute("SELECT num, company, role FROM jobs WHERE num=? AND deleted=0", (num,)).fetchone()
-    if not job:
-        raise NotFoundError(f"Job {num} not found")
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from exceptions import NotFoundError, BadRequestError
 
-    running = db.execute(
-        "SELECT id FROM pending_generations WHERE job_num=? AND type='cover' AND status IN ('queued','processing')",
-        (num,),
-    ).fetchone()
-    if running:
-        raise BadRequestError("A cover letter generation is already running for this job")
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        job = repo.get_by_num(num)
+        if not job:
+            raise NotFoundError(f"Job {num} not found")
 
-    cur = db.execute(
-        "INSERT INTO pending_generations (job_num, type, status) VALUES (?, ?, ?)",
-        (num, 'cover', 'queued'),
-    )
-    db.commit()
-    gen_id = cur.lastrowid
+        gen_repo = SQLAlchemyPendingGenerationRepository(session)
+        running = gen_repo.get_active_for_job(num, "cover")
+        if running:
+            raise BadRequestError("A cover letter generation is already running for this job")
+
+        gen = gen_repo.create(num, "cover", "queued")
+        gen_id = gen["id"]
+        session.commit()
+    finally:
+        session.close()
 
     def _run():
         from services.generation_worker import process_generation

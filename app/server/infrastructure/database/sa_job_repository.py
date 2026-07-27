@@ -178,3 +178,90 @@ class SQLAlchemyJobRepository(IJobRepository):
     def get_all_active(self) -> list[dict[str, Any]]:
         rows = self._session.query(JobModel).filter(JobModel.deleted == 0).all()
         return [{"num": r.num, "url": r.url, "company": r.company} for r in rows]
+
+    # ── Extended methods for services ───────────────────────────────
+
+    def get_next_num(self) -> int:
+        result = self._session.query(func.max(JobModel.num)).scalar()
+        return (result or 0) + 1
+
+    def get_by_url(self, url: str) -> dict[str, Any] | None:
+        m = self._session.query(JobModel).filter(JobModel.url == url).first()
+        return job_model_to_dict(m) if m else None
+
+    def get_num_by_url(self, url: str) -> int | None:
+        m = self._session.query(JobModel.num).filter(JobModel.url == url).first()
+        return m[0] if m else None
+
+    def upsert(self, data: dict[str, Any]) -> dict[str, Any]:
+        num = data.get("num")
+        existing = self._session.query(JobModel).filter(JobModel.num == num).first() if num else None
+        if existing:
+            for k, v in data.items():
+                if hasattr(existing, k) and k != "num":
+                    setattr(existing, k, v)
+            self._session.commit()
+            self._session.refresh(existing)
+            return job_model_to_dict(existing)
+        m = JobModel(**{k: v for k, v in data.items() if hasattr(JobModel, k)})
+        self._session.add(m)
+        self._session.commit()
+        self._session.refresh(m)
+        return job_model_to_dict(m)
+
+    def update_fields(self, num: int, **fields) -> bool:
+        self._session.query(JobModel).filter(JobModel.num == num).update(fields)
+        self._session.commit()
+        return True
+
+    def update_workflow_log(self, num: int, log_json: str) -> bool:
+        self._session.query(JobModel).filter(JobModel.num == num).update({"workflow_log": log_json})
+        self._session.commit()
+        return True
+
+    def set_deleted_by_url(self, url: str, exclude_num: int | None = None) -> int:
+        q = self._session.query(JobModel).filter(JobModel.url == url)
+        if exclude_num is not None:
+            q = q.filter(JobModel.num != exclude_num)
+        count = q.update({"deleted": 1})
+        self._session.commit()
+        return count
+
+    def delete_all_active(self) -> int:
+        count = self._session.query(JobModel).filter(JobModel.deleted == 0).delete(synchronize_session=False)
+        self._session.commit()
+        return count
+
+    def get_all_for_insights(self) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel).filter(
+            JobModel.deleted == 0
+        ).order_by(JobModel.overall_score.desc().nullslast()).all()
+        return [job_model_to_dict(r) for r in rows]
+
+    def get_company_id(self, num: int) -> int | None:
+        m = self._session.query(JobModel.company_id).filter(JobModel.num == num).first()
+        return m[0] if m else None
+
+    def get_dashboard_counts(self) -> dict[str, int]:
+        total = self._session.query(func.count(JobModel.num)).filter(JobModel.deleted == 0).scalar() or 0
+        high = self._session.query(func.count(JobModel.num)).filter(
+            JobModel.deleted == 0, JobModel.match == "High"
+        ).scalar() or 0
+        return {"jobs_total": total, "jobs_high_match": high}
+
+    def get_location_data(self) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel.location, JobModel.locations).filter(
+            JobModel.deleted == 0
+        ).all()
+        return [{"location": r[0], "locations": r[1]} for r in rows]
+
+    def get_company_id_by_num(self, num: int) -> int | None:
+        m = self._session.query(JobModel.company_id).filter(JobModel.num == num).first()
+        return m[0] if m else None
+
+    def get_jobs_by_company_id(self, company_id: int) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel).filter(
+            JobModel.company_id == company_id,
+            JobModel.deleted == 0,
+        ).order_by(JobModel.created_at.desc()).all()
+        return [job_model_to_dict(r) for r in rows]

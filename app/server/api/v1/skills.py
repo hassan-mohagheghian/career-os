@@ -1,11 +1,9 @@
 """Tech stack CRUD, skill relationships, merge, hide/restore."""
 
-import sqlite3
-
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_db
-from infrastructure.database.skill_repository import SkillRepository
+from dependencies import get_skill_repo
+from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
 from schemas.skills import (
     SkillCreate,
     SkillUpdate,
@@ -21,39 +19,35 @@ from exceptions import NotFoundError, BadRequestError, ConflictError
 router = APIRouter()
 
 
-def _get_repo(db: sqlite3.Connection = Depends(get_db)) -> SkillRepository:
-    return SkillRepository(db)
-
-
 @router.get("")
 def list_skills(
     category: str = Query(""),
-    repo: SkillRepository = Depends(_get_repo),
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
 ):
     """Get visible skills with aliases and tags."""
     return repo.list_visible(category)
 
 
 @router.get("/hidden")
-def list_hidden_skills(repo: SkillRepository = Depends(_get_repo)):
+def list_hidden_skills(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """List all hidden skills."""
     return repo.list_hidden()
 
 
 @router.get("/categories")
-def get_categories(repo: SkillRepository = Depends(_get_repo)):
+def get_categories(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Get all skill categories with counts."""
     return repo.get_categories()
 
 
 @router.get("/stats")
-def get_stats(repo: SkillRepository = Depends(_get_repo)):
+def get_stats(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Get overall skills statistics."""
     return repo.get_stats()
 
 
 @router.post("")
-def create_skill(data: SkillCreate, repo: SkillRepository = Depends(_get_repo)):
+def create_skill(data: SkillCreate, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Create a new skill."""
     existing = repo.get_by_name(data.name)
     if existing:
@@ -62,7 +56,7 @@ def create_skill(data: SkillCreate, repo: SkillRepository = Depends(_get_repo)):
 
 
 @router.put("/{id}")
-def update_skill(id: int, data: SkillUpdate, repo: SkillRepository = Depends(_get_repo)):
+def update_skill(id: int, data: SkillUpdate, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Update a skill."""
     updates = data.model_dump(exclude_unset=True)
     if not updates:
@@ -74,12 +68,11 @@ def update_skill(id: int, data: SkillUpdate, repo: SkillRepository = Depends(_ge
 
 
 @router.patch("/{id}/rename")
-def rename_skill(id: int, data: SkillRename, repo: SkillRepository = Depends(_get_repo)):
+def rename_skill(id: int, data: SkillRename, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Rename a skill and update all references."""
     new_name = data.name.strip()
     result = repo.rename(id, new_name)
     if not result:
-        # Check if skill exists
         existing = repo.get_by_id(id)
         if not existing:
             raise NotFoundError(f"Skill {id} not found")
@@ -88,7 +81,7 @@ def rename_skill(id: int, data: SkillRename, repo: SkillRepository = Depends(_ge
 
 
 @router.delete("/{id}")
-def delete_skill(id: int, repo: SkillRepository = Depends(_get_repo)):
+def delete_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Delete a skill and all its aliases."""
     skill = repo.get_by_id(id)
     if not skill:
@@ -98,7 +91,7 @@ def delete_skill(id: int, repo: SkillRepository = Depends(_get_repo)):
 
 
 @router.patch("/{id}/hide")
-def hide_skill(id: int, data: SkillHide, repo: SkillRepository = Depends(_get_repo)):
+def hide_skill(id: int, data: SkillHide, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Toggle hidden flag on a skill."""
     result = repo.set_hidden(id, data.hidden)
     if not result:
@@ -107,7 +100,7 @@ def hide_skill(id: int, data: SkillHide, repo: SkillRepository = Depends(_get_re
 
 
 @router.patch("/{id}/restore")
-def restore_skill(id: int, repo: SkillRepository = Depends(_get_repo)):
+def restore_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Restore a hidden skill."""
     result = repo.set_hidden(id, 0)
     if not result:
@@ -116,7 +109,7 @@ def restore_skill(id: int, repo: SkillRepository = Depends(_get_repo)):
 
 
 @router.post("/merge")
-def merge_skills(data: SkillMerge, repo: SkillRepository = Depends(_get_repo)):
+def merge_skills(data: SkillMerge, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Merge source skills into target skill."""
     result = repo.merge(data.target_id, data.source_ids)
     if "error" in result:
@@ -125,13 +118,13 @@ def merge_skills(data: SkillMerge, repo: SkillRepository = Depends(_get_repo)):
 
 
 @router.get("/skill-relationships/{skill_name}")
-def get_skill_relationships(skill_name: str, repo: SkillRepository = Depends(_get_repo)):
+def get_skill_relationships(skill_name: str, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Get all relationships for a skill."""
     return repo.get_relationships(skill_name)
 
 
 @router.post("/skill-relationships")
-def create_skill_relationship(data: dict, repo: SkillRepository = Depends(_get_repo)):
+def create_skill_relationship(data: dict, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Create a skill relationship."""
     success = repo.create_relationship(data)
     if not success:
@@ -140,14 +133,14 @@ def create_skill_relationship(data: dict, repo: SkillRepository = Depends(_get_r
 
 
 @router.delete("/skill-relationships/{id}")
-def delete_skill_relationship(id: int, repo: SkillRepository = Depends(_get_repo)):
+def delete_skill_relationship(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Delete a skill relationship."""
     repo.delete_relationship(id)
     return {"status": "deleted"}
 
 
 @router.post("/bulk-hide")
-def bulk_hide(data: SkillBulkHide, repo: SkillRepository = Depends(_get_repo)):
+def bulk_hide(data: SkillBulkHide, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Hide multiple skills at once."""
     if not data.ids:
         raise BadRequestError("ids array required")
@@ -156,7 +149,7 @@ def bulk_hide(data: SkillBulkHide, repo: SkillRepository = Depends(_get_repo)):
 
 
 @router.post("/bulk-categorize")
-def bulk_categorize(data: SkillBulkCategorize, repo: SkillRepository = Depends(_get_repo)):
+def bulk_categorize(data: SkillBulkCategorize, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Re-categorize multiple skills at once."""
     valid = {"technical", "engineering", "professional", "domain", "career"}
     if data.category not in valid:
@@ -166,7 +159,7 @@ def bulk_categorize(data: SkillBulkCategorize, repo: SkillRepository = Depends(_
 
 
 @router.put("/{id}/category")
-def update_category(id: int, data: SkillCategoryUpdate, repo: SkillRepository = Depends(_get_repo)):
+def update_category(id: int, data: SkillCategoryUpdate, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Update a skill's category."""
     valid = {"technical", "engineering", "professional", "domain", "career"}
     if data.category not in valid:

@@ -21,55 +21,43 @@ processes = {}  # pid -> Popen object
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _file_dir = os.path.dirname(os.path.abspath(__file__))
-_db_path = os.environ.get('DB_PATH', os.path.join(_file_dir, 'db', 'jobs.db'))
-DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_path)
 _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
 os.makedirs(TMP_DIR, exist_ok=True)
 
-# --- DB helpers (async-safe: each call opens its own connection) ---
-
-def _db():
-    import sqlite3
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def _log(pid, step, msg):
-    import sqlite3
-    conn = _db()
-    row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-    logs = json.loads(row['workflow_log'] or '[]') if row else []
-    logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
-    conn.execute('UPDATE pending_jobs SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyPendingRepository(session)
+        item = repo.get_by_id(pid)
+        logs = json.loads(item['workflow_log'] or '[]') if item else []
+        logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
+        repo.update_workflow_log(pid, json.dumps(logs))
+    finally:
+        session.close()
 
 def _load_rules(context='job'):
-    """Load enabled scoring rules from DB, filtered by context, ordered by priority desc.
-
-    Args:
-        context: 'job' loads SHARED + JOB rules, 'company' loads SHARED + company-type rules.
-    """
-    conn = _db()
-    if context == 'company':
-        rows = conn.execute(
-            "SELECT category, scope, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'COMPANY_PRODUCT', 'COMPANY_RECRUITING') "
-            "ORDER BY priority DESC"
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT category, scope, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
-            "ORDER BY priority DESC"
-        ).fetchall()
-    conn.close()
+    """Load enabled scoring rules from DB, filtered by context, ordered by priority desc."""
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyPreferenceRepository(session)
+        if context == 'company':
+            scopes = ['SHARED', 'COMPANY_PRODUCT', 'COMPANY_RECRUITING']
+        else:
+            scopes = ['SHARED', 'JOB']
+        rows = repo.get_enabled_by_scopes(scopes)
+    finally:
+        session.close()
     if not rows:
         return "No scoring rules set."
     lines = []
     current_cat = None
-    for row in rows:
-        r = dict(row)
+    for r in rows:
         cat = r['category']
         if cat != current_cat:
             current_cat = cat
@@ -79,22 +67,24 @@ def _load_rules(context='job'):
     return '\n'.join(lines)
 
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
-    import sqlite3
-    conn = _db()
-    fields = [f'{step}=?']
-    values = [val]
-    if status:
-        fields.append('status=?'); values.append(status)
-    if company:
-        fields.append('company=?'); values.append(company)
-    if job_num:
-        fields.append('job_num=?'); values.append(job_num)
-    if error:
-        fields.append('error=?'); values.append(error)
-    fields.append('updated_at=?'); values.append(datetime.now().isoformat())
-    values.append(pid)
-    conn.execute(f'UPDATE pending_jobs SET {",".join(fields)} WHERE id=?', values)
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyPendingRepository(session)
+        fields = {step: val}
+        if status:
+            fields['status'] = status
+        if company:
+            fields['company'] = company
+        if job_num:
+            fields['job_num'] = job_num
+        if error:
+            fields['error'] = error
+        fields['updated_at'] = datetime.now().isoformat()
+        repo.update_fields(pid, **fields)
+    finally:
+        session.close()
 
 def _mark(pid, step, company=None, job_num=None):
     _update_step(pid, step, 1, company=company, job_num=job_num)
@@ -104,25 +94,28 @@ def _fail(pid, msg, step=None):
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
 
 def _get_next_num():
-    conn = _db()
-    row = conn.execute("SELECT MAX(num) FROM jobs").fetchone()
-    conn.close()
-    return (row[0] or 0) + 1
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        return repo.get_next_num()
+    finally:
+        session.close()
 
 def _get_existing_num(url):
     """Check if a job with this URL already exists. Returns its num or None."""
-    conn = _db()
-    row = conn.execute("SELECT num FROM jobs WHERE url=?", (url,)).fetchone()
-    conn.close()
-    return dict(row)['num'] if row else None
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        return repo.get_num_by_url(url)
+    finally:
+        session.close()
 
 def _parse_adv_at(posted_text):
-    """Estimate when the job was advertised. If no specific datetime, return current datetime.
-    For human-readable text like '1 month', '1 month+', '4 months+':
-    - exact like '1 month' -> 1 month ago
-    - with '+' like '1 month+' -> 1.5 months ago (adds 0.5)
-    - '4 months+' -> 4.5 months ago
-    """
+    """Estimate when the job was advertised. If no specific datetime, return current datetime."""
     from datetime import timedelta
     now = datetime.now()
     if not posted_text or posted_text in ('Active', 'N/A', 'Not specified'):
@@ -151,10 +144,9 @@ def _parse_adv_at(posted_text):
 
 
 def _insert_job(d):
-    import sqlite3
-    # Normalize location and work_type
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
     d = _normalize_job_data(d)
-    conn = _db()
     now = datetime.now().isoformat()
     adv_at = d.get('adv_at') or _parse_adv_at(d.get('posted', ''))
     see_at = d.get('see_at') or now
@@ -162,7 +154,6 @@ def _insert_job(d):
     if isinstance(locations, str):
         locations = [locations] if locations else []
 
-    # Employment type (single value)
     employment_type = d.get('employment_type', 'Full-time')
     et_lower = (employment_type or '').lower()
     if 'full' in et_lower:
@@ -178,7 +169,6 @@ def _insert_job(d):
     else:
         employment_type = 'Full-time'
 
-    # Work types (multiple values as JSON array)
     work_types = d.get('work_types', [])
     if isinstance(work_types, str):
         try:
@@ -202,55 +192,109 @@ def _insert_job(d):
     if not normalized_wt:
         normalized_wt = ['On-site']
 
-    conn.execute('''INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (d['num'], d['company'], d['role'], d['location'], d['match'],
-         d['score'], d['salary'], d['stack'], d['visa'], d['applicants'],
-         d['posted'], d['industry'], d['domain'], d['notes'], d['action'], d['url'],
-         normalized_wt[0] if normalized_wt else 'On-site', d.get('workflow_log', '[]'),
-         d.get('created_at', now), d.get('posted_at'),
-         json.dumps(locations), 0, employment_type, json.dumps(normalized_wt),
-         d.get('raw_description'), d.get('structured_description'),
-         d.get('raw_file_path'), d.get('structured_file_path'),
-         d.get('rescoring', 0), d.get('success'),
-         adv_at, see_at, d.get('apply_reason', '')))
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        repo.upsert({
+            'num': d['num'],
+            'company': d['company'],
+            'role': d['role'],
+            'location': d['location'],
+            'match': d['match'],
+            'score': d['score'],
+            'salary': d['salary'],
+            'stack': d['stack'],
+            'visa': d['visa'],
+            'applicants': d['applicants'],
+            'posted': d['posted'],
+            'industry': d['industry'],
+            'domain': d['domain'],
+            'notes': d['notes'],
+            'action': d['action'],
+            'url': d['url'],
+            'work_type': normalized_wt[0] if normalized_wt else 'On-site',
+            'workflow_log': d.get('workflow_log', '[]'),
+            'created_at': d.get('created_at', now),
+            'locations': json.dumps(locations),
+            'deleted': 0,
+            'employment_type': employment_type,
+            'work_types': json.dumps(normalized_wt),
+            'raw_description': d.get('raw_description'),
+            'structured_description': d.get('structured_description'),
+            'rescoring': d.get('rescoring', 0),
+            'success': d.get('success'),
+            'adv_at': adv_at,
+            'see_at': see_at,
+            'apply_reason': d.get('apply_reason', ''),
+        })
+    finally:
+        session.close()
 
 def _save_job_workflow_log(num, log_json):
-    conn = _db()
-    conn.execute('UPDATE jobs SET workflow_log=? WHERE num=?', (log_json, num))
-    conn.commit(); conn.close()
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        repo.update_workflow_log(num, log_json)
+    finally:
+        session.close()
 
 def _insert_summary(d):
-    import sqlite3
-    conn = _db()
-    conn.execute('''INSERT OR REPLACE INTO summaries VALUES (?,?,?,?,?,?,?,?,?)''',
-        (d['num'], d['company'], d['match'], d['score'],
-         d['summary'], d['stack'], d['resumeFit'], d['note'], d['url']))
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySummaryRepository(session)
+        repo.upsert({
+            'num': d['num'],
+            'company': d['company'],
+            'match': d['match'],
+            'score': d['score'],
+            'summary': d['summary'],
+            'stack': d['stack'],
+            'resumeFit': d['resumeFit'],
+            'note': d['note'],
+            'url': d['url'],
+        })
+    finally:
+        session.close()
 
 def _insert_resume(d):
-    import sqlite3
-    conn = _db()
-    conn.execute('''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num) VALUES (?,?,?,?,?,?,?,?,?)''',
-        (d['id'], d.get('title'),
-         d.get('company'), d.get('role'), d.get('content'),
-         d.get('version', 1), d.get('raw_text'), d.get('created_at'), d.get('job_num')))
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyResumeRepository(session)
+        repo.upsert({
+            'id': d['id'],
+            'title': d.get('title'),
+            'company': d.get('company'),
+            'role': d.get('role'),
+            'content': d.get('content'),
+            'version': d.get('version', 1),
+            'raw_text': d.get('raw_text'),
+            'created_at': d.get('created_at'),
+            'job_num': d.get('job_num'),
+        })
+    finally:
+        session.close()
 
 def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
-    conn = _db()
-    if exclude_num:
-        conn.execute('UPDATE jobs SET deleted=1 WHERE url=? AND num!=?', (url, exclude_num))
-    else:
-        conn.execute('UPDATE jobs SET deleted=1 WHERE url=?', (url,))
-    conn.commit(); conn.close()
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemyJobRepository(session)
+        repo.set_deleted_by_url(url, exclude_num=exclude_num)
+    finally:
+        session.close()
 
 def _normalize_job_data(d):
     """Normalize job location and work_type fields."""
     import re
 
-    # Known cities
     CITIES = {
         'berlin': 'Berlin', 'munich': 'Munich', 'münchen': 'Munich',
         'hamburg': 'Hamburg', 'heidelberg': 'Heidelberg', 'frankfurt': 'Frankfurt',
@@ -360,11 +404,7 @@ def fetch_url(url):
 # --- Stream mimo process ---
 
 async def stream_mimo(pid, prompt):
-    """Run LLM with streaming output via WebSocket.
-
-    Uses the AI agent layer's LLMService for provider abstraction.
-    The async nature requires wrapping the synchronous provider.
-    """
+    """Run LLM with streaming output via WebSocket."""
     await broadcast(pid, {'type': 'process_start', 'pid': pid, 'ts': datetime.now().strftime('%H:%M:%S')})
 
     llm = get_llm_service()
@@ -397,7 +437,6 @@ async def stream_mimo(pid, prompt):
     def on_session_id(sid):
         asyncio.ensure_future(broadcast(pid, {'type': 'session_id', 'session_id': sid, 'ts': datetime.now().strftime('%H:%M:%S')}))
 
-    # Run synchronous LLM call in a thread to not block the event loop
     loop = asyncio.get_event_loop()
     resp = await loop.run_in_executor(
         None,
@@ -418,12 +457,19 @@ async def stream_mimo(pid, prompt):
 
 async def process_job_stream(pid):
     """Full pipeline with streaming output."""
-    conn = _db()
-    row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-    conn.close()
-    if not row:
+    from dependencies import get_session_sync
+    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        item = pending_repo.get_by_id(pid)
+    finally:
+        session.close()
+
+    if not item:
         return
-    item = dict(row)
     url = item['url']
     source = item.get('source', 'cli')
 
@@ -465,9 +511,13 @@ async def process_job_stream(pid):
                     break
                 company = ''
         if title or company:
-            conn = _db()
-            conn.execute('UPDATE pending_jobs SET company=? WHERE id=?', (company or title[:40], pid))
-            conn.commit(); conn.close()
+            from dependencies import get_session_sync as _gss
+            from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
+            _s = _gss()
+            try:
+                _SPR(_s).update_fields(pid, company=company or title[:40])
+            finally:
+                _s.close()
             await broadcast(pid, {'type': 'job_info', 'pid': pid, 'title': title, 'company': company, 'ts': datetime.now().strftime('%H:%M:%S')})
             await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Extracted: {company} — {title}', 'ts': datetime.now().strftime('%H:%M:%S')})
         _mark(pid, 'step_fetch')
@@ -480,7 +530,6 @@ async def process_job_stream(pid):
         await broadcast(pid, {'type': 'step', 'step': 'analyze', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
 
         next_num = _get_next_num()
-        # If rescoring, use existing job num to avoid duplicates
         existing_num = _get_existing_num(url)
         if existing_num:
             next_num = existing_num
@@ -558,16 +607,20 @@ async def process_job_stream(pid):
 
         # Step 5: Done
         current_step = 'done'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'🎉 Job #{job_data["num"]} ({job_data.get("company")}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
+        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'Job #{job_data["num"]} ({job_data.get("company")}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
         _log(pid, 'done', f"Complete: {job_data.get('company')} #{job_data['num']}")
         _update_step(pid, 'step_done', 0, status='done')
         _mark(pid, 'step_done')
         # Save workflow_log to jobs table
-        conn = _db()
-        row = conn.execute('SELECT workflow_log FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-        conn.close()
-        if row:
-            _save_job_workflow_log(job_data['num'], dict(row)['workflow_log'] or '[]')
+        from dependencies import get_session_sync as _gss2
+        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR2
+        _s2 = _gss2()
+        try:
+            _item = _SPR2(_s2).get_by_id(pid)
+        finally:
+            _s2.close()
+        if _item:
+            _save_job_workflow_log(job_data['num'], _item.get('workflow_log') or '[]')
 
         await broadcast(pid, {'type': 'step', 'step': 'done', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
         await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_data['num'], 'company': job_data.get('company'), 'ts': datetime.now().strftime('%H:%M:%S')})
@@ -600,16 +653,20 @@ async def handler(websocket):
                     clients[pid] = set()
                 clients[pid].add(websocket)
                 # Send current state
-                conn = _db()
-                row = conn.execute('SELECT * FROM pending_jobs WHERE id=?', (pid,)).fetchone()
-                conn.close()
+                from dependencies import get_session_sync
+                from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                session = get_session_sync()
+                try:
+                    pending_repo = SQLAlchemyPendingRepository(session)
+                    row = pending_repo.get_by_id(pid)
+                finally:
+                    session.close()
                 if row:
-                    item = dict(row)
-                    logs = json.loads(item.get('workflow_log') or '[]')
+                    logs = json.loads(row.get('workflow_log') or '[]')
                     await websocket.send(json.dumps({
                         'type': 'state',
                         'pid': pid,
-                        'status': item['status'],
+                        'status': row['status'],
                         'logs': logs,
                         'ts': datetime.now().strftime('%H:%M:%S'),
                     }))

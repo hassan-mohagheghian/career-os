@@ -6,7 +6,6 @@ then saves structured company intelligence to DB.
 import os
 import re
 import json
-import sqlite3
 import subprocess
 import uuid
 import threading
@@ -21,59 +20,42 @@ from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, 
 # AI Agent Layer — unified LLM service
 from ai_compat import get_llm_service
 
+# SQLAlchemy session + repositories
+from dependencies import get_session_sync
+from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
+from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+from infrastructure.database.models.company_model import CompanyModel
+
 log = get_logger('company_worker')
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
-_db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
-DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..', '..'))
 _tmp = os.environ.get('TEMP_DIR', 'tmp')
 TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
 os.makedirs(TMP_DIR, exist_ok=True)
 
 
-def _db():
-    import time
-    for attempt in range(5):
-        try:
-            conn = sqlite3.connect(DB_PATH, timeout=5)
-            conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA journal_mode=WAL')
-            return conn
-        except sqlite3.OperationalError as e:
-            if 'locked' in str(e) and attempt < 4:
-                time.sleep(0.5 * (attempt + 1))
-            else:
-                raise
-
-
 def _update_step(pid, step, val, status=None, company_name=None, company_id=None, error=None):
-    conn = _db()
-    fields = [f'{step}=?']
-    values = [val]
-    if status:
-        fields.append('status=?'); values.append(status)
-    if company_name:
-        fields.append('company_name=?'); values.append(company_name)
-    if company_id:
-        fields.append('company_id=?'); values.append(company_id)
-    if error:
-        fields.append('error=?'); values.append(error)
-    fields.append('updated_at=?'); values.append(datetime.now().isoformat())
-    values.append(pid)
-    conn.execute(f'UPDATE pending_companies SET {",".join(fields)} WHERE id=?', values)
-    conn.commit(); conn.close()
-    # Emit real-time update for step progress
-    extra = {}
-    if status:
-        extra['status'] = status
-    if company_name:
-        extra['company_name'] = company_name
-    if company_id:
-        extra['company_id'] = company_id
-    if error:
-        extra['error'] = error
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        extra = {}
+        if status:
+            extra['status'] = status
+        if company_name:
+            extra['company_name'] = company_name
+        if company_id:
+            extra['company_id'] = company_id
+        if error:
+            extra['error'] = error
+        extra['updated_at'] = datetime.now().isoformat()
+        pending_repo.update_step(pid, step, val, table="pending_companies", **extra)
+    finally:
+        session.close()
     broadcaster.step_update(StatusUpdate(
         table='pending_companies', pid=pid, step=step, val=val,
         extra=extra or None,
@@ -86,9 +68,12 @@ def _mark(pid, step):
 
 def _save_session_id(pid, session_id):
     """Save mimo session_id to pending_companies."""
-    conn = _db()
-    conn.execute("UPDATE pending_companies SET session_id=? WHERE id=?", (session_id, pid))
-    conn.commit(); conn.close()
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        pending_repo.save_session_id(pid, session_id, table="pending_companies")
+    finally:
+        session.close()
     broadcaster.step_update(StatusUpdate(
         table='pending_companies', pid=pid, step='session_id', val=0,
         extra={'session_id': session_id},
@@ -96,12 +81,15 @@ def _save_session_id(pid, session_id):
 
 
 def _log(pid, step, msg):
-    conn = _db()
-    row = conn.execute('SELECT workflow_log FROM pending_companies WHERE id=?', (pid,)).fetchone()
-    logs = json.loads(row['workflow_log'] or '[]') if row else []
-    logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
-    conn.execute('UPDATE pending_companies SET workflow_log=? WHERE id=?', (json.dumps(logs), pid))
-    conn.commit(); conn.close()
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        item = pending_repo.get_by_id(pid, table="pending_companies")
+        logs = json.loads(item.get('workflow_log') or '[]') if item else []
+        logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
+        pending_repo.update_workflow_log(pid, json.dumps(logs), table="pending_companies")
+    finally:
+        session.close()
     broadcaster.log(LogEntry(
         table='pending_companies', pid=pid, step=step, msg=msg,
     ))
@@ -125,12 +113,15 @@ def _fail(pid, msg, step=None):
 
 
 def _is_paused_or_stopped(pid):
-    conn = _db()
-    row = conn.execute('SELECT status FROM pending_companies WHERE id=?', (pid,)).fetchone()
-    conn.close()
-    if not row:
-        return True
-    return dict(row)['status'] not in ('processing',)
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        item = pending_repo.get_by_id(pid, table="pending_companies")
+        if not item:
+            return True
+        return item.get('status') not in ('processing',)
+    finally:
+        session.close()
 
 
 def _fetch_url(url):
@@ -265,49 +256,29 @@ def _extract_company_info(input_text, input_type, pid):
 
 
 def _load_rules(context='company', company_type='UNKNOWN'):
-    """Load enabled scoring rules from DB, filtered by context and company type.
-
-    Args:
-        context: 'company' loads SHARED + type-specific company rules.
-        company_type: For 'company' context, selects type-specific rules by scope:
-            - PRODUCT_COMPANY -> SHARED + COMPANY_PRODUCT rules
-            - RECRUITING_AGENCY -> SHARED + COMPANY_RECRUITING rules
-            - STAFFING_COMPANY -> SHARED + COMPANY_RECRUITING rules (merged)
-            - CONSULTING_COMPANY / UNKNOWN -> SHARED + COMPANY_PRODUCT rules (default)
-
-    Validation: Company processor must NEVER load JOB rules.
-    """
-    conn = _db()
-    if context == 'company':
-        # Map company_type to entity scope (new rule groups)
-        scope_map = {
-            'PRODUCT_COMPANY': 'COMPANY_PRODUCT',
-            'RECRUITING_AGENCY': 'COMPANY_RECRUITING',
-            'STAFFING_COMPANY': 'COMPANY_RECRUITING',
-            'CONSULTING_COMPANY': 'COMPANY_PRODUCT',
-            'UNKNOWN': 'COMPANY_PRODUCT',
-        }
-        entity_scope = scope_map.get(company_type, 'COMPANY_PRODUCT')
-        rows = conn.execute(
-            "SELECT category, scope, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', ?) "
-            "ORDER BY priority DESC",
-            (entity_scope,)
-        ).fetchall()
-    else:
-        # Fallback: load SHARED + JOB (should not be used for company processing)
-        rows = conn.execute(
-            "SELECT category, scope, key, value, description, priority, score_weight "
-            "FROM preferences WHERE enabled=1 AND scope IN ('SHARED', 'JOB') "
-            "ORDER BY priority DESC"
-        ).fetchall()
-    conn.close()
+    """Load enabled scoring rules from DB, filtered by context and company type."""
+    session = get_session_sync()
+    try:
+        pref_repo = SQLAlchemyPreferenceRepository(session)
+        if context == 'company':
+            scope_map = {
+                'PRODUCT_COMPANY': 'COMPANY_PRODUCT',
+                'RECRUITING_AGENCY': 'COMPANY_RECRUITING',
+                'STAFFING_COMPANY': 'COMPANY_RECRUITING',
+                'CONSULTING_COMPANY': 'COMPANY_PRODUCT',
+                'UNKNOWN': 'COMPANY_PRODUCT',
+            }
+            entity_scope = scope_map.get(company_type, 'COMPANY_PRODUCT')
+            rows = pref_repo.get_enabled_by_scopes(['SHARED', entity_scope])
+        else:
+            rows = pref_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
+    finally:
+        session.close()
     if not rows:
         return "No scoring rules set."
     lines = []
     current_cat = None
-    for row in rows:
-        r = dict(row)
+    for r in rows:
         cat = r['category']
         if cat != current_cat:
             current_cat = cat
@@ -342,78 +313,82 @@ def _analyze_company(company_data, pid, company_type='UNKNOWN'):
 
 def _save_company(company_data, intelligence_data, raw_source, notes=None):
     """Step 3: Save company + intelligence to DB."""
-    conn = _db()
-    now = datetime.now().isoformat()
+    session = get_session_sync()
+    try:
+        company_repo = SQLAlchemyCompanyRepository(session)
+        intel_repo = SQLAlchemyCompanyIntelligenceRepository(session)
+        now = datetime.now().isoformat()
 
-    # Prepare all fields
-    fields = {
-        'name': company_data.get('name', ''),
-        'website': company_data.get('website', ''),
-        'domain': company_data.get('domain', ''),
-        'industry': company_data.get('industry', ''),
-        'country': company_data.get('country', ''),
-        'city': company_data.get('city', ''),
-        'description': company_data.get('description', ''),
-        'company_size': company_data.get('company_size', ''),
-        'company_type': company_data.get('company_type', ''),
-        'logo_url': company_data.get('logo_url', ''),
-        'founded_year': company_data.get('founded_year', ''),
-        'headquarters_full': company_data.get('headquarters_full', ''),
-        'countries_of_operation': json.dumps(company_data.get('countries_of_operation', []), ensure_ascii=False),
-        'funding_stage': company_data.get('funding_stage', ''),
-        'funding_amount': company_data.get('funding_amount', ''),
-        'products': json.dumps(company_data.get('products', []), ensure_ascii=False),
-        'tech_stack': json.dumps(company_data.get('tech_stack', {}), ensure_ascii=False),
-        'work_environment': json.dumps(company_data.get('work_environment', {}), ensure_ascii=False),
-        'extra': json.dumps({
-            'key_clients': company_data.get('key_clients', []),
-            'competitors': company_data.get('competitors', []),
-            'investors': company_data.get('investors', []),
-            'contact_info': company_data.get('contact_info', {}),
-            'engineering_culture': company_data.get('engineering_culture', {}),
-            'culture_signals': company_data.get('culture_signals', {}),
-            'international_signals': company_data.get('international_signals', {}),
-            'benefits': company_data.get('benefits', {}),
-            'any_other_notable_info': company_data.get('extra', {}).get('any_other_notable_info', ''),
-        }, ensure_ascii=False),
-        'notes': json.dumps(notes or [], ensure_ascii=False),
-    }
+        # Prepare all fields
+        fields = {
+            'name': company_data.get('name', ''),
+            'website': company_data.get('website', ''),
+            'domain': company_data.get('domain', ''),
+            'industry': company_data.get('industry', ''),
+            'country': company_data.get('country', ''),
+            'city': company_data.get('city', ''),
+            'description': company_data.get('description', ''),
+            'company_size': company_data.get('company_size', ''),
+            'company_type': company_data.get('company_type', ''),
+            'logo_url': company_data.get('logo_url', ''),
+            'founded_year': company_data.get('founded_year', ''),
+            'headquarters_full': company_data.get('headquarters_full', ''),
+            'countries_of_operation': json.dumps(company_data.get('countries_of_operation', []), ensure_ascii=False),
+            'funding_stage': company_data.get('funding_stage', ''),
+            'funding_amount': company_data.get('funding_amount', ''),
+            'products': json.dumps(company_data.get('products', []), ensure_ascii=False),
+            'tech_stack': json.dumps(company_data.get('tech_stack', {}), ensure_ascii=False),
+            'work_environment': json.dumps(company_data.get('work_environment', {}), ensure_ascii=False),
+            'extra': json.dumps({
+                'key_clients': company_data.get('key_clients', []),
+                'competitors': company_data.get('competitors', []),
+                'investors': company_data.get('investors', []),
+                'contact_info': company_data.get('contact_info', {}),
+                'engineering_culture': company_data.get('engineering_culture', {}),
+                'culture_signals': company_data.get('culture_signals', {}),
+                'international_signals': company_data.get('international_signals', {}),
+                'benefits': company_data.get('benefits', {}),
+                'any_other_notable_info': company_data.get('extra', {}).get('any_other_notable_info', ''),
+            }, ensure_ascii=False),
+        }
 
-    # Insert or update company
-    company_id = company_data.get('id')
-    if company_id:
-        set_clause = ', '.join(f'{k}=?' for k in fields)
-        values = list(fields.values()) + ['completed', now, company_id]
-        conn.execute(f'UPDATE companies SET {set_clause}, processing_status=?, updated_at=? WHERE id=?', values)
-    else:
-        cols = ', '.join(fields.keys())
-        placeholders = ', '.join(['?' for _ in fields])
-        values = list(fields.values()) + ['completed', now, now]
-        cur = conn.execute(f'INSERT INTO companies ({cols}, processing_status, created_at, updated_at) VALUES ({placeholders},?,?,?)', values)
-        company_id = cur.lastrowid
+        # Insert or update company
+        company_id = company_data.get('id')
+        if company_id:
+            model = session.query(CompanyModel).filter(CompanyModel.id == company_id).first()
+            if model:
+                for k, v in fields.items():
+                    if hasattr(model, k):
+                        setattr(model, k, v)
+                model.processing_status = 'completed'
+                model.updated_at = now
+                session.commit()
+        else:
+            fields['processing_status'] = 'completed'
+            fields['updated_at'] = now
+            result = company_repo.insert(fields)
+            company_id = result['id']
 
-    # Save intelligence
-    scores = intelligence_data.get('scores', {})
-    conn.execute('''INSERT OR REPLACE INTO company_intelligence
-        (company_id, overview, culture_analysis, international_analysis, career_analysis,
-         benefits_analysis, visa_analysis, technology_analysis, recommendation, scores, raw_source_data, generated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
-        (company_id,
-         json.dumps(intelligence_data.get('overview', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('culture_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('international_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('career_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('benefits_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('visa_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('technology_analysis', {}), ensure_ascii=False),
-         json.dumps(intelligence_data.get('recommendation', {}), ensure_ascii=False),
-         json.dumps(scores, ensure_ascii=False),
-         json.dumps(raw_source[:10000] if raw_source else '', ensure_ascii=False),
-         now))
+        # Save intelligence
+        scores = intelligence_data.get('scores', {})
+        intel_data = {
+            'overview': json.dumps(intelligence_data.get('overview', {}), ensure_ascii=False),
+            'culture_analysis': json.dumps(intelligence_data.get('culture_analysis', {}), ensure_ascii=False),
+            'international_analysis': json.dumps(intelligence_data.get('international_analysis', {}), ensure_ascii=False),
+            'career_analysis': json.dumps(intelligence_data.get('career_analysis', {}), ensure_ascii=False),
+            'benefits_analysis': json.dumps(intelligence_data.get('benefits_analysis', {}), ensure_ascii=False),
+            'visa_analysis': json.dumps(intelligence_data.get('visa_analysis', {}), ensure_ascii=False),
+            'technology_analysis': json.dumps(intelligence_data.get('technology_analysis', {}), ensure_ascii=False),
+            'recommendation': json.dumps(intelligence_data.get('recommendation', {}), ensure_ascii=False),
+            'scores': json.dumps(scores, ensure_ascii=False),
+            'raw_source_data': json.dumps(raw_source[:10000] if raw_source else '', ensure_ascii=False),
+            'generated_at': now,
+        }
+        intel_repo.upsert(company_id, intel_data)
 
-    conn.commit()
-    conn.close()
-    return company_id
+        return company_id
+    finally:
+        session.close()
 
 
 def process_company(pid):
@@ -425,12 +400,14 @@ def process_company(pid):
     4. Save      — write to DB (companies, company_intelligence)
     Done         — finalize
     """
-    conn = _db()
-    row = conn.execute('SELECT * FROM pending_companies WHERE id=?', (pid,)).fetchone()
-    conn.close()
-    if not row:
+    session = get_session_sync()
+    try:
+        pending_repo = SQLAlchemyPendingRepository(session)
+        item = pending_repo.get_by_id(pid, table="pending_companies")
+    finally:
+        session.close()
+    if not item:
         return
-    item = dict(row)
 
     # Parse notes (new multi-note system)
     notes_raw = item.get('notes', '[]')
@@ -451,11 +428,12 @@ def process_company(pid):
     # Reset link statuses for this company if company_id exists
     if company_id:
         try:
-            conn = _db()
-            conn.execute('UPDATE company_links SET status=?, extracted_content=?, updated_at=? WHERE company_id=?',
-                       ('pending', '', datetime.now().isoformat(), company_id))
-            conn.commit()
-            conn.close()
+            link_session = get_session_sync()
+            try:
+                link_repo = SQLAlchemyCompanyLinkRepository(link_session)
+                link_repo.reset_statuses(company_id)
+            finally:
+                link_session.close()
         except:
             pass
 
@@ -491,49 +469,51 @@ def process_company(pid):
         # Process company links (from company_links table if company_id exists)
         if company_id:
             try:
-                conn = _db()
-                links = conn.execute('SELECT * FROM company_links WHERE company_id=?', (company_id,)).fetchall()
-                conn.close()
-                if links:
-                    _log(pid, 'fetch', f'Processing {len(links)} company link(s)...')
-                    for link in links:
-                        link_dict = dict(link)
-                        link_url = link_dict.get('url', '').strip()
-                        if not link_url:
-                            continue
-                        link_title = link_dict.get('title', '') or ''
-                        link_desc = link_dict.get('description', '') or ''
-                        try:
-                            _log(pid, 'fetch', f'Fetching link: {link_url[:60]}...')
-                            fetched = _fetch_url(link_url)
-                            header = f"[LINK: {link_url}]"
-                            if link_title:
-                                header += f" Title: {link_title}"
-                            if link_desc:
-                                header += f" - {link_desc}"
-                            all_content_parts.append(f"{header}\n{fetched}")
-                            url_count += 1
-                            # Update link status to processed
+                link_session = get_session_sync()
+                try:
+                    link_repo = SQLAlchemyCompanyLinkRepository(link_session)
+                    links = link_repo.get_by_company_id(company_id)
+                    if links:
+                        _log(pid, 'fetch', f'Processing {len(links)} company link(s)...')
+                        for link_dict in links:
+                            link_url = link_dict.get('url', '').strip()
+                            if not link_url:
+                                continue
+                            link_title = link_dict.get('title', '') or ''
+                            link_desc = link_dict.get('description', '') or ''
                             try:
-                                conn = _db()
-                                conn.execute('UPDATE company_links SET status=?, extracted_content=?, updated_at=? WHERE id=?',
-                                           ('processed', fetched[:5000], datetime.now().isoformat(), link_dict['id']))
-                                conn.commit()
-                                conn.close()
-                            except:
-                                pass
-                        except Exception as e:
-                            _log(pid, 'fetch', f'Warning: Failed to fetch link {link_url[:40]}: {e}')
-                            all_content_parts.append(f"[LINK: {link_url}] (fetch failed: {e})")
-                            # Update link status to failed
-                            try:
-                                conn = _db()
-                                conn.execute('UPDATE company_links SET status=?, updated_at=? WHERE id=?',
-                                           ('failed', datetime.now().isoformat(), link_dict['id']))
-                                conn.commit()
-                                conn.close()
-                            except:
-                                pass
+                                _log(pid, 'fetch', f'Fetching link: {link_url[:60]}...')
+                                fetched = _fetch_url(link_url)
+                                header = f"[LINK: {link_url}]"
+                                if link_title:
+                                    header += f" Title: {link_title}"
+                                if link_desc:
+                                    header += f" - {link_desc}"
+                                all_content_parts.append(f"{header}\n{fetched}")
+                                url_count += 1
+                                try:
+                                    update_session = get_session_sync()
+                                    try:
+                                        update_repo = SQLAlchemyCompanyLinkRepository(update_session)
+                                        update_repo.update_status(link_dict['id'], 'processed', fetched[:5000])
+                                    finally:
+                                        update_session.close()
+                                except:
+                                    pass
+                            except Exception as e:
+                                _log(pid, 'fetch', f'Warning: Failed to fetch link {link_url[:40]}: {e}')
+                                all_content_parts.append(f"[LINK: {link_url}] (fetch failed: {e})")
+                                try:
+                                    fail_session = get_session_sync()
+                                    try:
+                                        fail_repo = SQLAlchemyCompanyLinkRepository(fail_session)
+                                        fail_repo.update_status(link_dict['id'], 'failed')
+                                    finally:
+                                        fail_session.close()
+                                except:
+                                    pass
+                finally:
+                    link_session.close()
             except Exception as e:
                 _log(pid, 'fetch', f'Warning: Failed to process links: {e}')
 
@@ -620,18 +600,19 @@ def process_company(pid):
             pending_links_raw = item.get('links') or '[]'
             pending_links = json.loads(pending_links_raw) if isinstance(pending_links_raw, str) else pending_links_raw
             if pending_links and company_id:
-                conn = _db()
-                for link in pending_links:
-                    url = link.get('url', '').strip()
-                    if not url:
-                        continue
-                    title = link.get('title', '') or ''
-                    desc = link.get('description', '') or ''
-                    conn.execute('INSERT INTO company_links (company_id, url, title, description, status) VALUES (?,?,?,?,?)',
-                                 (company_id, url, title, desc, 'pending'))
-                conn.commit()
-                conn.close()
-                _log(pid, 'save', f'Saved {len(pending_links)} link(s) to company_links')
+                save_session = get_session_sync()
+                try:
+                    save_link_repo = SQLAlchemyCompanyLinkRepository(save_session)
+                    for link in pending_links:
+                        url = link.get('url', '').strip()
+                        if not url:
+                            continue
+                        title = link.get('title', '') or ''
+                        desc = link.get('description', '') or ''
+                        save_link_repo.create(company_id, url, title, desc)
+                    _log(pid, 'save', f'Saved {len(pending_links)} link(s) to company_links')
+                finally:
+                    save_session.close()
         except Exception as e:
             _log(pid, 'save', f'Warning: Failed to save pending links: {e}')
 
@@ -661,13 +642,15 @@ def process_company(pid):
             'step_save': 'save',
         }
         failed_step = 'pipeline'
-        conn = _db()
-        row = conn.execute('SELECT step_fetch, step_extract, step_analyze, step_save FROM pending_companies WHERE id=?', (pid,)).fetchone()
-        conn.close()
-        if row:
-            row = dict(row)
-            for step_key, step_name in step_labels.items():
-                if row.get(step_key) == 0 and all(row.get(k) == 1 for k in list(step_labels.keys())[:list(step_labels.keys()).index(step_key)]):
-                    failed_step = step_name
-                    break
+        err_session = get_session_sync()
+        try:
+            err_pending_repo = SQLAlchemyPendingRepository(err_session)
+            err_item = err_pending_repo.get_by_id(pid, table="pending_companies")
+            if err_item:
+                for step_key, step_name in step_labels.items():
+                    if err_item.get(step_key) == 0 and all(err_item.get(k) == 1 for k in list(step_labels.keys())[:list(step_labels.keys()).index(step_key)]):
+                        failed_step = step_name
+                        break
+        finally:
+            err_session.close()
         _fail(pid, str(e), step=failed_step)

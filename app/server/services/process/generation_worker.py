@@ -73,28 +73,27 @@ class GenerationWorker(WorkerBase):
     def _step_prepare(self, pid: int, item: dict) -> Optional[dict]:
         """Load job and resume data."""
         self._log(pid, 'prepare', f'Loading job #{item.get("job_num")} data')
-        from generation_worker import _db
-        conn = _db()
+        from dependencies import get_session_sync
+        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+        session = get_session_sync()
         try:
-            job = conn.execute(
-                'SELECT * FROM jobs WHERE num=? AND deleted=0',
-                (item.get('job_num'),)
-            ).fetchone()
+            job_repo = SQLAlchemyJobRepository(session)
+            job = job_repo.get_by_num(item.get('job_num'))
             if not job:
                 raise RuntimeError(f"Job #{item.get('job_num')} not found")
 
-            resume_row = conn.execute(
-                "SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1"
-            ).fetchone()
-            if not resume_row or not dict(resume_row).get('raw_text'):
+            resume_repo = SQLAlchemyResumeRepository(session)
+            resume_row = resume_repo.get_master_resume()
+            if not resume_row or not resume_row.get('raw_text'):
                 raise RuntimeError("No master resume uploaded")
 
             return {
-                'job': dict(job),
-                'resume_text': dict(resume_row)['raw_text'],
+                'job': job,
+                'resume_text': resume_row['raw_text'],
             }
         finally:
-            conn.close()
+            session.close()
 
     def _step_context(self, pid: int, job_num: int) -> Optional[dict]:
         """Load company intelligence for enrichment."""
@@ -106,7 +105,7 @@ class GenerationWorker(WorkerBase):
                        company_ctx: Optional[dict]) -> Optional[dict]:
         """Call LLM to generate resume or cover letter."""
         self._log(pid, 'generate', f'Generating {gen_type}...')
-        from generation_worker import _db, _load_company_context
+        from generation_worker import _load_company_context
         from prompts import load_prompt
         from ai_compat import get_llm_service
 
@@ -188,24 +187,32 @@ class GenerationWorker(WorkerBase):
     def _step_save(self, pid: int, gen_type: str, job_num: int, result: dict) -> dict:
         """Save generated content to DB."""
         self._log(pid, 'save', 'Saving to database...')
-        from generation_worker import _db
-        conn = _db()
+        from dependencies import get_session_sync
+        from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        session = get_session_sync()
         try:
+            resume_repo = SQLAlchemyResumeRepository(session)
             resume_id = f'{gen_type}_{job_num}'
-            conn.execute(
-                '''INSERT OR REPLACE INTO resumes (id, title, company, role, content, version, raw_text, created_at, job_num)
-                VALUES (?,?,?,?,?,?,?,?,?)''',
-                (resume_id, result['title'], '', '',
-                 result['content'], 1, '', datetime.now().isoformat(), job_num)
-            )
-            conn.commit()
+            resume_repo.upsert({
+                'id': resume_id,
+                'title': result['title'],
+                'company': '',
+                'role': '',
+                'content': result['content'],
+                'version': 1,
+                'raw_text': '',
+                'created_at': datetime.now().isoformat(),
+                'job_num': job_num,
+            })
 
-            conn.execute(
-                'UPDATE pending_generations SET result=?, status=?, session_id=? WHERE id=?',
-                (json.dumps({'id': resume_id, 'content': result['content'], 'title': result['title']}),
-                 'done', result['session_id'], pid)
+            gen_repo = SQLAlchemyPendingGenerationRepository(session)
+            gen_repo.update_fields(
+                pid,
+                result=json.dumps({'id': resume_id, 'content': result['content'], 'title': result['title']}),
+                status='done',
+                session_id=result['session_id'],
             )
-            conn.commit()
             return {
                 'content_id': resume_id,
                 'content': result['content'],
@@ -215,4 +222,4 @@ class GenerationWorker(WorkerBase):
                 'job_num': job_num,
             }
         finally:
-            conn.close()
+            session.close()

@@ -1,28 +1,23 @@
 """Career intelligence endpoints."""
 
-import sqlite3
-
 from fastapi import APIRouter, Depends
 
-from dependencies import get_db
-from infrastructure.database.insight_repository import InsightRepository
+from dependencies import get_insight_repo, get_career_insight_run_repo
+from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
+from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
 from infrastructure.workers.background import get_task_manager, generate_insights_task
 
 router = APIRouter()
 
 
-def _get_repo(db: sqlite3.Connection = Depends(get_db)) -> InsightRepository:
-    return InsightRepository(db)
-
-
 @router.get("")
-def get_insights(repo: InsightRepository = Depends(_get_repo)):
+def get_insights(repo: SQLAlchemyInsightRepository = Depends(get_insight_repo)):
     """Get all career insights."""
     return repo.get_all()
 
 
 @router.get("/status")
-def get_insights_status(repo: InsightRepository = Depends(_get_repo)):
+def get_insights_status(repo: SQLAlchemyInsightRepository = Depends(get_insight_repo)):
     """Get section statuses."""
     return {"sections": repo.get_statuses()}
 
@@ -36,7 +31,7 @@ def get_insights_progress():
 
 
 @router.get("/skills-intel")
-def get_skills_intelligence(repo: InsightRepository = Depends(_get_repo)):
+def get_skills_intelligence(repo: SQLAlchemyInsightRepository = Depends(get_insight_repo)):
     """Get skills intelligence data."""
     result = repo.get_section("skills")
     if not result:
@@ -62,7 +57,7 @@ async def refresh_insight_section(section: str):
 
 
 @router.get("/{section}")
-def get_insight_section(section: str, repo: InsightRepository = Depends(_get_repo)):
+def get_insight_section(section: str, repo: SQLAlchemyInsightRepository = Depends(get_insight_repo)):
     """Get a specific insight section."""
     result = repo.get_section(section)
     if not result:

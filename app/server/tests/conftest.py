@@ -5,9 +5,22 @@ import os
 import tempfile
 import sqlite3
 import pytest
+from unittest.mock import patch, MagicMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Add server directory to Python path so imports work
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Import SA Base and all models to register them
+from infrastructure.database.sqlalchemy_config import Base
+import infrastructure.database.models.job_model
+import infrastructure.database.models.skill_model
+import infrastructure.database.models.company_model
+import infrastructure.database.models.pending_model
+import infrastructure.database.models.insight_model
+import infrastructure.database.models.misc_models
+
 
 ALL_TABLES = """
 CREATE TABLE IF NOT EXISTS pending_jobs (
@@ -144,6 +157,80 @@ CREATE TABLE IF NOT EXISTS pending_generations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS career_insight_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    insight_type TEXT NOT NULL,
+    version INTEGER DEFAULT 1,
+    status TEXT DEFAULT 'pending',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    error_message TEXT,
+    metadata TEXT DEFAULT '{}',
+    session_id TEXT
+);
+CREATE TABLE IF NOT EXISTS career_insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    insight_type TEXT NOT NULL,
+    score REAL,
+    summary TEXT,
+    data_json TEXT,
+    version INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL, rule_type TEXT, scope TEXT,
+    key TEXT, value TEXT, description TEXT,
+    priority INTEGER DEFAULT 50, score_weight INTEGER DEFAULT 50,
+    enabled INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS jobs (
+    num INTEGER PRIMARY KEY,
+    company TEXT, role TEXT, location TEXT, match TEXT,
+    score TEXT, salary TEXT, stack TEXT, visa TEXT, applicants TEXT,
+    posted TEXT, industry TEXT, domain TEXT, notes TEXT,
+    action TEXT, url TEXT, work_type TEXT,
+    workflow_log TEXT DEFAULT '[]',
+    created_at TEXT, posted_at TEXT,
+    locations TEXT DEFAULT '[]', deleted INTEGER DEFAULT 0,
+    employment_type TEXT DEFAULT 'Full-time',
+    work_types TEXT DEFAULT '["On-site"]',
+    raw_description TEXT, structured_description TEXT,
+    raw_file_path TEXT, structured_file_path TEXT,
+    rescoring INTEGER DEFAULT 0, success TEXT,
+    adv_at TEXT, see_at TEXT, apply_reason TEXT,
+    overall_score REAL, fit_score REAL, success_score REAL,
+    company_id INTEGER, apply_time TEXT, response_time TEXT,
+    response_status TEXT, apply_url TEXT, response_date TEXT
+);
+CREATE TABLE IF NOT EXISTS summaries (
+    num INTEGER PRIMARY KEY,
+    company TEXT, match TEXT, score TEXT,
+    summary TEXT, stack TEXT, resumeFit TEXT, note TEXT, url TEXT
+);
+CREATE TABLE IF NOT EXISTS resumes (
+    id TEXT PRIMARY KEY,
+    title TEXT, company TEXT, role TEXT, content TEXT,
+    version INTEGER DEFAULT 1, raw_text TEXT,
+    created_at TEXT, job_num INTEGER
+);
+CREATE TABLE IF NOT EXISTS tech_learning (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    url TEXT, description TEXT,
+    difficulty TEXT DEFAULT 'medium',
+    estimated_hours REAL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS analysis_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    page TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    analysis_json TEXT
+);
 """
 
 
@@ -167,3 +254,36 @@ def db_conn(test_db):
     conn.row_factory = sqlite3.Row
     yield conn
     conn.close()
+
+
+@pytest.fixture
+def sa_session(test_db):
+    """Create a SQLAlchemy session connected to the test DB with all tables."""
+    engine = create_engine(f"sqlite:///{test_db}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture
+def mock_get_session(sa_session):
+    """Patch dependencies.get_session_sync to return our test SA session."""
+    with patch('dependencies.get_session_sync', return_value=sa_session):
+        yield sa_session
+
+
+@pytest.fixture
+def mock_get_session_worker(sa_session):
+    """Patch services.worker.get_session_sync to return our test SA session."""
+    with patch('services.worker.get_session_sync', return_value=sa_session):
+        yield sa_session
+
+
+@pytest.fixture
+def mock_get_session_company_worker(sa_session):
+    """Patch services.company_worker.get_session_sync to return our test SA session."""
+    with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        yield sa_session

@@ -9,16 +9,17 @@ from __future__ import annotations
 import json
 import os
 import re
-import sqlite3
-import time
-import threading
 import traceback
 from datetime import datetime
 
-from core.db import get_db
+from dependencies import get_session_sync
 from prompts import load_prompt
 from ai_compat import get_llm_service
 from infrastructure.websocket.broadcaster import WebSocketBroadcaster
+from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
@@ -29,10 +30,6 @@ os.makedirs(TMP_DIR, exist_ok=True)
 
 TOTAL_STEPS = 4
 _broadcaster = WebSocketBroadcaster()
-
-
-def _db():
-    return get_db()
 
 
 def _emit_skill_update(skill_name: str, data: dict):
@@ -47,27 +44,26 @@ def _emit_skill_update(skill_name: str, data: dict):
 
 def _create_job(skill_name: str, job_type: str) -> int:
     """Insert a new job row and return its ID."""
-    conn = _db()
-    cur = conn.execute(
-        "INSERT INTO skill_roadmap_jobs (skill_name, job_type, status, started_at) VALUES (?, ?, 'running', ?)",
-        (skill_name, job_type, datetime.now().isoformat()),
-    )
-    job_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return job_id
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapJobRepository(session)
+        result = repo.create(skill_name, job_type, status="running",
+                             started_at=datetime.now().isoformat())
+        return result["id"]
+    finally:
+        session.close()
 
 
 def _update_job(job_id: int, **kwargs):
     """Update a job row with arbitrary fields."""
     if not kwargs:
         return
-    sets = ", ".join(f"{k}=?" for k in kwargs)
-    vals = list(kwargs.values()) + [job_id]
-    conn = _db()
-    conn.execute(f"UPDATE skill_roadmap_jobs SET {sets} WHERE id=?", vals)
-    conn.commit()
-    conn.close()
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapJobRepository(session)
+        repo.update(job_id, **kwargs)
+    finally:
+        session.close()
 
 
 def _get_provider_name() -> str:
@@ -81,48 +77,42 @@ def _get_provider_name() -> str:
 
 def _get_checked_items(skill_name: str) -> list[str]:
     """Get list of completed roadmap item titles for a skill."""
-    conn = _db()
-    rows = conn.execute(
-        "SELECT sr.title FROM skill_roadmap_progress sp "
-        "JOIN skill_roadmaps sr ON sr.id = sp.roadmap_id "
-        "WHERE sp.skill_name = ? AND sp.completed = 1",
-        (skill_name,),
-    ).fetchall()
-    conn.close()
-    return [r[0] for r in rows] if rows else []
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapProgressRepository(session)
+        return repo.get_completed_titles(skill_name)
+    finally:
+        session.close()
 
 
 def _get_current_level(skill_name: str) -> str:
     """Determine the user's current level for a skill."""
-    conn = _db()
-    row = conn.execute(
-        "SELECT level FROM skills WHERE LOWER(name) = LOWER(?)",
-        (skill_name,),
-    ).fetchone()
-    conn.close()
-    if row and row[0]:
-        level = row[0]
-        if level >= 80:
-            return "Expert"
-        elif level >= 60:
-            return "Advanced"
-        elif level >= 40:
-            return "Intermediate"
-        elif level >= 20:
-            return "Basic"
-    return "Beginner"
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRepository(session)
+        level = repo.get_level_by_name(skill_name)
+        if level is not None:
+            if level >= 80:
+                return "Expert"
+            elif level >= 60:
+                return "Advanced"
+            elif level >= 40:
+                return "Intermediate"
+            elif level >= 20:
+                return "Basic"
+        return "Beginner"
+    finally:
+        session.close()
 
 
 def _get_existing_roadmap(skill_name: str) -> list[dict]:
     """Get existing roadmap items as a flat list."""
-    conn = _db()
-    rows = conn.execute(
-        "SELECT id, parent_id, title, description, level, sort_order FROM skill_roadmaps "
-        "WHERE LOWER(skill_name) = LOWER(?) ORDER BY sort_order, id",
-        (skill_name,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows] if rows else []
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapRepository(session)
+        return repo.get_by_skill_name(skill_name)
+    finally:
+        session.close()
 
 
 def _flatten_tree(items: list[dict]) -> list[dict]:
@@ -162,70 +152,79 @@ def _build_tree(flat_rows: list[dict]) -> list[dict]:
 
 
 def _save_roadmap_items(skill_name: str, items: list[dict], version: int):
-    """Save generated roadmap items to DB (replaces existing for this version)."""
-    conn = _db()
-    # Delete old items for this skill
-    conn.execute("DELETE FROM skill_roadmaps WHERE LOWER(skill_name) = LOWER(?)", (skill_name,))
+    """Save generated roadmap items to DB (replaces existing for this version).
 
-    sort_order = 0
-    _insert_items(conn, skill_name, items, parent_id=None, version=version, sort_order_ref=[sort_order])
-    conn.commit()
-    conn.close()
+    Flattens the tree with sort_order, inserts all items, then fixes parent_ids.
+    """
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapRepository(session)
+        repo.delete_by_skill_name(skill_name)
+
+        # Flatten tree to a list with sort_order and parent_sort_order
+        sort_order_ref = [0]
+        flat = _flatten_with_parents(items, parent_sort_order=None,
+                                     version=version, sort_order_ref=sort_order_ref)
+
+        # Insert all items without parent_id first
+        repo.insert_items(skill_name, flat, version)
+
+        # After commit, IDs are assigned. Query all and build sort_order->id map.
+        all_items = repo.get_by_skill_name(skill_name)
+        sort_order_to_id = {it["sort_order"]: it["id"] for it in all_items}
+
+        # Fix parent_ids using the sort_order references
+        from infrastructure.database.models.misc_models import SkillRoadmapModel
+        for item in flat:
+            parent_so = item.get("_parent_sort_order")
+            if parent_so is not None and parent_so in sort_order_to_id:
+                roadmap_id = sort_order_to_id.get(item["sort_order"])
+                if roadmap_id:
+                    m = session.query(SkillRoadmapModel).filter(
+                        SkillRoadmapModel.id == roadmap_id
+                    ).first()
+                    if m:
+                        m.parent_id = sort_order_to_id[parent_so]
+        session.commit()
+    finally:
+        session.close()
 
 
-def _insert_items(conn, skill_name: str, items: list[dict], parent_id: int | None,
-                  version: int, sort_order_ref: list):
-    """Recursively insert roadmap items."""
+def _flatten_with_parents(items: list[dict], parent_sort_order: int | None,
+                          version: int, sort_order_ref: list) -> list[dict]:
+    """Recursively flatten a tree into a list with sort_order and _parent_sort_order."""
+    result = []
     for item in items:
         sort_order_ref[0] += 1
-        cur = conn.execute(
-            "INSERT INTO skill_roadmap_posts (skill_name, parent_id, title, description, level, sort_order, version) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (skill_name, parent_id, item.get("title", ""), item.get("description", ""),
-             item.get("level", 0), sort_order_ref[0], version),
-        )
-        new_id = cur.lastrowid
+        current_sort_order = sort_order_ref[0]
+        row = {
+            "parent_id": None,
+            "title": item.get("title", ""),
+            "description": item.get("description", ""),
+            "level": item.get("level", 0),
+            "sort_order": current_sort_order,
+            "version": version,
+            "numbering": item.get("numbering", ""),
+            "_parent_sort_order": parent_sort_order,
+        }
+        result.append(row)
         children = item.get("children", [])
         if children:
-            _insert_items(conn, skill_name, children, parent_id=new_id, version=version, sort_order_ref=sort_order_ref)
-
-
-def _insert_items_fix(conn, skill_name: str, items: list[dict], parent_id: int | None,
-                      version: int, sort_order_ref: list):
-    """Recursively insert roadmap items into skill_roadmaps."""
-    for item in items:
-        sort_order_ref[0] += 1
-        cur = conn.execute(
-            "INSERT INTO skill_roadmaps (skill_name, parent_id, title, description, level, sort_order, version) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (skill_name, parent_id, item.get("title", ""), item.get("description", ""),
-             item.get("level", 0), sort_order_ref[0], version),
-        )
-        new_id = cur.lastrowid
-        children = item.get("children", [])
-        if children:
-            _insert_items_fix(conn, skill_name, children, parent_id=new_id, version=version, sort_order_ref=sort_order_ref)
-
-
-def _save_roadmap_items_fixed(skill_name: str, items: list[dict], version: int):
-    """Save generated roadmap items to DB (replaces existing for this version)."""
-    conn = _db()
-    conn.execute("DELETE FROM skill_roadmaps WHERE LOWER(skill_name) = LOWER(?)", (skill_name,))
-    sort_order_ref = [0]
-    _insert_items_fix(conn, skill_name, items, parent_id=None, version=version, sort_order_ref=sort_order_ref)
-    conn.commit()
-    conn.close()
+            child_rows = _flatten_with_parents(children, parent_sort_order=current_sort_order,
+                                               version=version, sort_order_ref=sort_order_ref)
+            result.extend(child_rows)
+    return result
 
 
 def _get_next_version(skill_name: str) -> int:
     """Get the next version number for a skill's roadmap."""
-    conn = _db()
-    row = conn.execute(
-        "SELECT MAX(version) FROM skill_roadmaps WHERE LOWER(skill_name) = LOWER(?)",
-        (skill_name,),
-    ).fetchone()
-    conn.close()
-    return (row[0] or 0) + 1 if row else 1
+    session = get_session_sync()
+    try:
+        repo = SQLAlchemySkillRoadmapRepository(session)
+        max_version = repo.get_max_version(skill_name)
+        return max_version + 1
+    finally:
+        session.close()
 
 
 def _parse_json_response(text: str) -> list[dict] | None:
@@ -443,7 +442,7 @@ def generate_roadmap(skill_name: str):
             return
 
         version = _get_next_version(skill_name)
-        _save_roadmap_items_fixed(skill_name, items, version)
+        _save_roadmap_items(skill_name, items, version)
 
         _update_job(job_id, step=4, total_steps=TOTAL_STEPS, message="Saving roadmap...")
         _emit_skill_update(skill_name, {
@@ -510,7 +509,7 @@ def extend_roadmap(skill_name: str):
             return
 
         version = _get_next_version(skill_name)
-        _save_roadmap_items_fixed(skill_name, items, version)
+        _save_roadmap_items(skill_name, items, version)
 
         _finish_job(job_id, skill_name, "completed", job_type="extend",
                     version=version, count=len(items), session_id=session_id,
@@ -570,7 +569,7 @@ def finegrain_roadmap(skill_name: str):
             return
 
         version = _get_next_version(skill_name)
-        _save_roadmap_items_fixed(skill_name, items, version)
+        _save_roadmap_items(skill_name, items, version)
 
         _finish_job(job_id, skill_name, "completed", job_type="finegrain",
                     version=version, count=len(items), session_id=session_id,

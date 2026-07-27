@@ -61,16 +61,14 @@ class SkillRoadmapService:
 
     def get_jobs(self, limit: int = 50) -> list:
         """Get recent roadmap jobs."""
-        from core.db import get_db
-        conn = get_db()
+        from dependencies import get_session_sync
+        from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+        session = get_session_sync()
         try:
-            rows = conn.execute(
-                "SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-            return [dict(r) for r in rows] if rows else []
+            repo = SQLAlchemySkillRoadmapJobRepository(session)
+            return repo.get_all(limit=limit)
         finally:
-            conn.close()
+            session.close()
 
 
 # Module-level singleton for backward compatibility

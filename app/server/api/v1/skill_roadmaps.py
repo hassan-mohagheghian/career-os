@@ -3,9 +3,11 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_db
+from dependencies import get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo
+from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 from exceptions import NotFoundError
-from infrastructure.workers.background import get_task_manager
 
 router = APIRouter()
 
@@ -30,76 +32,66 @@ def build_roadmap_tree(rows: list[dict]) -> list[dict]:
 
 
 @router.get("")
-def list_roadmaps(skill: Optional[str] = Query(None), db=Depends(get_db)):
+def list_roadmaps(
+    skill: Optional[str] = Query(None),
+    repo: SQLAlchemySkillRoadmapRepository = Depends(get_skill_roadmap_repo),
+):
     """List all skill roadmaps or return nested tree for a specific skill."""
     if skill:
-        rows = db.execute(
-            "SELECT * FROM skill_roadmaps WHERE LOWER(skill_name) = LOWER(?) ORDER BY sort_order, id",
-            (skill,),
-        ).fetchall()
-        row_dicts = [dict(r) for r in rows]
-        tree = build_roadmap_tree(row_dicts)
-
-        max_version = max((r.get("version") or 1 for r in row_dicts), default=1)
-        latest_updated = max((r.get("created_at") or "" for r in row_dicts), default=None)
-
+        rows = repo.get_by_skill_name(skill)
+        tree = build_roadmap_tree(rows)
+        max_version = max((r.get("version") or 1 for r in rows), default=1)
+        latest_updated = max((r.get("created_at") or "" for r in rows), default=None)
         return {
             "skill_name": skill,
             "roadmap": tree,
             "version": max_version,
             "updated_at": latest_updated,
         }
-
-    rows = db.execute("SELECT * FROM skill_roadmaps ORDER BY skill_name").fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_all()
 
 
 @router.get("/progress")
-def get_roadmap_job_progress(skill: Optional[str] = Query(None), db=Depends(get_db)):
+def get_roadmap_job_progress(
+    skill: Optional[str] = Query(None),
+    repo: SQLAlchemySkillRoadmapJobRepository = Depends(get_skill_roadmap_job_repo),
+):
     """Get latest job status for a skill roadmap generation."""
     if not skill:
-        rows = db.execute("SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC").fetchall()
-        return [dict(r) for r in rows]
-
-    row = db.execute(
-        "SELECT * FROM skill_roadmap_jobs WHERE LOWER(skill_name) = LOWER(?) ORDER BY created_at DESC LIMIT 1",
-        (skill,),
-    ).fetchone()
+        return repo.get_all()
+    row = repo.get_latest_for_skill(skill)
     if not row:
         return {"status": "idle", "skill_name": skill}
-    return dict(row)
+    return row
 
 
 @router.get("/jobs")
-def get_roadmap_jobs(skill: Optional[str] = Query(None), limit: int = 20, db=Depends(get_db)):
+def get_roadmap_jobs(
+    skill: Optional[str] = Query(None),
+    limit: int = 20,
+    repo: SQLAlchemySkillRoadmapJobRepository = Depends(get_skill_roadmap_job_repo),
+):
     """Get all roadmap jobs, optionally filtered by skill."""
     if skill:
-        rows = db.execute(
-            "SELECT * FROM skill_roadmap_jobs WHERE LOWER(skill_name) = LOWER(?) ORDER BY created_at DESC LIMIT ?",
-            (skill, limit),
-        ).fetchall()
+        items = repo.get_for_skill(skill, limit)
     else:
-        rows = db.execute(
-            "SELECT * FROM skill_roadmap_jobs ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-    return {"items": [dict(r) for r in rows]}
+        items = repo.get_all(limit)
+    return {"items": items}
 
 
 @router.get("/progress/all")
-def get_all_progress(db=Depends(get_db)):
+def get_all_progress(repo: SQLAlchemySkillRoadmapProgressRepository = Depends(get_skill_roadmap_progress_repo)):
     """Get all roadmap progress."""
-    rows = db.execute("SELECT * FROM skill_roadmap_progress").fetchall()
-    return [dict(r) for r in rows]
+    return repo.get_all()
 
 
 @router.get("/{id}")
-def get_roadmap(id: int, db=Depends(get_db)):
+def get_roadmap(id: int, repo: SQLAlchemySkillRoadmapRepository = Depends(get_skill_roadmap_repo)):
     """Get a roadmap by ID."""
-    row = db.execute("SELECT * FROM skill_roadmaps WHERE id=?", (id,)).fetchone()
+    row = repo.get_by_id(id)
     if not row:
         raise NotFoundError(f"Roadmap {id} not found")
-    return dict(row)
+    return row
 
 
 @router.post("/generate")
@@ -161,3 +153,9 @@ def cancel_roadmap(skill: str = Query(...)):
     manager.cancel(f"roadmap_extend_{skill}")
     manager.cancel(f"roadmap_finegrain_{skill}")
     return {"status": "cancelled", "skill_name": skill}
+
+
+# Lazy import to avoid circular
+def get_task_manager():
+    from infrastructure.workers.background import get_task_manager as _get
+    return _get()
