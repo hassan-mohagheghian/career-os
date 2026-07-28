@@ -7,7 +7,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from sqlalchemy.orm import Session
+
+from skills.infrastructure.models.skill_model import SkillModel
+from shared.infrastructure.database.mappers import skill_model_to_dict
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -19,11 +23,12 @@ class SkillIntelligenceAgent:
     and generates market demand analysis.
     """
 
-    def __init__(self, provider: Optional[LLMProvider] = None):
+    def __init__(self, provider: Optional[LLMProvider] = None, session: Optional[Session] = None):
         self._provider = provider
+        self._session = session
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         if state is None:
             state = create_initial_state()
 
@@ -36,23 +41,25 @@ class SkillIntelligenceAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _load_skills(self, state: AgentState) -> AgentState:
+    def _load_skills(self, state: BaseState) -> BaseState:
         """Load current skills from database."""
         try:
-            import sys, os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'server'))
-            from core.db import get_db
+            if self._session is None:
+                from shared.infrastructure.database.session import get_session_sync
+                self._session = get_session_sync()
 
-            conn = get_db()
-            rows = conn.execute("SELECT name, level, category FROM tech_stack ORDER BY level DESC").fetchall()
-            conn.close()
+            rows = self._session.query(SkillModel.name, SkillModel.level, SkillModel.category) \
+                .order_by(SkillModel.level.desc()).all()
 
-            state["metadata"]["current_skills"] = [dict(r) for r in rows] if rows else []
+            state["metadata"]["current_skills"] = [
+                {"name": r.name, "level": r.level, "category": r.category}
+                for r in rows
+            ] if rows else []
         except Exception as e:
             state["errors"].append(f"Failed to load skills: {e}")
         return state
 
-    def _analyze_gaps(self, state: AgentState) -> AgentState:
+    def _analyze_gaps(self, state: BaseState) -> BaseState:
         """Analyze skill gaps from input requirements."""
         current = state.get("metadata", {}).get("current_skills", [])
         current_names = {s["name"].lower() for s in current if s.get("name")}

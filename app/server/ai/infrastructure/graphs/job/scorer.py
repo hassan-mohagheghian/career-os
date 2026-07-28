@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -22,7 +22,7 @@ class JobScorerAgent:
         self._provider = provider
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         """Run the scoring pipeline."""
         if state is None:
             state = create_initial_state()
@@ -33,7 +33,7 @@ class JobScorerAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _compute_scores(self, state: AgentState) -> AgentState:
+    def _compute_scores(self, state: BaseState) -> BaseState:
         """Compute fit and success scores."""
         try:
             import sys, os
@@ -50,6 +50,6 @@ class JobScorerAgent:
             state["errors"].append(f"Scoring failed: {e}")
         return state
 
-    def _normalize(self, state: AgentState) -> AgentState:
+    def _normalize(self, state: BaseState) -> BaseState:
         """Normalize scores to standard format."""
         return state

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -22,7 +22,7 @@ class CompanyResearcherAgent:
         self._provider = provider
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         if state is None:
             state = create_initial_state()
 
@@ -35,13 +35,13 @@ class CompanyResearcherAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _fetch(self, state: AgentState) -> AgentState:
+    def _fetch(self, state: BaseState) -> BaseState:
         """Fetch company content from provided sources."""
         content = state["input"]
         state["metadata"]["content_length"] = len(content)
         return state
 
-    def _extract(self, state: AgentState) -> AgentState:
+    def _extract(self, state: BaseState) -> BaseState:
         """Extract structured company data."""
         try:
             import sys, os

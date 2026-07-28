@@ -7,7 +7,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from sqlalchemy.orm import Session
+
+from jobs.infrastructure.models.job_model import JobModel
+from skills.infrastructure.models.skill_model import SkillModel
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -20,11 +24,12 @@ class InsightsAgent:
     doesn't stop others.
     """
 
-    def __init__(self, provider: Optional[LLMProvider] = None):
+    def __init__(self, provider: Optional[LLMProvider] = None, session: Optional[Session] = None):
         self._provider = provider
+        self._session = session
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         if state is None:
             state = create_initial_state()
 
@@ -37,33 +42,39 @@ class InsightsAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _collect_data(self, state: AgentState) -> AgentState:
+    def _collect_data(self, state: BaseState) -> BaseState:
         """Collect job and skill data for insight generation."""
         try:
-            import sys, os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'server'))
-            from core.db import get_db
+            if self._session is None:
+                from shared.infrastructure.database.session import get_session_sync
+                self._session = get_session_sync()
 
-            conn = get_db()
+            jobs = self._session.query(
+                JobModel.company, JobModel.role, JobModel.score,
+                JobModel.match, JobModel.overall_score
+            ).filter(JobModel.deleted == 0) \
+             .order_by(JobModel.overall_score.desc()) \
+             .limit(50).all()
 
-            # Collect job summary
-            jobs = conn.execute(
-                "SELECT company, role, score, match, overall_score FROM jobs WHERE deleted=0 ORDER BY overall_score DESC LIMIT 50"
-            ).fetchall()
-            state["metadata"]["jobs"] = [dict(r) for r in jobs] if jobs else []
+            state["metadata"]["jobs"] = [
+                {"company": r.company, "role": r.role, "score": r.score,
+                 "match": r.match, "overall_score": r.overall_score}
+                for r in jobs
+            ] if jobs else []
 
-            # Collect skills
-            skills = conn.execute(
-                "SELECT name, level, category FROM tech_stack ORDER BY level DESC"
-            ).fetchall()
-            state["metadata"]["skills"] = [dict(r) for r in skills] if skills else []
+            skills = self._session.query(
+                SkillModel.name, SkillModel.level, SkillModel.category
+            ).order_by(SkillModel.level.desc()).all()
 
-            conn.close()
+            state["metadata"]["skills"] = [
+                {"name": r.name, "level": r.level, "category": r.category}
+                for r in skills
+            ] if skills else []
         except Exception as e:
             state["errors"].append(f"Data collection failed: {e}")
         return state
 
-    def _generate(self, state: AgentState) -> AgentState:
+    def _generate(self, state: BaseState) -> BaseState:
         """Generate insight summary."""
         jobs = state.get("metadata", {}).get("jobs", [])
         skills = state.get("metadata", {}).get("skills", [])

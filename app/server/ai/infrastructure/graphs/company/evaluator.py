@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -22,7 +22,7 @@ class CompanyEvaluatorAgent:
         self._provider = provider
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         if state is None:
             state = create_initial_state()
 
@@ -32,7 +32,7 @@ class CompanyEvaluatorAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _analyze(self, state: AgentState) -> AgentState:
+    def _analyze(self, state: BaseState) -> BaseState:
         """Generate intelligence analysis."""
         company_data = state.get("metadata", {}).get("company_data", {})
         if not company_data:
@@ -56,7 +56,7 @@ class CompanyEvaluatorAgent:
             state["errors"].append(f"Analysis failed: {e}")
         return state
 
-    def _score(self, state: AgentState) -> AgentState:
+    def _score(self, state: BaseState) -> BaseState:
         """Extract scores from intelligence data."""
         intelligence = state.get("metadata", {}).get("intelligence", {})
         if isinstance(intelligence, dict):

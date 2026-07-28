@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -26,7 +26,7 @@ class JobExtractorAgent:
         self._provider = provider
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         """Run the extraction pipeline."""
         if state is None:
             state = create_initial_state()
@@ -41,7 +41,7 @@ class JobExtractorAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _validate(self, state: AgentState) -> AgentState:
+    def _validate(self, state: BaseState) -> BaseState:
         """Validate that the input contains job content."""
         content = state["input"]
         if not content or len(content) < 50:
@@ -49,7 +49,7 @@ class JobExtractorAgent:
         state["metadata"]["content_length"] = len(content)
         return state
 
-    def _extract_raw(self, state: AgentState) -> AgentState:
+    def _extract_raw(self, state: BaseState) -> BaseState:
         """Extract raw job information using existing services."""
         try:
             import sys, os
@@ -65,7 +65,7 @@ class JobExtractorAgent:
             state["errors"].append(f"Raw extraction failed: {e}")
         return state
 
-    def _extract_struct(self, state: AgentState) -> AgentState:
+    def _extract_struct(self, state: BaseState) -> BaseState:
         """Process structured extraction results."""
         extraction = state.get("metadata", {}).get("extraction")
         if extraction:

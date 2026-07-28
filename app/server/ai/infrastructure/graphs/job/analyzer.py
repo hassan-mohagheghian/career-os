@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..runtime.state import AgentState, create_initial_state
+from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider
 
@@ -23,7 +23,7 @@ class JobAnalyzerAgent:
         self._provider = provider
         self._executor = AgentExecutor()
 
-    def execute(self, state: Optional[AgentState] = None) -> AgentState:
+    def execute(self, state: Optional[BaseState] = None) -> BaseState:
         """Run the analysis pipeline."""
         if state is None:
             state = create_initial_state()
@@ -38,7 +38,7 @@ class JobAnalyzerAgent:
         ]
         return self._executor.execute_chain(nodes, state)
 
-    def _load_rules(self, state: AgentState) -> AgentState:
+    def _load_rules(self, state: BaseState) -> BaseState:
         """Load scoring rules from DB."""
         try:
             import sys, os
@@ -49,14 +49,14 @@ class JobAnalyzerAgent:
             state["errors"].append(f"Failed to load rules: {e}")
         return state
 
-    def _analyze_stack(self, state: AgentState) -> AgentState:
+    def _analyze_stack(self, state: BaseState) -> BaseState:
         """Analyze the tech stack from extracted data."""
         extraction = state.get("metadata", {}).get("extraction", {})
         stack = extraction.get("stack", "") if isinstance(extraction, dict) else ""
         state["metadata"]["tech_stack"] = stack
         return state
 
-    def _prepare_output(self, state: AgentState) -> AgentState:
+    def _prepare_output(self, state: BaseState) -> BaseState:
         """Prepare analysis output."""
         extraction = state.get("metadata", {}).get("extraction", {})
         state["output"] = str(extraction) if extraction else ""

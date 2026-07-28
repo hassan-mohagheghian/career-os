@@ -1,6 +1,6 @@
-"""Resume Generation Graph — LangGraph workflow for tailored resume creation.
+"""Cover Letter Generation Graph — LangGraph workflow for cover letter creation.
 
-Graph: START → load_resume → load_job → tailor → format → validate → END
+Graph: START → load_resume → load_job → generate → format → validate → END
 
 Design Pattern: Pipeline Pattern — sequential data transformation.
 Each node owns its own prompt and produces typed output.
@@ -14,11 +14,11 @@ import sys
 from typing import Any, Callable, Optional
 
 from ..runtime.graph import GraphBuilder
-from ..runtime.state import BaseState, ResumeOutput
+from ..runtime.state import BaseState, CoverLetterOutput
 
 
-def build_resume_generation_graph() -> GraphBuilder:
-    """Build the resume generation workflow graph.
+def build_cover_letter_graph() -> GraphBuilder:
+    """Build the cover letter generation workflow graph.
 
     Returns a compiled GraphBuilder ready for execution.
     """
@@ -26,8 +26,7 @@ def build_resume_generation_graph() -> GraphBuilder:
     def load_resume(state: BaseState) -> BaseState:
         """Stage 1: Load Base Resume.
 
-        Loads the user's base resume from database.
-        Uses prompt: resume/load_resume.md
+        Loads the user's resume for context.
         """
         try:
             from shared.infrastructure.database.session import get_session_sync
@@ -40,9 +39,8 @@ def build_resume_generation_graph() -> GraphBuilder:
 
             if model and model.raw_text:
                 state["metadata"]["resume_text"] = model.raw_text
-                state["metadata"]["resume_id"] = model.id
             else:
-                state["errors"].append("No base resume found in database")
+                state["errors"].append("No base resume found")
         except Exception as e:
             state["errors"].append(f"Failed to load resume: {e}")
 
@@ -51,7 +49,7 @@ def build_resume_generation_graph() -> GraphBuilder:
     def load_job_context(state: BaseState) -> BaseState:
         """Stage 2: Load Job Context.
 
-        Loads job posting data for tailoring.
+        Loads job posting data for cover letter context.
         """
         job_id = state["context"].get("job_id")
         job_data = state["context"].get("job_data", {})
@@ -77,7 +75,6 @@ def build_resume_generation_graph() -> GraphBuilder:
                     "company": job.company or "",
                     "description": job.description or "",
                     "requirements": job.requirements or "",
-                    "stack": job.stack or "",
                 }
             else:
                 state["errors"].append(f"Job not found: {job_id}")
@@ -86,76 +83,66 @@ def build_resume_generation_graph() -> GraphBuilder:
 
         return state
 
-    def tailor_content(state: BaseState) -> BaseState:
-        """Stage 3: Tailor Resume Content.
+    def generate_cover_letter(state: BaseState) -> BaseState:
+        """Stage 3: Generate Cover Letter.
 
-        Uses AI to tailor resume for the specific job.
-        Uses prompt: resume/tailor_resume.md
+        Uses AI to generate a tailored cover letter.
+        Uses prompt: resume/generate_cover_letter.md
         """
         resume_text = state["metadata"].get("resume_text", "")
         job_data = state["metadata"].get("job_data", {})
 
         if not resume_text:
-            state["errors"].append("No resume text to tailor")
+            state["errors"].append("No resume text for context")
             return state
 
         if not job_data:
-            state["errors"].append("No job data for tailoring context")
+            state["errors"].append("No job data for context")
             return state
 
         try:
-            # Build tailoring prompt
-            prompt = f"""Tailor the following resume for this job posting:
+            prompt = f"""Write a professional cover letter for this position:
 
 Job Title: {job_data.get('title', 'N/A')}
 Company: {job_data.get('company', 'N/A')}
+Description: {job_data.get('description', 'N/A')}
 Requirements: {job_data.get('requirements', 'N/A')}
-Tech Stack: {job_data.get('stack', 'N/A')}
 
-Resume:
-{resume_text}
+Based on this resume:
+{resume_text[:2000]}
 
-Provide a tailored version that highlights relevant experience and skills."""
+Write a compelling cover letter that:
+1. Opens with enthusiasm for the role
+2. Highlights 2-3 relevant experiences
+3. Shows knowledge of the company
+4. Closes with a call to action"""
 
-            state["metadata"]["tailor_prompt"] = prompt
-            state["metadata"]["tailor"] = {"success": True, "prompt_ready": True}
+            state["metadata"]["generate_prompt"] = prompt
+            state["metadata"]["generate"] = {"success": True, "prompt_ready": True}
         except Exception as e:
-            state["errors"].append(f"Tailoring failed: {e}")
-            state["metadata"]["tailor"] = {"success": False, "error": str(e)}
+            state["errors"].append(f"Generation failed: {e}")
+            state["metadata"]["generate"] = {"success": False, "error": str(e)}
 
         return state
 
     def format_output(state: BaseState) -> BaseState:
         """Stage 4: Format Output.
 
-        Formats the tailored resume into structured output.
+        Formats the cover letter into structured output.
         """
-        resume_text = state["metadata"].get("resume_text", "")
         job_data = state["metadata"].get("job_data", {})
+        generate = state["metadata"].get("generate", {})
 
-        if not resume_text:
-            state["errors"].append("No resume text to format")
+        if not generate.get("success"):
+            state["errors"].append("No generation result to format")
             return state
 
         try:
-            # Parse resume into sections
-            sections = []
-            current_section = {"title": "general", "content": []}
-
-            for line in resume_text.split("\n"):
-                stripped = line.strip()
-                if stripped.endswith(":") and len(stripped) < 50:
-                    if current_section["content"]:
-                        sections.append(current_section)
-                    current_section = {"title": stripped.rstrip(":"), "content": []}
-                else:
-                    current_section["content"].append(stripped)
-
-            if current_section["content"]:
-                sections.append(current_section)
-
-            state["metadata"]["sections"] = sections
-            state["metadata"]["format"] = {"success": True, "section_count": len(sections)}
+            # Parse the generated prompt as placeholder
+            # In production, this would parse the AI response
+            paragraphs = []
+            state["metadata"]["paragraphs"] = paragraphs
+            state["metadata"]["format"] = {"success": True}
         except Exception as e:
             state["errors"].append(f"Formatting failed: {e}")
             state["metadata"]["format"] = {"success": False, "error": str(e)}
@@ -165,18 +152,13 @@ Provide a tailored version that highlights relevant experience and skills."""
     def validate_output(state: BaseState) -> BaseState:
         """Stage 5: Validate Output.
 
-        Validates the generated resume meets quality standards.
+        Validates the cover letter meets quality standards.
         """
-        resume_text = state["metadata"].get("resume_text", "")
-
-        if not resume_text:
-            state["errors"].append("No resume text to validate")
-            return state
+        paragraphs = state["metadata"].get("paragraphs", [])
 
         checks = {
-            "has_content": bool(resume_text.strip()),
-            "minimum_length": len(resume_text) > 100,
-            "has_sections": len(state.get("metadata", {}).get("sections", [])) > 0,
+            "has_content": len(paragraphs) > 0,
+            "minimum_paragraphs": len(paragraphs) >= 3,
         }
 
         state["metadata"]["validation"] = checks
@@ -189,15 +171,13 @@ Provide a tailored version that highlights relevant experience and skills."""
 
         Builds final typed output.
         """
-        resume_text = state["metadata"].get("resume_text", "")
-        sections = state["metadata"].get("sections", [])
-        job_data = state["metadata"].get("job_data", {})
+        paragraphs = state["metadata"].get("paragraphs", [])
 
-        output = ResumeOutput(
-            resume_text=resume_text,
-            tailored_sections=sections,
-            match_score=None,
-            suggestions=[],
+        output = CoverLetterOutput(
+            cover_letter="\n\n".join(paragraphs),
+            paragraphs=paragraphs,
+            tone="professional",
+            key_highlights=[],
         )
 
         state["output"] = json.dumps(output.model_dump(), default=str)
@@ -207,17 +187,17 @@ Provide a tailored version that highlights relevant experience and skills."""
         return state
 
     # Build the graph
-    builder = GraphBuilder("resume_generation")
+    builder = GraphBuilder("cover_letter_generation")
     builder.add_node("load_resume", load_resume)
     builder.add_node("load_job_context", load_job_context)
-    builder.add_node("tailor_content", tailor_content)
+    builder.add_node("generate_cover_letter", generate_cover_letter)
     builder.add_node("format_output", format_output)
     builder.add_node("validate_output", validate_output)
     builder.add_node("completion_event", completion_event)
 
     builder.add_edge("load_resume", "load_job_context")
-    builder.add_edge("load_job_context", "tailor_content")
-    builder.add_edge("tailor_content", "format_output")
+    builder.add_edge("load_job_context", "generate_cover_letter")
+    builder.add_edge("generate_cover_letter", "format_output")
     builder.add_edge("format_output", "validate_output")
     builder.add_edge("validate_output", "completion_event")
 

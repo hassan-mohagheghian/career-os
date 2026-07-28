@@ -1,68 +1,81 @@
 """GraphState — the domain model flowing through workflow graphs.
 
-Immutable contract: nodes return new/updated state, never modify in-place.
-This is the core data structure that all graph nodes read from and write to.
+Backward-compatible alias for BaseState from the runtime layer.
+New code should import BaseState directly from graphs.runtime.state.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
 
+from ...graphs.runtime.state import BaseState, create_initial_state
 
-@dataclass
+
 class GraphState:
-    """Typed state dictionary for graph execution.
+    """Backward-compatible wrapper around BaseState TypedDict.
 
-    Attributes:
-        input: The original user input / prompt.
-        output: The final output after graph execution.
-        context: Shared context (provider, config, DB connections).
-        errors: List of error messages encountered during execution.
-        metadata: Arbitrary metadata (duration, token counts, etc.).
-        node_history: List of node names that have executed.
-        session_id: Generation session ID for tracking.
+    Provides dataclass-like interface for legacy code that uses
+    attribute access (state.input) instead of dict access (state["input"]).
     """
-    input: str = ""
-    output: str = ""
-    context: dict[str, Any] = field(default_factory=dict)
-    errors: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    node_history: list[str] = field(default_factory=list)
-    session_id: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "input": self.input,
-            "output": self.output,
-            "context": self.context,
-            "errors": self.errors,
-            "metadata": self.metadata,
-            "node_history": self.node_history,
-            "session_id": self.session_id,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> GraphState:
-        return cls(
-            input=data.get("input", ""),
-            output=data.get("output", ""),
-            context=data.get("context", {}),
-            errors=data.get("errors", []),
-            metadata=data.get("metadata", {}),
-            node_history=data.get("node_history", []),
-            session_id=data.get("session_id", ""),
+    def __init__(self, **kwargs: Any):
+        self._data = BaseState(
+            input=kwargs.get("input", ""),
+            output=kwargs.get("output", ""),
+            context=kwargs.get("context", {}),
+            errors=kwargs.get("errors", []),
+            metadata=kwargs.get("metadata", {}),
+            node_history=kwargs.get("node_history", []),
         )
 
+    @property
+    def input(self) -> str:
+        return self._data["input"]
 
-def create_initial_state(
+    @input.setter
+    def input(self, value: str):
+        self._data["input"] = value
+
+    @property
+    def output(self) -> str:
+        return self._data["output"]
+
+    @output.setter
+    def output(self, value: str):
+        self._data["output"] = value
+
+    @property
+    def context(self) -> dict[str, Any]:
+        return self._data["context"]
+
+    @property
+    def errors(self) -> list[str]:
+        return self._data["errors"]
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self._data["metadata"]
+
+    @property
+    def node_history(self) -> list[str]:
+        return self._data["node_history"]
+
+    @property
+    def session_id(self) -> str:
+        return self._data.get("session_id", "")
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self._data)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "GraphState":
+        return cls(**data)
+
+
+def create_graph_state(
     input: str = "",
     context: dict[str, Any] | None = None,
     session_id: str = "",
 ) -> GraphState:
-    """Factory function — creates a fresh state for graph execution."""
-    return GraphState(
-        input=input,
-        context=context or {},
-        session_id=session_id,
-    )
+    """Factory function — creates a fresh GraphState for legacy code."""
+    return GraphState(input=input, context=context or {})

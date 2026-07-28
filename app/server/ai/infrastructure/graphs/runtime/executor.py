@@ -8,14 +8,14 @@ Decorator Pattern: Wraps node functions with retry/error handling.
 from __future__ import annotations
 
 import time
-import traceback
 from typing import Any, Callable, Optional
 
-from .state import AgentState, create_initial_state
+from .state import BaseState, create_initial_state
 
 try:
-    from services.process.logging_config import get_logger
-    _log = get_logger("ai.executor")
+    import structlog
+
+    _log = structlog.get_logger("ai.executor")
 except ImportError:
     import logging
 
@@ -51,16 +51,17 @@ class AgentExecutor:
     - Template Method: Subclasses can override error handling
     """
 
-    def __init__(self, max_retries: int = 0):
+    def __init__(self, max_retries: int = 0, retry_delay: float = 1.0):
         self._max_retries = max_retries
+        self._retry_delay = retry_delay
 
     def execute_node(
         self,
         node_fn: Callable[[dict], dict],
-        state: AgentState,
+        state: BaseState,
         node_name: str = "",
         retries: Optional[int] = None,
-    ) -> AgentState:
+    ) -> BaseState:
         """Execute a single graph node.
 
         Args:
@@ -85,7 +86,6 @@ class AgentExecutor:
                 result = node_fn(state)
                 duration = time.time() - start_time
 
-                # Record in node history
                 if "node_history" not in result:
                     result["node_history"] = []
                 result["node_history"].append(name)
@@ -110,7 +110,6 @@ class AgentExecutor:
                     duration=round(duration, 3),
                 )
 
-                # Record error in state
                 if "errors" not in state:
                     state["errors"] = []
                 state["errors"].append(error_msg)
@@ -119,7 +118,6 @@ class AgentExecutor:
                     attempt += 1
                     continue
 
-                # Final failure — record in history and return
                 if "node_history" not in state:
                     state["node_history"] = []
                 state["node_history"].append(f"{name}:FAILED")
@@ -130,8 +128,8 @@ class AgentExecutor:
     def execute_chain(
         self,
         nodes: list[tuple[str, Callable]],
-        state: AgentState,
-    ) -> AgentState:
+        state: BaseState,
+    ) -> BaseState:
         """Execute a chain of nodes sequentially.
 
         Args:
@@ -143,7 +141,6 @@ class AgentExecutor:
         """
         for name, node_fn in nodes:
             state = self.execute_node(node_fn, state, node_name=name)
-            # Stop chain if there are unrecoverable errors
             if state.get("errors") and self._max_retries == 0:
                 break
         return state
