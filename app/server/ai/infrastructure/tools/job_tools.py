@@ -1,34 +1,29 @@
 """Job tools — wrap existing job processing services.
 
+Refactored to use the unified Tool Layer instead of duplicating fetching logic.
 SRP: Each tool handles one job-related operation.
-DIP: Tools import existing functions, not concrete implementations.
+DIP: Tools depend on abstractions, not concrete worker implementations.
 """
 
 from __future__ import annotations
 
+import json
 import os
-import sys
-from typing import Optional
+from typing import Any, Optional
 
 from .base import BaseTool, ToolResult
-
-# Add server to path for imports
-_server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'server'))
-if _server_dir not in sys.path:
-    sys.path.insert(0, _server_dir)
-
-# Import existing functions at module level for testability (mockable)
-try:
-    from services.worker import _fetch_url as _fetch_url_ref
-except ImportError:
-    _fetch_url_ref = None
+from .web import WebFetchTool, MultiSourceFetchTool
 
 
 class FetchJobTool(BaseTool):
     """Fetches job posting content from a URL.
 
-    Wraps the existing _fetch_url() function from worker.py.
+    Uses the unified WebFetchTool for local-first fetching.
+    Replaces the old _fetch_url import from worker.py.
     """
+
+    def __init__(self):
+        self._fetcher = WebFetchTool()
 
     @property
     def name(self) -> str:
@@ -53,25 +48,59 @@ class FetchJobTool(BaseTool):
         if not url:
             return ToolResult(success=False, error="url parameter is required")
 
-        try:
-            fetch_fn = _fetch_url_ref
-            if fetch_fn is None:
-                from services.worker import _fetch_url
-                fetch_fn = _fetch_url
-            content = fetch_fn(url)
+        page = self._fetcher.fetch_direct(url)
+
+        if page.is_ok:
             return ToolResult(
                 success=True,
-                data=content,
-                metadata={"url": url, "length": len(content)},
+                data=page.plain_text,
+                metadata={"url": url, "length": len(page.plain_text), "cache_hit": page.cache_hit},
             )
-        except Exception as e:
-            return ToolResult(success=False, error=f"Failed to fetch URL: {e}")
+        else:
+            return ToolResult(
+                success=False,
+                error=page.error.message if page.error else "Fetch failed",
+                metadata={"url": url},
+            )
+
+
+class FetchMultiSourceJobTool(BaseTool):
+    """Fetches content from multiple sources for job processing.
+
+    Consolidates _fetch_multi_source from worker.py.
+    """
+
+    def __init__(self):
+        self._fetcher = MultiSourceFetchTool()
+
+    @property
+    def name(self) -> str:
+        return "fetch_multi_source_job"
+
+    @property
+    def description(self) -> str:
+        return "Fetch job content from multiple sources (URL + notes + links)"
+
+    @property
+    def input_schema(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "Main job URL"},
+                "notes": {"type": "array", "description": "Text/URL notes"},
+                "links": {"type": "array", "description": "Additional links"},
+                "pid": {"type": "string", "description": "Processing ID"},
+            },
+        }
+
+    def run(self, **kwargs) -> ToolResult:
+        return self._fetcher.run(**{k: v for k, v in kwargs.items() if k in ("url", "notes", "links")})
 
 
 class ExtractJobDataTool(BaseTool):
     """Extracts structured data from job content.
 
-    Wraps the existing _extract_all() function from worker.py.
+    Delegates to the LLMService for AI-powered extraction.
     """
 
     @property
@@ -101,24 +130,37 @@ class ExtractJobDataTool(BaseTool):
         pid = kwargs.get("pid", "ai_extract")
 
         try:
-            from services.worker import _extract_all
-            result = _extract_all(content, pid)
-            if result:
-                return ToolResult(
-                    success=True,
-                    data=result,
-                    metadata={"valid": result.get("valid", False)},
-                )
-            return ToolResult(success=False, error="Extraction returned no result")
+            from shared.infrastructure.ai.compat import get_llm_service
+            from shared.infrastructure.prompts.loader import load_prompt
+
+            output_file = os.path.join(
+                os.environ.get("TEMP_DIR", "tmp"),
+                f"extract_{pid}.json",
+            )
+            prompt = load_prompt(
+                "job_processing/step3_extract_raw",
+                content=content[:5000],
+                output_file=output_file,
+            )
+
+            llm = get_llm_service()
+            resp = llm.generate_structured(
+                prompt,
+                context={"result_file": output_file, "pid": str(pid)},
+                timeout=90,
+            )
+            result = json.loads(resp.content)
+            return ToolResult(
+                success=True,
+                data=result,
+                metadata={"valid": result.get("valid", False)},
+            )
         except Exception as e:
             return ToolResult(success=False, error=f"Extraction failed: {e}")
 
 
 class ScoreJobTool(BaseTool):
-    """Scores a job using the existing analysis pipeline.
-
-    Wraps the existing scoring logic from worker.py.
-    """
+    """Scores a job using the existing analysis pipeline."""
 
     @property
     def name(self) -> str:
@@ -134,7 +176,7 @@ class ScoreJobTool(BaseTool):
             return ToolResult(success=False, error="job_data parameter is required")
 
         try:
-            from services.worker import normalize_score, calculate_overall_score
+            from jobs.infrastructure.workers.worker import normalize_score
             score = normalize_score(job_data.get("score"))
             return ToolResult(
                 success=True,

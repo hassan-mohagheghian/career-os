@@ -4,6 +4,9 @@ Graph: START → validate → fetch → fallback_notes → extract_raw →
 clean_content → extract_structured → analyze → extract_skills →
 score → summary → persistence → END
 
+Refactored: All URL fetching now uses the unified Tool Layer (WebFetchTool)
+instead of importing _fetch_url from worker.py.
+
 Design Pattern: Pipeline Pattern — sequential data transformation.
 Each node has inputs, outputs, retry strategy, and failure handling.
 """
@@ -18,6 +21,10 @@ from typing import Any, Callable, Optional
 from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, JobExtractionOutput, JobAnalysisOutput
 
+# Unified Tool Layer imports — no more direct worker imports for fetching
+from ai.infrastructure.tools.fetch import fetch_page, extract_content
+from ai.infrastructure.tools.web import WebFetchTool, MultiSourceFetchTool
+
 
 def build_job_processing_graph() -> GraphBuilder:
     """Build the job processing workflow graph.
@@ -25,6 +32,9 @@ def build_job_processing_graph() -> GraphBuilder:
     Returns a compiled GraphBuilder ready for execution.
     Each node owns its own prompt and produces typed output.
     """
+
+    _web_fetcher = WebFetchTool()
+    _multi_fetcher = MultiSourceFetchTool()
 
     def validate_input(state: BaseState) -> BaseState:
         """Stage 1: Input Validation.
@@ -55,7 +65,8 @@ def build_job_processing_graph() -> GraphBuilder:
     def fetch_url(state: BaseState) -> BaseState:
         """Stage 2: URL Fetching.
 
-        Fetches content from the provided URL.
+        Uses the unified WebFetchTool for local-first fetching.
+        No more importing _fetch_url from worker.py.
         """
         url = state["context"].get("url", state["input"])
 
@@ -64,16 +75,22 @@ def build_job_processing_graph() -> GraphBuilder:
             return state
 
         try:
-            from jobs.infrastructure.workers.worker import _fetch_url
+            page = _web_fetcher.fetch_direct(url)
 
-            content = _fetch_url(url)
-            state["metadata"]["raw_content"] = content
-            state["metadata"]["content_length"] = len(content)
-            state["metadata"]["fetch"] = {
-                "success": True,
-                "url": url,
-                "length": len(content),
-            }
+            if page.is_ok:
+                state["metadata"]["raw_content"] = page.plain_text
+                state["metadata"]["content_length"] = len(page.plain_text)
+                state["metadata"]["fetch"] = {
+                    "success": True,
+                    "url": url,
+                    "length": len(page.plain_text),
+                    "cache_hit": page.cache_hit,
+                    "status_code": page.status_code,
+                }
+            else:
+                error_msg = page.error.message if page.error else "Fetch failed"
+                state["errors"].append(f"URL fetch failed: {error_msg}")
+                state["metadata"]["fetch"] = {"success": False, "error": error_msg}
         except Exception as e:
             state["errors"].append(f"URL fetch failed: {e}")
             state["metadata"]["fetch"] = {"success": False, "error": str(e)}
@@ -110,7 +127,7 @@ def build_job_processing_graph() -> GraphBuilder:
         """Stage 4: Raw Content Extraction.
 
         Extracts raw text content from the fetched data.
-        Uses prompt: jobs/extract_job.md
+        Uses the LLMService for AI-powered extraction.
         """
         content = state["metadata"].get("raw_content", "")
 
@@ -120,9 +137,27 @@ def build_job_processing_graph() -> GraphBuilder:
 
         try:
             pid = state["context"].get("pid", "ai_job")
-            from jobs.infrastructure.workers.worker import _extract_all
+            from shared.infrastructure.ai.compat import get_llm_service
+            from shared.infrastructure.prompts.loader import load_prompt
 
-            result = _extract_all(content, pid)
+            output_file = os.path.join(
+                os.environ.get("TEMP_DIR", "tmp"),
+                f"extract_{pid}.json",
+            )
+            prompt = load_prompt(
+                "job_processing/step3_extract_raw",
+                content=content[:5000],
+                output_file=output_file,
+            )
+
+            llm = get_llm_service()
+            resp = llm.generate_structured(
+                prompt,
+                context={"result_file": output_file, "pid": str(pid)},
+                timeout=90,
+            )
+            result = json.loads(resp.content)
+
             if result:
                 state["metadata"]["extraction"] = result
                 state["metadata"]["extract_raw"] = {"success": True}
@@ -198,7 +233,6 @@ def build_job_processing_graph() -> GraphBuilder:
         """Stage 7: Job Analysis.
 
         Analyzes the job posting for requirements and fit.
-        Uses prompt: jobs/score_job.md
         """
         structured = state["metadata"].get("structured", {})
 
@@ -262,7 +296,6 @@ def build_job_processing_graph() -> GraphBuilder:
         """Stage 9: Scoring.
 
         Computes fit score and success score.
-        Uses prompt: jobs/score_job.md
         """
         extraction = state["metadata"].get("extraction", {})
 
@@ -292,7 +325,6 @@ def build_job_processing_graph() -> GraphBuilder:
         """Stage 10: Summary Generation.
 
         Generates a summary of the job posting.
-        Uses prompt: jobs/summarize_job.md
         """
         structured = state["metadata"].get("structured", {})
         extraction = state["metadata"].get("extraction", {})

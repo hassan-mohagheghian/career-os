@@ -46,7 +46,8 @@ async def no_lifespan(app):
 
 
 def _build_app(sa_session):
-    from app.server.entrypoints.api import create_app
+    from fastapi import FastAPI, Depends
+    from fastapi.responses import JSONResponse
     from dependencies import (
         get_session, get_session_sync, get_job_repo, get_skill_repo,
         get_company_repo, get_pending_repo, get_insight_repo, get_preference_repo,
@@ -54,6 +55,7 @@ def _build_app(sa_session):
         get_pending_generation_repo, get_career_insight_run_repo,
         get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
     )
+    from exceptions import AppError
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
@@ -69,9 +71,16 @@ def _build_app(sa_session):
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from shared.presentation.api.root_router import api_router
 
-    app = create_app()
-    app.router.lifespan_context = no_lifespan
+    app = FastAPI(title="Test API")
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(request, exc):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": {"code": exc.code, "message": exc.detail, "details": getattr(exc, "details", None)}},
+        )
 
     def override_get_session():
         yield sa_session
@@ -96,6 +105,11 @@ def _build_app(sa_session):
     app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)
+    app.include_router(api_router)
+
+    @app.get("/api/health")
+    async def health():
+        return {"status": "ok"}
 
     return app
 

@@ -109,9 +109,13 @@ class TestFetchJobTool:
         assert tool.name == "fetch_job_url"
         assert "fetch" in tool.description.lower()
 
-    @patch("ai.infrastructure.tools.job_tools._fetch_url_ref")
+    @patch("ai.infrastructure.tools.job_tools.WebFetchTool.fetch_direct")
     def test_run_fetches_url(self, mock_fetch):
-        mock_fetch.return_value = "Job description content here"
+        from ai.infrastructure.tools.models import FetchedPage
+        mock_fetch.return_value = FetchedPage(
+            url="https://example.com/job/123",
+            plain_text="Job description content here",
+        )
         tool = FetchJobTool()
         result = tool.run(url="https://example.com/job/123")
         assert result.success is True

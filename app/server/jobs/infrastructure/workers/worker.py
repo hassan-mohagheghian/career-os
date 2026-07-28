@@ -26,6 +26,9 @@ from dependencies import get_session_sync
 # AI Agent Layer — unified LLM service
 from shared.infrastructure.ai.compat import get_llm_service
 
+# Unified Tool Layer — local-first URL fetching
+from ai.infrastructure.tools.fetch import fetch_page
+
 log = get_logger('worker')
 
 VALID_GRADES = ['P', 'E', 'D', 'C', 'B', 'A', 'A+', 'A++']
@@ -735,10 +738,13 @@ def _normalize_job_data(d):
 
     return d
 
-# --- URL fetcher ---
+# --- URL fetcher (uses unified Tool Layer) ---
 
 def _fetch_multi_source(url, notes, links, pid):
-    """Fetch content from multiple sources (notes + links), similar to company_worker."""
+    """Fetch content from multiple sources (notes + links).
+
+    Uses the unified Tool Layer's fetch_page for local-first URL fetching.
+    """
     parts = []
 
     # Add text notes
@@ -749,8 +755,11 @@ def _fetch_multi_source(url, notes, links, pid):
     # Fetch URL from the main job URL
     if url:
         try:
-            fetched = _fetch_url(url)
-            parts.append(fetched)
+            page = fetch_page(url)
+            if page.is_ok:
+                parts.append(page.plain_text)
+            else:
+                _log(pid, 'fetch', f'URL fetch failed: {page.error.message if page.error else "Unknown error"}')
         except Exception as e:
             _log(pid, 'fetch', f'URL fetch failed: {e}')
 
@@ -760,8 +769,11 @@ def _fetch_multi_source(url, notes, links, pid):
             note_url = note['content'].strip()
             if note_url.startswith('http') and note_url not in url:
                 try:
-                    fetched = _fetch_url(note_url)
-                    parts.append(f"[URL] {fetched}")
+                    page = fetch_page(note_url)
+                    if page.is_ok:
+                        parts.append(f"[URL] {page.plain_text}")
+                    else:
+                        _log(pid, 'fetch', f'Note URL fetch failed ({note_url[:60]}): {page.error.message if page.error else "Failed"}')
                 except Exception as e:
                     _log(pid, 'fetch', f'Note URL fetch failed ({note_url[:60]}): {e}')
 
@@ -770,8 +782,11 @@ def _fetch_multi_source(url, notes, links, pid):
         link_url = link.get('url', '')
         if link_url and link_url.startswith('http'):
             try:
-                fetched = _fetch_url(link_url)
-                parts.append(f"[{link.get('title', 'Link')}] {fetched}")
+                page = fetch_page(link_url)
+                if page.is_ok:
+                    parts.append(f"[{link.get('title', 'Link')}] {page.plain_text}")
+                else:
+                    _log(pid, 'fetch', f'Link fetch failed ({link_url}): {page.error.message if page.error else "Failed"}')
             except Exception as e:
                 _log(pid, 'fetch', f'Link fetch failed ({link_url}): {e}')
 
@@ -779,38 +794,16 @@ def _fetch_multi_source(url, notes, links, pid):
 
 
 def _fetch_url(url):
-    try:
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        })
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode('utf-8', errors='replace')
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            raise RuntimeError(f"Page not found (404) — the job posting no longer exists or the URL is incorrect: {url}") from None
-        elif e.code == 403:
-            raise RuntimeError(f"Access denied (403) — the website is blocking automated requests. The job may require login to view: {url}") from None
-        elif e.code == 503:
-            raise RuntimeError(f"Service unavailable (503) — the website is temporarily down. Try again later: {url}") from None
-        else:
-            raise RuntimeError(f"HTTP error {e.code}: {e.reason} — could not fetch job posting: {url}") from None
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Network error — could not connect to the server. Check your internet connection and verify the URL is correct: {url}") from None
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch URL: {e}") from None
-    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    for marker in ['About The Role', 'Job Description', 'Description', 'What you.ll do', 'What You.ll Do', 'The Role']:
-        idx = text.find(marker)
-        if idx != -1:
-            text = text[idx:]
-            break
-    if len(text) < 100:
-        raise RuntimeError(f"Page content too short ({len(text)} chars) — LinkedIn may require login to view this job, or the URL is not a valid job posting: {url}")
-    return text[:5000]
+    """Fetch a URL using the unified Tool Layer.
+
+    Local-first approach: fetch → preprocess → return cleaned text.
+    Raises RuntimeError for backward compatibility with existing callers.
+    """
+    page = fetch_page(url)
+    if page.is_ok:
+        return page.plain_text
+    else:
+        raise RuntimeError(page.error.message if page.error else f"Failed to fetch URL: {url}")
 
 def _validate_job_content(raw_text, pid):
     """Validate and extract main job section from fetched content using LLM service."""

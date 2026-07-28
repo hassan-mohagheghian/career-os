@@ -20,6 +20,9 @@ from shared.infrastructure.process.models import StatusUpdate, LogEntry, Process
 # AI Agent Layer — unified LLM service
 from shared.infrastructure.ai.compat import get_llm_service
 
+# Unified Tool Layer — local-first URL fetching
+from ai.infrastructure.tools.fetch import fetch_page
+
 # SQLAlchemy session + repositories
 from dependencies import get_session_sync
 from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
@@ -125,34 +128,16 @@ def _is_paused_or_stopped(pid):
 
 
 def _fetch_url(url):
-    """Fetch a URL and return cleaned text content."""
-    try:
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        })
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode('utf-8', errors='replace')
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            raise RuntimeError(f"Page not found (404) — the URL does not exist or has been moved: {url}") from None
-        elif e.code == 403:
-            raise RuntimeError(f"Access denied (403) — the website is blocking automated requests: {url}") from None
-        elif e.code == 503:
-            raise RuntimeError(f"Service unavailable (503) — the website is temporarily down: {url}") from None
-        else:
-            raise RuntimeError(f"HTTP error {e.code}: {e.reason} — could not fetch: {url}") from None
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Network error — could not connect to the server. Check if the URL is correct and your internet is working: {url}") from None
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch URL: {e}") from None
-    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    if len(text) < 50:
-        raise RuntimeError(f"Page content too short ({len(text)} chars) — the URL may require login, be a JavaScript-rendered page, or is not a valid company page: {url}")
-    return text[:8000]
+    """Fetch a URL using the unified Tool Layer.
+
+    Local-first approach: fetch → preprocess → return cleaned text.
+    Raises RuntimeError for backward compatibility with existing callers.
+    """
+    page = fetch_page(url, max_length=8000)
+    if page.is_ok:
+        return page.plain_text
+    else:
+        raise RuntimeError(page.error.message if page.error else f"Failed to fetch URL: {url}")
 
 
 def _stream_mimo_output(cmd, cwd, env, timeout, pid):

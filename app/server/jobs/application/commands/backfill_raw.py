@@ -1,6 +1,7 @@
 """
 Backfill raw job descriptions for existing jobs.
 Fetches from web, saves to jobs/ folder and raw_description column in DB.
+Uses the unified Tool Layer for URL fetching.
 """
 import os
 import re
@@ -22,6 +23,9 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 from jobs.infrastructure.models.job_model import JobModel
 
+# Unified Tool Layer — local-first URL fetching
+from ai.infrastructure.tools.fetch import fetch_page
+
 
 def get_session():
     engine = create_engine(f"sqlite:///{DB_PATH}")
@@ -30,28 +34,14 @@ def get_session():
 
 
 def fetch_url(url, retries=2):
-    headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36', 'Accept-Language': 'en-US,en;q=0.9'}
-    for attempt in range(retries + 1):
-        try:
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                html = resp.read().decode('utf-8', errors='replace')
-            text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-            text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
-            text = re.sub(r'<[^>]+>', ' ', text)
-            text = re.sub(r'\s+', ' ', text).strip()
-            for marker in ['About The Role', 'Job Description', 'Description', 'What you.ll do', 'What You.ll Do', 'The Role']:
-                idx = text.find(marker)
-                if idx != -1:
-                    text = text[idx:]
-                    break
-            return text[:5000] if len(text) >= 100 else None
-        except (urllib.error.HTTPError, urllib.error.URLError) as e:
-            if attempt < retries:
-                time.sleep(5)
-            else:
-                print(f"  Failed to fetch: {e}")
-                return None
+    """Fetch a URL using the unified Tool Layer.
+
+    Local-first approach with retry support for backfill operations.
+    Returns cleaned text or None on failure.
+    """
+    page = fetch_page(url, max_retries=retries)
+    if page.is_ok and len(page.plain_text) >= 100:
+        return page.plain_text[:5000]
     return None
 
 

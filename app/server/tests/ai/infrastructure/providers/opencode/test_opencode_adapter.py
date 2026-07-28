@@ -31,6 +31,8 @@ class TestOpenCodeBin:
         from ai.infrastructure.providers.opencode import adapter
         assert adapter.OPENCODE_BIN.endswith('opencode')
 
+    @pytest.mark.skipif(not os.path.exists(os.path.expanduser('~/.opencode/bin/opencode')),
+                        reason="opencode binary not installed")
     def test_opencode_bin_exists(self):
         from ai.infrastructure.providers.opencode import adapter
         assert os.path.exists(adapter.OPENCODE_BIN)

@@ -96,3 +96,166 @@ fn load_port_from_env(repo_root: &PathBuf, key: &str, default: u16) -> u16 {
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_load_port_from_env_file() {
+        let dir = std::env::temp_dir().join("config_test_env");
+        std::fs::create_dir_all(&dir).unwrap();
+        let env_path = dir.join(".env");
+        let mut f = std::fs::File::create(&env_path).unwrap();
+        writeln!(f, "BACKEND_PORT=8080").unwrap();
+        writeln!(f, "FRONTEND_PORT=3000").unwrap();
+
+        let port = load_port_from_env(&dir, "BACKEND_PORT", 5000);
+        assert_eq!(port, 8080);
+
+        let port = load_port_from_env(&dir, "FRONTEND_PORT", 5173);
+        assert_eq!(port, 3000);
+
+        let port = load_port_from_env(&dir, "OTHER_PORT", 9999);
+        assert_eq!(port, 9999);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_port_from_env_ignores_comments_and_empty() {
+        let dir = std::env::temp_dir().join("config_test_comments");
+        std::fs::create_dir_all(&dir).unwrap();
+        let env_path = dir.join(".env");
+        let mut f = std::fs::File::create(&env_path).unwrap();
+        writeln!(f, "").unwrap();
+        writeln!(f, "# This is a comment").unwrap();
+        writeln!(f, "  ").unwrap();
+        writeln!(f, "PORT=1234").unwrap();
+
+        let port = load_port_from_env(&dir, "PORT", 5000);
+        assert_eq!(port, 1234);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_port_from_env_no_file() {
+        let dir = std::env::temp_dir().join("config_test_no_file");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let port = load_port_from_env(&dir, "BACKEND_PORT", 5000);
+        assert_eq!(port, 5000);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_load_port_from_env_invalid_value() {
+        let dir = std::env::temp_dir().join("config_test_invalid");
+        std::fs::create_dir_all(&dir).unwrap();
+        let env_path = dir.join(".env");
+        let mut f = std::fs::File::create(&env_path).unwrap();
+        writeln!(f, "BACKEND_PORT=not_a_number").unwrap();
+
+        let port = load_port_from_env(&dir, "BACKEND_PORT", 5000);
+        assert_eq!(port, 5000);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_config_with_backend_port() {
+        let dir = std::env::temp_dir().join("config_test_with_port");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        let config = Config {
+            repo_root: dir.clone(),
+            server_dir: dir.join("app").join("server"),
+            client_dir: dir.join("app").join("client"),
+            pid_file: dir.join(".server.pid"),
+            client_pid_file: dir.join(".client.pid"),
+            venv_dir: dir.join(".venv"),
+            backend_port: 5000,
+            frontend_port: 5173,
+        };
+
+        let updated = config.with_backend_port(9000);
+        assert_eq!(updated.backend_port, 9000);
+        assert_eq!(updated.frontend_port, 5173);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_config_with_frontend_port() {
+        let dir = std::env::temp_dir().join("config_test_with_fport");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        let config = Config {
+            repo_root: dir.clone(),
+            server_dir: dir.join("app").join("server"),
+            client_dir: dir.join("app").join("client"),
+            pid_file: dir.join(".server.pid"),
+            client_pid_file: dir.join(".client.pid"),
+            venv_dir: dir.join(".venv"),
+            backend_port: 5000,
+            frontend_port: 5173,
+        };
+
+        let updated = config.with_frontend_port(3000);
+        assert_eq!(updated.backend_port, 5000);
+        assert_eq!(updated.frontend_port, 3000);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_python_from_venv() {
+        let dir = std::env::temp_dir().join("config_test_python");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        let config = Config {
+            repo_root: dir.clone(),
+            server_dir: dir.join("app").join("server"),
+            client_dir: dir.join("app").join("client"),
+            pid_file: dir.join(".server.pid"),
+            client_pid_file: dir.join(".client.pid"),
+            venv_dir: dir.join(".venv"),
+            backend_port: 5000,
+            frontend_port: 5173,
+        };
+
+        let python = config.python().unwrap();
+        assert_eq!(python, "python3");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_alembic_falls_back() {
+        let dir = std::env::temp_dir().join("config_test_alembic");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        let config = Config {
+            repo_root: dir.clone(),
+            server_dir: dir.join("app").join("server"),
+            client_dir: dir.join("app").join("client"),
+            pid_file: dir.join(".server.pid"),
+            client_pid_file: dir.join(".client.pid"),
+            venv_dir: dir.join(".venv"),
+            backend_port: 5000,
+            frontend_port: 5173,
+        };
+
+        let alembic = config.alembic().unwrap();
+        assert_eq!(alembic, "alembic");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}

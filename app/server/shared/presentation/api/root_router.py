@@ -7,6 +7,7 @@ presentation/api/ layer with routers and schemas.
 import json
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
 # Bounded context routers — imported from their owning context's presentation layer
 from jobs.presentation.api.jobs_router import router as jobs_router
@@ -52,22 +53,18 @@ api_router.include_router(sse_router, tags=["sse"])
 # ── Generation cancel ────────────────────────────────────────────
 
 @api_router.post("/generations/{gen_id}/cancel")
-def cancel_generation(gen_id: int):
+def cancel_generation(gen_id: int, session: Session = Depends(get_session_sync)):
     """Cancel a running generation."""
     from shared.application.exceptions import NotFoundError
     from processing.infrastructure import SQLAlchemyPendingGenerationRepository
 
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        gen = repo.get_by_id(gen_id)
-        if not gen:
-            raise NotFoundError(f"Generation {gen_id} not found")
-        repo.update_fields(gen_id, status="cancelled")
-        session.commit()
-        return {"status": "cancelled", "gen_id": gen_id}
-    finally:
-        session.close()
+    repo = SQLAlchemyPendingGenerationRepository(session)
+    gen = repo.get_by_id(gen_id)
+    if not gen:
+        raise NotFoundError(f"Generation {gen_id} not found")
+    repo.update_fields(gen_id, status="cancelled")
+    session.commit()
+    return {"status": "cancelled", "gen_id": gen_id}
 
 
 # ── Flask compat routes ─────────────────────────────────────────
@@ -248,17 +245,13 @@ def process_pending_company(id: str):
 
 
 @api_router.post("/pending-companies/queue-all")
-def queue_all_pending_companies():
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyPendingRepository(session)
-        pending_items = repo.list_pending("pending_companies")
-        pending_ids = [item["id"] for item in pending_items if item.get("status") == "pending"]
-        from shared.infrastructure.config.queue import get_queue_manager
-        get_queue_manager().enqueue_bulk(pending_ids)
-        return {"status": "queued", "count": len(pending_ids)}
-    finally:
-        session.close()
+def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
+    repo = SQLAlchemyPendingRepository(session)
+    pending_items = repo.list_pending("pending_companies")
+    pending_ids = [item["id"] for item in pending_items if item.get("status") == "pending"]
+    from shared.infrastructure.config.queue import get_queue_manager
+    get_queue_manager().enqueue_bulk(pending_ids)
+    return {"status": "queued", "count": len(pending_ids)}
 
 
 @api_router.post("/jobs/{num}/link-company")

@@ -63,7 +63,7 @@ def build_job_processing_graph() -> Any:
     def fetch_url(state: GraphState) -> GraphState:
         """Stage 2: URL Fetching.
 
-        Fetches content from the provided URL.
+        Uses the unified Tool Layer for local-first URL fetching.
         """
         url = state.context.get("url", state.input)
 
@@ -72,11 +72,21 @@ def build_job_processing_graph() -> Any:
             return state
 
         try:
-            from jobs.infrastructure.workers.worker import _fetch_url
-            content = _fetch_url(url)
-            state.metadata["raw_content"] = content
-            state.metadata["content_length"] = len(content)
-            state.metadata["fetch"] = {"success": True, "url": url, "length": len(content)}
+            from ai.infrastructure.tools.fetch import fetch_page
+            page = fetch_page(url)
+            if page.is_ok:
+                state.metadata["raw_content"] = page.plain_text
+                state.metadata["content_length"] = len(page.plain_text)
+                state.metadata["fetch"] = {
+                    "success": True,
+                    "url": url,
+                    "length": len(page.plain_text),
+                    "cache_hit": page.cache_hit,
+                }
+            else:
+                error_msg = page.error.message if page.error else "Fetch failed"
+                state.errors.append(f"URL fetch failed: {error_msg}")
+                state.metadata["fetch"] = {"success": False, "error": error_msg}
         except Exception as e:
             state.errors.append(f"URL fetch failed: {e}")
             state.metadata["fetch"] = {"success": False, "error": str(e)}

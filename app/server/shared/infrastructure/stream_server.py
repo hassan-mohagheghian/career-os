@@ -15,6 +15,9 @@ from shared.infrastructure.prompts.loader import load_prompt
 # AI Agent Layer — unified LLM service
 from shared.infrastructure.ai.compat import get_llm_service
 
+# Unified Tool Layer — local-first URL fetching
+from ai.infrastructure.tools.fetch import fetch_page
+
 # Connected clients per job
 clients = {}  # pid -> set of websocket connections
 processes = {}  # pid -> Popen object
@@ -373,33 +376,22 @@ async def broadcast(pid, event):
                 dead.add(ws)
         clients[pid] -= dead
 
-# --- Fetch URL ---
+# --- Fetch URL (uses unified Tool Layer) ---
 
 import urllib.request
 import re
 
 def fetch_url(url):
-    try:
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        })
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode('utf-8', errors='replace')
-    except Exception as e:
-        raise RuntimeError(f"Fetch failed: {e}") from None
-    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    for marker in ['About The Role', 'Job Description', 'Description', 'What you.ll do', 'The Role']:
-        idx = text.find(marker)
-        if idx != -1:
-            text = text[idx:]
-            break
-    if len(text) < 100:
-        raise RuntimeError("Page too short — LinkedIn may require login")
-    return text[:5000]
+    """Fetch a URL using the unified Tool Layer.
+
+    Local-first approach: fetch → preprocess → return cleaned text.
+    Raises RuntimeError for backward compatibility.
+    """
+    page = fetch_page(url)
+    if page.is_ok:
+        return page.plain_text
+    else:
+        raise RuntimeError(page.error.message if page.error else "Fetch failed")
 
 # --- Stream mimo process ---
 
