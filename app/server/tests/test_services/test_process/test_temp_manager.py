@@ -4,7 +4,7 @@ import os
 import tempfile
 
 import pytest
-from services.process.temp_manager import TempFileManager
+from shared.infrastructure.process.temp_manager import TempFileManager
 
 
 @pytest.fixture(autouse=True)

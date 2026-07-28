@@ -18,8 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import DB_PATH, STATIC_FOLDER
-from services.process.logging_config import setup_logging, get_logger
+from shared.infrastructure.config.app_config import DB_PATH, STATIC_FOLDER
+from shared.infrastructure.process.logging_config import setup_logging, get_logger
 
 # ── Logging ────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ async def cancel_job(sid, data):
     pid = data.get('id')
     table = data.get('table', 'pending_jobs')
     if pid:
-        from core.queue import get_queue_manager
+        from shared.infrastructure.config.queue import get_queue_manager
         ok = get_queue_manager().cancel_job(pid, table)
         log.info("socketio.cancel", pid=pid, success=ok)
 
@@ -126,7 +126,7 @@ async def reset_job(sid, data):
     pid = data.get('id')
     table = data.get('table', 'pending_jobs')
     if pid:
-        from core.queue import get_queue_manager
+        from shared.infrastructure.config.queue import get_queue_manager
         ok = get_queue_manager().reset_job(pid, table)
         log.info("socketio.reset", pid=pid, success=ok)
 
@@ -136,8 +136,8 @@ async def reset_job(sid, data):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
-    from core.db import init_db
-    from core.queue import init_queue_manager
+    from shared.infrastructure.config.db import init_db
+    from shared.infrastructure.config.queue import init_queue_manager
 
     # Startup
     log.info("fastapi.startup")
@@ -160,7 +160,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     log.info("fastapi.shutdown")
-    from core.queue import get_queue_manager
+    from shared.infrastructure.config.queue import get_queue_manager
     try:
         get_queue_manager().stop(timeout=15)
     except Exception as e:
@@ -197,8 +197,8 @@ def _recover_tasks():
     """On startup, check for interrupted tasks and mark them as failed."""
     try:
         from dependencies import get_session_sync
-        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
+        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+        from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
         from datetime import datetime
 
         session = get_session_sync()
@@ -285,7 +285,7 @@ def create_app() -> FastAPI:
         return await _app_error_handler(request, exc)
 
     # ── Register API Routers ─────────────────────────────────────
-    from api.router import api_router
+    from shared.presentation.api.root_router import api_router
     app.include_router(api_router)
 
     # ── Health Check ─────────────────────────────────────────────
@@ -314,7 +314,7 @@ def create_app() -> FastAPI:
 fastapi_app = create_app()
 
 # Wire SocketIO to the broadcaster for real-time events
-from services.process_utils import broadcaster as _shared_broadcaster
+from shared.infrastructure.process_utils import broadcaster as _shared_broadcaster
 _shared_broadcaster.set_socketio(sio)
 
 # Also wire the new WebSocket broadcaster

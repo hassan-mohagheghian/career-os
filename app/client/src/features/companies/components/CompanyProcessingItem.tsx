@@ -133,7 +133,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
 
   return (
     <div className={cn(
-      "group/card rounded-lg border bg-card p-1.5 min-w-0 overflow-hidden transition hover:shadow",
+      "group/card w-full rounded-lg border bg-card p-1.5 min-w-0 overflow-hidden transition hover:shadow",
       isFailed && "border-red-500/30",
       isDone && "border-green-500/30"
     )}>

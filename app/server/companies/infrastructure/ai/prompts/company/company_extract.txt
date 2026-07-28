@@ -1,0 +1,129 @@
+You are an expert company research analyst. Extract EVERY piece of information available about this company from the sources below. Be exhaustive — extract names, dates, numbers, technologies, people, products, everything you can find.
+
+The content may contain multiple sources marked with [SOURCE: url] (fetched web pages) and [NOTE] (user-provided notes). Cross-reference information across sources for accuracy. When sources conflict, prefer the more specific/recent one.
+
+Input type: {input_type}
+Content:
+{content}
+
+Save the result as JSON to {output_file}:
+
+{{
+  "name": "Exact company name",
+  "website": "Full website URL (https://...)",
+  "domain": "Primary business domain (e.g., 'Healthcare SaaS', 'Developer Tools', 'FinTech')",
+  "industry": "Industry category",
+  "country": "Primary country",
+  "city": "Headquarters city",
+  "description": "Comprehensive company description (3-5 sentences covering what they do, who they serve, their mission)",
+  "company_size": "Employee count range (e.g., '10-50', '50-200', '200-500', '500-1000', '1000+')",
+  "company_type": "PRODUCT_COMPANY | RECRUITING_AGENCY | STAFFING_COMPANY | CONSULTING_COMPANY | UNKNOWN",
+  "logo_url": "Logo URL if visible",
+
+  "founded_year": "Year founded or null",
+  "headquarters_full": "Full HQ address or location string",
+  "countries_of_operation": ["List of all countries where they operate"],
+  "languages_used": ["Languages spoken internally (English, German, etc.)"],
+
+  "products": ["List of main products or services"],
+  "product_descriptions": {{"product_name": "Brief description of what this product does"}},
+  "target_customers": "Who are their customers (B2B/B2C, enterprise/SMB, industries served)",
+  "key_clients": ["Notable clients or partners if mentioned"],
+  "competitors": ["Known competitors in the same space"],
+
+  "funding_stage": "Bootstrapped/Seed/Series A/B/C/D/E/Public or null",
+  "funding_amount": "Total funding raised if mentioned",
+  "last_funding_date": "Most recent funding round date",
+  "investors": ["List of known investors"],
+  "valuation": "Company valuation if mentioned",
+  "revenue": "Revenue or ARR if mentioned",
+
+  "tech_stack": {{
+    "backend": ["Backend technologies (Python, Django, FastAPI, Node.js, Go, etc.)"],
+    "frontend": ["Frontend technologies (React, Vue, Angular, TypeScript, etc.)"],
+    "infrastructure": ["Infrastructure (AWS, GCP, Kubernetes, Docker, Terraform, etc.)"],
+    "databases": ["Databases (PostgreSQL, MongoDB, Redis, etc.)"],
+    "data_platform": ["Data tools (Kafka, Spark, Airflow, etc.)"],
+    "ai_ml": ["AI/ML tools if any"],
+    "other": ["Other notable technologies"]
+  }},
+
+  "engineering_culture": {{
+    "methodology": "Agile/Scrum/Kanban/Spotify model/etc.",
+    "code_review": "Code review practices if mentioned",
+    "testing": "Testing practices (TDD, CI/CD, etc.)",
+    "open_source": "Open source activity or contributions",
+    "tech_blog": "Tech blog URL if available",
+    "engineering_values": ["Any stated engineering values or principles"]
+  }},
+
+  "work_environment": {{
+    "remote_policy": "Remote/Hybrid/On-site policy",
+    "hybrid_details": "Hybrid work details if applicable",
+    "office_locations": ["Office locations"],
+    "work_hours": "Working hours or flexibility if mentioned",
+    "vacation_days": "Vacation/PTO policy",
+    "learning_budget": "Learning & development budget",
+    "equipment": "Equipment support (laptop, monitors, etc.)",
+    "relocation_support": "Relocation package details",
+    "visa_sponsorship": "Visa sponsorship availability"
+  }},
+
+  "benefits": {{
+    "salary_range": "Salary range if mentioned",
+    "equity": "Equity/stock options if mentioned",
+    "health_insurance": "Health insurance details",
+    "pension": "Pension/401k details",
+    "perks": ["List of perks and benefits"]
+  }},
+
+  "international_signals": {{
+    "english_first": true,
+    "international_team": "Percentage or description of international employees",
+    "global_offices": ["Global office locations"],
+    "visa_history": "History of hiring international candidates",
+    "relocation_program": "Details of relocation program if any"
+  }},
+
+  "culture_signals": {{
+    "glassdoor_rating": "Glassdoor rating if found",
+    "culture_description": "Description of company culture",
+    "team_structure": "How teams are organized",
+    "decision_making": "How technical decisions are made",
+    "innovation": "Innovation culture indicators",
+    "diversity": "Diversity and inclusion indicators"
+  }},
+
+  "contact_info": {{
+    "careers_page": "Careers page URL",
+    "linkedin_url": "LinkedIn company page URL",
+    "glassdoor_url": "Glassdoor URL if found",
+    "crunchbase_url": "Crunchbase URL if found",
+    "email": "Contact email if available"
+  }},
+
+  "extra": {{
+    "any_other_notable_info": "Any other information found that could be useful for evaluating this as a potential employer"
+  }}
+}}
+
+COMPANY TYPE CLASSIFICATION:
+Classify the company into one of these types based on the evidence:
+
+- PRODUCT_COMPANY: Builds and sells software products, SaaS platforms, developer tools, AI products, APIs, or digital services. Core revenue comes from their own product.
+- RECRUITING_AGENCY: Primary business is connecting candidates with employers. Earns fees from employers for filling positions. Signals: "recruitment", "talent acquisition", "hiring", "executive search", "tech recruiter", "connecting engineers with companies".
+- STAFFING_COMPANY: Provides temporary or contract workers to client companies. Earns from staffing fees. Signals: "staffing", "contract staffing", "temporary workers", "staff augmentation".
+- CONSULTING_COMPANY: Provides expert advice or implementation services. May have products but primary revenue is from consulting. Signals: "consulting", "advisory", "professional services", "implementation".
+- UNKNOWN: Cannot determine the company type from available evidence.
+
+EXTRACTION RULES:
+1. Extract EVERYTHING — do not skip any information you find
+2. For boolean fields, use true/false (not strings)
+3. For lists, use empty array [] if nothing found
+4. For nested objects, use empty object {{}} if nothing found
+5. For missing strings, use empty string ""
+6. Be precise with numbers, dates, and names
+7. If the content is a URL page, extract from the full page content
+8. If manual notes, extract everything implied and stated
+
+Save the complete JSON to {output_file} using the write tool.

@@ -30,7 +30,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
   const ps = PRIORITY_STYLES[overallGrade] || PRIORITY_STYLES['B']
 
   return (
-    <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px]")}
+    <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px] w-full min-w-0 overflow-hidden box-border")}
       style={{ borderLeftColor: ps.text }}>
       {/* Row 1: Grade + Scores */}
       <div className="flex items-center gap-2 mb-1.5">

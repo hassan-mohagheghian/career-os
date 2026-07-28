@@ -6,10 +6,10 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
+from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 from shared.infrastructure.database.sqlalchemy_config import Base
-import pending.infrastructure.models.pending_model
-from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
+import processing.infrastructure.models.pending_model
+from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 
 
 @pytest.fixture
@@ -51,9 +51,9 @@ class TestWorkerBroadcasting:
         _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker.get_session_sync', return_value=sa_session), \
-             patch('services.worker.broadcaster', mock_broadcaster):
-            from services.worker import _update_step
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session), \
+             patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
+            from jobs.infrastructure.workers.worker import _update_step
             _update_step(1, 'step_fetch', 1)
 
             mock_broadcaster.step_update.assert_called_once()
@@ -68,9 +68,9 @@ class TestWorkerBroadcasting:
         _insert_pending_job(sa_session, 'https://example.com/job', 'queued')
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker.get_session_sync', return_value=sa_session), \
-             patch('services.worker.broadcaster', mock_broadcaster):
-            from services.worker import _update_step
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session), \
+             patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
+            from jobs.infrastructure.workers.worker import _update_step
             _update_step(1, 'step_fetch', 0, status='processing')
 
             event = mock_broadcaster.step_update.call_args[0][0]
@@ -82,9 +82,9 @@ class TestWorkerBroadcasting:
         _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker.get_session_sync', return_value=sa_session), \
-             patch('services.worker.broadcaster', mock_broadcaster):
-            from services.worker import _log
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session), \
+             patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
+            from jobs.infrastructure.workers.worker import _log
             _log(1, 'fetch', 'Fetching page...')
 
             mock_broadcaster.log.assert_called_once()
@@ -99,9 +99,9 @@ class TestWorkerBroadcasting:
         _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker.get_session_sync', return_value=sa_session), \
-             patch('services.worker.broadcaster', mock_broadcaster):
-            from services.worker import _fail
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session), \
+             patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
+            from jobs.infrastructure.workers.worker import _fail
             _fail(1, 'Network timeout', step='fetch')
 
             mock_broadcaster.error.assert_called_once()
@@ -116,9 +116,9 @@ class TestWorkerBroadcasting:
         _insert_pending_job(sa_session, 'https://example.com/job', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.worker.get_session_sync', return_value=sa_session), \
-             patch('services.worker.broadcaster', mock_broadcaster):
-            from services.worker import _save_session_id
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session), \
+             patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
+            from jobs.infrastructure.workers.worker import _save_session_id
             _save_session_id(1, 'sess_abc123')
 
             row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == 1).first()
@@ -138,9 +138,9 @@ class TestCompanyWorkerBroadcasting:
         _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
-             patch('services.company_worker.broadcaster', mock_broadcaster):
-            from services.company_worker import _update_step
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session), \
+             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
+            from companies.infrastructure.workers.company_worker import _update_step
             _update_step(1, 'step_fetch', 1)
 
             mock_broadcaster.step_update.assert_called_once()
@@ -155,9 +155,9 @@ class TestCompanyWorkerBroadcasting:
         _insert_pending_company(sa_session, 'https://example.com/company', 'queued')
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
-             patch('services.company_worker.broadcaster', mock_broadcaster):
-            from services.company_worker import _update_step
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session), \
+             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
+            from companies.infrastructure.workers.company_worker import _update_step
             _update_step(1, 'step_fetch', 0, status='processing')
 
             event = mock_broadcaster.step_update.call_args[0][0]
@@ -169,9 +169,9 @@ class TestCompanyWorkerBroadcasting:
         _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
-             patch('services.company_worker.broadcaster', mock_broadcaster):
-            from services.company_worker import _log
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session), \
+             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
+            from companies.infrastructure.workers.company_worker import _log
             _log(1, 'fetch', 'Fetching URL...')
 
             mock_broadcaster.log.assert_called_once()
@@ -186,9 +186,9 @@ class TestCompanyWorkerBroadcasting:
         _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
-             patch('services.company_worker.broadcaster', mock_broadcaster):
-            from services.company_worker import _fail
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session), \
+             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
+            from companies.infrastructure.workers.company_worker import _fail
             _fail(1, 'Page not found', step='fetch')
 
             mock_broadcaster.error.assert_called_once()
@@ -203,9 +203,9 @@ class TestCompanyWorkerBroadcasting:
         _insert_pending_company(sa_session, 'https://example.com/company', 'processing')
 
         mock_broadcaster = MagicMock()
-        with patch('services.company_worker.get_session_sync', return_value=sa_session), \
-             patch('services.company_worker.broadcaster', mock_broadcaster):
-            from services.company_worker import _save_session_id
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session), \
+             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
+            from companies.infrastructure.workers.company_worker import _save_session_id
             _save_session_id(1, 'sess_xyz789')
 
             row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == 1).first()
@@ -221,50 +221,50 @@ class TestBroadcasterLogging:
     """Test that broadcaster logs events for audit trail."""
 
     def test_step_update_logs(self, caplog):
-        from services.process.broadcaster import Broadcaster
+        from shared.infrastructure.process.broadcaster import Broadcaster
         b = Broadcaster()
         mock_sio = MagicMock()
         mock_sio.emit = AsyncMock()
         b.set_socketio(mock_sio)
 
-        with caplog.at_level('INFO', logger='services.process.broadcaster'):
+        with caplog.at_level('INFO', logger='shared.infrastructure.process.broadcaster'):
             b.step_update(StatusUpdate(table='pending_jobs', pid=42, step='step_fetch', val=1))
 
         assert any('[ws] pending:update' in r.message for r in caplog.records)
         assert any('id=42' in r.message for r in caplog.records)
 
     def test_log_event_logs(self, caplog):
-        from services.process.broadcaster import Broadcaster
+        from shared.infrastructure.process.broadcaster import Broadcaster
         b = Broadcaster()
         mock_sio = MagicMock()
         mock_sio.emit = AsyncMock()
         b.set_socketio(mock_sio)
 
-        with caplog.at_level('INFO', logger='services.process.broadcaster'):
+        with caplog.at_level('INFO', logger='shared.infrastructure.process.broadcaster'):
             b.log(LogEntry(table='pending_jobs', pid=10, step='fetch', msg='Done'))
 
         assert any('[ws] pending:log' in r.message for r in caplog.records)
 
     def test_complete_logs(self, caplog):
-        from services.process.broadcaster import Broadcaster
+        from shared.infrastructure.process.broadcaster import Broadcaster
         b = Broadcaster()
         mock_sio = MagicMock()
         mock_sio.emit = AsyncMock()
         b.set_socketio(mock_sio)
 
-        with caplog.at_level('INFO', logger='services.process.broadcaster'):
+        with caplog.at_level('INFO', logger='shared.infrastructure.process.broadcaster'):
             b.complete(ProcessingComplete(table='pending_jobs', pid=10, result={'num': 99}))
 
         assert any('[ws] pending:complete' in r.message for r in caplog.records)
 
     def test_error_logs(self, caplog):
-        from services.process.broadcaster import Broadcaster
+        from shared.infrastructure.process.broadcaster import Broadcaster
         b = Broadcaster()
         mock_sio = MagicMock()
         mock_sio.emit = AsyncMock()
         b.set_socketio(mock_sio)
 
-        with caplog.at_level('ERROR', logger='services.process.broadcaster'):
+        with caplog.at_level('ERROR', logger='shared.infrastructure.process.broadcaster'):
             b.error(ProcessingError(table='pending_jobs', pid=10, msg='boom', step='fetch'))
 
         assert any('[ws] pending:error' in r.message for r in caplog.records)

@@ -1,7 +1,7 @@
 """Tests for domain models — value objects, enums, and events."""
 
 import pytest
-from services.process.models import (
+from shared.infrastructure.process.models import (
     ItemStatus, PipelineStep, CompanyPipelineStep,
     WorkflowLogEntry, ScoreResult, ProcessHandle,
     StatusUpdate, LogEntry, ProcessingComplete, ProcessingError,

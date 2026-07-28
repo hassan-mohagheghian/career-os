@@ -9,9 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
-import pending.infrastructure.models.pending_model
+import processing.infrastructure.models.pending_model
 import companies.infrastructure.models.company_model
-from pending.infrastructure.models.pending_model import PendingCompanyModel
+from processing.infrastructure.models.pending_model import PendingCompanyModel
 
 
 @pytest.fixture
@@ -55,8 +55,8 @@ class TestCompanyUpdateStep:
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'processing')
 
-        from services.company_worker import _update_step
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _update_step
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 1)
 
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
@@ -66,8 +66,8 @@ class TestCompanyUpdateStep:
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'queued')
 
-        from services.company_worker import _update_step
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _update_step
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 0, status='processing')
 
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
@@ -82,8 +82,8 @@ class TestCompanyLog:
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'processing')
 
-        from services.company_worker import _log
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _log
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _log(pid, 'fetch', 'Fetching URL...')
 
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
@@ -98,24 +98,24 @@ class TestCompanyLog:
 class TestCompanyIsPausedOrStopped:
     def test_item_deleted(self, db_path):
         sa_session = _make_session(db_path)
-        from services.company_worker import _is_paused_or_stopped
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _is_paused_or_stopped
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             assert _is_paused_or_stopped(999) is True
 
     def test_processing(self, db_path):
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'processing')
 
-        from services.company_worker import _is_paused_or_stopped
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _is_paused_or_stopped
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             assert _is_paused_or_stopped(pid) is False
 
     def test_paused(self, db_path):
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'paused')
 
-        from services.company_worker import _is_paused_or_stopped
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _is_paused_or_stopped
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             assert _is_paused_or_stopped(pid) is True
 
 
@@ -126,8 +126,8 @@ class TestCompanyFail:
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'processing')
 
-        from services.company_worker import _fail
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _fail
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Something went wrong', step='fetch')
 
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
@@ -138,8 +138,8 @@ class TestCompanyFail:
         sa_session = _make_session(db_path)
         pid = _insert_company(sa_session, 'TestCorp', 'processing')
 
-        from services.company_worker import _fail
-        with patch('services.company_worker.get_session_sync', return_value=sa_session):
+        from companies.infrastructure.workers.company_worker import _fail
+        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Generic error')
 
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()

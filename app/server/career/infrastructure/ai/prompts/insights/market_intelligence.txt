@@ -1,0 +1,45 @@
+Analyze job market data and generate a Market Intelligence Report.
+
+Read the jobs database at {project_root}/server/db/jobs.db.
+Tables available:
+- jobs (deleted=0): company, role, location, score, match, fit_score, success_score, overall_score, stack, visa, work_type, employment_type
+- companies: name, industry, company_type, country, city
+
+Generate a market report as JSON and save to {tmp_dir}/market_intelligence_{pid}.json with this structure:
+
+{{
+  "countries": [
+    {{"name": "Germany", "percentage": <number>, "jobCount": <number>}},
+    {{"name": "Netherlands", "percentage": <number>, "jobCount": <number>}}
+  ],
+  "cities": [
+    {{
+      "name": "<city>",
+      "opportunityLevel": "<high|medium|low>",
+      "jobCount": <number>,
+      "topCompanies": ["<company1>", "<company2>"],
+      "averageSalary": "<if available>",
+      "insight": "<1-2 sentence summary>"
+    }}
+  ],
+  "remoteOpportunities": {{
+    "count": <number>,
+    "percentage": <number>,
+    "topCompanies": ["<company1>", "<company2>"]
+  }},
+  "visaFriendliness": [
+    {{"country": "<name>", "rating": "<excellent|good|moderate|difficult>", "details": "<brief explanation>"}}
+  ],
+  "insights": [
+    {{"observation": "...", "evidence": "...", "action": "..."}}
+  ]
+}}
+
+RULES:
+- countries: Count jobs per country, include percentage
+- cities: Group by city, include job count and top companies
+- remoteOpportunities: Count remote/hybrid jobs
+- visaFriendliness: Rate each country based on job visa ratings
+- Be evidence-based. Reference actual job counts.
+- Consider European software engineering markets, especially Germany and Netherlands.
+- Output ONLY valid JSON. No markdown, no explanation, no code fences.

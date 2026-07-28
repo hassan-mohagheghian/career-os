@@ -13,12 +13,12 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from pending.infrastructure.models.pending_model import (
+from processing.infrastructure.models.pending_model import (
     PendingJobModel, PendingCompanyModel, PendingGenerationModel,
 )
-from services.process.generation_models import GenerationSource, GenerationStatus
-from services.process.models import ItemStatus, WorkflowLogEntry, StatusUpdate, ProcessingComplete
-from services.process.worker_base import WorkerBase
+from shared.domain.models.generation_models import GenerationSource, GenerationStatus
+from shared.infrastructure.process.models import ItemStatus, WorkflowLogEntry, StatusUpdate, ProcessingComplete
+from shared.infrastructure.process.worker_base import WorkerBase
 
 
 # ── Concrete WorkerBase implementations for testing ──────────────
@@ -85,7 +85,7 @@ class TestWorkerBase:
     """Test the abstract WorkerBase Template Method pattern."""
 
     def _make_worker(self, sa_session):
-        from services.process.repository import PendingJobRepository
+        from shared.infrastructure.process.repository import PendingJobRepository
 
         repo = PendingJobRepository(sa_session)
         proc_mgr = MagicMock()
@@ -120,7 +120,7 @@ class TestWorkerBase:
         assert row.step_done == 1
 
     def test_failed_pipeline(self, sa_session):
-        from services.process.repository import PendingJobRepository
+        from shared.infrastructure.process.repository import PendingJobRepository
 
         repo = PendingJobRepository(sa_session)
         worker = FailingWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
@@ -150,7 +150,7 @@ class TestWorkerBase:
         worker.process(99999)
 
     def test_cancelled_item_stops(self, sa_session):
-        from services.process.repository import PendingJobRepository
+        from shared.infrastructure.process.repository import PendingJobRepository
 
         repo = PendingJobRepository(sa_session)
         worker = FailingWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
@@ -160,7 +160,7 @@ class TestWorkerBase:
         assert worker._is_cancelled(pid) is True
 
     def test_company_worker_table(self, sa_session):
-        from services.process.repository import PendingCompanyRepository
+        from shared.infrastructure.process.repository import PendingCompanyRepository
 
         repo = PendingCompanyRepository(sa_session)
         worker = CompanyTestWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())

@@ -12,7 +12,7 @@ from typing import Generator
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from config import DB_PATH
+from shared.infrastructure.config.app_config import DB_PATH
 
 
 class Base(DeclarativeBase):

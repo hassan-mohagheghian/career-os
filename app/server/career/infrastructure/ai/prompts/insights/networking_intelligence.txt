@@ -1,0 +1,36 @@
+Analyze companies and generate a Networking Intelligence Report.
+
+Read the jobs database at {project_root}/server/db/jobs.db.
+Tables available:
+- jobs (deleted=0): company, role, location, score, match, fit_score, success_score, overall_score, stack, visa, work_type, employment_type
+- companies: name, industry, company_type, country, city, tech_stack
+- company_intelligence: company_id, overview, visa_analysis, technology_analysis, scores
+
+Generate a networking report as JSON and save to {tmp_dir}/networking_intelligence_{pid}.json with this structure:
+
+{{
+  "targets": [
+    {{
+      "company": "<name>",
+      "priority": <number>,
+      "contactTypes": ["<Recruiters>", "<Talent Acquisition>", "<Engineering Managers>", "<Backend Engineers>"],
+      "linkedinSearchQueries": ["<google search url>"],
+      "reason": "<why network with this company>",
+      "strategy": "<who to contact first and why>"
+    }}
+  ],
+  "connectionStrategy": {{
+    "whoToContactFirst": "<name/type>",
+    "why": "<reason>",
+    "suggestedSearchQueries": ["<query1>", "<query2>"],
+    "outreachTemplate": "<brief template suggestion>"
+  }}
+}}
+
+RULES:
+- Prioritize companies with high-score jobs, visa-friendly companies, companies hiring similar profiles
+- Generate LinkedIn search queries for recruiters and engineers at each company
+- connectionStrategy: Based on the highest-priority company
+- Be evidence-based. Reference actual job data.
+- Consider European software engineering markets, especially Germany and Netherlands.
+- Output ONLY valid JSON. No markdown, no explanation, no code fences.

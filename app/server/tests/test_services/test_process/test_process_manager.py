@@ -6,8 +6,8 @@ import subprocess
 import time
 
 import pytest
-from services.process.process_manager import ProcessManager
-from services.process.models import ProcessHandle
+from shared.infrastructure.process.process_manager import ProcessManager
+from shared.infrastructure.process.models import ProcessHandle
 
 
 @pytest.fixture(autouse=True)

@@ -17,12 +17,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
-from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
+from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
 from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
 from career.infrastructure.models.insight_model import CareerInsightRunModel
 
-from services.process.generation_models import GenerationHistoryItem
-from services.process.generation_repository import GenerationHistoryRepository
+from shared.domain.models.generation_models import GenerationHistoryItem
+from shared.infrastructure.repositories.generation_repository import GenerationHistoryRepository
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def sa_session(test_db):
 
 @pytest.fixture
 def repo(sa_session):
-    with patch('services.process.generation_repository.get_session_sync', return_value=sa_session):
+    with patch('shared.infrastructure.repositories.generation_repository.get_session_sync', return_value=sa_session):
         yield GenerationHistoryRepository()
 
 

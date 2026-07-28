@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from pending.infrastructure.models.pending_model import PendingCompanyModel, PendingJobModel
+from processing.infrastructure.models.pending_model import PendingCompanyModel, PendingJobModel
 from shared.infrastructure.database.sqlalchemy_config import Base
 
 
@@ -26,9 +26,9 @@ def queue(db_path):
     Session = sessionmaker(bind=engine)
     sa_session = Session()
 
-    import core.queue as q
+    import shared.infrastructure.config.queue as q
     from unittest.mock import patch
-    with patch('core.queue.get_session_sync', return_value=sa_session):
+    with patch('shared.infrastructure.config.queue.get_session_sync', return_value=sa_session):
         mgr = q.JobQueueManager(concurrency=2)
         yield mgr, sa_session
     mgr._running = False
@@ -54,7 +54,7 @@ def _insert_company(session, text, status='pending'):
 
 class TestTransitionValidation:
     def test_valid_transitions(self):
-        from core.queue import VALID_TRANSITIONS
+        from shared.infrastructure.config.queue import VALID_TRANSITIONS
         assert 'queued' in VALID_TRANSITIONS['pending']
         assert 'processing' in VALID_TRANSITIONS['queued']
         assert 'done' in VALID_TRANSITIONS['processing']
@@ -62,7 +62,7 @@ class TestTransitionValidation:
         assert 'paused' in VALID_TRANSITIONS['processing']
 
     def test_invalid_transition(self):
-        from core.queue import VALID_TRANSITIONS
+        from shared.infrastructure.config.queue import VALID_TRANSITIONS
         assert 'done' not in VALID_TRANSITIONS['pending']
         assert 'processing' not in VALID_TRANSITIONS['pending']
 

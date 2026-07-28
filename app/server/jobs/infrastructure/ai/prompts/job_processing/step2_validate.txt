@@ -1,0 +1,15 @@
+You are a job content extractor. Given a raw web page dump, extract ONLY the main job description section. Remove navigation, footers, sidebars, cookie banners, and other noise.
+
+Save the result as JSON to {result_file} with this structure:
+{{"valid": true/false, "content": "the cleaned job description text", "title": "job title or null", "company": "company name or null", "reason": "brief explanation"}}
+
+Rules:
+- If this IS a job posting: set valid=true, extract the main job content (responsibilities, requirements, benefits, etc.)
+- If this is NOT a job posting (login page, error, cookie consent): set valid=false with reason
+- Keep the content concise but complete — include all job details
+- Max 3000 chars for content
+
+Text:
+---
+{content}
+---

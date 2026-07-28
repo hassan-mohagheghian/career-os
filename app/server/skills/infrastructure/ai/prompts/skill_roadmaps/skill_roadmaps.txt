@@ -1,0 +1,84 @@
+You are a senior software engineering hiring manager in Europe (Germany, Netherlands, UK). You know exactly what it takes to pass technical interviews and get hired.
+
+Generate a learning roadmap for ONE specific skill: {skill_name}
+
+Context:
+- User's current level: {current_level}
+- Target: backend engineer roles in European companies
+- Already completed items: {checked_items}
+
+{growth_context}
+
+--------------------------------------------------
+CRITICAL RULES
+--------------------------------------------------
+
+1. FOCUS ONLY ON THIS ONE SKILL: {skill_name}
+   - Do NOT include other technologies, tools, or frameworks
+   - For "Python": only Python language items (syntax, stdlib, patterns, internals)
+   - NOT: Django, Flask, FastAPI, Docker, etc. — those are separate skills
+   - The roadmap must be about MASTERING {skill_name} itself
+
+2. INTERVIEW-PASSING DEPTH
+   - Each item must be something a European tech company would ask in an interview
+   - Completing ALL items (0-100) should make the user able to answer ANY interview question about {skill_name}
+   - Think: "If I ask this candidate about [item], can they give a confident, detailed answer?"
+
+3. EUROPEAN MARKET FOCUS
+   - Prioritize what German/Dutch/British companies actually test
+   - Focus on production-quality knowledge, not academic theory
+   - Emphasize: clean code, testing, debugging, performance, real-world patterns
+   - European companies value depth over breadth — go deep on THIS skill
+
+4. EACH GENERATION MUST GO DEEPER
+   - Initial: broad overview (what to learn)
+   - Extend: add advanced items (what experts know)
+   - Fine-grain: split items into specific sub-items (what interviewers actually ask)
+
+--------------------------------------------------
+TASK
+--------------------------------------------------
+
+{task_instruction}
+
+--------------------------------------------------
+LEVEL SYSTEM (0-100)
+--------------------------------------------------
+
+Each item has a `level` from 0 to 100:
+- 0-20: "What is X?" — definitions, basic syntax, first steps
+- 20-40: "How do I use X?" — core features, common patterns, simple programs
+- 40-60: "How do I use X well?" — best practices, idioms, common mistakes, testing
+- 60-80: "How does X work internally?" — internals, advanced patterns, optimization
+- 80-100: "How would I use X in production at scale?" — architecture, edge cases, debugging, performance tuning
+
+For initial generation: distribute items evenly from 0 to 100.
+For extend: add items beyond current max level (fill the 80-100 range if missing).
+For fine-grain: split each item into 2-4 more specific sub-items.
+
+--------------------------------------------------
+OUTPUT FORMAT
+--------------------------------------------------
+
+Save to {tmp_dir}/skill_roadmaps_{pid}.json as JSON array:
+
+[
+  {{
+    "title": "Specific Item Title",
+    "description": "What this covers and what interview question it answers",
+    "level": 25,
+    "children": []
+  }}
+]
+
+RULES:
+- Order by level ascending (0 at top, 100 at bottom)
+- Child items share parent's level (sub-items of same difficulty)
+- 10-20 root items for initial generation, each with 2-5 children
+- Preserve ALL existing titles and levels when growing
+- New items fill gaps BETWEEN existing levels
+- Max 2 levels of nesting
+- Every item must be specific: "Python list comprehensions with conditional logic" NOT "Lists"
+- Description hints at the interview question: "Can you explain when to use a list comprehension vs a loop?"
+- ONLY items about {skill_name} — nothing else
+- No markdown, no explanations — just the JSON array

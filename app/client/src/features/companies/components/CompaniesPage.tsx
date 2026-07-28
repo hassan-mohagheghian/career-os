@@ -406,7 +406,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pendingCompanies.filter(p => p.status === s.id).map(p => (
-                          <div key={p.id}>
+                          <div key={p.id} className="w-full overflow-hidden">
                             <CompanyProcessingItem item={p}
                               onProcess={() => processCompany(p.id)}
                               onDelete={() => deletePending(p.id)}

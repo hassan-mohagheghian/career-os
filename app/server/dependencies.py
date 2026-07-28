@@ -118,10 +118,10 @@ def get_summary_repo(session: Session = Depends(get_session)):
 # ── Pending Context Dependencies ──────────────────────────────────
 
 def get_pending_repo(session: Session = Depends(get_session)):
-    from pending.infrastructure import SQLAlchemyPendingRepository
+    from processing.infrastructure import SQLAlchemyPendingRepository
     return SQLAlchemyPendingRepository(session)
 
 
 def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from pending.infrastructure import SQLAlchemyPendingGenerationRepository
+    from processing.infrastructure import SQLAlchemyPendingGenerationRepository
     return SQLAlchemyPendingGenerationRepository(session)

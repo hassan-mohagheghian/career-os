@@ -1,0 +1,191 @@
+Analyze ALL processed jobs, companies, skills, and market data to generate comprehensive career intelligence for the candidate.
+
+Read the jobs database at {project_root}/server/db/jobs.db.
+Tables available:
+- jobs (deleted=0): company, role, location, score, match, fit_score, success_score, overall_score, stack, visa, work_type, employment_type, raw_description, structured_description
+- companies: name, industry, company_type, country, city, tech_stack, funding_stage, company_size
+- company_intelligence: company_id, overview, visa_analysis, technology_analysis, scores
+- tech_stack: name, level, roles, path
+- tech_learning: name, priority, usage, reason, action
+- preferences: scoring rules
+
+Generate career intelligence as JSON and save to {tmp_dir}/career_intelligence_{pid}.json with this structure:
+
+{{
+  "overview": {{
+    "position": {{
+      "totalJobs": <number>,
+      "highMatchJobs": <number>,
+      "applyNowJobs": <number>,
+      "visaFriendlyCompanies": <number>,
+      "targetCompanies": <number>,
+      "skillMatchPercentage": <number 0-100>,
+      "biggestSkillGaps": ["<skill1>", "<skill2>", "<skill3>"]
+    }},
+    "careerHealthScore": {{
+      "overall": <number 0-100>,
+      "breakdown": {{
+        "jobMarketFit": <number 0-100>,
+        "companyFit": <number 0-100>,
+        "visaProbability": <number 0-100>,
+        "skillAlignment": <number 0-100>,
+        "networkingStatus": <number 0-100>
+      }}
+    }},
+    "nextActions": [
+      {{
+        "priority": 1,
+        "action": "<specific actionable recommendation>",
+        "reason": "<why this matters>",
+        "impact": "high|medium|low"
+      }}
+    ]
+  }},
+  "opportunities": {{
+    "funnel": {{
+      "applyNow": [{{"num": <job_num>, "company": "<name>", "role": "<title>", "location": "<city>", "overallScore": <number>, "freshness": "<new|recent|older>", "visaProbability": "<BEST|Strong|Good>", "skillMatch": <number 0-100>}}],
+      "highPotential": [...],
+      "consider": [...],
+      "lowPriority": [...]
+    }},
+    "insights": [
+      {{"observation": "...", "evidence": "...", "action": "..."}}
+    ],
+    "bestJobsThisWeek": [...],
+    "missedOpportunities": [...],
+    "multiRoleCompanies": [{{"company": "<name>", "roles": [...], "count": <number>}}]
+  }},
+  "companies": {{
+    "productCompanies": [
+      {{
+        "company": "<name>",
+        "fitScore": <number>,
+        "visaStrength": "<BEST|Strong|Good>",
+        "engineeringCulture": "<description>",
+        "technologyAlignment": "<description>",
+        "growthOpportunity": "<description>",
+        "reason": "<why target this company>"
+      }}
+    ],
+    "recruitingCompanies": [
+      {{
+        "company": "<name>",
+        "relevantJobs": <number>,
+        "targetMarket": "<description>",
+        "techSpecialization": "<description>",
+        "internationalHiring": "<yes|no|unknown>",
+        "recruiterActivity": "<high|medium|low>",
+        "reason": "<why work with this recruiter>"
+      }}
+    ],
+    "topTargets": [
+      {{
+        "rank": 1,
+        "company": "<name>",
+        "fit": <number 0-100>,
+        "visa": "<Strong|Moderate>",
+        "reason": "<1-2 sentence explanation>"
+      }}
+    ]
+  }},
+  "skills": {{
+    "strengths": [
+      {{
+        "skill": "<name>",
+        "demandPercentage": <number 0-100>,
+        "candidateLevel": "<expert|advanced|intermediate|beginner>",
+        "evidence": "<which jobs require this>"
+      }}
+    ],
+    "gaps": [
+      {{
+        "skill": "<name>",
+        "demandPercentage": <number 0-100>,
+        "currentLevel": "<none|beginner|intermediate>",
+        "impact": "<how many jobs this unlocks>"
+      }}
+    ],
+    "_note": "Full skills intelligence (learning roadmap, readiness score, recommendations) available via /api/career-intelligence/skills-intel"
+  }},
+  "market": {{
+    "countries": [
+      {{"name": "Germany", "percentage": <number>, "jobCount": <number>}},
+      {{"name": "Netherlands", "percentage": <number>, "jobCount": <number>}}
+    ],
+    "cities": [
+      {{
+        "name": "<city>",
+        "opportunityLevel": "<high|medium|low>",
+        "jobCount": <number>,
+        "topCompanies": ["<company1>", "<company2>"],
+        "averageSalary": "<if available>",
+        "insight": "<1-2 sentence summary>"
+      }}
+    ],
+    "remoteOpportunities": {{
+      "count": <number>,
+      "percentage": <number>,
+      "topCompanies": ["<company1>", "<company2>"]
+    }},
+    "visaFriendliness": [
+      {{"country": "<name>", "rating": "<excellent|good|moderate|difficult>", "details": "<brief explanation>"}}
+    ],
+    "insights": [
+      {{"observation": "...", "evidence": "...", "action": "..."}}
+    ]
+  }},
+  "networking": {{
+    "targets": [
+      {{
+        "company": "<name>",
+        "priority": <number>,
+        "contactTypes": ["<Recruiters>", "<Talent Acquisition>", "<Engineering Managers>", "<Backend Engineers>"],
+        "linkedinSearchQueries": ["<google search url>"],
+        "reason": "<why network with this company>",
+        "strategy": "<who to contact first and why>"
+      }}
+    ],
+    "connectionStrategy": {{
+      "whoToContactFirst": "<name/type>",
+      "why": "<reason>",
+      "suggestedSearchQueries": ["<query1>", "<query2>"],
+      "outreachTemplate": "<brief template suggestion>"
+    }}
+  }}
+}}
+
+RULES FOR overview:
+- Calculate career health score based on: job market fit (score distribution), company fit (visa-friendly companies), visa probability (visa ratings), skill alignment (skills match %), networking status (0 if no data, 50 if companies exist, 80+ if active networking)
+- nextActions: Generate 3-5 prioritized actions based on actual data
+- biggestSkillGaps: Top 3 skills that appear in 30%+ jobs but candidate lacks
+
+RULES FOR opportunities:
+- applyNow: overall_score >= 80
+- highPotential: overall_score 65-79
+- consider: overall_score 50-64
+- lowPriority: overall_score < 50
+- freshness: "new" if posted this week, "recent" if this month, "older" otherwise
+- missedOpportunities: Jobs scored A+ or above that are older than 2 weeks
+- multiRoleCompanies: Companies with 2+ open roles matching candidate profile
+
+RULES FOR companies:
+- Separate product companies from recruiting/staffing companies (check company_type or industry)
+- Product companies: score based on engineering culture, visa support, tech alignment, growth
+- Recruiting companies: score based on relevant jobs, market access, international hiring ability
+- topTargets: Top 5 companies overall (mix of product and recruiting), ranked by fit
+
+RULES FOR skills:
+- strengths: Skills the candidate has that appear in 30%+ of jobs
+- gaps: Skills appearing in 20%+ jobs but candidate has low/no proficiency
+- Keep this section minimal — full skills intelligence (learning roadmap, readiness score, scoring, recommendations) is generated separately by the skills_intel endpoint using the dedicated skills_intelligence prompt
+
+RULES FOR market:
+- countries: Count jobs per country, include percentage
+- cities: Group by city, include job count and top companies
+- remoteOpportunities: Count remote/hybrid jobs
+- visaFriendliness: Rate each country based on job visa ratings
+
+RULES FOR networking:
+- Prioritize companies with high-score jobs, visa-friendly companies, companies hiring similar profiles
+- Generate LinkedIn search queries for recruiters and engineers at each company
+- connectionStrategy: Based on the highest-priority company

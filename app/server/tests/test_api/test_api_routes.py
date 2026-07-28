@@ -13,7 +13,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-import pending.infrastructure.models.pending_model
+import processing.infrastructure.models.pending_model
 import career.infrastructure.models.insight_model
 import shared.infrastructure.database.models.misc_models
 
@@ -57,14 +57,14 @@ def _build_app(sa_session):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
-    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
     from career.infrastructure.repositories.sa_insight_repository import SQLAlchemyInsightRepository
     from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
@@ -137,7 +137,7 @@ def create_test_company(session, name="TestCorp_API"):
 
 
 def create_test_pending_job(session, url="https://example.com/pending-api-test", status="pending"):
-    from pending.infrastructure.models.pending_model import PendingJobModel
+    from processing.infrastructure.models.pending_model import PendingJobModel
     item = PendingJobModel(url=url, source="api_test", status=status)
     session.add(item)
     session.commit()
@@ -145,7 +145,7 @@ def create_test_pending_job(session, url="https://example.com/pending-api-test",
 
 
 def create_test_pending_company(session, input_text="TestCompany_API", status="pending"):
-    from pending.infrastructure.models.pending_model import PendingCompanyModel
+    from processing.infrastructure.models.pending_model import PendingCompanyModel
     item = PendingCompanyModel(input_text=input_text, source="api_test", status=status)
     session.add(item)
     session.commit()
@@ -976,7 +976,7 @@ class TestRouterCompat:
         assert r.status_code == 200
 
     def test_cancel_generation(self, client, sa_session):
-        from pending.infrastructure.models.pending_model import PendingGenerationModel
+        from processing.infrastructure.models.pending_model import PendingGenerationModel
         gen = PendingGenerationModel(job_num=1, type="resume", status="processing")
         sa_session.add(gen)
         sa_session.commit()

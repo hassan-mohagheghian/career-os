@@ -2,9 +2,9 @@
 
 import pytest
 from sqlalchemy.orm import Session
-from services.process.repository import PendingJobRepository, JobRepository
-from services.process.models import ItemStatus, WorkflowLogEntry
-from pending.infrastructure.models.pending_model import PendingJobModel
+from shared.infrastructure.process.repository import PendingJobRepository, JobRepository
+from shared.infrastructure.process.models import ItemStatus, WorkflowLogEntry
+from processing.infrastructure.models.pending_model import PendingJobModel
 from jobs.infrastructure.models.job_model import JobModel
 from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 

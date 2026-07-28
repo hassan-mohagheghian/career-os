@@ -1,0 +1,275 @@
+# Folder Structure
+
+## Target DDD Structure
+
+```
+app/server/
+├── main.py                          # FastAPI entry point
+├── dependencies.py                  # FastAPI DI root
+├── cli.py                           # CLI entry point (shared presentation)
+├── exceptions.py                    # Backward-compatible re-exports
+├── utils.py                         # Backward-compatible re-exports
+│
+├── jobs/                            # Jobs Bounded Context
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── job.py
+│   │   │   └── summary.py
+│   │   ├── value_objects/
+│   │   │   ├── job_score.py
+│   │   │   ├── job_location.py
+│   │   │   └── workflow_log.py
+│   │   └── repositories/
+│   │       ├── job_repository.py
+│   │       └── summary_repository.py
+│   ├── application/
+│   │   ├── use_cases/
+│   │   │   └── list_jobs.py
+│   │   ├── commands/
+│   │   │   ├── analyze_jobs.py
+│   │   │   ├── backfill_raw.py
+│   │   │   ├── backfill_structured.py
+│   │   │   ├── normalize_locations.py
+│   │   │   └── process_pending.py
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/
+│   │   │   ├── job_model.py
+│   │   │   └── misc_models.py
+│   │   ├── repositories/
+│   │   │   ├── sa_job_repository.py
+│   │   │   └── sa_summary_repository.py
+│   │   ├── workers/
+│   │   │   └── worker.py
+│   │   └── ai/prompts/job_processing/
+│   │       ├── step2_validate.txt
+│   │       ├── step3_extract_raw.txt
+│   │       ├── step4_extract_struct.txt
+│   │       └── step8_score.txt
+│   └── presentation/
+│       ├── api/
+│       │   ├── jobs_router.py
+│       │   └── schemas/jobs.py
+│       └── cli/
+│
+├── companies/                       # Companies Bounded Context
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── company.py
+│   │   │   ├── company_link.py
+│   │   │   └── company_intelligence.py
+│   │   └── repositories/
+│   │       ├── company_repository.py
+│   │       ├── company_link_repository.py
+│   │       └── company_intelligence_repository.py
+│   ├── application/
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/
+│   │   │   └── company_model.py
+│   │   ├── repositories/
+│   │   │   ├── sa_company_repository.py
+│   │   │   ├── sa_company_link_repository.py
+│   │   │   └── sa_company_intelligence_repository.py
+│   │   ├── workers/
+│   │   │   └── company_worker.py
+│   │   └── ai/prompts/company/
+│   │       ├── company_extract.txt
+│   │       └── company_analyze.txt
+│   └── presentation/
+│       ├── api/
+│       │   ├── companies_router.py
+│       │   └── schemas/companies.py
+│       └── cli/
+│
+├── skills/                          # Skills Bounded Context
+│   ├── domain/
+│   │   ├── entities/skill.py
+│   │   └── repositories/
+│   │       ├── skill_repository.py
+│   │       ├── skill_alias_repository.py
+│   │       ├── skill_relationship_repository.py
+│   │       ├── skill_roadmap_repository.py
+│   │       ├── skill_roadmap_progress_repository.py
+│   │       ├── skill_roadmap_job_repository.py
+│   │       └── tech_learning_repository.py
+│   ├── application/
+│   │   ├── services/
+│   │   │   └── skill_roadmap_service.py
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/
+│   │   │   ├── skill_model.py
+│   │   │   └── misc_models.py
+│   │   ├── repositories/
+│   │   │   ├── sa_skill_repository.py
+│   │   │   ├── sa_skill_alias_repository.py
+│   │   │   ├── sa_skill_relationship_repository.py
+│   │   │   ├── sa_skill_roadmap_repository.py
+│   │   │   ├── sa_skill_roadmap_progress_repository.py
+│   │   │   ├── sa_skill_roadmap_job_repository.py
+│   │   │   └── sa_tech_learning_repository.py
+│   │   └── ai/prompts/skill_roadmaps/
+│   │       ├── skill_roadmaps.txt
+│   │       ├── skill_roadmaps_generate.txt
+│   │       ├── skill_roadmaps_extend.txt
+│   │       └── skill_roadmaps_finegrain.txt
+│   └── presentation/
+│       ├── api/
+│       │   ├── skills_router.py
+│       │   ├── skill_roadmaps_router.py
+│       │   └── schemas/
+│       │       ├── skills.py
+│       │       └── skill_roadmaps.py
+│       └── cli/
+│
+├── career/                          # Career Bounded Context
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── career_insight.py
+│   │   │   └── preference.py
+│   │   └── repositories/
+│   │       ├── insight_repository.py
+│   │       ├── career_insight_repository.py
+│   │       ├── career_insight_run_repository.py
+│   │       └── preference_repository.py
+│   ├── application/
+│   │   ├── services/
+│   │   │   └── insights.py
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/
+│   │   │   ├── insight_model.py
+│   │   │   └── misc_models.py
+│   │   ├── repositories/
+│   │   │   ├── sa_insight_repository.py
+│   │   │   ├── sa_career_insight_repository.py
+│   │   │   ├── sa_career_insight_run_repository.py
+│   │   │   └── sa_preference_repository.py
+│   │   └── ai/prompts/insights/
+│   │       ├── overview_intelligence.txt
+│   │       ├── career_intelligence.txt
+│   │       ├── skills_intelligence.txt
+│   │       ├── companies_intelligence.txt
+│   │       ├── market_intelligence.txt
+│   │       ├── networking_intelligence.txt
+│   │       └── opportunities_intelligence.txt
+│   └── presentation/
+│       ├── api/
+│       │   ├── insights_router.py
+│       │   ├── rules_router.py
+│       │   ├── dashboard_router.py
+│       │   └── schemas/
+│       │       ├── insights.py
+│       │       ├── rules.py
+│       │       └── dashboard.py
+│       └── cli/
+│
+├── resume/                          # Resume Bounded Context
+│   ├── domain/
+│   │   ├── entities/resume.py
+│   │   └── repositories/
+│   │       └── resume_repository.py
+│   ├── application/
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/misc_models.py
+│   │   ├── repositories/
+│   │   │   └── sa_resume_repository.py
+│   │   ├── workers/
+│   │   │   └── generation_worker.py
+│   │   └── ai/prompts/resume/
+│   │       ├── step_resume_generate.txt
+│   │       └── step7_cover_generate.txt
+│   └── presentation/
+│       ├── api/
+│       │   ├── resumes_router.py
+│       │   └── schemas/resumes.py
+│       └── cli/
+│
+├── pending/                         # Pending Bounded Context
+│   ├── domain/
+│   │   ├── entities/pending_job.py
+│   │   └── repositories/
+│   │       ├── pending_repository.py
+│   │       └── pending_generation_repository.py
+│   ├── application/
+│   │   └── dto/
+│   ├── infrastructure/
+│   │   ├── models/
+│   │   │   ├── pending_model.py
+│   │   │   └── misc_models.py
+│   │   └── repositories/
+│   │       ├── sa_pending_repository.py
+│   │       └── sa_pending_generation_repository.py
+│   └── presentation/
+│       ├── api/
+│       │   ├── pending_router.py
+│       │   ├── pending_companies_router.py
+│       │   └── schemas/pending.py
+│       └── cli/
+│
+├── shared/                          # Shared Kernel
+│   ├── domain/
+│   │   ├── entity.py
+│   │   ├── value_object.py
+│   │   ├── repository.py
+│   │   └── domain_event.py
+│   ├── application/
+│   │   ├── dto.py
+│   │   ├── exceptions.py
+│   │   └── schemas/common.py
+│   ├── infrastructure/
+│   │   ├── database/
+│   │   │   ├── session.py
+│   │   │   ├── sqlalchemy_config.py
+│   │   │   ├── mappers.py
+│   │   │   └── models/misc_models.py
+│   │   ├── config/
+│   │   │   ├── app_config.py
+│   │   │   ├── db.py
+│   │   │   └── queue.py
+│   │   ├── process/
+│   │   │   ├── process_manager.py
+│   │   │   ├── temp_manager.py
+│   │   │   ├── mimo_runner.py
+│   │   │   ├── broadcaster.py
+│   │   │   ├── repository.py
+│   │   │   ├── logging_config.py
+│   │   │   ├── worker_base.py
+│   │   │   ├── models.py
+│   │   │   └── interfaces.py
+│   │   ├── websocket/
+│   │   │   ├── manager.py
+│   │   │   └── broadcaster.py
+│   │   ├── workers/
+│   │   │   └── background.py
+│   │   ├── ai/
+│   │   │   ├── compat.py
+│   │   │   └── prompts/
+│   │   │       └── features_refactors/
+│   │   ├── commands/
+│   │   │   └── trigger_processor.py
+│   │   ├── process_utils.py
+│   │   └── utils.py
+│   └── presentation/
+│       ├── api/
+│       │   ├── websocket_router.py
+│       │   └── sse_router.py
+│       ├── cli.py
+│       └── error_handler.py
+│
+├── api/                             # Legacy API (re-export shims)
+│   ├── router.py                    # Root router (updated imports)
+│   └── v1/                          # Re-exports to bounded contexts
+│
+├── core/                            # Legacy core (re-export shims)
+│
+├── schemas/                         # Legacy schemas (re-export shims)
+│
+├── services/                        # Legacy services (re-export shims)
+│
+├── scripts/                         # Legacy scripts (re-export shims)
+│
+└── prompts/                         # Legacy prompts (re-export shims)
+```

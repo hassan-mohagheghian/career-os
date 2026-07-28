@@ -11,7 +11,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from services.process.generation_models import (
+from shared.domain.models.generation_models import (
     GenerationSource,
     GenerationStatus,
     GenerationRun,

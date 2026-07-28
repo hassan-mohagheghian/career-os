@@ -15,7 +15,7 @@ from sqlalchemy import engine_from_config, pool
 _server_dir = os.path.join(os.path.dirname(__file__), '..', 'app', 'server')
 sys.path.insert(0, os.path.abspath(_server_dir))
 
-from config import DB_PATH
+from shared.infrastructure.config.app_config import DB_PATH
 from shared.infrastructure.database.sqlalchemy_config import Base
 
 # Import all models so Alembic can detect them for autogeneration

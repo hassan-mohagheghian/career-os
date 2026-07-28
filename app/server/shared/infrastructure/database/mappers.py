@@ -10,7 +10,7 @@ from typing import Any
 from jobs.infrastructure.models.job_model import JobModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
-from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
+from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 from career.infrastructure.models.insight_model import CareerInsightModel, CareerInsightRunModel
 from shared.infrastructure.database.models.misc_models import ResumeModel
 

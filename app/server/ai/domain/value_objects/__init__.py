@@ -1,0 +1,1 @@
+"""AI Domain Value Objects."""

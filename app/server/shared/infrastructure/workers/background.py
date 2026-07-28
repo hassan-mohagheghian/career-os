@@ -91,8 +91,8 @@ async def process_job_task(job_id: str) -> None:
     This wraps the existing worker.process_job() function
     to run in the background.
     """
-    from services.worker import process_job
-    from services.process.logging_config import get_logger
+    from jobs.infrastructure.workers.worker import process_job
+    from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.job")
     log.info("job.background_start", job_id=job_id)
@@ -109,8 +109,8 @@ async def process_job_task(job_id: str) -> None:
 
 async def process_company_task(company_id: str) -> None:
     """Background task for processing a pending company."""
-    from services.company_worker import process_company
-    from services.process.logging_config import get_logger
+    from companies.infrastructure.workers.company_worker import process_company
+    from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.company")
     log.info("company.background_start", company_id=company_id)
@@ -126,8 +126,8 @@ async def process_company_task(company_id: str) -> None:
 
 async def generate_insights_task(section: str | None = None) -> None:
     """Background task for generating career insights."""
-    from services.insights import generate_all, generate_section
-    from services.process.logging_config import get_logger
+    from career.application.services.insights import generate_all, generate_section
+    from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.insights")
     log.info("insights.background_start", section=section)
@@ -146,8 +146,8 @@ async def generate_insights_task(section: str | None = None) -> None:
 
 async def generate_resume_task(job_num: int, resume_id: str = "original") -> None:
     """Background task for generating a resume."""
-    from services.generation_worker import generate_resume
-    from services.process.logging_config import get_logger
+    from resume.infrastructure.workers.generation_worker import generate_resume
+    from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.resume")
     log.info("resume.background_start", job_num=job_num)

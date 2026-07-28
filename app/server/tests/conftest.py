@@ -16,7 +16,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-import pending.infrastructure.models.pending_model
+import processing.infrastructure.models.pending_model
 import career.infrastructure.models.insight_model
 import shared.infrastructure.database.models.misc_models
 

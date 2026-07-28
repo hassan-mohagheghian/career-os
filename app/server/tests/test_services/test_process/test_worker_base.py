@@ -2,8 +2,8 @@
 
 import pytest
 from unittest.mock import MagicMock, patch, call
-from services.process.worker_base import WorkerBase
-from services.process.models import ItemStatus, PipelineStep
+from shared.infrastructure.process.worker_base import WorkerBase
+from shared.infrastructure.process.models import ItemStatus, PipelineStep
 
 
 class FakeWorker(WorkerBase):

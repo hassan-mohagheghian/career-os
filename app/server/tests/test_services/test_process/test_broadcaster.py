@@ -2,8 +2,8 @@
 
 import pytest
 from unittest.mock import MagicMock, call, AsyncMock
-from services.process.broadcaster import Broadcaster
-from services.process.models import (
+from shared.infrastructure.process.broadcaster import Broadcaster
+from shared.infrastructure.process.models import (
     StatusUpdate, LogEntry, ProcessingComplete, ProcessingError,
 )
 

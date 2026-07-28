@@ -18,11 +18,11 @@ from shared.infrastructure.process_utils import broadcaster
 from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 
 # AI Agent Layer — unified LLM service
-from ai_compat import get_llm_service
+from shared.infrastructure.ai.compat import get_llm_service
 
 # SQLAlchemy session + repositories
 from dependencies import get_session_sync
-from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
 from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
 from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
 from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository

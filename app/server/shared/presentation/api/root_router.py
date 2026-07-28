@@ -13,8 +13,8 @@ from jobs.presentation.api.jobs_router import router as jobs_router
 from skills.presentation.api.skills_router import router as skills_router
 from companies.presentation.api.companies_router import router as companies_router
 from career.presentation.api.insights_router import router as insights_router
-from pending.presentation.api.pending_router import router as pending_router
-from pending.presentation.api.pending_companies_router import router as pending_companies_router
+from processing.presentation.api.pending_router import router as pending_router
+from processing.presentation.api.pending_companies_router import router as pending_companies_router
 from resume.presentation.api.resumes_router import router as resumes_router
 from skills.presentation.api.skill_roadmaps_router import router as skill_roadmaps_router
 from career.presentation.api.rules_router import router as rules_router
@@ -29,7 +29,7 @@ from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_com
 from jobs.infrastructure import SQLAlchemyJobRepository
 from skills.infrastructure import SQLAlchemySkillRepository
 from career.infrastructure import SQLAlchemyInsightRepository
-from pending.infrastructure import SQLAlchemyPendingRepository
+from processing.infrastructure import SQLAlchemyPendingRepository
 
 api_router = APIRouter(prefix="/api")
 
@@ -55,7 +55,7 @@ api_router.include_router(sse_router, tags=["sse"])
 def cancel_generation(gen_id: int):
     """Cancel a running generation."""
     from shared.application.exceptions import NotFoundError
-    from pending.infrastructure import SQLAlchemyPendingGenerationRepository
+    from processing.infrastructure import SQLAlchemyPendingGenerationRepository
 
     session = get_session_sync()
     try:
@@ -282,7 +282,7 @@ def reprocess_company(id: int):
     try:
         from companies.infrastructure import SQLAlchemyCompanyRepository
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
-        from pending.infrastructure import SQLAlchemyPendingRepository
+        from processing.infrastructure import SQLAlchemyPendingRepository
         company_repo = SQLAlchemyCompanyRepository(session)
         pending_repo = SQLAlchemyPendingRepository(session)
         company = company_repo.get_by_id(id)
