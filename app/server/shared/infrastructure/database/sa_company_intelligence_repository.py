@@ -1,0 +1,3 @@
+from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+
+__all__ = ["SQLAlchemyCompanyIntelligenceRepository"]

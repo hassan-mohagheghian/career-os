@@ -1,0 +1,3 @@
+from skills.infrastructure.repositories.sa_skill_relationship_repository import SQLAlchemySkillRelationshipRepository
+
+__all__ = ["SQLAlchemySkillRelationshipRepository"]

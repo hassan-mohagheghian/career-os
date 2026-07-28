@@ -116,7 +116,7 @@ class GenerationHistoryRepository:
             session = self._session()
             try:
                 repo = SQLAlchemyPendingGenerationRepository(session)
-                rows = repo.get_all_active()[:200]
+                rows = repo.get_all(limit=200)
                 for r in rows:
                     gen_type = r.get('type', 'unknown')
                     title_map = {

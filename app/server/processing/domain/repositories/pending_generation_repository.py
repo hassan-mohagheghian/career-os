@@ -33,6 +33,11 @@ class IPendingGenerationRepository(ABC):
         ...
 
     @abstractmethod
+    def get_all(self, limit: int = 200) -> list[dict[str, Any]]:
+        """Get all generations (including completed/failed)."""
+        ...
+
+    @abstractmethod
     def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
         """Get generation history for a specific job."""
         ...

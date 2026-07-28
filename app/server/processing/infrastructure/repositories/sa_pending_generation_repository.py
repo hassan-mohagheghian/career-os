@@ -67,6 +67,12 @@ class SQLAlchemyPendingGenerationRepository(IPendingGenerationRepository):
         ).order_by(PendingGenerationModel.created_at.desc()).all()
         return [self._to_dict(r) for r in rows]
 
+    def get_all(self, limit: int = 200) -> list[dict[str, Any]]:
+        rows = self._session.query(PendingGenerationModel).order_by(
+            PendingGenerationModel.created_at.desc()
+        ).limit(limit).all()
+        return [self._to_dict(r) for r in rows]
+
     def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
         rows = self._session.query(PendingGenerationModel).filter(
             PendingGenerationModel.job_num == job_num

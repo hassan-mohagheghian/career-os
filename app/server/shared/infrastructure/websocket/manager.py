@@ -64,6 +64,10 @@ class ConnectionManager:
         for ws in disconnected:
             self.active[room].discard(ws)
 
+        # Remove empty rooms
+        if not self.active[room]:
+            del self.active[room]
+
     async def broadcast_all(self, data: dict[str, Any]) -> None:
         """Send a message to all connected clients."""
         for room in list(self.active.keys()):

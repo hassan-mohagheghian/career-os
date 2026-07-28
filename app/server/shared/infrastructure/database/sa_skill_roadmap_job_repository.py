@@ -1,0 +1,3 @@
+from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+
+__all__ = ["SQLAlchemySkillRoadmapJobRepository"]

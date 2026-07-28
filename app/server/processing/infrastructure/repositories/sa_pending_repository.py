@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from processing.domain.repositories.pending_repository import IPendingRepository
@@ -186,33 +186,28 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
     def pick_queued_item(self, table: str = "pending_jobs") -> dict[str, Any] | None:
         if table == "pending_jobs":
-            row = self._session.execute(text(
-                "SELECT id FROM pending_jobs WHERE status = 'queued' "
-                "ORDER BY queue_order ASC, id ASC LIMIT 1"
-            )).fetchone()
-            if row:
-                result = self._session.execute(text(
-                    "UPDATE pending_jobs SET status = 'processing', updated_at = datetime('now') "
-                    "WHERE id = :id AND status = 'queued' "
-                    "RETURNING *"
-                ), {"id": row[0]}).mappings().first()
-                if result:
-                    self._session.commit()
-                    return dict(result)
+            model = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status == "queued"
+            ).order_by(
+                PendingJobModel.queue_order.asc(),
+                PendingJobModel.id.asc()
+            ).first()
+            if model:
+                model.status = "processing"
+                model.updated_at = datetime.now().isoformat()
+                self._session.commit()
+                self._session.refresh(model)
+                return pending_job_model_to_dict(model)
         elif table == "pending_companies":
-            row = self._session.execute(text(
-                "SELECT id FROM pending_companies WHERE status = 'queued' "
-                "ORDER BY id ASC LIMIT 1"
-            )).fetchone()
-            if row:
-                result = self._session.execute(text(
-                    "UPDATE pending_companies SET status = 'processing', updated_at = datetime('now') "
-                    "WHERE id = :id AND status = 'queued' "
-                    "RETURNING *"
-                ), {"id": row[0]}).mappings().first()
-                if result:
-                    self._session.commit()
-                    return dict(result)
+            model = self._session.query(PendingCompanyModel).filter(
+                PendingCompanyModel.status == "queued"
+            ).order_by(PendingCompanyModel.id.asc()).first()
+            if model:
+                model.status = "processing"
+                model.updated_at = datetime.now().isoformat()
+                self._session.commit()
+                self._session.refresh(model)
+                return pending_company_model_to_dict(model)
         return None
 
     def get_queued_items(self, table: str = "pending_jobs") -> list[dict[str, Any]]:

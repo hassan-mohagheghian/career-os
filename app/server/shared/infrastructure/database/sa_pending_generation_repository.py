@@ -1,0 +1,3 @@
+from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+
+__all__ = ["SQLAlchemyPendingGenerationRepository"]
