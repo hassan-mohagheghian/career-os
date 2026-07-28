@@ -61,7 +61,7 @@
 - **Graphs**: LangGraph-based composable workflows
 
 ### Infrastructure
-- **Deployment**: Single `./start.sh` (Flask + Vite dev server)
+- **Deployment**: Single `./start` (FastAPI + Vite dev server)
 - **CI/CD**: GitHub Actions (pytest + vitest)
 - **Monitoring**: structlog to `app/server/logs/`
 

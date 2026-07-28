@@ -108,7 +108,6 @@ These modules exist at their old locations for backward compatibility. All new c
 
 | Old Location | Re-exports To |
 |-------------|---------------|
-| `api/v1/*.py` | `*/presentation/api/*_router.py` |
 | `core/db.py` | `shared/infrastructure/config/db.py` |
 | `core/queue.py` | `shared/infrastructure/config/queue.py` |
 | `schemas/*.py` | `*/presentation/api/schemas/*.py` |

@@ -11,6 +11,7 @@ Each session file documents: goals, findings, changes made, bugs fixed, and pend
 | 002 | — | Skill roadmap generation + WebSocket progress | *(pre-dates this practice)* |
 | 003 | 2026-07-27 | Generation history, persistence, duplicate fix, session ID, roadmap actions in drawer | [003-generation-history-persistence.md](003-generation-history-persistence.md) |
 | 004 | 2026-07-27 | Generation system unification — OOP/SOLID/TDD for all generation types | [2026-07-27_generation-unification.md](2026-07-27_generation-unification.md) |
+| 005 | 2026-07-28 | Documentation cleanup (v1 removal), GenerationHistoryDrawer auto-refresh, pending_generations history fix | [005-docs-cleanup-history-fixes.md](005-docs-cleanup-history-fixes.md) |
 
 ## How to Use
 

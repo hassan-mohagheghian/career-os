@@ -13,7 +13,7 @@
 # Clone and start
 git clone <repo-url>
 cd job-search
-./start.sh
+./start
 
 # Or manually:
 # Backend

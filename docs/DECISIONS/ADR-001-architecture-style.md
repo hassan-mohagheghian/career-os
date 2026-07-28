@@ -18,7 +18,7 @@ Monolithic Flask backend + React SPA frontend + SQLite database + Mimo CLI subpr
 ## Consequences
 
 **Positive:**
-- Simple deployment (single `./start.sh`)
+- Simple deployment (single `./start`)
 - No external database server needed
 - Easy to understand and modify
 - Fast development iteration

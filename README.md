@@ -5,10 +5,10 @@ AI-powered career intelligence platform for engineers — job discovery, company
 ## Quick Start
 
 ```bash
-./start.sh
+./start
 ```
 
-Opens Flask API (port 5000) + React dev server (port 5173).
+Opens FastAPI backend (port 5000) + React dev server (port 5173).
 
 ## Tech Stack
 

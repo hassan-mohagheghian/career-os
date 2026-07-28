@@ -8,7 +8,9 @@ The backend uses a **modular monolith** architecture with 8 bounded contexts. Ea
 
 ```
 app/server/
-├── main.py
+├── entrypoints/                   # Application entry points
+│   ├── cli.py                     # Typer CLI
+│   └── api.py                     # FastAPI app + SocketIO
 ├── config.py
 ├── dependencies.py
 ├── exceptions.py                    # Re-exports from shared.kernel.exceptions
@@ -36,6 +38,14 @@ app/server/
 │       │   └── session_manager.py
 │       └── workers/
 │           └── background.py
+│
+│   └── presentation/
+│       ├── api/
+│       │   ├── root_router.py      # Central API router (prefix="/api")
+│       │   ├── websocket_router.py
+│       │   └── sse_router.py
+│       ├── cli.py
+│       └── error_handler.py
 │
 ├── jobs/                            # JOBS CONTEXT
 │   ├── domain/
@@ -157,14 +167,6 @@ app/server/
 ├── core/                            # LEGACY (still exists)
 │   ├── db.py
 │   └── queue.py
-│
-├── api/                             # API LAYER
-│   ├── router.py
-│   └── v1/
-│       ├── jobs.py, skills.py, companies.py, insights.py
-│       ├── pending.py, pending_companies.py, resumes.py
-│       ├── skill_roadmaps.py, rules.py, dashboard.py
-│       └── websocket.py, sse.py
 │
 ├── services/                        # LEGACY (still exists)
 ├── schemas/                         # LEGACY (still exists)

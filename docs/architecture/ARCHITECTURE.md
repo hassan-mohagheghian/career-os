@@ -133,8 +133,9 @@ app/
 │   ├── prompts/           Centralized prompt registry
 │   └── logging.py         Structured agent events
 ├── server/
-│   ├── main.py              FastAPI entry point (primary server)
-│   ├── app.py               Flask entry point (legacy, optional)
+│   ├── entrypoints/           Application entry points (CLI + API)
+│   │   ├── cli.py             Typer CLI for job management
+│   │   └── api.py             FastAPI app factory + SocketIO
 │   ├── config.py            Centralized path constants + AI_PROVIDER
 │   ├── database.py          get_db() helper (Flask compatibility)
 │   ├── dependencies.py      FastAPI dependency injection

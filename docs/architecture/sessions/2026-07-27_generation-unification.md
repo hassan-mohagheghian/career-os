@@ -57,7 +57,7 @@
 - Both provide module-level singletons for backward compatibility
 
 ### 5. Unified Generation History API
-**File:** `app/server/api/v1/dashboard.py`
+**File:** `career/presentation/api/dashboard_router.py`
 
 - `GET /api/generation-history` now reads from ALL 5 source tables
 - Uses `GenerationHistoryRepository` for clean separation
@@ -105,8 +105,8 @@ app/server/services/process/
 ├── worker_base.py                # MODIFIED: Bug fixes
 ├── __init__.py                   # MODIFIED: Updated docs
 
-app/server/api/v1/
-├── dashboard.py                  # MODIFIED: Unified history API
+career/presentation/api/
+├── dashboard_router.py           # MODIFIED: Unified history API
 
 app/client/src/shared/components/
 ├── GenerationProgressCard.tsx    # MODIFIED: STEP_CONFIGS

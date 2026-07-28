@@ -24,8 +24,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run backend tests
-        working-directory: app/server
-        run: uv run pytest tests/ -v --tb=short --cov=services --cov=blueprints --cov=core --cov-report=term-missing --cov-report=html
+        run: uv run pytest app/server/tests/ -v --tb=short --cov=app.server --cov-report=term-missing --cov-report=html
 
   frontend:
     runs-on: ubuntu-latest

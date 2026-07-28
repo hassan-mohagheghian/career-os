@@ -4,7 +4,9 @@
 
 ```
 app/server/
-├── main.py                          # FastAPI entry point
+├── entrypoints/                   # Application entry points
+│   ├── cli.py                     # Typer CLI
+│   └── api.py                     # FastAPI app + SocketIO
 ├── dependencies.py                  # FastAPI DI root
 ├── cli.py                           # CLI entry point (shared presentation)
 ├── exceptions.py                    # Backward-compatible re-exports
@@ -254,14 +256,11 @@ app/server/
 │   │   └── utils.py
 │   └── presentation/
 │       ├── api/
+│       │   ├── root_router.py      # Central API router (prefix="/api")
 │       │   ├── websocket_router.py
 │       │   └── sse_router.py
 │       ├── cli.py
 │       └── error_handler.py
-│
-├── api/                             # Legacy API (re-export shims)
-│   ├── router.py                    # Root router (updated imports)
-│   └── v1/                          # Re-exports to bounded contexts
 │
 ├── core/                            # Legacy core (re-export shims)
 │

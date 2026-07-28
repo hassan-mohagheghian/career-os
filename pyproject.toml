@@ -35,7 +35,7 @@ test = [
 ]
 
 [project.scripts]
-jobsearch = "app.server.cli:app"
+jobsearch = "app.server.entrypoints.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["app/server/tests"]

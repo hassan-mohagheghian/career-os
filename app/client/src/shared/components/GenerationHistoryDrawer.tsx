@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { List, Spinner, Funnel } from '@phosphor-icons/react'
 import { AppDrawer } from './DrawerComponents'
-import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import GenerationHistoryItem from './GenerationHistoryItem'
 import { SOURCE_CONFIG, type HistoryItemData } from '@/shared/lib/sourceConfig'
+import { useSocketIO, watchSkills, unwatchSkills, watchInsights, unwatchInsights } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 const PAGE_SIZE = 100
@@ -44,6 +44,8 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef(false)
   const loadedCountRef = useRef(0)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const socket = useSocketIO()
 
   const fetchHistory = useCallback((offset: number = 0, append: boolean = false) => {
     if (loadingRef.current) return
@@ -71,6 +73,64 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
       fetchHistory()
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh while drawer is open (poll every 5s)
+  useEffect(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+    if (open) {
+      pollRef.current = setInterval(() => {
+        if (!loadingRef.current) {
+          fetchHistory()
+        }
+      }, 5000)
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [open, fetchHistory])
+
+  // WebSocket subscriptions for real-time updates
+  useEffect(() => {
+    if (!socket || !open) return
+
+    const handleAnyUpdate = () => {
+      if (!loadingRef.current) fetchHistory()
+    }
+
+    socket.on('pending:update', handleAnyUpdate)
+    socket.on('pending:complete', handleAnyUpdate)
+    socket.on('pending:error', handleAnyUpdate)
+    socket.on('generation:update', handleAnyUpdate)
+    socket.on('generation:complete', handleAnyUpdate)
+    socket.on('generation:error', handleAnyUpdate)
+    socket.on('company:update', handleAnyUpdate)
+    socket.on('company:complete', handleAnyUpdate)
+    socket.on('company:error', handleAnyUpdate)
+    socket.on('skill_roadmap:update', handleAnyUpdate)
+    socket.on('insights:progress', handleAnyUpdate)
+
+    watchSkills()
+    watchInsights()
+
+    return () => {
+      socket.off('pending:update', handleAnyUpdate)
+      socket.off('pending:complete', handleAnyUpdate)
+      socket.off('pending:error', handleAnyUpdate)
+      socket.off('generation:update', handleAnyUpdate)
+      socket.off('generation:complete', handleAnyUpdate)
+      socket.off('generation:error', handleAnyUpdate)
+      socket.off('company:update', handleAnyUpdate)
+      socket.off('company:complete', handleAnyUpdate)
+      socket.off('company:error', handleAnyUpdate)
+      socket.off('skill_roadmap:update', handleAnyUpdate)
+      socket.off('insights:progress', handleAnyUpdate)
+      unwatchSkills()
+      unwatchInsights()
+    }
+  }, [socket, open, fetchHistory])
 
   const handleScroll = useCallback(() => {
     const node = scrollRef.current

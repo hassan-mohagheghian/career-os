@@ -2,32 +2,28 @@
 
 ## Overview
 
-This document defines the FastAPI API conventions, versioning strategy, request/response patterns, and error handling for the Job Search Intelligence platform.
+This document defines the FastAPI API conventions, request/response patterns, and error handling for the Job Search Intelligence platform.
 
-## API Versioning
+## Router Organization
 
-### URL-Based Versioning
-
-```
-/api/v1/jobs
-/api/v1/companies
-/api/v2/jobs  (future)
-```
-
-### Router Organization
+Routes are organized by DDD bounded context. Each context owns its `presentation/api/` layer.
 
 ```python
-# api/router.py
+# shared/presentation/api/root_router.py
 from fastapi import APIRouter
-from app.server.api.v1 import jobs, companies, skills, insights, resumes
 
 api_router = APIRouter(prefix="/api")
 
-api_router.include_router(jobs.router, prefix="/v1", tags=["jobs"])
-api_router.include_router(companies.router, prefix="/v1", tags=["companies"])
-api_router.include_router(skills.router, prefix="/v1", tags=["skills"])
-api_router.include_router(insights.router, prefix="/v1", tags=["insights"])
-api_router.include_router(resumes.router, prefix="/v1", tags=["resumes"])
+api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
+api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
+api_router.include_router(insights_router, prefix="/insights", tags=["insights"])
+api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
+api_router.include_router(pending_router, prefix="/pending", tags=["pending"])
+api_router.include_router(pending_companies_router, prefix="/pending-companies", tags=["pending-companies"])
+api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
+api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
+api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 ```
 
 ## Request Validation
@@ -35,7 +31,7 @@ api_router.include_router(resumes.router, prefix="/v1", tags=["resumes"])
 ### Pydantic Models
 
 ```python
-# api/v1/jobs.py
+# jobs/presentation/api/schemas/jobs.py
 from pydantic import BaseModel, Field
 
 class JobCreate(BaseModel):
@@ -250,116 +246,116 @@ async def app_error_handler(request: Request, exc: AppError):
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/jobs` | GET | — | `JobListResponse` | List jobs (paginated) |
-| `/api/v1/jobs/{num}` | GET | — | `JobResponse` | Get job by number |
-| `/api/v1/jobs` | POST | `JobCreate` | `JobResponse` | Create new job |
-| `/api/v1/jobs/{num}` | PUT | `JobUpdate` | `JobResponse` | Update job |
-| `/api/v1/jobs/{num}` | DELETE | — | `{"success": true}` | Delete job |
-| `/api/v1/jobs/{num}/requeue` | POST | — | `{"success": true}` | Re-queue for processing |
-| `/api/v1/jobs/{num}/rescore` | POST | — | `JobResponse` | Rescore existing job |
+| `/api/jobs` | GET | — | `JobListResponse` | List jobs (paginated) |
+| `/api/jobs/{num}` | GET | — | `JobResponse` | Get job by number |
+| `/api/jobs` | POST | `JobCreate` | `JobResponse` | Create new job |
+| `/api/jobs/{num}` | PUT | `JobUpdate` | `JobResponse` | Update job |
+| `/api/jobs/{num}` | DELETE | — | `{"success": true}` | Delete job |
+| `/api/jobs/{num}/requeue` | POST | — | `{"success": true}` | Re-queue for processing |
+| `/api/jobs/{num}/rescore` | POST | — | `JobResponse` | Rescore existing job |
 
 ### Companies
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/companies` | GET | — | `CompanyListResponse` | List companies |
-| `/api/v1/companies/{id}` | GET | — | `CompanyResponse` | Get company |
-| `/api/v1/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company |
-| `/api/v1/companies/{id}` | PUT | `CompanyUpdate` | `CompanyResponse` | Update company |
-| `/api/v1/companies/{id}` | DELETE | — | `{"success": true}` | Delete company |
-| `/api/v1/companies/{id}/intelligence` | GET | — | `CompanyIntelligenceResponse` | Get intelligence |
-| `/api/v1/companies/{id}/notes` | POST | `NoteCreate` | `NoteResponse` | Add note |
-| `/api/v1/companies/{id}/links` | POST | `LinkCreate` | `LinkResponse` | Add link |
+| `/api/companies` | GET | — | `CompanyListResponse` | List companies |
+| `/api/companies/{id}` | GET | — | `CompanyResponse` | Get company |
+| `/api/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company |
+| `/api/companies/{id}` | PUT | `CompanyUpdate` | `CompanyResponse` | Update company |
+| `/api/companies/{id}` | DELETE | — | `{"success": true}` | Delete company |
+| `/api/companies/{id}/intelligence` | GET | — | `CompanyIntelligenceResponse` | Get intelligence |
+| `/api/companies/{id}/notes` | POST | `NoteCreate` | `NoteResponse` | Add note |
+| `/api/companies/{id}/links` | POST | `LinkCreate` | `LinkResponse` | Add link |
 
 ### Pending (Job Queue)
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/pending` | GET | — | `PendingListResponse` | List pending jobs |
-| `/api/v1/pending` | POST | `PendingCreate` | `PendingResponse` | Queue new job |
-| `/api/v1/pending/{id}` | GET | — | `PendingResponse` | Get pending job |
-| `/api/v1/pending/{id}` | DELETE | — | `{"success": true}` | Cancel pending job |
-| `/api/v1/pending/{id}/reset` | POST | — | `PendingResponse` | Reset pending job |
-| `/api/v1/pending/stream` | GET | — | SSE stream | Real-time updates |
-| `/api/v1/pending/queue-all` | POST | — | `{"queued": N}` | Queue all pending |
+| `/api/pending` | GET | — | `PendingListResponse` | List pending jobs |
+| `/api/pending` | POST | `PendingCreate` | `PendingResponse` | Queue new job |
+| `/api/pending/{id}` | GET | — | `PendingResponse` | Get pending job |
+| `/api/pending/{id}` | DELETE | — | `{"success": true}` | Cancel pending job |
+| `/api/pending/{id}/reset` | POST | — | `PendingResponse` | Reset pending job |
+| `/api/pending/stream` | GET | — | SSE stream | Real-time updates |
+| `/api/pending/queue-all` | POST | — | `{"queued": N}` | Queue all pending |
 
 ### Pending Companies
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/pending-companies` | GET | — | `PendingCompanyListResponse` | List pending companies |
-| `/api/v1/pending-companies` | POST | `PendingCompanyCreate` | `PendingCompanyResponse` | Queue company |
-| `/api/v1/pending-companies/{id}` | GET | — | `PendingCompanyResponse` | Get pending company |
-| `/api/v1/pending-companies/{id}` | DELETE | — | `{"success": true}` | Cancel pending company |
-| `/api/v1/pending-companies/stream` | GET | — | SSE stream | Real-time updates |
+| `/api/pending-companies` | GET | — | `PendingCompanyListResponse` | List pending companies |
+| `/api/pending-companies` | POST | `PendingCompanyCreate` | `PendingCompanyResponse` | Queue company |
+| `/api/pending-companies/{id}` | GET | — | `PendingCompanyResponse` | Get pending company |
+| `/api/pending-companies/{id}` | DELETE | — | `{"success": true}` | Cancel pending company |
+| `/api/pending-companies/stream` | GET | — | SSE stream | Real-time updates |
 
 ### Skills
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/skills` | GET | — | `SkillListResponse` | List skills |
-| `/api/v1/skills` | POST | `SkillCreate` | `SkillResponse` | Create skill |
-| `/api/v1/skills/{id}` | PUT | `SkillUpdate` | `SkillResponse` | Update skill |
-| `/api/v1/skills/{id}` | DELETE | — | `{"success": true}` | Delete skill |
-| `/api/v1/skills/{id}/hide` | PATCH | — | `SkillResponse` | Soft-delete skill |
-| `/api/v1/skills/{id}/restore` | PATCH | — | `SkillResponse` | Restore hidden skill |
-| `/api/v1/skills/{id}/rename` | PATCH | `RenameSkill` | `SkillResponse` | Rename skill |
-| `/api/v1/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills |
-| `/api/v1/skills/categories` | GET | — | `CategoryList` | List categories |
-| `/api/v1/skills/stats` | GET | — | `SkillStats` | Skill statistics |
+| `/api/skills` | GET | — | `SkillListResponse` | List skills |
+| `/api/skills` | POST | `SkillCreate` | `SkillResponse` | Create skill |
+| `/api/skills/{id}` | PUT | `SkillUpdate` | `SkillResponse` | Update skill |
+| `/api/skills/{id}` | DELETE | — | `{"success": true}` | Delete skill |
+| `/api/skills/{id}/hide` | PATCH | — | `SkillResponse` | Soft-delete skill |
+| `/api/skills/{id}/restore` | PATCH | — | `SkillResponse` | Restore hidden skill |
+| `/api/skills/{id}/rename` | PATCH | `RenameSkill` | `SkillResponse` | Rename skill |
+| `/api/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills |
+| `/api/skills/categories` | GET | — | `CategoryList` | List categories |
+| `/api/skills/stats` | GET | — | `SkillStats` | Skill statistics |
 
 ### Skill Roadmaps
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/skill-roadmaps` | GET | — | `RoadmapListResponse` | List roadmaps |
-| `/api/v1/skill-roadmaps/{id}` | GET | — | `RoadmapResponse` | Get roadmap tree |
-| `/api/v1/skill-roadmaps` | POST | `RoadmapCreate` | `RoadmapResponse` | Create roadmap |
-| `/api/v1/skill-roadmaps/generate` | POST | `GenerateRoadmap` | `RoadmapResponse` | AI generate roadmap |
-| `/api/v1/skill-roadmaps/extend` | POST | `ExtendRoadmap` | `RoadmapResponse` | Extend roadmap |
-| `/api/v1/skill-roadmaps/finegrain` | POST | `FinegrainRoadmap` | `RoadmapResponse` | Fine-grain roadmap |
-| `/api/v1/skill-roadmaps/{id}/cancel` | POST | — | `{"success": true}` | Cancel generation |
-| `/api/v1/skill-roadmap-progress` | GET | — | `ProgressResponse` | All progress |
-| `/api/v1/skill-roadmap-progress/{id}` | GET | — | `ProgressDetail` | Skill progress |
+| `/api/skill-roadmaps` | GET | — | `RoadmapListResponse` | List roadmaps |
+| `/api/skill-roadmaps/{id}` | GET | — | `RoadmapResponse` | Get roadmap tree |
+| `/api/skill-roadmaps` | POST | `RoadmapCreate` | `RoadmapResponse` | Create roadmap |
+| `/api/skill-roadmaps/generate` | POST | `GenerateRoadmap` | `RoadmapResponse` | AI generate roadmap |
+| `/api/skill-roadmaps/extend` | POST | `ExtendRoadmap` | `RoadmapResponse` | Extend roadmap |
+| `/api/skill-roadmaps/finegrain` | POST | `FinegrainRoadmap` | `RoadmapResponse` | Fine-grain roadmap |
+| `/api/skill-roadmaps/{id}/cancel` | POST | — | `{"success": true}` | Cancel generation |
+| `/api/skill-roadmap-progress` | GET | — | `ProgressResponse` | All progress |
+| `/api/skill-roadmap-progress/{id}` | GET | — | `ProgressDetail` | Skill progress |
 
 ### Insights
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/insights` | GET | — | `InsightsResponse` | Get all insights |
-| `/api/v1/insights/{section}` | GET | — | `SectionResponse` | Get section |
-| `/api/v1/insights/refresh` | POST | — | `{"status": "started"}` | Generate all sections |
-| `/api/v1/insights/{section}/refresh` | POST | — | `{"status": "started"}` | Generate section |
-| `/api/v1/insights/progress` | GET | — | `ProgressResponse` | Generation progress |
-| `/api/v1/insights/status` | GET | — | `StatusResponse` | Section statuses |
-| `/api/v1/insights/skills-intel` | GET | — | `SkillsIntelResponse` | Skills intelligence |
-| `/api/v1/insights/cancel` | POST | — | `{"success": true}` | Cancel generation |
+| `/api/insights` | GET | — | `InsightsResponse` | Get all insights |
+| `/api/insights/{section}` | GET | — | `SectionResponse` | Get section |
+| `/api/insights/refresh` | POST | — | `{"status": "started"}` | Generate all sections |
+| `/api/insights/{section}/refresh` | POST | — | `{"status": "started"}` | Generate section |
+| `/api/insights/progress` | GET | — | `ProgressResponse` | Generation progress |
+| `/api/insights/status` | GET | — | `StatusResponse` | Section statuses |
+| `/api/insights/skills-intel` | GET | — | `SkillsIntelResponse` | Skills intelligence |
+| `/api/insights/cancel` | POST | — | `{"success": true}` | Cancel generation |
 
 ### Resumes
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/resumes` | GET | — | `ResumeListResponse` | List resumes |
-| `/api/v1/resumes` | POST | `ResumeCreate` | `ResumeResponse` | Create resume |
-| `/api/v1/resumes/{id}` | GET | — | `ResumeResponse` | Get resume |
-| `/api/v1/resumes/{id}` | PUT | `ResumeUpdate` | `ResumeResponse` | Update resume |
-| `/api/v1/resumes/{id}` | DELETE | — | `{"success": true}` | Delete resume |
-| `/api/v1/resumes/{id}/generate-cover` | POST | `GenerateCover` | `CoverLetterResponse` | Generate cover letter |
+| `/api/resumes` | GET | — | `ResumeListResponse` | List resumes |
+| `/api/resumes` | POST | `ResumeCreate` | `ResumeResponse` | Create resume |
+| `/api/resumes/{id}` | GET | — | `ResumeResponse` | Get resume |
+| `/api/resumes/{id}` | PUT | `ResumeUpdate` | `ResumeResponse` | Update resume |
+| `/api/resumes/{id}` | DELETE | — | `{"success": true}` | Delete resume |
+| `/api/resumes/{id}/generate-cover` | POST | `GenerateCover` | `CoverLetterResponse` | Generate cover letter |
 
 ### Dashboard
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/dashboard` | GET | — | `DashboardResponse` | Dashboard data |
-| `/api/v1/generation-history` | GET | — | `HistoryResponse` | Generation history |
-| `/api/v1/cities` | GET | — | `CityList` | List cities |
+| `/api/dashboard` | GET | — | `DashboardResponse` | Dashboard data |
+| `/api/generation-history` | GET | — | `HistoryResponse` | Generation history |
+| `/api/cities` | GET | — | `CityList` | List cities |
 
 ### Rules
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/v1/rules` | GET | — | `RulesResponse` | Get scoring rules |
-| `/api/v1/rules` | PUT | `RulesUpdate` | `RulesResponse` | Update rules |
+| `/api/rules` | GET | — | `RulesResponse` | Get scoring rules |
+| `/api/rules` | PUT | `RulesUpdate` | `RulesResponse` | Update rules |
 
 ### WebSocket
 
@@ -401,7 +397,7 @@ const ws = new WebSocket(`ws://${host}/ws`);
 ### Pending Stream
 
 ```
-GET /api/v1/pending/stream
+GET /api/pending/stream
 Accept: text/event-stream
 
 event: pending:update

@@ -176,7 +176,7 @@ app.dependency_overrides[get_job_repository] = override_job_repository
 client = TestClient(app)
 
 def test_list_jobs():
-    response = client.get("/api/v1/jobs")
+    response = client.get("/api/jobs")
     assert response.status_code == 200
 ```
 

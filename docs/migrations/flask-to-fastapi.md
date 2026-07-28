@@ -230,7 +230,7 @@ else:
 # Revert to Flask
 git checkout HEAD~1
 pip install -r requirements-flask.txt
-./start.sh
+./start
 ```
 
 ## Testing Strategy

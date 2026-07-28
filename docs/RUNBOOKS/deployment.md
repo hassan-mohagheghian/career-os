@@ -3,7 +3,7 @@
 ## Local Development
 
 ```bash
-./start.sh
+./start
 ```
 
 Opens Flask API (port 5000) + React dev server (port 5173).

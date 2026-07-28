@@ -145,7 +145,7 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_list_jobs(client: AsyncClient):
-    response = await client.get("/api/v1/jobs")
+    response = await client.get("/api/jobs")
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -154,7 +154,7 @@ async def test_list_jobs(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_create_job(client: AsyncClient):
     response = await client.post(
-        "/api/v1/jobs",
+        "/api/jobs",
         json={"url": "https://example.com/job"},
     )
     assert response.status_code == 201
@@ -165,13 +165,13 @@ async def test_create_job(client: AsyncClient):
 async def test_get_job(client: AsyncClient):
     # Create job first
     create_response = await client.post(
-        "/api/v1/jobs",
+        "/api/jobs",
         json={"url": "https://example.com/job"},
     )
     job_num = create_response.json()["num"]
     
     # Get job
-    response = await client.get(f"/api/v1/jobs/{job_num}")
+    response = await client.get(f"/api/jobs/{job_num}")
     assert response.status_code == 200
     assert response.json()["num"] == job_num
 
@@ -179,14 +179,14 @@ async def test_get_job(client: AsyncClient):
 async def test_update_job(client: AsyncClient):
     # Create job
     create_response = await client.post(
-        "/api/v1/jobs",
+        "/api/jobs",
         json={"url": "https://example.com/job"},
     )
     job_num = create_response.json()["num"]
     
     # Update job
     response = await client.put(
-        f"/api/v1/jobs/{job_num}",
+        f"/api/jobs/{job_num}",
         json={"title": "Updated Title"},
     )
     assert response.status_code == 200
@@ -196,17 +196,17 @@ async def test_update_job(client: AsyncClient):
 async def test_delete_job(client: AsyncClient):
     # Create job
     create_response = await client.post(
-        "/api/v1/jobs",
+        "/api/jobs",
         json={"url": "https://example.com/job"},
     )
     job_num = create_response.json()["num"]
     
     # Delete job
-    response = await client.delete(f"/api/v1/jobs/{job_num}")
+    response = await client.delete(f"/api/jobs/{job_num}")
     assert response.status_code == 200
     
     # Verify deleted
-    get_response = await client.get(f"/api/v1/jobs/{job_num}")
+    get_response = await client.get(f"/api/jobs/{job_num}")
     assert get_response.status_code == 404
 ```
 
@@ -283,7 +283,7 @@ async def test_jobs_list_matches(
 ):
     """Verify FastAPI returns same response as Flask."""
     flask_response = await flask_client.get("/api/jobs")
-    fastapi_response = await fastapi_client.get("/api/v1/jobs")
+    fastapi_response = await fastapi_client.get("/api/jobs")
     
     assert flask_response.status_code == fastapi_response.status_code
     
@@ -311,7 +311,7 @@ async def test_job_detail_matches(
     
     # Get from both
     flask_response = await flask_client.get(f"/api/jobs/{job_num}")
-    fastapi_response = await fastapi_client.get(f"/api/v1/jobs/{job_num}")
+    fastapi_response = await fastapi_client.get(f"/api/jobs/{job_num}")
     
     assert flask_response.json() == fastapi_response.json()
 ```
@@ -324,13 +324,13 @@ import pytest
 from httpx import AsyncClient
 
 FEATURES = [
-    ("GET", "/api/jobs", "/api/v1/jobs"),
-    ("GET", "/api/companies", "/api/v1/companies"),
-    ("GET", "/api/skills", "/api/v1/skills"),
-    ("GET", "/api/insights", "/api/v1/insights"),
-    ("GET", "/api/resumes", "/api/v1/resumes"),
-    ("GET", "/api/skill-roadmaps", "/api/v1/skill-roadmaps"),
-    ("GET", "/api/rules", "/api/v1/rules"),
+    ("GET", "/api/jobs", "/api/jobs"),
+    ("GET", "/api/companies", "/api/companies"),
+    ("GET", "/api/skills", "/api/skills"),
+    ("GET", "/api/insights", "/api/insights"),
+    ("GET", "/api/resumes", "/api/resumes"),
+    ("GET", "/api/skill-roadmaps", "/api/skill-roadmaps"),
+    ("GET", "/api/rules", "/api/rules"),
 ]
 
 @pytest.mark.asyncio

@@ -1,0 +1,402 @@
+# Sprint 08 — Introduce ARQ as the Unified Background Processing Platform
+
+## ROLE
+
+You are a Principal Backend Engineer, Distributed Systems Architect, FastAPI Expert, Redis Expert, ARQ Expert, and DDD Software Architect.
+
+Your task is to replace the current background processing implementation with a modern, scalable, asynchronous architecture built on ARQ and Redis.
+
+The goal is to establish a single, consistent background processing platform for the entire backend.
+
+---
+
+# CONTEXT
+
+The project has already been refactored into:
+
+- DDD
+- Hexagonal Architecture
+- Bounded Contexts
+- FastAPI
+- PostgreSQL
+- SQLAlchemy ORM
+- LangChain
+- LangGraph
+
+AI workflows already exist (or are being migrated) and must remain unchanged.
+
+This sprint is ONLY responsible for execution, scheduling, orchestration, monitoring, and lifecycle management of background jobs.
+
+Do NOT redesign business logic.
+
+Do NOT redesign LangGraph workflows.
+
+---
+
+# OBJECTIVES
+
+Replace every existing background execution mechanism with ARQ.
+
+Every long-running task in the system must execute through ARQ.
+
+No generation should run inside a FastAPI request lifecycle.
+
+---
+
+# BACKGROUND TASKS
+
+Migrate all asynchronous processes including:
+
+- Job Processing
+- Company Processing
+- Resume Generation
+- Cover Letter Generation
+- Skill Roadmap Generation
+- Career Insights Generation
+- Site Generation
+- Generate All Sites
+- AI Analysis Tasks
+- Future AI Workflows
+
+Every generation must become an ARQ job.
+
+---
+
+# ARCHITECTURE
+
+Target architecture:
+
+Client
+
+↓
+
+FastAPI
+
+↓
+
+Application Service
+
+↓
+
+ARQ Queue
+
+↓
+
+Redis
+
+↓
+
+ARQ Worker
+
+↓
+
+LangGraph Workflow
+
+↓
+
+Repository Layer
+
+↓
+
+PostgreSQL
+
+FastAPI must only enqueue jobs.
+
+Workers execute them.
+
+---
+
+# REDIS
+
+Use Redis only for:
+
+- Job Queue
+- Retry Queue
+- Delayed Jobs
+- Job Metadata
+- Progress Cache (if appropriate)
+- Worker Coordination
+
+Business data must NEVER be stored in Redis.
+
+Persistent state remains in PostgreSQL.
+
+---
+
+# WORKERS
+
+Create dedicated workers where appropriate.
+
+For example:
+
+workers/
+
+    ai_worker.py
+
+    job_worker.py
+
+    company_worker.py
+
+    resume_worker.py
+
+    roadmap_worker.py
+
+    maintenance_worker.py
+
+Workers should remain lightweight.
+
+Business logic belongs to Application Services and LangGraph.
+
+Workers only orchestrate execution.
+
+---
+
+# JOB MODEL
+
+Every job must have:
+
+Job ID
+
+Correlation ID
+
+Generation ID
+
+User ID (if available)
+
+Context Name
+
+Workflow Name
+
+Status
+
+Progress
+
+Started At
+
+Finished At
+
+Retry Count
+
+Failure Reason
+
+Duration
+
+This metadata should be persisted when appropriate.
+
+---
+
+# PROGRESS REPORTING
+
+Workers must publish progress events.
+
+FastAPI exposes progress through WebSocket.
+
+The frontend must display:
+
+Queued
+
+Starting
+
+Running
+
+Current Step
+
+Percentage
+
+Completed
+
+Failed
+
+Cancelled
+
+Progress must survive page refresh.
+
+---
+
+# RETRIES
+
+Configure retry policies.
+
+Support:
+
+Exponential Backoff
+
+Maximum Retries
+
+Retry Delay
+
+Permanent Failure
+
+Retry metadata must be tracked.
+
+---
+
+# FAILURE HANDLING
+
+Failures must never crash workers.
+
+Jobs should move into Failed state.
+
+Failures should contain:
+
+Error Type
+
+Error Message
+
+Stack Trace
+
+Workflow Step
+
+Provider
+
+Timestamp
+
+---
+
+# CANCELLATION
+
+Support cancelling running jobs.
+
+Workers should stop gracefully.
+
+Workflow state should remain consistent.
+
+---
+
+# TIMEOUTS
+
+Each workflow should define execution timeout.
+
+Long-running jobs should terminate gracefully.
+
+---
+
+# SCHEDULING
+
+Prepare infrastructure for future scheduled jobs.
+
+Examples:
+
+Daily Processing
+
+Cleanup
+
+Maintenance
+
+Analytics
+
+Do not implement schedules yet.
+
+Only prepare the architecture.
+
+---
+
+# CONFIGURATION
+
+Create centralized ARQ configuration.
+
+Include:
+
+Redis Connection
+
+Queue Names
+
+Retry Policy
+
+Timeouts
+
+Worker Count
+
+Concurrency
+
+Serialization
+
+---
+
+# OBSERVABILITY
+
+Provide logging for:
+
+Job Created
+
+Job Started
+
+Current Step
+
+Retry
+
+Failure
+
+Cancellation
+
+Completion
+
+Each log must include Correlation ID.
+
+---
+
+# TESTING
+
+Create tests for:
+
+Queue Creation
+
+Worker Execution
+
+Retries
+
+Cancellation
+
+Timeouts
+
+Progress Updates
+
+Redis Connectivity
+
+Job Metadata
+
+Failure Recovery
+
+---
+
+# DOCUMENTATION
+
+Create:
+
+docs/background-processing.md
+
+docs/arq.md
+
+docs/workers.md
+
+docs/job-lifecycle.md
+
+docs/redis.md
+
+docs/architecture/background-platform.md
+
+docs/adr/008-arq-background-platform.md
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✔ Every background process uses ARQ.
+
+✔ FastAPI never executes long-running jobs.
+
+✔ Workers contain no business logic.
+
+✔ Progress updates work through WebSockets.
+
+✔ Retry and timeout policies are implemented.
+
+✔ Redis is used only for background processing.
+
+✔ PostgreSQL remains the source of truth.
+
+✔ Existing functionality is preserved.
+
+✔ The architecture is ready for future horizontal scaling.
+
+✔ Future migration to Dramatiq or Celery requires changes only in the Infrastructure layer.

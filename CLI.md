@@ -4,22 +4,51 @@
 
 ```bash
 # Start everything (backend + frontend)
-./start.sh
+./start
 
 # Or start individually
-./start.sh backend    # Flask server on :5000
-./start.sh frontend   # Vite dev server on :5173
+./start backend    # FastAPI server on :5000
+./start frontend   # Vite dev server on :5173
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `./start.sh` | Start backend + frontend, wait for Ctrl+C |
-| `./start.sh backend` | Start only the Flask backend |
-| `./start.sh frontend` | Start only the Vite frontend |
-| `./start.sh stop` | Stop all running processes |
-| `./start.sh status` | Show status of all processes |
+| `./start` | Start backend + frontend, wait for Ctrl+C |
+| `./start dev` | Start backend + frontend (same as default) |
+| `./start backend` | Start only the FastAPI backend |
+| `./start frontend` | Start only the Vite frontend |
+| `./start stop` | Stop all running processes |
+| `./start status` | Show status of all processes |
+| `./start test` | Run all backend tests |
+| `./start lint` | Run all linters |
+| `./start format` | Run all formatters |
+| `./start doctor` | Validate development environment |
+| `./start migrate` | Run database migrations |
+| `./start db up` | Run migrations up |
+| `./start db down` | Rollback last migration |
+| `./start db new NAME` | Create new migration |
+| `./start docker up` | Start Docker containers |
+| `./start docker down` | Stop Docker containers |
+| `./start clean` | Remove build artifacts |
+| `./start logs` | Stream logs |
+| `./start version` | Show version |
+
+## Port Configuration
+
+Ports can be configured via `.env` or CLI flags:
+
+```bash
+# .env
+BACKEND_PORT=5000
+FRONTEND_PORT=5173
+
+# CLI override
+./start dev --backend-port 4000 --frontend-port 3000
+./start backend --port 4000
+./start frontend --port 3000
+```
 
 ## Process Management
 
@@ -27,27 +56,26 @@
 
 The app handles shutdown gracefully:
 
-- **SIGTERM/SIGINT** (Ctrl+C): Terminates all background mimo processes, marks active jobs as cancelled in DB
-- **atexit handler**: Backup cleanup if signal handlers don't fire
+- **SIGTERM/SIGINT** (Ctrl+C): Terminates all background mimo processes
 - **Process tracking**: All subprocesses are registered and cleaned up on exit
 
 ### Killing Stuck Processes
 
 ```bash
 # Stop everything cleanly
-./start.sh stop
+./start stop
 
 # Or kill mimo processes manually
 pkill -f "mimo run"
 
 # Check what's running
-./start.sh status
+./start status
 ```
 
 ## Architecture
 
-### Backend (Python/Flask)
-- Entry: `app/server/app.py`
+### Backend (Python/FastAPI)
+- Entry: `app/server/entrypoints/api.py`
 - Port: 5000
 - Database: SQLite at `app/server/db/jobs.db`
 - Background workers: Threads for AI generation (career intel, skill roadmaps)
@@ -96,7 +124,8 @@ pkill -f "mimo run"
 |----------|---------|-------------|
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
 | `TEMP_DIR` | `tmp` | Temporary files directory |
-| `FLASK_DEBUG` | `1` | Enable Flask debug mode |
+| `BACKEND_PORT` | `5000` | Backend server port |
+| `FRONTEND_PORT` | `5173` | Frontend dev server port |
 
 ## Troubleshooting
 
@@ -107,13 +136,13 @@ lsof -i :5000
 lsof -i :5173
 
 # Kill existing processes
-./start.sh stop
+./start stop
 ```
 
 ### Mimo processes stuck
 ```bash
 # Check running mimo processes
-./start.sh status
+./start status
 
 # Force kill all mimo
 pkill -9 -f "mimo run"

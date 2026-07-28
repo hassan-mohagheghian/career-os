@@ -63,6 +63,9 @@ app/server/logs/
 .client.pid
 .server.pid
 
+# Rust CLI binary (build artifact)
+/start
+
 # Generated schema
 sql_roadmap.json
 .aider*

@@ -9,7 +9,7 @@
 
 ## Key Findings
 
-### DB Schema: `skill_roadmap_jobs` (app/server/core/db.py:132-149)
+### DB Schema: `skill_roadmap_jobs` (shared/infrastructure/database/models/misc_models.py)
 ```sql
 CREATE TABLE IF NOT EXISTS skill_roadmap_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,9 +139,9 @@ CREATE TABLE IF NOT EXISTS skill_roadmap_jobs (
 ## Files Changed
 | File | Changes |
 |---|---|
-| `app/server/api/router.py` | Fixed response format, added `limit` param |
-| `app/server/api/v1/dashboard.py` | Unified history endpoint with normalized fields |
-| `app/server/api/v1/skill_roadmaps.py` | Added `/jobs` endpoint for per-skill job history |
+| `shared/presentation/api/root_router.py` | Fixed response format, added `limit` param |
+| `career/presentation/api/dashboard_router.py` | Unified history endpoint with normalized fields |
+| `skills/presentation/api/skill_roadmaps_router.py` | Added `/jobs` endpoint for per-skill job history |
 | `app/client/src/App.tsx` | Added `deepLinkSkill` state, hash parsing for `#skills/{name}`, passed to SkillsTab |
 | `app/client/src/features/skills/components/SkillsTab.tsx` | Accepts `deepLinkSkill` prop, passes to SkillsIntelSection |
 | `app/client/src/features/insights/components/SkillsIntelSection.tsx` | `generatingJobMap`, hash-based drawer open/close, deep link handling |

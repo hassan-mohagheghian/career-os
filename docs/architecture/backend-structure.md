@@ -6,30 +6,74 @@
 app/
 ├── server/                        # FastAPI application root
 │   ├── __init__.py
-│   ├── main.py                    # App factory, lifespan, middleware
+│   ├── entrypoints/               # Application entry points (CLI + API)
+│   │   ├── __init__.py
+│   │   ├── cli.py                 # Typer CLI for job management
+│   │   └── api.py                 # FastAPI app factory, SocketIO, lifespan
 │   ├── config.py                  # Settings (pydantic-settings)
 │   ├── database.py                # DB connection management
 │   ├── dependencies.py            # FastAPI Depends() functions
 │   ├── exceptions.py              # Custom exception classes
 │   ├── middleware.py              # Request logging, CORS, error handling
 │   │
-│   ├── api/                       # Presentation Layer (Routers)
-│   │   ├── __init__.py
-│   │   ├── router.py             # Root API router (versioned)
-│   │   ├── v1/                   # API v1 routes
-│   │   │   ├── __init__.py
-│   │   │   ├── jobs.py           # Job CRUD, scoring, reprocessing
-│   │   │   ├── companies.py      # Company CRUD, intelligence
-│   │   │   ├── skills.py         # Skills CRUD, merge, taxonomy
-│   │   │   ├── skill_roadmaps.py # Roadmap generation, progress
-│   │   │   ├── insights.py       # Career intelligence endpoints
-│   │   │   ├── resumes.py        # Resume/cover letter generation
-│   │   │   ├── pending.py        # Job processing queue
-│   │   │   ├── pending_companies.py # Company processing queue
-│   │   │   ├── rules.py          # Scoring rules
-│   │   │   ├── dashboard.py      # Dashboard data, generation history
-│   │   │   └── websocket.py      # WebSocket endpoint handlers
-│   │   └── docs.py               # Swagger UI, ReDoc endpoints
+│   ├── jobs/                      # Jobs Bounded Context
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       └── jobs_router.py
+│   │
+│   ├── companies/                 # Companies Bounded Context
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       └── companies_router.py
+│   │
+│   ├── skills/                    # Skills Bounded Context
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       ├── skills_router.py
+│   │       └── skill_roadmaps_router.py
+│   │
+│   ├── career/                    # Career Bounded Context
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       ├── insights_router.py
+│   │       ├── rules_router.py
+│   │       └── dashboard_router.py
+│   │
+│   ├── resume/                    # Resume Bounded Context
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       └── resumes_router.py
+│   │
+│   ├── processing/                # Pending Queue Bounded Context
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       ├── pending_router.py
+│   │       └── pending_companies_router.py
+│   │
+│   ├── ai/                        # AI Agent Layer
+│   │   ├── service.py
+│   │   ├── providers/
+│   │   ├── agents/
+│   │   └── tools/
+│   │
+│   └── shared/                    # Shared Kernel
+│       ├── domain/
+│       ├── application/
+│       ├── infrastructure/
+│       └── presentation/api/
+│           ├── root_router.py     # Central API router (prefix="/api")
+│           ├── websocket_router.py
+│           └── sse_router.py
 │   │
 │   ├── domain/                    # Domain Layer
 │   │   ├── __init__.py
@@ -191,14 +235,20 @@ from app.server.infrastructure.database.job_repository import JobRepository  # N
 
 ## Feature Organization
 
-Each feature follows this structure:
+Each bounded context follows this structure:
 
 ```
-api/v1/jobs.py              # Router (presentation)
-application/services/job_service.py  # Service (application)
-domain/entities/job.py       # Entity (domain)
-domain/repositories/job_repository.py # Interface (domain)
-infrastructure/database/job_repository.py # Implementation (infrastructure)
+jobs/                              # Jobs Bounded Context
+├── domain/
+│   ├── entities/job.py            # Entity (domain)
+│   └── repositories/job_repository.py  # Interface (domain)
+├── application/
+│   └── services/job_service.py    # Service (application)
+├── infrastructure/
+│   ├── models/job_model.py        # SQLAlchemy model
+│   └── repositories/sa_job_repository.py  # Implementation (infrastructure)
+└── presentation/
+    └── api/jobs_router.py         # Router (presentation)
 ```
 
 ### Feature Responsibilities
@@ -260,16 +310,16 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 
 ### Flask Blueprint → FastAPI Router
 
-| Flask Blueprint | FastAPI Router | File |
-|-----------------|----------------|------|
-| `jobs` | `jobs_router` | `api/v1/jobs.py` |
-| `pending` | `pending_router` | `api/v1/pending.py` |
-| `companies` | `companies_router` | `api/v1/companies.py` |
-| `insights` | `insights_router` | `api/v1/insights.py` |
-| `resumes` | `resumes_router` | `api/v1/resumes.py` |
-| `skills` | `skills_router` | `api/v1/skills.py` |
-| `skill_roadmaps` | `skill_roadmaps_router` | `api/v1/skill_roadmaps.py` |
-| `rules` | `rules_router` | `api/v1/rules.py` |
-| `misc` | `dashboard_router` | `api/v1/dashboard.py` |
-| `static` | SPA catch-all | `main.py` |
-| `api_docs` | Docs endpoints | `api/docs.py` |
+| Flask Blueprint | FastAPI Router | Bounded Context |
+|-----------------|----------------|-----------------|
+| `jobs` | `jobs_router` | `jobs/presentation/api/jobs_router.py` |
+| `pending` | `pending_router` | `processing/presentation/api/pending_router.py` |
+| `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
+| `insights` | `insights_router` | `career/presentation/api/insights_router.py` |
+| `resumes` | `resumes_router` | `resume/presentation/api/resumes_router.py` |
+| `skills` | `skills_router` | `skills/presentation/api/skills_router.py` |
+| `skill_roadmaps` | `skill_roadmaps_router` | `skills/presentation/api/skill_roadmaps_router.py` |
+| `rules` | `rules_router` | `career/presentation/api/rules_router.py` |
+| `misc` | `dashboard_router` | `career/presentation/api/dashboard_router.py` |
+| `static` | SPA catch-all | `entrypoints/api.py` |
+| `api_docs` | Docs endpoints | FastAPI built-in `/docs` |
