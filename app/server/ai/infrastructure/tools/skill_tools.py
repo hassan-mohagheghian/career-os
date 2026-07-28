@@ -5,12 +5,19 @@ SRP: Each tool handles one skill-related operation.
 
 from __future__ import annotations
 
-import sqlite3
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from skills.infrastructure.models.skill_model import SkillModel
+from shared.infrastructure.database.mappers import skill_model_to_dict
 from .base import BaseTool, ToolResult
 
 
 class FindSkillTool(BaseTool):
     """Finds a skill in the database by name."""
+
+    def __init__(self, session: Session | None = None):
+        self._session = session
 
     @property
     def name(self) -> str:
@@ -26,16 +33,16 @@ class FindSkillTool(BaseTool):
             return ToolResult(success=False, error="name parameter is required")
 
         try:
-            from core.db import get_db
-            conn = get_db()
-            row = conn.execute(
-                "SELECT * FROM tech_stack WHERE LOWER(name)=LOWER(?)",
-                (name,),
-            ).fetchone()
-            conn.close()
+            if self._session is None:
+                from shared.infrastructure.database.session import get_session_sync
+                self._session = get_session_sync()
 
-            if row:
-                return ToolResult(success=True, data=dict(row))
+            model = self._session.query(SkillModel).filter(
+                func.lower(SkillModel.name) == func.lower(name)
+            ).first()
+
+            if model:
+                return ToolResult(success=True, data=skill_model_to_dict(model))
             return ToolResult(success=False, error=f"Skill not found: {name}")
         except Exception as e:
             return ToolResult(success=False, error=f"Search failed: {e}")
@@ -59,7 +66,6 @@ class CalculateSkillGapTool(BaseTool):
         if not required:
             return ToolResult(success=False, error="required_skills parameter is required")
 
-        # Normalize for comparison
         required_lower = {s.lower().strip() for s in required}
         user_lower = {s.lower().strip() for s in user_skills}
 

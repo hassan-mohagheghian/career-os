@@ -5,11 +5,17 @@ SRP: Each tool handles one resume-related operation.
 
 from __future__ import annotations
 
+from sqlalchemy.orm import Session
+
+from shared.infrastructure.database.models.misc_models import ResumeModel
 from .base import BaseTool, ToolResult
 
 
 class GenerateResumeSectionTool(BaseTool):
     """Generates tailored resume content for a specific job."""
+
+    def __init__(self, session: Session | None = None):
+        self._session = session
 
     @property
     def name(self) -> str:
@@ -25,18 +31,19 @@ class GenerateResumeSectionTool(BaseTool):
             return ToolResult(success=False, error="job_data parameter is required")
 
         try:
-            from core.db import get_db
-            conn = get_db()
-            resume_row = conn.execute(
-                "SELECT raw_text FROM resumes WHERE id LIKE 'original_%' ORDER BY version DESC LIMIT 1"
-            ).fetchone()
-            conn.close()
+            if self._session is None:
+                from shared.infrastructure.database.session import get_session_sync
+                self._session = get_session_sync()
 
-            if resume_row and resume_row[0]:
+            model = self._session.query(ResumeModel).filter(
+                ResumeModel.id.like("original_%")
+            ).order_by(ResumeModel.version.desc()).first()
+
+            if model and model.raw_text:
                 return ToolResult(
                     success=True,
                     data={
-                        "resume_text": resume_row[0],
+                        "resume_text": model.raw_text,
                         "job": job_data,
                     },
                 )

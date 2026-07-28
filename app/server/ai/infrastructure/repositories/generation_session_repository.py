@@ -6,8 +6,6 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import text
-
 from ...domain.entities.generation_session import GenerationSession
 from ...domain.repositories.generation_session_repository import IGenerationSessionRepository
 from ..models.generation_session_model import GenerationSessionModel
