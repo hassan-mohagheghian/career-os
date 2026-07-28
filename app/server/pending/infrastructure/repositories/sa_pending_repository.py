@@ -253,9 +253,23 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         self._session.refresh(model)
         return pending_job_model_to_dict(model)
 
-    def create_pending_company(self, input_text: str, input_type: str, source: str, status: str, notes: str) -> dict[str, Any]:
+    def delete(self, item_id: int, table: str = "pending_jobs") -> bool:
+        if table == "pending_jobs":
+            m = self._session.query(PendingJobModel).filter(PendingJobModel.id == item_id).first()
+        elif table == "pending_companies":
+            m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == item_id).first()
+        else:
+            return False
+        if not m:
+            return False
+        self._session.delete(m)
+        self._session.commit()
+        return True
+
+    def create_pending_company(self, input_text: str, input_type: str, source: str, status: str, notes: str, company_id: int = None, links: str = "[]") -> dict[str, Any]:
         model = PendingCompanyModel(
             input_text=input_text, input_type=input_type, source=source, status=status, notes=notes,
+            company_id=company_id, links=links,
         )
         self._session.add(model)
         self._session.commit()
