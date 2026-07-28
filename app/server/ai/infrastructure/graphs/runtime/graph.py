@@ -1,10 +1,3 @@
-"""Graph Builder — constructs and compiles LangGraph workflows.
-
-Builder Pattern: Chain node/edge additions, then compile.
-Adapter Pattern: Wraps LangGraph's StateGraph with our BaseState.
-Supports: checkpointing, streaming, conditional edges, retry.
-"""
-
 from __future__ import annotations
 
 import time
@@ -13,38 +6,42 @@ from typing import Any, Callable, Optional
 try:
     from langgraph.graph import StateGraph, END
     from langgraph.checkpoint.memory import MemorySaver
-
+    from langgraph.checkpoint.base import BaseCheckpointSaver
     _HAS_LANGGRAPH = True
 except ImportError:
     _HAS_LANGGRAPH = False
 
-from .state import BaseState, create_initial_state
+from .state import BaseState, create_initial_state, CheckpointConfig
 
 try:
     import structlog
-
     _log = structlog.get_logger("ai.graph")
 except ImportError:
     import logging
-
     _log = logging.getLogger("ai.graph")
 
 
+def _create_checkpointer(config: Optional[CheckpointConfig] = None) -> Any:
+    if config is None or not config.get("enabled", True):
+        return MemorySaver()
+    db_url = config.get("db_url", "")
+    if db_url:
+        try:
+            from langgraph.checkpoint.postgres import PostgresSaver
+            return PostgresSaver.from_conn_string(db_url)
+        except ImportError:
+            _log.warning("graph.checkpoint.postgres_unavailable", db_url=db_url)
+    try:
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        import sqlite3
+        conn = sqlite3.connect(config.get("table_name", "checkpoints.db"), check_same_thread=False)
+        return SqliteSaver(conn)
+    except ImportError:
+        pass
+    return MemorySaver()
+
+
 class GraphBuilder:
-    """Builds workflow graphs using LangGraph's StateGraph.
-
-    Builder Pattern:
-        builder = GraphBuilder("my_workflow")
-        builder.add_node("fetch", fetch_fn)
-        builder.add_node("analyze", analyze_fn)
-        builder.add_edge("fetch", "analyze")
-        builder.set_entry("fetch")
-        builder.set_finish("analyze")
-        graph = builder.compile()
-
-    If langgraph is not available, falls back to a simple sequential executor.
-    """
-
     def __init__(self, name: str = "agent_graph"):
         self._name = name
         self._nodes: dict[str, Callable] = {}
@@ -55,12 +52,10 @@ class GraphBuilder:
         self._retry_config: dict[str, dict] = {}
 
     def add_node(self, name: str, fn: Callable) -> GraphBuilder:
-        """Add a named node to the graph."""
         self._nodes[name] = fn
         return self
 
     def add_edge(self, source: str, target: str) -> GraphBuilder:
-        """Add a direct edge between two nodes."""
         self._edges.append((source, target))
         return self
 
@@ -70,28 +65,18 @@ class GraphBuilder:
         condition: Callable,
         mapping: dict[str, str],
     ) -> GraphBuilder:
-        """Add a conditional edge with a routing function.
-
-        Args:
-            source: Source node name.
-            condition: Function that takes state and returns a key.
-            mapping: Maps condition return values to target node names.
-        """
         self._conditional_edges.append((source, condition, mapping))
         return self
 
     def set_entry(self, node_name: str) -> GraphBuilder:
-        """Set the entry point node."""
         self._entry = node_name
         return self
 
     def set_finish(self, node_name: str) -> GraphBuilder:
-        """Set the finish point node."""
         self._finish = node_name
         return self
 
     def set_retry(self, node_name: str, max_retries: int = 3, delay: float = 1.0) -> GraphBuilder:
-        """Set retry configuration for a specific node."""
         self._retry_config[node_name] = {
             "max_retries": max_retries,
             "delay": delay,
@@ -99,21 +84,12 @@ class GraphBuilder:
         return self
 
     def compile(self, checkpointer: Any = None) -> "CompiledGraph":
-        """Compile the graph into an executable form.
-
-        Uses LangGraph if available, otherwise falls back to sequential.
-        """
         if _HAS_LANGGRAPH:
             return self._compile_langgraph(checkpointer=checkpointer)
         else:
             return self._compile_sequential()
 
     def _compile_langgraph(self, checkpointer: Any = None) -> "CompiledGraph":
-        """Compile using LangGraph's StateGraph.
-
-        Wraps each node with error handling and history recording
-        since LangGraph manages state immutably.
-        """
         graph = StateGraph(BaseState)
 
         for name, fn in self._nodes.items():
@@ -132,7 +108,10 @@ class GraphBuilder:
         if self._finish:
             graph.add_edge(self._finish, END)
 
-        compiled = graph.compile(checkpointer=checkpointer)
+        if checkpointer is not None:
+            compiled = graph.compile(checkpointer=checkpointer)
+        else:
+            compiled = graph.compile()
 
         _log.info(
             "graph.compiled",
@@ -141,6 +120,7 @@ class GraphBuilder:
             entry=self._entry,
             finish=self._finish,
             backend="langgraph",
+            checkpoint_type=type(checkpointer).__name__ if checkpointer else "None",
         )
 
         return CompiledGraph(
@@ -151,11 +131,6 @@ class GraphBuilder:
         )
 
     def _wrap_node(self, name: str, fn: Callable) -> Callable:
-        """Wrap a node function with error handling and history recording.
-
-        Decorator Pattern: transparently adds cross-cutting concerns.
-        Supports retry for nodes configured with set_retry().
-        """
         retry_cfg = self._retry_config.get(name, {})
         max_retries = retry_cfg.get("max_retries", 0)
         delay = retry_cfg.get("delay", 1.0)
@@ -186,7 +161,6 @@ class GraphBuilder:
         return wrapped
 
     def _compile_sequential(self) -> "CompiledGraph":
-        """Fallback: simple sequential execution without LangGraph."""
         order = self._build_execution_order()
 
         def run(state: BaseState) -> BaseState:
@@ -231,7 +205,6 @@ class GraphBuilder:
         )
 
     def _build_execution_order(self) -> list[str]:
-        """Build topological order from edges."""
         if not self._edges:
             return list(self._nodes.keys())
 
@@ -255,12 +228,6 @@ class GraphBuilder:
 
 
 class CompiledGraph:
-    """A compiled, ready-to-execute graph.
-
-    Adapter Pattern: Wraps LangGraph compiled graph or sequential function.
-    Supports invoke, stream, and checkpoint via config.
-    """
-
     def __init__(
         self,
         name: str,
@@ -280,15 +247,6 @@ class CompiledGraph:
         state: Optional[BaseState] = None,
         config: Optional[dict] = None,
     ) -> BaseState:
-        """Execute the graph with optional initial state.
-
-        Args:
-            state: Initial state. If None, creates empty state.
-            config: Optional LangGraph config (for checkpointing).
-
-        Returns:
-            Final state after graph execution.
-        """
         if state is None:
             state = create_initial_state()
 
@@ -309,11 +267,6 @@ class CompiledGraph:
         state: Optional[BaseState] = None,
         config: Optional[dict] = None,
     ):
-        """Stream graph execution step by step.
-
-        Yields (node_name, state) tuples after each node executes.
-        Falls back to invoke for sequential backend.
-        """
         if state is None:
             state = create_initial_state()
 
@@ -323,6 +276,22 @@ class CompiledGraph:
         else:
             result = self.invoke(state, config)
             yield {"output": result}
+
+    def get_state(self, config: dict) -> Optional[BaseState]:
+        if self._backend == "langgraph" and self._compiled is not None:
+            try:
+                snapshot = self._compiled.get_state(config)
+                return snapshot.values if hasattr(snapshot, "values") else snapshot
+            except Exception:
+                return None
+        return None
+
+    def update_state(self, config: dict, values: dict) -> None:
+        if self._backend == "langgraph" and self._compiled is not None:
+            try:
+                self._compiled.update_state(config, values)
+            except Exception as e:
+                _log.warning("graph.update_state_failed", error=str(e))
 
     @property
     def name(self) -> str:

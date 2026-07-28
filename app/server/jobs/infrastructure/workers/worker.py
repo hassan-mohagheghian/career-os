@@ -348,6 +348,16 @@ def _insert_resume(d):
     finally:
         session.close()
 
+def _check_result_file(result_path):
+    if not os.path.exists(result_path):
+        tmp_dir = os.path.dirname(result_path)
+        dir_exists = os.path.isdir(tmp_dir)
+        dir_writable = os.access(tmp_dir, os.W_OK) if dir_exists else False
+        raise RuntimeError(
+            f"Result file not found: {result_path} "
+            f"(TMP_DIR={tmp_dir} exists={dir_exists} writable={dir_writable})"
+        )
+
 def _mark(pid, step, company=None, job_num=None):
     _update_step(pid, step, 1, company=company, job_num=job_num)
 
@@ -428,7 +438,7 @@ def rescore_only(num):
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
 
-        returncode, output_lines, _ = _stream_mimo_output(
+        returncode, output_lines, _, captured_result = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
@@ -447,12 +457,14 @@ def rescore_only(num):
                     continue
             raise RuntimeError(f"mimo failed: {error_msg}")
 
-        result_path = os.path.join(TMP_DIR, f'pending_result_{rescore_pid}.json')
-        if not os.path.exists(result_path):
-            raise RuntimeError(f"Result file not found: {result_path}")
-
-        with open(result_path) as f:
-            data = json.load(f)
+        data = captured_result.get('result') or captured_result.get('pending_result')
+        if not data:
+            result_path = os.path.join(TMP_DIR, f'pending_result_{rescore_pid}.json')
+            _check_result_file(result_path)
+            with open(result_path) as f:
+                data = json.load(f)
+            try: os.remove(result_path)
+            except OSError: pass
 
         analyzed_data = data['job']
 
@@ -531,8 +543,6 @@ def rescore_only(num):
         finally:
             session.close()
 
-        try: os.remove(result_path)
-        except OSError: pass
         log.info("worker.rescore_done", num=num, company=job_data['company'], score=job_data['score'])
 
     except Exception as e:
@@ -618,14 +628,12 @@ def _load_rules(context='job'):
 
 def _extract_structured_description(raw_text, num):
     """Extract structured job info from raw description using LLM service."""
-    output_file = os.path.join(TMP_DIR, f'structured_{num}.json')
     prompt = load_prompt('job_processing/step4_extract_struct',
-        raw_content=raw_text[:5000], output_file=output_file)
+        raw_content=raw_text[:5000])
 
     llm = get_llm_service()
     resp = llm.generate_structured(
         prompt,
-        context={"result_file": output_file, "pid": str(num)},
         timeout=60,
     )
     return resp.content
@@ -841,24 +849,19 @@ def _mimo_cmd(prompt, session_id=None):
 def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
     """Run mimo with streaming output via LLM Service.
 
-    Uses the AI agent layer's LLMService for provider abstraction.
-    Maintains the same return signature for backward compatibility:
-    (returncode, all_lines, session_id).
-
-    Each JSON event is parsed and logged to the DB immediately —
-    before the process exits — so the frontend can pick it up.
+    Returns (returncode, all_lines, session_id, result_dict).
+    result_dict is captured from Write tool output events — no file I/O needed.
     """
-    # Extract prompt from cmd for LLMService (cmd[2] is the prompt in [MIMO_BIN, 'run', prompt, ...])
     prompt = cmd[2] if len(cmd) > 2 else ""
 
     llm = get_llm_service()
+    captured_result = {}
 
     def on_event(evt):
-        """Forward events to the existing handler."""
         _handle_mimo_event(pid, evt)
+        _capture_write_tool_output(evt, captured_result)
 
     def on_session_id(sid):
-        """Save session ID when discovered."""
         _save_session_id(pid, sid)
 
     try:
@@ -878,17 +881,33 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
         session_id = resp.metadata.get("session_id")
         returncode = resp.metadata.get("returncode", 0)
 
-        # Generate fallback session_id if mimo didn't provide one
         if not session_id:
             session_id = f"mimo_{uuid.uuid4().hex[:12]}"
             _save_session_id(pid, session_id)
 
-        return returncode, all_lines, session_id
+        return returncode, all_lines, session_id, captured_result
 
     except RuntimeError as e:
         if "timed out" in str(e):
-            return -9, [], resume_session_id
+            return -9, [], resume_session_id, {}
         raise
+
+
+def _capture_write_tool_output(evt: dict, captured: dict) -> None:
+    """Capture Write tool output from streaming events into a dict."""
+    if evt.get("type") == "tool_use":
+        part = evt.get("part", {})
+        state = part.get("state", {})
+        title = state.get("title", "")
+        output = state.get("output", "")
+        if output and title:
+            captured[title] = output
+    # Also capture result from tool_finish or step_finish with result data
+    if evt.get("type") == "step_finish":
+        part = evt.get("part", {})
+        result = part.get("result") or part.get("output")
+        if result:
+            captured["result"] = result
 
 
 def _handle_mimo_event(pid, evt):
@@ -1063,7 +1082,7 @@ def process_job(pid):
                 linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
                 tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, rules=rules)
 
-            returncode, output_lines, sid = _stream_mimo_output(
+            returncode, output_lines, sid, captured_result = _stream_mimo_output(
                 [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
                 cwd=PROJECT_ROOT,
                 env={**os.environ, 'NO_COLOR': '1'},
@@ -1083,12 +1102,14 @@ def process_job(pid):
                         continue
                 raise RuntimeError(f"mimo failed: {error_msg}")
 
-            result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
-            if not os.path.exists(result_path):
-                raise RuntimeError(f"Result file not found: {result_path}")
-
-            with open(result_path) as f:
-                data = json.loads(f.read(), strict=False)
+            data = captured_result.get('result') or captured_result.get('pending_result')
+            if not data:
+                result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
+                _check_result_file(result_path)
+                with open(result_path) as f:
+                    data = json.loads(f.read(), strict=False)
+                try: os.remove(result_path)
+                except OSError: pass
 
             analyzed_data = data['job']
             _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
@@ -1177,8 +1198,6 @@ def process_job(pid):
             if pw_item:
                 _save_job_workflow_log(job_data['num'], pw_item.get('workflow_log') or '[]')
 
-            try: os.remove(result_path)
-            except OSError: pass
             return
 
         # ── NORMAL PATH: fetch, validate, extract, score ──
@@ -1359,7 +1378,7 @@ def process_job(pid):
             linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
             tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
 
-        returncode, output_lines, sid = _stream_mimo_output(
+        returncode, output_lines, sid, captured_result = _stream_mimo_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
@@ -1379,13 +1398,14 @@ def process_job(pid):
                     continue
             raise RuntimeError(f"mimo failed: {error_msg}")
 
-        # Read score result
-        result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
-        if not os.path.exists(result_path):
-            raise RuntimeError(f"Result file not found: {result_path}")
-
-        with open(result_path) as f:
-            data = json.loads(f.read(), strict=False)
+        data = captured_result.get('result') or captured_result.get('pending_result')
+        if not data:
+            result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
+            _check_result_file(result_path)
+            with open(result_path) as f:
+                data = json.loads(f.read(), strict=False)
+            try: os.remove(result_path)
+            except OSError: pass
 
         analyzed_data = data['job']
         _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
@@ -1496,8 +1516,6 @@ def process_job(pid):
             session.close()
         if pw_item:
             _save_job_workflow_log(job_data['num'], pw_item.get('workflow_log') or '[]')
-        try: os.remove(result_path)
-        except OSError: pass
         log.info("worker.job_done", pid=pid, company=job_data.get('company'), num=job_data['num'])
 
     except subprocess.CalledProcessError as e:

@@ -1,33 +1,15 @@
-"""Company Processing Graph — LangGraph workflow for company intelligence.
-
-Graph: START → validate → fetch → extract → analyze → score → save → END
-
-Design Pattern: Pipeline Pattern — sequential data transformation.
-Each node owns its own prompt and produces typed output.
-"""
-
 from __future__ import annotations
 
 import json
-import os
-import sys
-from typing import Any, Callable, Optional
+from typing import Any
 
 from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, CompanyExtractionOutput, CompanyAnalysisOutput
 
 
 def build_company_processing_graph() -> GraphBuilder:
-    """Build the company processing workflow graph.
-
-    Returns a compiled GraphBuilder ready for execution.
-    """
 
     def validate_input(state: BaseState) -> BaseState:
-        """Stage 1: Input Validation.
-
-        Validates that company content is provided.
-        """
         content = state["context"].get("content", state["input"])
 
         if not content or len(content.strip()) < 10:
@@ -38,10 +20,6 @@ def build_company_processing_graph() -> GraphBuilder:
         return state
 
     def fetch_content(state: BaseState) -> BaseState:
-        """Stage 2: Content Fetching.
-
-        Fetches or accepts company content.
-        """
         content = state["context"].get("content", state["input"])
         state["metadata"]["raw_content"] = content
         state["metadata"]["content_length"] = len(content)
@@ -49,11 +27,6 @@ def build_company_processing_graph() -> GraphBuilder:
         return state
 
     def extract_company_data(state: BaseState) -> BaseState:
-        """Stage 3: Company Data Extraction.
-
-        Extracts structured company data from raw content.
-        Uses prompt: companies/extract_company.md
-        """
         content = state["metadata"].get("raw_content", "")
 
         if not content:
@@ -61,19 +34,23 @@ def build_company_processing_graph() -> GraphBuilder:
             return state
 
         try:
-            import sys
-            import os
+            from shared.infrastructure.ai.compat import get_llm_service
+            from shared.infrastructure.prompts.loader import load_prompt
 
-            sys.path.insert(
-                0,
-                os.path.join(
-                    os.path.dirname(__file__), "..", "..", "..", "..", "server"
-                ),
+            input_type = "multi_note"
+            prompt = load_prompt(
+                "company/company_extract",
+                content=content[:8000],
+                input_type=input_type,
+                output_file="/tmp/ai_company_extract.json",
             )
-            from services.company_worker import _extract_company_info
 
-            pid = state["context"].get("pid", "ai_company")
-            result = _extract_company_info(content, "multi_note", pid)
+            llm = get_llm_service()
+            resp = llm.generate_structured(
+                prompt,
+                timeout=180,
+            )
+            result = json.loads(resp.content)
 
             if result:
                 extraction = CompanyExtractionOutput(
@@ -100,12 +77,43 @@ def build_company_processing_graph() -> GraphBuilder:
 
         return state
 
-    def analyze_company(state: BaseState) -> BaseState:
-        """Stage 4: Company Analysis.
+    def _load_company_rules(company_type: str = "UNKNOWN") -> str:
+        try:
+            from dependencies import get_session_sync
+            from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
 
-        Generates intelligence analysis for the company.
-        Uses prompt: companies/analyze_company.md
-        """
+            scope_map = {
+                "PRODUCT_COMPANY": "COMPANY_PRODUCT",
+                "RECRUITING_AGENCY": "COMPANY_RECRUITING",
+                "STAFFING_COMPANY": "COMPANY_RECRUITING",
+                "CONSULTING_COMPANY": "COMPANY_PRODUCT",
+                "UNKNOWN": "COMPANY_PRODUCT",
+            }
+            entity_scope = scope_map.get(company_type, "COMPANY_PRODUCT")
+
+            session = get_session_sync()
+            try:
+                pref_repo = SQLAlchemyPreferenceRepository(session)
+                rows = pref_repo.get_enabled_by_scopes(["SHARED", entity_scope])
+            finally:
+                session.close()
+
+            if not rows:
+                return "No scoring rules set."
+            lines = []
+            current_cat = None
+            for r in rows:
+                cat = r["category"]
+                if cat != current_cat:
+                    current_cat = cat
+                    lines.append(f"\n── {cat.upper()} {'─' * (35 - len(cat))}")
+                weight = r.get("score_weight") or r["priority"]
+                lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error loading rules: {e}"
+
+    def analyze_company(state: BaseState) -> BaseState:
         extraction = state["metadata"].get("extraction", {})
 
         if not extraction:
@@ -113,22 +121,27 @@ def build_company_processing_graph() -> GraphBuilder:
             return state
 
         try:
-            import sys
-            import os
+            from shared.infrastructure.ai.compat import get_llm_service
+            from shared.infrastructure.prompts.loader import load_prompt
 
-            sys.path.insert(
-                0,
-                os.path.join(
-                    os.path.dirname(__file__), "..", "..", "..", "..", "server"
-                ),
-            )
-            from services.company_worker import _analyze_company, _load_rules
-
-            pid = state["context"].get("pid", "ai_analyze")
             company_type = extraction.get("company_type", "UNKNOWN")
-            rules = _load_rules(context="company", company_type=company_type)
+            rules = _load_company_rules(company_type)
 
-            result = _analyze_company(extraction, pid, company_type=company_type)
+            prompt = load_prompt(
+                "company/company_analyze",
+                company_data=json.dumps(extraction, ensure_ascii=False)[:4000],
+                company_type=company_type,
+                rules=rules,
+                output_file="/tmp/ai_company_analyze.json",
+            )
+
+            llm = get_llm_service()
+            resp = llm.generate_structured(
+                prompt,
+                timeout=300,
+            )
+            result = json.loads(resp.content)
+
             if result:
                 state["metadata"]["intelligence"] = result
                 state["metadata"]["rules"] = rules
@@ -145,10 +158,6 @@ def build_company_processing_graph() -> GraphBuilder:
         return state
 
     def score_company(state: BaseState) -> BaseState:
-        """Stage 5: Company Scoring.
-
-        Computes fit, success, and overall scores.
-        """
         intelligence = state["metadata"].get("intelligence", {})
 
         if not intelligence:
@@ -169,10 +178,6 @@ def build_company_processing_graph() -> GraphBuilder:
         return state
 
     def save_results(state: BaseState) -> BaseState:
-        """Stage 6: Save Results.
-
-        Persists company analysis results to database.
-        """
         extraction = state["metadata"].get("extraction", {})
         intelligence = state["metadata"].get("intelligence", {})
 
@@ -195,10 +200,6 @@ def build_company_processing_graph() -> GraphBuilder:
         return state
 
     def completion_event(state: BaseState) -> BaseState:
-        """Stage 7: Completion Event.
-
-        Builds final typed output.
-        """
         extraction_data = state["metadata"].get("extraction", {})
         intelligence = state["metadata"].get("intelligence", {})
         scores = state["metadata"].get("scores", {})
@@ -218,7 +219,6 @@ def build_company_processing_graph() -> GraphBuilder:
 
         return state
 
-    # Build the graph
     builder = GraphBuilder("company_processing")
     builder.add_node("validate_input", validate_input)
     builder.add_node("fetch_content", fetch_content)
@@ -238,7 +238,6 @@ def build_company_processing_graph() -> GraphBuilder:
     builder.set_entry("validate_input")
     builder.set_finish("completion_event")
 
-    # Retry config for extraction and analysis nodes
     builder.set_retry("extract_company_data", max_retries=2, delay=1.0)
     builder.set_retry("analyze_company", max_retries=2, delay=1.0)
 

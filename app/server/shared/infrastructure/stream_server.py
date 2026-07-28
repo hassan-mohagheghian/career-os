@@ -530,9 +530,45 @@ async def process_job_stream(pid):
             _log(pid, 'analyze', f'New job #{next_num}...')
 
         rules = _load_rules()
+
+        # Load resume from DB for scoring context
+        resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
+        session = get_session_sync()
+        try:
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+            resume_repo = SQLAlchemyResumeRepository(session)
+            raw_text_resume = resume_repo.get_latest_original_raw_text()
+        finally:
+            session.close()
+        if raw_text_resume:
+            with open(resume_file, 'w') as f:
+                f.write(raw_text_resume)
+            resume_path = resume_file
+        else:
+            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
+
+        # Load LinkedIn profile from DB if available
+        linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
+        session = get_session_sync()
+        try:
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+            resume_repo = SQLAlchemyResumeRepository(session)
+            linkedin_text = resume_repo.get_latest_linkedin_raw_text()
+        finally:
+            session.close()
+        linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
+        if linkedin_text:
+            with open(linkedin_file, 'w') as f:
+                f.write(linkedin_text)
+            linkedin_path = linkedin_file
+        else:
+            linkedin_path = None
+            linkedin_step = "No LinkedIn profile available — skip this step"
+
         prompt = load_prompt('job_processing/step8_score',
-            url=url, job_file=job_file, project_root=PROJECT_ROOT,
-            pid=pid, next_num=next_num, rules=rules)
+            url=url, job_file=job_file, resume_file=resume_path,
+            linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
+            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
 
         returncode = await stream_mimo(pid, prompt)
 
@@ -541,13 +577,19 @@ async def process_job_stream(pid):
 
         # Step 3: Read result
         current_step = 'resume'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat /tmp/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
+        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat {TMP_DIR}/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
         _log(pid, 'resume', 'Reading analysis result...')
         await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
 
         result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
         if not os.path.exists(result_path):
-            raise RuntimeError(f"Result file not found: {result_path}")
+            tmp_dir = os.path.dirname(result_path)
+            dir_exists = os.path.isdir(tmp_dir)
+            dir_writable = os.access(tmp_dir, os.W_OK) if dir_exists else False
+            raise RuntimeError(
+                f"Result file not found: {result_path} "
+                f"(TMP_DIR={tmp_dir} exists={dir_exists} writable={dir_writable})"
+            )
 
         with open(result_path) as f:
             data = json.loads(f.read(), strict=False)

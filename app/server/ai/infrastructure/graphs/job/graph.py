@@ -1,46 +1,19 @@
-"""Job Processing Graph — LangGraph workflow for job analysis.
-
-Graph: START → validate → fetch → fallback_notes → extract_raw →
-clean_content → extract_structured → analyze → extract_skills →
-score → summary → persistence → END
-
-Refactored: All URL fetching now uses the unified Tool Layer (WebFetchTool)
-instead of importing _fetch_url from worker.py.
-
-Design Pattern: Pipeline Pattern — sequential data transformation.
-Each node has inputs, outputs, retry strategy, and failure handling.
-"""
-
 from __future__ import annotations
 
 import json
-import os
-import sys
 from typing import Any, Callable, Optional
 
 from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, JobExtractionOutput, JobAnalysisOutput
 
-# Unified Tool Layer imports — no more direct worker imports for fetching
-from ai.infrastructure.tools.fetch import fetch_page, extract_content
 from ai.infrastructure.tools.web import WebFetchTool, MultiSourceFetchTool
 
 
 def build_job_processing_graph() -> GraphBuilder:
-    """Build the job processing workflow graph.
-
-    Returns a compiled GraphBuilder ready for execution.
-    Each node owns its own prompt and produces typed output.
-    """
-
     _web_fetcher = WebFetchTool()
     _multi_fetcher = MultiSourceFetchTool()
 
     def validate_input(state: BaseState) -> BaseState:
-        """Stage 1: Input Validation.
-
-        Validates that at least one job source is provided.
-        """
         url = state["context"].get("url", state["input"])
         notes = state["context"].get("notes", [])
         links = state["context"].get("links", [])
@@ -63,11 +36,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def fetch_url(state: BaseState) -> BaseState:
-        """Stage 2: URL Fetching.
-
-        Uses the unified WebFetchTool for local-first fetching.
-        No more importing _fetch_url from worker.py.
-        """
         url = state["context"].get("url", state["input"])
 
         if not url or not url.startswith("http"):
@@ -98,10 +66,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def fallback_to_notes(state: BaseState) -> BaseState:
-        """Stage 3: Fallback to Notes.
-
-        If URL fetch failed, try to use notes as content.
-        """
         if state["metadata"].get("raw_content"):
             state["metadata"]["fallback"] = {
                 "skipped": True,
@@ -124,11 +88,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def extract_raw_content(state: BaseState) -> BaseState:
-        """Stage 4: Raw Content Extraction.
-
-        Extracts raw text content from the fetched data.
-        Uses the LLMService for AI-powered extraction.
-        """
         content = state["metadata"].get("raw_content", "")
 
         if not content:
@@ -136,24 +95,18 @@ def build_job_processing_graph() -> GraphBuilder:
             return state
 
         try:
-            pid = state["context"].get("pid", "ai_job")
             from shared.infrastructure.ai.compat import get_llm_service
             from shared.infrastructure.prompts.loader import load_prompt
 
-            output_file = os.path.join(
-                os.environ.get("TEMP_DIR", "tmp"),
-                f"extract_{pid}.json",
-            )
             prompt = load_prompt(
                 "job_processing/step3_extract_raw",
                 content=content[:5000],
-                output_file=output_file,
+                output_file="/tmp/ai_extract_result.json",
             )
 
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                context={"result_file": output_file, "pid": str(pid)},
                 timeout=90,
             )
             result = json.loads(resp.content)

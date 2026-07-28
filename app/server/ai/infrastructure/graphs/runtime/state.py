@@ -1,13 +1,3 @@
-"""Agent State — the domain model flowing through workflow graphs.
-
-Uses Pydantic BaseModel for strongly typed state that flows through
-LangGraph StateGraph nodes. Each graph can extend BaseState with
-additional typed fields.
-
-DDD Value Object: State carries all context between graph nodes.
-Immutable contract: nodes return new/updated state, never modify in-place.
-"""
-
 from __future__ import annotations
 
 from typing import Any, Optional, TypedDict
@@ -16,16 +6,6 @@ from pydantic import BaseModel, Field
 
 
 class BaseState(TypedDict, total=False):
-    """Typed state dictionary for agent graph execution.
-
-    Attributes:
-        input: The original user input / prompt.
-        output: The final output after graph execution.
-        context: Shared context (provider, config, DB connections).
-        errors: List of error messages encountered during execution.
-        metadata: Arbitrary metadata (duration, token counts, etc.).
-        node_history: List of node names that have executed.
-    """
     input: str
     output: str
     context: dict[str, Any]
@@ -38,10 +18,6 @@ def create_initial_state(
     input: str = "",
     context: dict[str, Any] | None = None,
 ) -> BaseState:
-    """Factory function — creates a fresh state for graph execution.
-
-    DDD Factory: Encapsulates state creation logic.
-    """
     return BaseState(
         input=input,
         output="",
@@ -52,10 +28,69 @@ def create_initial_state(
     )
 
 
+class JobProcessingState(BaseState):
+    raw_content: str
+    job_title: str
+    job_company: str
+    job_location: str
+    job_salary: str
+    job_stack: str
+    job_description: str
+    job_requirements: str
+    job_benefits: str
+    job_url: str
+    job_num: int
+    fit_score: Optional[float]
+    success_score: Optional[float]
+    overall_score: Optional[float]
+    score: str
+    success: str
+    match: str
+    extraction_data: dict[str, Any]
+    structured_data: dict[str, Any]
+    summary_data: dict[str, Any]
+    resume_text: str
+    linkedin_text: str
+    rules: str
+
+
+class CompanyProcessingState(BaseState):
+    raw_content: str
+    company_name: str
+    company_type: str
+    extraction_data: dict[str, Any]
+    intelligence_data: dict[str, Any]
+    scores: dict[str, Any]
+    company_id: Optional[int]
+
+
+class InsightsState(BaseState):
+    section: str
+    section_data: dict[str, Any]
+    all_results: dict[str, Any]
+    errors_list: list[str]
+
+
+class SkillRoadmapState(BaseState):
+    skill_name: str
+    job_type: str
+    job_id: int
+    items: list[dict[str, Any]]
+    version: int
+    session_id: str
+    provider_name: str
+
+
+class CheckpointConfig(TypedDict, total=False):
+    enabled: bool
+    db_url: str
+    table_name: str
+    thread_id: str
+
+
 # ── Structured Output Models ────────────────────────────────────────
 
 class JobExtractionOutput(BaseModel):
-    """Structured output from job extraction graph."""
     title: str = ""
     company: str = ""
     location: str = ""
@@ -68,7 +103,6 @@ class JobExtractionOutput(BaseModel):
 
 
 class JobAnalysisOutput(BaseModel):
-    """Structured output from job analysis graph."""
     extraction: JobExtractionOutput = Field(default_factory=JobExtractionOutput)
     tech_stack: list[str] = Field(default_factory=list)
     requirements_analysis: dict[str, Any] = Field(default_factory=dict)
@@ -80,7 +114,6 @@ class JobAnalysisOutput(BaseModel):
 
 
 class CompanyExtractionOutput(BaseModel):
-    """Structured output from company extraction graph."""
     name: str = ""
     company_type: str = ""
     industry: str = ""
@@ -93,7 +126,6 @@ class CompanyExtractionOutput(BaseModel):
 
 
 class CompanyAnalysisOutput(BaseModel):
-    """Structured output from company analysis graph."""
     extraction: CompanyExtractionOutput = Field(default_factory=CompanyExtractionOutput)
     scores: dict[str, Any] = Field(default_factory=dict)
     intelligence: dict[str, Any] = Field(default_factory=dict)
@@ -101,7 +133,6 @@ class CompanyAnalysisOutput(BaseModel):
 
 
 class ResumeOutput(BaseModel):
-    """Structured output from resume generation graph."""
     resume_text: str = ""
     tailored_sections: list[dict[str, Any]] = Field(default_factory=list)
     match_score: Optional[float] = None
@@ -109,7 +140,6 @@ class ResumeOutput(BaseModel):
 
 
 class CoverLetterOutput(BaseModel):
-    """Structured output from cover letter generation graph."""
     cover_letter: str = ""
     paragraphs: list[str] = Field(default_factory=list)
     tone: str = "professional"
@@ -117,14 +147,12 @@ class CoverLetterOutput(BaseModel):
 
 
 class SkillExtractionOutput(BaseModel):
-    """Structured output from skill extraction graph."""
     skills: list[dict[str, Any]] = Field(default_factory=list)
     categories: dict[str, list[str]] = Field(default_factory=dict)
     raw_skills: list[str] = Field(default_factory=list)
 
 
 class SkillRoadmapOutput(BaseModel):
-    """Structured output from skill roadmap generation graph."""
     roadmap: list[dict[str, Any]] = Field(default_factory=list)
     priorities: list[str] = Field(default_factory=list)
     estimated_timelines: dict[str, str] = Field(default_factory=dict)
@@ -132,7 +160,6 @@ class SkillRoadmapOutput(BaseModel):
 
 
 class InsightSectionOutput(BaseModel):
-    """Structured output for a single insight section."""
     section: str = ""
     data: dict[str, Any] = Field(default_factory=dict)
     summary: str = ""
@@ -140,7 +167,6 @@ class InsightSectionOutput(BaseModel):
 
 
 class CareerInsightsOutput(BaseModel):
-    """Structured output from career insights graph."""
     overview: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
     skills: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
     market: InsightSectionOutput = Field(default_factory=InsightSectionOutput)

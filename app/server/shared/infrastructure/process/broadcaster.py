@@ -91,7 +91,7 @@ class Broadcaster(IBroadcaster):
         room = self._room_for(event.table, event.pid)
         prefix = self._prefix(event.table)
         data = {'id': event.pid, 'step': event.step, 'msg': event.msg, 'ts': event.ts}
-        logger.info(f"[ws] {prefix}:log id={event.pid} step={event.step} msg={event.msg[:80]}")
+        logger.info(f"[ws] {prefix}:log id={event.pid} step={event.step} msg={event.msg[:300]}")
         self._emit(f'{prefix}:log', data, room=room)
         self._notify_listeners('log', data)
 
@@ -108,7 +108,7 @@ class Broadcaster(IBroadcaster):
         prefix = self._prefix(event.table)
         error_msg = f"[{event.step}] {event.msg}" if event.step else event.msg
         data = {'id': event.pid, 'msg': error_msg, 'step': event.step, 'ts': event.ts}
-        logger.error(f"[ws] {prefix}:error id={event.pid} step={event.step} msg={event.msg[:80]}")
+        logger.error(f"[ws] {prefix}:error id={event.pid} step={event.step} msg={event.msg[:300]}")
         self._emit(f'{prefix}:error', data, room=room)
         self._notify_listeners('error', data)
 

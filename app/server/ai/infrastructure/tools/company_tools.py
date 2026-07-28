@@ -1,13 +1,6 @@
-"""Company tools — wrap existing company processing services.
-
-Refactored to use the unified Tool Layer.
-SRP: Each tool handles one company-related operation.
-"""
-
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Optional
 
 from .base import BaseTool, ToolResult
@@ -15,11 +8,6 @@ from .web import CompanyFetchTool, MultiSourceFetchTool
 
 
 class FetchCompanyTool(BaseTool):
-    """Fetches company page content from a URL.
-
-    Uses the unified CompanyFetchTool for local-first fetching.
-    """
-
     def __init__(self):
         self._fetcher = CompanyFetchTool()
 
@@ -53,11 +41,6 @@ class FetchCompanyTool(BaseTool):
 
 
 class FetchMultiSourceCompanyTool(BaseTool):
-    """Fetches content from multiple sources for company processing.
-
-    Consolidates the multi-source fetching from company_worker.py.
-    """
-
     def __init__(self):
         self._fetcher = MultiSourceFetchTool(max_total_length=8000)
 
@@ -74,8 +57,6 @@ class FetchMultiSourceCompanyTool(BaseTool):
 
 
 class ExtractCompanyTool(BaseTool):
-    """Extracts structured company data from content."""
-
     @property
     def name(self) -> str:
         return "extract_company_data"
@@ -89,27 +70,20 @@ class ExtractCompanyTool(BaseTool):
         if not content:
             return ToolResult(success=False, error="content parameter is required")
 
-        pid = kwargs.get("pid", "ai_extract")
-
         try:
             from shared.infrastructure.ai.compat import get_llm_service
             from shared.infrastructure.prompts.loader import load_prompt
 
-            output_file = os.path.join(
-                os.environ.get("TEMP_DIR", "tmp"),
-                f"company_extract_{pid}.json",
-            )
             prompt = load_prompt(
                 "company/company_extract",
                 content=content[:8000],
                 input_type="multi_note",
-                output_file=output_file,
+                output_file="/tmp/ai_company_extract.json",
             )
 
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                context={"result_file": output_file, "pid": str(pid)},
                 timeout=180,
             )
             result = json.loads(resp.content)
@@ -119,8 +93,6 @@ class ExtractCompanyTool(BaseTool):
 
 
 class AnalyzeCompanyTool(BaseTool):
-    """Generates intelligence analysis for a company."""
-
     @property
     def name(self) -> str:
         return "analyze_company"
@@ -134,7 +106,6 @@ class AnalyzeCompanyTool(BaseTool):
         if not company_data:
             return ToolResult(success=False, error="company_data parameter is required")
 
-        pid = kwargs.get("pid", "ai_analyze")
         company_type = kwargs.get("company_type", "UNKNOWN")
 
         try:
@@ -142,11 +113,6 @@ class AnalyzeCompanyTool(BaseTool):
             from shared.infrastructure.prompts.loader import load_prompt
             from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
             from dependencies import get_session_sync
-
-            output_file = os.path.join(
-                os.environ.get("TEMP_DIR", "tmp"),
-                f"company_analyze_{pid}.json",
-            )
 
             session = get_session_sync()
             try:
@@ -182,13 +148,12 @@ class AnalyzeCompanyTool(BaseTool):
                 company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
                 company_type=company_type,
                 rules=rules,
-                output_file=output_file,
+                output_file="/tmp/ai_company_analyze.json",
             )
 
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                context={"result_file": output_file, "pid": str(pid)},
                 timeout=300,
             )
             result = json.loads(resp.content)

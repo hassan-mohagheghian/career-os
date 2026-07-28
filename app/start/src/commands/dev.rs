@@ -72,8 +72,6 @@ pub async fn start_backend_inner(config: &Config) -> Result<()> {
             "--host", "0.0.0.0", "--port", &port_str, "--reload",
         ])
         .current_dir(&config.repo_root)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
         .spawn()?;
 
     let pid = output.id();
@@ -94,8 +92,6 @@ async fn start_frontend_inner(config: &Config) -> Result<()> {
     let output = std::process::Command::new("npm")
         .args(["run", "dev", "--", "--port", &port_str])
         .current_dir(&config.client_dir)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
         .spawn()?;
 
     let pid = output.id();

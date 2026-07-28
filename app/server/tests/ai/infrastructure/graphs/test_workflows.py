@@ -5,9 +5,17 @@ DDD: Graphs model domain workflows as state machines.
 """
 
 import pytest
+import json
 from unittest.mock import MagicMock, patch
 
-from ai.infrastructure.graphs.runtime.state import create_initial_state
+from ai.infrastructure.graphs.runtime.state import (
+    create_initial_state,
+    JobProcessingState,
+    CompanyProcessingState,
+    InsightsState,
+    SkillRoadmapState,
+    CheckpointConfig,
+)
 from ai.infrastructure.graphs.runtime.graph import GraphBuilder, CompiledGraph
 from ai.infrastructure.graphs.runtime.executor import AgentExecutor
 from ai.infrastructure.graphs.runtime.registry import AgentRegistry
@@ -212,3 +220,139 @@ class TestRegistryIntegration:
 
         assert result["output"] == "agent result"
         registry.reset()
+
+
+# ── Checkpointing Tests ─────────────────────────────────────────────
+
+class TestCheckpointing:
+    """Checkpointing — LangGraph native checkpoint integration."""
+
+    def test_checkpoint_config_defaults(self):
+        config: CheckpointConfig = {"thread_id": "thread_1"}
+        assert config["thread_id"] == "thread_1"
+        assert "checkpoint_id" not in config
+
+    def test_checkpoint_config_full(self):
+        config: CheckpointConfig = {
+            "thread_id": "thread_1",
+            "checkpoint_id": "ckpt_001",
+        }
+        assert config["thread_id"] == "thread_1"
+        assert config["checkpoint_id"] == "ckpt_001"
+
+    def test_compile_with_checkpointer(self):
+        def node_a(state):
+            state["output"] = "checkpointed"
+            return state
+
+        builder = GraphBuilder("test_checkpoint")
+        builder.add_node("a", node_a)
+        builder.set_entry("a")
+        builder.set_finish("a")
+
+        from langgraph.checkpoint.memory import MemorySaver
+        graph = builder.compile(checkpointer=MemorySaver())
+        config = {"configurable": {"thread_id": "test_thread"}}
+        state = create_initial_state(input="test")
+        result = graph.invoke(state, config=config)
+
+        assert result["output"] == "checkpointed"
+
+    def test_graph_get_and_update_state(self):
+        def node_a(state):
+            state["output"] = "from_a"
+            state.setdefault("metadata", {})["visited_a"] = True
+            return state
+
+        builder = GraphBuilder("test_state_ops")
+        builder.add_node("a", node_a)
+        builder.set_entry("a")
+        builder.set_finish("a")
+
+        from langgraph.checkpoint.memory import MemorySaver
+        graph = builder.compile(checkpointer=MemorySaver())
+        config = {"configurable": {"thread_id": "state_ops"}}
+        state = create_initial_state(input="test")
+        graph.invoke(state, config=config)
+
+        saved = graph.get_state(config)
+        assert saved is not None
+        assert saved["output"] == "from_a"
+        assert saved["metadata"]["visited_a"] is True
+
+        graph.update_state(config, {"output": "updated"})
+        updated = graph.get_state(config)
+        assert updated["output"] == "updated"
+
+
+# ── Workflow State Transition Tests ────────────────────────────────
+
+class TestWorkflowStateTransitions:
+    """Workflow-specific state transitions."""
+
+    def test_job_processing_state_transition(self):
+        updated = JobProcessingState(
+            input="job url",
+            raw_content="job posting content",
+            job_title="Software Engineer",
+            job_company="Tech Corp",
+            job_num=1,
+            extraction_data={"title": "Software Engineer", "company": "Tech Corp"},
+            resume_text="",
+            linkedin_text="",
+            rules="",
+        )
+        assert updated["extraction_data"]["title"] == "Software Engineer"
+
+    def test_company_processing_state_transition(self):
+        updated = CompanyProcessingState(
+            input="company url",
+            raw_content="about page",
+            company_name="Tech Corp",
+            company_type="private",
+            extraction_data={"name": "Tech Corp", "industry": "AI"},
+            intelligence_data={},
+            scores={"overall": 85},
+        )
+        assert updated["scores"]["overall"] == 85
+
+    def test_insights_state_transition(self):
+        updated = InsightsState(
+            input="insight prompt",
+            section="skills",
+            section_data={"top_skills": ["Python", "ML"]},
+            all_results=[{"section": "skills", "data": {"top_skills": ["Python", "ML"]}}],
+            errors_list=[],
+        )
+        assert len(updated["all_results"]) == 1
+
+    def test_skill_roadmap_state_transition(self):
+        updated = SkillRoadmapState(
+            input="skill roadmap",
+            skill_name="Machine Learning",
+            job_type="engineer",
+            job_id=1,
+            items=[
+                {"skill": "Python", "level": "intermediate"},
+                {"skill": "TensorFlow", "level": "beginner"},
+            ],
+        )
+        assert len(updated["items"]) == 2
+
+    def test_state_serialization_roundtrip(self):
+        state = JobProcessingState(
+            input="test",
+            raw_content="raw",
+            job_title="Engineer",
+            job_company="Co",
+            job_num=1,
+            extraction_data={"key": "value"},
+            resume_text="resume",
+            linkedin_text="linkedin",
+            rules="rules",
+            output="result",
+        )
+        serialized = json.dumps(state, default=str)
+        deserialized = json.loads(serialized)
+        assert deserialized["input"] == "test"
+        assert deserialized["extraction_data"]["key"] == "value"
