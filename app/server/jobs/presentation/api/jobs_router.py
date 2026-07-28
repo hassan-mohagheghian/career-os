@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_job_repo, get_pending_repo, get_summary_repo, get_resume_repo
+from dependencies import get_job_repo, get_pending_repo, get_summary_repo, get_resume_repo, get_session_sync
 
 # Bounded context infrastructure
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -257,12 +257,10 @@ def reprocess_all(
 
 
 @router.post("/{num}/generate-resume")
-def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo), session = Depends(get_session_sync)):
     """Start background resume generation for a job."""
-    from dependencies import get_session_sync
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
-    session = get_session_sync()
     repo = SQLAlchemyJobRepository(session)
     job = repo.get_by_num(num)
     if not job:
@@ -302,30 +300,26 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
 
 
 @router.post("/{num}/generate-cover")
-def generate_cover(num: int):
+def generate_cover(num: int, session = Depends(get_session_sync)):
     """Start background cover letter generation for a job."""
-    from dependencies import get_session_sync
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    from exceptions import NotFoundError, BadRequestError
 
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyJobRepository(session)
-        job = repo.get_by_num(num)
-        if not job:
-            raise NotFoundError(f"Job {num} not found")
+    repo = SQLAlchemyJobRepository(session)
+    job = repo.get_by_num(num)
+    if not job:
+        from shared.application.exceptions import NotFoundError
+        raise NotFoundError(f"Job {num} not found")
 
-        gen_repo = SQLAlchemyPendingGenerationRepository(session)
-        running = gen_repo.get_active_for_job(num, "cover")
-        if running:
-            raise BadRequestError("A cover letter generation is already running for this job")
+    gen_repo = SQLAlchemyPendingGenerationRepository(session)
+    running = gen_repo.get_active_for_job(num, "cover")
+    if running:
+        from shared.application.exceptions import BadRequestError
+        raise BadRequestError("A cover letter generation is already running for this job")
 
-        gen = gen_repo.create(num, "cover", "queued")
-        gen_id = gen["id"]
-        session.commit()
-    finally:
-        pass
+    gen = gen_repo.create(num, "cover", "queued")
+    gen_id = gen["id"]
+    session.commit()
 
     def _run():
         from resume.infrastructure.workers.generation_worker import process_generation

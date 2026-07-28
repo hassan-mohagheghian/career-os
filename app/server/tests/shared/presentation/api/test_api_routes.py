@@ -308,26 +308,22 @@ class TestJobsAPI:
 
     def test_generate_resume(self, client, sa_session):
         create_test_job(sa_session, num=9900)
-        with patch('dependencies.get_session_sync', return_value=sa_session):
-            r = client.post("/api/jobs/9900/generate-resume")
-            assert r.status_code == 200
-            assert r.json()["status"] == "queued"
+        r = client.post("/api/jobs/9900/generate-resume")
+        assert r.status_code == 200, r.text
+        assert r.json()["status"] == "queued"
 
     def test_generate_resume_not_found(self, client, sa_session):
-        with patch('dependencies.get_session_sync', return_value=sa_session):
-            r = client.post("/api/jobs/99999/generate-resume")
-            assert r.status_code == 404
+        r = client.post("/api/jobs/99999/generate-resume")
+        assert r.status_code == 404, r.text
 
     def test_generate_cover(self, client, sa_session):
         create_test_job(sa_session, num=9901)
-        with patch('dependencies.get_session_sync', return_value=sa_session):
-            r = client.post("/api/jobs/9901/generate-cover")
-            assert r.status_code == 200
+        r = client.post("/api/jobs/9901/generate-cover")
+        assert r.status_code == 200, r.text
 
     def test_generate_cover_not_found(self, client, sa_session):
-        with patch('dependencies.get_session_sync', return_value=sa_session):
-            r = client.post("/api/jobs/99999/generate-cover")
-            assert r.status_code == 404
+        r = client.post("/api/jobs/99999/generate-cover")
+        assert r.status_code == 404, r.text
 
     def test_link_job_to_company(self, client, sa_session):
         company = create_test_company(sa_session)
