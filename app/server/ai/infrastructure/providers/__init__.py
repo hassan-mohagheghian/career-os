@@ -54,8 +54,11 @@ def _create_provider(name: str, config: Optional[ProviderConfig] = None) -> LLMP
     elif name == "opencode":
         from .opencode.adapter import OpencodeProvider
         return OpencodeProvider(config)
+    elif name == "mock":
+        from .mock.adapter import MockProvider
+        return MockProvider(config)
     else:
-        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local, gemini, agy, opencode")
+        raise ValueError(f"Unknown provider: {name!r}. Available: mimo, openai, local, gemini, agy, opencode, mock")
 
 
 def reset_providers():

@@ -19,24 +19,9 @@ def provider_config():
 
 @pytest.fixture
 def mock_llm_provider():
-    """Return a mock LLMProvider with pre-configured responses."""
-    from ai.infrastructure.providers.base import LLMProvider, ProviderResponse
-
-    provider = MagicMock(spec=LLMProvider)
-    provider.name = "mock"
-    provider.generate.return_value = ProviderResponse(
-        content="mock response",
-        metadata={"mock": True},
-        provider="mock",
-        model="mock-model",
-    )
-    provider.generate_structured.return_value = ProviderResponse(
-        content='{"result": "mock"}',
-        metadata={"mock": True},
-        provider="mock",
-        model="mock-model",
-    )
-    return provider
+    """Return a MockProvider with pre-configured responses."""
+    from ai.infrastructure.providers.mock import MockProvider
+    return MockProvider()
 
 
 @pytest.fixture

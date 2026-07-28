@@ -195,3 +195,92 @@ class TestProviderFactory:
         assert isinstance(provider, LLMProvider)
         assert provider.name == "opencode"
         reset_providers()
+
+    def test_get_provider_mock(self):
+        from ai.infrastructure.providers import get_provider, reset_providers
+        from ai.infrastructure.providers.mock import MockProvider
+        reset_providers()
+        provider = get_provider("mock")
+        assert isinstance(provider, MockProvider)
+        assert provider.name == "mock"
+        reset_providers()
+
+
+# ── MockProvider Tests ─────────────────────────────────────────────
+
+class TestMockProvider:
+    """Test the MockProvider — deterministic provider for tests."""
+
+    def test_satisfies_interface(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        provider = MockProvider()
+        assert isinstance(provider, LLMProvider)
+
+    def test_default_responses(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        provider = MockProvider()
+        resp = provider.generate("hello")
+        assert resp.content == "mock response"
+        assert resp.metadata == {"mock": True}
+        assert resp.provider == "mock"
+        assert resp.model == "mock-model"
+
+    def test_default_structured_response(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        provider = MockProvider()
+        resp = provider.generate_structured("hello")
+        assert resp.content == '{"result": "mock"}'
+
+    def test_custom_responses_via_config(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        config = ProviderConfig(
+            name="mock",
+            extra={
+                "mock_response": "custom response",
+                "mock_structured_response": '{"custom": true}',
+            },
+        )
+        provider = MockProvider(config)
+        assert provider.generate("test").content == "custom response"
+        assert provider.generate_structured("test").content == '{"custom": true}'
+
+    def test_call_tracking(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        provider = MockProvider()
+        provider.generate("first")
+        provider.generate_structured("second", schema={"type": "object"})
+        provider.generate("third")
+
+        assert len(provider.calls) == 3
+        assert len(provider.generate_calls) == 2
+        assert len(provider.structured_calls) == 1
+        assert provider.generate_calls[0].prompt == "first"
+        assert provider.structured_calls[0].schema == {"type": "object"}
+
+    def test_reset_clears_history(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        provider = MockProvider()
+        provider.generate("test")
+        assert len(provider.calls) == 1
+        provider.reset()
+        assert len(provider.calls) == 0
+
+    def test_error_simulation(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        config = ProviderConfig(
+            name="mock",
+            extra={"mock_error": RuntimeError("boom")},
+        )
+        provider = MockProvider(config)
+        with pytest.raises(RuntimeError, match="boom"):
+            provider.generate("test")
+
+    def test_structured_error_simulation(self):
+        from ai.infrastructure.providers.mock import MockProvider
+        config = ProviderConfig(
+            name="mock",
+            extra={"mock_structured_error": ValueError("bad json")},
+        )
+        provider = MockProvider(config)
+        with pytest.raises(ValueError, match="bad json"):
+            provider.generate_structured("test")
