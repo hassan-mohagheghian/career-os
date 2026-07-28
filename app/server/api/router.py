@@ -1,13 +1,22 @@
-"""Root API router. Matches the exact paths the frontend expects."""
+"""Root API router. Matches the exact paths the frontend expects.
+
+Routes are organized by bounded context. The v1 sub-routers handle
+the actual endpoint logic.
+"""
 
 from fastapi import APIRouter, Depends
 
+# V1 sub-routers (will migrate to bounded context presentation layers)
 from api.v1 import jobs, skills, companies, insights, pending, pending_companies, resumes, skill_roadmaps, rules, dashboard, websocket, sse
+
+# DI dependencies — now wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_pending_repo, get_insight_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
-from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+
+# Bounded context infrastructure — for inline routes in this file
+from jobs.infrastructure import SQLAlchemyJobRepository
+from skills.infrastructure import SQLAlchemySkillRepository
+from career.infrastructure import SQLAlchemyInsightRepository
+from pending.infrastructure import SQLAlchemyPendingRepository
 
 api_router = APIRouter(prefix="/api")
 
@@ -32,8 +41,8 @@ api_router.include_router(sse.router, tags=["sse"])
 @api_router.post("/generations/{gen_id}/cancel")
 def cancel_generation(gen_id: int):
     """Cancel a running generation."""
-    from exceptions import NotFoundError
-    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from shared.application.exceptions import NotFoundError
+    from pending.infrastructure import SQLAlchemyPendingGenerationRepository
 
     session = get_session_sync()
     try:
@@ -52,7 +61,7 @@ def cancel_generation(gen_id: int):
 
 @api_router.get("/summaries")
 def summaries_compat():
-    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySummaryRepository(session)
@@ -63,7 +72,7 @@ def summaries_compat():
 
 @api_router.get("/linkedin")
 def linkedin_compat():
-    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+    from resume.infrastructure import SQLAlchemyResumeRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyResumeRepository(session)
@@ -98,7 +107,7 @@ def skills_intel_dashboard_compat():
 
 @api_router.get("/skill-roadmap-progress/all")
 def skill_roadmap_progress_all():
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRoadmapProgressRepository(session)
@@ -109,7 +118,7 @@ def skill_roadmap_progress_all():
 
 @api_router.get("/skill-roadmap-progress")
 def skill_roadmap_progress_compat(skill: str = None):
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRoadmapProgressRepository(session)
@@ -123,7 +132,7 @@ def skill_roadmap_progress_compat(skill: str = None):
 
 @api_router.patch("/skill-roadmap-progress/{id}")
 def toggle_roadmap_progress(id: int, data: dict = None):
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRoadmapProgressRepository(session)
@@ -135,7 +144,7 @@ def toggle_roadmap_progress(id: int, data: dict = None):
 
 @api_router.put("/skill-roadmap-progress/{id}")
 def update_roadmap_progress(id: int, data: dict = None):
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRoadmapProgressRepository(session)
@@ -148,7 +157,7 @@ def update_roadmap_progress(id: int, data: dict = None):
 
 @api_router.get("/skill-roadmap-jobs")
 def skill_roadmap_jobs_compat(limit: int = 50):
-    from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRoadmapJobRepository(session)
@@ -171,7 +180,7 @@ def get_skill_relationships_compat(skill_name: str):
 
 @api_router.post("/skill-relationships")
 def create_skill_relationship_compat(data: dict):
-    from exceptions import ConflictError
+    from shared.application.exceptions import ConflictError
     session = get_session_sync()
     try:
         repo = SQLAlchemySkillRepository(session)
@@ -258,8 +267,8 @@ def reprocess_company(id: int):
     from core.queue import get_queue_manager
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from companies.infrastructure import SQLAlchemyCompanyRepository
+        from pending.infrastructure import SQLAlchemyPendingRepository
         company_repo = SQLAlchemyCompanyRepository(session)
         pending_repo = SQLAlchemyPendingRepository(session)
         company = company_repo.get_by_id(id)

@@ -28,7 +28,7 @@ os.makedirs(TMP_DIR, exist_ok=True)
 
 def _log(pid, step, msg):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyPendingRepository(session)
@@ -42,7 +42,7 @@ def _log(pid, step, msg):
 def _load_rules(context='job'):
     """Load enabled scoring rules from DB, filtered by context, ordered by priority desc."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+    from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyPreferenceRepository(session)
@@ -68,7 +68,7 @@ def _load_rules(context='job'):
 
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyPendingRepository(session)
@@ -95,7 +95,7 @@ def _fail(pid, msg, step=None):
 
 def _get_next_num():
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
@@ -106,7 +106,7 @@ def _get_next_num():
 def _get_existing_num(url):
     """Check if a job with this URL already exists. Returns its num or None."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
@@ -145,7 +145,7 @@ def _parse_adv_at(posted_text):
 
 def _insert_job(d):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     d = _normalize_job_data(d)
     now = datetime.now().isoformat()
     adv_at = d.get('adv_at') or _parse_adv_at(d.get('posted', ''))
@@ -232,7 +232,7 @@ def _insert_job(d):
 
 def _save_job_workflow_log(num, log_json):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
@@ -242,7 +242,7 @@ def _save_job_workflow_log(num, log_json):
 
 def _insert_summary(d):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemySummaryRepository(session)
@@ -262,7 +262,7 @@ def _insert_summary(d):
 
 def _insert_resume(d):
     from dependencies import get_session_sync
-    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyResumeRepository(session)
@@ -283,7 +283,7 @@ def _insert_resume(d):
 def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
@@ -458,8 +458,8 @@ async def stream_mimo(pid, prompt):
 async def process_job_stream(pid):
     """Full pipeline with streaming output."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
     session = get_session_sync()
     try:
@@ -512,7 +512,7 @@ async def process_job_stream(pid):
                 company = ''
         if title or company:
             from dependencies import get_session_sync as _gss
-            from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
+            from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
             _s = _gss()
             try:
                 _SPR(_s).update_fields(pid, company=company or title[:40])
@@ -613,7 +613,7 @@ async def process_job_stream(pid):
         _mark(pid, 'step_done')
         # Save workflow_log to jobs table
         from dependencies import get_session_sync as _gss2
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR2
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR2
         _s2 = _gss2()
         try:
             _item = _SPR2(_s2).get_by_id(pid)
@@ -654,7 +654,7 @@ async def handler(websocket):
                 clients[pid].add(websocket)
                 # Send current state
                 from dependencies import get_session_sync
-                from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
                 session = get_session_sync()
                 try:
                     pending_repo = SQLAlchemyPendingRepository(session)

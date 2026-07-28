@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from dependencies import get_session_sync
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
 
 router = APIRouter()
 

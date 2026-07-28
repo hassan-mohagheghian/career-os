@@ -12,13 +12,13 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Import SA Base and all models to register them
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.job_model
-import infrastructure.database.models.skill_model
-import infrastructure.database.models.company_model
-import infrastructure.database.models.pending_model
-import infrastructure.database.models.insight_model
-import infrastructure.database.models.misc_models
+from shared.infrastructure.database.sqlalchemy_config import Base
+import jobs.infrastructure.models.job_model
+import skills.infrastructure.models.skill_model
+import companies.infrastructure.models.company_model
+import pending.infrastructure.models.pending_model
+import career.infrastructure.models.insight_model
+import shared.infrastructure.database.models.misc_models
 
 
 @pytest.fixture

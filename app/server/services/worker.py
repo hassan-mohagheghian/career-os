@@ -90,7 +90,7 @@ _load_env()
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
         pending_repo = SQLAlchemyPendingRepository(session)
         fields = {step: val}
         if status:
@@ -123,7 +123,7 @@ def _save_session_id(pid, session_id):
     """Save mimo session_id to pending_jobs."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
         pending_repo = SQLAlchemyPendingRepository(session)
         pending_repo.save_session_id(pid, session_id)
     finally:
@@ -136,7 +136,7 @@ def _save_session_id(pid, session_id):
 def _get_next_num():
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         return job_repo.get_next_num()
     finally:
@@ -146,7 +146,7 @@ def _get_existing_num(url):
     """Check if a job with this URL already exists. Returns its num or None."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         return job_repo.get_num_by_url(url)
     finally:
@@ -247,7 +247,7 @@ def _insert_job(d):
 
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         job_repo.upsert(job_data)
     finally:
@@ -321,7 +321,7 @@ def _save_job_workflow_log(num, log_json):
     """Save workflow log to the jobs table."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         job_repo.update_workflow_log(num, log_json)
     finally:
@@ -330,7 +330,7 @@ def _save_job_workflow_log(num, log_json):
 def _insert_summary(d):
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
+        from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
         summary_repo = SQLAlchemySummaryRepository(session)
         summary_repo.upsert(d)
     finally:
@@ -339,7 +339,7 @@ def _insert_summary(d):
 def _insert_resume(d):
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
         resume_repo = SQLAlchemyResumeRepository(session)
         resume_repo.upsert(d)
     finally:
@@ -352,7 +352,7 @@ def _get_item(pid):
     """Re-read the pending item from DB to check for status changes (pause/stop)."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
         pending_repo = SQLAlchemyPendingRepository(session)
         return pending_repo.get_by_id(pid, "pending_jobs")
     finally:
@@ -370,7 +370,7 @@ def rescore_only(num):
     Reads the raw description, runs mimo analysis, and updates the job."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         j = job_repo.get_by_num(num)
     finally:
@@ -391,7 +391,7 @@ def rescore_only(num):
         log.warning("worker.rescore_no_raw", num=num)
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
             job_repo.update_fields(num, rescoring=0)
         finally:
@@ -407,7 +407,7 @@ def rescore_only(num):
         resume_file = os.path.join(TMP_DIR, f'rescore_resume_{num}.txt')
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             resume_repo = SQLAlchemyResumeRepository(session)
             raw_text = resume_repo.get_latest_original_raw_text()
         finally:
@@ -522,7 +522,7 @@ def rescore_only(num):
         # Clear rescoring flag
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
             job_repo.update_fields(num, rescoring=0)
         finally:
@@ -537,7 +537,7 @@ def rescore_only(num):
         # Clear rescoring flag on failure
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
             job_repo.update_fields(num, rescoring=0)
         finally:
@@ -571,7 +571,7 @@ def _log(pid, step, msg):
     """Append a workflow log entry."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
         pending_repo = SQLAlchemyPendingRepository(session)
         item = pending_repo.get_by_id(pid, "pending_jobs")
         logs = json.loads(item['workflow_log'] or '[]') if item else []
@@ -594,7 +594,7 @@ def _load_rules(context='job'):
     """
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
         pref_repo = SQLAlchemyPreferenceRepository(session)
         rows = pref_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
     finally:
@@ -649,7 +649,7 @@ def _mark_old_job_deleted(url, exclude_num=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
         job_repo.set_deleted_by_url(url, exclude_num)
     finally:
@@ -938,7 +938,7 @@ def process_job(pid):
     """
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
         pending_repo = SQLAlchemyPendingRepository(session)
         item = pending_repo.get_by_id(pid, "pending_jobs")
     finally:
@@ -963,7 +963,7 @@ def process_job(pid):
             # Load existing job from DB
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
                 job_repo = SQLAlchemyJobRepository(session)
                 ej = job_repo.get_by_num(item.get('job_num', 0))
             finally:
@@ -1031,7 +1031,7 @@ def process_job(pid):
             resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
                 resume_repo = SQLAlchemyResumeRepository(session)
                 raw_text = resume_repo.get_latest_original_raw_text()
             finally:
@@ -1047,7 +1047,7 @@ def process_job(pid):
             linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
                 resume_repo = SQLAlchemyResumeRepository(session)
                 linkedin_text = resume_repo.get_latest_linkedin_raw_text()
             finally:
@@ -1155,7 +1155,7 @@ def process_job(pid):
             # Clear rescoring flag
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
                 job_repo = SQLAlchemyJobRepository(session)
                 job_repo.update_fields(job_data['num'], rescoring=0)
             finally:
@@ -1172,7 +1172,7 @@ def process_job(pid):
             # Save workflow_log to jobs table
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
                 pending_repo = SQLAlchemyPendingRepository(session)
                 pw_item = pending_repo.get_by_id(pid, "pending_jobs")
             finally:
@@ -1268,7 +1268,7 @@ def process_job(pid):
         if title or company:
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
                 pending_repo = SQLAlchemyPendingRepository(session)
                 pending_repo.update_fields(pid, "pending_jobs", company=company or title[:40])
             finally:
@@ -1327,7 +1327,7 @@ def process_job(pid):
         resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             resume_repo = SQLAlchemyResumeRepository(session)
             raw_text_resume = resume_repo.get_latest_original_raw_text()
         finally:
@@ -1343,7 +1343,7 @@ def process_job(pid):
         linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             resume_repo = SQLAlchemyResumeRepository(session)
             linkedin_text = resume_repo.get_latest_linkedin_raw_text()
         finally:
@@ -1469,9 +1469,9 @@ def process_job(pid):
             if old_num and old_num != job_data['num']:
                 session = get_session_sync()
                 try:
-                    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-                    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
-                    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+                    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+                    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+                    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
                     job_repo = SQLAlchemyJobRepository(session)
                     summary_repo = SQLAlchemySummaryRepository(session)
                     resume_repo = SQLAlchemyResumeRepository(session)
@@ -1492,7 +1492,7 @@ def process_job(pid):
         ))
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+            from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
             pending_repo = SQLAlchemyPendingRepository(session)
             pw_item = pending_repo.get_by_id(pid, "pending_jobs")
         finally:

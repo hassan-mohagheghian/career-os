@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from infrastructure.websocket.manager import get_connection_manager
+from shared.infrastructure.websocket.manager import get_connection_manager
 from services.process.logging_config import get_logger
 
 log = get_logger("websocket")

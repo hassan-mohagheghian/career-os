@@ -74,8 +74,8 @@ class GenerationWorker(WorkerBase):
         """Load job and resume data."""
         self._log(pid, 'prepare', f'Loading job #{item.get("job_num")} data')
         from dependencies import get_session_sync
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-        from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
         session = get_session_sync()
         try:
             job_repo = SQLAlchemyJobRepository(session)
@@ -188,8 +188,8 @@ class GenerationWorker(WorkerBase):
         """Save generated content to DB."""
         self._log(pid, 'save', 'Saving to database...')
         from dependencies import get_session_sync
-        from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
-        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+        from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
         session = get_session_sync()
         try:
             resume_repo = SQLAlchemyResumeRepository(session)

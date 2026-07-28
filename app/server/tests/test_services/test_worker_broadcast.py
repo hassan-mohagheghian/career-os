@@ -7,9 +7,9 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from services.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.pending_model
-from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+import pending.infrastructure.models.pending_model
+from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 
 
 @pytest.fixture

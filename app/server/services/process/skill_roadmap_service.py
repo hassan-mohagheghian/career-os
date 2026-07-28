@@ -62,7 +62,7 @@ class SkillRoadmapService:
     def get_jobs(self, limit: int = 50) -> list:
         """Get recent roadmap jobs."""
         from dependencies import get_session_sync
-        from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+        from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
         session = get_session_sync()
         try:
             repo = SQLAlchemySkillRoadmapJobRepository(session)

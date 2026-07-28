@@ -3,9 +3,8 @@
 from fastapi import APIRouter, Depends
 
 from dependencies import get_insight_repo, get_career_insight_run_repo
-from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
-from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-from infrastructure.workers.background import get_task_manager, generate_insights_task
+from career.infrastructure import SQLAlchemyInsightRepository, SQLAlchemyCareerInsightRunRepository
+from shared.infrastructure.workers.background import get_task_manager, generate_insights_task
 
 router = APIRouter()
 

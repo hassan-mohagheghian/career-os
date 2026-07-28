@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.job_model
+from shared.infrastructure.database.sqlalchemy_config import Base
+import jobs.infrastructure.models.job_model
 
 
 # ── Score Normalization ────────────────────────────────────────────
@@ -242,7 +242,7 @@ class TestGetNextNum:
 
     def test_existing_jobs(self):
         from services.worker import _get_next_num
-        from infrastructure.database.models.job_model import JobModel
+        from jobs.infrastructure.models.job_model import JobModel
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             test_db = f.name
         try:
@@ -262,7 +262,7 @@ class TestGetNextNum:
 class TestGetExistingNum:
     def test_existing_url(self):
         from services.worker import _get_existing_num
-        from infrastructure.database.models.job_model import JobModel
+        from jobs.infrastructure.models.job_model import JobModel
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             test_db = f.name
         try:

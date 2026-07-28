@@ -72,7 +72,7 @@ def _cleanup_stale_runs():
             from dependencies import get_session_sync
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
                 repo = SQLAlchemyCareerInsightRunRepository(session)
                 cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
                 repo.cleanup_stale_runs(cutoff)
@@ -102,7 +102,7 @@ def is_running():
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
         repo = SQLAlchemyCareerInsightRunRepository(session)
         row = repo.get_latest_processing()
         if row:
@@ -181,7 +181,7 @@ def cancel_run():
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
         repo = SQLAlchemyCareerInsightRunRepository(session)
         row = repo.get_latest_processing()
         if row:
@@ -199,7 +199,7 @@ def _start_run(insight_type):
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
         repo = SQLAlchemyCareerInsightRunRepository(session)
         run = repo.create(insight_type, version=CURRENT_VERSION, status='processing')
         return run['id']
@@ -211,7 +211,7 @@ def _complete_run(run_id, status='completed', error=None, session_id=None):
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
         repo = SQLAlchemyCareerInsightRunRepository(session)
         repo.complete(run_id, status, error_message=error, session_id=session_id)
     finally:
@@ -226,7 +226,7 @@ def _save_session_id(run_id, session_id):
         from dependencies import get_session_sync
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+            from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
             repo = SQLAlchemyCareerInsightRunRepository(session)
             repo.update_session_id(run_id, session_id)
         finally:
@@ -240,7 +240,7 @@ def _save_insight(insight_type, data, score=None, summary=None):
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
+        from career.infrastructure.repositories.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
         repo = SQLAlchemyCareerInsightRepository(session)
         repo.upsert(insight_type, data, version=CURRENT_VERSION, score=score, summary=summary)
     finally:
@@ -336,7 +336,7 @@ def _collect_jobs_data():
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         repo = SQLAlchemyJobRepository(session)
         return repo.get_all_for_insights()
     finally:
@@ -347,7 +347,7 @@ def _collect_companies_data():
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+        from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
         repo = SQLAlchemyCompanyRepository(session)
         return repo.get_all_with_job_counts()
     finally:
@@ -358,8 +358,8 @@ def _collect_skills_data():
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-        from infrastructure.database.sa_tech_learning_repository import SQLAlchemyTechLearningRepository
+        from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
+        from skills.infrastructure.repositories.sa_tech_learning_repository import SQLAlchemyTechLearningRepository
         skill_repo = SQLAlchemySkillRepository(session)
         learning_repo = SQLAlchemyTechLearningRepository(session)
         return {
@@ -395,7 +395,7 @@ def generate_skills_intel(pid=0):
             from dependencies import get_session_sync
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
                 repo = SQLAlchemyCareerInsightRunRepository(session)
                 prev_sid = repo.get_latest_session_id('skills_intel')
             finally:
@@ -468,9 +468,9 @@ def _fill_skills_from_insights(result):
         from dependencies import get_session_sync
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-            from infrastructure.database.sa_skill_alias_repository import SQLAlchemySkillAliasRepository
-            from infrastructure.database.sa_skill_relationship_repository import SQLAlchemySkillRelationshipRepository
+            from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
+            from skills.infrastructure.repositories.sa_skill_alias_repository import SQLAlchemySkillAliasRepository
+            from skills.infrastructure.repositories.sa_skill_relationship_repository import SQLAlchemySkillRelationshipRepository
 
             skill_repo = SQLAlchemySkillRepository(session)
             alias_repo = SQLAlchemySkillAliasRepository(session)
@@ -649,7 +649,7 @@ def generate_all(pid=0):
             from dependencies import get_session_sync
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
                 repo = SQLAlchemyCareerInsightRunRepository(session)
                 for section in sections:
                     sid = repo.get_latest_session_id(section)
@@ -752,7 +752,7 @@ def generate_section(section, pid=0):
             from dependencies import get_session_sync
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+                from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
                 repo = SQLAlchemyCareerInsightRunRepository(session)
                 prev_sid = repo.get_latest_session_id(section)
             finally:
@@ -792,7 +792,7 @@ def get_latest(insight_type=None):
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
+        from career.infrastructure.repositories.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
         repo = SQLAlchemyCareerInsightRepository(session)
         if insight_type:
             row = repo.get_section(insight_type)
@@ -818,7 +818,7 @@ def get_runs(insight_type=None, limit=10, offset=0):
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
         repo = SQLAlchemyCareerInsightRunRepository(session)
         total = repo.get_total_count(insight_type)
         items = repo.get_runs(insight_type, limit=limit, offset=offset)

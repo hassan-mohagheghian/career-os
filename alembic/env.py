@@ -16,10 +16,10 @@ _server_dir = os.path.join(os.path.dirname(__file__), '..', 'app', 'server')
 sys.path.insert(0, os.path.abspath(_server_dir))
 
 from config import DB_PATH
-from infrastructure.database.sqlalchemy_config import Base
+from shared.infrastructure.database.sqlalchemy_config import Base
 
 # Import all models so Alembic can detect them for autogeneration
-from infrastructure.database import models  # noqa: F401
+from shared.infrastructure.database import models  # noqa: F401
 
 
 # this is the Alembic Config object, which provides

@@ -5,11 +5,9 @@ import json
 from fastapi import APIRouter, Depends
 
 from dependencies import get_company_repo, get_company_link_repo, get_company_intelligence_repo, get_job_repo
-from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
-from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
-from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-from exceptions import NotFoundError
+from companies.infrastructure import SQLAlchemyCompanyRepository, SQLAlchemyCompanyIntelligenceRepository, SQLAlchemyCompanyLinkRepository
+from jobs.infrastructure import SQLAlchemyJobRepository
+from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 

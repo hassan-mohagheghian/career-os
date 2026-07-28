@@ -6,11 +6,15 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_job_repo, get_pending_repo, get_summary_repo, get_resume_repo
-from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
-from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
-from exceptions import NotFoundError, BadRequestError
+
+# Bounded context infrastructure
+from jobs.infrastructure import SQLAlchemyJobRepository
+from pending.infrastructure import SQLAlchemyPendingRepository
+from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+from resume.infrastructure import SQLAlchemyResumeRepository
+
+# Application exceptions
+from shared.application.exceptions import NotFoundError, BadRequestError
 
 router = APIRouter()
 
@@ -256,7 +260,7 @@ def reprocess_all(
 def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Start background resume generation for a job."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
     session = get_session_sync()
     repo = SQLAlchemyJobRepository(session)
@@ -264,7 +268,7 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     gen_repo = SQLAlchemyPendingGenerationRepository(session)
 
     running = gen_repo.get_active_for_job(num, "resume")
@@ -285,7 +289,7 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
             try:
                 s = get_session_sync()
                 try:
-                    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+                    from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
                     SQLAlchemyPendingGenerationRepository(s).update_fields(gen_id, status="failed", error=str(e))
                     s.commit()
                 finally:
@@ -301,8 +305,8 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
 def generate_cover(num: int):
     """Start background cover letter generation for a job."""
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+    from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     from exceptions import NotFoundError, BadRequestError
 
     session = get_session_sync()

@@ -8,10 +8,10 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.pending_model
-import infrastructure.database.models.company_model
-from infrastructure.database.models.pending_model import PendingCompanyModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+import pending.infrastructure.models.pending_model
+import companies.infrastructure.models.company_model
+from pending.infrastructure.models.pending_model import PendingCompanyModel
 
 
 @pytest.fixture

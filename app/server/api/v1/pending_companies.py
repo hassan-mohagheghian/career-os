@@ -5,8 +5,8 @@ import json
 from fastapi import APIRouter, Depends
 
 from dependencies import get_pending_repo
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-from exceptions import NotFoundError
+from pending.infrastructure import SQLAlchemyPendingRepository
+from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 

@@ -11,13 +11,13 @@ DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_p
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.pending_model
-import infrastructure.database.models.job_model
-import infrastructure.database.models.misc_models
-from infrastructure.database.models.pending_model import PendingJobModel
-from infrastructure.database.models.job_model import JobModel
-from infrastructure.database.models.misc_models import SummaryModel, ResumeModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+import pending.infrastructure.models.pending_model
+import jobs.infrastructure.models.job_model
+import shared.infrastructure.database.models.misc_models
+from pending.infrastructure.models.pending_model import PendingJobModel
+from jobs.infrastructure.models.job_model import JobModel
+from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
 
 def get_session():

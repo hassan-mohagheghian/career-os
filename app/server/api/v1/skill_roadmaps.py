@@ -4,10 +4,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo
-from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-from exceptions import NotFoundError
+from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -157,5 +157,5 @@ def cancel_roadmap(skill: str = Query(...)):
 
 # Lazy import to avoid circular
 def get_task_manager():
-    from infrastructure.workers.background import get_task_manager as _get
+    from shared.infrastructure.workers.background import get_task_manager as _get
     return _get()

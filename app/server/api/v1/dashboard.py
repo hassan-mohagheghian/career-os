@@ -5,10 +5,10 @@ import json
 from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_job_repo, get_company_repo, get_skill_repo, get_pending_repo
-from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
-from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from jobs.infrastructure import SQLAlchemyJobRepository
+from companies.infrastructure import SQLAlchemyCompanyRepository
+from skills.infrastructure import SQLAlchemySkillRepository
+from pending.infrastructure import SQLAlchemyPendingRepository
 
 router = APIRouter()
 

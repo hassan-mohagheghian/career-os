@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Optional
 
 from dependencies import get_session_sync
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ class JobQueueManager:
         session = get_session_sync()
         try:
             repo = _repo(session)
-            from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
+            from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 
             processing_items = repo.get_processing_items('pending_jobs')
             queued_count = repo.get_queued_count('pending_jobs')

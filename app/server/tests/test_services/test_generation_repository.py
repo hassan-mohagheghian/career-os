@@ -16,10 +16,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from infrastructure.database.sqlalchemy_config import Base
-from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
-from infrastructure.database.models.misc_models import SkillRoadmapJobModel
-from infrastructure.database.models.insight_model import CareerInsightRunModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
+from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
+from career.infrastructure.models.insight_model import CareerInsightRunModel
 
 from services.process.generation_models import GenerationHistoryItem
 from services.process.generation_repository import GenerationHistoryRepository

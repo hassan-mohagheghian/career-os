@@ -13,7 +13,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from infrastructure.database.models.pending_model import (
+from pending.infrastructure.models.pending_model import (
     PendingJobModel, PendingCompanyModel, PendingGenerationModel,
 )
 from services.process.generation_models import GenerationSource, GenerationStatus

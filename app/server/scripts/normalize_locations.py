@@ -12,9 +12,9 @@ DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_p
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.job_model
-from infrastructure.database.models.job_model import JobModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+import jobs.infrastructure.models.job_model
+from jobs.infrastructure.models.job_model import JobModel
 
 CITY_PATTERNS = [
     'Berlin', 'Munich', 'München', 'Hamburg', 'Heidelberg', 'Frankfurt',

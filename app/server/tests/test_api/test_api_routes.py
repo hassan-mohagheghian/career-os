@@ -9,13 +9,13 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.job_model
-import infrastructure.database.models.skill_model
-import infrastructure.database.models.company_model
-import infrastructure.database.models.pending_model
-import infrastructure.database.models.insight_model
-import infrastructure.database.models.misc_models
+from shared.infrastructure.database.sqlalchemy_config import Base
+import jobs.infrastructure.models.job_model
+import skills.infrastructure.models.skill_model
+import companies.infrastructure.models.company_model
+import pending.infrastructure.models.pending_model
+import career.infrastructure.models.insight_model
+import shared.infrastructure.database.models.misc_models
 
 
 # ── Fixtures ──────────────────────────────────────────────────────
@@ -32,7 +32,11 @@ def test_db():
 
 @pytest.fixture()
 def sa_session(test_db):
-    test_db.rollback()
+    try:
+        test_db.rollback()
+    except Exception:
+        test_db.close()
+        test_db.begin()
     yield test_db
 
 
@@ -50,21 +54,21 @@ def _build_app(sa_session):
         get_pending_generation_repo, get_career_insight_run_repo,
         get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
     )
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-    from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-    from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
-    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
-    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
-    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
-    from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
-    from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-    from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-    from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+    from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
+    from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
+    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from career.infrastructure.repositories.sa_insight_repository import SQLAlchemyInsightRepository
+    from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+    from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
+    from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+    from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+    from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+    from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 
     app = create_app()
     app.router.lifespan_context = no_lifespan
@@ -106,7 +110,7 @@ def client(test_db):
 # ── Helper functions ──────────────────────────────────────────────
 
 def create_test_job(session, num=9001, company="TestCorp_API", url="https://example.com/api-test", **overrides):
-    from infrastructure.database.models.job_model import JobModel
+    from jobs.infrastructure.models.job_model import JobModel
     job = JobModel(num=num, company=company, role="API Tester", location="Berlin",
                    url=url, match="95%", score="A", work_type="Remote",
                    deleted=0, workflow_log="[]", locations='["Berlin"]', work_types='["Remote"]',
@@ -117,7 +121,7 @@ def create_test_job(session, num=9001, company="TestCorp_API", url="https://exam
 
 
 def create_test_skill(session, name="Python_API", level=8, category="technical"):
-    from infrastructure.database.models.skill_model import SkillModel
+    from skills.infrastructure.models.skill_model import SkillModel
     skill = SkillModel(name=name, level=level, category=category, source="api_test")
     session.add(skill)
     session.commit()
@@ -125,7 +129,7 @@ def create_test_skill(session, name="Python_API", level=8, category="technical")
 
 
 def create_test_company(session, name="TestCorp_API"):
-    from infrastructure.database.models.company_model import CompanyModel
+    from companies.infrastructure.models.company_model import CompanyModel
     company = CompanyModel(name=name, industry="Tech", city="Berlin", country="DE")
     session.add(company)
     session.commit()
@@ -133,7 +137,7 @@ def create_test_company(session, name="TestCorp_API"):
 
 
 def create_test_pending_job(session, url="https://example.com/pending-api-test", status="pending"):
-    from infrastructure.database.models.pending_model import PendingJobModel
+    from pending.infrastructure.models.pending_model import PendingJobModel
     item = PendingJobModel(url=url, source="api_test", status=status)
     session.add(item)
     session.commit()
@@ -141,7 +145,7 @@ def create_test_pending_job(session, url="https://example.com/pending-api-test",
 
 
 def create_test_pending_company(session, input_text="TestCompany_API", status="pending"):
-    from infrastructure.database.models.pending_model import PendingCompanyModel
+    from pending.infrastructure.models.pending_model import PendingCompanyModel
     item = PendingCompanyModel(input_text=input_text, source="api_test", status=status)
     session.add(item)
     session.commit()
@@ -149,7 +153,7 @@ def create_test_pending_company(session, input_text="TestCompany_API", status="p
 
 
 def create_test_insight(session, insight_type="skills", data_json='{"test": true}'):
-    from infrastructure.database.models.insight_model import CareerInsightModel
+    from career.infrastructure.models.insight_model import CareerInsightModel
     insight = CareerInsightModel(insight_type=insight_type, data_json=data_json, score=8.5)
     session.add(insight)
     session.commit()
@@ -157,7 +161,7 @@ def create_test_insight(session, insight_type="skills", data_json='{"test": true
 
 
 def create_test_resume(session, id="resume_api_test", title="API Test Resume"):
-    from infrastructure.database.models.misc_models import ResumeModel
+    from shared.infrastructure.database.models.misc_models import ResumeModel
     resume = ResumeModel(id=id, title=title, content="Test content", raw_text="Raw text")
     session.add(resume)
     session.commit()
@@ -165,7 +169,7 @@ def create_test_resume(session, id="resume_api_test", title="API Test Resume"):
 
 
 def create_test_roadmap(session, skill_name="Python_API", title="Basics"):
-    from infrastructure.database.models.misc_models import SkillRoadmapModel
+    from shared.infrastructure.database.models.misc_models import SkillRoadmapModel
     rm = SkillRoadmapModel(skill_name=skill_name, title=title, description="Test roadmap")
     session.add(rm)
     session.commit()
@@ -173,7 +177,7 @@ def create_test_roadmap(session, skill_name="Python_API", title="Basics"):
 
 
 def create_test_preference(session, category="location", key="berlin", value="true", scope="SHARED"):
-    from infrastructure.database.models.misc_models import PreferenceModel
+    from shared.infrastructure.database.models.misc_models import PreferenceModel
     pref = PreferenceModel(category=category, key=key, value=value, scope=scope)
     session.add(pref)
     session.commit()
@@ -181,7 +185,7 @@ def create_test_preference(session, category="location", key="berlin", value="tr
 
 
 def create_test_summary(session, num=9001, company="TestCorp_API"):
-    from infrastructure.database.models.misc_models import SummaryModel
+    from shared.infrastructure.database.models.misc_models import SummaryModel
     summary = SummaryModel(num=num, company=company, match="95%", score="A", summary="Test summary")
     session.add(summary)
     session.commit()
@@ -332,7 +336,7 @@ class TestSkillsAPI:
         assert r.status_code == 200
 
     def test_list_hidden_skills(self, client, sa_session):
-        from infrastructure.database.models.skill_model import SkillModel
+        from skills.infrastructure.models.skill_model import SkillModel
         s = SkillModel(name="Hidden_API", hidden=1)
         sa_session.add(s)
         sa_session.commit()
@@ -466,7 +470,7 @@ class TestSkillsAPI:
     def test_delete_skill_relationship(self, client, sa_session):
         create_test_skill(sa_session, "RelDelA_API")
         create_test_skill(sa_session, "RelDelB_API")
-        from infrastructure.database.models.skill_model import SkillRelationshipModel
+        from skills.infrastructure.models.skill_model import SkillRelationshipModel
         rel = SkillRelationshipModel(skill_name="RelDelA_API", related_name="RelDelB_API", relation_type="related_to")
         sa_session.add(rel)
         sa_session.commit()
@@ -516,7 +520,7 @@ class TestCompaniesAPI:
 
     def test_get_company_intelligence_with_data(self, client, sa_session):
         c = create_test_company(sa_session, "IntData_API")
-        from infrastructure.database.models.company_model import CompanyIntelligenceModel
+        from companies.infrastructure.models.company_model import CompanyIntelligenceModel
         intel = CompanyIntelligenceModel(company_id=c.id, overview="Test overview", scores='{"tech": 8}')
         sa_session.add(intel)
         sa_session.commit()
@@ -541,7 +545,7 @@ class TestCompaniesAPI:
 
     def test_delete_company_link(self, client, sa_session):
         c = create_test_company(sa_session, "CompDelLink_API")
-        from infrastructure.database.models.company_model import CompanyLinkModel
+        from companies.infrastructure.models.company_model import CompanyLinkModel
         link = CompanyLinkModel(company_id=c.id, url="https://del.com", title="Delete me")
         sa_session.add(link)
         sa_session.commit()
@@ -555,7 +559,7 @@ class TestCompaniesAPI:
 
     def test_get_notes(self, client, sa_session):
         c = create_test_company(sa_session, "CompGetNotes_API")
-        from infrastructure.database.models.company_model import CompanyLinkModel
+        from companies.infrastructure.models.company_model import CompanyLinkModel
         note = CompanyLinkModel(company_id=c.id, url="", title="note:Test note")
         sa_session.add(note)
         sa_session.commit()
@@ -564,7 +568,7 @@ class TestCompaniesAPI:
 
     def test_delete_note(self, client, sa_session):
         c = create_test_company(sa_session, "CompDelNote_API")
-        from infrastructure.database.models.company_model import CompanyLinkModel
+        from companies.infrastructure.models.company_model import CompanyLinkModel
         note = CompanyLinkModel(company_id=c.id, url="", title="note:Delete me")
         sa_session.add(note)
         sa_session.commit()
@@ -955,7 +959,7 @@ class TestRouterCompat:
         assert r.status_code == 200
 
     def test_create_skill_relationship_compat(self, client, sa_session):
-        from infrastructure.database.models.skill_model import SkillRelationshipModel
+        from skills.infrastructure.models.skill_model import SkillRelationshipModel
         import time
         unique = str(int(time.time() * 1000))[-6:]
         skill_a = f"Compat{unique}A"
@@ -964,7 +968,7 @@ class TestRouterCompat:
         assert r.status_code == 200
 
     def test_delete_skill_relationship_compat(self, client, sa_session):
-        from infrastructure.database.models.skill_model import SkillRelationshipModel
+        from skills.infrastructure.models.skill_model import SkillRelationshipModel
         rel = SkillRelationshipModel(skill_name="DelA", related_name="DelB", relation_type="related_to")
         sa_session.add(rel)
         sa_session.commit()
@@ -972,7 +976,7 @@ class TestRouterCompat:
         assert r.status_code == 200
 
     def test_cancel_generation(self, client, sa_session):
-        from infrastructure.database.models.pending_model import PendingGenerationModel
+        from pending.infrastructure.models.pending_model import PendingGenerationModel
         gen = PendingGenerationModel(job_num=1, type="resume", status="processing")
         sa_session.add(gen)
         sa_session.commit()

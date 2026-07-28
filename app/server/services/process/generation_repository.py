@@ -11,11 +11,11 @@ from typing import Optional, List, Dict
 
 from .generation_models import GenerationHistoryItem
 from dependencies import get_session_sync
-from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
 
 
 class GenerationHistoryRepository:
@@ -251,25 +251,25 @@ class GenerationHistoryRepository:
                     count += repo_gen.get_active_count(job_num)
                     repo_pending = SQLAlchemyPendingRepository(session)
                     # Count pending jobs with job_num in processing/queued status
-                    from infrastructure.database.models.pending_model import PendingJobModel
+                    from pending.infrastructure.models.pending_model import PendingJobModel
                     count += session.query(PendingJobModel).filter(
                         PendingJobModel.job_num == job_num,
                         PendingJobModel.status.in_(["processing", "queued"]),
                     ).count()
                 elif context == 'company' and company_id is not None:
-                    from infrastructure.database.models.pending_model import PendingCompanyModel
+                    from pending.infrastructure.models.pending_model import PendingCompanyModel
                     count = session.query(PendingCompanyModel).filter(
                         PendingCompanyModel.company_id == company_id,
                         PendingCompanyModel.status.in_(["processing", "queued"]),
                     ).count()
                 elif context == 'skill' and skill_name is not None:
-                    from infrastructure.database.models.misc_models import SkillRoadmapJobModel
+                    from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
                     count = session.query(SkillRoadmapJobModel).filter(
                         SkillRoadmapJobModel.skill_name.ilike(skill_name),
                         SkillRoadmapJobModel.status.in_(["queued", "running"]),
                     ).count()
                 elif context == 'insight' and insight_type is not None:
-                    from infrastructure.database.models.insight_model import CareerInsightRunModel
+                    from career.infrastructure.models.insight_model import CareerInsightRunModel
                     count = session.query(CareerInsightRunModel).filter(
                         CareerInsightRunModel.insight_type == insight_type,
                         CareerInsightRunModel.status == "processing",
@@ -315,11 +315,11 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                from infrastructure.database.models.pending_model import PendingJobModel
+                from pending.infrastructure.models.pending_model import PendingJobModel
                 rows = session.query(PendingJobModel).filter(
                     PendingJobModel.job_num == job_num,
                 ).order_by(PendingJobModel.created_at.desc()).all()
-                from infrastructure.database.mappers import pending_job_model_to_dict
+                from shared.infrastructure.database.mappers import pending_job_model_to_dict
                 for r in rows:
                     d = pending_job_model_to_dict(r)
                     items.append(GenerationHistoryItem(
@@ -343,11 +343,11 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                from infrastructure.database.models.pending_model import PendingCompanyModel
+                from pending.infrastructure.models.pending_model import PendingCompanyModel
                 rows = session.query(PendingCompanyModel).filter(
                     PendingCompanyModel.company_id == company_id,
                 ).order_by(PendingCompanyModel.created_at.desc()).all()
-                from infrastructure.database.mappers import pending_company_model_to_dict
+                from shared.infrastructure.database.mappers import pending_company_model_to_dict
                 for r in rows:
                     d = pending_company_model_to_dict(r)
                     items.append(GenerationHistoryItem(

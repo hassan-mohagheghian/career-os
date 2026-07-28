@@ -3,11 +3,11 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from infrastructure.database.models.skill_model import (
+from skills.infrastructure.models.skill_model import (
     SkillModel,
     SkillRelationshipModel,
 )
-from infrastructure.database.models.misc_models import (
+from shared.infrastructure.database.models.misc_models import (
     SkillRoadmapModel,
     SkillRoadmapJobModel,
     SkillRoadmapProgressModel,

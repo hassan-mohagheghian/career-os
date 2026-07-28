@@ -27,20 +27,20 @@ def init_db():
     the declarative models defined in infrastructure/database/models/.
     Schema migrations are handled by Alembic.
     """
-    from infrastructure.database.sqlalchemy_config import engine, Base
+    from shared.infrastructure.database.sqlalchemy_config import engine, Base
     # Import all models to register them with Base.metadata
-    import infrastructure.database.models.job_model
-    import infrastructure.database.models.skill_model
-    import infrastructure.database.models.company_model
-    import infrastructure.database.models.pending_model
-    import infrastructure.database.models.insight_model
-    import infrastructure.database.models.misc_models
+    import jobs.infrastructure.models.job_model
+    import skills.infrastructure.models.skill_model
+    import companies.infrastructure.models.company_model
+    import pending.infrastructure.models.pending_model
+    import career.infrastructure.models.insight_model
+    import shared.infrastructure.database.models.misc_models
 
     Base.metadata.create_all(bind=engine)
 
     # Seed initial rules if table is empty
-    from infrastructure.database.sqlalchemy_config import SessionLocal
-    from infrastructure.database.models.misc_models import PreferenceModel
+    from shared.infrastructure.database.sqlalchemy_config import SessionLocal
+    from shared.infrastructure.database.models.misc_models import PreferenceModel
     session = SessionLocal()
     try:
         count = session.query(PreferenceModel).count()
@@ -52,7 +52,7 @@ def init_db():
 
 def _seed_initial_rules(session):
     """Seed the initial scoring rules into the preferences table."""
-    from infrastructure.database.models.misc_models import PreferenceModel
+    from shared.infrastructure.database.models.misc_models import PreferenceModel
 
     rules = [
         # Shared rules
@@ -118,8 +118,8 @@ def load_json_to_db():
 def migrate_existing_analysis_files():
     """Migrate existing analysis JSON files to the analysis_runs table."""
     data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-    from infrastructure.database.sqlalchemy_config import SessionLocal
-    from infrastructure.database.models.misc_models import AnalysisRunModel
+    from shared.infrastructure.database.sqlalchemy_config import SessionLocal
+    from shared.infrastructure.database.models.misc_models import AnalysisRunModel
 
     session = SessionLocal()
     try:
@@ -177,8 +177,8 @@ def migrate_resume_files_to_db():
     """Migrate existing resume files from inputs/ and resumes/ to the DB."""
     import glob as globmod
     project_root = os.path.join(os.path.dirname(__file__), "..", "..")
-    from infrastructure.database.sqlalchemy_config import SessionLocal
-    from infrastructure.database.models.misc_models import ResumeModel
+    from shared.infrastructure.database.sqlalchemy_config import SessionLocal
+    from shared.infrastructure.database.models.misc_models import ResumeModel
 
     session = SessionLocal()
     try:

@@ -18,9 +18,9 @@ DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
-from infrastructure.database.sqlalchemy_config import Base
-import infrastructure.database.models.job_model
-from infrastructure.database.models.job_model import JobModel
+from shared.infrastructure.database.sqlalchemy_config import Base
+import jobs.infrastructure.models.job_model
+from jobs.infrastructure.models.job_model import JobModel
 
 
 def get_session():

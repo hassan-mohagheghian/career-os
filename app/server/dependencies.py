@@ -1,7 +1,7 @@
 """FastAPI dependency injection functions.
 
-All database access goes through SQLAlchemy repositories.
-Legacy sqlite3 dependencies are removed.
+All database access goes through bounded context infrastructure layers.
+Repository factories are organized by bounded context.
 """
 
 from typing import Generator
@@ -9,130 +9,119 @@ from typing import Generator
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-
-# ── SQLAlchemy Session Dependency ─────────────────────────────────
-
-def get_session() -> Generator[Session, None, None]:
-    """Get a SQLAlchemy session for the request lifetime.
-
-    Yields a Session and auto-commits on success, rolls back on error.
-    """
-    from infrastructure.database.sqlalchemy_config import SessionLocal
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+from shared.infrastructure.database.session import get_session, get_session_sync
 
 
-def get_session_sync() -> Session:
-    """Get a synchronous SQLAlchemy session (for non-async contexts)."""
-    from infrastructure.database.sqlalchemy_config import SessionLocal
-    return SessionLocal()
+# ── Re-export shared session dependencies ──────────────────────────
+# These are the canonical session factories — all bounded contexts use them.
+get_session = get_session
+get_session_sync = get_session_sync
 
 
-# ── SQLAlchemy Repository Dependencies ───────────────────────────
+# ── Jobs Context Dependencies ─────────────────────────────────────
 
 def get_job_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure import SQLAlchemyJobRepository
     return SQLAlchemyJobRepository(session)
 
 
-def get_skill_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
-    return SQLAlchemySkillRepository(session)
-
+# ── Companies Context Dependencies ────────────────────────────────
 
 def get_company_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
+    from companies.infrastructure import SQLAlchemyCompanyRepository
     return SQLAlchemyCompanyRepository(session)
 
 
-def get_pending_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    return SQLAlchemyPendingRepository(session)
-
-
-def get_insight_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_insight_repository import SQLAlchemyInsightRepository
-    return SQLAlchemyInsightRepository(session)
-
-
-def get_preference_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
-    return SQLAlchemyPreferenceRepository(session)
-
-
-def get_summary_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_summary_repository import SQLAlchemySummaryRepository
-    return SQLAlchemySummaryRepository(session)
-
-
-def get_resume_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
-    return SQLAlchemyResumeRepository(session)
-
-
 def get_company_link_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
+    from companies.infrastructure import SQLAlchemyCompanyLinkRepository
     return SQLAlchemyCompanyLinkRepository(session)
 
 
 def get_company_intelligence_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+    from companies.infrastructure import SQLAlchemyCompanyIntelligenceRepository
     return SQLAlchemyCompanyIntelligenceRepository(session)
 
 
-def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    return SQLAlchemyPendingGenerationRepository(session)
+# ── Skills Context Dependencies ───────────────────────────────────
 
-
-def get_career_insight_run_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-    return SQLAlchemyCareerInsightRunRepository(session)
-
-
-def get_career_insight_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_career_insight_repository import SQLAlchemyCareerInsightRepository
-    return SQLAlchemyCareerInsightRepository(session)
-
-
-def get_tech_learning_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_tech_learning_repository import SQLAlchemyTechLearningRepository
-    return SQLAlchemyTechLearningRepository(session)
+def get_skill_repo(session: Session = Depends(get_session)):
+    from skills.infrastructure import SQLAlchemySkillRepository
+    return SQLAlchemySkillRepository(session)
 
 
 def get_skill_alias_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_alias_repository import SQLAlchemySkillAliasRepository
+    from skills.infrastructure import SQLAlchemySkillAliasRepository
     return SQLAlchemySkillAliasRepository(session)
 
 
 def get_skill_relationship_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_relationship_repository import SQLAlchemySkillRelationshipRepository
+    from skills.infrastructure import SQLAlchemySkillRelationshipRepository
     return SQLAlchemySkillRelationshipRepository(session)
 
 
 def get_skill_roadmap_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapRepository
     return SQLAlchemySkillRoadmapRepository(session)
 
 
 def get_skill_roadmap_progress_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
     return SQLAlchemySkillRoadmapProgressRepository(session)
 
 
 def get_skill_roadmap_job_repo(session: Session = Depends(get_session)):
-    from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from skills.infrastructure import SQLAlchemySkillRoadmapJobRepository
     return SQLAlchemySkillRoadmapJobRepository(session)
 
 
-# ── Legacy aliases (kept for backward compat during migration) ───
+# ── Career Context Dependencies ───────────────────────────────────
 
-get_db = get_session
-get_db_sync = get_session_sync
+def get_insight_repo(session: Session = Depends(get_session)):
+    from career.infrastructure import SQLAlchemyInsightRepository
+    return SQLAlchemyInsightRepository(session)
+
+
+def get_career_insight_repo(session: Session = Depends(get_session)):
+    from career.infrastructure import SQLAlchemyCareerInsightRepository
+    return SQLAlchemyCareerInsightRepository(session)
+
+
+def get_career_insight_run_repo(session: Session = Depends(get_session)):
+    from career.infrastructure import SQLAlchemyCareerInsightRunRepository
+    return SQLAlchemyCareerInsightRunRepository(session)
+
+
+def get_preference_repo(session: Session = Depends(get_session)):
+    from career.infrastructure import SQLAlchemyPreferenceRepository
+    return SQLAlchemyPreferenceRepository(session)
+
+
+def get_tech_learning_repo(session: Session = Depends(get_session)):
+    from skills.infrastructure import SQLAlchemyTechLearningRepository
+    return SQLAlchemyTechLearningRepository(session)
+
+
+# ── Resume Context Dependencies ───────────────────────────────────
+
+def get_resume_repo(session: Session = Depends(get_session)):
+    from resume.infrastructure import SQLAlchemyResumeRepository
+    return SQLAlchemyResumeRepository(session)
+
+
+def get_summary_repo(session: Session = Depends(get_session)):
+    from jobs.infrastructure import SQLAlchemyJobRepository
+    # Summary uses the same repository as jobs during migration
+    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+    return SQLAlchemySummaryRepository(session)
+
+
+# ── Pending Context Dependencies ──────────────────────────────────
+
+def get_pending_repo(session: Session = Depends(get_session)):
+    from pending.infrastructure import SQLAlchemyPendingRepository
+    return SQLAlchemyPendingRepository(session)
+
+
+def get_pending_generation_repo(session: Session = Depends(get_session)):
+    from pending.infrastructure import SQLAlchemyPendingGenerationRepository
+    return SQLAlchemyPendingGenerationRepository(session)

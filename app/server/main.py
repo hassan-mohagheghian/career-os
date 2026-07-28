@@ -197,8 +197,8 @@ def _recover_tasks():
     """On startup, check for interrupted tasks and mark them as failed."""
     try:
         from dependencies import get_session_sync
-        from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from infrastructure.database.models.pending_model import PendingJobModel, PendingCompanyModel
+        from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+        from pending.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
         from datetime import datetime
 
         session = get_session_sync()
@@ -277,20 +277,12 @@ def create_app() -> FastAPI:
         return response
 
     # ── Exception Handlers ───────────────────────────────────────
-    from exceptions import AppError
+    from shared.application.exceptions import AppError
+    from shared.presentation.error_handler import app_error_handler as _app_error_handler
 
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.code,
-                    "message": exc.detail,
-                    "details": getattr(exc, "details", None),
-                }
-            },
-        )
+        return await _app_error_handler(request, exc)
 
     # ── Register API Routers ─────────────────────────────────────
     from api.router import api_router
@@ -326,7 +318,7 @@ from services.process_utils import broadcaster as _shared_broadcaster
 _shared_broadcaster.set_socketio(sio)
 
 # Also wire the new WebSocket broadcaster
-from infrastructure.websocket.broadcaster import set_socketio_server
+from shared.infrastructure.websocket.broadcaster import set_socketio_server
 set_socketio_server(sio)
 
 # Wrap with SocketIO for real-time events

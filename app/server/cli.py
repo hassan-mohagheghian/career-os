@@ -42,19 +42,19 @@ def normalize_url(url):
 
 def _get_job_repo():
     from dependencies import get_session_sync
-    from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     return session, SQLAlchemyJobRepository(session)
 
 def _get_pending_repo():
     from dependencies import get_session_sync
-    from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     return session, SQLAlchemyPendingRepository(session)
 
 def _get_pref_repo():
     from dependencies import get_session_sync
-    from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+    from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
     session = get_session_sync()
     return session, SQLAlchemyPreferenceRepository(session)
 
@@ -103,7 +103,7 @@ def reset_pending(pid):
 def delete_pending(pid):
     session, repo = _get_pending_repo()
     try:
-        from infrastructure.database.models.pending_model import PendingJobModel
+        from pending.infrastructure.models.pending_model import PendingJobModel
         session.query(PendingJobModel).filter(PendingJobModel.id == pid).delete()
         session.commit()
     finally:
@@ -168,11 +168,11 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
         # Include done too
         session, _repo = _get_pending_repo()
         try:
-            from infrastructure.database.models.pending_model import PendingJobModel
+            from pending.infrastructure.models.pending_model import PendingJobModel
             done_rows = session.query(PendingJobModel).filter(
                 PendingJobModel.status == 'done'
             ).order_by(PendingJobModel.created_at.desc()).limit(10).all()
-            from infrastructure.database.mappers import pending_job_model_to_dict
+            from shared.infrastructure.database.mappers import pending_job_model_to_dict
             done = [pending_job_model_to_dict(r) for r in done_rows]
             rows = done + rows
         finally:
@@ -324,8 +324,8 @@ def rescore_all():
 @app.command()
 def status():
     """Show summary of all job states."""
-    from infrastructure.database.models.pending_model import PendingJobModel
-    from infrastructure.database.models.job_model import JobModel
+    from pending.infrastructure.models.pending_model import PendingJobModel
+    from jobs.infrastructure.models.job_model import JobModel
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
@@ -598,7 +598,7 @@ def cleanup(
 
     if reset_jobs:
         console.print("\n[bold]Resetting stuck insights jobs...[/bold]")
-        from infrastructure.database.models.insight_model import CareerInsightRunModel as InsightRunModel
+        from career.infrastructure.models.insight_model import CareerInsightRunModel as InsightRunModel
         from dependencies import get_session_sync
         session = get_session_sync()
         try:
@@ -612,7 +612,7 @@ def cleanup(
 
     if reset_roadmaps:
         console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
-        from infrastructure.database.models.misc_models import SkillRoadmapJobModel
+        from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
         from dependencies import get_session_sync
         session = get_session_sync()
         try:

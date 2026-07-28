@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from infrastructure.database.models.pending_model import PendingCompanyModel, PendingJobModel
-from infrastructure.database.sqlalchemy_config import Base
+from pending.infrastructure.models.pending_model import PendingCompanyModel, PendingJobModel
+from shared.infrastructure.database.sqlalchemy_config import Base
 
 
 @pytest.fixture

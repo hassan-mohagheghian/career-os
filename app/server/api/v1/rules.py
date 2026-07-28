@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 
 from dependencies import get_preference_repo
-from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+from career.infrastructure import SQLAlchemyPreferenceRepository
 
 router = APIRouter()
 

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_skill_repo
-from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+from skills.infrastructure import SQLAlchemySkillRepository
 from schemas.skills import (
     SkillCreate,
     SkillUpdate,
@@ -14,7 +14,7 @@ from schemas.skills import (
     SkillBulkCategorize,
     SkillCategoryUpdate,
 )
-from exceptions import NotFoundError, BadRequestError, ConflictError
+from shared.application.exceptions import NotFoundError, BadRequestError, ConflictError
 
 router = APIRouter()
 

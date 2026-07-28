@@ -5,9 +5,9 @@ import uuid
 from fastapi import APIRouter, Depends
 
 from dependencies import get_resume_repo, get_pending_generation_repo
-from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
-from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-from exceptions import NotFoundError
+from resume.infrastructure import SQLAlchemyResumeRepository
+from pending.infrastructure import SQLAlchemyPendingGenerationRepository
+from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 

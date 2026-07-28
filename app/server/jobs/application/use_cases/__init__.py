@@ -1,0 +1,1 @@
+"""Jobs use cases."""

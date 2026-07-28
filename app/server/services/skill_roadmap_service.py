@@ -15,11 +15,11 @@ from datetime import datetime
 from dependencies import get_session_sync
 from prompts import load_prompt
 from ai_compat import get_llm_service
-from infrastructure.websocket.broadcaster import WebSocketBroadcaster
-from infrastructure.database.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-from infrastructure.database.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-from infrastructure.database.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-from infrastructure.database.sa_skill_repository import SQLAlchemySkillRepository
+from shared.infrastructure.websocket.broadcaster import WebSocketBroadcaster
+from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
+from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
+from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
@@ -174,7 +174,7 @@ def _save_roadmap_items(skill_name: str, items: list[dict], version: int):
         sort_order_to_id = {it["sort_order"]: it["id"] for it in all_items}
 
         # Fix parent_ids using the sort_order references
-        from infrastructure.database.models.misc_models import SkillRoadmapModel
+        from shared.infrastructure.database.models.misc_models import SkillRoadmapModel
         for item in flat:
             parent_so = item.get("_parent_sort_order")
             if parent_so is not None and parent_so in sort_order_to_id:

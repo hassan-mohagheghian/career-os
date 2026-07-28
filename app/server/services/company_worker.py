@@ -22,12 +22,12 @@ from ai_compat import get_llm_service
 
 # SQLAlchemy session + repositories
 from dependencies import get_session_sync
-from infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-from infrastructure.database.sa_company_repository import SQLAlchemyCompanyRepository
-from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-from infrastructure.database.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
-from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
-from infrastructure.database.models.company_model import CompanyModel
+from pending.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
+from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
+from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+from companies.infrastructure.models.company_model import CompanyModel
 
 log = get_logger('company_worker')
 

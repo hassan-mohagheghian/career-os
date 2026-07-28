@@ -25,7 +25,7 @@ def _update_step(gen_id, step, val, status=None, error=None):
     """Update a generation step and emit WebSocket progress."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
         repo = SQLAlchemyPendingGenerationRepository(session)
         fields = {step: val}
         if status:
@@ -59,8 +59,8 @@ def _load_company_context(job_num):
     """Load company intelligence for enrichment when job is linked to a company."""
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-        from infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+        from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
         job_repo = SQLAlchemyJobRepository(session)
         intel_repo = SQLAlchemyCompanyIntelligenceRepository(session)
 
@@ -95,7 +95,7 @@ def process_generation(gen_id):
     """
     session = get_session_sync()
     try:
-        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
         pending_repo = SQLAlchemyPendingGenerationRepository(session)
         gen = pending_repo.get_by_id(gen_id)
     finally:
@@ -116,8 +116,8 @@ def process_generation(gen_id):
     try:
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-            from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             job_repo = SQLAlchemyJobRepository(session)
             resume_repo = SQLAlchemyResumeRepository(session)
 
@@ -188,7 +188,7 @@ def process_generation(gen_id):
         else:
             session = get_session_sync()
             try:
-                from infrastructure.database.sa_preference_repository import SQLAlchemyPreferenceRepository
+                from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
                 pref_repo = SQLAlchemyPreferenceRepository(session)
                 rule_rows = pref_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
             finally:
@@ -243,7 +243,7 @@ def process_generation(gen_id):
         resume_id = f'{gen_type}_{job_num}'
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_resume_repository import SQLAlchemyResumeRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             resume_repo = SQLAlchemyResumeRepository(session)
             resume_repo.upsert({
                 'id': resume_id,
@@ -265,7 +265,7 @@ def process_generation(gen_id):
 
         session = get_session_sync()
         try:
-            from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+            from pending.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
             pending_repo = SQLAlchemyPendingGenerationRepository(session)
             pending_repo.update_fields(gen_id,
                 result=json.dumps({'id': resume_id, 'content': content, 'title': title}),
