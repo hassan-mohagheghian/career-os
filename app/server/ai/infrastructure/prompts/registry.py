@@ -1,82 +1,198 @@
-"""Prompt Registry — centralized prompt management.
-
-SRP: Only manages prompt loading and versioning.
-OCP: New prompt sources can be added without modifying the registry.
-"""
-
 from __future__ import annotations
 
-import os
-from typing import Optional
+from typing import Any, Optional
+
+from .base import PromptSpec, PromptType, PromptVersion
+from .template import PromptTemplate
+from .observability import get_prompt_logger
 
 
 class PromptRegistry:
-    """Centralized prompt registry with versioning support.
+    _prompts: dict[str, dict[str, PromptTemplate]]
 
-    Delegates to existing load_prompt() for template rendering.
-    Adds agent-specific namespace lookup.
-    """
+    def __init__(self):
+        self._prompts: dict[str, dict[str, PromptTemplate]] = {}
 
-    def __init__(self, prompts_dir: Optional[str] = None):
-        if prompts_dir is None:
-            # Default to the project's prompts directory
-            _file_dir = os.path.dirname(os.path.abspath(__file__))
-            prompts_dir = os.path.join(_file_dir, '..', '..', 'server', 'prompts')
-        self._prompts_dir = os.path.abspath(prompts_dir)
+    def register(self, prompt: PromptTemplate) -> None:
+        ident = prompt.identifier
+        ver = prompt.version
+        if ident not in self._prompts:
+            self._prompts[ident] = {}
+        self._prompts[ident][ver] = prompt
 
-    def get_prompt(self, name: str, **kwargs) -> str:
-        """Load and render a prompt template.
+    def get(
+        self,
+        identifier: str,
+        version: str = "latest",
+    ) -> PromptTemplate:
+        versions = self._prompts.get(identifier)
+        if not versions:
+            msg = f"Prompt '{identifier}' not found in registry"
+            raise KeyError(msg)
 
-        Args:
-            name: Prompt name (e.g., 'job_processing/step8_score').
-                  Supports nested paths like 'company/company_extract'.
-            **kwargs: Template variables to fill in.
+        if version == "latest":
+            sorted_vers = sorted(versions.keys())
+            return versions[sorted_vers[-1]]
 
-        Returns:
-            Rendered prompt string.
-        """
+        if version not in versions:
+            msg = f"Prompt '{identifier}' version '{version}' not found"
+            raise KeyError(msg)
+
+        return versions[version]
+
+    def get_spec(self, identifier: str, version: str = "latest") -> PromptSpec:
+        return self.get(identifier, version).spec
+
+    def exists(self, identifier: str, version: str = "latest") -> bool:
         try:
-            import sys
-            sys.path.insert(0, os.path.join(self._prompts_dir, '..'))
-            from prompts import load_prompt
-            return load_prompt(name, **kwargs)
-        except (ImportError, FileNotFoundError):
-            # Fallback: try direct file read
-            return self._fallback_load(name, **kwargs)
+            self.get(identifier, version)
+            return True
+        except KeyError:
+            return False
 
-    def _fallback_load(self, name: str, **kwargs) -> str:
-        """Fallback prompt loading via direct file read."""
-        path = os.path.join(self._prompts_dir, f'{name}.txt')
-        if os.path.exists(path):
-            with open(path) as f:
-                template = f.read()
-            try:
-                return template.format(**kwargs)
-            except KeyError:
-                return template
-        raise FileNotFoundError(f"Prompt not found: {name}.txt (searched {self._prompts_dir})")
+    def list_identifiers(self) -> list[str]:
+        return sorted(self._prompts.keys())
 
-    def list_prompts(self) -> list[str]:
-        """List all available prompt names."""
-        prompts = []
-        for root, dirs, files in os.walk(self._prompts_dir):
-            for f in files:
-                if f.endswith('.txt'):
-                    rel = os.path.relpath(os.path.join(root, f), self._prompts_dir)
-                    prompts.append(rel.replace('.txt', ''))
-        return sorted(prompts)
+    def list_versions(self, identifier: str) -> list[str]:
+        versions = self._prompts.get(identifier)
+        if not versions:
+            return []
+        return sorted(versions.keys())
+
+    def list_by_owner(self, owner: str) -> list[PromptSpec]:
+        result: list[PromptSpec] = []
+        for ident, versions in self._prompts.items():
+            latest = versions[sorted(versions.keys())[-1]]
+            if latest.spec.owner == owner:
+                result.append(latest.spec)
+        return result
+
+    def list_by_tags(self, tags: list[str]) -> list[PromptSpec]:
+        result: list[PromptSpec] = []
+        tag_set = set(tags)
+        for ident, versions in self._prompts.items():
+            latest = versions[sorted(versions.keys())[-1]]
+            if tag_set.intersection(latest.spec.tags):
+                result.append(latest.spec)
+        return result
+
+    def all_specs(self) -> list[PromptSpec]:
+        result: list[PromptSpec] = []
+        for ident, versions in self._prompts.items():
+            latest = versions[sorted(versions.keys())[-1]]
+            result.append(latest.spec)
+        return result
+
+    def deregister(self, identifier: str, version: Optional[str] = None) -> None:
+        if identifier not in self._prompts:
+            return
+        if version:
+            self._prompts[identifier].pop(version, None)
+            if not self._prompts[identifier]:
+                del self._prompts[identifier]
+        else:
+            del self._prompts[identifier]
+
+    def render(
+        self,
+        identifier: str,
+        version: str = "latest",
+        **kwargs: Any,
+    ) -> str:
+        prompt = self.get(identifier, version)
+        logger = get_prompt_logger()
+        result = prompt.render(**kwargs)
+        logger.log_render(identifier, prompt.version, len(result))
+        return result
+
+    def create_prompt(
+        self,
+        identifier: str,
+        template: str,
+        owner: str,
+        version: str = "1.0.0",
+        prompt_type: PromptType = PromptType.SYSTEM,
+        description: str = "",
+        **kwargs: Any,
+    ) -> PromptTemplate:
+        prompt = PromptTemplate.from_string(
+            template=template,
+            identifier=identifier,
+            owner=owner,
+            version=version,
+            prompt_type=prompt_type,
+            description=description,
+            **kwargs,
+        )
+        self.register(prompt)
+        return prompt
+
+    def create_version(
+        self,
+        identifier: str,
+        template: str,
+        version: str,
+        description: str = "",
+        **kwargs: Any,
+    ) -> PromptTemplate:
+        base = self.get(identifier)
+        spec = base.spec.model_copy()
+        spec.version = version
+        spec.description = description
+        spec.changelog.append(
+            PromptVersion(version=version, description=description)
+        )
+        prompt = PromptTemplate.from_string(
+            template=template,
+            identifier=identifier,
+            owner=spec.owner,
+            version=version,
+            prompt_type=spec.prompt_type,
+            description=description,
+            **kwargs,
+        )
+        self.register(prompt)
+        return prompt
 
 
-# Module-level convenience function
 _registry: Optional[PromptRegistry] = None
 
 
-def get_prompt(name: str, **kwargs) -> str:
-    """Load a prompt using the default registry.
-
-    Module-level convenience function following the Singleton pattern.
-    """
+def get_registry() -> PromptRegistry:
     global _registry
     if _registry is None:
         _registry = PromptRegistry()
-    return _registry.get_prompt(name, **kwargs)
+    return _registry
+
+
+def reset_registry() -> None:
+    global _registry
+    _registry = None
+
+
+def register_prompt(
+    identifier: str,
+    template: str,
+    owner: str,
+    version: str = "1.0.0",
+    prompt_type: PromptType = PromptType.SYSTEM,
+    description: str = "",
+    **kwargs: Any,
+) -> PromptTemplate:
+    return get_registry().create_prompt(
+        identifier=identifier,
+        template=template,
+        owner=owner,
+        version=version,
+        prompt_type=prompt_type,
+        description=description,
+        **kwargs,
+    )
+
+
+def get_prompt(
+    identifier: str,
+    version: str = "latest",
+    **kwargs: Any,
+) -> str:
+    return get_registry().render(identifier, version, **kwargs)
