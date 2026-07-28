@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from typing import Any, Callable, Optional
 
 from ..base import LLMProvider, ProviderConfig, ProviderResponse
@@ -29,10 +28,6 @@ class MimoProvider(LLMProvider):
 
     def __init__(self, config: Optional[ProviderConfig] = None):
         super().__init__(config or ProviderConfig(name="mimo"))
-        self._tmp_dir = os.environ.get('TEMP_DIR', 'tmp')
-        if not os.path.isabs(self._tmp_dir):
-            self._tmp_dir = os.path.join(_project_root, self._tmp_dir)
-        os.makedirs(self._tmp_dir, exist_ok=True)
 
     def generate(
         self,
@@ -80,50 +75,58 @@ class MimoProvider(LLMProvider):
         context: Optional[dict] = None,
         timeout: Optional[int] = None,
     ) -> ProviderResponse:
-        """Run mimo CLI expecting a JSON result file as output."""
-        context = context or {}
-        timeout = timeout or self._config.timeout
-        session_id = context.get("session_id")
-        result_file = context.get("result_file")
+        """Run mimo CLI expecting JSON output via stdout (no temp files)."""
+        structured_prompt = prompt
+        if schema:
+            structured_prompt += f"\n\nRespond ONLY with valid JSON matching this schema:\n{json.dumps(schema)}"
+        else:
+            structured_prompt += "\n\nRespond ONLY with a valid JSON object. Do not write any files."
 
-        if not result_file:
-            pid = context.get("pid", uuid.uuid4().hex[:12])
-            result_file = os.path.join(self._tmp_dir, f'ai_result_{pid}.json')
+        response = self.generate(structured_prompt, context=context, timeout=timeout)
+        content = response.content.strip()
 
-        cmd = self._build_cmd(prompt, session_id)
-        returncode, output_lines, discovered_session_id = self._run_subprocess(
-            cmd, timeout=timeout
-        )
+        result = self._extract_json(content)
+        if result is not None:
+            return ProviderResponse(
+                content=result,
+                metadata=response.metadata,
+                provider="mimo",
+                model="mimo-cli",
+            )
 
-        if returncode != 0:
-            error_msg = f"exit code {returncode}"
-            for line in output_lines:
-                try:
-                    evt = json.loads(line)
-                    if evt.get('type') == 'text':
-                        error_msg = evt.get('part', {}).get('text', error_msg)[:300]
-                except json.JSONDecodeError:
-                    continue
-            raise RuntimeError(f"mimo failed: {error_msg}")
+        raise RuntimeError(f"Failed to parse mimo JSON output\nRaw output: {content[:500]}")
 
-        if os.path.exists(result_file):
+    def _extract_json(self, content: str) -> Optional[str]:
+        """Extract JSON from text content, handling markdown code blocks and surrounding text."""
+        if not content:
+            return None
+
+        stripped = content.strip()
+        if stripped.startswith("```"):
+            lines = stripped.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            stripped = "\n".join(lines).strip()
+
+        try:
+            json.loads(stripped)
+            return stripped
+        except json.JSONDecodeError:
+            pass
+
+        start = stripped.find('{')
+        end = stripped.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            candidate = stripped[start:end+1]
             try:
-                with open(result_file) as f:
-                    result = json.load(f)
-                try:
-                    os.remove(result_file)
-                except OSError:
-                    pass
-                return ProviderResponse(
-                    content=json.dumps(result, ensure_ascii=False),
-                    metadata={"result_file": result_file, "returncode": returncode, "session_id": discovered_session_id},
-                    provider="mimo",
-                    model="mimo-cli",
-                )
-            except (json.JSONDecodeError, OSError) as e:
-                raise RuntimeError(f"Failed to parse mimo result: {e}")
+                json.loads(candidate)
+                return candidate
+            except json.JSONDecodeError:
+                pass
 
-        raise RuntimeError(f"mimo returned no result file: {result_file}")
+        return None
 
     def generate_streaming(
         self,

@@ -236,7 +236,7 @@ class MyTool(BaseTool):
 
 ```bash
 AI_PROVIDER=mimo          # Provider selection: mimo, openai, local
-TEMP_DIR=tmp              # Temporary files directory
+
 QUEUE_CONCURRENCY=2       # Max parallel processing jobs
 DB_PATH=db/jobs.db        # Database path
 ```

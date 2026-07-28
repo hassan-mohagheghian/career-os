@@ -37,7 +37,7 @@ Opens Flask API (port 5000) + React dev server (port 5173).
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DB_PATH` | No | `app/server/db/jobs.db` | SQLite database path |
-| `TEMP_DIR` | No | `app/tmp` | Temporary files |
+
 | `SECRET_KEY` | No | `dev-secret-key` | Flask secret key |
 | `QUEUE_CONCURRENCY` | No | `2` | Max concurrent workers |
 

@@ -504,12 +504,9 @@ class TestRunMimoPrompt:
         mock_llm = MagicMock()
         mock_get_llm.return_value = mock_llm
         mock_resp = MagicMock()
-        mock_resp.content = '{}'
+        mock_resp.content = '{"key": "value"}'
         mock_llm.generate_streaming.return_value = mock_resp
-        result_file = os.path.join(ci.TMP_DIR, 'test_result.json')
-        with open(result_file, 'w') as f:
-            json.dump({'key': 'value'}, f)
-        result, err, sid = ci._run_mimo_prompt('test_prompt', result_file=result_file)
+        result, err, sid = ci._run_mimo_prompt('test_prompt')
         assert result == {'key': 'value'} and err is None
 
     @patch('career.application.services.insights.get_llm_service')
@@ -518,7 +515,7 @@ class TestRunMimoPrompt:
         mock_llm = MagicMock()
         mock_get_llm.return_value = mock_llm
         mock_llm.generate_streaming.side_effect = RuntimeError("LLM failed")
-        result, err, sid = ci._run_mimo_prompt('test', result_file='/nonexistent')
+        result, err, sid = ci._run_mimo_prompt('test')
         assert result is None and 'LLM failed' in err
 
     @patch('career.application.services.insights.get_llm_service')
@@ -543,8 +540,5 @@ class TestRunMimoPrompt:
             return resp
         mock_llm.generate_streaming.side_effect = fake_streaming
 
-        result_file = os.path.join(ci.TMP_DIR, 'test_cb.json')
-        with open(result_file, 'w') as f:
-            json.dump({'ok': True}, f)
-        result, err, sid = ci._run_mimo_prompt('test', result_file=result_file)
+        result, err, sid = ci._run_mimo_prompt('test')
         assert sid == 'ses_discovered'

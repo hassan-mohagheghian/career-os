@@ -6,7 +6,7 @@ Tables available:
 - companies: name, industry, company_type, country, city, tech_stack
 - company_intelligence: company_id, overview, visa_analysis, technology_analysis, scores
 
-Generate a networking report as JSON and save to {tmp_dir}/networking_intelligence_{pid}.json with this structure:
+Output the result as JSON (no other text) with this structure:
 
 {{
   "targets": [

@@ -1,16 +1,24 @@
 Generate a tailored resume for this job application.
 
 ═══════════════════════════════════════════════════════════════
+JOB POSTING
+═══════════════════════════════════════════════════════════════
+
+{job_description}
+
+═══════════════════════════════════════════════════════════════
+CANDIDATE'S MASTER RESUME
+═══════════════════════════════════════════════════════════════
+
+{resume_text}
+
+═══════════════════════════════════════════════════════════════
 STEPS
 ═══════════════════════════════════════════════════════════════
 
-1. Read the job posting from {job_file}
-2. Read the candidate's master resume from {resume_file}
-3. Create a tailored resume as a complete HTML document
-4. Use the Write tool to save the JSON result to: {tmp_dir}/resume_{pid}.json
-
-The JSON must be exactly:
-{{"resume_html": "<full HTML document>"}}
+1. Create a tailored resume as a complete HTML document
+2. Output ONLY the JSON result with no other text:
+   {{"resume_html": "<full HTML document>"}}
 
 ═══════════════════════════════════════════════════════════════
 COMPANY INTELLIGENCE (if available)

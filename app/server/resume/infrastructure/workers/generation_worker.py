@@ -9,8 +9,6 @@ Follows the same pattern as worker.py and company_worker.py:
 """
 
 import json
-import os
-from datetime import datetime
 
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.process_utils import broadcaster
@@ -110,9 +108,6 @@ def process_generation(gen_id):
     _update_step(gen_id, 'step_prepare', 1, status='processing')
     _log_event(gen_id, 'prepare', f'Loading job #{job_num} data')
 
-    job_file = None
-    resume_file = None
-
     try:
         session = get_session_sync()
         try:
@@ -151,18 +146,6 @@ def process_generation(gen_id):
         _log_event(gen_id, 'generate', f'Calling LLM for {gen_type} generation')
 
         from shared.infrastructure.prompts.loader import load_prompt
-        _tmp = os.environ.get('TEMP_DIR', 'tmp')
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        tmp_dir = _tmp if os.path.isabs(_tmp) else os.path.join(project_root, _tmp)
-        os.makedirs(tmp_dir, exist_ok=True)
-        pid = f'{job_num}_{int(datetime.now().timestamp()*1000)}'
-
-        job_file = os.path.join(tmp_dir, f'gen_job_{pid}.txt')
-        resume_file = os.path.join(tmp_dir, f'gen_resume_{pid}.txt')
-        with open(job_file, 'w') as f:
-            f.write(raw_desc)
-        with open(resume_file, 'w') as f:
-            f.write(resume_text)
 
         company_context_str = ''
         if company_context:
@@ -181,10 +164,8 @@ def process_generation(gen_id):
 
         if gen_type == 'resume':
             prompt = load_prompt('resume/step_resume_generate',
-                job_file=job_file, resume_file=resume_file,
-                tmp_dir=tmp_dir, pid=pid,
+                job_description=raw_desc, resume_text=resume_text,
                 company_context=company_context_safe)
-            result_path = os.path.join(tmp_dir, f'resume_{pid}.json')
         else:
             session = get_session_sync()
             try:
@@ -202,27 +183,14 @@ def process_generation(gen_id):
                 ])
 
             prompt = load_prompt('resume/step7_cover_generate',
-                url=job.get('url', ''), job_file=job_file, resume_file=resume_file,
-                tmp_dir=tmp_dir, pid=pid, rules=rules_text,
+                job_description=raw_desc, resume_text=resume_text,
+                rules=rules_text,
                 company_context=company_context_safe)
-            result_path = os.path.join(tmp_dir, f'cover_{pid}.json')
 
         llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": result_path, "pid": pid},
-            timeout=300,
-        )
+        resp = llm.generate_structured(prompt, timeout=300)
         data = json.loads(resp.content)
         session_id = resp.metadata.get("session_id")
-
-        for f in [job_file, resume_file]:
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-        job_file = None
-        resume_file = None
 
         _update_step(gen_id, 'step_generate', 1)
         _log_event(gen_id, 'generate', f'LLM returned {len(resp.content)} chars')
@@ -270,7 +238,7 @@ def process_generation(gen_id):
             pending_repo.update_fields(gen_id,
                 result=json.dumps({'id': resume_id, 'content': content, 'title': title}),
                 status='done',
-                session_id=session_id or pid,
+                session_id=session_id or f'{gen_type}_{job_num}',
             )
         finally:
             session.close()
@@ -279,7 +247,7 @@ def process_generation(gen_id):
             table='pending_generations', pid=gen_id,
             result={
                 'id': resume_id, 'content': content, 'title': title,
-                'type': gen_type, 'job_num': job_num, 'session_id': session_id or pid,
+                'type': gen_type, 'job_num': job_num, 'session_id': session_id or f'{gen_type}_{job_num}',
             },
         ))
 
@@ -290,8 +258,3 @@ def process_generation(gen_id):
             table='pending_generations', pid=gen_id,
             msg=str(e), step='generate',
         ))
-        for f in [job_file, resume_file]:
-            try:
-                os.remove(f)
-            except (OSError, UnboundLocalError):
-                pass

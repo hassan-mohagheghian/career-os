@@ -26,8 +26,7 @@ MIMO_BIN = os.path.expanduser('~/.mimocode/bin/mimo')
 _db_path = os.environ.get('DB_PATH', os.path.join(_server_dir, 'db', 'jobs.db'))
 DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.normpath(os.path.join(_server_dir, _db_path))
 
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
 os.makedirs(TMP_DIR, exist_ok=True)
 
 

@@ -27,9 +27,7 @@ class AGYProvider(LLMProvider):
 
     def __init__(self, config: Optional[ProviderConfig] = None):
         super().__init__(config or ProviderConfig(name="agy"))
-        self._tmp_dir = os.environ.get('TEMP_DIR', 'tmp')
-        if not os.path.isabs(self._tmp_dir):
-            self._tmp_dir = os.path.join(_project_root, self._tmp_dir)
+        self._tmp_dir = os.path.join(_project_root, 'tmp')
         os.makedirs(self._tmp_dir, exist_ok=True)
 
     def generate(

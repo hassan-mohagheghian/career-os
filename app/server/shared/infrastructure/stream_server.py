@@ -24,8 +24,7 @@ processes = {}  # pid -> Popen object
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _file_dir = os.path.dirname(os.path.abspath(__file__))
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
+TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
 os.makedirs(TMP_DIR, exist_ok=True)
 
 

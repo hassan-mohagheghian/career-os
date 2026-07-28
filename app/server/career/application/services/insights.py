@@ -26,9 +26,6 @@ def set_socketio(sio):
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..'))
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-os.makedirs(TMP_DIR, exist_ok=True)
 
 INSIGHT_TYPES = ['overview', 'opportunities', 'companies', 'skills', 'market', 'networking', 'skills_intel']
 CURRENT_VERSION = 1
@@ -272,12 +269,10 @@ def _parse_session_id(stdout):
     return None
 
 
-def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous_session_id=None, **kwargs):
+def _run_mimo_prompt(prompt_name, pid=0, timeout=600, previous_session_id=None, **kwargs):
     """Run an LLM analysis prompt and return (result, error_message, session_id). Supports cancellation."""
     global _cancel_requested
-    prompt = load_prompt(f'insights/{prompt_name}', project_root=PROJECT_ROOT, tmp_dir=TMP_DIR, pid=pid, **kwargs)
-    if result_file is None:
-        result_file = os.path.join(TMP_DIR, f'insights_{pid}.json')
+    prompt = load_prompt(f'insights/{prompt_name}', project_root=PROJECT_ROOT, **kwargs)
     session_id = None
     job_key = f'insights_{prompt_name}_{pid}'
     _current_run['process_key'] = job_key
@@ -313,17 +308,11 @@ def _run_mimo_prompt(prompt_name, pid=0, timeout=600, result_file=None, previous
         if _cancel_requested:
             return None, None, session_id
 
-        # Read the result file
-        if os.path.exists(result_file):
-            with open(result_file) as f:
-                result = json.load(f)
-            try:
-                os.remove(result_file)
-            except OSError:
-                pass
+        try:
+            result = json.loads(resp.content)
             return result, None, session_id
-        else:
-            return None, 'LLM returned no result file', session_id
+        except (json.JSONDecodeError, TypeError) as e:
+            return None, f'Failed to parse AI response: {e}', session_id
     except Exception as e:
         return None, str(e), session_id
     finally:
@@ -577,9 +566,8 @@ def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=
     if not prompt_name:
         return None, f'No prompt for section: {section}', None
 
-    result_file = os.path.join(TMP_DIR, f'{section}_intelligence_{pid}.json')
     result, error_msg, session_id = _run_mimo_prompt(
-        prompt_name, pid=pid, result_file=result_file, timeout=timeout,
+        prompt_name, pid=pid, timeout=timeout,
         previous_session_id=previous_session_id,
     )
 

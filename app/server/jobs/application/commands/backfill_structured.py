@@ -27,7 +27,7 @@ EXTRACT_PROMPT = """Extract structured information from this raw job description
 Raw content:
 {raw_content}
 
-Extract the following into JSON and save to {output_file}:
+Output the following as JSON (no other text):
 
 {{
   "company": "Company name",
@@ -73,11 +73,10 @@ def get_session():
 
 
 def extract_structured(raw_text, num):
-    output_file = os.path.join(PROJECT_ROOT, 'data', f'structured_{num}.json')
-    prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:5000], output_file=output_file)
+    prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:5000])
     try:
         llm = get_llm_service()
-        resp = llm.generate_structured(prompt, context={"result_file": output_file, "pid": str(num)}, timeout=60)
+        resp = llm.generate_structured(prompt, timeout=60)
         return resp.content
     except Exception as e:
         print(f"  LLM error: {e}")

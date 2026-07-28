@@ -33,7 +33,7 @@ npm run dev          # Vite on :5173
 |----------|---------|---------|
 | `AI_PROVIDER` | `mimo` | AI provider: `mimo`, `openai`, `local` |
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
-| `TEMP_DIR` | `app/tmp` | Temporary files directory |
+
 | `SECRET_KEY` | `dev-secret-key` | Flask secret key |
 | `QUEUE_CONCURRENCY` | `2` | Max concurrent processing workers |
 

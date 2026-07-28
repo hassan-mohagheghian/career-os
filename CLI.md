@@ -123,7 +123,7 @@ pkill -f "mimo run"
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
-| `TEMP_DIR` | `tmp` | Temporary files directory |
+
 | `BACKEND_PORT` | `5000` | Backend server port |
 | `FRONTEND_PORT` | `5173` | Frontend dev server port |
 

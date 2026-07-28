@@ -1,16 +1,24 @@
 Write a tailored cover letter for the candidate applying to this job.
 
 ═══════════════════════════════════════════════════════════════
+JOB POSTING
+═══════════════════════════════════════════════════════════════
+
+{job_description}
+
+═══════════════════════════════════════════════════════════════
+CANDIDATE'S MASTER RESUME
+═══════════════════════════════════════════════════════════════
+
+{resume_text}
+
+═══════════════════════════════════════════════════════════════
 STEPS
 ═══════════════════════════════════════════════════════════════
 
-1. Read the job posting from {job_file}
-2. Read the candidate's master resume from {resume_file}
-3. Write the cover letter as a complete HTML document
-4. Use the Write tool to save the JSON result to: {tmp_dir}/cover_{pid}.json
-
-The JSON must be exactly:
-{{"cover_letter": "<full HTML document>"}}
+1. Write the cover letter as a complete HTML document
+2. Output ONLY the JSON result with no other text:
+   {{"cover_letter": "<full HTML document>"}}
 
 ═══════════════════════════════════════════════════════════════
 COMPANY INTELLIGENCE (if available)

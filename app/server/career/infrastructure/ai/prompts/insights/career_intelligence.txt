@@ -9,7 +9,7 @@ Tables available:
 - tech_learning: name, priority, usage, reason, action
 - preferences: scoring rules
 
-Generate career intelligence as JSON and save to {tmp_dir}/career_intelligence_{pid}.json with this structure:
+Output the result as JSON (no other text) with this structure:
 
 {{
   "overview": {{

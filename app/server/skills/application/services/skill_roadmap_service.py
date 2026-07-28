@@ -24,9 +24,6 @@ from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySki
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..'))
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-os.makedirs(TMP_DIR, exist_ok=True)
 
 TOTAL_STEPS = 4
 _broadcaster = WebSocketBroadcaster()
@@ -259,17 +256,14 @@ def _run_llm_for_roadmap(
     skill_name: str,
     job_type: str = "generate",
     timeout: int = 600,
-    result_file: str | None = None,
 ) -> tuple[list[dict] | None, str | None, str | None, str | None]:
     """Run LLM and return (parsed_items, error, session_id, provider_name).
 
     Unified logic for generate, extend, finegrain operations.
+    Uses in-memory JSON parsing from LLM response (no temp files).
     """
     provider_name = _get_provider_name()
     session_id = None
-
-    if result_file is None:
-        result_file = os.path.join(TMP_DIR, f'skill_roadmap_{job_id}.json')
 
     _update_job(job_id, step=1, total_steps=TOTAL_STEPS, message="Calling AI...")
     _emit_skill_update(skill_name, {
@@ -318,10 +312,7 @@ def _run_llm_for_roadmap(
 
         resp = llm.generate_streaming(
             prompt,
-            context={
-                "pid": job_id,
-                "result_file": result_file,
-            },
+            context={"pid": job_id},
             timeout=timeout,
             on_event=_on_event,
             on_session_id=_on_session_id,
@@ -336,19 +327,6 @@ def _run_llm_for_roadmap(
             "provider_name": provider_name,
         })
 
-        # Try reading result file first (used by mimo provider)
-        if os.path.exists(result_file):
-            with open(result_file) as f:
-                result = json.load(f)
-            try:
-                os.remove(result_file)
-            except OSError:
-                pass
-            if isinstance(result, list):
-                return result, None, session_id, provider_name
-            return None, "Expected JSON array from LLM", session_id, provider_name
-
-        # Fall back to parsing response content
         items = _parse_json_response(resp.content)
         if items:
             return items, None, session_id, provider_name
@@ -430,10 +408,9 @@ def generate_roadmap(skill_name: str):
             growth_context=growth_ctx,
         )
 
-        result_file = os.path.join(TMP_DIR, f'skill_roadmap_gen_{job_id}.json')
         items, error, session_id, provider_name = _run_llm_for_roadmap(
             prompt, job_id, skill_name, job_type="generate",
-            timeout=600, result_file=result_file,
+            timeout=600,
         )
 
         if error:
@@ -497,10 +474,9 @@ def extend_roadmap(skill_name: str):
             checked_items=json.dumps(checked),
         )
 
-        result_file = os.path.join(TMP_DIR, f'skill_roadmap_extend_{job_id}.json')
         items, error, session_id, provider_name = _run_llm_for_roadmap(
             prompt, job_id, skill_name, job_type="extend",
-            timeout=600, result_file=result_file,
+            timeout=600,
         )
 
         if error:
@@ -557,10 +533,9 @@ def finegrain_roadmap(skill_name: str):
             checked_items=json.dumps(checked),
         )
 
-        result_file = os.path.join(TMP_DIR, f'skill_roadmap_finegrain_{job_id}.json')
         items, error, session_id, provider_name = _run_llm_for_roadmap(
             prompt, job_id, skill_name, job_type="finegrain",
-            timeout=600, result_file=result_file,
+            timeout=600,
         )
 
         if error:

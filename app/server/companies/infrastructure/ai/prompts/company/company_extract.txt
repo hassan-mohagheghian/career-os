@@ -6,7 +6,7 @@ Input type: {input_type}
 Content:
 {content}
 
-Save the result as JSON to {output_file}:
+Output the result as JSON (no other text) with this structure:
 
 {{
   "name": "Exact company name",
@@ -126,4 +126,4 @@ EXTRACTION RULES:
 7. If the content is a URL page, extract from the full page content
 8. If manual notes, extract everything implied and stated
 
-Save the complete JSON to {output_file} using the write tool.
+Output ONLY the JSON result, no other text.

@@ -78,7 +78,6 @@ class ExtractCompanyTool(BaseTool):
                 "company/company_extract",
                 content=content[:8000],
                 input_type="multi_note",
-                output_file="/tmp/ai_company_extract.json",
             )
 
             llm = get_llm_service()
@@ -148,7 +147,6 @@ class AnalyzeCompanyTool(BaseTool):
                 company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
                 company_type=company_type,
                 rules=rules,
-                output_file="/tmp/ai_company_analyze.json",
             )
 
             llm = get_llm_service()

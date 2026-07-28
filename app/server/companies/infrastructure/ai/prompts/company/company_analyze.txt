@@ -9,7 +9,7 @@ The candidate has these scoring rules that define what matters most. Use them to
 
 {rules}
 
-Analyze this company comprehensively. Use ALL the extracted data — funding, team size, tech stack, culture signals, international signals, everything. Use the candidate's scoring rules above to evaluate how well this company matches. Generate a deep intelligence report and save as JSON to {output_file}.
+Analyze this company comprehensively. Use ALL the extracted data — funding, team size, tech stack, culture signals, international signals, everything. Use the candidate's scoring rules above to evaluate how well this company matches. Generate a deep intelligence report and output as JSON (no other text) with this structure:
 
 {{
   "overview": {{
@@ -191,4 +191,4 @@ company_overall_score = (company_fit_score * 0.5) + (company_success_score * 0.5
 Calculate fit_grade, overall_grade from the respective scores.
 Provide explanations and positive/negative factors for both fit and success scores.
 
-Save the complete JSON to {output_file} using the write tool. Return the JSON result.
+Output ONLY the JSON object, no other text.

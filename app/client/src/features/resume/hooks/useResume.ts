@@ -56,7 +56,7 @@ export function useResume() {
     try {
       const res = await fetch(`${API}/jobs/${num}/generate-resume`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed'); return }
+      if (!res.ok) { toast.error(data.error?.message || data.error || 'Failed'); return }
       setActiveGens(prev => ({
         ...prev,
         resume: { id: data.gen_id, type: 'resume', status: 'queued', step: 0, total_steps: 5 },
@@ -71,7 +71,7 @@ export function useResume() {
     try {
       const res = await fetch(`${API}/jobs/${num}/generate-cover`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error || 'Failed'); return }
+      if (!res.ok) { toast.error(data.error?.message || data.error || 'Failed'); return }
       setActiveGens(prev => ({
         ...prev,
         cover: { id: data.gen_id, type: 'cover', status: 'queued', step: 0, total_steps: 5 },

@@ -69,7 +69,7 @@ Perform ALL of the following analysis layers and combine them into one report:
 OUTPUT FORMAT
 --------------------------------------------------
 
-Save the result to {tmp_dir}/skills_intelligence_{pid}.json with this exact structure:
+Output the result as JSON (no other text) with this exact structure:
 
 {{
   "summary": {{

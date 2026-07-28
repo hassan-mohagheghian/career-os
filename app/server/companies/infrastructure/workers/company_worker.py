@@ -37,9 +37,6 @@ log = get_logger('company_worker')
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..')
 PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..', '..'))
-_tmp = os.environ.get('TEMP_DIR', 'tmp')
-TMP_DIR = _tmp if os.path.isabs(_tmp) else os.path.join(PROJECT_ROOT, _tmp)
-os.makedirs(TMP_DIR, exist_ok=True)
 
 
 def _update_step(pid, step, val, status=None, company_name=None, company_id=None, error=None):
@@ -217,7 +214,6 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid):
 
 def _extract_company_info(input_text, input_type, pid):
     """Step 1: Extract structured company data using LLM service."""
-    output_file = os.path.join(TMP_DIR, f'company_extract_{pid}.json')
     if input_type == 'multi_note':
         content = input_text[:8000]
     elif input_type == 'manual':
@@ -225,15 +221,11 @@ def _extract_company_info(input_text, input_type, pid):
     else:
         content = f"URL: {input_text}"
     prompt = load_prompt('company/company_extract',
-        content=content, input_type=input_type, output_file=output_file)
+        content=content, input_type=input_type)
 
     try:
         llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": output_file, "pid": str(pid)},
-            timeout=180,
-        )
+        resp = llm.generate_structured(prompt, timeout=180)
         return json.loads(resp.content)
     except Exception as e:
         _log(pid, 'extract', f'Warning: LLM extraction failed: {e}')
@@ -275,21 +267,15 @@ def _load_rules(context='company', company_type='UNKNOWN'):
 
 def _analyze_company(company_data, pid, company_type='UNKNOWN'):
     """Step 2: Generate full intelligence analysis using LLM service."""
-    output_file = os.path.join(TMP_DIR, f'company_analyze_{pid}.json')
     rules = _load_rules(context='company', company_type=company_type)
     prompt = load_prompt('company/company_analyze',
         company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
         company_type=company_type,
-        rules=rules,
-        output_file=output_file)
+        rules=rules)
 
     try:
         llm = get_llm_service()
-        resp = llm.generate_structured(
-            prompt,
-            context={"result_file": output_file, "pid": str(pid)},
-            timeout=300,
-        )
+        resp = llm.generate_structured(prompt, timeout=300)
         return json.loads(resp.content)
     except Exception:
         pass

@@ -5,7 +5,7 @@ Tables available:
 - jobs (deleted=0): company, role, location, score, match, fit_score, success_score, overall_score, stack, visa, work_type, employment_type, posted, applicants
 - companies: name, industry, company_type, country, city
 
-Generate an opportunities report as JSON and save to {tmp_dir}/opportunities_intelligence_{pid}.json with this structure:
+Output the result as JSON (no other text) with this structure:
 
 {{
   "funnel": {{

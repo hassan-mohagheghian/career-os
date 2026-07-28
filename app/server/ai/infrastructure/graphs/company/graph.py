@@ -42,7 +42,6 @@ def build_company_processing_graph() -> GraphBuilder:
                 "company/company_extract",
                 content=content[:8000],
                 input_type=input_type,
-                output_file="/tmp/ai_company_extract.json",
             )
 
             llm = get_llm_service()
@@ -132,7 +131,6 @@ def build_company_processing_graph() -> GraphBuilder:
                 company_data=json.dumps(extraction, ensure_ascii=False)[:4000],
                 company_type=company_type,
                 rules=rules,
-                output_file="/tmp/ai_company_analyze.json",
             )
 
             llm = get_llm_service()

@@ -101,7 +101,6 @@ def build_job_processing_graph() -> GraphBuilder:
             prompt = load_prompt(
                 "job_processing/step3_extract_raw",
                 content=content[:5000],
-                output_file="/tmp/ai_extract_result.json",
             )
 
             llm = get_llm_service()

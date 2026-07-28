@@ -39,11 +39,10 @@ class TestLLMService:
         ))
         service = LLMService(provider)
 
-        resp = service.generate_structured("test prompt", context={"result_file": "/tmp/test.json"})
+        resp = service.generate_structured("test prompt")
         assert resp.content == '{"key": "value"}'
         assert len(provider.structured_calls) == 1
         assert provider.structured_calls[0].prompt == "test prompt"
-        assert provider.structured_calls[0].context == {"result_file": "/tmp/test.json"}
 
     def test_generate_streaming_fallback_without_streaming(self):
         """When provider doesn't have generate_streaming, falls back to generate."""
