@@ -174,7 +174,7 @@ def rescore_job(
     if existing:
         pending_repo.update_status(str(existing["id"]), "cancelled", table="pending_jobs")
 
-    result = pending_repo.create(url, {
+    result = pending_repo.create({
         "url": url,
         "source": "rescore",
         "company": job.get("company", ""),
@@ -199,7 +199,7 @@ def rescore_all(
         num = job["num"]
         url = job["url"]
         repo.mark_rescoring(num)
-        result = pending_repo.create(url, {
+        result = pending_repo.create({
             "url": url,
             "source": "rescore",
             "company": job.get("company", ""),
@@ -259,24 +259,21 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
     from infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
 
     session = get_session_sync()
-    try:
-        repo = SQLAlchemyJobRepository(session)
-        job = repo.get_by_num(num)
-        if not job:
-            raise NotFoundError(f"Job {num} not found")
+    repo = SQLAlchemyJobRepository(session)
+    job = repo.get_by_num(num)
+    if not job:
+        raise NotFoundError(f"Job {num} not found")
 
-        from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        gen_repo = SQLAlchemyPendingGenerationRepository(session)
+    from infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    gen_repo = SQLAlchemyPendingGenerationRepository(session)
 
-        running = gen_repo.get_active_for_job(num, "resume")
-        if running:
-            raise BadRequestError("A resume generation is already running for this job")
+    running = gen_repo.get_active_for_job(num, "resume")
+    if running:
+        raise BadRequestError("A resume generation is already running for this job")
 
-        gen = gen_repo.create(num, "resume", "queued")
-        gen_id = gen["id"]
-        session.commit()
-    finally:
-        session.close()
+    gen = gen_repo.create(num, "resume", "queued")
+    gen_id = gen["id"]
+    session.commit()
 
     def _run():
         from services.generation_worker import process_generation
@@ -292,7 +289,7 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
                     SQLAlchemyPendingGenerationRepository(s).update_fields(gen_id, status="failed", error=str(e))
                     s.commit()
                 finally:
-                    s.close()
+                    pass
             except Exception:
                 pass
 
@@ -324,7 +321,7 @@ def generate_cover(num: int):
         gen_id = gen["id"]
         session.commit()
     finally:
-        session.close()
+        pass
 
     def _run():
         from services.generation_worker import process_generation
