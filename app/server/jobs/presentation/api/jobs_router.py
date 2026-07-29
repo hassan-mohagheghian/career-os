@@ -145,13 +145,14 @@ def requeue_job(
     if existing:
         pid = existing["id"]
         pending_repo.update_fields(pid, table="pending_jobs",
-            status="pending", error=None, source="requeue",
+            status="created", error=None, source="requeue",
             company=company, queue_order=0, step_fetch=0, step_analyze=0,
             step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
-            step_db=0, step_done=0, workflow_log="[]",
+            step_db=0, step_done=0, workflow_log="[]", current_node=None,
+            retry_count=0, failure_details=None,
             updated_at=datetime.now().isoformat())
     else:
-        result = pending_repo.create_pending_job(url, "requeue", company, "pending")
+        result = pending_repo.create_pending_job(url, "requeue", company, "created")
         pid = result["id"]
 
     get_queue_manager().enqueue(pid)
@@ -177,6 +178,7 @@ def rescore_job(
     existing = pending_repo.get_by_url(url)
     if existing:
         pending_repo.update_status(str(existing["id"]), "cancelled", table="pending_jobs")
+        get_queue_manager().cancel_job(existing["id"])
 
     result = pending_repo.create({
         "url": url,
@@ -237,14 +239,15 @@ def reprocess_all(
         if existing:
             pid = existing["id"]
             pending_repo.update_fields(pid, table="pending_jobs",
-                status="pending", error=None, source="requeue",
+                status="created", error=None, source="requeue",
                 company=company, queue_order=0, step_fetch=0, step_analyze=0,
                 step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
-                step_db=0, step_done=0, workflow_log="[]",
+                step_db=0, step_done=0, workflow_log="[]", current_node=None,
+                retry_count=0, failure_details=None,
                 updated_at=datetime.now().isoformat())
             pending_ids.append(pid)
         else:
-            result = pending_repo.create(url, {
+            result = pending_repo.create({
                 "url": url,
                 "source": "requeue",
                 "company": company,

@@ -1,17 +1,116 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Optional
+from datetime import datetime
+from typing import Any, Optional
 
 from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, JobExtractionOutput, JobAnalysisOutput
 
-from ai.infrastructure.tools.web import WebFetchTool, MultiSourceFetchTool
+from ai.infrastructure.tools.fetch import fetch_page
 
 
 def build_job_processing_graph() -> GraphBuilder:
-    _web_fetcher = WebFetchTool()
-    _multi_fetcher = MultiSourceFetchTool()
+
+    def load_context(state: BaseState) -> BaseState:
+        pid = state["context"].get("pid")
+        url = state["context"].get("url", state["input"])
+        notes = state["context"].get("notes", [])
+        links = state["context"].get("links", [])
+        source = state["context"].get("source", "cli")
+
+        state["context"]["source"] = source
+        state["context"]["pid"] = pid
+
+        notes_text = []
+        for note in notes:
+            if isinstance(note, dict):
+                if note.get("type") == "text" and note.get("content"):
+                    notes_text.append(f"[NOTE] {note['content']}")
+                elif note.get("type") == "url" and note.get("content"):
+                    notes_text.append(f"[NOTE_URL] {note['content']}")
+            elif isinstance(note, str):
+                notes_text.append(f"[NOTE] {note}")
+        state["context"]["notes_text"] = "\n".join(notes_text)
+
+        links_text = []
+        for link in links:
+            if isinstance(link, dict):
+                link_url = link.get("url", "")
+                link_title = link.get("title", "Link")
+                if link_url:
+                    links_text.append(f"[{link_title}] {link_url}")
+            elif isinstance(link, str):
+                links_text.append(f"[Link] {link}")
+        state["context"]["links_text"] = "\n".join(links_text)
+
+        resume_text = state["context"].get("resume_text", "")
+        linkedin_text = state["context"].get("linkedin_text", "")
+        rules = state["context"].get("rules", "")
+
+        if not resume_text:
+            try:
+                from dependencies import get_session_sync
+                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+                session = get_session_sync()
+                try:
+                    resume_repo = SQLAlchemyResumeRepository(session)
+                    resume_text = resume_repo.get_latest_original_raw_text() or ""
+                finally:
+                    session.close()
+            except Exception:
+                resume_text = ""
+            state["context"]["resume_text"] = resume_text
+
+        if not linkedin_text:
+            try:
+                from dependencies import get_session_sync
+                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+                session = get_session_sync()
+                try:
+                    resume_repo = SQLAlchemyResumeRepository(session)
+                    linkedin_text = resume_repo.get_latest_linkedin_raw_text() or ""
+                finally:
+                    session.close()
+            except Exception:
+                linkedin_text = ""
+            state["context"]["linkedin_text"] = linkedin_text
+
+        if not rules:
+            try:
+                from dependencies import get_session_sync
+                from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+                session = get_session_sync()
+                try:
+                    pref_repo = SQLAlchemyPreferenceRepository(session)
+                    rows = pref_repo.get_enabled_by_scopes(["SHARED", "JOB"])
+                finally:
+                    session.close()
+                if rows:
+                    lines = []
+                    current_cat = None
+                    for r in rows:
+                        cat = r["category"]
+                        if cat != current_cat:
+                            current_cat = cat
+                            lines.append(f"\n\xad\u2015 {cat.upper()} {'\u2500' * (35 - len(cat))}")
+                        weight = r.get("score_weight") or r["priority"]
+                        lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
+                    rules = "\n".join(lines)
+                else:
+                    rules = "No scoring rules set."
+            except Exception:
+                rules = "No scoring rules set."
+            state["context"]["rules"] = rules
+
+        state["metadata"]["load_context"] = {
+            "success": True,
+            "has_resume": bool(resume_text),
+            "has_linkedin": bool(linkedin_text),
+            "has_rules": bool(rules),
+        }
+
+        return state
 
     def validate_input(state: BaseState) -> BaseState:
         url = state["context"].get("url", state["input"])
@@ -37,31 +136,68 @@ def build_job_processing_graph() -> GraphBuilder:
 
     def fetch_url(state: BaseState) -> BaseState:
         url = state["context"].get("url", state["input"])
+        notes = state["context"].get("notes", [])
+        links = state["context"].get("links", [])
 
-        if not url or not url.startswith("http"):
-            state["metadata"]["fetch"] = {"skipped": True, "reason": "No URL provided"}
-            return state
+        parts = []
 
-        try:
-            page = _web_fetcher.fetch_direct(url)
+        for note in notes:
+            if isinstance(note, dict):
+                if note.get("type") == "text" and note.get("content"):
+                    parts.append(f"[NOTE] {note['content']}")
 
-            if page.is_ok:
-                state["metadata"]["raw_content"] = page.plain_text
-                state["metadata"]["content_length"] = len(page.plain_text)
-                state["metadata"]["fetch"] = {
-                    "success": True,
-                    "url": url,
-                    "length": len(page.plain_text),
-                    "cache_hit": page.cache_hit,
-                    "status_code": page.status_code,
-                }
-            else:
-                error_msg = page.error.message if page.error else "Fetch failed"
-                state["errors"].append(f"URL fetch failed: {error_msg}")
-                state["metadata"]["fetch"] = {"success": False, "error": error_msg}
-        except Exception as e:
-            state["errors"].append(f"URL fetch failed: {e}")
-            state["metadata"]["fetch"] = {"success": False, "error": str(e)}
+        if url and url.startswith("http"):
+            try:
+                page = fetch_page(url)
+                if page.is_ok:
+                    parts.append(page.plain_text)
+                else:
+                    error_msg = page.error.message if page.error else "Fetch failed"
+                    state["errors"].append(f"URL fetch failed: {error_msg}")
+                    state["metadata"]["fetch"] = {"success": False, "error": error_msg}
+            except Exception as e:
+                state["errors"].append(f"URL fetch failed: {e}")
+                state["metadata"]["fetch"] = {"success": False, "error": str(e)}
+
+        for note in notes:
+            if isinstance(note, dict):
+                if note.get("type") == "url" and note.get("content"):
+                    note_url = note["content"].strip()
+                    if note_url.startswith("http") and (not url or note_url not in url):
+                        try:
+                            page = fetch_page(note_url)
+                            if page.is_ok:
+                                parts.append(f"[URL] {page.plain_text}")
+                        except Exception:
+                            pass
+
+        for link in links:
+            if isinstance(link, dict):
+                link_url = link.get("url", "")
+                if link_url and link_url.startswith("http"):
+                    try:
+                        page = fetch_page(link_url)
+                        if page.is_ok:
+                            parts.append(f"[{link.get('title', 'Link')}] {page.plain_text}")
+                    except Exception:
+                        pass
+
+        content = "\n\n".join(parts)[:8000] if parts else ""
+
+        if content:
+            state["metadata"]["raw_content"] = content
+            state["metadata"]["content_length"] = len(content)
+            state["metadata"]["fetch"] = {
+                "success": True,
+                "url": url,
+                "length": len(content),
+                "has_notes": bool(notes),
+                "has_links": bool(links),
+            }
+        else:
+            if not state["errors"]:
+                state["errors"].append("No content fetched from any source")
+            state["metadata"]["fetch"] = {"success": False, "error": "No content"}
 
         return state
 
@@ -73,12 +209,11 @@ def build_job_processing_graph() -> GraphBuilder:
             }
             return state
 
-        notes = state["context"].get("notes", [])
-        if notes:
-            content = "\n\n".join(notes)
-            state["metadata"]["raw_content"] = content
-            state["metadata"]["content_length"] = len(content)
-            state["metadata"]["fallback"] = {"used_notes": True, "length": len(content)}
+        notes_text = state["context"].get("notes_text", "")
+        if notes_text:
+            state["metadata"]["raw_content"] = notes_text
+            state["metadata"]["content_length"] = len(notes_text)
+            state["metadata"]["fallback"] = {"used_notes": True, "length": len(notes_text)}
         else:
             state["metadata"]["fallback"] = {
                 "used_notes": False,
@@ -125,10 +260,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def clean_content(state: BaseState) -> BaseState:
-        """Stage 5: Content Cleaning.
-
-        Cleans and normalizes the extracted content.
-        """
         extraction = state["metadata"].get("extraction", {})
 
         if not extraction:
@@ -138,9 +269,11 @@ def build_job_processing_graph() -> GraphBuilder:
             }
             return state
 
-        for key in ["title", "company", "description", "requirements"]:
-            if key in extraction and isinstance(extraction[key], str):
-                extraction[key] = extraction[key].strip()
+        for key, val in extraction.items():
+            if isinstance(val, list):
+                extraction[key] = "\n".join(str(item) for item in val)
+            elif isinstance(val, str):
+                extraction[key] = val.strip()
 
         state["metadata"]["extraction"] = extraction
         state["metadata"]["clean"] = {
@@ -151,10 +284,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def extract_structured_data(state: BaseState) -> BaseState:
-        """Stage 6: Structured Extraction.
-
-        Structures the extracted data into a typed Pydantic model.
-        """
         extraction = state["metadata"].get("extraction", {})
 
         if not extraction:
@@ -164,17 +293,8 @@ def build_job_processing_graph() -> GraphBuilder:
             }
             return state
 
-        structured = JobExtractionOutput(
-            company=extraction.get("company", "Unknown"),
-            title=extraction.get("title", "Unknown"),
-            location=extraction.get("location", ""),
-            salary=extraction.get("salary", ""),
-            stack=extraction.get("stack", ""),
-            description=extraction.get("description", ""),
-            requirements=extraction.get("requirements", ""),
-            benefits=extraction.get("benefits", ""),
-            url=state["context"].get("url", ""),
-        )
+        url = state["context"].get("url", "")
+        structured = JobExtractionOutput.from_llm_extraction(extraction, url=url)
 
         state["metadata"]["structured"] = structured.model_dump()
         state["metadata"]["extract_struct"] = {"success": True}
@@ -182,10 +302,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def analyze_job(state: BaseState) -> BaseState:
-        """Stage 7: Job Analysis.
-
-        Analyzes the job posting for requirements and fit.
-        """
         structured = state["metadata"].get("structured", {})
 
         if not structured:
@@ -213,10 +329,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def extract_skills_node(state: BaseState) -> BaseState:
-        """Stage 8: Skill Extraction.
-
-        Extracts skills from the job description.
-        """
         structured = state["metadata"].get("structured", {})
         description = structured.get("description", "")
 
@@ -245,10 +357,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def score_job(state: BaseState) -> BaseState:
-        """Stage 9: Scoring.
-
-        Computes fit score and success score.
-        """
         extraction = state["metadata"].get("extraction", {})
 
         if not extraction:
@@ -274,10 +382,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def generate_summary(state: BaseState) -> BaseState:
-        """Stage 10: Summary Generation.
-
-        Generates a summary of the job posting.
-        """
         structured = state["metadata"].get("structured", {})
         extraction = state["metadata"].get("extraction", {})
 
@@ -312,12 +416,9 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def persist_results(state: BaseState) -> BaseState:
-        """Stage 11: Persistence.
-
-        Saves the job results to the database.
-        """
         structured = state["metadata"].get("structured", {})
         extraction = state["metadata"].get("extraction", {})
+        raw_content = state["metadata"].get("raw_content", "")
 
         if not structured and not extraction:
             state["metadata"]["persistence"] = {
@@ -327,10 +428,84 @@ def build_job_processing_graph() -> GraphBuilder:
             return state
 
         try:
+            from dependencies import get_session_sync
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+            from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+
+            pid = state["context"].get("pid")
+            url = state["context"].get("url", state["input"])
+
+            session = get_session_sync()
+            try:
+                job_repo = SQLAlchemyJobRepository(session)
+                summary_repo = SQLAlchemySummaryRepository(session)
+                resume_repo = SQLAlchemyResumeRepository(session)
+
+                temp_num = job_repo.get_next_num()
+                existing_num = job_repo.get_num_by_url(url) if url else None
+                job_num = existing_num or temp_num
+
+                company = structured.get("company") or extraction.get("company") or "Unknown"
+                title = structured.get("title") or extraction.get("title") or "Unknown"
+                score = state["metadata"].get("score", "P")
+                match = extraction.get("match", "Medium")
+                fit_score = state["metadata"].get("fit_score")
+                success_score = state["metadata"].get("success_score")
+                overall_score = state["metadata"].get("overall_score")
+
+                job_data = {
+                    "num": job_num,
+                    "company": company,
+                    "role": title,
+                    "location": structured.get("location", "Not specified"),
+                    "match": match,
+                    "score": score,
+                    "success": extraction.get("success", "P"),
+                    "salary": structured.get("salary", "Not specified"),
+                    "stack": structured.get("stack", ""),
+                    "visa": extraction.get("visa", "Uncertain"),
+                    "applicants": extraction.get("applicants", "Not specified"),
+                    "posted": extraction.get("posted", "Not specified"),
+                    "industry": extraction.get("industry", ""),
+                    "domain": extraction.get("domain", ""),
+                    "notes": extraction.get("notes", ""),
+                    "action": extraction.get("action", ""),
+                    "url": url,
+                    "raw_description": raw_content,
+                    "structured_description": json.dumps(extraction, ensure_ascii=False) if extraction else None,
+                    "fit_score": fit_score,
+                    "success_score": success_score,
+                    "overall_score": overall_score,
+                    "company_url": extraction.get("company_url"),
+                    "linkedin_url": extraction.get("linkedin_url"),
+                    "workflow_log": json.dumps(state.get("node_history", [])),
+                }
+                job_repo.upsert(job_data)
+
+                summary_data = {
+                    "num": job_num,
+                    "company": company,
+                    "match": match,
+                    "score": score,
+                    "summary": extraction.get("summary", ""),
+                    "stack": structured.get("stack", ""),
+                    "resumeFit": extraction.get("resumeFit", ""),
+                    "note": extraction.get("note", ""),
+                    "url": url,
+                }
+                summary_repo.upsert(summary_data)
+
+            finally:
+                session.close()
+
             state["metadata"]["persistence"] = {
                 "success": True,
-                "ready_to_save": True,
+                "job_num": job_num,
+                "company": company,
             }
+            state["context"]["job_num"] = job_num
+
         except Exception as e:
             state["errors"].append(f"Persistence failed: {e}")
             state["metadata"]["persistence"] = {
@@ -341,10 +516,6 @@ def build_job_processing_graph() -> GraphBuilder:
         return state
 
     def completion_event(state: BaseState) -> BaseState:
-        """Stage 12: Completion Event.
-
-        Builds final typed output and emits completion.
-        """
         output = JobAnalysisOutput(
             extraction=JobExtractionOutput(
                 **state["metadata"].get("structured", {})
@@ -366,8 +537,8 @@ def build_job_processing_graph() -> GraphBuilder:
 
         return state
 
-    # Build the graph
     builder = GraphBuilder("job_processing")
+    builder.add_node("load_context", load_context)
     builder.add_node("validate_input", validate_input)
     builder.add_node("fetch_url", fetch_url)
     builder.add_node("fallback_to_notes", fallback_to_notes)
@@ -381,6 +552,7 @@ def build_job_processing_graph() -> GraphBuilder:
     builder.add_node("persist_results", persist_results)
     builder.add_node("completion_event", completion_event)
 
+    builder.add_edge("load_context", "validate_input")
     builder.add_edge("validate_input", "fetch_url")
     builder.add_edge("fetch_url", "fallback_to_notes")
     builder.add_edge("fallback_to_notes", "extract_raw_content")
@@ -393,10 +565,9 @@ def build_job_processing_graph() -> GraphBuilder:
     builder.add_edge("generate_summary", "persist_results")
     builder.add_edge("persist_results", "completion_event")
 
-    builder.set_entry("validate_input")
+    builder.set_entry("load_context")
     builder.set_finish("completion_event")
 
-    # Retry config for LLM-dependent nodes
     builder.set_retry("extract_raw_content", max_retries=2, delay=1.0)
     builder.set_retry("score_job", max_retries=2, delay=1.0)
 

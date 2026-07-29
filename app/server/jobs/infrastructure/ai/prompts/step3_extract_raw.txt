@@ -3,7 +3,7 @@ Extract and validate job information from this web page content.
 Content:
 {content}
 
-Save the result as JSON to {output_file} with this structure:
+Output the result as JSON with this structure:
 
 {{
   "valid": true/false,

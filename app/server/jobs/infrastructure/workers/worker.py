@@ -640,14 +640,13 @@ def _extract_structured_description(raw_text, num):
 
 def _extract_all(raw_text, pid, session_id=None):
     """Combined extraction: validate + structured + summary in one LLM call."""
-    output_file = os.path.join(TMP_DIR, f'extract_{pid}.json')
     prompt = load_prompt('job_processing/step3_extract_raw',
-        content=raw_text[:5000], output_file=output_file)
+        content=raw_text[:5000])
 
     llm = get_llm_service()
     resp = llm.generate_structured(
         prompt,
-        context={"result_file": output_file, "pid": str(pid), "session_id": session_id},
+        context={"pid": str(pid), "session_id": session_id},
         timeout=90,
     )
     # Save session_id from response
@@ -815,14 +814,13 @@ def _fetch_url(url):
 
 def _validate_job_content(raw_text, pid):
     """Validate and extract main job section from fetched content using LLM service."""
-    result_file = os.path.join(TMP_DIR, f'validate_{pid}.json')
-    prompt = load_prompt('job_processing/step2_validate', content=raw_text[:3000], result_file=result_file)
+    prompt = load_prompt('job_processing/step2_validate', content=raw_text[:3000])
 
     try:
         llm = get_llm_service()
         resp = llm.generate_structured(
             prompt,
-            context={"result_file": result_file, "pid": str(pid)},
+            context={"pid": str(pid)},
             timeout=60,
         )
         return json.loads(resp.content)
@@ -885,6 +883,14 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
             session_id = f"mimo_{uuid.uuid4().hex[:12]}"
             _save_session_id(pid, session_id)
 
+        if not captured_result and resp.content:
+            try:
+                parsed = json.loads(resp.content)
+                if isinstance(parsed, dict):
+                    captured_result['result'] = parsed
+            except json.JSONDecodeError:
+                pass
+
         return returncode, all_lines, session_id, captured_result
 
     except RuntimeError as e:
@@ -943,616 +949,35 @@ def _handle_mimo_event(pid, evt):
 # --- Main pipeline ---
 
 def process_job(pid):
+    """Process a pending job using LangGraph state management (no file I/O).
+
+    Delegates to JobWorker which uses the LangGraph job graph.
+    All state is managed in memory through LangGraph state — no temp files.
     """
-    Full pipeline (5 steps + done):
-    1. Fetch     — download URL, save raw to temp file
-    2. Extract   — extract structured description via mimo
-    3. Analyze   — mimo scores/resumes the job
-    4. Resume    — read mimo result, save raw+structured files
-    5. Save      — write to DB (jobs, summaries, resumes)
-    Done         — finalize
-    """
+    from shared.infrastructure.process_utils import (
+        ProcessManager, TempFileManager, MimoRunner, broadcaster,
+    )
+    from shared.infrastructure.process.repository import PendingJobRepository
+    from dependencies import get_session_sync
+
     session = get_session_sync()
     try:
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        pending_repo = SQLAlchemyPendingRepository(session)
-        item = pending_repo.get_by_id(pid, "pending_jobs")
+        pending_repo = PendingJobRepository(session)
+        proc_mgr = ProcessManager()
+        temp_mgr = TempFileManager()
+        mimo_runner = MimoRunner(proc_mgr)
+
+        from jobs.infrastructure.workers.job_worker import JobWorker
+        worker = JobWorker(
+            pending_repo=pending_repo,
+            process_mgr=proc_mgr,
+            temp_mgr=temp_mgr,
+            mimo_runner=mimo_runner,
+            broadcaster=broadcaster,
+        )
+        worker.process(pid)
     finally:
         session.close()
-    if not item:
-        return
-    url = item['url']
-    source = item.get('source', 'cli')
-    version = item.get('version') or 1
-    previous_session_id = item.get('session_id')
-
-    job_file = os.path.join(TMP_DIR, f'job_{pid}.txt')
-
-    try:
-        current_step = 'fetch'
-        _log(pid, 'start', f'Processing {url[:60]}...')
-
-        if source == 'rescore':
-            # ── RESCORE PATH: skip fetch/validate/extract, go straight to scoring ──
-            _log(pid, 'rescore', 'Rescoring — loading existing job data from DB...')
-
-            # Load existing job from DB
-            session = get_session_sync()
-            try:
-                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-                job_repo = SQLAlchemyJobRepository(session)
-                ej = job_repo.get_by_num(item.get('job_num', 0))
-            finally:
-                session.close()
-
-            if not ej:
-                raise RuntimeError(f"Original job #{item.get('job_num')} not found in DB")
-
-            raw_text = ej.get('raw_description', '')
-            if not raw_text:
-                raw_path = ej.get('raw_file_path', '')
-                if raw_path and os.path.exists(raw_path):
-                    with open(raw_path) as f:
-                        raw_text = f.read()
-            if not raw_text:
-                raise RuntimeError("No raw description available for rescoring")
-
-            # Write raw content to temp file for the prompt
-            with open(job_file, 'w') as f:
-                f.write(raw_text)
-
-            # Mark early steps as done instantly
-            _mark(pid, 'step_fetch')
-            _mark(pid, 'step_validate')
-            _mark(pid, 'step_extract_raw')
-            _mark(pid, 'step_extract_struct')
-            _mark(pid, 'step_summary')
-
-            # Build job_data from existing job
-            job_data = {
-                'num': ej['num'],
-                'company': ej['company'],
-                'role': ej['role'],
-                'location': ej['location'],
-                'locations': ej.get('locations', '[]'),
-                'match': ej['match'],
-                'score': ej['score'],
-                'success': ej.get('success', 'P'),
-                'salary': ej.get('salary', 'Not specified'),
-                'stack': ej.get('stack', ''),
-                'visa': ej.get('visa', 'Uncertain'),
-                'applicants': ej.get('applicants', 'Not specified'),
-                'posted': ej.get('posted', 'Not specified'),
-                'industry': ej.get('industry', ''),
-                'domain': ej.get('domain', ''),
-                'notes': ej.get('notes', ''),
-                'action': ej.get('action', ''),
-                'url': url,
-                'raw_description': raw_text,
-                'structured_description': ej.get('structured_description'),
-                'employment_type': ej.get('employment_type', 'Full-time'),
-                'work_types': ej.get('work_types', []),
-                'adv_at': ej.get('adv_at'),
-                'see_at': ej.get('see_at'),
-                'apply_reason': ej.get('apply_reason', ''),
-            }
-            existing_num = ej['num']
-
-            # Skip to scoring step
-            current_step = 'score'
-            _update_step(pid, 'step_analyze', 0, status='processing')
-            _log(pid, 'analyze', f'Rescoring existing job #{existing_num}...')
-            rules = _load_rules()
-
-            resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
-            session = get_session_sync()
-            try:
-                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-                resume_repo = SQLAlchemyResumeRepository(session)
-                raw_text = resume_repo.get_latest_original_raw_text()
-            finally:
-                session.close()
-            if raw_text:
-                with open(resume_file, 'w') as f:
-                    f.write(raw_text)
-                resume_path = resume_file
-            else:
-                resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
-
-            # Load LinkedIn profile for rescore
-            linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
-            session = get_session_sync()
-            try:
-                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-                resume_repo = SQLAlchemyResumeRepository(session)
-                linkedin_text = resume_repo.get_latest_linkedin_raw_text()
-            finally:
-                session.close()
-            linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
-            if linkedin_text:
-                with open(linkedin_file, 'w') as f:
-                    f.write(linkedin_text)
-                linkedin_path = linkedin_file
-            else:
-                linkedin_path = None
-                linkedin_step = "No LinkedIn profile available — skip this step"
-
-            prompt = load_prompt('job_processing/step8_score',
-                url=url, job_file=job_file, resume_file=resume_path,
-                linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
-                tmp_dir=TMP_DIR, pid=pid, next_num=existing_num, rules=rules)
-
-            returncode, output_lines, sid, captured_result = _stream_mimo_output(
-                [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-                cwd=PROJECT_ROOT,
-                env={**os.environ, 'NO_COLOR': '1'},
-                timeout=300,
-                pid=pid,
-                resume_session_id=previous_session_id,
-            )
-
-            if returncode != 0:
-                error_msg = f"exit code {returncode}"
-                for line in output_lines:
-                    try:
-                        evt = json.loads(line)
-                        if evt.get('type') == 'text':
-                            error_msg = evt.get('part', {}).get('text', error_msg)[:300]
-                    except json.JSONDecodeError:
-                        continue
-                raise RuntimeError(f"mimo failed: {error_msg}")
-
-            data = captured_result.get('result') or captured_result.get('pending_result')
-            if not data:
-                result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
-                _check_result_file(result_path)
-                with open(result_path) as f:
-                    data = json.loads(f.read(), strict=False)
-                try: os.remove(result_path)
-                except OSError: pass
-
-            analyzed_data = data['job']
-            _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
-
-            # Parse numeric scores from mimo output
-            fit_score_raw = analyzed_data.get('fit_score')
-            success_score_raw = analyzed_data.get('success_score')
-            fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
-            success_score = max(0, min(100, int(success_score_raw))) if success_score_raw is not None else None
-
-            # Compute overall_score: (fit * 0.6) + (success * 0.4)
-            overall_score = None
-            if fit_score is not None and success_score is not None:
-                overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
-
-            score = normalize_score(analyzed_data.get('score', 'P'))
-            match = analyzed_data.get('match', 'Medium')
-            _log(pid, 'analyze', f'Score: {score} (fit={fit_score}) — Success: {normalize_score(analyzed_data.get("success", "P"))} (prob={success_score}) — Overall: {overall_score} — Match: {match}')
-
-            job_data.update({
-                'company': analyzed_data.get('company', job_data['company']),
-                'role': analyzed_data.get('role', job_data['role']),
-                'location': analyzed_data.get('location', job_data['location']),
-                'locations': analyzed_data.get('locations', []),
-                'match': match,
-                'score': score,
-                'success': normalize_score(analyzed_data.get('success', 'P')),
-                'fit_score': fit_score,
-                'success_score': success_score,
-                'overall_score': overall_score,
-                'salary': analyzed_data.get('salary', job_data.get('salary', 'Not specified')),
-                'stack': analyzed_data.get('stack', job_data.get('stack', '')),
-                'visa': analyzed_data.get('visa', job_data.get('visa', 'Uncertain')),
-                'applicants': analyzed_data.get('applicants', job_data.get('applicants', 'Not specified')),
-                'posted': analyzed_data.get('posted', job_data.get('posted', 'Not specified')),
-                'posted_at': analyzed_data.get('posted_at'),
-                'adv_at': analyzed_data.get('adv_at', job_data.get('adv_at')),
-                'apply_reason': analyzed_data.get('apply_reason', job_data.get('apply_reason', '')),
-                'industry': analyzed_data.get('industry', job_data.get('industry', '')),
-                'domain': analyzed_data.get('domain', job_data.get('domain', '')),
-                'notes': analyzed_data.get('notes', job_data.get('notes', '')),
-                'action': analyzed_data.get('action', job_data.get('action', '')),
-                'employment_type': analyzed_data.get('employment_type', job_data.get('employment_type', 'Full-time')),
-                'work_types': analyzed_data.get('work_types', job_data.get('work_types', [])),
-                'workflow_log': analyzed_data.get('workflow_log', '[]'),
-                'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
-                'linkedin_url': analyzed_data.get('linkedin_url', job_data.get('linkedin_url')),
-            })
-
-            # Save updated job, summary, and resume
-            _insert_job(job_data)
-            _log(pid, 'save', 'Updated job with new score')
-            _insert_summary({
-                'num': job_data['num'], 'company': job_data['company'],
-                'match': match, 'score': score,
-                'summary': data.get('summary', {}).get('summary', ''),
-                'stack': job_data.get('stack'),
-                'resumeFit': data.get('summary', {}).get('resumeFit', ''),
-                'note': data.get('summary', {}).get('note', ''), 'url': url,
-            })
-            # Clear rescoring flag
-            session = get_session_sync()
-            try:
-                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-                job_repo = SQLAlchemyJobRepository(session)
-                job_repo.update_fields(job_data['num'], rescoring=0)
-            finally:
-                session.close()
-            _log(pid, 'done', f"Rescore complete: {job_data['company']} #{job_data['num']} → score {score}")
-
-            # Mark pending done
-            _update_step(pid, 'step_done', 0, status='done')
-            _mark(pid, 'step_done')
-            broadcaster.complete(ProcessingComplete(
-                table='pending_jobs', pid=pid, result={'num': job_data['num'], 'company': job_data['company']},
-            ))
-
-            # Save workflow_log to jobs table
-            session = get_session_sync()
-            try:
-                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-                pending_repo = SQLAlchemyPendingRepository(session)
-                pw_item = pending_repo.get_by_id(pid, "pending_jobs")
-            finally:
-                session.close()
-            if pw_item:
-                _save_job_workflow_log(job_data['num'], pw_item.get('workflow_log') or '[]')
-
-            return
-
-        # ── NORMAL PATH: fetch, validate, extract, score ──
-
-        # Check before step 1
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped before fetch')
-            return
-
-        # ── Step 1: Fetch (supports URL-only or notes+links) ──
-        _update_step(pid, 'step_fetch', 0, status='processing')
-        _log(pid, 'fetch', 'Fetching page...')
-
-        notes = json.loads(item.get('notes') or '[]')
-        links = json.loads(item.get('links') or '[]')
-
-        if notes or links:
-            # Multi-source: iterate over notes and links (like company_worker)
-            raw_text = _fetch_multi_source(url, notes, links, pid)
-        else:
-            # Legacy: URL-only fetch
-            raw_text = _fetch_url(url)
-
-        if not raw_text or len(raw_text.strip()) < 50:
-            raise RuntimeError(
-                f"No content fetched — the URL may require login, be blocked, or be invalid. "
-                f"Check the URL and try again."
-            )
-
-        with open(job_file, 'w') as f:
-            f.write(raw_text)
-        _log(pid, 'fetch', f'Fetched {len(raw_text)} chars')
-        _mark(pid, 'step_fetch')
-
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after fetch')
-            return
-
-        # ── Steps 2-6: Combined extraction (one mimo call, separate UI steps) ──
-        # Step 2: Validate
-        current_step = 'validate'
-        _update_step(pid, 'step_validate', 0, status='processing')
-        _log(pid, 'validate', 'Extracting job info...')
-        _mark(pid, 'step_validate')
-
-        # Step 3: Extract structured + summary (one mimo call)
-        current_step = 'extract_raw'
-        _update_step(pid, 'step_extract_raw', 0, status='processing')
-        extraction = _extract_all(raw_text, pid, session_id=previous_session_id)
-        if extraction and extraction.get('valid', False):
-            _log(pid, 'extract_raw', f'Valid: {extraction.get("reason", "OK")}')
-        else:
-            reason = extraction.get('reason', 'Unknown') if extraction else 'Extraction failed'
-            _log(pid, 'extract_raw', f'WARNING: {reason} — continuing anyway')
-        _mark(pid, 'step_extract_raw')
-
-        # Step 4: Process structured data
-        current_step = 'extract_struct'
-        _update_step(pid, 'step_extract_struct', 0, status='processing')
-        structured_json = json.dumps(extraction, ensure_ascii=False) if extraction else None
-        _mark(pid, 'step_extract_struct')
-
-        # Step 5: Build summary
-        current_step = 'summary'
-        _update_step(pid, 'step_summary', 0, status='processing')
-        title = (extraction or {}).get('title') or ''
-        company = (extraction or {}).get('company') or ''
-        if not title:
-            for tline in raw_text.split('\n'):
-                tline = tline.strip()
-                if tline and 5 < len(tline) < 120:
-                    if any(kw in tline.lower() for kw in ['engineer', 'developer', 'software', 'senior', 'backend', 'frontend', 'python', 'devops', 'sre', 'platform']):
-                        title = tline
-                        break
-        if not company:
-            for marker in ['hiring', ' at ', '—', '|']:
-                idx = raw_text.find(marker)
-                if 0 < idx < 200:
-                    company = raw_text[max(0, idx-50):idx].strip().split('\n')[-1].strip()
-                    company = company.replace('hiring', '').replace(' at ', '').strip()
-                    if company and 2 < len(company) < 60:
-                        break
-                    company = ''
-        if title or company:
-            session = get_session_sync()
-            try:
-                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-                pending_repo = SQLAlchemyPendingRepository(session)
-                pending_repo.update_fields(pid, "pending_jobs", company=company or title[:40])
-            finally:
-                session.close()
-        _log(pid, 'summary', f'Summary: {(extraction or {}).get("summary", "")[:150]}')
-        _mark(pid, 'step_summary')
-
-        # Step 6: Save to DB
-        current_step = 'resume'
-        temp_num = _get_next_num()
-        existing_num = _get_existing_num(url)
-        if existing_num:
-            temp_num = existing_num
-        job_data = {
-            'num': temp_num, 'company': company or title or 'Unknown',
-            'role': title or 'Unknown', 'location': (extraction or {}).get('location', 'Not specified'),
-            'locations': (extraction or {}).get('locations', []),
-            'match': 'Pending', 'score': 'P', 'success': 'P',
-            'salary': (extraction or {}).get('salary', 'Not specified'),
-            'stack': (extraction or {}).get('stack', ''),
-            'visa': (extraction or {}).get('visa', 'Uncertain'),
-            'applicants': (extraction or {}).get('applicants', 'Not specified'),
-            'posted': (extraction or {}).get('posted', 'Not specified'),
-            'industry': (extraction or {}).get('industry', ''),
-            'domain': (extraction or {}).get('domain', ''),
-            'notes': '', 'action': '', 'url': url,
-            'raw_description': raw_text, 'structured_description': structured_json,
-            'apply_reason': '', 'company_url': (extraction or {}).get('company_url'),
-            'linkedin_url': (extraction or {}).get('linkedin_url'),
-        }
-        _insert_job(job_data)
-        _insert_summary({
-            'num': temp_num, 'company': job_data['company'],
-            'match': 'Pending', 'score': 'P',
-            'summary': (extraction or {}).get('summary', ''),
-            'stack': (extraction or {}).get('stack', ''),
-            'resumeFit': '', 'note': '', 'url': url,
-        })
-        _log(pid, 'save', f'Saved job #{temp_num} to DB')
-
-        if _is_paused_or_stopped(pid):
-            _log(pid, 'pause', 'Job paused/stopped after save')
-            return
-
-        # ── Step 7: Score — MiMo scoring ──
-        current_step = 'score'
-        _update_step(pid, 'step_analyze', 0, status='processing')
-        next_num = temp_num
-        if existing_num:
-            _log(pid, 'analyze', f'Rescoring existing job #{next_num}...')
-        else:
-            _log(pid, 'analyze', f'Scoring job #{next_num}...')
-        rules = _load_rules()
-
-        # Load resume from DB for scoring context
-        resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
-        session = get_session_sync()
-        try:
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-            resume_repo = SQLAlchemyResumeRepository(session)
-            raw_text_resume = resume_repo.get_latest_original_raw_text()
-        finally:
-            session.close()
-        if raw_text_resume:
-            with open(resume_file, 'w') as f:
-                f.write(raw_text_resume)
-            resume_path = resume_file
-        else:
-            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
-
-        # Load LinkedIn profile from DB if available
-        linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
-        session = get_session_sync()
-        try:
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-            resume_repo = SQLAlchemyResumeRepository(session)
-            linkedin_text = resume_repo.get_latest_linkedin_raw_text()
-        finally:
-            session.close()
-        linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
-        if linkedin_text:
-            with open(linkedin_file, 'w') as f:
-                f.write(linkedin_text)
-            linkedin_path = linkedin_file
-        else:
-            linkedin_path = None
-            linkedin_step = "No LinkedIn profile available — skip this step"
-
-        prompt = load_prompt('job_processing/step8_score',
-            url=url, job_file=job_file, resume_file=resume_path,
-            linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
-            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
-
-        returncode, output_lines, sid, captured_result = _stream_mimo_output(
-            [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
-            cwd=PROJECT_ROOT,
-            env={**os.environ, 'NO_COLOR': '1'},
-            timeout=300,
-            pid=pid,
-            resume_session_id=previous_session_id,
-        )
-
-        if returncode != 0:
-            error_msg = f"exit code {returncode}"
-            for line in output_lines:
-                try:
-                    evt = json.loads(line)
-                    if evt.get('type') == 'text':
-                        error_msg = evt.get('part', {}).get('text', error_msg)[:300]
-                except json.JSONDecodeError:
-                    continue
-            raise RuntimeError(f"mimo failed: {error_msg}")
-
-        data = captured_result.get('result') or captured_result.get('pending_result')
-        if not data:
-            result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
-            _check_result_file(result_path)
-            with open(result_path) as f:
-                data = json.loads(f.read(), strict=False)
-            try: os.remove(result_path)
-            except OSError: pass
-
-        analyzed_data = data['job']
-        _mark(pid, 'step_analyze', company=analyzed_data.get('company'), job_num=job_data['num'])
-
-        # Parse numeric scores from mimo output
-        fit_score_raw = analyzed_data.get('fit_score')
-        success_score_raw = analyzed_data.get('success_score')
-        fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
-        success_score = max(0, min(100, int(success_score_raw))) if success_score_raw is not None else None
-
-        # Compute overall_score: (fit * 0.6) + (success * 0.4)
-        overall_score = None
-        if fit_score is not None and success_score is not None:
-            overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
-
-        # Log score results
-        score = normalize_score(analyzed_data.get('score', 'P'))
-        match = analyzed_data.get('match', 'Medium')
-        _log(pid, 'analyze', f'Score: {score} (fit={fit_score}) — Success: {normalize_score(analyzed_data.get("success", "P"))} (prob={success_score}) — Overall: {overall_score} — Match: {match}')
-
-        # Update job data with scored results
-        job_data.update({
-            'company': analyzed_data.get('company', job_data['company']),
-            'role': analyzed_data.get('role', job_data['role']),
-            'location': analyzed_data.get('location', 'Not specified'),
-            'locations': analyzed_data.get('locations', []),
-            'match': match,
-            'score': score,
-            'success': normalize_score(analyzed_data.get('success', 'P')),
-            'fit_score': fit_score,
-            'success_score': success_score,
-            'overall_score': overall_score,
-            'salary': analyzed_data.get('salary', 'Not specified'),
-            'stack': analyzed_data.get('stack', ''),
-            'visa': analyzed_data.get('visa', 'Uncertain'),
-            'applicants': analyzed_data.get('applicants', 'Not specified'),
-            'posted': analyzed_data.get('posted', 'Not specified'),
-            'posted_at': analyzed_data.get('posted_at'),
-            'adv_at': analyzed_data.get('adv_at', job_data.get('adv_at')),
-            'apply_reason': analyzed_data.get('apply_reason', job_data.get('apply_reason', '')),
-            'industry': analyzed_data.get('industry', ''),
-            'domain': analyzed_data.get('domain', ''),
-            'notes': analyzed_data.get('notes', ''),
-            'action': analyzed_data.get('action', ''),
-            'employment_type': analyzed_data.get('employment_type', 'Full-time'),
-            'work_types': analyzed_data.get('work_types', []),
-            'workflow_log': analyzed_data.get('workflow_log', '[]'),
-            'company_url': analyzed_data.get('company_url', job_data.get('company_url')),
-            'linkedin_url': analyzed_data.get('linkedin_url', job_data.get('linkedin_url')),
-        })
-
-        # Save final results
-        _insert_job(job_data)
-        _insert_summary({
-            'num': analyzed_data.get('num', temp_num), 'company': job_data['company'],
-            'match': match, 'score': score,
-            'summary': data.get('summary', {}).get('summary', ''),
-            'stack': job_data['stack'],
-            'resumeFit': data.get('summary', {}).get('resumeFit', ''),
-            'note': data.get('summary', {}).get('note', ''),
-            'url': url,
-        })
-        resume_data = {
-            'id': f"pending_{pid}",
-            'title': f"{job_data['company']} (Score {score})",
-            'company': job_data['company'], 'role': job_data['role'],
-            'job_num': job_data.get('num'),
-            'content': data.get('resume_html', ''),
-        }
-        _insert_resume(resume_data)
-        _log(pid, 'analyze', f'Final score: {score} saved')
-        _mark(pid, 'step_analyze')
-
-        if source == 'rescore':
-            _log(pid, 'save', 'Rescoring completed')
-        elif source == 'requeue':
-            old_num = _get_existing_num(url)
-            if old_num and old_num != job_data['num']:
-                session = get_session_sync()
-                try:
-                    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-                    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-                    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-                    job_repo = SQLAlchemyJobRepository(session)
-                    summary_repo = SQLAlchemySummaryRepository(session)
-                    resume_repo = SQLAlchemyResumeRepository(session)
-                    job_repo.mark_deleted(old_num)
-                    summary_repo.delete_by_num(old_num)
-                    resume_repo.delete_by_id(f'pending_{old_num}')
-                    resume_repo.delete_by_id(f'rescore_{old_num}')
-                finally:
-                    session.close()
-                _log(pid, 'save', f'Deleted old #{old_num}, new #{job_data["num"]} created')
-
-        # ── Done ──
-        current_step = 'done'
-        _update_step(pid, 'step_done', 0, status='done')
-        _mark(pid, 'step_done')
-        broadcaster.complete(ProcessingComplete(
-            table='pending_jobs', pid=pid, result={'num': job_data['num'], 'company': job_data.get('company')},
-        ))
-        session = get_session_sync()
-        try:
-            from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-            pending_repo = SQLAlchemyPendingRepository(session)
-            pw_item = pending_repo.get_by_id(pid, "pending_jobs")
-        finally:
-            session.close()
-        if pw_item:
-            _save_job_workflow_log(job_data['num'], pw_item.get('workflow_log') or '[]')
-        log.info("worker.job_done", pid=pid, company=job_data.get('company'), num=job_data['num'])
-
-    except subprocess.CalledProcessError as e:
-        stderr = (e.stderr or '').strip()
-        stdout = (e.stdout or '').strip()
-        err_lines = stderr.split('\n') if stderr else []
-        meaningful = '\n'.join(err_lines[-5:]) if err_lines else ''
-        if not meaningful and stdout:
-            out_lines = stdout.split('\n')
-            meaningful = '\n'.join(out_lines[-5:])
-        if not meaningful:
-            meaningful = f"Process exited with code {e.returncode}"
-        msg = f"AI service error: {meaningful}"
-        log.error("worker.job_failed", pid=pid, error=msg, step=current_step)
-        _fail(pid, msg[:500], step=current_step)
-    except Exception as e:
-        msg = str(e)
-        if 'Command' in msg and 'run' in msg:
-            parts = msg.split('): ', 1)
-            if len(parts) > 1:
-                msg = parts[1]
-        if not msg.startswith('['):
-            msg = f"{msg}"
-        if len(msg) > 500:
-            break_at = msg.rfind('\n', 0, 450)
-            if break_at < 100:
-                break_at = 400
-            msg = msg[:break_at] + '...'
-        log.error("worker.job_failed", pid=pid, error=msg, step=current_step)
-        _fail(pid, msg, step=current_step)
-    finally:
-        for f in [job_file,
-                  os.path.join(TMP_DIR, f'resume_{pid}.txt'),
-                  os.path.join(TMP_DIR, f'linkedin_{pid}.txt')]:
-            try: os.remove(f)
-            except OSError: pass
-        # Signal queue manager to pick up next job
         try:
             from shared.infrastructure.config.queue import get_queue_manager
             get_queue_manager().signal_job_done(pid)

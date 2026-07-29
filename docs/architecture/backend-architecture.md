@@ -101,14 +101,16 @@ This document defines the target FastAPI backend architecture for the Job Search
 
 - Database repository implementations
 - LLM provider adapters
-- File system operations
 - HTTP clients for external APIs
 - WebSocket broadcaster
+- LangGraph workflow graphs (AI Agent Layer)
 
 **Rules:**
 - Implements domain interfaces
 - Framework-specific code isolated here
 - No business logic in infrastructure
+- **No file I/O in job processing** — all pipeline state flows through LangGraph state
+- Job processing state managed entirely in memory via LangGraph `BaseState`/`JobProcessingState`
 
 ### Shared/Core Layer
 
@@ -209,6 +211,47 @@ async def app_error_handler(request, exc):
 - **Short tasks** (< 30s): FastAPI `BackgroundTasks`
 - **Long tasks** (AI generation): `asyncio.create_task()` with progress streaming via WebSocket
 - **Queue management**: Existing `JobQueueManager` refactored to use asyncio primitives
+
+## Job Processing Pipeline (LangGraph)
+
+### State Management (No File I/O)
+
+All job processing state flows through LangGraph state — no temp files are written to disk.
+
+**State flow:**
+```
+URL/Notes/Links → load_context → validate → fetch → extract_raw → clean →
+extract_struct → analyze → skills → score → summary → persist → completion
+```
+
+**Key design decisions:**
+- `BaseState` TypedDict carries all data in `metadata`, `context`, and `errors` fields
+- Resume and LinkedIn data loaded from DB into `context` at pipeline start (no temp files)
+- LLM calls go through `LLMService` abstraction (file-free)
+- Results persisted directly to database via repositories
+- `persist_results` node saves job + summary in a single DB transaction
+
+**Cancellation support:**
+- `WorkerBase` checks pending item status between steps
+- LangGraph graph runs atomically — cancellation is checked before/after pipeline execution
+
+### Graph Architecture
+
+```
+ai/infrastructure/graphs/
+├── runtime/
+│   ├── graph.py        # GraphBuilder + CompiledGraph (wraps LangGraph StateGraph)
+│   └── state.py        # BaseState, JobProcessingState, output models
+├── job/
+│   └── graph.py        # 13-node job processing graph
+├── company/
+├── resume/
+├── skills/
+└── insights/
+```
+
+The `GraphBuilder` supports both LangGraph (`StateGraph`) and sequential fallback backends.
+Job processing uses the `JobWorker` class which compiles and invokes the job graph.
 
 ### Concurrency Model
 
@@ -340,7 +383,6 @@ class Settings(BaseSettings):
     
     # Processing
     queue_concurrency: int = 2
-    temp_dir: str = "tmp"
     
     # Server
     host: str = "0.0.0.0"

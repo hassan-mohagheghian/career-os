@@ -144,3 +144,20 @@ class WebSocketBroadcaster:
         }
         self._emit("queue:status", data)
         self._notify_listeners("queue_status", data)
+
+    def progress(self, event: Any) -> None:
+        """Broadcast workflow progress update."""
+        room = self._room_for(event.table, event.pid)
+        prefix = self._prefix(event.table)
+        data = {
+            "id": event.pid,
+            "status": event.status,
+            "current_node": event.current_node,
+            "progress_pct": event.progress_pct,
+            "message": event.message,
+            "completed_nodes": event.completed_nodes,
+            "ts": event.ts,
+        }
+        logger.info("ws.%s:progress id=%s node=%s pct=%s", prefix, event.pid, event.current_node, event.progress_pct)
+        self._emit(f"{prefix}:progress", data, room=room)
+        self._notify_listeners("progress", data)

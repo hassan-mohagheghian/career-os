@@ -210,8 +210,9 @@ def _recover_tasks():
             repo = SQLAlchemyPendingRepository(session)
 
             # Mark stuck pending jobs as failed
+            active_statuses = ['starting', 'fetching', 'analyzing', 'generating', 'finalizing']
             stuck_jobs = session.query(PendingJobModel).filter(
-                PendingJobModel.status == 'processing'
+                PendingJobModel.status.in_(active_statuses)
             ).all()
             if stuck_jobs:
                 log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))

@@ -150,7 +150,7 @@ def create_test_company(session, name="TestCorp_API"):
     return company
 
 
-def create_test_pending_job(session, url="https://example.com/pending-api-test", status="pending"):
+def create_test_pending_job(session, url="https://example.com/pending-api-test", status="created"):
     from processing.infrastructure.models.pending_model import PendingJobModel
     item = PendingJobModel(url=url, source="api_test", status=status)
     session.add(item)
@@ -158,7 +158,7 @@ def create_test_pending_job(session, url="https://example.com/pending-api-test",
     return item
 
 
-def create_test_pending_company(session, input_text="TestCompany_API", status="pending"):
+def create_test_pending_company(session, input_text="TestCompany_API", status="created"):
     from processing.infrastructure.models.pending_model import PendingCompanyModel
     item = PendingCompanyModel(input_text=input_text, source="api_test", status=status)
     session.add(item)
@@ -679,7 +679,7 @@ class TestPendingAPI:
 
     def test_queue_all(self, client, sa_session):
         create_test_pending_job(sa_session, url="https://example.com/queueall1")
-        r = client.post("/api/pending/queue-all")
+        r = client.post("/api/pending/process-all")
         assert r.status_code == 200
 
     def test_process_pending(self, client, sa_session):

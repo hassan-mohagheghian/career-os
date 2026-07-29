@@ -84,7 +84,7 @@ class TestWorkerBase:
 
         # Should mark complete
         mocks['pending_repo'].update_status.assert_called_with(
-            1, ItemStatus.DONE
+            1, 'completed'
         )
         # Should broadcast completion
         mocks['broadcaster'].complete.assert_called_once()

@@ -12,6 +12,8 @@ class BaseState(TypedDict, total=False):
     errors: list[str]
     metadata: dict[str, Any]
     node_history: list[str]
+    progress: dict[str, Any]
+    current_node: str
 
 
 def create_initial_state(
@@ -25,6 +27,15 @@ def create_initial_state(
         errors=[],
         metadata={},
         node_history=[],
+        progress={
+            "current_node": "",
+            "progress_pct": 0.0,
+            "message": "Initializing",
+            "started_at": None,
+            "completed_nodes": [],
+            "node_timings": {},
+        },
+        current_node="",
     )
 
 
@@ -52,6 +63,9 @@ class JobProcessingState(BaseState):
     resume_text: str
     linkedin_text: str
     rules: str
+    notes_text: str
+    links_text: str
+    session_id: str
 
 
 class CompanyProcessingState(BaseState):
@@ -100,6 +114,35 @@ class JobExtractionOutput(BaseModel):
     requirements: str = ""
     benefits: str = ""
     url: str = ""
+
+    @classmethod
+    def _list_to_str(cls, v: Any) -> str:
+        if isinstance(v, list):
+            return "\n".join(str(item) for item in v)
+        return str(v) if v is not None else ""
+
+    @classmethod
+    def _normalize(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(v, list):
+                    data[k] = "\n".join(str(item) for item in v)
+        return data
+
+    @classmethod
+    def from_llm_extraction(cls, extraction: dict, url: str = "") -> "JobExtractionOutput":
+        data = cls._normalize(extraction)
+        return cls(
+            company=data.get("company", "Unknown"),
+            title=data.get("title", "Unknown"),
+            location=data.get("location", ""),
+            salary=data.get("salary", ""),
+            stack=data.get("stack", ""),
+            description=data.get("description", ""),
+            requirements=data.get("requirements", ""),
+            benefits=data.get("benefits", ""),
+            url=url,
+        )
 
 
 class JobAnalysisOutput(BaseModel):

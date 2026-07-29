@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import Any, Callable, Optional
 
@@ -16,6 +17,8 @@ from ..base import LLMProvider, ProviderConfig, ProviderResponse
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 OPENCODE_BIN = os.path.expanduser('~/.opencode/bin/opencode')
+
+_ANSI_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 
 class OpencodeProvider(LLMProvider):
@@ -45,6 +48,13 @@ class OpencodeProvider(LLMProvider):
             cmd, timeout=timeout
         )
 
+        # Retry without session if it was invalid/expired
+        if returncode != 0 and session_id and self._is_session_error(output_lines):
+            cmd = self._build_cmd(prompt, session_id=None)
+            returncode, output_lines, discovered_session_id = self._run_subprocess(
+                cmd, timeout=timeout
+            )
+
         text_parts = []
         for line in output_lines:
             try:
@@ -59,6 +69,13 @@ class OpencodeProvider(LLMProvider):
         content = '\n'.join(text_parts)
 
         if returncode != 0:
+            if not content:
+                non_json = [
+                    _ANSI_RE.sub('', l).strip()
+                    for l in output_lines
+                    if not l.startswith('{')
+                ]
+                content = '\n'.join(non_json[:5])
             raise RuntimeError(f"opencode failed (exit code {returncode}): {content[:300]}")
 
         return ProviderResponse(
@@ -127,6 +144,14 @@ class OpencodeProvider(LLMProvider):
                 pass
 
         return None
+
+    def _is_session_error(self, output_lines: list[str]) -> bool:
+        """Check if the failure is due to an invalid/expired session."""
+        for line in output_lines:
+            cleaned = _ANSI_RE.sub('', line).strip().lower()
+            if 'session not found' in cleaned:
+                return True
+        return False
 
     def _build_cmd(self, prompt: str, session_id: Optional[str] = None) -> list:
         """Build opencode CLI command."""

@@ -18,8 +18,8 @@ from .interfaces import (
     IPendingRepository,
 )
 from .models import (
-    ItemStatus, WorkflowLogEntry, StatusUpdate, LogEntry,
-    ProcessingComplete, ProcessingError,
+    WorkflowLogEntry, StatusUpdate, LogEntry,
+    ProcessingComplete, ProcessingError, WorkflowProgress,
 )
 from .logging_config import get_logger
 
@@ -67,6 +67,16 @@ class WorkerBase(abc.ABC):
     def _execute_pipeline(self, pid: int, item: dict) -> Dict[str, Any]:
         """Execute the processing pipeline. Returns result dict."""
 
+    def _terminal_status(self, status: str) -> str:
+        """Map legacy ItemStatus values to new JobStatus values."""
+        legacy_map = {
+            'done': 'completed',
+            'paused': 'waiting',
+            'pending': 'created',
+            'processing': 'starting',
+        }
+        return legacy_map.get(status, status)
+
     def process(self, pid: int) -> None:
         """Run the full pipeline for a pending item.
 
@@ -90,13 +100,13 @@ class WorkerBase(abc.ABC):
             # If pipeline returned None, it was cancelled between steps
             if result is None:
                 current = self._pending_repo.get(pid)
-                status = ItemStatus(current['status']) if current else ItemStatus.PAUSED
-                log.info("worker.cancelled", status=status.value)
+                status = self._terminal_status(current['status']) if current else 'waiting'
+                log.info("worker.cancelled", status=status)
                 return
 
             # Mark complete
             self._mark_step(pid, 'step_done', 1)
-            self._pending_repo.update_status(pid, ItemStatus.DONE)
+            self._pending_repo.update_status(pid, 'completed')
 
             self._broadcaster.complete(ProcessingComplete(
                 table=self.table, pid=pid, result=result,
@@ -104,23 +114,26 @@ class WorkerBase(abc.ABC):
             log.info("worker.complete", result=result)
 
         except Exception as e:
-            log.error("worker.failed", error=str(e))
+            error_str = str(e)
+            log.error("worker.failed", error=error_str)
             self._broadcaster.error(ProcessingError(
-                table=self.table, pid=pid, msg=str(e),
+                table=self.table, pid=pid, msg=error_str,
             ))
             self._pending_repo.update_status(
-                pid, ItemStatus.FAILED, error=str(e),
+                pid, 'failed', error=error_str,
             )
         finally:
             self._temp_mgr.cleanup(str(pid))
             self._proc_mgr.remove(str(pid))
+
+    ACTIVE_STATUSES = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing', 'processing'}
 
     def _reset_steps(self, pid: int) -> None:
         """Reset all pipeline steps to 0."""
         updates = {step: 0 for step in self.pipeline_steps}
         updates['workflow_log'] = '[]'
         current = self._pending_repo.get(pid)
-        status = ItemStatus(current['status']) if current else ItemStatus.PENDING
+        status = self._terminal_status(current['status']) if current else 'created'
         self._pending_repo.update_status(pid, status, **updates)
 
     def _is_cancelled(self, pid: int) -> bool:
@@ -128,7 +141,7 @@ class WorkerBase(abc.ABC):
         item = self._pending_repo.get(pid)
         if not item:
             return True
-        return item['status'] not in (ItemStatus.PROCESSING.value,)
+        return item['status'] not in self.ACTIVE_STATUSES
 
     def _mark_step(self, pid: int, step: str, val: int = 1, **extra) -> None:
         """Mark a pipeline step as done and broadcast."""
@@ -144,6 +157,19 @@ class WorkerBase(abc.ABC):
         self._broadcaster.log(LogEntry(
             table=self.table, pid=pid, step=step, msg=msg,
         ))
+
+    def _progress(self, pid: int, status: str, current_node: str, progress_pct: float, message: str, completed_nodes: list = None) -> None:
+        """Emit a workflow progress event."""
+        from datetime import datetime
+        event = WorkflowProgress(
+            job_id=pid,
+            current_node=current_node,
+            progress_pct=progress_pct,
+            message=message,
+            ts=datetime.now().isoformat(),
+        )
+        self._pending_repo.update_step(pid, 'current_node', 0, current_node=current_node)
+        self._broadcaster.progress(event)
 
     def _start_step(self, pid: int, step: str) -> None:
         """Mark a step as in-progress (val=0, status=processing)."""

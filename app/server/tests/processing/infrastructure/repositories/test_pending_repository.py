@@ -52,11 +52,11 @@ class TestPickQueuedItem:
         result = repo.pick_queued_item('pending_jobs')
         assert result is not None
         assert result['id'] == id1
-        assert result['status'] == 'processing'
+        assert result['status'] == 'starting'
 
     def test_skips_non_queued_jobs(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        _insert_job(db, 'https://a.com', 'processing')
+        _insert_job(db, 'https://a.com', 'starting')
         id2 = _insert_job(db, 'https://b.com', 'queued')
 
         result = repo.pick_queued_item('pending_jobs')
@@ -65,7 +65,7 @@ class TestPickQueuedItem:
 
     def test_returns_none_when_no_queued(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        _insert_job(db, 'https://a.com', 'processing')
+        _insert_job(db, 'https://a.com', 'starting')
 
         result = repo.pick_queued_item('pending_jobs')
         assert result is None
@@ -90,7 +90,7 @@ class TestPickQueuedItem:
         repo.pick_queued_item('pending_jobs')
 
         row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'processing'
+        assert row.status == 'starting'
 
     def test_pick_company(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -99,7 +99,7 @@ class TestPickQueuedItem:
         result = repo.pick_queued_item('pending_companies')
         assert result is not None
         assert result['id'] == cid
-        assert result['status'] == 'processing'
+        assert result['status'] == 'starting'
 
     def test_pick_company_returns_none_when_empty(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -124,7 +124,7 @@ class TestResetSteps:
 
     def test_reset_steps_sets_queued_by_default(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        pid = _insert_job(db, 'https://a.com', 'processing')
+        pid = _insert_job(db, 'https://a.com', 'starting')
         job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         job.step_fetch = 1
         job.step_analyze = 1
@@ -134,7 +134,7 @@ class TestResetSteps:
         repo.reset_steps(pid, version=2, table='pending_jobs')
 
         row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'queued'
+        assert row.status == 'created'
         assert row.step_fetch == 0
         assert row.step_analyze == 0
         assert row.error is None
@@ -143,7 +143,7 @@ class TestResetSteps:
     def test_reset_steps_keep_status(self, db):
         """keep_status=True should reset steps but NOT change status."""
         repo = SQLAlchemyPendingRepository(db)
-        pid = _insert_job(db, 'https://a.com', 'processing')
+        pid = _insert_job(db, 'https://a.com', 'starting')
         job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         job.step_fetch = 1
         job.step_analyze = 1
@@ -152,14 +152,14 @@ class TestResetSteps:
         repo.reset_steps(pid, version=3, table='pending_jobs', keep_status=True)
 
         row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'processing'  # NOT changed to queued
+        assert row.status == 'starting'  # NOT changed to created
         assert row.step_fetch == 0
         assert row.step_analyze == 0
         assert row.version == 3
 
     def test_reset_steps_company(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        cid = _insert_company(db, 'Corp', 'processing')
+        cid = _insert_company(db, 'Corp', 'starting')
         comp = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
         comp.step_fetch = 1
         comp.step_extract = 1
@@ -174,7 +174,7 @@ class TestResetSteps:
 
     def test_reset_steps_company_keep_status(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        cid = _insert_company(db, 'Corp', 'processing')
+        cid = _insert_company(db, 'Corp', 'starting')
         comp = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
         comp.step_fetch = 1
         db.commit()
@@ -182,12 +182,12 @@ class TestResetSteps:
         repo.reset_steps(cid, version=1, table='pending_companies', keep_status=True)
 
         row = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
-        assert row.status == 'processing'
+        assert row.status == 'starting'
         assert row.step_fetch == 0
 
     def test_reset_steps_clears_workflow_log(self, db):
         repo = SQLAlchemyPendingRepository(db)
-        pid = _insert_job(db, 'https://a.com', 'processing')
+        pid = _insert_job(db, 'https://a.com', 'starting')
         job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         job.workflow_log = '[{"step": "fetch"}]'
         db.commit()
@@ -239,7 +239,7 @@ class TestResetStepsKeepStatusInQueue:
         from shared.infrastructure.config.queue import JobQueueManager
         from unittest.mock import patch
 
-        pid = _insert_job(db, 'https://a.com', 'processing')
+        pid = _insert_job(db, 'https://a.com', 'starting')
         job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         job.step_fetch = 1
         db.commit()
@@ -249,5 +249,5 @@ class TestResetStepsKeepStatusInQueue:
             mgr._reset_steps(pid, version=2, table='pending_jobs')
 
         row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'processing'  # Should NOT be reset to queued
+        assert row.status == 'starting'  # Should NOT be reset to queued
         assert row.step_fetch == 0

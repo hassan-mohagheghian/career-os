@@ -55,16 +55,16 @@ def _insert_company(session, text, status='pending'):
 class TestTransitionValidation:
     def test_valid_transitions(self):
         from shared.infrastructure.config.queue import VALID_TRANSITIONS
-        assert 'queued' in VALID_TRANSITIONS['pending']
-        assert 'processing' in VALID_TRANSITIONS['queued']
-        assert 'done' in VALID_TRANSITIONS['processing']
-        assert 'failed' in VALID_TRANSITIONS['processing']
-        assert 'paused' in VALID_TRANSITIONS['processing']
+        assert 'queued' in VALID_TRANSITIONS['created']
+        assert 'starting' in VALID_TRANSITIONS['queued']
+        assert 'completed' in VALID_TRANSITIONS['finalizing']
+        assert 'failed' in VALID_TRANSITIONS['fetching']
+        assert 'waiting' in VALID_TRANSITIONS['queued']
 
     def test_invalid_transition(self):
         from shared.infrastructure.config.queue import VALID_TRANSITIONS
-        assert 'done' not in VALID_TRANSITIONS['pending']
-        assert 'processing' not in VALID_TRANSITIONS['pending']
+        assert 'completed' not in VALID_TRANSITIONS['created']
+        assert 'fetching' not in VALID_TRANSITIONS['created']
 
 
 class TestEnqueue:
@@ -104,27 +104,27 @@ class TestCancelJob:
         ok = mgr.cancel_job(pid)
         assert ok
         row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'pending'
+        assert row.status == 'cancelled'
 
     def test_cancel_nonexistent(self, queue):
         mgr, _ = queue
         assert not mgr.cancel_job(999)
 
     def test_cancel_processing_without_process(self, queue):
-        """Cancel a 'processing' job when no subprocess exists — should set paused."""
+        """Cancel a 'starting' job when no subprocess exists — should set cancelled."""
         mgr, sa_session = queue
-        pid = _insert_job(sa_session, 'https://example.com', 'processing')
+        pid = _insert_job(sa_session, 'https://example.com', 'starting')
 
         ok = mgr.cancel_job(pid)
         assert ok
         row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'paused'
+        assert row.status == 'cancelled'
 
 
 class TestResetJob:
     def test_reset_processing(self, queue):
         mgr, sa_session = queue
-        pid = _insert_job(sa_session, 'https://example.com', 'processing')
+        pid = _insert_job(sa_session, 'https://example.com', 'starting')
         job = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         job.step_fetch = 1
         job.step_analyze = 1
@@ -133,14 +133,14 @@ class TestResetJob:
         ok = mgr.reset_job(pid)
         assert ok
         row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'queued'
+        assert row.status == 'created'
         assert row.step_fetch == 0
         assert row.step_analyze == 0
         assert row.step_done == 0
 
     def test_reset_company(self, queue):
         mgr, sa_session = queue
-        pid = _insert_company(sa_session, 'TestCorp', 'processing')
+        pid = _insert_company(sa_session, 'TestCorp', 'starting')
         comp = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
         comp.step_fetch = 1
         sa_session.commit()
@@ -163,7 +163,7 @@ class TestDequeue:
 
         mgr.dequeue(pid)
         row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'pending'
+        assert row.status == 'created'
         assert row.queue_order == 0
 
 
@@ -173,45 +173,45 @@ class TestGetStatus:
         status = mgr.get_status()
         assert status['processing_count'] == 0
         assert status['queued_count'] == 0
-        assert status['pending_count'] == 0
+        assert status['created_count'] == 0
         assert status['concurrency'] == 2
         assert status['running'] is False
 
     def test_with_items(self, queue):
         mgr, sa_session = queue
-        _insert_job(sa_session, 'https://a.com', 'pending')
+        _insert_job(sa_session, 'https://a.com', 'created')
         _insert_job(sa_session, 'https://b.com', 'queued')
-        _insert_job(sa_session, 'https://c.com', 'processing')
+        _insert_job(sa_session, 'https://c.com', 'starting')
 
         status = mgr.get_status()
-        assert status['pending_count'] == 1
+        assert status['created_count'] == 1
         assert status['queued_count'] == 1
         assert status['processing_count'] == 1
 
 
-class TestMarkProcessingAsPaused:
-    def test_marks_processing_as_paused(self, queue):
+class TestMarkProcessingAsWaiting:
+    def test_marks_processing_as_waiting(self, queue):
         mgr, sa_session = queue
-        _insert_job(sa_session, 'https://a.com', 'processing')
-        _insert_job(sa_session, 'https://b.com', 'processing')
+        _insert_job(sa_session, 'https://a.com', 'starting')
+        _insert_job(sa_session, 'https://b.com', 'starting')
         _insert_job(sa_session, 'https://c.com', 'queued')
 
         mgr._mark_processing_as_paused()
         rows = sa_session.query(PendingJobModel).order_by(PendingJobModel.id).all()
         statuses = [r.status for r in rows]
-        assert statuses.count('paused') == 2
+        assert statuses.count('waiting') == 2
         assert statuses.count('queued') == 1
 
 
 class TestOrphanRecovery:
     def test_reset_orphans(self, queue):
         mgr, sa_session = queue
-        _insert_job(sa_session, 'https://a.com', 'processing')
-        _insert_job(sa_session, 'https://b.com', 'processing')
+        _insert_job(sa_session, 'https://a.com', 'starting')
+        _insert_job(sa_session, 'https://b.com', 'starting')
 
         mgr._reset_processing_orphans()
         rows = sa_session.query(PendingJobModel).all()
-        assert all(r.status == 'queued' for r in rows)
+        assert all(r.status == 'created' for r in rows)
 
 
 class TestGracefulShutdown:

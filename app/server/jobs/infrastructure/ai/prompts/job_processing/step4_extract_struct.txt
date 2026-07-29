@@ -1,6 +1,6 @@
 Extract structured information from this raw job description.
 
-Save the result as JSON to {output_file} with the following fields:
+Output the result as JSON with the following fields:
 
 Raw content:
 {raw_content}

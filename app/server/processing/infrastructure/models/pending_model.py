@@ -10,14 +10,19 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 
 
 class PendingJobModel(Base):
-    """SQLAlchemy model for the pending_jobs table."""
+    """SQLAlchemy model for the pending_jobs table.
+
+    Status uses JobStatus enum values: created, queued, waiting, starting,
+    fetching, analyzing, generating, finalizing, completed, failed, cancelled.
+    """
 
     __tablename__ = "pending_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     url: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     source: Mapped[str] = mapped_column(String, default="cli")
-    status: Mapped[str] = mapped_column(String, default="queued")
+    status: Mapped[str] = mapped_column(String, default="created")
+    previous_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     notes: Mapped[str] = mapped_column(Text, default="[]")
     links: Mapped[str] = mapped_column(Text, default="[]")
@@ -37,6 +42,10 @@ class PendingJobModel(Base):
     step_extract_raw: Mapped[int] = mapped_column(Integer, default=0)
     step_extract_struct: Mapped[int] = mapped_column(Integer, default=0)
     session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_node: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    auto_process: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class PendingCompanyModel(Base):

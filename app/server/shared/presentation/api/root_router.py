@@ -248,7 +248,7 @@ def process_pending_company(id: str):
 def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
     repo = SQLAlchemyPendingRepository(session)
     pending_items = repo.list_pending("pending_companies")
-    pending_ids = [item["id"] for item in pending_items if item.get("status") == "pending"]
+    pending_ids = [item["id"] for item in pending_items if item.get("status") == "created"]
     from shared.infrastructure.config.queue import get_queue_manager
     get_queue_manager().enqueue_bulk(pending_ids)
     return {"status": "queued", "count": len(pending_ids)}

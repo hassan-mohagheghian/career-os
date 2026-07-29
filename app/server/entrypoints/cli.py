@@ -171,7 +171,7 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
         try:
             from processing.infrastructure.models.pending_model import PendingJobModel
             done_rows = session.query(PendingJobModel).filter(
-                PendingJobModel.status == 'done'
+                PendingJobModel.status == 'completed'
             ).order_by(PendingJobModel.created_at.desc()).limit(10).all()
             from shared.infrastructure.database.mappers import pending_job_model_to_dict
             done = [pending_job_model_to_dict(r) for r in done_rows]

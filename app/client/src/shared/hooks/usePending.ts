@@ -105,7 +105,7 @@ export function usePending(onJobDone?: () => void) {
     fetchPending()
   }, [fetchPending])
 
-  const cancelPending = useCallback(async (id: number) => {
+  const pausePending = useCallback(async (id: number) => {
     cancelJob(id, 'pending_jobs')
     fetchPending()
   }, [fetchPending])
@@ -130,7 +130,7 @@ export function usePending(onJobDone?: () => void) {
     }
     const handleComplete = (data: any) => {
       setPending(prev => prev.map(p =>
-        p.id === data.id ? { ...p, status: 'done', ...data } : p
+        p.id === data.id ? { ...p, status: 'completed', ...data } : p
       ))
       if (!seenDoneRef.current.has(data.id)) {
         seenDoneRef.current.add(data.id)
@@ -142,11 +142,24 @@ export function usePending(onJobDone?: () => void) {
         p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
     }
+    const handleProgress = (data: any) => {
+      setPending(prev => prev.map(p => {
+        if (p.id !== data.id) return p
+        return {
+          ...p,
+          status: data.status || p.status,
+          current_node: data.current_node,
+          progress_pct: data.progress_pct,
+          progress_msg: data.message,
+        }
+      }))
+    }
 
     socket.on('pending:update', handleUpdate)
     socket.on('pending:log', handleLog)
     socket.on('pending:complete', handleComplete)
     socket.on('pending:error', handleError)
+    socket.on('pending:progress', handleProgress)
 
     fetchPending()
 
@@ -155,6 +168,7 @@ export function usePending(onJobDone?: () => void) {
       socket.off('pending:log', handleLog)
       socket.off('pending:complete', handleComplete)
       socket.off('pending:error', handleError)
+      socket.off('pending:progress', handleProgress)
     }
   }, [socket, fetchPending, onJobDone])
 
@@ -162,6 +176,6 @@ export function usePending(onJobDone?: () => void) {
     pending, urlInput, setUrlInput, urlError, setUrlError,
     submitting, processImmediately, setProcessImmediately,
     duplicateJob, setDuplicateJob,
-    fetchPending, submitUrl, deletePending, processPending, resetPending, cancelPending
+    fetchPending, submitUrl, deletePending, processPending, resetPending, pausePending
   }
 }

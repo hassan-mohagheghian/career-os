@@ -167,3 +167,7 @@ class IBroadcaster(abc.ABC):
     @abc.abstractmethod
     def queue_status(self, processing: int, queued: int, pending: int, concurrency: int) -> None:
         """Broadcast global queue status."""
+
+    @abc.abstractmethod
+    def progress(self, event) -> None:
+        """Broadcast workflow progress update."""

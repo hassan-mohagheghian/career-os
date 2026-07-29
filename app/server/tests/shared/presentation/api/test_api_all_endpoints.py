@@ -1027,10 +1027,10 @@ class TestPendingEndpoints:
 
     def test_queue_all(self, client, sa_session):
         from shared.infrastructure.database.models.pending_model import PendingJobModel
-        sa_session.add(PendingJobModel(url="https://ex.com/1", status="pending"))
-        sa_session.add(PendingJobModel(url="https://ex.com/2", status="pending"))
+        sa_session.add(PendingJobModel(url="https://ex.com/1", status="created"))
+        sa_session.add(PendingJobModel(url="https://ex.com/2", status="created"))
         sa_session.commit()
-        r = client.post("/api/pending/queue-all")
+        r = client.post("/api/pending/process-all")
         assert r.status_code == 200
         assert r.json()["queued"] == 2
 
@@ -1563,8 +1563,8 @@ class TestRouterCompatRoutes:
 
     def test_queue_all_pending_companies(self, client, sa_session):
         from shared.infrastructure.database.models.pending_model import PendingCompanyModel
-        sa_session.add(PendingCompanyModel(input_text="A", status="pending"))
-        sa_session.add(PendingCompanyModel(input_text="B", status="pending"))
+        sa_session.add(PendingCompanyModel(input_text="A", status="created"))
+        sa_session.add(PendingCompanyModel(input_text="B", status="created"))
         sa_session.commit()
         with patch("shared.infrastructure.config.queue.get_queue_manager") as mock_qm:
             mock_qm.return_value = MagicMock()

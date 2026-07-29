@@ -5,11 +5,15 @@ Processes up to N jobs concurrently from the pending_jobs/pending_companies tabl
 N is controlled by QUEUE_CONCURRENCY env var (default 2).
 Survives server restarts — on startup, recovers orphaned processing jobs.
 
-Status flow: pending -> queued -> processing -> done/failed/paused
+Status flow (JobStatus):
+    created -> queued -> waiting -> starting -> fetching -> analyzing
+    -> generating -> finalizing -> completed
+                               -> failed
+                               -> cancelled
 
 Features:
 - Graceful shutdown with worker join timeout
-- Per-job cancellation (kills mimo subprocess + sets paused status)
+- Per-job cancellation (kills subprocess + sets waiting/cancelled status)
 - Per-job reset (kills process, resets steps, re-queues)
 - Transition validation (prevents invalid state changes)
 - ProcessManager integration (zero orphaned subprocesses)
@@ -31,12 +35,17 @@ logger = logging.getLogger(__name__)
 CONCURRENCY = int(os.environ.get("QUEUE_CONCURRENCY", "2"))
 
 VALID_TRANSITIONS = {
-    'pending':    {'queued', 'failed'},
-    'queued':     {'processing', 'pending', 'failed'},
-    'processing': {'done', 'failed', 'paused', 'queued'},
-    'paused':     {'queued', 'failed', 'pending'},
-    'done':       {'pending'},
-    'failed':     {'pending', 'queued'},
+    'created':    {'queued', 'failed', 'cancelled'},
+    'queued':     {'waiting', 'starting', 'created', 'failed', 'cancelled'},
+    'waiting':    {'starting', 'created', 'failed', 'cancelled'},
+    'starting':   {'fetching', 'failed', 'cancelled'},
+    'fetching':   {'analyzing', 'failed', 'cancelled'},
+    'analyzing':  {'generating', 'failed', 'cancelled'},
+    'generating': {'finalizing', 'failed', 'cancelled'},
+    'finalizing': {'completed', 'failed', 'cancelled'},
+    'completed':  {'queued', 'cancelled'},
+    'failed':     {'queued', 'cancelled'},
+    'cancelled':  {'created', 'queued'},
 }
 
 
@@ -108,7 +117,7 @@ class JobQueueManager:
                 logger.info(f"[queue] Enqueued company {pending_id}")
             else:
                 order = repo.get_max_queue_order(table) + 1
-                repo.update_fields(pending_id, table, status='queued', queue_order=order, error=None, updated_at=now)
+                repo.update_fields(pending_id, table, status='queued', queue_order=order, error=None, previous_status='queued', updated_at=now)
                 logger.info(f"[queue] Enqueued job {pending_id} (order={order})")
         finally:
             session.close()
@@ -133,7 +142,7 @@ class JobQueueManager:
         try:
             repo = _repo(session)
             now = datetime.now().isoformat()
-            repo.update_fields(pending_id, 'pending_jobs', status='pending', queue_order=0, error=None, updated_at=now)
+            repo.update_fields(pending_id, 'pending_jobs', status='created', queue_order=0, error=None, updated_at=now)
             logger.info(f"[queue] Dequeued job {pending_id}")
         finally:
             session.close()
@@ -147,8 +156,9 @@ class JobQueueManager:
                 return False
 
             status = item['status']
+            active_statuses = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing'}
 
-            if status == 'processing':
+            if status in active_statuses:
                 try:
                     from shared.infrastructure.process.process_manager import ProcessManager
                     ProcessManager().cancel(
@@ -157,9 +167,9 @@ class JobQueueManager:
                 except Exception:
                     pass
 
-            new_status = 'paused' if status == 'processing' else 'pending'
+            new_status = 'cancelled' if status in active_statuses else 'cancelled'
             now = datetime.now().isoformat()
-            repo.update_fields(pending_id, table, status=new_status, error=None, updated_at=now)
+            repo.update_fields(pending_id, table, status=new_status, previous_status=status, error=None, updated_at=now)
             logger.info(f"[queue] Cancelled {table}:{pending_id} -> {new_status}")
             return True
         finally:
@@ -174,7 +184,8 @@ class JobQueueManager:
                 return False
 
             status = item['status']
-            if status == 'processing':
+            active_statuses = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing'}
+            if status in active_statuses:
                 try:
                     from shared.infrastructure.process.process_manager import ProcessManager
                     ProcessManager().cancel(
@@ -204,15 +215,15 @@ class JobQueueManager:
 
             processing_items = repo.get_processing_items('pending_jobs')
             queued_count = repo.get_queued_count('pending_jobs')
-            pending_count = session.query(PendingJobModel).filter(PendingJobModel.status == 'pending').count()
+            created_count = session.query(PendingJobModel).filter(PendingJobModel.status == 'created').count()
             company_processing = repo.get_processing_count('pending_companies')
             company_queued = repo.get_queued_count('pending_companies')
-            company_pending = session.query(PendingCompanyModel).filter(PendingCompanyModel.status == 'pending').count()
+            company_pending = session.query(PendingCompanyModel).filter(PendingCompanyModel.status == 'created').count()
             return {
                 "processing": [{"id": r["id"], "company": r.get("company"), "url": r.get("url")} for r in processing_items],
                 "processing_count": len(processing_items),
                 "queued_count": queued_count,
-                "pending_count": pending_count,
+                "created_count": created_count,
                 "company_processing_count": company_processing,
                 "company_queued_count": company_queued,
                 "company_pending_count": company_pending,
@@ -229,9 +240,9 @@ class JobQueueManager:
         try:
             repo = _repo(session)
             for table in ('pending_jobs', 'pending_companies'):
-                count = repo.mark_processing_as_paused(table)
+                count = repo.mark_processing_as_waiting(table)
                 if count > 0:
-                    logger.info(f"[queue] Marked {count} {table} item(s) as paused")
+                    logger.info(f"[queue] Marked {count} {table} item(s) as waiting")
         finally:
             session.close()
 

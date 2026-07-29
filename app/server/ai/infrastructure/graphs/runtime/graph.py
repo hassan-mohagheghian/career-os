@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import Any, Callable, Optional
 
 try:
@@ -135,19 +136,60 @@ class GraphBuilder:
         max_retries = retry_cfg.get("max_retries", 0)
         delay = retry_cfg.get("delay", 1.0)
 
+        # Total nodes for progress calculation
+        total_nodes = max(len(self._nodes), 1)
+
         def wrapped(state: dict) -> dict:
             attempt = 0
+            node_start = time.time()
+
+            state["current_node"] = name
+
+            completed = state.get("progress", {}).get("completed_nodes", [])
+            pct = (len(completed) / total_nodes) * 100
+            state["progress"] = {
+                "current_node": name,
+                "progress_pct": round(pct, 1),
+                "message": f"Running {name}...",
+                "started_at": state.get("progress", {}).get("started_at") or datetime.now().isoformat(),
+                "completed_nodes": completed,
+                "node_timings": state.get("progress", {}).get("node_timings", {}),
+            }
+
             while True:
                 try:
                     result = fn(state)
                     if "node_history" not in result:
                         result["node_history"] = []
                     result["node_history"].append(name)
+
+                    elapsed = time.time() - node_start
+                    completed = result.get("progress", {}).get("completed_nodes", [])
+                    if name not in completed:
+                        completed = [*completed, name]
+                    timings = result.get("progress", {}).get("node_timings", {})
+                    timings[name] = round(elapsed * 1000, 1)
+                    pct = (len(completed) / total_nodes) * 100
+                    result["progress"] = {
+                        "current_node": "",
+                        "progress_pct": round(min(pct, 99.9), 1),
+                        "message": f"Completed {name} ({round(elapsed * 1000)}ms)",
+                        "started_at": result.get("progress", {}).get("started_at") or datetime.now().isoformat(),
+                        "completed_nodes": completed,
+                        "node_timings": timings,
+                    }
+                    result["current_node"] = ""
                     return result
                 except Exception as e:
-                    state.setdefault("errors", []).append(
-                        f"[{name}] {type(e).__name__}: {e}"
-                    )
+                    retry_info = f" (attempt {attempt + 1}/{max_retries + 1})" if max_retries > 0 else ""
+                    error_msg = f"[{name}] Failed{retry_info}: {type(e).__name__}: {e}"
+                    state.setdefault("errors", []).append(error_msg)
+                    state.setdefault("failure_details", []).append({
+                        "workflow_step": name,
+                        "exception": f"{type(e).__name__}: {e}",
+                        "retry_count": attempt,
+                        "recoverable": attempt < max_retries,
+                    })
                     if attempt < max_retries:
                         attempt += 1
                         time.sleep(delay)
@@ -155,6 +197,14 @@ class GraphBuilder:
                     state.setdefault("node_history", []).append(
                         f"{name}:FAILED"
                     )
+                    state["progress"] = {
+                        "current_node": f"{name}:FAILED",
+                        "progress_pct": state.get("progress", {}).get("progress_pct", 0),
+                        "message": error_msg,
+                        "started_at": state.get("progress", {}).get("started_at"),
+                        "completed_nodes": state.get("progress", {}).get("completed_nodes", []),
+                        "node_timings": state.get("progress", {}).get("node_timings", {}),
+                    }
                     raise
 
         wrapped.__name__ = name

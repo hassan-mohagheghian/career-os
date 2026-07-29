@@ -879,7 +879,7 @@ class TestSAPendingRepository:
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.create({"url": "https://ex.com/1", "source": "api"}, "pending_jobs")
-        assert result["status"] == "pending"
+        assert result["status"] == "created"
 
     def test_create_pending_company(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -1014,8 +1014,8 @@ class TestSAPendingRepository:
     def test_get_processing_count(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
-        session.add(PendingJobModel(url="https://ex.com/2", status="pending"))
+        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
+        session.add(PendingJobModel(url="https://ex.com/2", status="created"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         assert repo.get_processing_count("pending_jobs") == 1
@@ -1031,25 +1031,25 @@ class TestSAPendingRepository:
     def test_get_processing_items(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
+        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.get_processing_items("pending_jobs")
         assert len(result) == 1
 
-    def test_mark_processing_as_paused(self, session):
+    def test_mark_processing_as_waiting(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
+        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        count = repo.mark_processing_as_paused("pending_jobs")
+        count = repo.mark_processing_as_waiting("pending_jobs")
         assert count == 1
 
     def test_reset_processing_orphans(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
+        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         count = repo.reset_processing_orphans("pending_jobs")
@@ -1062,7 +1062,7 @@ class TestSAPendingRepository:
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.pick_queued_item("pending_jobs")
-        assert result["status"] == "processing"
+        assert result["status"] == "starting"
 
     def test_pick_queued_item_none(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -1076,7 +1076,7 @@ class TestSAPendingRepository:
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.pick_queued_item("pending_companies")
-        assert result["status"] == "processing"
+        assert result["status"] == "starting"
 
     def test_get_queued_items(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository

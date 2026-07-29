@@ -18,15 +18,17 @@ class SQLAlchemyPendingRepository(IPendingRepository):
     def __init__(self, session: Session):
         self._session = session
 
+    EXCLUDED_STATUSES = {"done", "completed"}
+
     def list_pending(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
         if table == "pending_jobs":
             rows = self._session.query(PendingJobModel).filter(
-                PendingJobModel.status != "done"
+                ~PendingJobModel.status.in_(self.EXCLUDED_STATUSES)
             ).order_by(PendingJobModel.created_at.desc()).all()
             return [pending_job_model_to_dict(r) for r in rows]
         elif table == "pending_companies":
             rows = self._session.query(PendingCompanyModel).filter(
-                PendingCompanyModel.status != "done"
+                ~PendingCompanyModel.status.in_(self.EXCLUDED_STATUSES)
             ).order_by(PendingCompanyModel.created_at.desc()).all()
             return [pending_company_model_to_dict(r) for r in rows]
         return []
@@ -45,7 +47,8 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             url = data.get("url", "")
             existing = self._session.query(PendingJobModel).filter(PendingJobModel.url == url).first()
             if existing:
-                existing.status = "pending"
+                existing.status = "created"
+                existing.previous_status = existing.status
                 existing.error = None
                 existing.source = data.get("source", "api")
                 existing.company = data.get("company", "")
@@ -60,7 +63,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
                 url=url,
                 source=data.get("source", "api"),
                 company=data.get("company", ""),
-                status="pending",
+                status="created",
                 notes=json.dumps(data.get("notes", "[]")) if isinstance(data.get("notes"), (list, dict)) else data.get("notes", "[]"),
                 links=json.dumps(data.get("links", "[]")) if isinstance(data.get("links"), (list, dict)) else data.get("links", "[]"),
             )
@@ -85,19 +88,31 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
         raise ValueError(f"Unknown table: {table}")
 
-    def update_status(self, item_id: str, status: str, table: str = "pending_jobs") -> bool:
+    def update_status(self, item_id: str, status: str, table: str = "pending_jobs", **fields) -> bool:
         if table == "pending_jobs":
-            self._session.query(PendingJobModel).filter(PendingJobModel.id == int(item_id)).update({"status": status})
+            m = self._session.query(PendingJobModel).filter(PendingJobModel.id == int(item_id)).first()
         elif table == "pending_companies":
-            self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == int(item_id)).update({"status": status})
+            m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == int(item_id)).first()
+        else:
+            return False
+        if not m:
+            return False
+        m.status = status
+        for k, v in fields.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
         self._session.commit()
         return True
 
     def count_pending(self, table: str = "pending_jobs") -> int:
         if table == "pending_jobs":
-            return self._session.query(PendingJobModel).filter(PendingJobModel.status != "done").count()
+            return self._session.query(PendingJobModel).filter(
+                ~PendingJobModel.status.in_(self.EXCLUDED_STATUSES)
+            ).count()
         elif table == "pending_companies":
-            return self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status != "done").count()
+            return self._session.query(PendingCompanyModel).filter(
+                ~PendingCompanyModel.status.in_(self.EXCLUDED_STATUSES)
+            ).count()
         return 0
 
     # ── Extended methods for queue and services ─────────────────────
@@ -141,11 +156,17 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             result = 0
         return result or 0
 
+    ACTIVE_STATUSES = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing'}
+
     def get_processing_count(self, table: str = "pending_jobs") -> int:
         if table == "pending_jobs":
-            return self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").count()
+            return self._session.query(PendingJobModel).filter(
+                PendingJobModel.status.in_(self.ACTIVE_STATUSES)
+            ).count()
         elif table == "pending_companies":
-            return self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").count()
+            return self._session.query(PendingCompanyModel).filter(
+                PendingCompanyModel.status == "processing"
+            ).count()
         return 0
 
     def get_queued_count(self, table: str = "pending_jobs") -> int:
@@ -157,18 +178,22 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
     def get_processing_items(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
         if table == "pending_jobs":
-            rows = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").all()
+            rows = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status.in_(self.ACTIVE_STATUSES)
+            ).all()
             return [pending_job_model_to_dict(r) for r in rows]
         elif table == "pending_companies":
             rows = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").all()
             return [pending_company_model_to_dict(r) for r in rows]
         return []
 
-    def mark_processing_as_paused(self, table: str = "pending_jobs") -> int:
+    def mark_processing_as_waiting(self, table: str = "pending_jobs") -> int:
         if table == "pending_jobs":
-            count = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").update({"status": "paused"})
+            count = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status.in_(self.ACTIVE_STATUSES)
+            ).update({"status": "waiting", "previous_status": PendingJobModel.status})
         elif table == "pending_companies":
-            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "paused"})
+            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "waiting"})
         else:
             count = 0
         self._session.commit()
@@ -176,9 +201,11 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
     def reset_processing_orphans(self, table: str = "pending_jobs") -> int:
         if table == "pending_jobs":
-            count = self._session.query(PendingJobModel).filter(PendingJobModel.status == "processing").update({"status": "queued"})
+            count = self._session.query(PendingJobModel).filter(
+                PendingJobModel.status.in_(self.ACTIVE_STATUSES)
+            ).update({"status": "created", "previous_status": PendingJobModel.status})
         elif table == "pending_companies":
-            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "queued"})
+            count = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.status == "processing").update({"status": "created"})
         else:
             count = 0
         self._session.commit()
@@ -193,7 +220,8 @@ class SQLAlchemyPendingRepository(IPendingRepository):
                 PendingJobModel.id.asc()
             ).first()
             if model:
-                model.status = "processing"
+                model.status = "starting"
+                model.previous_status = "queued"
                 model.updated_at = datetime.now().isoformat()
                 self._session.commit()
                 self._session.refresh(model)
@@ -203,7 +231,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
                 PendingCompanyModel.status == "queued"
             ).order_by(PendingCompanyModel.id.asc()).first()
             if model:
-                model.status = "processing"
+                model.status = "starting"
                 model.updated_at = datetime.now().isoformat()
                 self._session.commit()
                 self._session.refresh(model)
@@ -228,10 +256,11 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             updates = {
                 "step_fetch": 0, "step_analyze": 0, "step_resume": 0, "step_cover": 0,
                 "step_db": 0, "step_done": 0, "step_extract_raw": 0, "step_extract_struct": 0,
-                "error": None, "version": version, "workflow_log": "[]",
+                "error": None, "version": version, "workflow_log": "[]", "current_node": None,
+                "retry_count": 0, "failure_details": None,
             }
             if not keep_status:
-                updates["status"] = "queued"
+                updates["status"] = "created"
             self._session.query(PendingJobModel).filter(PendingJobModel.id == item_id).update(updates)
         elif table == "pending_companies":
             updates = {
@@ -257,7 +286,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         m = self._session.query(PendingJobModel).filter(PendingJobModel.url == url).first()
         return pending_job_model_to_dict(m) if m else None
 
-    def create_pending_job(self, url: str, source: str, company: str, status: str = "pending") -> dict[str, Any]:
+    def create_pending_job(self, url: str, source: str, company: str, status: str = "created") -> dict[str, Any]:
         model = PendingJobModel(url=url, source=source, company=company, status=status)
         self._session.add(model)
         self._session.commit()

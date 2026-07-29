@@ -36,11 +36,11 @@ class PendingJobRepository(IPendingRepository):
             return None
         return self._to_dict(row)
 
-    def update_status(self, pid: int, status: ItemStatus, **fields) -> None:
+    def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
         m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         if not m:
             return
-        m.status = status.value
+        m.status = status.value if isinstance(status, ItemStatus) else status
         m.updated_at = datetime.now().isoformat()
         for k, v in fields.items():
             if hasattr(m, k):
@@ -140,11 +140,11 @@ class PendingCompanyRepository(IPendingRepository):
             return None
         return self._to_dict(row)
 
-    def update_status(self, pid: int, status: ItemStatus, **fields) -> None:
+    def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
         m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
         if not m:
             return
-        m.status = status.value
+        m.status = status.value if isinstance(status, ItemStatus) else status
         m.updated_at = datetime.now().isoformat()
         for k, v in fields.items():
             if hasattr(m, k):

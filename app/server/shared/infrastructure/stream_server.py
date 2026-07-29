@@ -23,9 +23,6 @@ clients = {}  # pid -> set of websocket connections
 processes = {}  # pid -> Popen object
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-_file_dir = os.path.dirname(os.path.abspath(__file__))
-TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
-os.makedirs(TMP_DIR, exist_ok=True)
 
 
 def _log(pid, step, msg):
@@ -395,7 +392,12 @@ def fetch_url(url):
 # --- Stream mimo process ---
 
 async def stream_mimo(pid, prompt):
-    """Run LLM with streaming output via WebSocket."""
+    """Run LLM with streaming output via WebSocket.
+
+    Returns (returncode, result_dict). result_dict is parsed from
+    the LLM text response when the AI outputs JSON instead of writing
+    a result file.
+    """
     await broadcast(pid, {'type': 'process_start', 'pid': pid, 'ts': datetime.now().strftime('%H:%M:%S')})
 
     llm = get_llm_service()
@@ -442,15 +444,24 @@ async def stream_mimo(pid, prompt):
 
     returncode = resp.metadata.get("returncode", 0)
     await broadcast(pid, {'type': 'process_end', 'pid': pid, 'returncode': returncode, 'ts': datetime.now().strftime('%H:%M:%S')})
-    return returncode
+
+    result_dict = None
+    if resp.content:
+        try:
+            parsed = json.loads(resp.content)
+            if isinstance(parsed, dict):
+                result_dict = parsed
+        except json.JSONDecodeError:
+            pass
+
+    return returncode, result_dict
 
 # --- Main pipeline ---
 
 async def process_job_stream(pid):
-    """Full pipeline with streaming output."""
+    """Full pipeline with streaming output using LangGraph state management (no file I/O)."""
     from dependencies import get_session_sync
     from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
     session = get_session_sync()
     try:
@@ -461,216 +472,166 @@ async def process_job_stream(pid):
 
     if not item:
         return
-    url = item['url']
+    url = item.get('url', '')
+    notes = json.loads(item.get('notes') or '[]')
+    links = json.loads(item.get('links') or '[]')
     source = item.get('source', 'cli')
 
-    job_file = os.path.join(TMP_DIR, f'job_{pid}.txt')
-
     try:
-        # === STEP 1: FETCH ===
-        _log(pid, 'start', f'Processing {url[:60]}...')
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'fetch', 'data': f"$ curl -sL '{url[:80]}...'", 'ts': datetime.now().strftime('%H:%M:%S')})
-        _log(pid, 'fetch', 'Fetching LinkedIn page...')
+        _log(pid, 'start', f'Processing {url[:60] if url else "notes/links"}...')
+        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'fetch', 'data': f"$ Processing job from {url[:80] if url else 'notes/links'}...", 'ts': datetime.now().strftime('%H:%M:%S')})
+
         _update_step(pid, 'step_fetch', 0, status='processing')
         await broadcast(pid, {'type': 'step', 'step': 'fetch', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': '→ Connecting to linkedin.com...', 'ts': datetime.now().strftime('%H:%M:%S')})
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': '→ Sending request with browser User-Agent...', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-        raw_text = await asyncio.get_event_loop().run_in_executor(None, fetch_url, url)
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Received response ({len(raw_text)} chars)', 'ts': datetime.now().strftime('%H:%M:%S')})
+        from ai.infrastructure.graphs.runtime.state import create_initial_state
+        from ai.infrastructure.graphs.job.graph import build_job_processing_graph
 
-        with open(job_file, 'w') as f:
-            f.write(raw_text)
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Saved raw content to {job_file}', 'ts': datetime.now().strftime('%H:%M:%S')})
+        builder = build_job_processing_graph()
 
-        # Extract job title and company
-        import re as _re
-        title = ''
-        company = ''
-        for line in raw_text.split('\n'):
-            line = line.strip()
-            if line and 5 < len(line) < 120:
-                if any(kw in line.lower() for kw in ['engineer', 'developer', 'software', 'senior', 'backend', 'frontend', 'python', 'devops', 'sre', 'platform']):
-                    title = line
-                    break
-        for marker in ['hiring', ' at ', '—', '|']:
-            idx = raw_text.find(marker)
-            if 0 < idx < 200:
-                company = raw_text[max(0,idx-50):idx].strip().split('\n')[-1].strip()
-                company = company.replace('hiring', '').replace(' at ', '').strip()
-                if company and 2 < len(company) < 60:
-                    break
-                company = ''
-        if title or company:
-            from dependencies import get_session_sync as _gss
-            from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
-            _s = _gss()
-            try:
-                _SPR(_s).update_fields(pid, company=company or title[:40])
-            finally:
-                _s.close()
-            await broadcast(pid, {'type': 'job_info', 'pid': pid, 'title': title, 'company': company, 'ts': datetime.now().strftime('%H:%M:%S')})
-            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Extracted: {company} — {title}', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _mark(pid, 'step_fetch')
-        await broadcast(pid, {'type': 'step', 'step': 'fetch', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
+        from dependencies import get_session_sync as _gss
+        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
 
-        # Step 2+3: Mimo analysis
+        resume_text = ""
+        linkedin_text = ""
+        rules = ""
+        sess = _gss()
+        try:
+            resume_repo = SQLAlchemyResumeRepository(sess)
+            resume_text = resume_repo.get_latest_original_raw_text() or ""
+            linkedin_text = resume_repo.get_latest_linkedin_raw_text() or ""
+            pref_repo = SQLAlchemyPreferenceRepository(sess)
+            rows = pref_repo.get_enabled_by_scopes(["SHARED", "JOB"])
+            if rows:
+                lines = []
+                current_cat = None
+                for r in rows:
+                    cat = r["category"]
+                    if cat != current_cat:
+                        current_cat = cat
+                        lines.append(f"\n\u2015 {cat.upper()}")
+                    weight = r.get("score_weight") or r["priority"]
+                    lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
+                rules = "\n".join(lines)
+            else:
+                rules = "No scoring rules set."
+        finally:
+            sess.close()
+
+        context = {
+            "pid": str(pid),
+            "url": url,
+            "notes": notes,
+            "links": links,
+            "source": source,
+            "resume_text": resume_text,
+            "linkedin_text": linkedin_text,
+            "rules": rules,
+        }
+
+        initial = create_initial_state(input=url or "", context=context)
+
+        graph = await asyncio.get_event_loop().run_in_executor(None, builder.compile)
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: graph.invoke(initial)
+        )
+
         current_step = 'analyze'
-        _log(pid, 'analyze', 'Starting MiMo analysis...')
+        _log(pid, 'analyze', 'Starting analysis...')
         _update_step(pid, 'step_analyze', 0, status='processing')
         await broadcast(pid, {'type': 'step', 'step': 'analyze', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-        next_num = _get_next_num()
-        existing_num = _get_existing_num(url)
-        if existing_num:
-            next_num = existing_num
-            _log(pid, 'analyze', f'Rescoring existing job #{next_num}...')
+        errors = result.get("errors", [])
+        if errors:
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'analyze', 'data': '\n'.join(errors[-3:]), 'ts': datetime.now().strftime('%H:%M:%S')})
+            _log(pid, 'error', '\n'.join(errors))
         else:
-            _log(pid, 'analyze', f'New job #{next_num}...')
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'analyze', 'data': 'Analysis complete', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-        rules = _load_rules()
+        metadata = result.get("metadata", {})
+        extract_raw = metadata.get("extract_raw", {})
+        if extract_raw.get("success"):
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'analyze', 'data': 'Extraction successful', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-        # Load resume from DB for scoring context
-        resume_file = os.path.join(TMP_DIR, f'resume_{pid}.txt')
-        session = get_session_sync()
-        try:
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-            resume_repo = SQLAlchemyResumeRepository(session)
-            raw_text_resume = resume_repo.get_latest_original_raw_text()
-        finally:
-            session.close()
-        if raw_text_resume:
-            with open(resume_file, 'w') as f:
-                f.write(raw_text_resume)
-            resume_path = resume_file
+        fetch_meta = metadata.get("fetch", {})
+        content_length = fetch_meta.get("length", 0)
+        if content_length:
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Received response ({content_length} chars)', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+        extraction = metadata.get("extraction", {})
+        company = extraction.get("company", "")
+        title = extraction.get("title", "")
+        if company or title:
+            sess2 = _gss()
+            try:
+                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
+                _SPR(sess2).update_fields(pid, company=company or title[:40])
+            finally:
+                sess2.close()
+            await broadcast(pid, {'type': 'job_info', 'pid': pid, 'title': title, 'company': company, 'ts': datetime.now().strftime('%H:%M:%S')})
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'fetch', 'data': f'→ Extracted: {company} — {title}', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+        _mark(pid, 'step_fetch')
+        await broadcast(pid, {'type': 'step', 'step': 'fetch', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+        persistence = metadata.get("persistence", {})
+        if persistence.get("success"):
+            job_num = persistence.get("job_num")
+            company_name = persistence.get("company", "Unknown")
+            score = metadata.get("score", "P")
+
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'analyze', 'data': f'Score: {score}', 'ts': datetime.now().strftime('%H:%M:%S')})
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'read', 'data': f'Parsed: {company_name} | Score: {score}', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+            _mark(pid, 'step_analyze', company=company_name, job_num=job_num)
+            _mark(pid, 'step_db')
+
+            current_step = 'save'
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'db', 'data': f'$ INSERT INTO jobs (num={job_num}, company="{company_name}", score={score})', 'ts': datetime.now().strftime('%H:%M:%S')})
+            _log(pid, 'save', f'Saved to database: #{job_num} {company_name}')
+            _update_step(pid, 'step_db', 0, status='processing')
+            await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': f'Job #{job_num} ({company_name}) saved', 'ts': datetime.now().strftime('%H:%M:%S')})
+            _mark(pid, 'step_db')
+            await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+            if source in ('rescore', 'requeue'):
+                from jobs.infrastructure.workers.worker import _mark_old_job_deleted
+                _mark_old_job_deleted(url, exclude_num=job_num)
+                await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': 'Marked old job as deleted', 'ts': datetime.now().strftime('%H:%M:%S')})
+
+            current_step = 'done'
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'Job #{job_num} ({company_name}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
+            _log(pid, 'done', f"Complete: {company_name} #{job_num}")
+            _update_step(pid, 'step_done', 0, status='done')
+            _mark(pid, 'step_done')
+
+            from jobs.infrastructure.workers.worker import _save_job_workflow_log
+            sess3 = _gss()
+            try:
+                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR3
+                _item = _SPR3(sess3).get_by_id(pid)
+            finally:
+                sess3.close()
+            if _item:
+                _save_job_workflow_log(job_num, _item.get('workflow_log') or '[]')
+
+            await broadcast(pid, {'type': 'step', 'step': 'done', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
+            await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_num, 'company': company_name, 'ts': datetime.now().strftime('%H:%M:%S')})
+            print(f"[stream] Job {pid} done: {company_name} #{job_num}")
         else:
-            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
-
-        # Load LinkedIn profile from DB if available
-        linkedin_file = os.path.join(TMP_DIR, f'linkedin_{pid}.txt')
-        session = get_session_sync()
-        try:
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-            resume_repo = SQLAlchemyResumeRepository(session)
-            linkedin_text = resume_repo.get_latest_linkedin_raw_text()
-        finally:
-            session.close()
-        linkedin_step = "Read the candidate's LinkedIn profile from {linkedin_file} for additional context about their experience and skills"
-        if linkedin_text:
-            with open(linkedin_file, 'w') as f:
-                f.write(linkedin_text)
-            linkedin_path = linkedin_file
-        else:
-            linkedin_path = None
-            linkedin_step = "No LinkedIn profile available — skip this step"
-
-        prompt = load_prompt('job_processing/step8_score',
-            url=url, job_file=job_file, resume_file=resume_path,
-            linkedin_file=linkedin_path or '', linkedin_step=linkedin_step,
-            tmp_dir=TMP_DIR, pid=pid, next_num=next_num, rules=rules)
-
-        returncode = await stream_mimo(pid, prompt)
-
-        if returncode != 0:
-            raise RuntimeError(f"MiMo process exited with code {returncode}")
-
-        # Step 3: Read result
-        current_step = 'resume'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'read', 'data': f'$ cat {TMP_DIR}/pending_result_{pid}.json', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _log(pid, 'resume', 'Reading analysis result...')
-        await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        result_path = os.path.join(TMP_DIR, f'pending_result_{pid}.json')
-        if not os.path.exists(result_path):
-            tmp_dir = os.path.dirname(result_path)
-            dir_exists = os.path.isdir(tmp_dir)
-            dir_writable = os.access(tmp_dir, os.W_OK) if dir_exists else False
-            raise RuntimeError(
-                f"Result file not found: {result_path} "
-                f"(TMP_DIR={tmp_dir} exists={dir_exists} writable={dir_writable})"
-            )
-
-        with open(result_path) as f:
-            data = json.loads(f.read(), strict=False)
-
-        job_data = data['job']
-        _mark(pid, 'step_analyze', company=job_data.get('company'), job_num=job_data['num'])
-        _log(pid, 'resume', f"Got result: {job_data.get('company')} score={job_data.get('score')}")
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'read', 'data': f'Parsed: {job_data.get("company")} | {job_data.get("role")} | Score: {job_data.get("score")}', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        resume_data = {
-            'id': f"pending_{pid}",
-            'title': f"{job_data.get('company', 'Unknown')} ({job_data.get('score', 'P')})",
-            'company': job_data.get('company', 'Unknown'),
-            'role': job_data.get('role', 'Unknown'),
-            'content': data.get('resume_html', ''),
-        }
-        _mark(pid, 'step_db')
-        await broadcast(pid, {'type': 'step', 'step': 'resume', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        # Step 4: Save to DB
-        current_step = 'save'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'db', 'data': f'$ INSERT INTO jobs (num={job_data["num"]}, company="{job_data.get("company")}", score={job_data.get("score")})', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _log(pid, 'save', 'Saving to database...')
-        _update_step(pid, 'step_db', 0, status='processing')
-        await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        _insert_job(job_data)
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': 'Saved job entry', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _insert_summary({
-            'num': job_data['num'], 'company': job_data.get('company'),
-            'match': job_data.get('match'), 'score': job_data.get('score'),
-            'summary': data.get('summary', {}).get('summary', ''),
-            'stack': job_data.get('stack'),
-            'resumeFit': data.get('summary', {}).get('resumeFit', ''),
-            'note': data.get('summary', {}).get('note', ''), 'url': url,
-        })
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': 'Saved summary entry', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _insert_resume(resume_data)
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': 'Saved tailored resume', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _mark(pid, 'step_db')
-
-        # If rescore or requeue, mark old job as deleted
-        if source in ('rescore', 'requeue'):
-            _mark_old_job_deleted(url, exclude_num=job_data['num'])
-            _log(pid, 'save', f'Marked old job as deleted (source: {source})')
-            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': f'Marked old job as deleted', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
-
-        # Step 5: Done
-        current_step = 'done'
-        await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'Job #{job_data["num"]} ({job_data.get("company")}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
-        _log(pid, 'done', f"Complete: {job_data.get('company')} #{job_data['num']}")
-        _update_step(pid, 'step_done', 0, status='done')
-        _mark(pid, 'step_done')
-        # Save workflow_log to jobs table
-        from dependencies import get_session_sync as _gss2
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR2
-        _s2 = _gss2()
-        try:
-            _item = _SPR2(_s2).get_by_id(pid)
-        finally:
-            _s2.close()
-        if _item:
-            _save_job_workflow_log(job_data['num'], _item.get('workflow_log') or '[]')
-
-        await broadcast(pid, {'type': 'step', 'step': 'done', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
-        await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_data['num'], 'company': job_data.get('company'), 'ts': datetime.now().strftime('%H:%M:%S')})
-        print(f"[stream] Job {pid} done: {job_data.get('company')} #{job_data['num']}")
+            persist_error = persistence.get("error", "Unknown error")
+            raise RuntimeError(f"Persistence failed: {persist_error}")
 
     except Exception as e:
         msg = str(e)
-        source = {'fetch':'fetch','analyze':'mimo','resume':'mimo','save':'db','done':'worker'}.get(current_step, 'worker')
         if not msg.startswith('['):
-            msg = f"[{source}] {msg}"
+            msg = f"[Processing] {msg}"
         _log(pid, 'error', msg[:200])
         _fail(pid, msg[:500], step=current_step)
         await broadcast(pid, {'type': 'error', 'pid': pid, 'msg': msg[:300], 'step': current_step, 'ts': datetime.now().strftime('%H:%M:%S')})
-    finally:
-        for f in [job_file, os.path.join(TMP_DIR, f'pending_result_{pid}.json')]:
-            try: os.remove(f)
-            except OSError: pass
 
 # --- WebSocket handler ---
 

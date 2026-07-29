@@ -17,8 +17,76 @@ from typing import Optional, List, Dict, Any
 
 # ── Enums ──────────────────────────────────────────────────────────
 
+class JobStatus(str, Enum):
+    """Explicit deterministic job statuses — single source of truth.
+    
+    Flow:
+        CREATED → QUEUED → WAITING → STARTING → FETCHING → ANALYZING
+        → GENERATING → FINALIZING → COMPLETED
+                                  → FAILED
+                                  → CANCELLED
+    """
+    CREATED = 'created'
+    QUEUED = 'queued'
+    WAITING = 'waiting'
+    STARTING = 'starting'
+    FETCHING = 'fetching'
+    ANALYZING = 'analyzing'
+    GENERATING = 'generating'
+    FINALIZING = 'finalizing'
+    COMPLETED = 'completed'
+    FAILED = 'failed'
+    CANCELLED = 'cancelled'
+
+    @classmethod
+    def valid_transitions(cls) -> Dict[JobStatus, set[JobStatus]]:
+        return {
+            cls.CREATED:    {cls.QUEUED, cls.FAILED, cls.CANCELLED},
+            cls.QUEUED:     {cls.WAITING, cls.CREATED, cls.FAILED, cls.CANCELLED},
+            cls.WAITING:    {cls.STARTING, cls.CREATED, cls.FAILED, cls.CANCELLED},
+            cls.STARTING:   {cls.FETCHING, cls.FAILED, cls.CANCELLED},
+            cls.FETCHING:   {cls.ANALYZING, cls.FAILED, cls.CANCELLED},
+            cls.ANALYZING:  {cls.GENERATING, cls.FAILED, cls.CANCELLED},
+            cls.GENERATING: {cls.FINALIZING, cls.FAILED, cls.CANCELLED},
+            cls.FINALIZING: {cls.COMPLETED, cls.FAILED, cls.CANCELLED},
+            cls.COMPLETED:  {cls.QUEUED, cls.CANCELLED},      # reprocess
+            cls.FAILED:     {cls.QUEUED, cls.CANCELLED},       # retry
+            cls.CANCELLED:  {cls.CREATED, cls.QUEUED},         # un-cancel
+        }
+
+    def can_transition_to(self, target: JobStatus) -> bool:
+        return target in self.valid_transitions().get(self, set())
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED)
+
+    @property
+    def is_active(self) -> bool:
+        return self in (JobStatus.STARTING, JobStatus.FETCHING, JobStatus.ANALYZING, JobStatus.GENERATING, JobStatus.FINALIZING)
+
+    @property
+    def label(self) -> str:
+        return {
+            'created': 'Created',
+            'queued': 'Queued',
+            'waiting': 'Waiting',
+            'starting': 'Starting',
+            'fetching': 'Fetching',
+            'analyzing': 'Analyzing',
+            'generating': 'Generating',
+            'finalizing': 'Finalizing',
+            'completed': 'Completed',
+            'failed': 'Failed',
+            'cancelled': 'Cancelled',
+        }.get(self.value, self.value)
+
+
 class ItemStatus(str, Enum):
-    """Status flow for pending items (jobs and companies)."""
+    """Legacy status enum — kept for backward compatibility during migration.
+    
+    Maps to JobStatus where possible. Marked for removal after migration.
+    """
     PENDING = 'pending'
     QUEUED = 'queued'
     PROCESSING = 'processing'
@@ -26,24 +94,80 @@ class ItemStatus(str, Enum):
     DONE = 'done'
     FAILED = 'failed'
 
+    def to_job_status(self) -> JobStatus:
+        mapping = {
+            'pending': JobStatus.CREATED,
+            'queued': JobStatus.QUEUED,
+            'processing': JobStatus.FETCHING,
+            'paused': JobStatus.WAITING,
+            'done': JobStatus.COMPLETED,
+            'failed': JobStatus.FAILED,
+        }
+        return mapping.get(self.value, JobStatus.CREATED)
+
+    @classmethod
+    def from_job_status(cls, status: JobStatus) -> ItemStatus:
+        mapping = {
+            JobStatus.CREATED: 'pending',
+            JobStatus.QUEUED: 'queued',
+            JobStatus.WAITING: 'paused',
+            JobStatus.STARTING: 'processing',
+            JobStatus.FETCHING: 'processing',
+            JobStatus.ANALYZING: 'processing',
+            JobStatus.GENERATING: 'processing',
+            JobStatus.FINALIZING: 'processing',
+            JobStatus.COMPLETED: 'done',
+            JobStatus.FAILED: 'failed',
+            JobStatus.CANCELLED: 'paused',
+        }
+        return mapping.get(status, 'pending')
+
     @classmethod
     def valid_transitions(cls) -> Dict[ItemStatus, set[ItemStatus]]:
-        """Valid state transitions — enforced by repository."""
         return {
             cls.PENDING:   {cls.QUEUED, cls.FAILED},
             cls.QUEUED:    {cls.PROCESSING, cls.PENDING, cls.FAILED},
             cls.PROCESSING: {cls.DONE, cls.FAILED, cls.PAUSED, cls.QUEUED},
             cls.PAUSED:    {cls.QUEUED, cls.FAILED, cls.PENDING},
-            cls.DONE:      {cls.PENDING},  # only via reprocess
-            cls.FAILED:    {cls.PENDING, cls.QUEUED},  # only via retry
+            cls.DONE:      {cls.PENDING},
+            cls.FAILED:    {cls.PENDING, cls.QUEUED},
         }
 
     def can_transition_to(self, target: ItemStatus) -> bool:
         return target in self.valid_transitions().get(self, set())
 
 
+class WorkflowStep(str, Enum):
+    """Workflow execution stages — each maps to a LangGraph node.
+    
+    These represent the meaningful execution stages that are
+    communicated to the frontend via WebSocket events.
+    """
+    VALIDATE = 'validate'
+    FETCH = 'fetch'
+    EXTRACT = 'extract'
+    ANALYZE = 'analyze'
+    SCORE = 'score'
+    SUMMARIZE = 'summarize'
+    PERSIST = 'persist'
+    COMPLETE = 'complete'
+
+    @property
+    def label(self) -> str:
+        return {
+            'validate': 'Validating input',
+            'fetch': 'Fetching content',
+            'extract': 'Extracting data',
+            'analyze': 'Analyzing job',
+            'score': 'Scoring',
+            'summarize': 'Generating summary',
+            'persist': 'Saving results',
+            'complete': 'Done',
+        }.get(self.value, self.value)
+
+
 class PipelineStep(str, Enum):
-    """Pipeline steps for job processing."""
+    """Legacy pipeline steps — kept for backward compatibility."""
     FETCH = 'step_fetch'
     VALIDATE = 'step_validate'
     EXTRACT_RAW = 'step_extract_raw'
@@ -180,3 +304,87 @@ class ProcessingError:
     msg: str
     step: Optional[str] = None
     ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+# ── Enhanced Domain Events for New State Machine ──────────────────
+
+@dataclass(frozen=True)
+class JobCreated:
+    """Emitted when a new job record is created."""
+    job_id: int
+    url: str
+    source: str
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class JobQueued:
+    """Emitted when a job is enqueued for processing."""
+    job_id: int
+    queue_position: int
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class JobStatusChanged:
+    """Emitted when a job transitions between states."""
+    job_id: int
+    from_status: str
+    to_status: str
+    reason: Optional[str] = None
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class WorkflowNodeStarted:
+    """Emitted when a LangGraph node begins execution."""
+    job_id: int
+    node: str
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class WorkflowNodeCompleted:
+    """Emitted when a LangGraph node finishes execution."""
+    job_id: int
+    node: str
+    duration_ms: float
+    success: bool
+    error: Optional[str] = None
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class WorkflowProgress:
+    """Emitted periodically to report workflow progress."""
+    job_id: int
+    current_node: str
+    progress_pct: float
+    message: str
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class FailureDetails:
+    """Detailed failure information for error tracking."""
+    workflow_step: str
+    provider: Optional[str] = None
+    exception: str = ''
+    retry_count: int = 0
+    recoverable: bool = False
+    ts: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass(frozen=True)
+class ObservabilityEvent:
+    """Observability tracking data for a workflow execution."""
+    execution_id: str
+    workflow_id: str
+    arq_job_id: Optional[str] = None
+    correlation_id: Optional[str] = None
+    current_node: str = ''
+    current_state: str = ''
+    worker: str = ''
+    duration_ms: Optional[float] = None
+    provider: Optional[str] = None
+    token_usage: Optional[Dict[str, Any]] = None

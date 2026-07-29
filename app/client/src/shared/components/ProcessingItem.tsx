@@ -11,37 +11,56 @@ import { Progress } from '@/shared/ui/progress'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip'
 
 const STEPS = [
+  { key: 'validate', icon: <CheckCircle className="w-3 h-3" />, abbr: 'Valid', label: 'Validate input' },
   { key: 'fetch', icon: <Globe className="w-3 h-3" />, abbr: 'Fetch', label: 'Fetch job page' },
-  { key: 'validate', icon: <CheckCircle className="w-3 h-3" />, abbr: 'Valid', label: 'Validate content' },
-  { key: 'extract_raw', icon: <MagnifyingGlass className="w-3 h-3" />, abbr: 'Raw', label: 'Extract raw info' },
-  { key: 'extract_struct', icon: <ListChecks className="w-3 h-3" />, abbr: 'Struct', label: 'Structure data' },
-  { key: 'summary', icon: <Clipboard className="w-3 h-3" />, abbr: 'Summary', label: 'Build summary' },
-  { key: 'analyze', icon: <Brain className="w-3 h-3" />, abbr: 'Score', label: 'Score & analyze' },
-  { key: 'done', icon: <CheckCircle className="w-3 h-3" />, abbr: 'Done', label: 'Complete' },
+  { key: 'extract', icon: <MagnifyingGlass className="w-3 h-3" />, abbr: 'Extract', label: 'Extract data' },
+  { key: 'analyze', icon: <Brain className="w-3 h-3" />, abbr: 'Analyze', label: 'Analyze job' },
+  { key: 'score', icon: <ListChecks className="w-3 h-3" />, abbr: 'Score', label: 'Score & summarize' },
+  { key: 'persist', icon: <Clipboard className="w-3 h-3" />, abbr: 'Save', label: 'Save results' },
+  { key: 'complete', icon: <CheckCircle className="w-3 h-3" />, abbr: 'Done', label: 'Complete' },
 ]
 
 const STEP_KEYS = ['step_fetch', 'step_validate', 'step_extract_raw', 'step_extract_struct', 'step_summary', 'step_analyze', 'step_done']
 
 const STATUS_CONFIG = {
-  pending: { variant: 'secondary', label: 'Pending', color: 'text-gray-400' },
+  created: { variant: 'secondary', label: 'Created', color: 'text-gray-400' },
   queued: { variant: 'outline', label: 'Queued', color: 'text-yellow-500' },
-  processing: { variant: 'default', label: 'Processing', color: 'text-blue-500' },
-  paused: { variant: 'secondary', label: 'Paused', color: 'text-yellow-500' },
-  done: { variant: 'default', label: 'Done', color: 'text-green-500' },
+  waiting: { variant: 'secondary', label: 'Waiting', color: 'text-yellow-500' },
+  starting: { variant: 'default', label: 'Starting', color: 'text-blue-400' },
+  fetching: { variant: 'default', label: 'Fetching', color: 'text-blue-500' },
+  analyzing: { variant: 'default', label: 'Analyzing', color: 'text-blue-600' },
+  generating: { variant: 'default', label: 'Generating', color: 'text-violet-500' },
+  finalizing: { variant: 'default', label: 'Finalizing', color: 'text-purple-500' },
+  completed: { variant: 'default', label: 'Completed', color: 'text-green-500' },
   failed: { variant: 'destructive', label: 'Failed', color: 'text-red-500' },
+  cancelled: { variant: 'secondary', label: 'Cancelled', color: 'text-gray-500' },
 }
 
+const STATUS_LABELS = {
+  created: 'Created',
+  queued: 'Queued',
+  waiting: 'Waiting',
+  starting: 'Starting...',
+  fetching: 'Fetching...',
+  analyzing: 'Analyzing...',
+  generating: 'Generating...',
+  finalizing: 'Finalizing...',
+  completed: 'Completed',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+}
+
+const ACTIVE_STATUSES = new Set(['starting', 'fetching', 'analyzing', 'generating', 'finalizing'])
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+
 function getStatus(item) {
-  if (item.status === 'done') return 'done'
+  if (item.status === 'completed') return 'completed'
   if (item.status === 'failed') return 'failed'
-  if (item.status === 'paused') return 'paused'
-  if (item.status === 'processing') {
-    const vals = STEP_KEYS.map(k => item[k])
-    const done = vals.filter(s => s === 1).length
-    const labels = ['Fetching', 'Validating', 'Extracting', 'Structuring', 'Summarizing', 'Scoring', 'Done']
-    return labels[Math.min(done, labels.length - 1)] || 'Processing'
-  }
-  return 'Queued'
+  if (item.status === 'cancelled') return 'cancelled'
+  if (item.status === 'waiting') return 'waiting'
+  if (ACTIVE_STATUSES.has(item.status)) return item.status
+  if (item.status === 'queued') return 'Queued'
+  return 'Created'
 }
 
 function setToast(msg) {
@@ -58,19 +77,21 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
   const [newLinkTitle, setNewLinkTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const statusKey = getStatus(item)
-  const isDone = item.status === 'done'
+  const isDone = item.status === 'completed'
   const isFailed = item.status === 'failed'
-  const isPaused = statusKey === 'paused'
-  const isQueued = statusKey === 'Queued'
-  const isPending = item.status === 'pending'
-  const isProcessing = !isDone && !isFailed && !isPaused && !isQueued && !isPending
+  const isCancelled = item.status === 'cancelled'
+  const isWaiting = item.status === 'waiting'
+  const isQueued = item.status === 'queued'
+  const isCreated = item.status === 'created'
+  const isProcessing = ACTIVE_STATUSES.has(item.status)
 
   const vals = STEP_KEYS.map(k => item[k])
   const done = vals.filter(s => s === 1).length
   const nextStep = isProcessing ? vals.findIndex(s => s !== 1) : -1
   const progress = (done / STEPS.length) * 100
+  const progressMsg = item.progress_pct != null ? item.progress_pct : progress
 
-  const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.queued
+  const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG.created
 
   const handleCopySession = () => {
     if (item.session_id) {
@@ -155,7 +176,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
       <div className="flex items-center gap-1 mb-1 min-w-0">
         <div className={cn(
           "w-2 h-2 rounded-full shrink-0",
-          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isPaused ? "bg-yellow-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
+          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isCancelled ? "bg-gray-500" : isWaiting ? "bg-yellow-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
         )} />
         {item.job_num && <span className="text-2xs font-bold text-muted-foreground shrink-0">#{item.job_num}</span>}
         {item.source === 'rescore' && <span className="text-3xs px-0.5 rounded bg-secondary text-secondary-foreground shrink-0">R</span>}
@@ -194,7 +215,8 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
       {/* Row 3: Progress */}
       <div className="flex items-center gap-1 mb-1 min-w-0">
         <span className="text-2xs font-semibold text-muted-foreground shrink-0">{done}/{STEPS.length}</span>
-        <Progress value={progress} className="h-0.5 flex-1 min-w-0" />
+        <Progress value={progressMsg} className="h-0.5 flex-1 min-w-0" />
+        {item.progress_msg && <span className="text-3xs text-muted-foreground truncate max-w-[100px]">{item.progress_msg}</span>}
       </div>
 
       {/* Row 3.5: Minimized notes & links OR edit form */}
@@ -266,7 +288,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
               </div>
             </div>
           )}
-          {isPending && (
+          {isCreated && (
             <div className="flex justify-end">
               <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 opacity-0 group-hover/card:opacity-100" onClick={startEdit} title="Edit notes & links">
                 <PencilSimple className="w-2 h-2" />
@@ -274,7 +296,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
             </div>
           )}
         </div>
-      ) : isPending ? (
+      ) : isCreated ? (
         <div className="mb-1">
           <Button variant="ghost" size="sm" className="h-4 px-1 text-2xs text-muted-foreground hover:text-primary opacity-0 group-hover/card:opacity-100" onClick={startEdit}>
             <Plus className="w-2 h-2 mr-0.5" /> Add notes/links
@@ -295,12 +317,14 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
           </>
         )}
         <span className="text-2xs truncate flex-1 min-w-0 text-muted-foreground">
-          {isProcessing && <span className="text-blue-500">{statusKey}...</span>}
-          {isPending && <span className="text-gray-400">pending</span>}
-          {isPaused && <span className="text-yellow-500">paused</span>}
-          {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
+          {isProcessing && <span className="text-blue-500">{STATUS_LABELS[item.status]}</span>}
+          {isCreated && <span className="text-gray-400">created</span>}
+          {isWaiting && <span className="text-yellow-500">waiting</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
-          {isDone && <span className="text-green-500">done</span>}
+          {isDone && <span className="text-green-500">completed</span>}
+          {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
+          {isCancelled && <span className="text-gray-500">cancelled</span>}
+          {item.current_node && isProcessing && <span className="text-3xs text-blue-400 ml-1">({item.current_node})</span>}
           <span className="text-3xs text-muted-foreground/50 font-mono ml-1">v{item.version || 1}</span>
         </span>
         {/* Action buttons — always visible, compact */}
@@ -330,7 +354,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
               <FileText className="w-1.5 h-1.5" />
             </Button>
           )}
-          {onReset && (isQueued || isProcessing || isPaused || isFailed) && (
+          {onReset && (isQueued || isProcessing || isWaiting || isFailed || isCreated) && (
             <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-orange-500 hover:bg-orange-500/10" onClick={onReset} title="Reset">
               <ArrowBendUpLeft className="w-1.5 h-1.5" />
             </Button>

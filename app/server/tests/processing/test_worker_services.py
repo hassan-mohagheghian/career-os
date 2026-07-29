@@ -114,7 +114,7 @@ class TestWorkerBase:
         worker.process(pid)
 
         row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'done'
+        assert row.status == 'completed'
         assert row.step_fetch == 1
         assert row.step_analyze == 1
         assert row.step_done == 1

@@ -174,6 +174,7 @@ def pending_job_model_to_dict(model: PendingJobModel) -> dict[str, Any]:
         "url": model.url,
         "source": model.source,
         "status": model.status,
+        "previous_status": model.previous_status,
         "version": model.version,
         "notes": model.notes,
         "links": model.links,
@@ -193,6 +194,10 @@ def pending_job_model_to_dict(model: PendingJobModel) -> dict[str, Any]:
         "step_extract_raw": model.step_extract_raw,
         "step_extract_struct": model.step_extract_struct,
         "session_id": model.session_id,
+        "current_node": model.current_node,
+        "retry_count": model.retry_count,
+        "failure_details": model.failure_details,
+        "auto_process": model.auto_process,
     }
 
 
