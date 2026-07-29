@@ -11,6 +11,7 @@ from typing import Generator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from shared.infrastructure.config.app_config import DB_PATH
 
@@ -28,7 +29,7 @@ engine = create_engine(
         "check_same_thread": False,
         "timeout": 15,
     },
-    pool_pre_ping=True,
+    poolclass=NullPool,
 )
 
 

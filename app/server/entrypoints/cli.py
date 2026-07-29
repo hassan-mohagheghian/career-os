@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Job Search CLI — add, list, process, and manage pending jobs.
-Source tags: cli (this tool), web (dashboard), mimo (MiMo agent).
+Source tags: cli (this tool), web (dashboard), provider (AI agent).
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -56,11 +56,11 @@ def _get_pending_repo():
     session = get_session_sync()
     return session, SQLAlchemyPendingRepository(session)
 
-def _get_pref_repo():
+def _get_rule_repo():
     from dependencies import get_session_sync
-    from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+    from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
     session = get_session_sync()
-    return session, SQLAlchemyPreferenceRepository(session)
+    return session, SQLAlchemyRuleRepository(session)
 
 def get_next_num():
     session, repo = _get_job_repo()
@@ -352,45 +352,9 @@ def status():
     console.print(panel)
 
 @app.command()
-def update_insights():
-    """Update all insights insights based on processed jobs."""
-    sys.path.insert(0, _server_dir)
-    from career.application.services.insights import generate_all
-
-    console.print("[cyan]Generating insights...[/cyan]")
-    try:
-        result = generate_all()
-        if result:
-            console.print("[green]Insights updated![/green]")
-        else:
-            console.print("[red]Generation returned no result[/red]")
-    except Exception as e:
-        console.print(f"[red]Failed: {e}[/red]")
-
-@app.command()
-def update_dashboard():
-    """Update insights (alias for update-insights)."""
-    update_insights()
-
-@app.command()
-def update_skills():
-    """Update skills section only."""
-    sys.path.insert(0, _server_dir)
-    from career.application.services.insights import generate_section
-    console.print("[cyan]Updating skills intelligence...[/cyan]")
-    try:
-        result = generate_section('skills')
-        if result:
-            console.print("[green]Skills intelligence updated![/green]")
-        else:
-            console.print("[red]Generation returned no result[/red]")
-    except Exception as e:
-        console.print(f"[red]Failed: {e}[/red]")
-
-@app.command()
 def rules():
     """Show all scoring rules."""
-    session, repo = _get_pref_repo()
+    session, repo = _get_rule_repo()
     try:
         rows = repo.get_all()
     finally:
@@ -426,7 +390,7 @@ def add_rule(category: str = typer.Argument(..., help="Category: fit or success"
              description: str = typer.Option("", help="Description"),
              score_weight: int = typer.Option(0, help="Score weight (0 = use priority)")):
     """Add a new scoring rule."""
-    session, repo = _get_pref_repo()
+    session, repo = _get_rule_repo()
     try:
         repo.create({
             'category': category,
@@ -569,8 +533,8 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
 
 @app.command()
 def cleanup(
-    kill_mimo: bool = typer.Option(False, "--kill-mimo", "-m", help="Kill all mimo processes"),
-    reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck insights jobs"),
+    kill_providers: bool = typer.Option(False, "--kill-providers", "-m", help="Kill all provider processes"),
+    reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck jobs"),
     reset_roadmaps: bool = typer.Option(False, "--reset-roadmaps", "-r", help="Reset stuck roadmap generation jobs"),
     all: bool = typer.Option(False, "--all", "-a", help="Run all cleanup actions"),
 ):
@@ -578,12 +542,12 @@ def cleanup(
     import signal as _signal
 
     if all:
-        kill_mimo = reset_jobs = reset_roadmaps = True
+        kill_providers = reset_jobs = reset_roadmaps = True
 
     console.print(Panel("[bold]Cleanup[/bold]", title="Job Search CLI"))
 
-    if kill_mimo:
-        console.print("\n[bold]Killing mimo processes...[/bold]")
+    if kill_providers:
+        console.print("\n[bold]Killing provider processes...[/bold]")
         import subprocess
         result = subprocess.run(["pgrep", "-f", "mimo run"], capture_output=True, text=True)
         pids = result.stdout.strip().split('\n') if result.stdout.strip() else []
@@ -596,21 +560,7 @@ def cleanup(
                     except Exception as e:
                         console.print(f"  [red]Failed to kill PID {pid}: {e}[/red]")
         else:
-            console.print("  [dim]No mimo processes found[/dim]")
-
-    if reset_jobs:
-        console.print("\n[bold]Resetting stuck insights jobs...[/bold]")
-        from career.infrastructure.models.insight_model import CareerInsightRunModel as InsightRunModel
-        from dependencies import get_session_sync
-        session = get_session_sync()
-        try:
-            count = session.query(InsightRunModel).filter(
-                InsightRunModel.status.in_(['processing', 'queued'])
-            ).update({'status': 'failed', 'error_message': 'Reset by CLI'})
-            session.commit()
-        finally:
-            session.close()
-        console.print(f"  [green]Reset {count} jobs[/green]")
+            console.print("  [dim]No provider processes found[/dim]")
 
     if reset_roadmaps:
         console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
@@ -626,7 +576,7 @@ def cleanup(
             session.close()
         console.print(f"  [green]Reset {count} jobs[/green]")
 
-    if not (kill_mimo or reset_jobs or reset_roadmaps):
+    if not (kill_providers or reset_jobs or reset_roadmaps):
         console.print("[dim]No cleanup actions specified. Use --all or individual flags.[/dim]")
 
     console.print("\n[green]Done.[/green]")

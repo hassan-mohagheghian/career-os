@@ -1,7 +1,7 @@
 """LLM Provider abstraction layer.
 
 Providers are registered via get_provider() factory. The active provider
-is selected by the AI_PROVIDER environment variable (default: "mimo").
+is selected by the AI_PROVIDER environment variable (default: "mimo" for the Mimo CLI provider).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def get_provider(name: Optional[str] = None, config: Optional[ProviderConfig] = 
     """Get or create an LLM provider by name.
 
     Args:
-        name: Provider name (mimo, openai, local). Defaults to AI_PROVIDER env var.
+        name: Provider name (e.g. mimo, openai, local). Defaults to AI_PROVIDER env var.
         config: Optional provider configuration override.
 
     Returns:

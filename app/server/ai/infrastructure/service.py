@@ -2,7 +2,7 @@
 
 SRP: Single responsibility — coordinate LLM interactions with logging,
 error handling, and context management. This is the ONLY way existing
-code should call mimo going forward.
+code should use the provider abstraction going forward.
 
 Facade Pattern: Hides provider complexity behind a simple interface.
 Observer Pattern: Logs all LLM interactions.
@@ -25,7 +25,7 @@ _log = get_logger("ai.service")
 class LLMService:
     """Unified LLM service — the single entry point for all AI calls.
 
-    Replaces: MimoRunner, subprocess.run(mimo), _stream_mimo_output()
+    Replaces: direct subprocess invocation, MimoRunner
     Uses: LLMProvider abstraction underneath.
 
     Design Patterns:

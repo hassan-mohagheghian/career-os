@@ -4,9 +4,7 @@ Orchestrates all child workflow graphs in sequence.
 Each child graph remains independently executable.
 
 Graph: START → job_processing → company_processing → resume →
-       cover_letter → skill_extraction → skill_roadmap → insights → END
-
-Design Pattern: Orchestrator Pattern — coordinates multiple child workflows.
+       cover_letter → skill_extraction → skill_roadmap → END
 """
 
 from __future__ import annotations
@@ -22,11 +20,10 @@ from .runtime.state import BaseState
 # Import child graph builders
 from .job.graph import build_job_processing_graph
 from .company.graph import build_company_processing_graph
-from .resume.generator import build_resume_generation_graph
-from .resume.cover_letter import build_cover_letter_graph
+from jobs.infrastructure.ai.graphs.generator import build_resume_generation_graph
+from jobs.infrastructure.ai.graphs.cover_letter import build_cover_letter_graph
 from .skills.extraction import build_skill_extraction_graph
 from .skills.roadmap import build_skill_roadmap_graph
-from .insights.graph import build_insights_generation_graph
 
 
 def build_generate_all_graph() -> GraphBuilder:
@@ -47,7 +44,6 @@ def build_generate_all_graph() -> GraphBuilder:
     cover_letter_graph = build_cover_letter_graph().compile()
     skill_extraction_graph = build_skill_extraction_graph().compile()
     skill_roadmap_graph = build_skill_roadmap_graph().compile()
-    insights_graph = build_insights_generation_graph().compile()
 
     def run_job_processing(state: BaseState) -> BaseState:
         """Execute job processing child graph."""
@@ -139,27 +135,11 @@ def build_generate_all_graph() -> GraphBuilder:
             state["metadata"]["skill_roadmap"] = {"success": False, "error": str(e)}
         return state
 
-    def run_insights(state: BaseState) -> BaseState:
-        """Execute insights generation child graph."""
-        state["metadata"]["current_stage"] = "insights_generation"
-        try:
-            result = insights_graph.invoke(state)
-            state["metadata"]["insights_generation"] = {
-                "success": True,
-                "output": result.get("output", ""),
-                "errors": result.get("errors", []),
-            }
-        except Exception as e:
-            state["errors"].append(f"Insights generation failed: {e}")
-            state["metadata"]["insights_generation"] = {"success": False, "error": str(e)}
-        return state
-
     def completion_event(state: BaseState) -> BaseState:
         """Build final aggregated output."""
         stages = [
             "job_processing", "company_processing", "resume_generation",
             "cover_letter_generation", "skill_extraction", "skill_roadmap",
-            "insights_generation",
         ]
 
         results = {}
@@ -200,7 +180,6 @@ def build_generate_all_graph() -> GraphBuilder:
     builder.add_node("cover_letter_generation", run_cover_letter)
     builder.add_node("skill_extraction", run_skill_extraction)
     builder.add_node("skill_roadmap", run_skill_roadmap)
-    builder.add_node("insights_generation", run_insights)
     builder.add_node("completion_event", completion_event)
 
     builder.add_edge("job_processing", "company_processing")
@@ -208,8 +187,7 @@ def build_generate_all_graph() -> GraphBuilder:
     builder.add_edge("resume_generation", "cover_letter_generation")
     builder.add_edge("cover_letter_generation", "skill_extraction")
     builder.add_edge("skill_extraction", "skill_roadmap")
-    builder.add_edge("skill_roadmap", "insights_generation")
-    builder.add_edge("insights_generation", "completion_event")
+    builder.add_edge("skill_roadmap", "completion_event")
 
     builder.set_entry("job_processing")
     builder.set_finish("completion_event")
@@ -221,6 +199,5 @@ def build_generate_all_graph() -> GraphBuilder:
     builder.set_retry("cover_letter_generation", max_retries=1, delay=0.5)
     builder.set_retry("skill_extraction", max_retries=1, delay=0.5)
     builder.set_retry("skill_roadmap", max_retries=1, delay=0.5)
-    builder.set_retry("insights_generation", max_retries=1, delay=0.5)
 
     return builder

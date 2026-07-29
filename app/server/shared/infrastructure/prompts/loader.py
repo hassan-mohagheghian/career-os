@@ -17,9 +17,9 @@ def load_prompt(name, **kwargs):
     search_dirs = [
         os.path.join(_BASE_DIR, 'companies', 'infrastructure', 'ai', 'prompts'),
         os.path.join(_BASE_DIR, 'jobs', 'infrastructure', 'ai', 'prompts'),
-        os.path.join(_BASE_DIR, 'career', 'infrastructure', 'ai', 'prompts'),
+        os.path.join(_BASE_DIR, 'rules', 'infrastructure', 'ai', 'prompts'),
         os.path.join(_BASE_DIR, 'skills', 'infrastructure', 'ai', 'prompts'),
-        os.path.join(_BASE_DIR, 'resume', 'infrastructure', 'ai', 'prompts'),
+        os.path.join(_BASE_DIR, 'jobs', 'infrastructure', 'ai', 'prompts'),
     ]
 
     for prompts_dir in search_dirs:

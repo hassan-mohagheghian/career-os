@@ -83,12 +83,12 @@ export default function JobBaseCard({
   const saveEdit = async () => {
     setSaving(true)
     try {
-      await fetch(`/api/pending-companies/${item.id}/notes`, {
+      await fetch(`/api/pending-companies/${item.num}/notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: editNotes }),
       })
-      await fetch(`/api/pending-companies/${item.id}/links`, {
+      await fetch(`/api/pending-companies/${item.num}/links`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ links: editLinks }),

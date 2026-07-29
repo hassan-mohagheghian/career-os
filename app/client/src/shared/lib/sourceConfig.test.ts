@@ -18,11 +18,6 @@ describe('SOURCE_CONFIG', () => {
     expect(SOURCE_CONFIG['generation'].label).toBe('Generate')
   })
 
-  it('has config for insights', () => {
-    expect(SOURCE_CONFIG['insights']).toBeDefined()
-    expect(SOURCE_CONFIG['insights'].label).toBe('Intel')
-  })
-
   it('has config for roadmap', () => {
     expect(SOURCE_CONFIG['roadmap']).toBeDefined()
     expect(SOURCE_CONFIG['roadmap'].label).toBe('Roadmap')

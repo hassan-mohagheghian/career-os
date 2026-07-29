@@ -134,7 +134,7 @@ def build_company_processing_graph() -> GraphBuilder:
     def _load_company_rules(company_type: str = "UNKNOWN") -> str:
         try:
             from dependencies import get_session_sync
-            from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+            from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
 
             scope_map = {
                 "PRODUCT_COMPANY": "COMPANY_PRODUCT",
@@ -147,8 +147,8 @@ def build_company_processing_graph() -> GraphBuilder:
 
             session = get_session_sync()
             try:
-                pref_repo = SQLAlchemyPreferenceRepository(session)
-                rows = pref_repo.get_enabled_by_scopes(["SHARED", entity_scope])
+                rule_repo = SQLAlchemyRuleRepository(session)
+                rows = rule_repo.get_enabled_by_scopes(["SHARED", entity_scope])
             finally:
                 session.close()
 

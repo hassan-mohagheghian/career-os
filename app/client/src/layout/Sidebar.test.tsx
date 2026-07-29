@@ -7,13 +7,6 @@ const tabs = [
   { id: 'jobs', section: 'jobs', label: 'Jobs', icon: <span>J</span> },
   { id: 'companies', section: 'jobs', label: 'Companies', icon: <span>C</span>, badge: 5 },
   { id: 'resume', section: 'settings', label: 'Resume', icon: <span>R</span> },
-  {
-    id: 'insights', section: 'jobs', label: 'Insights', icon: <span>I</span>,
-    children: [
-      { id: 'overview', label: 'Overview' },
-      { id: 'skills', label: 'Skills' },
-    ]
-  },
 ]
 
 describe('Sidebar', () => {
@@ -40,12 +33,6 @@ describe('Sidebar', () => {
     render(<Sidebar sidebarOpen={true} tabs={tabs} tab="jobs" onSwitchTab={onSwitchTab} onClose={vi.fn()} />)
     fireEvent.click(screen.getByText('Resume'))
     expect(onSwitchTab).toHaveBeenCalledWith('resume')
-  })
-
-  it('renders child tabs for insights', () => {
-    render(<Sidebar sidebarOpen={true} tabs={tabs} tab="insights" onSwitchTab={vi.fn()} onClose={vi.fn()} />)
-    expect(screen.getByText('Overview')).toBeInTheDocument()
-    expect(screen.getByText('Skills')).toBeInTheDocument()
   })
 
   it('hides sidebar when sidebarOpen is false', () => {

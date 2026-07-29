@@ -14,18 +14,18 @@ Opens FastAPI backend (port 5000) + React dev server (port 5173).
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.15+, Flask 3.1, SQLite (raw SQL), Flask-SocketIO |
+| Backend | Python 3.14+, FastAPI, SQLite (SQLAlchemy ORM + Alembic), python-socketio |
 | Frontend | React 18, TypeScript, Vite 6, shadcn/ui, Tailwind CSS |
-| AI | Mimo CLI subprocess |
-| Realtime | WebSocket (SocketIO, threading mode) |
-| Testing | pytest (306 tests), vitest (23 tests) |
-| API Docs | Swagger UI (`/api/docs/`), ReDoc (`/api/redoc/`) |
+| AI | LLMService (Mimo CLI / OpenAI / Local via `AI_PROVIDER`), LangGraph workflows |
+| Realtime | WebSocket (python-socketio, ASGI mode) |
+| Testing | pytest (376+ tests), vitest (23 tests) |
+| API Docs | Swagger UI (`/api/docs`), ReDoc (`/api/redoc`) |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  React SPA (Vite + TypeScript)            │
+│              React SPA (Vite + TypeScript)                │
 │  ┌──────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ ┌──────┐│
 │  │ Jobs │ │Companies │ │Insights │ │ Skills │ │Resume││
 │  └──┬───┘ └────┬─────┘ └────┬────┘ └───┬────┘ └──┬───┘│
@@ -34,15 +34,27 @@ Opens FastAPI backend (port 5000) + React dev server (port 5173).
 └─────────────────────────┬───────────────────────────────┘
                           │ HTTP + WebSocket
 ┌─────────────────────────┼───────────────────────────────┐
-│                 Flask API (port 5000)                     │
+│               FastAPI (port 5000)                         │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+│  │  Routers │ │Services  │ │  Repos   │ │ WebSocket│  │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘  │
+│       └────────────┴────────────┴────────────┘         │
 │            ┌────────────▼────────────┐                   │
 │            │      SQLite DB          │                   │
 │            │      (jobs.db)          │                   │
 │            └─────────────────────────┘                   │
-└─────────────────────────────────────────────────────────┘
+└─────────────────────────┬───────────────────────────────┘
                           │
               ┌───────────▼───────────┐
-              │    Mimo CLI (AI)      │
+              │   AI Agent Layer      │
+              │   (LLMService)        │
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │   Provider Layer      │
+              │  ┌─────┬──────┬─────┐│
+              │  │Mimo │OpenAI│Local││
+              │  └─────┴──────┴─────┘│
               └───────────────────────┘
 ```
 
@@ -99,23 +111,32 @@ Settings
 
 ## API Documentation
 
-- **Swagger UI**: `http://localhost:5000/api/docs/`
-- **ReDoc**: `http://localhost:5000/api/redoc/`
-- **OpenAPI Spec**: `http://localhost:5000/api/swagger.json`
+- **Swagger UI**: `http://localhost:5000/api/docs`
+- **ReDoc**: `http://localhost:5000/api/redoc`
+- **OpenAPI Spec**: `http://localhost:5000/api/openapi.json`
 
 ## API Endpoints
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
+| `/api/jobs` | GET | Paginated job list |
+| `/api/jobs/:num` | GET/PUT/DELETE | Job CRUD |
+| `/api/jobs/:num/requeue` | POST | Re-queue for processing |
+| `/api/jobs/:num/rescore` | POST | Rescore existing job |
 | `/api/pending` | GET/POST | Job queue management |
+| `/api/companies` | GET/POST | Company CRUD |
+| `/api/companies/:id` | GET/DELETE | Company details/delete |
 | `/api/tech-stack` | GET/POST | Skills CRUD |
 | `/api/tech-stack/:id/hide` | PATCH | Hide skill |
 | `/api/tech-stack/:id/rename` | PATCH | Rename skill |
 | `/api/tech-stack/merge` | POST | Merge skills |
+| `/api/skill-roadmaps` | GET | Roadmap tree |
+| `/api/skill-roadmaps/generate` | POST | AI roadmap generation |
 | `/api/insights` | GET | Career insights |
+| `/api/insights/:section/refresh` | POST | Generate single section |
 | `/api/insights/progress` | GET | Real-time progress |
-| `/api/skill-roadmaps` | GET/POST | Learning roadmaps |
 | `/api/generation-history` | GET | Unified generation history |
+| `/api/rules` | GET/PUT | Scoring rules |
 
 ## WebSocket Events
 
@@ -124,30 +145,54 @@ Settings
 | `pending:update` | Server→Client | Job step progress |
 | `pending:log` | Server→Client | Job processing logs |
 | `pending:complete` | Server→Client | Job finished |
+| `pending:error` | Server→Client | Job processing error |
+| `company:update` | Server→Client | Company processing progress |
 | `insights:progress` | Server→Client | Insights analysis progress |
 | `skill_roadmap:update` | Server→Client | Roadmap generation status |
+| `generation:*` | Server→Client | Resume/cover generation progress |
 
 ## Project Structure
 
 ```
 app/
 ├── server/
-│   ├── app.py                    # Flask entry point
-│   ├── blueprints/               # API routes (10 blueprints)
-│   ├── services/                 # Business logic (worker, company_worker, insights)
-│   │   └── process/              # Broadcaster, models, mimo_runner, process_manager
-│   ├── core/                     # DB schema, queue manager
-│   ├── prompts/                  # AI prompt templates (organized by feature)
-│   │   ├── insights/             # Career intelligence prompts (7)
-│   │   ├── skill_roadmaps/       # Skill roadmap prompts (4)
-│   │   ├── job_processing/       # Job processing prompts (4)
-│   │   ├── company/              # Company analysis prompts (2)
-│   │   └── resume/               # Resume generation prompts (2)
-│   └── tests/                    # 306 tests mirroring server structure
-│       ├── test_blueprints/
-│       ├── test_services/
-│       ├── test_core/
-│       └── test_process/
+│   ├── entrypoints/
+│   │   ├── api.py                # FastAPI app factory + SocketIO
+│   │   └── cli.py                # Typer CLI for job management
+│   ├── shared/                   # Shared Kernel (cross-cutting)
+│   │   ├── domain/               # Base entity, value objects, repositories
+│   │   ├── application/          # DTOs, exceptions, schemas
+│   │   ├── presentation/         # Routers, error handlers, WebSocket
+│   │   └── infrastructure/       # Config, DB, workers, AI compat, logging
+│   ├── jobs/                     # Jobs Bounded Context
+│   │   ├── domain/               # Job entity, value objects, repository interfaces
+│   │   ├── application/          # Use cases, commands, DTOs
+│   │   ├── infrastructure/       # Models, repositories, workers, AI prompts
+│   │   └── presentation/         # FastAPI routers, schemas
+│   ├── companies/                # Companies Bounded Context
+│   ├── skills/                   # Skills Bounded Context
+│   ├── career/                   # Career Bounded Context
+│   ├── resume/                   # Resume Bounded Context
+│   ├── ai/                       # AI Bounded Context
+│   │   ├── domain/               # Generation session entities
+│   │   ├── application/          # Use cases, commands, DTOs
+│   │   ├── infrastructure/       # Providers (Mimo/OpenAI/Local/Gemini), tools, graphs
+│   │   │   ├── providers/        # LLM provider implementations
+│   │   │   ├── tools/            # Domain tools (fetch, web, database, job, company, skill)
+│   │   │   ├── graphs/           # LangGraph workflows
+│   │   │   └── prompts/          # Centralized prompt registry
+│   │   └── logging.py            # Structured agent events
+│   ├── dependencies.py           # FastAPI dependency injection
+│   ├── exceptions.py             # Exception hierarchy
+│   └── tests/                    # 376+ tests by bounded context
+│       ├── ai/
+│       ├── jobs/
+│       ├── companies/
+│       ├── skills/
+│       ├── career/
+│       ├── processing/
+│       ├── shared/
+│       └── migration/
 └── client/
     └── src/
         ├── features/             # Feature-based architecture
@@ -170,8 +215,14 @@ app/
 ## Testing
 
 ```bash
-# Backend (306 tests)
-cd app/server && python -m pytest tests/ -v
+# Backend (376+ tests)
+uv run pytest app/server/tests/ -v
+
+# AI layer (70 tests)
+uv run pytest tests/test_ai/ -v
+
+# All backend tests
+uv run pytest tests/test_ai/ app/server/tests/ -v
 
 # Frontend (23 tests)
 cd app/client && npx vitest run
@@ -180,6 +231,8 @@ cd app/client && npx vitest run
 ## Documentation
 
 - `docs/README.md` — Documentation index
-- `docs/architecture/ARCHITECTURE.md` — System design, entities, data flows
+- `docs/architecture/ARCHITECTURE.md` — System design, DDD contexts, entities, data flows
 - `docs/CHANGELOG.md` — Version history
-- API docs at runtime: `/api/docs/` (Swagger UI), `/api/redoc/` (ReDoc)
+- `docs/AI_ARCHITECTURE.md` — Provider abstraction, agents, tools, LangGraph workflows
+- `docs/API.md` — Complete REST API and WebSocket reference
+- API docs at runtime: `/api/docs` (Swagger UI), `/api/redoc` (ReDoc)

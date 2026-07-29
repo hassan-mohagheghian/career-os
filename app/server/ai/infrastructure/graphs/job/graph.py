@@ -51,7 +51,7 @@ def build_job_processing_graph() -> GraphBuilder:
         if not resume_text:
             try:
                 from dependencies import get_session_sync
-                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+                from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
                 session = get_session_sync()
                 try:
                     resume_repo = SQLAlchemyResumeRepository(session)
@@ -65,7 +65,7 @@ def build_job_processing_graph() -> GraphBuilder:
         if not linkedin_text:
             try:
                 from dependencies import get_session_sync
-                from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+                from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
                 session = get_session_sync()
                 try:
                     resume_repo = SQLAlchemyResumeRepository(session)
@@ -79,11 +79,11 @@ def build_job_processing_graph() -> GraphBuilder:
         if not rules:
             try:
                 from dependencies import get_session_sync
-                from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+                from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
                 session = get_session_sync()
                 try:
-                    pref_repo = SQLAlchemyPreferenceRepository(session)
-                    rows = pref_repo.get_enabled_by_scopes(["SHARED", "JOB"])
+                    rule_repo = SQLAlchemyRuleRepository(session)
+                    rows = rule_repo.get_enabled_by_scopes(["SHARED", "JOB"])
                 finally:
                     session.close()
                 if rows:
@@ -431,7 +431,7 @@ def build_job_processing_graph() -> GraphBuilder:
             from dependencies import get_session_sync
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+            from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 
             pid = state["context"].get("pid")
             url = state["context"].get("url", state["input"])

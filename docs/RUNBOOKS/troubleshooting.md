@@ -27,7 +27,7 @@ UPDATE pending_jobs SET status='failed' WHERE status='processing';
 
 ### WebSocket not connecting
 **Symptom**: Real-time updates not working
-**Fix**: Ensure Flask-SocketIO is running on port 5000 with `async_mode='threading'`. Check browser console for connection errors.
+**Fix**: Ensure FastAPI + SocketIO is running on port 5000. Check browser console for connection errors (WS endpoint: `/ws`). Verify SocketIO transport is not blocked by CORS.
 
 ### Build fails after rename
 **Symptom**: "Could not load" errors in Vite build

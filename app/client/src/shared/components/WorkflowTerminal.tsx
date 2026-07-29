@@ -59,7 +59,7 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
           )}
           {workflowLogs.map((log, i) => {
             const isCmd = log.step === 'cmd'; const isOut = log.step === 'out'; const isErr = log.step === 'err'
-            const isMimo = log.step === 'mimo'; const isStep = log.step === 'step'; const isError = log.step === 'error'; const isDone = log.step === 'done'
+            const isAi = log.step === 'ai'; const isStep = log.step === 'step'; const isError = log.step === 'error'; const isDone = log.step === 'done'
             return (
               <div key={i} className={cn("mb-0.5", isError || isErr ? "bg-red-500/10 -mx-3 px-3 py-0.5 rounded" : "")}>
                 {isCmd ? <div className="flex gap-2"><span className="text-[#484f58] shrink-0">{log.ts}</span><span className="text-[#58a6ff]">$</span><span className="text-[#58a6ff]">{log.msg}</span></div> :
@@ -67,8 +67,8 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
                  isErr ? <div className="flex gap-2"><span className="text-[#484f58] shrink-0">{log.ts}</span><span className="text-[#f85149]">✗</span><span className="text-[#f85149]">{log.msg}</span></div> :
                  <div className="flex gap-2">
                    <span className="text-[#484f58] shrink-0">{log.ts}</span>
-                   {!isMimo && !isStep && <span className="font-bold uppercase shrink-0 text-[#58a6ff]" style={{ minWidth: '50px' }}>[{log.step}]</span>}
-                   <span className={isMimo ? 'whitespace-pre-wrap' : ''} style={{ color: isError ? '#f85149' : isDone || isStep ? '#3fb950' : '#c9d1d9' }}>
+                    {!isAi && !isStep && <span className="font-bold uppercase shrink-0 text-[#58a6ff]" style={{ minWidth: '50px' }}>[{log.step}]</span>}
+                    <span className={isAi ? 'whitespace-pre-wrap' : ''} style={{ color: isError ? '#f85149' : isDone || isStep ? '#3fb950' : '#c9d1d9' }}>
                      {isStep ? <><span className="text-[#3fb950]">✓</span> {log.msg}</> : isDone ? <><Confetti className="w-4 h-4 inline text-[#3fb950]" /> {log.msg}</> : log.msg}
                    </span>
                  </div>}

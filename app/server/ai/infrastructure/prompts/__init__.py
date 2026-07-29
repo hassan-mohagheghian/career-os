@@ -10,7 +10,6 @@ from .components import (
     tone_instructions,
 )
 from .inputs import (
-    CareerInsightsInput,
     CompanyAnalysisInput,
     CompanyExtractionInput,
     CoverLetterInput,
@@ -64,5 +63,5 @@ __all__ = [
     "CoverLetterInput",
     "SkillExtractionInput",
     "RoadmapInput",
-    "CareerInsightsInput",
+
 ]

@@ -29,6 +29,7 @@ export function useSkills() {
   const [progress, setProgress] = useState<ProgressData>({ running: false })
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [skills, setSkills] = useState<any[]>([])
   const [skillRoadmapProgress, setSkillRoadmapProgress] = useState<Record<string, any>>({})
   const [skillGenJobs, setSkillGenJobs] = useState<any[]>([])
   const [dashboardData, setDashboardData] = useState<any>(null)
@@ -36,18 +37,14 @@ export function useSkills() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchData = useCallback(() => {
-    return fetch(`${API}/insights/skills-intel`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d && d.data) {
-          setData({ skills_intel: d.data })
-        } else if (d) {
-          setData({ skills_intel: d })
-        } else {
-          setData(null)
-        }
-      })
-      .catch(() => setData(null))
+    return Promise.resolve(null)
+  }, [])
+
+  const fetchSkills = useCallback(() => {
+    return fetch(`${API}/skills`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (Array.isArray(d)) setSkills(d); })
+      .catch(() => {})
   }, [])
 
   const fetchDashboard = useCallback(() => {
@@ -58,17 +55,11 @@ export function useSkills() {
   }, [])
 
   const fetchStatus = useCallback(() => {
-    return fetch(`${API}/insights/status`)
-      .then(r => r.ok ? r.json() : {})
-      .then(d => setStatus(d))
-      .catch(() => setStatus({}))
+    return Promise.resolve({})
   }, [])
 
   const fetchProgress = useCallback(() => {
-    return fetch(`${API}/insights/progress`)
-      .then(r => r.ok ? r.json() : { running: false })
-      .then(d => setProgress(d))
-      .catch(() => setProgress({ running: false }))
+    return Promise.resolve({ running: false })
   }, [])
 
   const fetchSkillProgress = useCallback(() => {
@@ -95,10 +86,11 @@ export function useSkills() {
     fetchData()
     fetchStatus()
     fetchProgress()
+    fetchSkills()
     fetchSkillProgress()
     fetchDashboard()
     pollActiveSkillJobs()
-  }, [fetchData, fetchStatus, fetchProgress, fetchSkillProgress, fetchDashboard, pollActiveSkillJobs])
+  }, [fetchData, fetchStatus, fetchProgress, fetchSkills, fetchSkillProgress, fetchDashboard, pollActiveSkillJobs])
 
   // SocketIO for real-time updates
   useEffect(() => {
@@ -146,20 +138,18 @@ export function useSkills() {
       }
     }
 
-    socket.on('insights:progress', handleProgress)
     socket.on('skill_roadmap:update', handleSkillUpdate)
     watchSkills()
 
     return () => {
-      socket.off('insights:progress', handleProgress)
       socket.off('skill_roadmap:update', handleSkillUpdate)
       unwatchSkills()
     }
   }, [socket, fetchStatus, fetchData, fetchSkillProgress, pollActiveSkillJobs])
 
-  // Poll active skill jobs — always if there are active jobs, or during insights generation
+  // Poll active skill jobs — always if there are active jobs
   useEffect(() => {
-    const shouldPoll = (progress.running && progress.type === 'skills_intel') || skillGenJobs.some((j: any) => j.status === 'running' || j.status === 'queued')
+    const shouldPoll = skillGenJobs.some((j: any) => j.status === 'running' || j.status === 'queued')
     if (shouldPoll) {
       pollRef.current = setInterval(pollActiveSkillJobs, 3000)
     }
@@ -167,43 +157,16 @@ export function useSkills() {
   }, [progress.running, progress.type, skillGenJobs, pollActiveSkillJobs])
 
   const refresh = useCallback(async () => {
-    setError(null)
-    try {
-      const res = await fetch(`${API}/insights/skills-intel/refresh`, { method: 'POST' })
-      const body = await res.json()
-      if (res.status === 409) {
-        setError(body.message || 'Analysis already in progress')
-        return false
-      }
-      setProgress(p => ({ ...p, running: true, type: 'skills_intel' }))
-      setRefreshing(true)
-      return true
-    } catch {
-      setError('Failed to start analysis')
-      return false
-    }
+    return false
   }, [])
 
   const cancelRun = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/insights/cancel`, { method: 'POST' })
-      const body = await res.json()
-      if (body.status === 'cancelled') {
-        setRefreshing(false)
-        fetchProgress()
-        fetchStatus()
-        fetchData()
-        return true
-      }
-    } catch {
-      setError('Failed to cancel analysis')
-    }
     return false
-  }, [fetchData, fetchStatus, fetchProgress])
+  }, [])
 
   return {
     data, status, progress, refreshing, error,
-    skillRoadmapProgress, skillGenJobs,
+    skills, skillRoadmapProgress, skillGenJobs,
     dashboardData,
     refresh, cancelRun, fetchProgress,
     refreshSkillRoadmapProgress: fetchSkillProgress,

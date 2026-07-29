@@ -5,12 +5,12 @@ from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_job_repo, get_summary_repo, get_resume_repo, get_session_sync
+from dependencies import get_job_repo, get_summary_repo, get_tailored_document_repo, get_session_sync
 
 # Bounded context infrastructure
 from jobs.infrastructure import SQLAlchemyJobRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-from resume.infrastructure import SQLAlchemyResumeRepository
+from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
 
 # Application exceptions
 from shared.application.exceptions import NotFoundError, BadRequestError
@@ -35,7 +35,7 @@ def list_jobs(
     filter_scores: str = Query(""),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
-    """Get paginated list of jobs."""
+    """Get paginated list of processed (completed) jobs."""
     filters = {
         "filter_tech": filter_tech,
         "filter_cities": filter_cities,
@@ -46,6 +46,7 @@ def list_jobs(
         "filter_response_status": filter_response_status,
         "filter_applied": filter_applied,
         "filter_scores": filter_scores,
+        "filter_status": "completed",
     }
     filters = {k: v for k, v in filters.items() if v}
 
@@ -69,9 +70,8 @@ def get_summaries(repo: SQLAlchemySummaryRepository = Depends(get_summary_repo))
 @router.get("/{num}/generation-history")
 def get_job_generation_history(num: int, session = Depends(get_session_sync)):
     """Get generation history (resume + cover) for a specific job."""
-    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-    repo = SQLAlchemyResumeRepository(session)
-    items = repo.get_history_for_job(num) if hasattr(repo, 'get_history_for_job') else []
+    repo = SQLAlchemyTailoredDocumentRepository(session)
+    items = repo.get_history_for_job(num)
     title_map = {'resume': 'Resume', 'cover': 'Cover Letter', 'cover_letter': 'Cover Letter'}
     return [
         {
@@ -91,15 +91,15 @@ def get_job_generation_history(num: int, session = Depends(get_session_sync)):
 def get_job(
     num: int,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
-    resume_repo: SQLAlchemyResumeRepository = Depends(get_resume_repo),
+    doc_repo: SQLAlchemyTailoredDocumentRepository = Depends(get_tailored_document_repo),
 ):
     """Get a single job by number with its resume and cover letter."""
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    resume = resume_repo.get_for_job(num)
-    cover = resume_repo.get_cover_for_job(num)
+    resume = doc_repo.get_for_job(num)
+    cover = doc_repo.get_cover_for_job(num)
 
     return {
         **job,
@@ -239,25 +239,22 @@ def list_jobs_by_status(
 @router.post("/{num}/generate-resume")
 def generate_resume(num: int, session = Depends(get_session_sync)):
     """Start background resume generation for a job."""
-    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-
     repo = SQLAlchemyJobRepository(session)
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    resume_repo = SQLAlchemyResumeRepository(session)
-    running = resume_repo.get_active_for_job(num, "resume") if hasattr(resume_repo, 'get_active_for_job') else None
+    doc_repo = SQLAlchemyTailoredDocumentRepository(session)
+    running = doc_repo.get_active_for_job(num, "resume")
     if running:
         raise BadRequestError("A resume generation is already running for this job")
 
-    gen = resume_repo.create_generation(num, "resume") if hasattr(resume_repo, 'create_generation') else {"id": 0}
+    gen = doc_repo.create_generation(num, "resume")
     gen_id = gen["id"]
     session.commit()
 
     def _run():
-        from resume.infrastructure.workers.generation_worker import process_generation
+        from jobs.infrastructure.workers.generation_worker import process_generation
         try:
             process_generation(gen_id)
         except Exception as e:
@@ -271,25 +268,22 @@ def generate_resume(num: int, session = Depends(get_session_sync)):
 @router.post("/{num}/generate-cover")
 def generate_cover(num: int, session = Depends(get_session_sync)):
     """Start background cover letter generation for a job."""
-    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-
     repo = SQLAlchemyJobRepository(session)
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    resume_repo = SQLAlchemyResumeRepository(session)
-    running = resume_repo.get_active_for_job(num, "cover") if hasattr(resume_repo, 'get_active_for_job') else None
+    doc_repo = SQLAlchemyTailoredDocumentRepository(session)
+    running = doc_repo.get_active_for_job(num, "cover")
     if running:
         raise BadRequestError("A cover letter generation is already running for this job")
 
-    gen = resume_repo.create_generation(num, "cover") if hasattr(resume_repo, 'create_generation') else {"id": 0}
+    gen = doc_repo.create_generation(num, "cover")
     gen_id = gen["id"]
     session.commit()
 
     def _run():
-        from resume.infrastructure.workers.generation_worker import process_generation
+        from jobs.infrastructure.workers.generation_worker import process_generation
         try:
             process_generation(gen_id)
         except Exception:

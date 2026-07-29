@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from .interfaces import (
-    IProcessManager, ITempFileManager, IMimoRunner, IBroadcaster,
+    IProcessManager, ITempFileManager, IProviderRunner, IBroadcaster,
     IPendingRepository,
 )
 from .models import (
@@ -44,13 +44,13 @@ class WorkerBase(abc.ABC):
         pending_repo: IPendingRepository,
         process_mgr: IProcessManager,
         temp_mgr: ITempFileManager,
-        mimo_runner: IMimoRunner,
+        provider_runner: IProviderRunner,
         broadcaster: IBroadcaster,
     ):
         self._pending_repo = pending_repo
         self._proc_mgr = process_mgr
         self._temp_mgr = temp_mgr
-        self._mimo = mimo_runner
+        self._provider = provider_runner
         self._broadcaster = broadcaster
 
     @property
@@ -178,17 +178,17 @@ class WorkerBase(abc.ABC):
             table=self.table, pid=pid, step=step, val=0,
         ))
 
-    def _mimo_event_handler(self, pid: int, evt: dict) -> None:
-        """Handle a single mimo JSON event — log it for audit trail."""
+    def _provider_event_handler(self, pid: int, evt: dict) -> None:
+        """Handle a single provider JSON event — log it for audit trail."""
         event_type = evt.get('type', '')
         if event_type == 'text':
             text = evt.get('part', {}).get('text', '')
             if text:
-                self._log(pid, 'mimo', f'text: {text[:200]}')
+                self._log(pid, 'ai', f'text: {text[:200]}')
         elif event_type == 'tool_use':
             tool = evt.get('part', {}).get('tool', 'unknown')
-            self._log(pid, 'mimo', f'tool: {tool}')
+            self._log(pid, 'ai', f'tool: {tool}')
         elif event_type == 'step_finish':
             reason = evt.get('part', {}).get('reason', '')
             tokens = evt.get('part', {}).get('tokens', {})
-            self._log(pid, 'mimo', f'step: {reason} ({tokens.get("total", 0)} tokens)')
+            self._log(pid, 'ai', f'step: {reason} ({tokens.get("total", 0)} tokens)')

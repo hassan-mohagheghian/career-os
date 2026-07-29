@@ -1,5 +1,5 @@
 """
-WebSocket server for streaming Mimo CLI output in real-time.
+WebSocket server for streaming AI provider output in real-time.
 Runs alongside Flask on a separate port.
 """
 import asyncio
@@ -44,10 +44,10 @@ def _log(pid, step, msg):
 def _load_rules(context='job'):
     """Load enabled scoring rules from DB, filtered by context, ordered by priority desc."""
     from dependencies import get_session_sync
-    from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+    from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
     session = get_session_sync()
     try:
-        repo = SQLAlchemyPreferenceRepository(session)
+        repo = SQLAlchemyRuleRepository(session)
         if context == 'company':
             scopes = ['SHARED', 'COMPANY_PRODUCT', 'COMPANY_RECRUITING']
         else:
@@ -264,7 +264,7 @@ def _insert_summary(d):
 
 def _insert_resume(d):
     from dependencies import get_session_sync
-    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+    from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyResumeRepository(session)
@@ -392,9 +392,9 @@ def fetch_url(url):
     else:
         raise RuntimeError(page.error.message if page.error else "Fetch failed")
 
-# --- Stream mimo process ---
+# --- Stream provider process ---
 
-async def stream_mimo(pid, prompt):
+async def stream_provider(pid, prompt):
     """Run LLM with streaming output via WebSocket.
 
     Returns (returncode, result_dict). result_dict is parsed from
@@ -411,7 +411,7 @@ async def stream_mimo(pid, prompt):
         if etype == 'text':
             txt = evt.get('part', {}).get('text', '')
             if txt:
-                _log(pid, 'mimo', txt[:200])
+                _log(pid, 'ai', txt[:200])
                 asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'text', 'data': txt, 'ts': datetime.now().strftime('%H:%M:%S')}))
         elif etype == 'tool_use':
             part = evt.get('part', {})
@@ -421,14 +421,14 @@ async def stream_mimo(pid, prompt):
             inp = state.get('input', {})
             output = state.get('output', '') or state.get('metadata', {}).get('output', '')
             title = state.get('title', '')
-            _log(pid, 'mimo', f"Tool: {tool} [{status}] {title}")
+            _log(pid, 'ai', f"Tool: {tool} [{status}] {title}")
             asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': tool, 'data': f"$ {inp.get('command', '')}", 'ts': datetime.now().strftime('%H:%M:%S')}))
             if output:
                 asyncio.ensure_future(broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': tool, 'data': output.rstrip(), 'ts': datetime.now().strftime('%H:%M:%S')}))
         elif etype == 'step_finish':
             reason = evt.get('part', {}).get('reason', '')
             tokens = evt.get('part', {}).get('tokens', {})
-            _log(pid, 'mimo', f"Step finished: {reason} ({tokens.get('total', 0)} tokens)")
+            _log(pid, 'ai', f"Step finished: {reason} ({tokens.get('total', 0)} tokens)")
 
     def on_session_id(sid):
         asyncio.ensure_future(broadcast(pid, {'type': 'session_id', 'session_id': sid, 'ts': datetime.now().strftime('%H:%M:%S')}))
@@ -493,8 +493,8 @@ async def process_job_stream(pid):
         builder = build_job_processing_graph()
 
         from dependencies import get_session_sync as _gss
-        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+        from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+        from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
 
         resume_text = ""
         linkedin_text = ""
@@ -504,8 +504,8 @@ async def process_job_stream(pid):
             resume_repo = SQLAlchemyResumeRepository(sess)
             resume_text = resume_repo.get_latest_original_raw_text() or ""
             linkedin_text = resume_repo.get_latest_linkedin_raw_text() or ""
-            pref_repo = SQLAlchemyPreferenceRepository(sess)
-            rows = pref_repo.get_enabled_by_scopes(["SHARED", "JOB"])
+            rule_repo = SQLAlchemyRuleRepository(sess)
+            rows = rule_repo.get_enabled_by_scopes(["SHARED", "JOB"])
             if rows:
                 lines = []
                 current_cat = None

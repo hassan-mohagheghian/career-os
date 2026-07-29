@@ -74,37 +74,17 @@ def get_skill_roadmap_job_repo(session: Session = Depends(get_session)):
     return SQLAlchemySkillRoadmapJobRepository(session)
 
 
-# ── Career Context Dependencies ───────────────────────────────────
+# ── Rules Context Dependencies ───────────────────────────────────
 
-def get_insight_repo(session: Session = Depends(get_session)):
-    from career.infrastructure import SQLAlchemyInsightRepository
-    return SQLAlchemyInsightRepository(session)
-
-
-def get_career_insight_repo(session: Session = Depends(get_session)):
-    from career.infrastructure import SQLAlchemyCareerInsightRepository
-    return SQLAlchemyCareerInsightRepository(session)
-
-
-def get_career_insight_run_repo(session: Session = Depends(get_session)):
-    from career.infrastructure import SQLAlchemyCareerInsightRunRepository
-    return SQLAlchemyCareerInsightRunRepository(session)
-
-
-def get_preference_repo(session: Session = Depends(get_session)):
-    from career.infrastructure import SQLAlchemyPreferenceRepository
-    return SQLAlchemyPreferenceRepository(session)
-
-
-def get_tech_learning_repo(session: Session = Depends(get_session)):
-    from skills.infrastructure import SQLAlchemyTechLearningRepository
-    return SQLAlchemyTechLearningRepository(session)
+def get_rule_repo(session: Session = Depends(get_session)):
+    from rules.infrastructure import SQLAlchemyRuleRepository
+    return SQLAlchemyRuleRepository(session)
 
 
 # ── Resume Context Dependencies ───────────────────────────────────
 
 def get_resume_repo(session: Session = Depends(get_session)):
-    from resume.infrastructure import SQLAlchemyResumeRepository
+    from jobs.infrastructure import SQLAlchemyResumeRepository
     return SQLAlchemyResumeRepository(session)
 
 
@@ -115,6 +95,13 @@ def get_summary_repo(session: Session = Depends(get_session)):
     return SQLAlchemySummaryRepository(session)
 
 
+# ── Jobs Tailored Document Dependencies ─────────────────────────
+
+def get_tailored_document_repo(session: Session = Depends(get_session)):
+    from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
+    return SQLAlchemyTailoredDocumentRepository(session)
+
+
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
 def get_pending_repo(session: Session = Depends(get_session)):
@@ -123,5 +110,5 @@ def get_pending_repo(session: Session = Depends(get_session)):
 
 
 def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from resume.infrastructure import SQLAlchemyResumeRepository
-    return SQLAlchemyResumeRepository(session)
+    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    return SQLAlchemyPendingGenerationRepository(session)

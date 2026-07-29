@@ -27,7 +27,6 @@ from .runtime.state import (
     create_initial_state,
     JobProcessingState,
     CompanyProcessingState,
-    InsightsState,
     SkillRoadmapState,
     CheckpointConfig,
     JobExtractionOutput,
@@ -38,8 +37,6 @@ from .runtime.state import (
     CoverLetterOutput,
     SkillExtractionOutput,
     SkillRoadmapOutput,
-    InsightSectionOutput,
-    CareerInsightsOutput,
 )
 from .runtime.executor import AgentExecutor
 from .runtime.registry import AgentRegistry, AgentMetadata
@@ -53,13 +50,10 @@ def get_all_graphs() -> dict[str, GraphBuilder]:
     """
     from .job.graph import build_job_processing_graph
     from .company.graph import build_company_processing_graph
-    from .resume.generator import build_resume_generation_graph
-    from .resume.cover_letter import build_cover_letter_graph
+    from jobs.infrastructure.ai.graphs.generator import build_resume_generation_graph
+    from jobs.infrastructure.ai.graphs.cover_letter import build_cover_letter_graph
     from .skills.extraction import build_skill_extraction_graph
     from .skills.roadmap import build_skill_roadmap_graph
-    from .insights.graph import build_insights_generation_graph
-    from .generate_all import build_generate_all_graph
-
     return {
         "job_processing": build_job_processing_graph(),
         "company_processing": build_company_processing_graph(),
@@ -67,8 +61,6 @@ def get_all_graphs() -> dict[str, GraphBuilder]:
         "cover_letter_generation": build_cover_letter_graph(),
         "skill_extraction": build_skill_extraction_graph(),
         "skill_roadmap": build_skill_roadmap_graph(),
-        "insights": build_insights_generation_graph(),
-        "generate_all": build_generate_all_graph(),
     }
 
 
@@ -96,7 +88,6 @@ __all__ = [
     "create_initial_state",
     "JobProcessingState",
     "CompanyProcessingState",
-    "InsightsState",
     "SkillRoadmapState",
     "CheckpointConfig",
     "JobExtractionOutput",
@@ -107,8 +98,7 @@ __all__ = [
     "CoverLetterOutput",
     "SkillExtractionOutput",
     "SkillRoadmapOutput",
-    "InsightSectionOutput",
-    "CareerInsightsOutput",
+
     "GraphBuilder",
     "CompiledGraph",
     "AgentExecutor",

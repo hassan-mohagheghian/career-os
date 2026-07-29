@@ -5,7 +5,7 @@
 - Python 3.14+
 - Node.js 20+
 - uv (Python package manager)
-- Mimo CLI (`~/.mimocode/bin/mimo`)
+- Mimo CLI (`~/.mimocode/bin/mimo`) — only required if `AI_PROVIDER=mimo`
 
 ## Local Setup
 
@@ -17,9 +17,8 @@ cd job-search
 
 # Or manually:
 # Backend
-cd app/server
 uv sync
-uv run python app.py  # Flask on :5000
+uv run uvicorn app.server.entrypoints.api:fastapi_app --reload --port 5000
 
 # Frontend
 cd app/client
@@ -31,16 +30,18 @@ npm run dev          # Vite on :5173
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `AI_PROVIDER` | `mimo` | AI provider: `mimo`, `openai`, `local` |
+| `AI_PROVIDER` | `mimo` | AI provider: `mimo`, `openai`, `local`, `gemini` |
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
-
-| `SECRET_KEY` | `dev-secret-key` | Flask secret key |
+| `BACKEND_PORT` | `5000` | Backend server port |
+| `FRONTEND_PORT` | `5173` | Frontend dev server port |
+| `SECRET_KEY` | `dev-secret-key` | FastAPI secret key |
 | `QUEUE_CONCURRENCY` | `2` | Max concurrent processing workers |
+| `CORS_ORIGINS` | `*` | Allowed CORS origins |
 
 ## Testing
 
 ```bash
-# Backend (376 tests)
+# Backend (376+ tests)
 uv run pytest app/server/tests/ -v
 
 # AI layer tests (70 tests)
@@ -50,7 +51,7 @@ uv run pytest tests/test_ai/ -v
 uv run pytest tests/test_ai/ app/server/tests/ -v
 
 # Backend with coverage
-uv run pytest app/server/tests/ --cov=services --cov=blueprints --cov=core --cov-report=term-missing
+uv run pytest app/server/tests/ --cov=jobs --cov=companies --cov=skills --cov=shared --cov-report=term-missing
 
 # Frontend (23 tests)
 cd app/client && npx vitest run
@@ -61,10 +62,10 @@ cd app/client && npx vitest run
 ### Python (Backend)
 - Follow OOP, SOLID, DDD, TDD principles
 - Use `structlog` for logging (no `print()`)
-- SQLAlchemy ORM for all database access
-- Flask Blueprints for API routes
+- SQLAlchemy ORM for all database access (never raw SQL)
+- FastAPI routers for API routes in bounded contexts
 - Background threading for long operations
-- **AI calls via LLMService** — `from ai_compat import get_llm_service`
+- **AI calls via LLMService** — `from shared.infrastructure.ai.compat import get_llm_service`
 
 ### TypeScript (Frontend)
 - Feature-based architecture: `features/{name}/components/`, `features/{name}/hooks/`
@@ -87,8 +88,8 @@ cd app/client && npx vitest run
 
 ## Debugging
 
-- **Backend logs**: `app/server/logs/` directory
+- **Backend logs**: `app/server/logs/` directory (structured JSON via structlog)
 - **Frontend**: Browser dev tools, Vite HMR
-- **WebSocket**: SocketIO events visible in Network tab
+- **WebSocket**: SocketIO events visible in Network tab (WS connection at `/ws`)
 - **Database**: Use SQLAlchemy ORM models or Alembic for database operations. Never use raw SQL.
-- **AI Provider**: Check `AI_PROVIDER` env var and `~/.mimocode/bin/mimo`
+- **AI Provider**: Check `AI_PROVIDER` env var (`mimo`, `openai`, `local`, `gemini`)

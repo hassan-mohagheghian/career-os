@@ -1,3 +1,0 @@
-from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-
-__all__ = ["SQLAlchemyCareerInsightRunRepository"]

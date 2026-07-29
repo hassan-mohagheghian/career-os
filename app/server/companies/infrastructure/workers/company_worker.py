@@ -155,7 +155,7 @@ def _extract_company_info(input_text, input_type, pid):
 def _load_rules(context='company', company_type='UNKNOWN'):
     session = get_session_sync()
     try:
-        pref_repo = SQLAlchemyPreferenceRepository(session)
+        rule_repo = SQLAlchemyRuleRepository(session)
         if context == 'company':
             scope_map = {
                 'PRODUCT_COMPANY': 'COMPANY_PRODUCT',
@@ -165,9 +165,9 @@ def _load_rules(context='company', company_type='UNKNOWN'):
                 'UNKNOWN': 'COMPANY_PRODUCT',
             }
             entity_scope = scope_map.get(company_type, 'COMPANY_PRODUCT')
-            rows = pref_repo.get_enabled_by_scopes(['SHARED', entity_scope])
+            rows = rule_repo.get_enabled_by_scopes(['SHARED', entity_scope])
         else:
-            rows = pref_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
+            rows = rule_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
     finally:
         session.close()
     if not rows:
@@ -289,13 +289,13 @@ def process_company(pid):
         pending_repo = PendingCompanyRepository(session)
         proc_mgr = ProcessManager()
         temp_mgr = TempFileManager()
-        mimo_runner = MimoRunner(proc_mgr)
+        provider_runner = MimoRunner(proc_mgr)
 
         worker = CompanyWorker(
             pending_repo=pending_repo,
             process_mgr=proc_mgr,
             temp_mgr=temp_mgr,
-            mimo_runner=mimo_runner,
+            provider_runner=provider_runner,
             broadcaster=broadcaster,
         )
         worker.process(pid)
@@ -344,9 +344,9 @@ class CompanyWorker(WorkerBase):
     Workflow progress is emitted via WebSocket events through the broadcaster.
     """
 
-    def __init__(self, pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster,
+    def __init__(self, pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster,
                  llm_service=None):
-        super().__init__(pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster)
+        super().__init__(pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster)
         self._llm = llm_service
         self._graph = None
 

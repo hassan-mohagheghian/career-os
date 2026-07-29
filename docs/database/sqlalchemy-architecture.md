@@ -32,8 +32,7 @@ Located in `infrastructure/database/models/`:
 | `skill_model.py` | `skills`, `skill_aliases`, `skill_relationships` |
 | `company_model.py` | `companies`, `company_intelligence`, `company_links` |
 | `pending_model.py` | `pending_jobs`, `pending_companies`, `pending_generations` |
-| `insight_model.py` | `career_insights`, `career_insight_runs` |
-| `misc_models.py` | `summaries`, `resumes`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs`, `preferences`, `dashboard_insights`, `analysis_runs`, `tech_learning`, `cities` |
+| `misc_models.py` | `summaries`, `resumes`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs`, `rules`, `cities` |
 
 ### Domain-to-Database Mapping
 

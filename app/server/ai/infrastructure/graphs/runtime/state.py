@@ -78,13 +78,6 @@ class CompanyProcessingState(BaseState):
     company_id: Optional[int]
 
 
-class InsightsState(BaseState):
-    section: str
-    section_data: dict[str, Any]
-    all_results: dict[str, Any]
-    errors_list: list[str]
-
-
 class SkillRoadmapState(BaseState):
     skill_name: str
     job_type: str
@@ -202,19 +195,4 @@ class SkillRoadmapOutput(BaseModel):
     learning_resources: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class InsightSectionOutput(BaseModel):
-    section: str = ""
-    data: dict[str, Any] = Field(default_factory=dict)
-    summary: str = ""
-    recommendations: list[str] = Field(default_factory=list)
 
-
-class CareerInsightsOutput(BaseModel):
-    overview: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    skills: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    market: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    companies: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    networking: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    opportunities: InsightSectionOutput = Field(default_factory=InsightSectionOutput)
-    health_score: Optional[float] = None
-    generated_sections: list[str] = Field(default_factory=list)

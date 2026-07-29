@@ -115,9 +115,9 @@ describe('WorkflowTerminal', () => {
     expect(screen.getByText('Something failed')).toBeInTheDocument()
   })
 
-  it('renders mimo log entries', () => {
+  it('renders ai log entries', () => {
     const logs = [
-      { step: 'mimo', msg: 'AI reasoning...', ts: '10:00:00' },
+      { step: 'ai', msg: 'AI reasoning...', ts: '10:00:00' },
     ]
     render(
       <WorkflowTerminal workflowDrawer={baseDrawer} workflowLogs={logs} workflowEndRef={{ current: null }} onClose={vi.fn()} />

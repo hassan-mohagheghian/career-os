@@ -63,14 +63,6 @@ export function unwatchSkills(): void {
   getSocket().emit('unwatch_skills')
 }
 
-export function watchInsights(): void {
-  getSocket().emit('watch_insights')
-}
-
-export function unwatchInsights(): void {
-  getSocket().emit('unwatch_insights')
-}
-
 export function watchGeneration(id: number): void {
   getSocket().emit('watch_generation', { id })
 }

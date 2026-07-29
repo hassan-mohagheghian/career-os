@@ -14,7 +14,7 @@ import uuid
 from typing import Optional, Callable
 
 from shared.infrastructure.process.logging_config import get_logger
-from .interfaces import IMimoRunner, IProcessManager
+from .interfaces import IProviderRunner, IProcessManager
 
 logger = get_logger('process.mimo_runner')
 
@@ -30,7 +30,7 @@ TMP_DIR = os.path.join(PROJECT_ROOT, 'tmp')
 os.makedirs(TMP_DIR, exist_ok=True)
 
 
-class MimoRunner(IMimoRunner):
+class MimoRunner(IProviderRunner):
     """Runs mimo CLI commands with streaming JSON output."""
 
     def __init__(self, process_manager: IProcessManager):

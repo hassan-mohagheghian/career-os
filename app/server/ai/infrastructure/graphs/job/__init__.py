@@ -2,7 +2,7 @@
 
 DDD: Agents are application services that coordinate domain operations.
 SRP: Each agent handles one aspect of job processing.
-DIP: Agents depend on LLMProvider abstraction, not on MimoRunner.
+DIP: Agents depend on LLMProvider abstraction, not on concrete providers.
 """
 
 from .graph import build_job_processing_graph

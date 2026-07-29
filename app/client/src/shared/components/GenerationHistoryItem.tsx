@@ -94,7 +94,7 @@ interface GenerationHistoryItemProps {
 }
 
 export default function GenerationHistoryItem({ item, compact = false, showFullDatetime = false }: GenerationHistoryItemProps) {
-  const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['insights']
+  const cfg = SOURCE_CONFIG[item.source] || SOURCE_CONFIG['job-processing']
 
   if (compact) {
     return (

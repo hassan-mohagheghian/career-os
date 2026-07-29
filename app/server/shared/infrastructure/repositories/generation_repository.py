@@ -14,7 +14,7 @@ from dependencies import get_session_sync
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
+
 
 
 class GenerationHistoryRepository:
@@ -48,9 +48,6 @@ class GenerationHistoryRepository:
             all_items.extend(self._query_pending_generations())
         if source_filter is None or source_filter == 'roadmap':
             all_items.extend(self._query_roadmap_jobs())
-        if source_filter is None or source_filter == 'insights':
-            all_items.extend(self._query_insight_runs())
-
         def sort_key(item: GenerationHistoryItem) -> str:
             return item.started_at or item.completed_at or ''
 
@@ -139,41 +136,6 @@ class GenerationHistoryRepository:
             pass
         return items
 
-    def _query_insight_runs(self) -> List[GenerationHistoryItem]:
-        items = []
-        try:
-            session = self._session()
-            try:
-                repo = SQLAlchemyCareerInsightRunRepository(session)
-                rows = repo.get_runs(limit=200)
-                for r in rows:
-                    insight_type = r.get('insight_type', 'unknown')
-                    title_map = {
-                        'overview': 'Overview',
-                        'opportunities': 'Opportunities',
-                        'companies': 'Companies',
-                        'skills': 'Skills',
-                        'skills_intel': 'Skills Intel',
-                        'market': 'Market',
-                        'networking': 'Networking',
-                        'all': 'All Insights',
-                    }
-                    items.append(GenerationHistoryItem(
-                        id=r['id'],
-                        source='insights',
-                        title=title_map.get(insight_type, insight_type.title()),
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('started_at'),
-                        completed_at=r.get('completed_at'),
-                        error=r.get('error_message'),
-                        session_id=r.get('session_id'),
-                    ))
-            finally:
-                session.close()
-        except Exception:
-            pass
-        return items
-
     # ── Context-filtered queries for local history ────────────────────
 
     def get_for_job(self, job_num: int, limit: int = 50) -> Dict[str, any]:
@@ -198,20 +160,12 @@ class GenerationHistoryRepository:
         all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
         return {'items': all_items[:limit], 'total': len(all_items)}
 
-    def get_for_insight(self, insight_type: str, limit: int = 50) -> Dict[str, any]:
-        """Get generation history for a specific insight section."""
-        all_items: List[GenerationHistoryItem] = []
-        all_items.extend(self._query_insight_runs_for_type(insight_type))
-        all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
-        return {'items': all_items[:limit], 'total': len(all_items)}
-
     def get_active_count(
         self,
         context: str,
         job_num: Optional[int] = None,
         company_id: Optional[int] = None,
         skill_name: Optional[str] = None,
-        insight_type: Optional[str] = None,
     ) -> int:
         """Count currently running/queued items for a context."""
         count = 0
@@ -239,12 +193,7 @@ class GenerationHistoryRepository:
                         SkillRoadmapJobModel.skill_name.ilike(skill_name),
                         SkillRoadmapJobModel.status.in_(["queued", "running"]),
                     ).count()
-                elif context == 'insight' and insight_type is not None:
-                    from career.infrastructure.models.insight_model import CareerInsightRunModel
-                    count = session.query(CareerInsightRunModel).filter(
-                        CareerInsightRunModel.insight_type == insight_type,
-                        CareerInsightRunModel.status == "processing",
-                    ).count()
+
             finally:
                 session.close()
         except Exception:
@@ -337,36 +286,4 @@ class GenerationHistoryRepository:
             pass
         return items
 
-    def _query_insight_runs_for_type(self, insight_type: str) -> List[GenerationHistoryItem]:
-        items = []
-        try:
-            session = self._session()
-            try:
-                repo = SQLAlchemyCareerInsightRunRepository(session)
-                rows = repo.get_runs(insight_type=insight_type)
-                for r in rows:
-                    title_map = {
-                        'overview': 'Overview',
-                        'opportunities': 'Opportunities',
-                        'companies': 'Companies',
-                        'skills': 'Skills',
-                        'skills_intel': 'Skills Intel',
-                        'market': 'Market',
-                        'networking': 'Networking',
-                        'all': 'All Insights',
-                    }
-                    items.append(GenerationHistoryItem(
-                        id=r['id'],
-                        source='insights',
-                        title=title_map.get(insight_type, insight_type.title()),
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('started_at'),
-                        completed_at=r.get('completed_at'),
-                        error=r.get('error_message'),
-                        session_id=r.get('session_id'),
-                    ))
-            finally:
-                session.close()
-        except Exception:
-            pass
-        return items
+

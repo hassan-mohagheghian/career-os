@@ -32,7 +32,7 @@
               ┌───────────▼───────────┐
               │   Provider Layer      │
               │  ┌─────┬──────┬─────┐│
-              │  │Mimo │OpenAI│Local││
+               │  │Mimo  │OpenAI│Local││
               │  └─────┴──────┴─────┘│
               └───────────────────────┘
 ```
@@ -73,9 +73,7 @@
 | Company | `companies` | Profiles with industry, tech_stack, funding_stage |
 | Company Intelligence | `company_intelligence` | AI analysis per company |
 | Resume | `resumes` | Master, tailored, cover letters, LinkedIn |
-| Preferences | `preferences` | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
-| Insights | `career_insights` | Versioned intelligence results (overview, opportunities, companies, skills, market, networking) |
-| Insight Runs | `career_insight_runs` | Generation workflow tracking |
+| Rules | `rules` | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
 | Skills | `skills` | Skills with category, confidence, market_relevance, source |
 | Skill Aliases | `skill_aliases` | Merged skill variants (canonical skill_id → alias_name) |
 | Skill Relationships | `skill_relationships` | Related, similar, parent, child, alternative links |
@@ -88,9 +86,6 @@ jobs ── company ── company_intelligence
   │                  └── company_links
   ├── resumes
   └── pending_jobs (processing queue)
-
-career_insight_runs ── career_insights
-  └── session tracking
 
 skills ── skill_aliases
   ├── skill_relationships
@@ -121,64 +116,66 @@ SETTINGS
   └── Rules          Scoring rules configuration
 ```
 
-## Backend Structure
+## Backend Structure (DDD Modular Monolith)
 
 ```
 app/
-├── ai/                    AI Agent Orchestration Layer
-│   ├── service.py         LLMService — unified entry point for all AI calls
-│   ├── providers/         LLM provider abstraction (mimo, openai, local)
-│   ├── agents/            Agent implementations + LangGraph workflows
-│   ├── tools/             Domain tools wrapping existing services
-│   ├── prompts/           Centralized prompt registry
-│   └── logging.py         Structured agent events
 ├── server/
-│   ├── entrypoints/           Application entry points (CLI + API)
-│   │   ├── cli.py             Typer CLI for job management
-│   │   └── api.py             FastAPI app factory + SocketIO
-│   ├── config.py            Centralized path constants + AI_PROVIDER
-│   ├── database.py          get_db() helper (Flask compatibility)
-│   ├── dependencies.py      FastAPI dependency injection
-│   ├── exceptions.py        Custom exception classes
-│   ├── migrations.py        Schema + data migrations
-│   ├── api/                 FastAPI routers (presentation layer)
-│   │   ├── router.py        Root API router
-│   │   └── v1/             API v1 endpoints
-│   │       ├── jobs.py      Job CRUD, scoring
-│   │       ├── companies.py Company CRUD, intelligence
-│   │       ├── skills.py    Skills CRUD, merge, taxonomy
-│   │       ├── insights.py  Career intelligence endpoints
-│   │       ├── pending.py   Processing queue
-│   │       ├── resumes.py   Resume/cover letter generation
-│   │       ├── skill_roadmaps.py  Roadmap generation
-│   │       ├── rules.py     Scoring rules
-│   │       ├── dashboard.py Dashboard data, cities
-│   │       ├── websocket.py WebSocket endpoint
-│   │       └── sse.py       SSE streaming endpoints
-│   ├── domain/              Domain layer (interfaces)
-│   │   └── repositories/    Repository interfaces (ABCs)
-│   ├── infrastructure/      Infrastructure layer (implementations)
-│   │   ├── database/        Repository implementations
-│   │   ├── websocket/       WebSocket manager + broadcaster
-│   │   └── workers/         Background task management
-│   ├── schemas/             Pydantic request/response models
-│   ├── services/            Business logic services
-│   │   ├── worker.py        Job processing pipeline
-│   │   ├── company_worker.py Company processing
-│   │   ├── insights.py      Career intelligence
-│   │   └── process/         Broadcaster, models, process_manager
-│   ├── core/                Core infrastructure
-│   │   ├── db.py            DB schema, migrations
-│   │   └── queue.py         Job queue manager
-│   ├── prompts/             AI prompt templates
-│   └── tests/               Test suite
+│   ├── entrypoints/           Application entry points
+│   │   ├── api.py             FastAPI app factory + SocketIO (ASGI)
+│   │   └── cli.py             Typer CLI for job management
+│   ├── shared/                Shared Kernel (cross-cutting concerns)
+│   │   ├── domain/            Base entity, value objects, repository interfaces
+│   │   ├── application/       DTOs, exceptions (AppError hierarchy), schemas
+│   │   ├── presentation/      Root API router, WebSocket router, error handlers
+│   │   └── infrastructure/    Config, DB (SQLAlchemy), workers, AI compat, logging, websocket
+│   ├── jobs/                  Jobs Bounded Context
+│   │   ├── domain/            Job entity, value objects (scores, location), repository interfaces
+│   │   ├── application/       Use cases, commands (backfill, process, normalize), DTOs
+│   │   ├── infrastructure/    SQLAlchemy models + repositories, workers, AI prompts
+│   │   └── presentation/      FastAPI routers + Pydantic schemas
+│   ├── companies/             Companies Bounded Context
+│   │   ├── domain/            Company, CompanyLink, CompanyIntelligence entities
+│   │   ├── application/       Use cases
+│   │   ├── infrastructure/    SQLAlchemy models, repositories, workers, AI prompts
+│   │   └── presentation/      FastAPI routers + schemas
+│   ├── skills/                Skills Bounded Context
+│   │   ├── domain/            Skill entity, repository interfaces (7 repos)
+│   │   ├── application/       Service layer (roadmap generation, OOP wrappers)
+│   │   ├── infrastructure/    SQLAlchemy models, repositories, AI prompts
+│   │   └── presentation/      FastAPI routers + schemas
+│   ├── rules/                 Rules Bounded Context (Scoring Rules)
+│   │   ├── domain/            Rule entity, repository interfaces
+│   │   ├── infrastructure/    SQLAlchemy repositories
+│   │   └── presentation/      FastAPI routers + schemas
+│   │                             Resume lives in jobs/ context:
+│   │                             jobs/domain/entities/resume.py
+│   │                             jobs/infrastructure/repositories/sa_resume_repository.py
+│   │                             jobs/presentation/api/resumes_router.py
+│   ├── ai/                    AI Bounded Context
+│   │   ├── domain/            Generation session entities, value objects
+│   │   ├── application/       Use cases, commands, DTOs
+│   │   └── infrastructure/    Providers, tools, graphs, prompts
+│   │       ├── providers/     LLM provider implementations (mimo, openai, local, gemini, ...)
+│   │       ├── tools/         Domain tools (fetch, web, database, job, company, skill, resume)
+│   │       ├── graphs/        LangGraph workflows (JobProcessing, CompanyProcessing, etc.)
+│   │       └── prompts/       Centralized PromptRegistry (10+ registered prompts)
+│   ├── dependencies.py        FastAPI dependency injection
+│   ├── exceptions.py          Re-exports from shared.application.exceptions
+│   └── tests/                 Test suite by bounded context (376+ tests)
+│       ├── ai/                ~70 AI layer tests
+│       ├── jobs/
+│       ├── companies/
+│       ├── skills/
+│       ├── rules/
+│       ├── processing/
+│       ├── shared/
+│       └── migration/
 └── client/
     └── src/
         ├── features/       Feature-based (each has components/, hooks/)
         ├── shared/         Shared UI, hooks, lib
         └── layout/         Header, Sidebar
-
-tests/test_ai/              70 AI layer tests
 ```
 
 ## AI Agent Architecture
@@ -202,8 +199,9 @@ tests/test_ai/              70 AI layer tests
         ┌─────────────────┼─────────────────┐
         │                 │                 │
    ┌────▼────┐     ┌──────▼──────┐   ┌─────▼─────┐
-   │  Mimo   │     │   OpenAI    │   │   Local   │
-   │Provider │     │  Provider   │   │  Provider │
+    │  Mimo   │     │   OpenAI    │   │   Local   │
+    │Provider │     │  Provider   │   │  Provider │
+    │(CLI)    │     │             │   │           │
    └─────────┘     └─────────────┘   └───────────┘
 ```
 
@@ -218,54 +216,67 @@ tests/test_ai/              70 AI layer tests
 
 ### Job Processing
 ```
-URL/Notes/Links → pending_jobs → worker.py → LLMService → fetch → validate → extract → score → save to jobs
+URL/Notes/Links → pending_jobs → JobWorker (Template Method) → LLMService → fetch → validate → extract → score → save to jobs
 ```
 
 ### Company Processing
 ```
-Notes/Links → pending_companies → company_worker.py → LLMService → fetch → extract → analyze → save to companies
+Notes/Links → pending_companies → CompanyWorker (Template Method) → LLMService → fetch → extract → analyze → save to companies + company_intelligence
 ```
 
 ### Insights Generation
 ```
-Click Generate → insights.py → LLMService → per-section prompts → save to career_insights
+Click Generate → InsightsService → LLMService → per-section prompts (6 sections) → save insights
 ```
 
 ### Skills Intelligence
 ```
-Click Generate → insights.py → LLMService → skills_intelligence prompt → save to career_insights + fill skills
+Click Generate → InsightsService → LLMService → skills_intelligence prompt → analyze skills
 ```
 
 ### Skill Roadmap Generation
 ```
-Click Generate → skill_roadmaps.py → LLMService → mimo CLI → save to skill_roadmaps + emit progress
+Click Generate → SkillRoadmapService → LLMService → prompts → save to skill_roadmaps + skill_roadmap_progress + emit progress
+```
+
+### Resume/Cover Generation
+```
+Click Generate → GenerationWorker (Template Method) → LLMService → company context enrichment → prompts → save to resumes
 ```
 
 ## Design Decisions
 
-- **SQLAlchemy ORM**: Clean abstractions with type safety for database access
+- **DDD Modular Monolith**: 8 bounded contexts with strict dependency rules (domain → application → infrastructure → presentation per context)
+- **SQLAlchemy ORM + Alembic**: Clean abstractions with type safety for database access; migrations for schema evolution
+- **FastAPI + python-socketio**: Async-native with automatic OpenAPI docs, request validation via Pydantic v2
 - **Feature-based frontend**: Each feature owns its components, hooks, and types
 - **Concurrency lock**: Only one insights generation at a time
 - **Version tracking**: `version` column on pending_jobs/companies for retry counting
 - **Session resumption**: Previous session_id enables continuing interrupted AI sessions
 - **Stale run recovery**: On startup, stuck `processing` jobs marked `failed`
 - **Font size system**: Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for dense dashboard UI
-- **API docs**: Static OpenAPI 3.0 spec served via Swagger UI (`/api/docs/`) and ReDoc (`/api/redoc/`)
+- **API docs**: FastAPI built-in OpenAPI served via Swagger UI (`/api/docs`) and ReDoc (`/api/redoc`)
 - **Notes+Links input**: Both jobs and companies accept multi-source input (URL + text notes + labeled links)
-- **Provider abstraction**: LLMService wraps all AI calls — never call MimoRunner directly
+- **Provider abstraction**: LLMService wraps all AI calls — never call providers directly
+- **LangGraph workflows**: Composable, stateful processing pipelines for multi-step AI operations
+- **Template Method pattern**: WorkerBase with Worker subclasses (JobWorker, CompanyWorker, GenerationWorker)
+- **LLMService via Provider abstraction**: Swap providers (Mimo, OpenAI, Local, Gemini, ...) via `AI_PROVIDER` env var
 - **DDD/SOLID/TDD**: Follow domain-driven design, SOLID principles, and test-driven development
-- **Backward compatible**: Existing workers continue to work while using new AI layer
 
 ## WebSocket Events
 
 | Event | Room | Purpose |
 |-------|------|---------|
-| `pending:update` | — | Job step progress |
-| `pending:log` | — | Job processing logs |
-| `pending:complete` | — | Job finished |
-| `company:update` | — | Company processing progress |
+| `pending:update` | `job_{pid}` | Job step progress |
+| `pending:log` | `job_{pid}` | Job processing logs |
+| `pending:complete` | `job_{pid}` | Job finished |
+| `pending:error` | `job_{pid}` | Job processing error |
+| `pending:progress` | `job_{pid}` | Job progress percentage |
+| `company:update` | `company_{pid}` | Company processing progress |
+| `generation:update` | `generation_{id}` | Resume/cover generation progress |
 | `insights:progress` | insights | Insights generation progress |
 | `skill_roadmap:update` | skills | Per-skill roadmap generation |
+| `queue:status` | — | Queue status changes |
 
 ## API Endpoints
 
@@ -293,11 +304,14 @@ Click Generate → skill_roadmaps.py → LLMService → mimo CLI → save to ski
 | `/api/tech-stack/:id/restore` | PATCH | Restore hidden |
 | `/api/tech-stack/:id/rename` | PATCH | Rename skill |
 | `/api/tech-stack/merge` | POST | Merge skills |
+| `/api/tech-stack/hidden` | GET | List hidden skills |
 | `/api/skill-roadmaps` | GET | Roadmap tree |
 | `/api/skill-roadmaps/generate` | POST | AI roadmap generation |
 | `/api/skill-roadmaps/extend` | POST | Extend roadmap |
 | `/api/skill-roadmaps/finegrain` | POST | Fine-grain roadmap |
+| `/api/skill-roadmap-progress/:id` | PUT | Toggle topic completion |
 | `/api/skill-roadmap-progress/all` | GET | All progress summary |
+| `/api/skill-roadmap-progress` | GET | Progress for specific skill |
 
 ### Insights
 | Endpoint | Method | Purpose |
@@ -315,7 +329,10 @@ Click Generate → skill_roadmaps.py → LLMService → mimo CLI → save to ski
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/api/pending` | GET/POST | Job queue |
-| `/api/rules` | GET/PUT | Scoring rules |
-| `/api/generation-history` | GET | Unified history |
-| `/api/docs/` | GET | Swagger UI |
+| `/api/pending-companies` | GET/POST | Company processing queue |
+| `/api/rules` | GET/PUT | Scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
+| `/api/generation-history` | GET | Unified generation history (5 source tables) |
+| `/api/health` | GET | Health check |
+| `/api/docs` | GET | Swagger UI |
 | `/api/redoc` | GET | ReDoc |
+| `/api/openapi.json` | GET | OpenAPI 3.0 spec |

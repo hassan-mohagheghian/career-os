@@ -5,27 +5,22 @@ import SkillsTab from './SkillsTab'
 
 vi.mock('../hooks/useSkills', () => ({
   useSkills: () => ({
+    skills: [],
     skillRoadmapProgress: {},
     skillGenJobs: [],
-    refreshSkillRoadmapProgress: vi.fn(),
+    fetchSkills: vi.fn(),
     dashboardData: null,
     refresh: vi.fn(),
     refreshing: false,
   }),
 }))
 
-vi.mock('@/features/insights/components/SkillsIntelSection', () => ({
-  default: () => <div data-testid="skills-intel-section">SkillsIntelSection</div>,
+vi.mock('./SkillDetailDrawer', () => ({
+  default: () => null,
 }))
 
 describe('SkillsTab', () => {
   it('renders without crashing', () => {
     render(<SkillsTab />)
-    expect(screen.getByTestId('skills-intel-section')).toBeInTheDocument()
-  })
-
-  it('renders Skills Intelligence section', () => {
-    render(<SkillsTab />)
-    expect(screen.getByText('SkillsIntelSection')).toBeInTheDocument()
   })
 })

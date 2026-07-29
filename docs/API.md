@@ -2,7 +2,7 @@
 
 ## Overview
 
-REST API served by Flask on port 5000. All endpoints return JSON. WebSocket (SocketIO) for real-time updates.
+REST API served by FastAPI on port 5000. All endpoints return JSON. WebSocket (SocketIO, ASGI mode) for real-time updates.
 
 **Base URL**: `http://localhost:5000`
 **API Docs**: Swagger UI at `/api/docs/`, ReDoc at `/api/redoc/`

@@ -17,17 +17,14 @@ def __getattr__(name: str):
         "PendingJobModel": ("pending.infrastructure.models.pending_model", "PendingJobModel"),
         "PendingCompanyModel": ("pending.infrastructure.models.pending_model", "PendingCompanyModel"),
         "PendingGenerationModel": ("pending.infrastructure.models.pending_model", "PendingGenerationModel"),
-        "CareerInsightModel": ("career.infrastructure.models.insight_model", "CareerInsightModel"),
-        "CareerInsightRunModel": ("career.infrastructure.models.insight_model", "CareerInsightRunModel"),
+
         "SummaryModel": ("shared.infrastructure.database.models.misc_models", "SummaryModel"),
         "ResumeModel": ("shared.infrastructure.database.models.misc_models", "ResumeModel"),
         "SkillRoadmapModel": ("shared.infrastructure.database.models.misc_models", "SkillRoadmapModel"),
         "SkillRoadmapProgressModel": ("shared.infrastructure.database.models.misc_models", "SkillRoadmapProgressModel"),
         "SkillRoadmapJobModel": ("shared.infrastructure.database.models.misc_models", "SkillRoadmapJobModel"),
-        "PreferenceModel": ("shared.infrastructure.database.models.misc_models", "PreferenceModel"),
-        "DashboardInsightModel": ("shared.infrastructure.database.models.misc_models", "DashboardInsightModel"),
-        "AnalysisRunModel": ("shared.infrastructure.database.models.misc_models", "AnalysisRunModel"),
-        "TechLearningModel": ("shared.infrastructure.database.models.misc_models", "TechLearningModel"),
+        "RuleModel": ("shared.infrastructure.database.models.misc_models", "RuleModel"),
+
         "CityModel": ("shared.infrastructure.database.models.misc_models", "CityModel"),
     }
     if name in _models:
@@ -42,8 +39,6 @@ __all__ = [
     "JobModel", "SkillModel", "SkillAliasModel", "SkillRelationshipModel",
     "CompanyModel", "CompanyIntelligenceModel", "CompanyLinkModel",
     "PendingJobModel", "PendingCompanyModel", "PendingGenerationModel",
-    "CareerInsightModel", "CareerInsightRunModel",
     "SummaryModel", "ResumeModel", "SkillRoadmapModel", "SkillRoadmapProgressModel",
-    "SkillRoadmapJobModel", "PreferenceModel", "DashboardInsightModel",
-    "AnalysisRunModel", "TechLearningModel", "CityModel",
+    "SkillRoadmapJobModel", "RuleModel", "CityModel",
 ]

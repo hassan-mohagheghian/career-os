@@ -1,6 +1,6 @@
 """
-Background worker that processes pending jobs by spawning mimo as a subprocess.
-Fetches the URL, hands off to mimo for analysis/resume, then saves to DB.
+Background worker that processes pending jobs via the AI provider.
+Fetches the URL, hands off to the LLM for analysis/resume, then saves to DB.
 Runs in a daemon thread — never blocks Flask.
 """
 import os
@@ -341,9 +341,9 @@ def _insert_summary(d):
 def _insert_resume(d):
     session = get_session_sync()
     try:
-        from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-        resume_repo = SQLAlchemyResumeRepository(session)
-        resume_repo.upsert(d)
+        from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
+        doc_repo = SQLAlchemyTailoredDocumentRepository(session)
+        doc_repo.upsert(d)
     finally:
         session.close()
 
@@ -379,7 +379,7 @@ def _is_paused_or_stopped(pid):
 
 def rescore_only(num):
     """Re-score an existing job without the full pipeline.
-    Reads the raw description, runs mimo analysis, and updates the job."""
+    Reads the raw description, runs AI analysis, and updates the job."""
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -419,7 +419,7 @@ def rescore_only(num):
         resume_file = os.path.join(TMP_DIR, f'rescore_resume_{num}.txt')
         session = get_session_sync()
         try:
-            from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+            from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
             resume_repo = SQLAlchemyResumeRepository(session)
             raw_text = resume_repo.get_latest_original_raw_text()
         finally:
@@ -437,7 +437,7 @@ def rescore_only(num):
             url=url, job_file=job_file, resume_file=resume_path,
             tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
 
-        returncode, output_lines, _, captured_result = _stream_mimo_output(
+        returncode, output_lines, _, captured_result = _stream_provider_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
@@ -467,7 +467,7 @@ def rescore_only(num):
 
         analyzed_data = data['job']
 
-        # Parse numeric scores from mimo output
+        # Parse numeric scores from provider output
         fit_score_raw = analyzed_data.get('fit_score')
         success_score_raw = analyzed_data.get('success_score')
         fit_score = max(0, min(100, int(fit_score_raw))) if fit_score_raw is not None else None
@@ -569,7 +569,7 @@ def _fail(pid, msg, step=None):
         'score': 'Scoring & analyzing',
         'resume': 'Saving results',
         'done': 'Finalizing',
-        'mimo': 'AI analysis',
+        'ai': 'AI analysis',
         'worker': 'Processing',
     }
     label = STEP_LABELS.get(step, step) if step else 'Processing'
@@ -604,9 +604,9 @@ def _load_rules(context='job'):
     """
     session = get_session_sync()
     try:
-        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
-        pref_repo = SQLAlchemyPreferenceRepository(session)
-        rows = pref_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
+        from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
+        rule_repo = SQLAlchemyRuleRepository(session)
+        rows = rule_repo.get_enabled_by_scopes(['SHARED', 'JOB'])
     finally:
         session.close()
 
@@ -833,16 +833,16 @@ def _validate_job_content(raw_text, pid):
 
 # --- Streaming subprocess execution ---
 
-def _mimo_cmd(prompt, session_id=None):
-    """Build mimo command with optional session resumption. (Legacy — kept for compatibility)"""
+def _build_provider_cmd(prompt, session_id=None):
+    """Build provider CLI command with optional session resumption. (Legacy — kept for compatibility)"""
     cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
     if session_id:
         cmd.extend(['--session', session_id])
     return cmd
 
 
-def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
-    """Run mimo with streaming output via LLM Service.
+def _stream_provider_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
+    """Run provider with streaming output via LLM Service.
 
     Returns (returncode, all_lines, session_id, result_dict).
     result_dict is captured from Write tool output events — no file I/O needed.
@@ -853,7 +853,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
     captured_result = {}
 
     def on_event(evt):
-        _handle_mimo_event(pid, evt)
+        _handle_provider_event(pid, evt)
         _capture_write_tool_output(evt, captured_result)
 
     def on_session_id(sid):
@@ -877,7 +877,7 @@ def _stream_mimo_output(cmd, cwd, env, timeout, pid, resume_session_id=None):
         returncode = resp.metadata.get("returncode", 0)
 
         if not session_id:
-            session_id = f"mimo_{uuid.uuid4().hex[:12]}"
+            session_id = f"ai_{uuid.uuid4().hex[:12]}"
             _save_session_id(pid, session_id)
 
         if not captured_result and resp.content:
@@ -913,7 +913,7 @@ def _capture_write_tool_output(evt: dict, captured: dict) -> None:
             captured["result"] = result
 
 
-def _handle_mimo_event(pid, evt):
+def _handle_provider_event(pid, evt):
     """Process a single JSON event the moment it arrives on stdout.
 
     This function is the extension point for real-time delivery:
@@ -925,7 +925,7 @@ def _handle_mimo_event(pid, evt):
     if event_type == 'text':
         text = evt.get('part', {}).get('text', '')
         if text:
-            _log(pid, 'mimo', f'text: {text[:200]}')
+            _log(pid, 'ai', f'text: {text[:200]}')
 
     elif event_type == 'tool_use':
         part = evt.get('part', {})
@@ -933,13 +933,13 @@ def _handle_mimo_event(pid, evt):
         state = part.get('state', {})
         status = state.get('status', '')
         title = state.get('title', '')
-        _log(pid, 'mimo', f'tool: {tool} [{status}] {title}')
+        _log(pid, 'ai', f'tool: {tool} [{status}] {title}')
 
     elif event_type == 'step_finish':
         part = evt.get('part', {})
         reason = part.get('reason', '')
         tokens = part.get('tokens', {})
-        _log(pid, 'mimo',
+        _log(pid, 'ai',
              f'step_finish: {reason} ({tokens.get("total", 0)} tokens)')
 
 
@@ -961,14 +961,14 @@ def process_job(pid):
         pending_repo = PendingJobRepository(session)
         proc_mgr = ProcessManager()
         temp_mgr = TempFileManager()
-        mimo_runner = MimoRunner(proc_mgr)
+        provider_runner = MimoRunner(proc_mgr)
 
         from jobs.infrastructure.workers.job_worker import JobWorker
         worker = JobWorker(
             pending_repo=pending_repo,
             process_mgr=proc_mgr,
             temp_mgr=temp_mgr,
-            mimo_runner=mimo_runner,
+            provider_runner=provider_runner,
             broadcaster=broadcaster,
         )
         worker.process(pid)

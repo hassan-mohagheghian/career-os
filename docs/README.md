@@ -6,8 +6,8 @@ This directory contains project documentation for both human developers and AI a
 
 | File | Purpose | Audience |
 |------|---------|----------|
-| `architecture/ARCHITECTURE.md` | System design, entities, data flows, backend structure | Developers, AI agents |
-| `AI_ARCHITECTURE.md` | AI agent layer, providers, tools, workflow graphs | Developers, AI agents |
+| `architecture/ARCHITECTURE.md` | System design, DDD bounded contexts, entities, data flows | Developers, AI agents |
+| `AI_ARCHITECTURE.md` | AI agent layer, provider abstraction, LangGraph workflows, tool system | Developers, AI agents |
 | `AI_AGENTS.md` | Coding rules, patterns, change guidelines | AI agents |
 | `CHANGELOG.md` | Version history with all changes | Everyone |
 | `CONTEXT.md` | Project overview, rules, boundaries | Everyone |
@@ -16,22 +16,28 @@ This directory contains project documentation for both human developers and AI a
 | `FEATURES.md` | Feature descriptions and status | Product managers, developers |
 | `API.md` | REST API and WebSocket reference | Developers |
 | `PROJECT_CONTEXT.md` | Full project context for AI agents | AI agents |
+| `websocket-events.md` | Socket.IO event protocol and room model | Developers |
+| `workflow-progress.md` | LangGraph pipeline progress, 13-node state machine | Developers |
+| `frontend-sync.md` | Frontend sync architecture (WebSocket + HTTP fallback) | Developers |
+| `job-lifecycle.md` | 11-state job lifecycle, state transitions | Developers |
+| `job-state-machine.md` | State machine enforcement, valid transitions table | Developers |
 
 ## Architecture Overview
 
 ```
-Frontend (React + TypeScript) → Flask API (Python) → SQLite DB
+Frontend (React + TypeScript) → FastAPI (Python) → SQLite DB (SQLAlchemy ORM)
                                     ↓
-                            AI Agent Layer (LLMService)
+                         AI Agent Layer (LLMService + LangGraph)
                                     ↓
-                            Provider Layer (Mimo / OpenAI / Local)
+                      Provider Layer (Mimo / OpenAI / Local / Gemini)
 ```
 
 Key patterns:
 - Feature-based frontend architecture (`features/`, `shared/`, `layout/`)
-- Flask blueprints for API routes (10 blueprints)
-- SQLite with SQLAlchemy ORM + Alembic
-- **LLMService** for all AI calls (provider abstraction)
-- WebSocket for real-time updates
+- DDD modular monolith — 8 bounded contexts with layered architecture
+- FastAPI routers per bounded context (domain → application → infrastructure → presentation)
+- SQLite with SQLAlchemy ORM + Alembic migrations
+- **LLMService** for all AI calls (provider abstraction with LangGraph workflows)
+- WebSocket (python-socketio, ASGI mode) for real-time updates
 - Version tracking for retry/resume
 - DDD, SOLID, TDD, Design Patterns

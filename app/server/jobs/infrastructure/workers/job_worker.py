@@ -55,9 +55,9 @@ class JobWorker(WorkerBase):
     Workflow progress is emitted via WebSocket events through the broadcaster.
     """
 
-    def __init__(self, pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster,
+    def __init__(self, pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster,
                  job_repository=None, llm_service=None):
-        super().__init__(pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster)
+        super().__init__(pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster)
         self._job_repo = job_repository
         self._llm = llm_service
         self._graph = None

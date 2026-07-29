@@ -131,10 +131,10 @@ class ITempFileManager(abc.ABC):
         """Remove ALL tracked temp files. Returns total removed."""
 
 
-# ── Mimo Runner Interface (Strategy Pattern) ─────────────────────
+# ── Provider Runner Interface (Strategy Pattern) ─────────────────
 
-class IMimoRunner(abc.ABC):
-    """Runs mimo CLI commands."""
+class IProviderRunner(abc.ABC):
+    """Runs AI provider CLI commands."""
 
     @abc.abstractmethod
     def run(self, prompt: str, timeout: int = 300,
@@ -143,7 +143,7 @@ class IMimoRunner(abc.ABC):
             on_event: Optional[Callable] = None,
             on_session_id: Optional[Callable] = None,
             cwd: Optional[str] = None) -> tuple:
-        """Run mimo. Returns (returncode, output_lines, session_id).
+        """Run provider. Returns (returncode, output_lines, session_id).
         on_session_id(session_id) is called the instant it's discovered."""
 
 

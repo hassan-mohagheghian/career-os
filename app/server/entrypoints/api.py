@@ -106,17 +106,6 @@ async def unwatch_skills(sid):
 
 
 @sio.event
-async def watch_insights(sid):
-    await sio.enter_room(sid, 'insights')
-    log.info("socketio.watch", room='insights')
-
-
-@sio.event
-async def unwatch_insights(sid):
-    await sio.leave_room(sid, 'insights')
-
-
-@sio.event
 async def cancel_job(sid, data):
     pid = data.get('id')
     entity_type = data.get('entity_type', 'job')

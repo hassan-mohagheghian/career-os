@@ -40,10 +40,8 @@ class DatabaseTool(BaseTool):
             "get_resume": self._get_resume,
             "list_pending_jobs": self._list_pending_jobs,
             "list_pending_companies": self._list_pending_companies,
-            "get_career_insights": self._get_career_insights,
-            "get_preferences": self._get_preferences,
+            "get_rules": self._get_rules,
             "search_jobs": self._search_jobs,
-            "get_recent_analyses": self._get_recent_analyses,
         }
 
     @property
@@ -395,30 +393,14 @@ class DatabaseTool(BaseTool):
             "status": row.status,
         } for row in rows]
 
-    def _get_career_insights(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from career.infrastructure.models.insight_model import CareerInsightModel
+    def _get_rules(self, session: Session, params: dict) -> list[dict[str, Any]]:
+        from shared.infrastructure.database.models.misc_models import RuleModel
 
-        query = select(CareerInsightModel)
-        if "insight_type" in params:
-            query = query.where(CareerInsightModel.insight_type == params["insight_type"])
-
-        rows = session.execute(query).scalars().all()
-        return [{
-            "id": row.id,
-            "insight_type": row.insight_type,
-            "version": row.version,
-            "score": row.score,
-            "summary": row.summary,
-        } for row in rows]
-
-    def _get_preferences(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.models.misc_models import PreferenceModel
-
-        query = select(PreferenceModel).where(PreferenceModel.enabled == 1)
+        query = select(RuleModel).where(RuleModel.enabled == 1)
         if "category" in params:
-            query = query.where(PreferenceModel.category == params["category"])
+            query = query.where(RuleModel.category == params["category"])
         if "scope" in params:
-            query = query.where(PreferenceModel.scope == params["scope"])
+            query = query.where(RuleModel.scope == params["scope"])
 
         rows = session.execute(query).scalars().all()
         return [{
@@ -452,22 +434,6 @@ class DatabaseTool(BaseTool):
         query = query.order_by(JobModel.created_at.desc())
         rows = session.execute(query).scalars().all()
         return [self._job_to_dict(row) for row in rows]
-
-    def _get_recent_analyses(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.models.misc_models import AnalysisRunModel
-
-        query = select(AnalysisRunModel).order_by(AnalysisRunModel.created_at.desc())
-        if "limit" in params:
-            query = query.limit(params["limit"])
-        else:
-            query = query.limit(10)
-
-        rows = session.execute(query).scalars().all()
-        return [{
-            "id": row.id,
-            "page": row.page,
-            "created_at": str(row.created_at) if row.created_at else None,
-        } for row in rows]
 
     def _job_to_dict(self, job: Any) -> dict[str, Any]:
         return {

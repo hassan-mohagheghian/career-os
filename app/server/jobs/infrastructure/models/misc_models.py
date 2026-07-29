@@ -107,10 +107,10 @@ class SkillRoadmapJobModel(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
 
-class PreferenceModel(Base):
-    """SQLAlchemy model for the preferences table."""
+class RuleModel(Base):
+    """SQLAlchemy model for the rules table."""
 
-    __tablename__ = "preferences"
+    __tablename__ = "rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     category: Mapped[str] = mapped_column(String, nullable=False)
@@ -126,50 +126,6 @@ class PreferenceModel(Base):
 
     __table_args__ = (UniqueConstraint("category", "key"),)
 
-
-class DashboardInsightModel(Base):
-    """SQLAlchemy model for the dashboard_insights table."""
-
-    __tablename__ = "dashboard_insights"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    type: Mapped[str] = mapped_column(String, nullable=False)
-    icon: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    priority: Mapped[int] = mapped_column(Integer, default=0)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
-
-
-class AnalysisRunModel(Base):
-    """SQLAlchemy model for the analysis_runs table."""
-
-    __tablename__ = "analysis_runs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    page: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
-    analysis_json: Mapped[str] = mapped_column(Text, nullable=False)
-
-
-class TechLearningModel(Base):
-    """SQLAlchemy model for the tech_learning table."""
-
-    __tablename__ = "tech_learning"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    priority: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    pl: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    pc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    sc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    dc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    usage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    uc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    jobs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    jd: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class CityModel(Base):

@@ -7,7 +7,6 @@ import {
   Check,
   Buildings,
   FileText,
-  Lightbulb,
   Spinner,
   TreeStructure,
 } from "@phosphor-icons/react";
@@ -23,7 +22,7 @@ import Sidebar from "@/layout/Sidebar";
 import Header from "@/layout/Header";
 import JobDrawer from "@/features/jobs/components/drawer/JobDrawer";
 import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
-import InsightsTab from "@/features/insights/components/InsightsTab";
+
 import SkillsTab from "@/features/skills/components/SkillsTab";
 import ResumeTab from "@/features/resume/components/ResumeTab";
 import RulesTab from "@/features/rules/components/RulesTab";
@@ -37,8 +36,8 @@ import {
   useCompanies,
   useWorkflow,
   useResume,
-  useInsights,
 } from "@/shared/hooks";
+import { usePending } from "@/shared/hooks/usePending";
 import { useSocketIO } from "@/shared/hooks/useSocketIO";
 
 const API = "/api";
@@ -51,6 +50,12 @@ function App() {
     openWorkflow,
     closeWorkflow,
   } = useWorkflow();
+
+  const {
+    pending, urlInput, setUrlInput, urlError, setUrlError,
+    submitting, processImmediately, setProcessImmediately,
+    submitUrl, deletePending, processPending, resetPending, pausePending,
+  } = usePending(() => { refreshJobs(); fetchCompanies(); });
 
   const {
     jobs,
@@ -130,32 +135,6 @@ function App() {
     }
   }, [generationResult])
 
-  // Initialize insights sub-tab from hash for deep linking
-  const [initialSubTab] = useState(() => {
-    const h = window.location.hash.replace("#", "") || "";
-    const parts = h.split("/");
-    if (parts[0] === "insights" && parts[1] && !parseInt(parts[1])) {
-      return parts[1];
-    }
-    return null;
-  });
-
-  const {
-    data: careerData,
-    status: careerStatus,
-    progress: careerProgress,
-    activeTab: careerSubTab,
-    setActiveTab: setCareerSubTab,
-    refreshing: careerRefreshing,
-    error: careerError,
-    fetchData: fetchCareerData,
-    fetchStatus: fetchCareerStatus,
-    fetchProgress: fetchCareerProgress,
-    refreshSection: refreshCareerSection,
-    refreshAll: refreshCareerAll,
-    cancelRun: cancelCareerRun,
-  } = useInsights(initialSubTab || undefined);
-
   const [rules, setRules] = useState(null);
   const [tab, setTab] = useState(() => {
     const h = window.location.hash.replace("#", "") || "jobs";
@@ -176,12 +155,8 @@ function App() {
   const [deepLinkSkill, setDeepLinkSkill] = useState<string | null>(() => {
     const h = window.location.hash.replace("#", "") || "";
     const parts = h.split("/");
-    // #skills/Kafka or #insights/skills/Kafka
-    if ((parts[0] === "skills" || parts[0] === "insights") && parts[1] && isNaN(parseInt(parts[1]))) {
+    if (parts[0] === "skills" && parts[1] && isNaN(parseInt(parts[1]))) {
       return decodeURIComponent(parts[1]);
-    }
-    if (parts[0] === "insights" && parts[2] && isNaN(parseInt(parts[2]))) {
-      return decodeURIComponent(parts[2]);
     }
     return null;
   });
@@ -210,9 +185,6 @@ function App() {
     ]);
     fetchRules();
     fetchCompanies();
-    fetchCareerData();
-    fetchCareerStatus();
-    fetchCareerProgress();
   }, []);
 
   const fetchRules = () =>
@@ -227,15 +199,7 @@ function App() {
       const newTab = parts[0] || "jobs";
       const second = parts[1] || null;
       if (newTab && newTab !== tab) setTab(newTab);
-      // For insights, second part is sub-tab (e.g. #insights/skills)
-      if (newTab === "insights" && second && !parseInt(second)) {
-        setCareerSubTab(second);
-        // #insights/skills/Kafka — skill name in third segment
-        const third = parts[2] || null;
-        if (second === "skills" && third && isNaN(parseInt(third))) {
-          setDeepLinkSkill(decodeURIComponent(third));
-        }
-      } else if (newTab === "skills" && second && isNaN(parseInt(second))) {
+      if (newTab === "skills" && second && isNaN(parseInt(second))) {
         // #skills/Kafka — skill name in second segment
         setDeepLinkSkill(decodeURIComponent(second));
       } else if (newTab === "companies" && second) {
@@ -375,12 +339,7 @@ function App() {
   const switchTab = (t, sub) => {
     setTab(t);
     setDeepLinkId(null);
-    if (sub) {
-      setCareerSubTab(sub);
-      window.location.hash = `${t}/${sub}`;
-    } else {
-      window.location.hash = t;
-    }
+    window.location.hash = t;
   };
 
   const tabs = [
@@ -403,20 +362,6 @@ function App() {
       icon: <TreeStructure className="w-4 h-4" />,
       label: "Skills",
       section: "jobs",
-    },
-    {
-      id: "insights",
-      icon: <Lightbulb className="w-4 h-4" />,
-      label: "Insights",
-      section: "jobs",
-      children: [
-        { id: "overview", label: "Overview" },
-        { id: "skills", label: "Skills" },
-        { id: "opportunities", label: "Opportunities" },
-        { id: "companies", label: "Companies" },
-        { id: "market", label: "Market" },
-        { id: "networking", label: "Networking" },
-      ],
     },
     {
       id: "resume",
@@ -459,8 +404,6 @@ function App() {
         tabs={tabs}
         tab={tab}
         onSwitchTab={switchTab}
-        subTab={careerSubTab}
-        onSwitchSubTab={setCareerSubTab}
         onClose={() => setSidebarOpen(false)}
       />
 
@@ -478,10 +421,18 @@ function App() {
           <div className="max-w-[1400px] mx-auto">
             {tab === "jobs" && (
               <JobsPage
+                pending={pending}
                 jobs={jobs}
                 filteredJobs={filteredJobs}
                 jobsTotal={jobsTotal}
                 filteredJobsCount={filteredJobs.length}
+                urlInput={urlInput}
+                setUrlInput={setUrlInput}
+                urlError={urlError}
+                setUrlError={setUrlError}
+                submitting={submitting}
+                processImmediately={processImmediately}
+                setProcessImmediately={setProcessImmediately}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
                 sortDir={sortDir}
@@ -507,9 +458,16 @@ function App() {
                 allCities={allCities}
                 allCompanies={allCompanies}
                 activeFilterCount={activeFilterCount}
+                collapsedSections={collapsedSections}
+                setCollapsedSections={setCollapsedSections}
                 loadingMore={loadingMore}
                 jobsScrollRef={jobsScrollRef}
                 jobsSentinelRef={jobsSentinelRef}
+                submitUrl={submitUrl}
+                deletePending={deletePending}
+                processPending={processPending}
+                resetPending={resetPending}
+                pausePending={pausePending}
                 openWorkflow={openWorkflow}
                 rescoreJob={rescoreJob}
                 deleteJob={handleDeleteJob}
@@ -535,23 +493,6 @@ function App() {
                   setTimeout(() => openDrawer(num), 100);
                 }}
                 onOpenCompany={openCompanyDrawer}
-              />
-            )}
-            {tab === "insights" && (
-              <InsightsTab
-                data={careerData}
-                status={careerStatus}
-                progress={careerProgress}
-                activeTab={careerSubTab}
-                setActiveTab={setCareerSubTab}
-                refreshing={careerRefreshing}
-                error={careerError}
-                onRefreshAll={refreshCareerAll}
-                onRefreshSection={refreshCareerSection}
-                onOpenDrawer={openDrawer}
-                onOpenCompany={openCompanyDrawer}
-                onAddCompany={handleAddCompany}
-                onCancel={cancelCareerRun}
               />
             )}
             {tab === "skills" && (

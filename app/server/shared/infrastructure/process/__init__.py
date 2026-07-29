@@ -9,7 +9,7 @@ Architecture:
   generation_repository.py → Unified generation history repository
   process_manager.py   → Subprocess lifecycle with process groups
   temp_manager.py      → Temp file tracking and cleanup
-  mimo_runner.py       → mimo CLI invocation (Strategy pattern)
+  mimo_runner.py       → Mimo CLI invocation (Strategy pattern, concrete provider)
   broadcaster.py       → Real-time status delivery (Observer pattern)
   worker_base.py       → Abstract worker pipeline (Template Method pattern)
   job_worker.py        → Job processing implementation

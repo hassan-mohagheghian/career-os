@@ -1,7 +1,7 @@
 """Tests for GenerationHistoryRepository.
 
 TDD: Tests written BEFORE implementation.
-Tests cover: unified history reads from all 5 source tables.
+Tests cover: unified history reads from all source tables.
 """
 
 import sys
@@ -21,7 +21,6 @@ from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 
 from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
-from career.infrastructure.models.insight_model import CareerInsightRunModel
 
 from shared.domain.models.generation_models import GenerationHistoryItem
 from shared.infrastructure.repositories.generation_repository import GenerationHistoryRepository
@@ -121,100 +120,6 @@ class TestGenerationHistoryRepository:
         assert item.source == 'roadmap'
         assert 'Python' in item.title
         assert 'generate' in item.title
-
-    def test_reads_career_insight_runs(self, repo, sa_session):
-        m = CareerInsightRunModel(
-            insight_type='overview',
-            version=1,
-            status='completed',
-            metadata_json='{}',
-            session_id='sess_ci',
-            started_at='2026-07-27T10:00:00',
-            completed_at='2026-07-27T10:06:00',
-        )
-        sa_session.add(m)
-        sa_session.commit()
-
-        result = repo.get_all()
-        assert result['total'] == 1
-        item = result['items'][0]
-        assert item.source == 'insights'
-        assert item.title == 'Overview'
-
-    def test_unified_sorting(self, repo, sa_session):
-        job = JobModel(
-            num=1, url='url1', source='web', status='done',
-            workflow_log='[]', queue_order=0,
-            company='Corp', created_at='2026-07-27T09:00:00',
-            updated_at='2026-07-27T09:05:00',
-        )
-        insight = CareerInsightRunModel(
-            insight_type='market',
-            version=1,
-            status='completed',
-            metadata_json='{}',
-            started_at='2026-07-27T10:00:00',
-            completed_at='2026-07-27T10:03:00',
-        )
-        roadmap = SkillRoadmapJobModel(
-            skill_name='React',
-            job_type='extend',
-            status='completed',
-            step=0,
-            total_steps=4,
-            message='',
-            started_at='2026-07-27T11:00:00',
-            completed_at='2026-07-27T11:02:00',
-        )
-        sa_session.add_all([job, insight, roadmap])
-        sa_session.commit()
-
-        result = repo.get_all()
-        assert result['total'] == 3
-
-    def test_pagination(self, repo, sa_session):
-        for i in range(5):
-            m = CareerInsightRunModel(
-                insight_type=f'type_{i}',
-                version=1,
-                status='completed',
-                metadata_json='{}',
-                started_at=f'2026-07-27T10:0{i}:00',
-            )
-            sa_session.add(m)
-        sa_session.commit()
-
-        page1 = repo.get_all(limit=2, offset=0)
-        assert len(page1['items']) == 2
-        assert page1['total'] == 5
-
-        page2 = repo.get_all(limit=2, offset=2)
-        assert len(page2['items']) == 2
-        assert page2['total'] == 5
-
-        page3 = repo.get_all(limit=2, offset=4)
-        assert len(page3['items']) == 1
-
-    def test_filter_by_source(self, repo, sa_session):
-        job = JobModel(
-            num=1, url='url1', source='web', status='done',
-            workflow_log='[]', queue_order=0,
-            company='Corp', created_at='2026-07-27T10:00:00',
-            updated_at='2026-07-27T10:01:00',
-        )
-        insight = CareerInsightRunModel(
-            insight_type='overview',
-            version=1,
-            status='completed',
-            metadata_json='{}',
-            started_at='2026-07-27T10:00:00',
-        )
-        sa_session.add_all([job, insight])
-        sa_session.commit()
-
-        result = repo.get_all(source_filter='job-processing')
-        assert result['total'] == 1
-        assert result['items'][0].source == 'job-processing'
 
     def test_error_captured(self, repo, sa_session):
         m = JobModel(

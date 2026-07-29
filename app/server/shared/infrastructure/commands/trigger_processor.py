@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Trigger processor - watches for process trigger files and outputs pending jobs
-that need processing. This is called by MiMoCode to pick up jobs from the UI.
+that need processing. This is called by the AI provider to pick up jobs from the UI.
 """
 import os
 import json

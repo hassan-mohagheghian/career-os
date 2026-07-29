@@ -93,8 +93,7 @@ app/server/
 │   │       ├── skill_relationship_repository.py
 │   │       ├── skill_roadmap_repository.py
 │   │       ├── skill_roadmap_progress_repository.py
-│   │       ├── skill_roadmap_job_repository.py
-│   │       └── tech_learning_repository.py
+│   │       └── skill_roadmap_job_repository.py
 │   ├── application/
 │   │   ├── services/
 │   │   │   └── skill_roadmap_service.py
@@ -109,8 +108,7 @@ app/server/
 │   │   │   ├── sa_skill_relationship_repository.py
 │   │   │   ├── sa_skill_roadmap_repository.py
 │   │   │   ├── sa_skill_roadmap_progress_repository.py
-│   │   │   ├── sa_skill_roadmap_job_repository.py
-│   │   │   └── sa_tech_learning_repository.py
+│   │   │   └── sa_skill_roadmap_job_repository.py
 │   │   └── ai/prompts/skill_roadmaps/
 │   │       ├── skill_roadmaps.txt
 │   │       ├── skill_roadmaps_generate.txt
@@ -125,69 +123,31 @@ app/server/
 │       │       └── skill_roadmaps.py
 │       └── cli/
 │
-├── career/                          # Career Bounded Context
+├── rules/                           # Rules (Scoring) Bounded Context
 │   ├── domain/
 │   │   ├── entities/
-│   │   │   ├── career_insight.py
-│   │   │   └── preference.py
+│   │   │   └── rule.py
 │   │   └── repositories/
-│   │       ├── insight_repository.py
-│   │       ├── career_insight_repository.py
-│   │       ├── career_insight_run_repository.py
-│   │       └── preference_repository.py
+│   │       └── rule_repository.py
 │   ├── application/
-│   │   ├── services/
-│   │   │   └── insights.py
 │   │   └── dto/
 │   ├── infrastructure/
 │   │   ├── models/
-│   │   │   ├── insight_model.py
-│   │   │   └── misc_models.py
-│   │   ├── repositories/
-│   │   │   ├── sa_insight_repository.py
-│   │   │   ├── sa_career_insight_repository.py
-│   │   │   ├── sa_career_insight_run_repository.py
-│   │   │   └── sa_preference_repository.py
-│   │   └── ai/prompts/insights/
-│   │       ├── overview_intelligence.txt
-│   │       ├── career_intelligence.txt
-│   │       ├── skills_intelligence.txt
-│   │       ├── companies_intelligence.txt
-│   │       ├── market_intelligence.txt
-│   │       ├── networking_intelligence.txt
-│   │       └── opportunities_intelligence.txt
+│   │   └── repositories/
+│   │       └── sa_rule_repository.py
 │   └── presentation/
 │       ├── api/
-│       │   ├── insights_router.py
 │       │   ├── rules_router.py
-│       │   ├── dashboard_router.py
 │       │   └── schemas/
-│       │       ├── insights.py
-│       │       ├── rules.py
-│       │       └── dashboard.py
+│       │       └── rules.py
 │       └── cli/
 │
-├── resume/                          # Resume Bounded Context
-│   ├── domain/
-│   │   ├── entities/resume.py
-│   │   └── repositories/
-│   │       └── resume_repository.py
-│   ├── application/
-│   │   └── dto/
-│   ├── infrastructure/
-│   │   ├── models/misc_models.py
-│   │   ├── repositories/
-│   │   │   └── sa_resume_repository.py
-│   │   ├── workers/
-│   │   │   └── generation_worker.py
-│   │   └── ai/prompts/resume/
-│   │       ├── step_resume_generate.txt
-│   │       └── step7_cover_generate.txt
-│   └── presentation/
-│       ├── api/
-│       │   ├── resumes_router.py
-│       │   └── schemas/resumes.py
-│       └── cli/
+│                                        # Resume lives under jobs/ context:
+│                                        #   jobs/domain/entities/resume.py
+│                                        #   jobs/domain/repositories/resume_repository.py
+│                                        #   jobs/infrastructure/repositories/sa_resume_repository.py
+│                                        #   jobs/presentation/api/resumes_router.py
+│                                        #   jobs/presentation/api/schemas/resumes.py
 │
 ├── pending/                         # Pending Bounded Context
 │   ├── domain/

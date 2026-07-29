@@ -35,17 +35,17 @@ def init_db():
     import jobs.infrastructure.models.job_model
     import skills.infrastructure.models.skill_model
     import companies.infrastructure.models.company_model
-    import career.infrastructure.models.insight_model
+
     import shared.infrastructure.database.models.misc_models
 
     Base.metadata.create_all(bind=engine)
 
     # Seed initial rules if table is empty
     from shared.infrastructure.database.sqlalchemy_config import SessionLocal
-    from shared.infrastructure.database.models.misc_models import PreferenceModel
+    from shared.infrastructure.database.models.misc_models import RuleModel
     session = SessionLocal()
     try:
-        count = session.query(PreferenceModel).count()
+        count = session.query(RuleModel).count()
         if count == 0:
             _seed_initial_rules(session)
     finally:
@@ -53,8 +53,8 @@ def init_db():
 
 
 def _seed_initial_rules(session):
-    """Seed the initial scoring rules into the preferences table."""
-    from shared.infrastructure.database.models.misc_models import PreferenceModel
+    """Seed the initial scoring rules into the rules table."""
+    from shared.infrastructure.database.models.misc_models import RuleModel
 
     rules = [
         # Shared rules
@@ -104,7 +104,7 @@ def _seed_initial_rules(session):
     ]
 
     for cat, rule_type, scope, key, value, desc, priority, weight in rules:
-        session.add(PreferenceModel(
+        session.add(RuleModel(
             category=cat, rule_type=rule_type, scope=scope, key=key,
             value=value, description=desc, priority=priority, score_weight=weight,
         ))
@@ -115,64 +115,6 @@ def _seed_initial_rules(session):
 def load_json_to_db():
     """No-op: data is now managed entirely in SQLite."""
     pass
-
-
-def migrate_existing_analysis_files():
-    """Migrate existing analysis JSON files to the analysis_runs table."""
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-    from shared.infrastructure.database.sqlalchemy_config import SessionLocal
-    from shared.infrastructure.database.models.misc_models import AnalysisRunModel
-
-    session = SessionLocal()
-    try:
-        count = session.query(AnalysisRunModel).count()
-        if count > 0:
-            return
-
-        import re
-        from datetime import datetime
-
-        migrated = 0
-
-        if not os.path.isdir(data_dir):
-            return
-
-        for filename in os.listdir(data_dir):
-            match = re.match(r"dashboard_insights_(\d+)\.json", filename)
-            if match:
-                filepath = os.path.join(data_dir, filename)
-                try:
-                    with open(filepath) as f:
-                        data = json.load(f)
-                    session.add(AnalysisRunModel(
-                        page="dashboard",
-                        created_at=datetime.now().isoformat(),
-                        analysis_json=json.dumps(data, ensure_ascii=False),
-                    ))
-                    migrated += 1
-                except Exception as e:
-                    log.warning("Failed to migrate analysis file", filename=filename, error=str(e))
-
-        for filename in os.listdir(data_dir):
-            match = re.match(r"skills_insights_(\d+)\.json", filename)
-            if match:
-                filepath = os.path.join(data_dir, filename)
-                try:
-                    with open(filepath) as f:
-                        data = json.load(f)
-                    session.add(AnalysisRunModel(
-                        page="skills",
-                        created_at=datetime.now().isoformat(),
-                        analysis_json=json.dumps(data, ensure_ascii=False),
-                    ))
-                    migrated += 1
-                except Exception as e:
-                    log.warning("Failed to migrate skills file", filename=filename, error=str(e))
-
-        session.commit()
-        log.info("Migrated analysis records", count=migrated)
-    finally:
-        session.close()
 
 
 def migrate_resume_files_to_db():
@@ -280,6 +222,5 @@ def _text_to_html(text):
 if __name__ == "__main__":
     init_db()
     load_json_to_db()
-    migrate_existing_analysis_files()
     migrate_resume_files_to_db()
     log.info("Database initialized", path=DB_PATH)

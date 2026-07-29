@@ -65,14 +65,14 @@ def mocks():
 
     process_mgr = MagicMock()
     temp_mgr = MagicMock()
-    mimo_runner = MagicMock()
+    provider_runner = MagicMock()
     broadcaster = MagicMock()
 
     return {
         'pending_repo': pending_repo,
         'process_mgr': process_mgr,
         'temp_mgr': temp_mgr,
-        'mimo_runner': mimo_runner,
+        'provider_runner': provider_runner,
         'broadcaster': broadcaster,
     }
 

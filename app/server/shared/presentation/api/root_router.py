@@ -14,20 +14,20 @@ from sqlalchemy.orm import Session
 from jobs.presentation.api.jobs_router import router as jobs_router
 from skills.presentation.api.skills_router import router as skills_router
 from companies.presentation.api.companies_router import router as companies_router
-from career.presentation.api.insights_router import router as insights_router
-from resume.presentation.api.resumes_router import router as resumes_router
+
+from jobs.presentation.api.resumes_router import router as resumes_router
 from skills.presentation.api.skill_roadmaps_router import router as skill_roadmaps_router
-from career.presentation.api.rules_router import router as rules_router
-from career.presentation.api.dashboard_router import router as dashboard_router
+from rules.presentation.api.rules_router import router as rules_router
+from shared.presentation.api.dashboard_router import router as dashboard_router
 from shared.presentation.api.websocket_router import router as websocket_router
 
 # DI dependencies — wired through bounded context infrastructure
-from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_insight_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
+from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
 
 # Bounded context infrastructure — for inline routes in this file
 from jobs.infrastructure import SQLAlchemyJobRepository
 from skills.infrastructure import SQLAlchemySkillRepository
-from career.infrastructure import SQLAlchemyInsightRepository
+
 
 api_router = APIRouter(prefix="/api")
 
@@ -36,7 +36,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
-api_router.include_router(insights_router, prefix="/insights", tags=["insights"])
+
 api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
 api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
@@ -69,10 +69,10 @@ def summaries_compat():
 
 @api_router.get("/linkedin")
 def linkedin_compat():
-    from resume.infrastructure import SQLAlchemyResumeRepository
+    from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
     session = get_session_sync()
     try:
-        repo = SQLAlchemyResumeRepository(session)
+        repo = SQLAlchemyTailoredDocumentRepository(session)
         rows = repo.get_all()
         return [r for r in rows if r.get("id") == "original" or r.get("id", "").startswith("linkedin_")]
     finally:
@@ -85,17 +85,6 @@ def tech_stack_compat():
     try:
         repo = SQLAlchemySkillRepository(session)
         return repo.list_visible()
-    finally:
-        session.close()
-
-
-@api_router.get("/skills-intelligence/dashboard")
-def skills_intel_dashboard_compat():
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyInsightRepository(session)
-        result = repo.get_section("skills")
-        return result or {"skills": [], "summary": None}
     finally:
         session.close()
 
@@ -391,4 +380,7 @@ def process_pending_company(item_id: int):
 
 @api_router.get("/resumes/active-generations")
 def active_generations_compat(session: Session = Depends(get_session_sync)):
-    return []
+    from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
+    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    repo = SQLAlchemyPendingGenerationRepository(session)
+    return repo.get_all_active()

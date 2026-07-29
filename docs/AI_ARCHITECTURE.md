@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AI Agent Orchestration Layer provides a flexible, multi-provider agent system that wraps the existing Mimo CLI integration. It introduces:
+The AI Agent Orchestration Layer provides a flexible, multi-provider agent system that wraps the existing provider abstraction. It introduces:
 
 - **Provider Abstraction**: Swap LLM providers without changing agent code
 - **Agent Runtime**: LangGraph-based workflow orchestration with state management
@@ -12,7 +12,7 @@ The AI Agent Orchestration Layer provides a flexible, multi-provider agent syste
 ```
 React SPA
     │
-Flask API
+FastAPI
     │
 Application Services
     │

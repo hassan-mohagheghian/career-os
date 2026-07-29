@@ -31,14 +31,6 @@ class GenerationSource(str, Enum):
     RESUME = 'resume'
     COVER_LETTER = 'cover_letter'
 
-    # Insight generation sources
-    INSIGHT_OVERVIEW = 'insight_overview'
-    INSIGHT_OPPORTUNITIES = 'insight_opportunities'
-    INSIGHT_COMPANIES = 'insight_companies'
-    INSIGHT_SKILLS_INTEL = 'insight_skills_intel'
-    INSIGHT_MARKET = 'insight_market'
-    INSIGHT_NETWORKING = 'insight_networking'
-
     # Skill roadmap sources
     SKILL_ROADMAP_GENERATE = 'skill_roadmap_generate'
     SKILL_ROADMAP_EXTEND = 'skill_roadmap_extend'
@@ -53,8 +45,6 @@ class GenerationSource(str, Enum):
             return 'processing'
         if self.value in ('resume', 'cover_letter'):
             return 'generation'
-        if self.value.startswith('insight_'):
-            return 'insights'
         if self.value.startswith('skill_roadmap_'):
             return 'roadmap'
         return 'other'
@@ -67,12 +57,7 @@ class GenerationSource(str, Enum):
             'company_process': 'Company Processing',
             'resume': 'Resume Generation',
             'cover_letter': 'Cover Letter Generation',
-            'insight_overview': 'Insight: Overview',
-            'insight_opportunities': 'Insight: Opportunities',
-            'insight_companies': 'Insight: Companies',
-            'insight_skills_intel': 'Insight: Skills Intel',
-            'insight_market': 'Insight: Market',
-            'insight_networking': 'Insight: Networking',
+
             'skill_roadmap_generate': 'Skill Roadmap: Generate',
             'skill_roadmap_extend': 'Skill Roadmap: Extend',
             'skill_roadmap_finegrain': 'Skill Roadmap: Fine-grain',
@@ -158,67 +143,6 @@ SOURCE_STEP_CONFIG: Dict[GenerationSource, Dict[str, Any]] = {
         'steps': [
             {'key': 'step_prepare', 'label': 'Preparing'},
             {'key': 'step_context', 'label': 'Context'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    # Insight sources: 4 steps each
-    GenerationSource.INSIGHT_OVERVIEW: {
-        'label': 'Insight: Overview',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.INSIGHT_OPPORTUNITIES: {
-        'label': 'Insight: Opportunities',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.INSIGHT_COMPANIES: {
-        'label': 'Insight: Companies',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.INSIGHT_SKILLS_INTEL: {
-        'label': 'Insight: Skills Intel',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.INSIGHT_MARKET: {
-        'label': 'Insight: Market',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.INSIGHT_NETWORKING: {
-        'label': 'Insight: Networking',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
             {'key': 'step_generate', 'label': 'Generating'},
             {'key': 'step_save', 'label': 'Saving'},
             {'key': 'step_done', 'label': 'Done'},
@@ -312,7 +236,6 @@ class GenerationRun:
         source_label_map = {
             'processing': 'job-processing' if 'job' in self.source.value else 'company-processing',
             'generation': 'generation',
-            'insights': 'insights',
             'roadmap': 'roadmap',
         }
         normalized_source = source_label_map.get(source_group, source_group)
@@ -338,7 +261,7 @@ class GenerationHistoryItem:
     """
 
     id: int
-    source: str  # 'job-processing', 'company-processing', 'generation', 'insights', 'roadmap'
+    source: str  # 'job-processing', 'company-processing', 'generation', 'roadmap'
     title: str
     status: str
     started_at: Optional[str] = None

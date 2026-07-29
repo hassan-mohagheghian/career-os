@@ -20,8 +20,8 @@ from shared.infrastructure.process.models import CompanyPipelineStep
 class CompanyWorker(WorkerBase):
     """Concrete worker for company processing."""
 
-    def __init__(self, pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster):
-        super().__init__(pending_repo, process_mgr, temp_mgr, mimo_runner, broadcaster)
+    def __init__(self, pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster):
+        super().__init__(pending_repo, process_mgr, temp_mgr, provider_runner, broadcaster)
 
     @property
     def table(self) -> str:

@@ -318,56 +318,7 @@ Create a generic insight engine.
 
 Database design:
 
-## career_insight_runs
 
-Fields:
-
-- id
-- insight_type
-- version
-- status
-- started_at
-- completed_at
-- error_message
-- metadata
-
-
-Example:
-
-insight_type:
-
-- overview
-- opportunities
-- companies
-- skills
-- market
-- networking
-
-
-Status:
-
-- pending
-- queued
-- processing
-- completed
-- failed
-
-
----
-
-## career_insights
-
-Store generated results.
-
-Fields:
-
-- id
-- insight_type
-- version
-- score
-- summary
-- data_json
-- created_at
 
 
 The system must support future versions:

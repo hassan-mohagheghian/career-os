@@ -80,7 +80,7 @@ const defaultProps = {
 describe('JobsPage', () => {
   it('renders Jobs section', () => {
     render(<JobsPage {...defaultProps} />)
-    expect(screen.getByText('Jobs')).toBeInTheDocument()
+    expect(screen.getByText('Processed Jobs')).toBeInTheDocument()
   })
 
   it('renders all jobs loaded state', () => {

@@ -37,21 +37,19 @@ The system is divided into six bounded contexts, each representing a distinct bu
 - Manage skill aliases and relationships
 - Track learning progress
 
-### 4. Career
-**Responsibility**: Career intelligence, insights, preferences, and scoring rules.
+### 4. Rules
+**Responsibility**: Scoring rules.
 
-**Core Entities**: `CareerInsight`, `Preference`
+**Core Entities**: `Rule`
 
 **Key Behaviors**:
-- Generate career intelligence reports (overview, opportunities, market, networking)
-- Manage scoring rules and preferences
-- Track career insight generation runs
-- Provide career health scoring
+- Manage scoring rules
+- Evaluate fit/success scores for jobs and companies
 
-### 5. Resume
+### 5. Resume (part of Jobs)
 **Responsibility**: Resume and cover letter generation.
 
-**Core Entities**: `Resume`
+**Core Entities**: `Resume` (in `jobs/domain/entities/resume.py`)
 
 **Key Behaviors**:
 - Generate tailored resumes for specific jobs

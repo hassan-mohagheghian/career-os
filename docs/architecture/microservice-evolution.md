@@ -24,7 +24,7 @@ Modular monolith with 8 bounded contexts, each with clear domain boundaries.
 ### Phase 4: Extract Career Context
 - Depends on reading jobs, companies, skills data
 - Would need event subscriptions or API calls to other services
-- `career_insights`, `career_insight_runs`, `preferences` tables
+- `rules` table
 
 ### Phase 5: Extract Companies + Jobs
 - Tightly coupled via `company_id` FK
@@ -37,7 +37,7 @@ Each extracted service would own its PostgreSQL schema:
 - `jobs_service` → `jobs`, `summaries`
 - `companies_service` → `companies`, `company_*`
 - `skills_service` → `skills`, `skill_*`, `tech_learning`
-- `career_service` → `career_insights`, `career_insight_runs`, `preferences`
+- `career_service` → `rules`
 - `resume_service` → `resumes`, `pending_generations`
 
 ## Cross-Service Communication

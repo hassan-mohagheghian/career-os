@@ -110,12 +110,12 @@ class AnalyzeCompanyTool(BaseTool):
         try:
             from shared.infrastructure.ai.compat import get_llm_service
             from shared.infrastructure.prompts.loader import load_prompt
-            from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
+            from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
             from dependencies import get_session_sync
 
             session = get_session_sync()
             try:
-                pref_repo = SQLAlchemyPreferenceRepository(session)
+                rule_repo = SQLAlchemyRuleRepository(session)
                 scope_map = {
                     "PRODUCT_COMPANY": "COMPANY_PRODUCT",
                     "RECRUITING_AGENCY": "COMPANY_RECRUITING",
@@ -124,7 +124,7 @@ class AnalyzeCompanyTool(BaseTool):
                     "UNKNOWN": "COMPANY_PRODUCT",
                 }
                 entity_scope = scope_map.get(company_type, "COMPANY_PRODUCT")
-                rows = pref_repo.get_enabled_by_scopes(["SHARED", entity_scope])
+                rows = rule_repo.get_enabled_by_scopes(["SHARED", entity_scope])
             finally:
                 session.close()
 

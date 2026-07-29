@@ -41,8 +41,8 @@ class LLMProvider(abc.ABC):
     """Abstract base class for LLM providers.
 
     All agents communicate with LLMs through this interface.
-    Providers never call MimoRunner or subprocess directly —
-    that's an implementation detail of MimoProvider.
+    Providers never call subprocess directly —
+    that's an implementation detail of concrete providers.
     """
 
     def __init__(self, config: Optional[ProviderConfig] = None):

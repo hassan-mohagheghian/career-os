@@ -6,7 +6,7 @@ Accepted (Completed)
 
 ## Context
 
-The Job Search Intelligence platform currently uses Flask 3.1 as its backend framework. As the platform evolves toward supporting multiple concurrent users, real-time features, and future PostgreSQL migration, the team has identified several limitations with the current Flask setup:
+The Job Search Intelligence platform previously used Flask 3.1 as its backend framework. As the platform evolved toward supporting multiple concurrent users, real-time features, and future PostgreSQL migration, the team identified several limitations with the Flask setup:
 
 ### Current Limitations
 
@@ -28,7 +28,7 @@ The Job Search Intelligence platform currently uses Flask 3.1 as its backend fra
 
 ## Decision
 
-Migrate the backend from Flask to FastAPI while preserving all existing behavior.
+Migrate the backend from Flask to FastAPI while preserving all existing behavior. This migration is now complete.
 
 ## Alternatives Considered
 

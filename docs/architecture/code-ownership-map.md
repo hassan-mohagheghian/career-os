@@ -38,7 +38,7 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
 | `domain/entities/` | `skill.py` | Skill domain entity |
-| `domain/repositories/` | `skill_repository.py`, `skill_alias_repository.py`, `skill_relationship_repository.py`, `skill_roadmap_repository.py`, `skill_roadmap_progress_repository.py`, `skill_roadmap_job_repository.py`, `tech_learning_repository.py` | Repository interfaces |
+| `domain/repositories/` | `skill_repository.py`, `skill_alias_repository.py`, `skill_relationship_repository.py`, `skill_roadmap_repository.py`, `skill_roadmap_progress_repository.py`, `skill_roadmap_job_repository.py` | Repository interfaces |
 | `application/services/` | `skill_roadmap_service.py` | Roadmap generation service |
 | `infrastructure/models/` | `skill_model.py`, `misc_models.py` | SQLAlchemy models |
 | `infrastructure/repositories/` | `sa_skill_repository.py`, `sa_skill_alias_repository.py`, etc. | Repository implementations |
@@ -46,31 +46,25 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | `presentation/api/` | `skills_router.py`, `skill_roadmaps_router.py` | FastAPI routers |
 | `presentation/api/schemas/` | `skills.py`, `skill_roadmaps.py` | Pydantic schemas |
 
-### Career Context (`career/`)
+### Rules Context (`rules/`)
 
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
-| `domain/entities/` | `career_insight.py`, `preference.py` | Career insight and preference entities |
-| `domain/repositories/` | `insight_repository.py`, `career_insight_repository.py`, `career_insight_run_repository.py`, `preference_repository.py` | Repository interfaces |
-| `application/services/` | `insights.py` | Career intelligence generation service |
-| `infrastructure/models/` | `insight_model.py`, `misc_models.py` | SQLAlchemy models |
-| `infrastructure/repositories/` | `sa_insight_repository.py`, `sa_career_insight_repository.py`, `sa_career_insight_run_repository.py`, `sa_preference_repository.py` | Repository implementations |
-| `infrastructure/ai/prompts/` | `insights/*.txt` | AI prompts for insights |
-| `presentation/api/` | `insights_router.py`, `rules_router.py`, `dashboard_router.py` | FastAPI routers |
-| `presentation/api/schemas/` | `insights.py`, `rules.py`, `dashboard.py` | Pydantic schemas |
+| `domain/entities/` | `rule.py` | Scoring rule entity |
+| `domain/repositories/` | `rule_repository.py` | Repository interface |
+| `infrastructure/repositories/` | `sa_rule_repository.py` | Repository implementation |
+| `presentation/api/` | `rules_router.py` | FastAPI router |
+| `presentation/api/schemas/` | `rules.py` | Pydantic schemas |
 
-### Resume Context (`resume/`)
+### Resume (now part of Jobs Context)
 
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
-| `domain/entities/` | `resume.py` | Resume domain entity |
-| `domain/repositories/` | `resume_repository.py` | Repository interface |
-| `infrastructure/models/` | `misc_models.py` | SQLAlchemy models |
-| `infrastructure/repositories/` | `sa_resume_repository.py` | Repository implementation |
-| `infrastructure/workers/` | `generation_worker.py` | Resume/cover letter generation worker |
-| `infrastructure/ai/prompts/` | `resume/*.txt` | AI prompts for resume generation |
-| `presentation/api/` | `resumes_router.py` | FastAPI router |
-| `presentation/api/schemas/` | `resumes.py` | Pydantic schemas |
+| `jobs/domain/entities/` | `resume.py` | Resume domain entity |
+| `jobs/domain/repositories/` | `resume_repository.py` | Repository interface |
+| `jobs/infrastructure/repositories/` | `sa_resume_repository.py` | Repository implementation |
+| `jobs/presentation/api/` | `resumes_router.py` | FastAPI router |
+| `jobs/presentation/api/schemas/` | `resumes.py` | Pydantic schemas |
 
 ### Pending Context (`pending/`)
 
@@ -113,8 +107,8 @@ These modules exist at their old locations for backward compatibility. All new c
 | `schemas/*.py` | `*/presentation/api/schemas/*.py` |
 | `services/worker.py` | `jobs/infrastructure/workers/worker.py` |
 | `services/company_worker.py` | `companies/infrastructure/workers/company_worker.py` |
-| `services/generation_worker.py` | `resume/infrastructure/workers/generation_worker.py` |
-| `services/insights.py` | `career/application/services/insights.py` |
+| `services/generation_worker.py` | `jobs/infrastructure/workers/generation_worker.py` |
+| `services/insights.py` | `rules/application/services/insights.py` |
 | `services/skill_roadmap_service.py` | `skills/application/services/skill_roadmap_service.py` |
 | `services/process_utils.py` | `shared/infrastructure/process_utils.py` |
 | `services/process/*.py` | `shared/infrastructure/process/*.py` |

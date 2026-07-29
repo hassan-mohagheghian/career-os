@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useSocketIO, cancelJob, resetJob, watchPending, unwatchPending } from './useSocketIO'
+import { useSocketIO, cancelJob, resetJob } from './useSocketIO'
 
 const API = '/api'
 
 interface PendingJob {
-  id: number
+  num: number
   url: string
   status: string
   company: string | null
@@ -23,41 +23,16 @@ export function usePending(onJobDone?: () => void) {
   const [urlError, setUrlError] = useState('')
   const [duplicateJob, setDuplicateJob] = useState<any>(null)
   const seenDoneRef = useRef(new Set<number>())
-  const watchedRef = useRef(new Set<number>())
+  const onJobDoneRef = useRef(onJobDone)
+  onJobDoneRef.current = onJobDone
   const socket = useSocketIO()
-
-  const syncWatchRooms = useCallback((list: PendingJob[]) => {
-    const newIds = new Set(list.map(p => p.id))
-    for (const id of watchedRef.current) {
-      if (!newIds.has(id)) {
-        unwatchPending(id)
-        watchedRef.current.delete(id)
-      }
-    }
-    for (const id of newIds) {
-      if (!watchedRef.current.has(id)) {
-        watchPending(id)
-        watchedRef.current.add(id)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      for (const id of watchedRef.current) {
-        unwatchPending(id)
-      }
-      watchedRef.current.clear()
-    }
-  }, [])
 
   const fetchPending = useCallback(() => {
     return fetch(`${API}/pending`).then(r => r.json()).then((list: PendingJob[]) => {
       setPending(list)
-      syncWatchRooms(list)
       return list
     })
-  }, [syncWatchRooms])
+  }, [])
 
   const processPending = useCallback(async (id: number) => {
     await fetch(`${API}/pending/${id}/process`, { method: 'POST' })
@@ -89,7 +64,7 @@ export function usePending(onJobDone?: () => void) {
       }
       setUrlInput('')
       fetchPending()
-      if (processImmediately && data.id) await processPending(data.id)
+      if (processImmediately && data.num) await processPending(data.num)
     } finally {
       setSubmitting(false)
     }
@@ -134,7 +109,7 @@ export function usePending(onJobDone?: () => void) {
       ))
       if (!seenDoneRef.current.has(data.id)) {
         seenDoneRef.current.add(data.id)
-        onJobDone?.()
+        onJobDoneRef.current?.()
       }
     }
     const handleError = (data: any) => {
@@ -170,7 +145,7 @@ export function usePending(onJobDone?: () => void) {
       socket.off('pending:error', handleError)
       socket.off('pending:progress', handleProgress)
     }
-  }, [socket, fetchPending, onJobDone])
+  }, [socket, fetchPending])
 
   return {
     pending, urlInput, setUrlInput, urlError, setUrlError,

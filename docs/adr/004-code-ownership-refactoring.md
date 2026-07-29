@@ -24,7 +24,7 @@ Refactor to Domain-Driven Design (DDD) with bounded contexts:
 1. **Jobs** — Job posting lifecycle
 2. **Companies** — Company intelligence
 3. **Skills** — Skill management and roadmaps
-4. **Career** — Career insights and preferences
+4. **Rules** — Scoring rules (was Career)
 5. **Resume** — Resume/cover letter generation
 6. **Pending** — Processing queue management
 7. **Shared** — Cross-cutting infrastructure

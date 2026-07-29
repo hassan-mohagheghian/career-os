@@ -89,10 +89,10 @@ class TestWorkerBase:
         repo = PendingJobRepository(sa_session)
         proc_mgr = MagicMock()
         temp_mgr = MagicMock()
-        mimo = MagicMock()
+        provider_runner = MagicMock()
         broadcaster = MagicMock()
 
-        return ConcreteWorker(repo, proc_mgr, temp_mgr, mimo, broadcaster)
+        return ConcreteWorker(repo, proc_mgr, temp_mgr, provider_runner, broadcaster)
 
     def _insert_pending_job(self, sa_session, url='https://example.com', status='processing'):
         m = JobModel(

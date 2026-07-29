@@ -45,7 +45,7 @@ tests/test_ai/          70 AI layer tests
 - All files must be `.ts` or `.tsx` — no JavaScript
 
 ### Patterns to Follow
-- Flask Blueprints for API routes
+- FastAPI routers per bounded context
 - Feature-based frontend architecture
 - WebSocket for real-time updates (not polling)
 - Concurrency lock for AI generation (only one at a time)

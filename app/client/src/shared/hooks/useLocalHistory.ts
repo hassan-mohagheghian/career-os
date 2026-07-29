@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useSocketIO, watchPending, unwatchPending, watchCompany, unwatchCompany, watchSkills, unwatchSkills, watchInsights, unwatchInsights } from './useSocketIO'
+import { useSocketIO, watchSkills, unwatchSkills } from './useSocketIO'
 import type { HistoryItemData } from '@/shared/lib/sourceConfig'
 
 const API = '/api'
 
 interface UseLocalHistoryOptions {
-  context: 'job' | 'company' | 'skill' | 'insight'
+  context: 'job' | 'company' | 'skill'
   job_num?: number
   company_id?: number
   skill_name?: string
-  insight_type?: string
   enabled?: boolean
 }
 
@@ -22,7 +21,7 @@ interface UseLocalHistoryReturn {
 }
 
 export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistoryReturn {
-  const { context, job_num, company_id, skill_name, insight_type, enabled = true } = options
+  const { context, job_num, company_id, skill_name, enabled = true } = options
 
   const [items, setItems] = useState<HistoryItemData[]>([])
   const [loading, setLoading] = useState(false)
@@ -37,18 +36,16 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
     if (context === 'job' && job_num != null) params.set('job_num', String(job_num))
     if (context === 'company' && company_id != null) params.set('company_id', String(company_id))
     if (context === 'skill' && skill_name != null) params.set('skill_name', skill_name)
-    if (context === 'insight' && insight_type != null) params.set('insight_type', insight_type)
     return `${API}/local-history?${params.toString()}`
-  }, [context, job_num, company_id, skill_name, insight_type])
+  }, [context, job_num, company_id, skill_name])
 
   const buildActiveUrl = useCallback(() => {
     const params = new URLSearchParams({ context })
     if (context === 'job' && job_num != null) params.set('job_num', String(job_num))
     if (context === 'company' && company_id != null) params.set('company_id', String(company_id))
     if (context === 'skill' && skill_name != null) params.set('skill_name', skill_name)
-    if (context === 'insight' && insight_type != null) params.set('insight_type', insight_type)
     return `${API}/local-history/active?${params.toString()}`
-  }, [context, job_num, company_id, skill_name, insight_type])
+  }, [context, job_num, company_id, skill_name])
 
   const fetchHistory = useCallback(() => {
     if (!enabled) return
@@ -138,14 +135,6 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
       setTimeout(() => { fetchHistory(); fetchActiveCount() }, 500)
     }
 
-    const handleInsightProgress = (data: any) => {
-      // For insight context, refresh on any progress event
-      if (context === 'insight') {
-        fetchHistory()
-        fetchActiveCount()
-      }
-    }
-
     const handleSkillUpdate = (data: any) => {
       if (context === 'skill' && data.skill === skill_name) {
         setItems(prev => prev.map(item => {
@@ -177,9 +166,6 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
     } else if (context === 'skill') {
       watchSkills()
       socket.on('skill_roadmap:update', handleSkillUpdate)
-    } else if (context === 'insight') {
-      watchInsights()
-      socket.on('insights:progress', handleInsightProgress)
     }
 
     return () => {
@@ -193,9 +179,7 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
       socket.off('company:complete', handleComplete)
       socket.off('company:error', handleError)
       socket.off('skill_roadmap:update', handleSkillUpdate)
-      socket.off('insights:progress', handleInsightProgress)
       if (context === 'skill') unwatchSkills()
-      if (context === 'insight') unwatchInsights()
     }
   }, [socket, enabled, context, job_num, company_id, skill_name, fetchHistory, fetchActiveCount])
 

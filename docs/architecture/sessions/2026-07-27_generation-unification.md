@@ -27,7 +27,6 @@
   - `pending_companies` → source: `company-processing`
   - `pending_generations` → source: `generation`
   - `skill_roadmap_jobs` → source: `roadmap`
-  - `career_insight_runs` → source: `insights`
 - Supports pagination, source filtering, error capture
 - Accepts either `db_path` or existing connection
 

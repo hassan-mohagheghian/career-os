@@ -103,6 +103,9 @@ class SQLAlchemyJobRepository(IJobRepository):
                 if scores:
                     query = query.filter(JobModel.score.in_(scores))
 
+            if filters.get("filter_status"):
+                query = query.filter(JobModel.status == filters["filter_status"])
+
         total = query.count()
 
         # Build ORDER BY
@@ -231,12 +234,6 @@ class SQLAlchemyJobRepository(IJobRepository):
         count = self._session.query(JobModel).filter(JobModel.deleted == 0).delete(synchronize_session=False)
         self._session.commit()
         return count
-
-    def get_all_for_insights(self) -> list[dict[str, Any]]:
-        rows = self._session.query(JobModel).filter(
-            JobModel.deleted == 0
-        ).order_by(JobModel.overall_score.desc().nullslast()).all()
-        return [job_model_to_dict(r) for r in rows]
 
     def get_company_id(self, num: int) -> int | None:
         m = self._session.query(JobModel.company_id).filter(JobModel.num == num).first()

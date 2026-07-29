@@ -75,32 +75,36 @@ pkill -f "mimo run"
 ## Architecture
 
 ### Backend (Python/FastAPI)
-- Entry: `app/server/entrypoints/api.py`
+- Entry: `app/server/entrypoints/api.py` (FastAPI) / `app.start:app` (CLI via Typer)
 - Port: 5000
 - Database: SQLite at `app/server/db/jobs.db`
 - Background workers: Threads for AI generation (career intel, skill roadmaps)
+- ORM: SQLAlchemy with Alembic migrations
+- AI: LLMService provider abstraction (Mimo/OpenAI/Local) with LangGraph workflows
 
-### Frontend (React/Vite)
-- Entry: `app/client/src/main.jsx`
+### Frontend (React/Vite/TypeScript)
+- Entry: `app/client/src/main.tsx`
 - Port: 5173 (dev)
 - Build: `npm run build` → `app/client/dist/`
+- Architecture: Feature-based (`features/`, `shared/`, `layout/`)
+- UI: shadcn/ui + Tailwind CSS
 
 ### AI Generation Pipeline
 - Uses mimo CLI for AI-powered analysis
 - Workers run in background threads
-- Progress tracked in DB (`career_insight_runs`, `skill_roadmap_jobs`)
+- Progress tracked in DB (`skill_roadmap_jobs`)
 - Session IDs captured for external mimo interaction
 - Processes registered for cleanup on shutdown
 
 ## API Endpoints (Key)
 
-### Career Intelligence
-- `GET /api/career-intelligence` — All sections
-- `GET /api/career-intelligence/<section>` — Single section
-- `POST /api/career-intelligence/refresh` — Generate all
-- `POST /api/career-intelligence/<section>/refresh` — Generate section
-- `GET /api/career-intelligence/progress` — Current progress
-- `POST /api/career-intelligence/cancel` — Cancel running
+### Insights (Career Intelligence)
+- `GET /api/insights` — All sections
+- `GET /api/insights/<section>` — Single section (overview|opportunities|companies|market|networking|skills_intel)
+- `POST /api/insights/refresh` — Generate all
+- `POST /api/insights/<section>/refresh` — Generate single section
+- `GET /api/insights/progress` — Current progress
+- `POST /api/insights/cancel` — Cancel running
 
 ### Skill Roadmaps
 - `GET /api/skill-roadmaps?skill=<name>` — Get roadmap tree
@@ -112,20 +116,30 @@ pkill -f "mimo run"
 - `PUT /api/skill-roadmap-progress/<id>` — Toggle topic completion
 - `GET /api/skill-roadmap-progress/all` — All skills progress
 
-### Tech Stack
+### Tech Stack (Skills)
 - `GET /api/tech-stack` — List all skills
 - `POST /api/tech-stack` — Add skill
 - `PUT /api/tech-stack/<id>` — Update skill
 - `DELETE /api/tech-stack/<id>` — Delete skill
+- `PATCH /api/tech-stack/<id>/hide` — Hide skill
+- `PATCH /api/tech-stack/<id>/restore` — Restore hidden skill
+- `PATCH /api/tech-stack/<id>/rename` — Rename skill
+- `POST /api/tech-stack/merge` — Merge skills
+- `GET /api/tech-stack/hidden` — List hidden skills
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DB_PATH` | `app/server/db/jobs.db` | SQLite database path |
-
 | `BACKEND_PORT` | `5000` | Backend server port |
 | `FRONTEND_PORT` | `5173` | Frontend dev server port |
+| `AI_PROVIDER` | `mimo` | AI provider: `mimo`, `openai`, `local`, `gemini` |
+| `SECRET_KEY` | `dev-secret-key` | FastAPI secret key |
+| `QUEUE_CONCURRENCY` | `2` | Max concurrent processing workers |
+| `CORS_ORIGINS` | `*` | Allowed CORS origins |
+| `HOST` | `0.0.0.0` | Backend bind address |
+| `PORT` | `5000` | Backend port (overrides BACKEND_PORT) |
 
 ## Troubleshooting
 

@@ -90,60 +90,38 @@ app/server/
 │   │   │   ├── skill.py
 │   │   │   ├── skill_alias.py
 │   │   │   ├── skill_relationship.py
-│   │   │   ├── skill_roadmap.py
-│   │   │   └── tech_learning.py
+│   │   │   └── skill_roadmap.py
 │   │   └── repositories/
 │   │       ├── skill_repository.py
 │   │       ├── skill_alias_repository.py
 │   │       ├── skill_relationship_repository.py
 │   │       ├── skill_roadmap_repository.py
 │   │       ├── skill_roadmap_progress_repository.py
-│   │       ├── skill_roadmap_job_repository.py
-│   │       └── tech_learning_repository.py
+│   │       └── skill_roadmap_job_repository.py
 │   └── infrastructure/
 │       ├── models/
 │       │   ├── skill_model.py
-│       │   └── misc_models.py      # SkillRoadmap*, TechLearning
+│       │   └── misc_models.py      # SkillRoadmap*
 │       └── repositories/
 │           ├── sa_skill_repository.py
 │           ├── sa_skill_alias_repository.py
 │           ├── sa_skill_relationship_repository.py
 │           ├── sa_skill_roadmap_repository.py
 │           ├── sa_skill_roadmap_progress.py
-│           ├── sa_skill_roadmap_job_repository.py
-│           └── sa_tech_learning_repository.py
+│           └── sa_skill_roadmap_job_repository.py
 │
-├── career/                          # CAREER CONTEXT
+├── rules/                           # RULES CONTEXT
 │   ├── domain/
 │   │   ├── entities/
-│   │   │   ├── career_insight.py
-│   │   │   ├── career_insight_run.py
-│   │   │   ├── preference.py
-│   │   │   └── dashboard_insight.py
+│   │   │   └── rule.py
 │   │   └── repositories/
-│   │       ├── insight_repository.py
-│   │       ├── career_insight_repository.py
-│   │       ├── career_insight_run_repository.py
-│   │       └── preference_repository.py
+│   │       └── rule_repository.py
 │   └── infrastructure/
 │       ├── models/
-│       │   ├── insight_model.py
-│       │   └── misc_models.py      # PreferenceModel, DashboardInsightModel, AnalysisRunModel
 │       └── repositories/
-│           ├── sa_insight_repository.py
-│           ├── sa_career_insight_repository.py
-│           ├── sa_career_insight_run_repository.py
-│           └── sa_preference_repository.py
+│           └── sa_rule_repository.py
 │
-├── resume/                          # RESUME CONTEXT
-│   ├── domain/
-│   │   └── repositories/
-│   │       └── resume_repository.py
-│   └── infrastructure/
-│       ├── models/
-│       │   └── misc_models.py      # ResumeModel
-│       └── repositories/
-│           └── sa_resume_repository.py
+│                                        # Resume lives in jobs/ domain + infra
 │
 ├── pending/                         # PENDING QUEUE CONTEXT
 │   ├── domain/

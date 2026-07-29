@@ -5,7 +5,7 @@ import { Badge } from '@/shared/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import GenerationHistoryItem from './GenerationHistoryItem'
 import { SOURCE_CONFIG, type HistoryItemData } from '@/shared/lib/sourceConfig'
-import { useSocketIO, watchSkills, unwatchSkills, watchInsights, unwatchInsights } from '@/shared/hooks/useSocketIO'
+import { useSocketIO, watchSkills, unwatchSkills } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 const PAGE_SIZE = 100
@@ -17,7 +17,6 @@ const FILTER_OPTIONS = [
   { value: 'generation:resume', label: 'Resume' },
   { value: 'generation:cover', label: 'Cover Letter' },
   { value: 'generation', label: 'All Generation' },
-  { value: 'insights', label: 'Insights' },
   { value: 'roadmap', label: 'Roadmap' },
 ]
 
@@ -110,10 +109,8 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
     socket.on('company:complete', handleAnyUpdate)
     socket.on('company:error', handleAnyUpdate)
     socket.on('skill_roadmap:update', handleAnyUpdate)
-    socket.on('insights:progress', handleAnyUpdate)
 
     watchSkills()
-    watchInsights()
 
     return () => {
       socket.off('pending:update', handleAnyUpdate)
@@ -126,9 +123,7 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
       socket.off('company:complete', handleAnyUpdate)
       socket.off('company:error', handleAnyUpdate)
       socket.off('skill_roadmap:update', handleAnyUpdate)
-      socket.off('insights:progress', handleAnyUpdate)
       unwatchSkills()
-      unwatchInsights()
     }
   }, [socket, open, fetchHistory])
 

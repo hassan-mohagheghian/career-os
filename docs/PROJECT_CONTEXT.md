@@ -12,22 +12,22 @@
 ### Jobs
 - **Responsibility**: Job discovery, processing, scoring
 - **Features**: URL submission, fetch/extract/analyze pipeline, real-time progress, configurable scoring
-- **Files**: `features/jobs/`, `services/worker.py`, `blueprints/pending.py`
+- **Files**: `app/server/jobs/` (domain, application, infrastructure, presentation), `features/jobs/`
 
 ### Companies
 - **Responsibility**: Company intelligence and analysis
 - **Features**: Multi-source input (notes+links), profile extraction, visa assessment, Fit/Success/Overall scoring
-- **Files**: `features/companies/`, `services/company_worker.py`, `blueprints/companies.py`
+- **Files**: `app/server/companies/`, `features/companies/`
 
 ### Skills (Top-level)
 - **Responsibility**: Skill management center — CRUD, categories, roadmaps, progress
 - **Features**: 5-category taxonomy, aliases/merge, roadmap generation, progress tracking
-- **Files**: `features/skills/`, `blueprints/tech_stack.py`, `blueprints/skill_roadmaps.py`
+- **Files**: `app/server/skills/`, `features/skills/`
 
 ### Insights
 - **Responsibility**: Career intelligence analysis
 - **Features**: Per-section generation (overview, skills, opportunities, companies, market, networking)
-- **Files**: `features/insights/`, `services/insights.py`, `blueprints/insights.py`
+- **Files**: `app/server/career/`, `features/insights/`
 
 ### Settings
 - **Resume**: AI-powered resume/cover letter generation with progress bars
@@ -43,22 +43,22 @@
 - **Architecture**: Feature-based (`features/`, `shared/`, `layout/`)
 
 ### Backend
-- **Framework**: Flask 3.1 with Flask-SocketIO
+- **Framework**: FastAPI with python-socketio
 - **Language**: Python 3.14+
-- **Architecture**: Blueprint-based (10 blueprints), service layer
-- **Libraries**: structlog, python-dotenv, typer, rich, langgraph, langchain-core
+- **Architecture**: DDD modular monolith — 8 bounded contexts (Jobs, Companies, Skills, Career, Resume, AI, Pending, Shared)
+- **Libraries**: SQLAlchemy ORM + Alembic, structlog, pydantic-v2, python-dotenv, typer, rich, langgraph, langchain-core
 
 ### Database
 - **Engine**: SQLite + SQLAlchemy ORM + Alembic migrations
-- **Key Tables**: jobs, companies, company_intelligence, skills, skill_roadmaps, career_insights, pending_jobs, pending_companies, pending_generations
+- **Key Tables**: jobs, companies, company_intelligence, skills, skill_roadmaps, pending_jobs, pending_companies, pending_generations
 - **Migrations**: Alembic migration scripts
 
 ### AI Layer
 - **LLMService**: Unified entry point for all AI calls
-- **Providers**: Mimo (production), OpenAI (stub), Local LLM (stub)
-- **Agents**: Thin orchestration layers over existing services
-- **Tools**: Domain services wrapping existing business logic
-- **Graphs**: LangGraph-based composable workflows
+- **Providers**: Mimo (production), OpenAI (stub), Local LLM (stub), Gemini, OpenCode, AGY, Mock (testing)
+- **Agents**: LangGraph-based workflow orchestration with state management
+- **Tools**: Domain services wrapping existing business logic (fetch, web, database, job, company, skill, resume)
+- **Graphs**: LangGraph-based composable workflows (JobProcessing, CompanyProcessing, InsightsGeneration, ResumeGeneration, SkillExtraction, SkillRoadmap)
 
 ### Infrastructure
 - **Deployment**: Single `./start` (FastAPI + Vite dev server)
@@ -68,16 +68,16 @@
 ## 4. Architecture Summary
 
 ```
-React SPA → Flask API → SQLite DB
+React SPA → FastAPI → SQLite DB (SQLAlchemy ORM)
      ↓           ↓
-  WebSocket   AI Agent Layer (LLMService)
+  WebSocket   AI Agent Layer (LLMService + LangGraph)
                     ↓
-              Provider Layer (Mimo / OpenAI / Local)
+         Provider Layer (Mimo / OpenAI / Local / Gemini)
 ```
 
 - **Frontend** communicates via HTTP (REST) + WebSocket (real-time)
-- **Backend** uses Blueprint-based routing, service layer for business logic
-- **AI** via LLMService provider abstraction (Mimo CLI default)
+- **Backend** uses DDD modular monolith — 8 bounded contexts with FastAPI routers
+- **AI** via LLMService provider abstraction (Mimo CLI default) with LangGraph workflow graphs
 - **Queue**: Single shared queue for jobs + companies with concurrency control
 
 ## 5. Domain Model

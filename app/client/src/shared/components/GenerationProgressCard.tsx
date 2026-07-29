@@ -54,16 +54,6 @@ export const STEP_CONFIGS: Record<string, { steps: Array<{ key: string; label: s
       { key: 'step_done', label: 'Done' },
     ],
   },
-  // Insight generation: 4 steps
-  'insights': {
-    totalSteps: 4,
-    steps: [
-      { key: 'step_prepare', label: 'Preparing' },
-      { key: 'step_generate', label: 'Generating' },
-      { key: 'step_save', label: 'Saving' },
-      { key: 'step_done', label: 'Done' },
-    ],
-  },
   // Skill roadmap: 4 steps
   'roadmap': {
     totalSteps: 4,
@@ -76,7 +66,7 @@ export const STEP_CONFIGS: Record<string, { steps: Array<{ key: string; label: s
   },
 }
 
-const DEFAULT_STEPS = STEP_CONFIGS['insights'].steps
+const DEFAULT_STEPS = STEP_CONFIGS['roadmap'].steps
 
 function formatElapsed(seconds) {
   if (!seconds && seconds !== 0) return ''

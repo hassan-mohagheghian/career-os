@@ -38,20 +38,14 @@ app/
 │   │       ├── skills_router.py
 │   │       └── skill_roadmaps_router.py
 │   │
-│   ├── career/                    # Career Bounded Context
+│   ├── rules/                     # Rules (Scoring) Bounded Context
 │   │   ├── domain/
 │   │   ├── application/
 │   │   ├── infrastructure/
 │   │   └── presentation/api/
-│   │       ├── insights_router.py
-│   │       ├── rules_router.py
-│   │       └── dashboard_router.py
+│   │       └── rules_router.py
 │   │
-│   ├── resume/                    # Resume Bounded Context
-│   │   ├── domain/
-│   │   ├── infrastructure/
-│   │   └── presentation/api/
-│   │       └── resumes_router.py
+│   │                                 # Resume lives in jobs/presentation/api/resumes_router.py
 │   │
 │   ├── processing/                # Pending Queue Bounded Context
 │   │   ├── domain/
@@ -306,7 +300,9 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 | Event | `category.py` | `processing.py`, `status.py` |
 | Test | `test_<module>.py` | `test_job_service.py` |
 
-## Migration Mapping
+## Migration Mapping (Completed)
+
+> The migration from Flask to FastAPI is complete. All old Flask blueprints have been removed. This mapping documents the transition.
 
 ### Flask Blueprint → FastAPI Router
 
@@ -315,11 +311,10 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 | `jobs` | `jobs_router` | `jobs/presentation/api/jobs_router.py` |
 | `pending` | `pending_router` | `processing/presentation/api/pending_router.py` |
 | `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
-| `insights` | `insights_router` | `career/presentation/api/insights_router.py` |
-| `resumes` | `resumes_router` | `resume/presentation/api/resumes_router.py` |
+| `resumes` | `resumes_router` | `jobs/presentation/api/resumes_router.py` |
 | `skills` | `skills_router` | `skills/presentation/api/skills_router.py` |
 | `skill_roadmaps` | `skill_roadmaps_router` | `skills/presentation/api/skill_roadmaps_router.py` |
-| `rules` | `rules_router` | `career/presentation/api/rules_router.py` |
-| `misc` | `dashboard_router` | `career/presentation/api/dashboard_router.py` |
+| `rules` | `rules_router` | `rules/presentation/api/rules_router.py` |
+| `misc` | `dashboard_router` | `shared/presentation/api/dashboard_router.py` |
 | `static` | SPA catch-all | `entrypoints/api.py` |
 | `api_docs` | Docs endpoints | FastAPI built-in `/docs` |

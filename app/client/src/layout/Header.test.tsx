@@ -21,7 +21,6 @@ describe('Header', () => {
     expect(screen.getByText('Jobs')).toBeInTheDocument()
     expect(screen.getByText('Companies')).toBeInTheDocument()
     expect(screen.getByText('Resume')).toBeInTheDocument()
-    expect(screen.getByText('Insights')).toBeInTheDocument()
     expect(screen.getByText('Rules')).toBeInTheDocument()
   })
 

@@ -86,50 +86,35 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 
 ---
 
-### 1.4 Career Context
-**Responsibility:** Career intelligence insights, scoring rules, and dashboard analytics.
+### 1.4 Rules Context
+**Responsibility:** Scoring rules and configuration.
 
 **Entities:**
-- `CareerInsight` — `career_insights` table, PK: `id`
-- `CareerInsightRun` — `career_insight_runs` table, PK: `id`
-- `Preference` (scoring rule) — `preferences` table, PK: `id`
-- `DashboardInsight` — `dashboard_insights` table, PK: `id`
-- `AnalysisRun` — `analysis_runs` table, PK: `id`
+- `Rule` (scoring rule) — `rules` table, PK: `id`
 
 **Value Objects:**
-- `InsightType` (overview, opportunities, companies, skills, market, networking, skills_intel)
 - `ScoringRule` (category, rule_type, scope, key, value, priority, score_weight)
-- `InsightSection` (section name, data_json, score, summary)
 
 **Domain Services:**
-- Insight generation orchestration
 - Rule-based scoring evaluation
 
-**Repository Interfaces:** `IInsightRepository`, `ICareerInsightRepository`, `ICareerInsightRunRepository`, `IPreferenceRepository`
-**Infrastructure:** `CareerInsightModel`, `CareerInsightRunModel`, `PreferenceModel`, `DashboardInsightModel`, etc.
-**API Endpoints:** `api/v1/insights.py`, `api/v1/rules.py`, `api/v1/dashboard.py`
-**Services:** `services/insights.py` — generate_all, generate_section, generate_skills_intel
+**Repository Interfaces:** `IRuleRepository`
+**Infrastructure:** `RuleModel`, `SQLAlchemyRuleRepository`
+**API Endpoints:** `/rules`
 
 ---
 
-### 1.5 Resume Context
+### 1.5 Resume (part of Jobs Context)
 **Responsibility:** Resume and cover letter storage, retrieval, and generation lifecycle.
 
 **Entities:**
 - `Resume` — `resumes` table, PK: `id` (string)
 
-**Value Objects:**
-- `ResumeContent` (content, raw_text, title, company, role)
-- `ResumeType` (original, resume, cover)
-
-**Domain Services:**
-- Resume text extraction
-- Generation orchestration
-
-**Repository Interfaces:** `IResumeRepository`
-**Infrastructure:** `ResumeModel`, `SQLAlchemyResumeRepository`
-**API Endpoints:** `api/v1/resumes.py` — CRUD, generation
-**Workers:** `services/generation_worker.py` — `process_generation()`
+**Entity Location:** `jobs/domain/entities/resume.py`
+**Repository Interface:** `IResumeRepository` at `jobs/domain/repositories/resume_repository.py`
+**Infrastructure:** `ResumeModel`, `SQLAlchemyResumeRepository` at `jobs/infrastructure/`
+**API Endpoints:** `/resumes` — CRUD, generation
+**Workers:** `process_generation()` at `jobs/infrastructure/workers/generation_worker.py`
 
 ---
 
@@ -153,16 +138,16 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 
 ---
 
-### 1.7 Users/Preferences Context
+### 1.7 Users/Rules Context
 **Responsibility:** User preferences and scoring configuration.
 
 **Entities:**
-- `Preference` (shared with Career Context — scoring rules are the primary entity here)
+- `Rule` (scoring rules are the primary entity here)
 
-**Note:** This context is thin. The `Preference` entity serves both user preferences and scoring rules. For now, it stays within Career Context but is architecturally prepared for user authentication expansion.
+**Note:** This context is thin. The `Rule` entity serves both user preferences and scoring rules. For now, it stays within Rules Context but is architecturally prepared for user authentication expansion.
 
-**Repository Interfaces:** `IPreferenceRepository`
-**Infrastructure:** `PreferenceModel`, `SQLAlchemyPreferenceRepository`
+**Repository Interfaces:** `IRuleRepository`
+**Infrastructure:** `RuleModel`, `SQLAlchemyRuleRepository`
 **API Endpoints:** `api/v1/rules.py`
 
 ---
@@ -299,13 +284,13 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 | Context | Extraction Priority | DB Ownership | Complexity |
 |---------|-------------------|--------------|------------|
 | AI | High | None (stateless) | Low — just isolate LLM calls |
-| Career | Medium | `career_insights`, `career_insight_runs` | Medium — depends on reading other contexts |
+| Career | Medium | — | Medium — depends on reading other contexts |
 | Resume | Medium | `resumes` | Low — small, focused |
 | Skills | Medium | `skills`, `skill_*`, `tech_learning` | Medium — self-contained |
 | Companies | Low | `companies`, `company_*` | Medium — complex intelligence pipeline |
 | Jobs | Low | `jobs`, `summaries` | High — core aggregate, many dependencies |
 | Pending | Low | `pending_*` | High — orchestrates everything |
-| Preferences | None | `preferences` | Shared — should stay in shared kernel |
+| Rules | None | `rules` | Shared — should stay in shared kernel |
 
 ### Database Ownership
 - Each context could own its tables in a separate PostgreSQL schema

@@ -4,7 +4,7 @@
 
 ### Added
 - **Generation Domain Models** — `GenerationSource`, `GenerationStatus`, `GenerationRun`, `GenerationHistoryItem` (DDD)
-- **Unified Generation History Repository** — reads from ALL 5 source tables (pending_jobs, pending_companies, pending_generations, skill_roadmap_jobs, career_insight_runs)
+- **Unified Generation History Repository** — reads from ALL 4 source tables (pending_jobs, pending_companies, pending_generations, skill_roadmap_jobs)
 - **JobWorker(WorkerBase)** — Template Method pattern for job processing pipeline
 - **CompanyWorker(WorkerBase)** — Template Method pattern for company processing pipeline
 - **GenerationWorker(WorkerBase)** — Template Method pattern for resume/cover letter generation

@@ -266,20 +266,20 @@ class TestSASkillRepositoryExtended:
 
 # ── SA preference extended ────────────────────────────────────────
 
-class TestSAPreferenceExtended:
+class TestSARuleExtended:
     def test_get_enabled_by_scopes_empty(self, sa_session):
-        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
-        repo = SQLAlchemyPreferenceRepository(sa_session)
+        from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
+        repo = SQLAlchemyRuleRepository(sa_session)
         assert repo.get_enabled_by_scopes(["JOB"]) == []
 
     def test_bulk_update_multiple(self, sa_session):
-        from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
-        from shared.infrastructure.database.models.misc_models import PreferenceModel
-        p1 = PreferenceModel(category="fit", key="a", value="1")
-        p2 = PreferenceModel(category="fit", key="b", value="2")
+        from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
+        from shared.infrastructure.database.models.misc_models import RuleModel
+        p1 = RuleModel(category="fit", key="a", value="1")
+        p2 = RuleModel(category="fit", key="b", value="2")
         sa_session.add_all([p1, p2])
         sa_session.commit()
-        repo = SQLAlchemyPreferenceRepository(sa_session)
+        repo = SQLAlchemyRuleRepository(sa_session)
         count = repo.bulk_update([
             {"id": p1.id, "value": "10"},
             {"id": p2.id, "value": "20"},
@@ -309,17 +309,6 @@ class TestSACompanyLinkExtended:
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
         repo = SQLAlchemyCompanyLinkRepository(sa_session)
         assert repo.get_by_id(999) is None
-
-
-# ── SA insight extended ───────────────────────────────────────────
-
-class TestSAInsightExtended:
-    def test_upsert_section_with_score(self, sa_session):
-        from career.infrastructure.repositories.sa_insight_repository import SQLAlchemyInsightRepository
-        repo = SQLAlchemyInsightRepository(sa_session)
-        repo.upsert_section("skills", {"skills": []}, "completed")
-        result = repo.get_section("skills")
-        assert result is not None
 
 
 # ── SA skill roadmap extended ─────────────────────────────────────
@@ -385,44 +374,3 @@ class TestSASkillAliasExtended:
         assert repo.delete_by_skill_id(999) == 0
 
 
-# ── SA tech learning extended ─────────────────────────────────────
-
-class TestSATechLearningExtended:
-    def test_upsert_with_existing_id(self, sa_session):
-        from skills.infrastructure.repositories.sa_tech_learning_repository import SQLAlchemyTechLearningRepository
-        from shared.infrastructure.database.models.misc_models import TechLearningModel
-        tl = TechLearningModel(name="Python", priority=1)
-        sa_session.add(tl)
-        sa_session.commit()
-        repo = SQLAlchemyTechLearningRepository(sa_session)
-        result = repo.upsert({"id": tl.id, "priority": 10})
-        assert result["priority"] == 10
-
-
-# ── SA career insight run extended ────────────────────────────────
-
-class TestSACareerInsightRunExtended:
-    def test_get_runs_empty(self, sa_session):
-        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-        repo = SQLAlchemyCareerInsightRunRepository(sa_session)
-        assert repo.get_runs() == []
-
-    def test_get_total_count_empty(self, sa_session):
-        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-        repo = SQLAlchemyCareerInsightRunRepository(sa_session)
-        assert repo.get_total_count() == 0
-
-    def test_get_latest_processing_with_type(self, sa_session):
-        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-        from career.infrastructure.models.insight_model import CareerInsightRunModel
-        sa_session.add(CareerInsightRunModel(insight_type="skills", status="processing"))
-        sa_session.add(CareerInsightRunModel(insight_type="market", status="processing"))
-        sa_session.commit()
-        repo = SQLAlchemyCareerInsightRunRepository(sa_session)
-        result = repo.get_latest_processing("skills")
-        assert result["insight_type"] == "skills"
-
-    def test_cleanup_stale_empty(self, sa_session):
-        from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
-        repo = SQLAlchemyCareerInsightRunRepository(sa_session)
-        assert repo.cleanup_stale_runs("2025-01-01") == 0

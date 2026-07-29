@@ -10,7 +10,7 @@ from typing import Any
 from jobs.infrastructure.models.job_model import JobModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
-from career.infrastructure.models.insight_model import CareerInsightModel, CareerInsightRunModel
+
 from shared.infrastructure.database.models.misc_models import ResumeModel
 
 
@@ -180,37 +180,6 @@ def company_intelligence_model_to_dict(model: CompanyIntelligenceModel) -> dict[
         "scores": model.scores,
         "raw_source_data": model.raw_source_data,
         "generated_at": model.generated_at,
-    }
-
-
-# ── Career Insight Mappers ───────────────────────────────────────
-
-def career_insight_model_to_dict(model: CareerInsightModel) -> dict[str, Any]:
-    """Convert a CareerInsightModel to a domain dictionary."""
-    import json
-    return {
-        "id": model.id,
-        "insight_type": model.insight_type,
-        "version": model.version,
-        "score": model.score,
-        "summary": model.summary,
-        "data_json": json.loads(model.data_json) if model.data_json else {},
-        "created_at": model.created_at,
-    }
-
-
-def career_insight_run_model_to_dict(model: CareerInsightRunModel) -> dict[str, Any]:
-    """Convert a CareerInsightRunModel to a domain dictionary."""
-    return {
-        "id": model.id,
-        "insight_type": model.insight_type,
-        "version": model.version,
-        "status": model.status,
-        "started_at": model.started_at,
-        "completed_at": model.completed_at,
-        "error_message": model.error_message,
-        "metadata": model.metadata_json,
-        "session_id": model.session_id,
     }
 
 

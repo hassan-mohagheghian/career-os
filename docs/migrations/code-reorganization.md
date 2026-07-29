@@ -93,3 +93,25 @@ This ensures existing code continues to work while imports are gradually updated
 2. **Gradual**: Update internal imports in moved files
 3. **Legacy**: Keep re-export shims for external consumers
 4. **Future**: Remove shims once all imports are updated
+
+## Phase 8: Context Reorganization
+
+**Renamed**:
+- `career/` → `rules/` — The bounded context was about scoring rules, not career
+- `rules_router` path: `career/presentation/api/rules_router.py` → `rules/presentation/api/rules_router.py`
+
+**Moved into jobs context**:
+- `resume/domain/entities/resume.py` → `jobs/domain/entities/resume.py`
+- `resume/domain/repositories/resume_repository.py` → `jobs/domain/repositories/resume_repository.py`
+- `resume/infrastructure/repositories/sa_resume_repository.py` → `jobs/infrastructure/repositories/sa_resume_repository.py`
+- `resume/presentation/api/resumes_router.py` → `jobs/presentation/api/resumes_router.py`
+- `resume/presentation/api/schemas/resumes.py` → `jobs/presentation/api/schemas/resumes.py`
+
+**Moved to shared**:
+- `career/presentation/api/dashboard_router.py` → `shared/presentation/api/dashboard_router.py`
+
+**Dropped tables**:
+- `career_insights`, `career_insight_runs`, `analysis_runs` (migration 018)
+- `skill_topics`, `skill_topic_progress`, `skill_topic_jobs` (migration 019)
+- `tech_learning` (migration 020)
+- `dashboard_insights` (migration 021)

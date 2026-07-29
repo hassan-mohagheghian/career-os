@@ -267,87 +267,9 @@ def test_websocket_broadcast(client: TestClient, connection_manager):
         assert data["type"] == "test:event"
 ```
 
-### 4. Migration Tests
+### 4. Migration Tests (Completed)
 
-#### Response Comparison Tests
-
-```python
-# tests/migration/test_response_comparison.py
-import pytest
-from httpx import AsyncClient
-
-@pytest.mark.asyncio
-async def test_jobs_list_matches(
-    flask_client: AsyncClient,
-    fastapi_client: AsyncClient,
-):
-    """Verify FastAPI returns same response as Flask."""
-    flask_response = await flask_client.get("/api/jobs")
-    fastapi_response = await fastapi_client.get("/api/jobs")
-    
-    assert flask_response.status_code == fastapi_response.status_code
-    
-    flask_data = flask_response.json()
-    fastapi_data = fastapi_response.json()
-    
-    # Compare structure
-    assert set(flask_data.keys()) == set(fastapi_data.keys())
-    
-    # Compare items
-    assert len(flask_data["items"]) == len(fastapi_data["items"])
-
-@pytest.mark.asyncio
-async def test_job_detail_matches(
-    flask_client: AsyncClient,
-    fastapi_client: AsyncClient,
-):
-    """Verify job detail response matches."""
-    # Create job in Flask
-    flask_create = await flask_client.post(
-        "/api/jobs",
-        json={"url": "https://example.com/job"},
-    )
-    job_num = flask_create.json()["num"]
-    
-    # Get from both
-    flask_response = await flask_client.get(f"/api/jobs/{job_num}")
-    fastapi_response = await fastapi_client.get(f"/api/jobs/{job_num}")
-    
-    assert flask_response.json() == fastapi_response.json()
-```
-
-#### Feature Parity Tests
-
-```python
-# tests/migration/test_feature_parity.py
-import pytest
-from httpx import AsyncClient
-
-FEATURES = [
-    ("GET", "/api/jobs", "/api/jobs"),
-    ("GET", "/api/companies", "/api/companies"),
-    ("GET", "/api/skills", "/api/skills"),
-    ("GET", "/api/insights", "/api/insights"),
-    ("GET", "/api/resumes", "/api/resumes"),
-    ("GET", "/api/skill-roadmaps", "/api/skill-roadmaps"),
-    ("GET", "/api/rules", "/api/rules"),
-]
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("method,flask_path,fastapi_path", FEATURES)
-async def test_feature_parity(
-    method,
-    flask_path,
-    fastapi_path,
-    flask_client: AsyncClient,
-    fastapi_client: AsyncClient,
-):
-    """Verify all features return same status codes."""
-    flask_response = await getattr(flask_client, method.lower())(flask_path)
-    fastapi_response = await getattr(fastapi_client, method.lower())(fastapi_path)
-    
-    assert flask_response.status_code == fastapi_response.status_code
-```
+The Flask-to-FastAPI migration is complete. Response comparison tests that ran Flask and FastAPI side-by-side have been removed. Only the FastAPI test suite remains.
 
 ## Test Fixtures
 

@@ -269,6 +269,19 @@ export function useJobs() {
     }
   }, [socket, fetchJobs])
 
+  useEffect(() => {
+    const sentinel = jobsSentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) loadMoreJobs()
+      },
+      { root: jobsScrollRef.current, rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMoreJobs])
+
   const filteredJobs = useMemo(() => {
     if (!jobsWithLocations) return []
     let r = [...jobsWithLocations]

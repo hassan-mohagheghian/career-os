@@ -125,29 +125,9 @@ async def process_company_task(company_id: str) -> None:
         raise
 
 
-async def generate_insights_task(section: str | None = None) -> None:
-    """Background task for generating career insights."""
-    from career.application.services.insights import generate_all, generate_section
-    from shared.infrastructure.process.logging_config import get_logger
-
-    log = get_logger("background.insights")
-    log.info("insights.background_start", section=section)
-
-    try:
-        loop = asyncio.get_event_loop()
-        if section:
-            await loop.run_in_executor(None, generate_section, section)
-        else:
-            await loop.run_in_executor(None, generate_all)
-        log.info("insights.background_complete", section=section)
-    except Exception as e:
-        log.error("insights.background_failed", section=section, error=str(e))
-        raise
-
-
 async def generate_resume_task(job_num: int, resume_id: str = "original") -> None:
     """Background task for generating a resume."""
-    from resume.infrastructure.workers.generation_worker import generate_resume
+    from jobs.infrastructure.workers.generation_worker import process_generation
     from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.resume")
@@ -155,7 +135,7 @@ async def generate_resume_task(job_num: int, resume_id: str = "original") -> Non
 
     try:
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, generate_resume, job_num, resume_id)
+        await loop.run_in_executor(None, process_generation, job_num)
         log.info("resume.background_complete", job_num=job_num)
     except Exception as e:
         log.error("resume.background_failed", job_num=job_num, error=str(e))

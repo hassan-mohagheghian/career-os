@@ -32,12 +32,12 @@ export function useWorkflow() {
           if (stream === 'input') setWorkflowLogs(prev => [...prev, { step: 'cmd', msg: data, ts: evt.ts }])
           else if (stream === 'output') data.split('\n').forEach((line: string) => { if (line.trim()) setWorkflowLogs(prev => [...prev, { step: 'out', msg: line, ts: evt.ts }]) })
           else if (stream === 'error') setWorkflowLogs(prev => [...prev, { step: 'err', msg: data, ts: evt.ts }])
-          else if (stream === 'text') setWorkflowLogs(prev => [...prev, { step: 'mimo', msg: data, ts: evt.ts }])
-        } else if (evt.type === 'mimo_event' && evt.event?.type === 'step_finish') {
+          else if (stream === 'text') setWorkflowLogs(prev => [...prev, { step: 'ai', msg: data, ts: evt.ts }])
+        } else if (evt.type === 'provider_event' && evt.event?.type === 'step_finish') {
           const reason = evt.event.part?.reason || ''
           const tokens = evt.event.part?.tokens?.total || 0
           setWorkflowLogs(prev => [...prev, { step: 'step', msg: `Step finished: ${reason} (${tokens} tokens)`, ts: evt.ts }])
-        } else if (evt.type === 'mimo_raw') {
+        } else if (evt.type === 'provider_raw') {
           setWorkflowLogs(prev => [...prev, { step: 'raw', msg: evt.line, ts: evt.ts }])
         } else if (evt.type === 'job_info') {
           // handled by parent
