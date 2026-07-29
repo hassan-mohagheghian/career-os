@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { WORKFLOW_WS_PORT } from '@/shared/config/constants'
 
 interface WorkflowLog {
   step: string
@@ -19,7 +20,7 @@ export function useWorkflow() {
 
   const connectWorkflowWs = useCallback((pid: number) => {
     if (workflowWs.current) workflowWs.current.close()
-    const ws = new WebSocket(`ws://${window.location.hostname}:8765`)
+    const ws = new WebSocket(`ws://${window.location.hostname}:${WORKFLOW_WS_PORT}`)
     workflowWs.current = ws
     ws.onopen = () => { ws.send(JSON.stringify({ action: 'watch', pid })) }
     ws.onmessage = (e: MessageEvent) => {

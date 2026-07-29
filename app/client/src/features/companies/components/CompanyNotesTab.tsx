@@ -5,7 +5,7 @@ import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Card } from '@/shared/ui/card'
 
-export default function CompanyNotesTab({ company, onUpdate }) {
+export default function CompanyNotesTab({ company, onUpdate }: { company: any; onUpdate?: any }) {
   const [notes, setNotes] = useState(() => {
     if (Array.isArray(company.notes)) return company.notes
     if (typeof company.notes === 'string') { try { return JSON.parse(company.notes) } catch { return [] } }

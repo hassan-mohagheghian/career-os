@@ -310,17 +310,63 @@ def frontend(
     _ok("Frontend stopped.")
 
 
-@app.command()
-def test():
-    """Run all project tests"""
+test_app = typer.Typer(help="Run tests")
+app.add_typer(test_app, name="test", no_args_is_help=True)
+
+
+def _run_backend_tests() -> bool:
     config = _python_path()
-    _log("Running tests...")
+    _log("Running backend tests...")
     result = subprocess.run(
-        [config, "-m", "pytest", "app/server/tests", "-v", "--tb=short"],
-        cwd=str(REPO_ROOT),
+        [config, "-m", "pytest", "server/tests", "-v", "--tb=short"],
+        cwd=str(REPO_ROOT / "app"),
     )
     if result.returncode == 0:
+        return True
+    _err("Backend tests failed.")
+    return False
+
+
+def _run_frontend_tests() -> bool:
+    _log("Running frontend tests...")
+    result = subprocess.run(
+        ["npm", "run", "test"],
+        cwd=str(CLIENT_DIR),
+    )
+    if result.returncode == 0:
+        return True
+    _err("Frontend tests failed.")
+    return False
+
+
+@test_app.command()
+def all():
+    """Run backend + frontend tests"""
+    ok = True
+    if not _run_backend_tests():
+        ok = False
+    if not _run_frontend_tests():
+        ok = False
+    if ok:
         _ok("All tests passed.")
+    else:
+        raise typer.Exit(code=1)
+
+
+@test_app.command()
+def backend():
+    """Run backend tests only"""
+    if _run_backend_tests():
+        _ok("Backend tests passed.")
+    else:
+        raise typer.Exit(code=1)
+
+
+@test_app.command()
+def frontend():
+    """Run frontend tests only"""
+    if _run_frontend_tests():
+        _ok("Frontend tests passed.")
     else:
         raise typer.Exit(code=1)
 
