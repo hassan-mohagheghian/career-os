@@ -11,19 +11,19 @@ from ai.infrastructure.graphs.job.graph import build_job_processing_graph
 
 # Maps workflow nodes to their corresponding job statuses
 NODE_TO_STATUS = {
-    'load_context': JobStatus.STARTING,
-    'validate_input': JobStatus.STARTING,
-    'fetch_url': JobStatus.FETCHING,
-    'fallback_to_notes': JobStatus.FETCHING,
-    'extract_raw_content': JobStatus.ANALYZING,
-    'clean_content': JobStatus.ANALYZING,
-    'extract_structured_data': JobStatus.ANALYZING,
-    'analyze_job': JobStatus.ANALYZING,
-    'extract_skills': JobStatus.ANALYZING,
-    'score_job': JobStatus.GENERATING,
-    'generate_summary': JobStatus.GENERATING,
-    'persist_results': JobStatus.FINALIZING,
-    'completion_event': JobStatus.FINALIZING,
+    'load_context': JobStatus.PROCESSING,
+    'validate_input': JobStatus.PROCESSING,
+    'fetch_url': JobStatus.PROCESSING,
+    'fallback_to_notes': JobStatus.PROCESSING,
+    'extract_raw_content': JobStatus.PROCESSING,
+    'clean_content': JobStatus.PROCESSING,
+    'extract_structured_data': JobStatus.PROCESSING,
+    'analyze_job': JobStatus.PROCESSING,
+    'extract_skills': JobStatus.PROCESSING,
+    'score_job': JobStatus.PROCESSING,
+    'generate_summary': JobStatus.PROCESSING,
+    'persist_results': JobStatus.PROCESSING,
+    'completion_event': JobStatus.PROCESSING,
 }
 
 # Maps nodes to WorkflowStep for log events
@@ -64,14 +64,14 @@ class JobWorker(WorkerBase):
 
     @property
     def table(self) -> str:
-        return 'job'
+        return 'pending_jobs'
 
     @property
     def pipeline_steps(self) -> list:
         return []
 
     def _reset_steps(self, pid: int) -> None:
-        self._pending_repo.update_status(pid, 'created', workflow_log='[]')
+        self._pending_repo.update_status(pid, 'processing', workflow_log='[]')
 
     def _get_graph(self):
         if self._graph is None:
@@ -91,6 +91,12 @@ class JobWorker(WorkerBase):
         if step:
             self._log(pid, step.value, f'Starting: {step.label}')
 
+        node_names = list(NODE_TO_STATUS.keys())
+        node_index = node_names.index(node_name) if node_name in node_names else 0
+        progress_pct = round((node_index + 1) / len(node_names) * 100, 1)
+        step_label = step.label if step else node_name
+        self._progress(pid, 'processing', node_name, progress_pct, step_label)
+
     def _execute_pipeline(self, pid: int, item: dict) -> Dict[str, Any]:
         url = item.get('url', '')
         notes = json.loads(item.get('notes') or '[]')
@@ -107,8 +113,9 @@ class JobWorker(WorkerBase):
             "source": source,
         }
 
-        # Set initial status to starting
-        self._pending_repo.update_status(pid, JobStatus.STARTING, current_node='load_context')
+        # Set initial status to processing
+        self._pending_repo.update_status(pid, JobStatus.PROCESSING, current_node='load_context')
+        self._progress(pid, 'processing', 'load_context', 0.0, 'Starting')
 
         initial = create_initial_state(
             input=url or "",

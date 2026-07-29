@@ -70,10 +70,10 @@ class WorkerBase(abc.ABC):
     def _terminal_status(self, status: str) -> str:
         """Map legacy ItemStatus values to new JobStatus values."""
         legacy_map = {
-            'done': 'completed',
-            'paused': 'waiting',
+            'done': 'processed',
+            'paused': 'pending',
             'pending': 'created',
-            'processing': 'starting',
+            'processing': 'processing',
         }
         return legacy_map.get(status, status)
 
@@ -126,7 +126,7 @@ class WorkerBase(abc.ABC):
             self._temp_mgr.cleanup(str(pid))
             self._proc_mgr.remove(str(pid))
 
-    ACTIVE_STATUSES = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing', 'processing'}
+    ACTIVE_STATUSES = {'processing'}
 
     def _reset_steps(self, pid: int) -> None:
         """Reset all pipeline steps to 0."""
@@ -162,10 +162,13 @@ class WorkerBase(abc.ABC):
         """Emit a workflow progress event."""
         from datetime import datetime
         event = WorkflowProgress(
-            job_id=pid,
+            table=self.table,
+            pid=pid,
             current_node=current_node,
             progress_pct=progress_pct,
             message=message,
+            status=status,
+            completed_nodes=completed_nodes or [],
             ts=datetime.now().isoformat(),
         )
         self._pending_repo.update_step(pid, 'current_node', 0, current_node=current_node)

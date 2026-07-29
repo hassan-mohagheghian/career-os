@@ -19,39 +19,30 @@ from typing import Optional, List, Dict, Any
 
 class JobStatus(str, Enum):
     """Explicit deterministic job statuses — single source of truth.
-    
+
     Flow:
-        CREATED → QUEUED → WAITING → STARTING → FETCHING → ANALYZING
-        → GENERATING → FINALIZING → COMPLETED
-                                  → FAILED
-                                  → CANCELLED
+        CREATED → PENDING → QUEUED → PROCESSING → PROCESSED
+                                 └→ FAILED ←┘         │
+          CANCELLED ←──────────────────────────────────┘
     """
     CREATED = 'created'
+    PENDING = 'pending'
     QUEUED = 'queued'
-    WAITING = 'waiting'
-    STARTING = 'starting'
-    FETCHING = 'fetching'
-    ANALYZING = 'analyzing'
-    GENERATING = 'generating'
-    FINALIZING = 'finalizing'
-    COMPLETED = 'completed'
+    PROCESSING = 'processing'
     FAILED = 'failed'
+    PROCESSED = 'processed'
     CANCELLED = 'cancelled'
 
     @classmethod
     def valid_transitions(cls) -> Dict[JobStatus, set[JobStatus]]:
         return {
-            cls.CREATED:    {cls.QUEUED, cls.FAILED, cls.CANCELLED},
-            cls.QUEUED:     {cls.WAITING, cls.CREATED, cls.FAILED, cls.CANCELLED},
-            cls.WAITING:    {cls.STARTING, cls.CREATED, cls.FAILED, cls.CANCELLED},
-            cls.STARTING:   {cls.FETCHING, cls.FAILED, cls.CANCELLED},
-            cls.FETCHING:   {cls.ANALYZING, cls.FAILED, cls.CANCELLED},
-            cls.ANALYZING:  {cls.GENERATING, cls.FAILED, cls.CANCELLED},
-            cls.GENERATING: {cls.FINALIZING, cls.FAILED, cls.CANCELLED},
-            cls.FINALIZING: {cls.COMPLETED, cls.FAILED, cls.CANCELLED},
-            cls.COMPLETED:  {cls.QUEUED, cls.CANCELLED},      # reprocess
-            cls.FAILED:     {cls.QUEUED, cls.CANCELLED},       # retry
-            cls.CANCELLED:  {cls.CREATED, cls.QUEUED},         # un-cancel
+            cls.CREATED:    {cls.PENDING, cls.FAILED, cls.CANCELLED},
+            cls.PENDING:    {cls.QUEUED, cls.FAILED, cls.CANCELLED},
+            cls.QUEUED:     {cls.PROCESSING, cls.PENDING, cls.FAILED, cls.CANCELLED},
+            cls.PROCESSING: {cls.PROCESSED, cls.FAILED, cls.CANCELLED},
+            cls.PROCESSED:  {cls.PENDING, cls.QUEUED, cls.CANCELLED},  # reprocess
+            cls.FAILED:     {cls.PENDING, cls.QUEUED, cls.CANCELLED},  # retry
+            cls.CANCELLED:  {cls.PENDING},                              # un-cancel
         }
 
     def can_transition_to(self, target: JobStatus) -> bool:
@@ -59,24 +50,20 @@ class JobStatus(str, Enum):
 
     @property
     def is_terminal(self) -> bool:
-        return self in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED)
+        return self in (JobStatus.PROCESSED, JobStatus.FAILED, JobStatus.CANCELLED)
 
     @property
     def is_active(self) -> bool:
-        return self in (JobStatus.STARTING, JobStatus.FETCHING, JobStatus.ANALYZING, JobStatus.GENERATING, JobStatus.FINALIZING)
+        return self is JobStatus.PROCESSING
 
     @property
     def label(self) -> str:
         return {
             'created': 'Created',
+            'pending': 'Pending',
             'queued': 'Queued',
-            'waiting': 'Waiting',
-            'starting': 'Starting',
-            'fetching': 'Fetching',
-            'analyzing': 'Analyzing',
-            'generating': 'Generating',
-            'finalizing': 'Finalizing',
-            'completed': 'Completed',
+            'processing': 'Processing',
+            'processed': 'Processed',
             'failed': 'Failed',
             'cancelled': 'Cancelled',
         }.get(self.value, self.value)
@@ -98,9 +85,9 @@ class ItemStatus(str, Enum):
         mapping = {
             'pending': JobStatus.CREATED,
             'queued': JobStatus.QUEUED,
-            'processing': JobStatus.FETCHING,
-            'paused': JobStatus.WAITING,
-            'done': JobStatus.COMPLETED,
+            'processing': JobStatus.PROCESSING,
+            'paused': JobStatus.PENDING,
+            'done': JobStatus.PROCESSED,
             'failed': JobStatus.FAILED,
         }
         return mapping.get(self.value, JobStatus.CREATED)
@@ -109,14 +96,10 @@ class ItemStatus(str, Enum):
     def from_job_status(cls, status: JobStatus) -> ItemStatus:
         mapping = {
             JobStatus.CREATED: 'pending',
+            JobStatus.PENDING: 'pending',
             JobStatus.QUEUED: 'queued',
-            JobStatus.WAITING: 'paused',
-            JobStatus.STARTING: 'processing',
-            JobStatus.FETCHING: 'processing',
-            JobStatus.ANALYZING: 'processing',
-            JobStatus.GENERATING: 'processing',
-            JobStatus.FINALIZING: 'processing',
-            JobStatus.COMPLETED: 'done',
+            JobStatus.PROCESSING: 'processing',
+            JobStatus.PROCESSED: 'done',
             JobStatus.FAILED: 'failed',
             JobStatus.CANCELLED: 'paused',
         }
@@ -357,10 +340,13 @@ class WorkflowNodeCompleted:
 @dataclass(frozen=True)
 class WorkflowProgress:
     """Emitted periodically to report workflow progress."""
-    job_id: int
+    table: str
+    pid: int
     current_node: str
     progress_pct: float
     message: str
+    status: str = 'processing'
+    completed_nodes: list = field(default_factory=list)
     ts: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
