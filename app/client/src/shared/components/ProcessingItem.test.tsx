@@ -33,8 +33,8 @@ describe('ProcessingItem', () => {
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
   })
 
-  it('renders done status', () => {
-    render(<ProcessingItem item={{ ...base, status: 'done' }} />)
+  it('renders processed status', () => {
+    render(<ProcessingItem item={{ ...base, status: 'processed' }} />)
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
   })
 
@@ -66,7 +66,7 @@ describe('ProcessingItem', () => {
   })
 
   it('renders version when present', () => {
-    render(<ProcessingItem item={{ ...base, status: 'done', version: 3 }} />)
+    render(<ProcessingItem item={{ ...base, status: 'processed', version: 3 }} />)
     expect(screen.getByText('v3')).toBeInTheDocument()
   })
 

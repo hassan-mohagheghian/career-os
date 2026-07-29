@@ -121,7 +121,7 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
     const handleComplete = (data: any) => {
       setItems(prev => prev.map(item => {
         if (item.id !== data.id) return item
-        return { ...item, status: data.status || 'completed', completed_at: data.ts || new Date().toISOString() }
+        return { ...item, status: data.status || 'processed', completed_at: data.ts || new Date().toISOString() }
       }))
       // Re-fetch to get final state
       setTimeout(() => { fetchHistory(); fetchActiveCount() }, 500)
@@ -144,7 +144,7 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
           if (data.step !== undefined) (updated as any).step = data.step
           return updated
         }))
-        if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        if (data.status === 'processed' || data.status === 'failed' || data.status === 'cancelled') {
           setTimeout(() => { fetchHistory(); fetchActiveCount() }, 500)
         }
       }

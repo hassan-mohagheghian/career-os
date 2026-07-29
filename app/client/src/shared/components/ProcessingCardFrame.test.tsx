@@ -15,7 +15,7 @@ describe('ProcessingCardFrame', () => {
   })
 
   it('applies border for done status', () => {
-    const { container } = render(<ProcessingCardFrame status="completed"><span /></ProcessingCardFrame>)
+    const { container } = render(<ProcessingCardFrame status="processed"><span /></ProcessingCardFrame>)
     expect(container.firstChild).toHaveClass('border-green-500/30')
   })
 

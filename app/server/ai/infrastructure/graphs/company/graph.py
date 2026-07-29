@@ -8,6 +8,7 @@ from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, CompanyExtractionOutput, CompanyAnalysisOutput
 
 from ai.infrastructure.tools.fetch import fetch_page
+from shared.infrastructure.utils import repair_llm_json
 
 
 def build_company_processing_graph() -> GraphBuilder:
@@ -103,7 +104,7 @@ def build_company_processing_graph() -> GraphBuilder:
                 prompt,
                 timeout=180,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
 
             if result:
                 extraction = CompanyExtractionOutput(
@@ -193,7 +194,7 @@ def build_company_processing_graph() -> GraphBuilder:
                 prompt,
                 timeout=300,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
 
             if result:
                 state["metadata"]["intelligence"] = result

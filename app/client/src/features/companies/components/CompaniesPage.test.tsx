@@ -20,54 +20,54 @@ describe('CompaniesPage', () => {
   })
 
   it('renders Add Company header', () => {
-    render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByText('Add Company')).toBeInTheDocument()
   })
 
   it('renders Companies header', () => {
-    render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByText('Companies')).toBeInTheDocument()
   })
 
   it('renders empty state when no companies', () => {
-    render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByText('No companies yet')).toBeInTheDocument()
   })
 
   it('renders company cards', () => {
-    render(<CompaniesPage companies={mockCompanies} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={mockCompanies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
   })
 
-  it('renders notes input', () => {
-    render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
-    expect(screen.getByText('Notes')).toBeInTheDocument()
+  it('renders add company form', () => {
+    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    expect(screen.getByText('Add Company')).toBeInTheDocument()
   })
 
   it('renders sort controls', () => {
-    render(<CompaniesPage companies={mockCompanies} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={mockCompanies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByText('Newest')).toBeInTheDocument()
   })
 
   it('renders search input', () => {
-    render(<CompaniesPage companies={mockCompanies} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={mockCompanies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByPlaceholderText('Search by name, industry, city...')).toBeInTheDocument()
   })
 
   it('filters companies by search', () => {
-    render(<CompaniesPage companies={mockCompanies} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={mockCompanies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     fireEvent.change(screen.getByPlaceholderText('Search by name, industry, city...'), { target: { value: 'Tech' } })
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
   })
 
   it('shows "No companies match" for non-matching search', () => {
-    render(<CompaniesPage companies={mockCompanies} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={mockCompanies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     fireEvent.change(screen.getByPlaceholderText('Search by name, industry, city...'), { target: { value: 'Nonexistent' } })
     expect(screen.getByText('No companies match your search')).toBeInTheDocument()
   })
 
   it('renders refresh button', () => {
-    render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
+    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
     expect(screen.getByTitle('Refresh')).toBeInTheDocument()
   })
 })

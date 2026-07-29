@@ -7,7 +7,7 @@ const baseItem = {
   id: 1,
   source: 'job-processing',
   title: 'Software Engineer at Acme',
-  status: 'completed',
+  status: 'processed',
   started_at: '2026-07-27T10:00:00Z',
   completed_at: '2026-07-27T10:05:00Z',
   error: null,
@@ -19,13 +19,13 @@ describe('GenerationHistoryItem', () => {
   it('renders title and status in full mode', () => {
     render(<GenerationHistoryItem item={baseItem} />)
     expect(screen.getByText('Software Engineer at Acme')).toBeInTheDocument()
-    expect(screen.getByText('completed')).toBeInTheDocument()
+    expect(screen.getByText('processed')).toBeInTheDocument()
   })
 
   it('renders in compact mode', () => {
     render(<GenerationHistoryItem item={baseItem} compact />)
     expect(screen.getByText('Software Engineer at Acme')).toBeInTheDocument()
-    expect(screen.getByText('completed')).toBeInTheDocument()
+    expect(screen.getByText('processed')).toBeInTheDocument()
   })
 
   it('renders source badge label', () => {

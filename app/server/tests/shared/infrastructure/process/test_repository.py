@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy.orm import Session
 from shared.infrastructure.process.repository import PendingJobRepository, JobRepository
-from shared.infrastructure.process.models import ItemStatus, WorkflowLogEntry
+from shared.infrastructure.process.models import ItemStatus, JobStatus, WorkflowLogEntry
 from jobs.infrastructure.models.job_model import JobModel
 from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
@@ -86,15 +86,15 @@ class TestPendingJobRepository:
         sa_session.add_all([
             JobModel(num=1, url='https://a.com', status='queued'),
             JobModel(num=2, url='https://b.com', status='processing'),
-            JobModel(num=3, url='https://c.com', status='done'),
+            JobModel(num=3, url='https://c.com', status='processed'),
         ])
         sa_session.commit()
 
         counts = pending_repo.count_by_status()
-        assert counts[ItemStatus.QUEUED] == 1
-        assert counts[ItemStatus.PROCESSING] == 1
-        assert counts[ItemStatus.DONE] == 1
-        assert counts[ItemStatus.PENDING] == 0
+        assert counts[JobStatus.QUEUED] == 1
+        assert counts[JobStatus.PROCESSING] == 1
+        assert counts[JobStatus.PROCESSED] == 1
+        assert counts[JobStatus.PENDING] == 0
 
 
 class TestJobRepository:

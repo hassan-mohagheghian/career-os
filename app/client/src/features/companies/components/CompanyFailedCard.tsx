@@ -5,10 +5,9 @@ interface Props {
   item: any
   onDelete?: () => void
   onProcess?: () => void
-  onReset?: () => void
 }
 
-export default function CompanyFailedCard({ item, onDelete, onProcess, onReset }: Props) {
+export default function CompanyFailedCard({ item, onDelete, onProcess }: Props) {
   return (
     <CompanyBaseCard
       item={item}
@@ -21,7 +20,6 @@ export default function CompanyFailedCard({ item, onDelete, onProcess, onReset }
       }
       onDelete={onDelete}
       onProcess={onProcess}
-      onReset={onReset}
     />
   )
 }

@@ -16,9 +16,6 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
 
 
-_pool = None
-
-
 def _redis_settings() -> RedisSettings:
     return RedisSettings(
         host=REDIS_HOST,
@@ -28,54 +25,44 @@ def _redis_settings() -> RedisSettings:
 
 
 async def get_arq_pool():
-    global _pool
-    if _pool is None:
-        _pool = await create_pool(_redis_settings())
-    return _pool
+    return await create_pool(_redis_settings())
 
 
 async def close_arq_pool():
-    global _pool
-    if _pool is not None:
-        _pool.close()
-        await _pool.wait_closed()
-        _pool = None
+    pass
 
 
 async def enqueue_process_job(job_id: int):
     pool = await get_arq_pool()
-    await pool.enqueue_job("process_job", job_id)
+    try:
+        await pool.enqueue_job("process_job", job_id)
+    finally:
+        await pool.aclose(close_connection_pool=True)
 
 
 async def enqueue_process_company(company_id: int):
     pool = await get_arq_pool()
-    await pool.enqueue_job("process_company", company_id)
+    try:
+        await pool.enqueue_job("process_company", company_id)
+    finally:
+        await pool.aclose(close_connection_pool=True)
 
 
 async def enqueue_process_generation(gen_id: int):
     pool = await get_arq_pool()
-    await pool.enqueue_job("process_generation", gen_id)
+    try:
+        await pool.enqueue_job("process_generation", gen_id)
+    finally:
+        await pool.aclose(close_connection_pool=True)
 
 
 def enqueue_job_sync(job_id: int):
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(enqueue_process_job(job_id))
-    except RuntimeError:
-        asyncio.run(enqueue_process_job(job_id))
+    asyncio.run(enqueue_process_job(job_id))
 
 
 def enqueue_company_sync(company_id: int):
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(enqueue_process_company(company_id))
-    except RuntimeError:
-        asyncio.run(enqueue_process_company(company_id))
+    asyncio.run(enqueue_process_company(company_id))
 
 
 def enqueue_generation_sync(gen_id: int):
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(enqueue_process_generation(gen_id))
-    except RuntimeError:
-        asyncio.run(enqueue_process_generation(gen_id))
+    asyncio.run(enqueue_process_generation(gen_id))

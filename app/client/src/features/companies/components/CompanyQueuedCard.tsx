@@ -4,10 +4,10 @@ interface Props {
   item: any
   onDelete?: () => void
   onProcess?: () => void
-  onReset?: () => void
+  onMoveToCreated?: () => void
 }
 
-export default function CompanyQueuedCard({ item, onDelete, onProcess, onReset }: Props) {
+export default function CompanyQueuedCard({ item, onDelete, onProcess, onMoveToCreated }: Props) {
   return (
     <CompanyBaseCard
       item={item}
@@ -15,7 +15,7 @@ export default function CompanyQueuedCard({ item, onDelete, onProcess, onReset }
       statusText={<span className="text-yellow-500">queued</span>}
       onDelete={onDelete}
       onProcess={onProcess}
-      onReset={onReset}
+      onMoveToCreated={onMoveToCreated}
     />
   )
 }

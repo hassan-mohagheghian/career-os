@@ -5,12 +5,11 @@ interface Props {
   item: any
   onDelete?: () => void
   onProcess?: () => void
-  onReset?: () => void
   onViewWorkflow?: (item: any) => void
   onDragStart?: (e: React.DragEvent) => void
 }
 
-export default function JobFailedCard({ item, onDelete, onProcess, onReset, onViewWorkflow, onDragStart }: Props) {
+export default function JobFailedCard({ item, onDelete, onProcess, onViewWorkflow, onDragStart }: Props) {
   return (
     <JobBaseCard
       item={item}
@@ -23,7 +22,6 @@ export default function JobFailedCard({ item, onDelete, onProcess, onReset, onVi
       }
       onDelete={onDelete}
       onProcess={onProcess}
-      onReset={onReset}
       onViewWorkflow={onViewWorkflow}
       onDragStart={onDragStart}
     />

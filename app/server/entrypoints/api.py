@@ -36,7 +36,14 @@ log = get_logger('fastapi')
 
 # ── SocketIO Server ───────────────────────────────────────────────
 
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+import engineio.payload
+engineio.payload.Payload.max_decode_packets = 1000
+
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins='*',
+    max_http_buffer_size=10**7,
+)
 
 
 @sio.event
@@ -141,13 +148,13 @@ async def reset_job(sid, data):
             if entity_type == 'job':
                 from jobs.infrastructure import SQLAlchemyJobRepository
                 repo = SQLAlchemyJobRepository(session)
-                repo.update_fields(pid, status='pending', error=None, current_node=None,
+                repo.update_fields(pid, status='created', error=None, current_node=None,
                     progress_pct=0, retry_count=0, failure_reason=None,
                     failure_step=None, failure_timestamp=None, updated_at=now)
             else:
                 from companies.infrastructure import SQLAlchemyCompanyRepository
                 repo = SQLAlchemyCompanyRepository(session)
-                repo.update_fields(pid, status='pending', error=None, current_node=None,
+                repo.update_fields(pid, status='created', error=None, current_node=None,
                     progress_pct=0, retry_count=0, failure_reason=None,
                     failure_step=None, failure_timestamp=None, updated_at=now)
             log.info("socketio.reset", pid=pid, success=True)
@@ -161,8 +168,6 @@ async def reset_job(sid, data):
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     from shared.infrastructure.config.db import init_db
-    from shared.infrastructure.queue.arq_client import get_arq_pool, close_arq_pool
-
     # Startup
     log.info("fastapi.startup")
 
@@ -174,13 +179,6 @@ async def lifespan(app: FastAPI):
     init_db()
     log.info("fastapi.database_ready")
 
-    # Initialize ARQ connection pool
-    try:
-        await get_arq_pool()
-        log.info("fastapi.arq_pool_ready")
-    except Exception as e:
-        log.warning("fastapi.arq_pool_init_failed", error=str(e))
-
     # Recover interrupted tasks
     _recover_tasks()
 
@@ -188,10 +186,6 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     log.info("fastapi.shutdown")
-    try:
-        await close_arq_pool()
-    except Exception as e:
-        log.warning("fastapi.arq_pool_close_error", error=str(e))
     log.info("fastapi.shutdown_complete")
 
 
@@ -238,7 +232,7 @@ def _recover_tasks():
                 log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))
                 for job in stuck_jobs:
                     job_repo.update_fields(
-                        job['num'], status='failed', error='Interrupted by server restart',
+                        job['num'], status='pending', error='Interrupted by server restart',
                         failure_reason='Server restart', failure_timestamp=now,
                         updated_at=now,
                     )
@@ -248,7 +242,7 @@ def _recover_tasks():
                 log.info("fastapi.recovery_stuck_companies", count=len(stuck_companies))
                 for company in stuck_companies:
                     company_repo.update_fields(
-                        company['id'], status='failed', error='Interrupted by server restart',
+                        company['id'], status='pending', error='Interrupted by server restart',
                         failure_reason='Server restart', failure_timestamp=now,
                         updated_at=now,
                     )

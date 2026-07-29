@@ -48,7 +48,7 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess, o
         {overallScore != null && <ScoreBadge label="Overall" value={overallScore} />}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           <CardActions
-            status="completed"
+            status="processed"
             size="md"
             onProcess={processHandler}
             onDelete={deleteHandler}

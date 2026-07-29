@@ -814,7 +814,7 @@ class TestSAPendingRepository:
     def test_list_pending_done_excluded(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="completed"))
+        session.add(PendingJobModel(url="https://ex.com/1", status="processed"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.list_pending("pending_jobs")
@@ -895,7 +895,7 @@ class TestSAPendingRepository:
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="pending"))
-        session.add(PendingJobModel(url="https://ex.com/2", status="completed"))
+        session.add(PendingJobModel(url="https://ex.com/2", status="processed"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         assert repo.count_pending("pending_jobs") == 1

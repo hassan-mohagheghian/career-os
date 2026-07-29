@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime
 from shared.infrastructure.prompts.loader import load_prompt
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.utils import repair_llm_json
 
 from shared.infrastructure.process_utils import (
     DB_PATH, PROJECT_ROOT, MIMO_BIN, TMP_DIR,
@@ -882,10 +883,10 @@ def _stream_provider_output(cmd, cwd, env, timeout, pid, resume_session_id=None)
 
         if not captured_result and resp.content:
             try:
-                parsed = json.loads(resp.content)
+                parsed = repair_llm_json(resp.content)
                 if isinstance(parsed, dict):
                     captured_result['result'] = parsed
-            except json.JSONDecodeError:
+            except Exception:
                 pass
 
         return returncode, all_lines, session_id, captured_result

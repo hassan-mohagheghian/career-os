@@ -248,7 +248,7 @@ export function useJobs() {
       }) : prev)
     }
     const handleComplete = (data: any) => {
-      setJobs(prev => prev ? prev.map(j => j.num === data.id ? { ...j, status: 'completed', ...data } : j) : prev)
+      setJobs(prev => prev ? prev.map(j => j.num === data.id ? { ...j, status: 'processed', ...data } : j) : prev)
       fetchJobs()
     }
     const handleError = (data: any) => {

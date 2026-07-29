@@ -36,14 +36,14 @@ interface JobBaseCardProps {
   onDelete?: () => void
   onProcess?: () => void
   onCancel?: () => void
-  onReset?: () => void
+  onMoveToCreated?: () => void
   onViewWorkflow?: () => void
   onDragStart?: (e: React.DragEvent) => void
 }
 
 export default function JobBaseCard({
   item, dotColor, statusText, disabled = false,
-  onDelete, onProcess, onCancel, onReset, onViewWorkflow, onDragStart,
+  onDelete, onProcess, onCancel, onMoveToCreated, onViewWorkflow, onDragStart,
 }: JobBaseCardProps) {
   const [editing, setEditing] = useState(false)
   const [editNotes, setEditNotes] = useState<any[]>([])
@@ -257,7 +257,7 @@ export default function JobBaseCard({
           onDelete={onDelete}
           onProcess={onProcess}
           onCancel={onCancel}
-          onReset={onReset}
+          onMoveToCreated={onMoveToCreated}
           onViewWorkflow={onViewWorkflow ? () => onViewWorkflow(item) : undefined}
         />
       </div>

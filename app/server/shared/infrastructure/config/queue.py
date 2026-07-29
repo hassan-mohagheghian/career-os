@@ -19,8 +19,9 @@ logger = get_logger('queue')
 class JobQueueManager:
     """Backward-compatible queue manager that delegates to ARQ."""
 
-    def __init__(self):
+    def __init__(self, concurrency: int = 1):
         self._running = False
+        self._concurrency = concurrency
 
     def start(self):
         self._running = True
@@ -121,6 +122,7 @@ def init_queue_manager(db_path: str) -> JobQueueManager:
 
 
 def get_queue_manager() -> JobQueueManager:
+    global _queue_manager
     if _queue_manager is None:
         _queue_manager = JobQueueManager()
         _queue_manager.start()

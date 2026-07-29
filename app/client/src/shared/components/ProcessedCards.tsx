@@ -236,7 +236,7 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           {isRescoring && <span className="text-2xs px-1.5 py-0.5 rounded bg-primary text-primary-foreground animate-pulse">Rescore</span>}
           <CardActions
-            status="completed"
+            status="processed"
             size="md"
             hasWorkflowLogs={hasLogs}
             onProcess={processHandler}

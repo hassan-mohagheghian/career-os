@@ -120,7 +120,7 @@ export function useSkills() {
           status: jobStatus,
         }
 
-        if (jobStatus === 'completed' || jobStatus === 'cancelled') {
+        if (jobStatus === 'processed' || jobStatus === 'cancelled') {
           return idx >= 0 ? [...prev.slice(0, idx), ...prev.slice(idx + 1)] : prev
         }
 
@@ -133,7 +133,7 @@ export function useSkills() {
       })
 
       fetchSkillProgress()
-      if (jobStatus === 'completed' || jobStatus === 'failed' || jobStatus === 'cancelled') {
+      if (jobStatus === 'processed' || jobStatus === 'failed' || jobStatus === 'cancelled') {
         pollActiveSkillJobs()
       }
     }

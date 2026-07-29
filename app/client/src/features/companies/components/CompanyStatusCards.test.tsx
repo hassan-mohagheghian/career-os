@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import CompanyCreatedCard from './CompanyCreatedCard'
 import CompanyPendingCard from './CompanyPendingCard'
 import CompanyQueuedCard from './CompanyQueuedCard'
 import CompanyProcessingCard from './CompanyProcessingCard'
 import CompanyFailedCard from './CompanyFailedCard'
-import CompanyCompletedCard from './CompanyCompletedCard'
+import CompanyProcessedCard from './CompanyProcessedCard'
 
 vi.mock('@/shared/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <>{children}</>,
@@ -19,16 +20,19 @@ const baseItem = {
   step_fetch: 0, step_extract: 0, step_analyze: 0, step_save: 0, step_done: 0,
 }
 
-describe('CompanyPendingCard', () => {
+describe('CompanyCreatedCard', () => {
   it('renders company name and created status', () => {
-    render(<CompanyPendingCard item={{ ...baseItem, status: 'pending' }} />)
+    render(<CompanyCreatedCard item={{ ...baseItem, status: 'created' }} />)
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
     expect(screen.getByText('created')).toBeInTheDocument()
   })
+})
 
-  it('renders Start button when onProcess is provided', () => {
-    render(<CompanyPendingCard item={{ ...baseItem, status: 'pending' }} onProcess={vi.fn()} />)
-    expect(screen.getByText('Start')).toBeInTheDocument()
+describe('CompanyPendingCard', () => {
+  it('renders company name and pending status', () => {
+    render(<CompanyPendingCard item={{ ...baseItem, status: 'pending' }} />)
+    expect(screen.getByText('TechCorp')).toBeInTheDocument()
+    expect(screen.getByText('pending')).toBeInTheDocument()
   })
 })
 
@@ -58,9 +62,9 @@ describe('CompanyFailedCard', () => {
   })
 })
 
-describe('CompanyCompletedCard', () => {
-  it('renders done status', () => {
-    render(<CompanyCompletedCard item={{ ...baseItem, status: 'done', step_done: 1 }} />)
-    expect(screen.getByText('done')).toBeInTheDocument()
+describe('CompanyProcessedCard', () => {
+  it('renders processed status', () => {
+    render(<CompanyProcessedCard item={{ ...baseItem, status: 'processed', step_done: 1 }} />)
+    expect(screen.getByText('processed')).toBeInTheDocument()
   })
 })

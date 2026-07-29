@@ -15,6 +15,7 @@ import { useLocalHistory } from '@/shared/hooks'
 import DetailsTab from './DetailsTab'
 import StructuredTab from './StructuredTab'
 import SummaryTab from './SummaryTab'
+import ScoresTab from './ScoresTab'
 import DocumentsTab from './DocumentsTab'
 import CompanyTab from './CompanyTab'
 
@@ -162,6 +163,7 @@ export default function JobDrawer({ drawer, drawerTab, activeGens, companies, on
         <Tabs value={drawerTab} onValueChange={onSetDrawerTab} className="mb-3">
           <TabsList className="bg-muted">
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="scores">Scores</TabsTrigger>
             <TabsTrigger value="structured">Structured</TabsTrigger>
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
@@ -170,6 +172,7 @@ export default function JobDrawer({ drawer, drawerTab, activeGens, companies, on
         </Tabs>
 
         {drawerTab === 'details' && <DetailsTab job={job} onUpdateJob={onUpdateJob} />}
+        {drawerTab === 'scores' && <ScoresTab job={job} />}
         {drawerTab === 'structured' && <StructuredTab job={job} />}
         {drawerTab === 'summary' && <SummaryTab summary={drawer.summary} />}
         {drawerTab === 'company' && <CompanyTab job={job} companies={companies || []} onLinkCompany={onLinkCompany} onSetToast={onSetToast} onOpenCompany={onOpenCompany} onNavigateToCompany={onNavigateToCompany} onClose={onClose} />}

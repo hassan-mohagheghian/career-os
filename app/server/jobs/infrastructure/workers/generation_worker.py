@@ -14,6 +14,7 @@ from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.process_utils import broadcaster
 from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 from shared.infrastructure.ai.compat import get_llm_service
+from shared.infrastructure.utils import repair_llm_json
 from dependencies import get_session_sync
 
 log = get_logger('generation_worker')
@@ -189,7 +190,7 @@ def process_generation(gen_id):
 
         llm = get_llm_service()
         resp = llm.generate_structured(prompt, timeout=300)
-        data = json.loads(resp.content)
+        data = repair_llm_json(resp.content)
         session_id = resp.metadata.get("session_id")
 
         _update_step(gen_id, 'step_generate', 1)

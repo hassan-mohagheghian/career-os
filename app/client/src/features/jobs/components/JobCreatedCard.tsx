@@ -4,20 +4,18 @@ interface Props {
   item: any
   onDelete?: () => void
   onProcess?: () => void
-  onMoveToCreated?: () => void
   onViewWorkflow?: (item: any) => void
   onDragStart?: (e: React.DragEvent) => void
 }
 
-export default function JobQueuedCard({ item, onDelete, onProcess, onMoveToCreated, onViewWorkflow, onDragStart }: Props) {
+export default function JobCreatedCard({ item, onDelete, onProcess, onViewWorkflow, onDragStart }: Props) {
   return (
     <JobBaseCard
       item={item}
-      dotColor="bg-yellow-400"
-      statusText={<span className="text-yellow-500">queued</span>}
+      dotColor="bg-muted-foreground"
+      statusText={<span className="text-gray-400">created</span>}
       onDelete={onDelete}
       onProcess={onProcess}
-      onMoveToCreated={onMoveToCreated}
       onViewWorkflow={onViewWorkflow}
       onDragStart={onDragStart}
     />

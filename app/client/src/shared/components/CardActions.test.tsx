@@ -11,10 +11,9 @@ describe('CardActions — job processing variant (size=sm)', () => {
     onReset: vi.fn(),
   }
 
-  it('created status: shows Start text button, Reset, Delete', () => {
+  it('created status: shows Start text button, Delete', () => {
     render(<CardActions {...base} status="created" size="sm" />)
     expect(screen.getByText('Start')).toBeInTheDocument()
-    expect(screen.getByTitle('Reset')).toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
     expect(screen.queryByTitle('Cancel')).not.toBeInTheDocument()
   })
@@ -25,51 +24,49 @@ describe('CardActions — job processing variant (size=sm)', () => {
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
-  it('active status: shows Cancel, Reset, Delete', () => {
-    render(<CardActions {...base} status="fetching" size="sm" />)
+  it('active status: shows Cancel, Delete not shown', () => {
+    render(<CardActions {...base} status="processing" size="sm" />)
     expect(screen.getByTitle('Cancel')).toBeInTheDocument()
-    expect(screen.getByTitle('Reset')).toBeInTheDocument()
-    expect(screen.getByTitle('Delete')).toBeInTheDocument()
+    expect(screen.queryByTitle('Delete')).not.toBeInTheDocument()
     expect(screen.queryByText('Start')).not.toBeInTheDocument()
   })
 
-  it('failed status: shows Retry, Copy error, Reset, Delete', () => {
+  it('failed status: shows Retry, Copy error, Delete', () => {
     render(<CardActions {...base} status="failed" size="sm" error="Something broke" />)
     expect(screen.getByTitle('Retry')).toBeInTheDocument()
     expect(screen.getByTitle('Copy error')).toBeInTheDocument()
-    expect(screen.getByTitle('Reset')).toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
-  it('completed status: shows Process icon button, Delete', () => {
-    render(<CardActions {...base} status="completed" size="sm" />)
+  it('processed status: shows Process icon button, Delete', () => {
+    render(<CardActions {...base} status="processed" size="sm" />)
     expect(screen.getByTitle('Process')).toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
     expect(screen.queryByText('Start')).not.toBeInTheDocument()
   })
 })
 
-describe('CardActions — completed card variant (size=md)', () => {
+describe('CardActions — processed card variant (size=md)', () => {
   const base = {
     onDelete: vi.fn(),
     onProcess: vi.fn(),
     onReset: vi.fn(),
   }
 
-  it('completed status: shows Process icon button, Delete', () => {
-    render(<CardActions {...base} status="completed" size="md" />)
+  it('processed status: shows Process icon button, Delete', () => {
+    render(<CardActions {...base} status="processed" size="md" />)
     expect(screen.getByTitle('Process')).toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
   it('only Delete when onProcess is missing', () => {
-    render(<CardActions status="completed" size="md" onDelete={vi.fn()} />)
+    render(<CardActions status="processed" size="md" onDelete={vi.fn()} />)
     expect(screen.queryByTitle('Process')).not.toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
   it('renders nothing when no callbacks provided', () => {
-    const { container } = render(<CardActions status="completed" size="md" />)
+    const { container } = render(<CardActions status="processed" size="md" />)
     expect(container.firstChild).toBeNull()
   })
 
@@ -77,7 +74,7 @@ describe('CardActions — completed card variant (size=md)', () => {
     const parentClick = vi.fn()
     render(
       <div onClick={parentClick}>
-        <CardActions status="completed" size="md" onDelete={vi.fn()} onProcess={vi.fn()} />
+        <CardActions status="processed" size="md" onDelete={vi.fn()} onProcess={vi.fn()} />
       </div>
     )
     fireEvent.click(screen.getByTitle('Delete'))
@@ -87,7 +84,7 @@ describe('CardActions — completed card variant (size=md)', () => {
   })
 
   it('shows Workflow button when hasWorkflowLogs is true', () => {
-    render(<CardActions {...base} status="completed" size="md" hasWorkflowLogs onViewWorkflow={vi.fn()} />)
+    render(<CardActions {...base} status="processed" size="md" hasWorkflowLogs onViewWorkflow={vi.fn()} />)
     expect(screen.getByTitle('Workflow')).toBeInTheDocument()
   })
 })

@@ -65,6 +65,7 @@ const defaultProps = {
   deletePending: vi.fn(),
   processPending: vi.fn(),
   resetPending: vi.fn(),
+  moveToCreated: vi.fn(),
   pausePending: vi.fn(),
   openWorkflow: vi.fn(),
   rescoreJob: vi.fn(),

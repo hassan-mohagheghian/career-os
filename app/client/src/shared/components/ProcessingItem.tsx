@@ -24,40 +24,32 @@ const STEP_KEYS = ['step_fetch', 'step_validate', 'step_extract_raw', 'step_extr
 
 const STATUS_CONFIG = {
   created: { variant: 'secondary', label: 'Created', color: 'text-gray-400' },
+  pending: { variant: 'secondary', label: 'Pending', color: 'text-sky-500' },
   queued: { variant: 'outline', label: 'Queued', color: 'text-yellow-500' },
-  waiting: { variant: 'secondary', label: 'Waiting', color: 'text-yellow-500' },
-  starting: { variant: 'default', label: 'Starting', color: 'text-blue-400' },
-  fetching: { variant: 'default', label: 'Fetching', color: 'text-blue-500' },
-  analyzing: { variant: 'default', label: 'Analyzing', color: 'text-blue-600' },
-  generating: { variant: 'default', label: 'Generating', color: 'text-violet-500' },
-  finalizing: { variant: 'default', label: 'Finalizing', color: 'text-purple-500' },
-  completed: { variant: 'default', label: 'Completed', color: 'text-green-500' },
+  processing: { variant: 'default', label: 'Processing', color: 'text-blue-500' },
+  processed: { variant: 'default', label: 'Processed', color: 'text-green-500' },
   failed: { variant: 'destructive', label: 'Failed', color: 'text-red-500' },
   cancelled: { variant: 'secondary', label: 'Cancelled', color: 'text-gray-500' },
 }
 
 const STATUS_LABELS = {
   created: 'Created',
+  pending: 'Pending...',
   queued: 'Queued',
-  waiting: 'Waiting',
-  starting: 'Starting...',
-  fetching: 'Fetching...',
-  analyzing: 'Analyzing...',
-  generating: 'Generating...',
-  finalizing: 'Finalizing...',
-  completed: 'Completed',
+  processing: 'Processing...',
+  processed: 'Processed',
   failed: 'Failed',
   cancelled: 'Cancelled',
 }
 
-const ACTIVE_STATUSES = new Set(['starting', 'fetching', 'analyzing', 'generating', 'finalizing'])
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+const ACTIVE_STATUSES = new Set(['processing'])
+const TERMINAL_STATUSES = new Set(['processed', 'failed', 'cancelled'])
 
 function getStatus(item) {
-  if (item.status === 'completed') return 'completed'
+  if (item.status === 'processed') return 'processed'
   if (item.status === 'failed') return 'failed'
   if (item.status === 'cancelled') return 'cancelled'
-  if (item.status === 'waiting') return 'waiting'
+  if (item.status === 'pending') return 'pending'
   if (ACTIVE_STATUSES.has(item.status)) return item.status
   if (item.status === 'queued') return 'Queued'
   return 'Created'
@@ -67,7 +59,17 @@ function setToast(msg) {
   window.dispatchEvent(new CustomEvent('toast', { detail: msg }))
 }
 
-export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause, onDragStart, onViewWorkflow }) {
+interface ActiveItemProps {
+  item: any
+  onDelete?: () => any
+  onProcess?: () => any
+  onMoveToCreated?: () => any
+  onPause?: () => any
+  onDragStart?: (e: React.DragEvent) => void
+  onViewWorkflow?: (item: any) => void
+}
+
+export default function ActiveItem({ item, onDelete, onProcess, onMoveToCreated, onPause, onDragStart, onViewWorkflow }: ActiveItemProps) {
   const [processing, setProcessing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editNotes, setEditNotes] = useState([])
@@ -77,10 +79,10 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
   const [newLinkTitle, setNewLinkTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const statusKey = getStatus(item)
-  const isDone = item.status === 'completed'
+  const isDone = item.status === 'processed'
   const isFailed = item.status === 'failed'
   const isCancelled = item.status === 'cancelled'
-  const isWaiting = item.status === 'waiting'
+  const isPending = item.status === 'pending'
   const isQueued = item.status === 'queued'
   const isCreated = item.status === 'created'
   const isProcessing = ACTIVE_STATUSES.has(item.status)
@@ -179,7 +181,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
       <div className="flex items-center gap-1 mb-1 min-w-0">
         <div className={cn(
           "w-2 h-2 rounded-full shrink-0",
-          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isCancelled ? "bg-gray-500" : isWaiting ? "bg-yellow-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
+          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isCancelled ? "bg-gray-500" : isPending ? "bg-sky-400" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
         )} />
         {item.job_num && <span className="text-2xs font-bold text-muted-foreground shrink-0">#{item.job_num}</span>}
         {item.source === 'rescore' && <span className="text-3xs px-0.5 rounded bg-secondary text-secondary-foreground shrink-0">R</span>}
@@ -322,9 +324,9 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
         <span className="text-2xs truncate flex-1 min-w-0 text-muted-foreground">
           {isProcessing && <span className="text-blue-500">{STATUS_LABELS[item.status]}</span>}
           {isCreated && <span className="text-gray-400">created</span>}
-          {isWaiting && <span className="text-yellow-500">waiting</span>}
+          {isPending && <span className="text-sky-500">pending</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
-          {isDone && <span className="text-green-500">completed</span>}
+          {isDone && <span className="text-green-500">processed</span>}
           {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
           {isCancelled && <span className="text-gray-500">cancelled</span>}
           {item.current_node && isProcessing && <span className="text-3xs text-blue-400 ml-1">({item.current_node})</span>}
@@ -339,7 +341,7 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
           onDelete={onDelete}
           onProcess={handleProcess}
           onCancel={onPause}
-          onReset={onReset}
+          onMoveToCreated={onMoveToCreated}
           onViewWorkflow={onViewWorkflow ? () => onViewWorkflow(item) : undefined}
         />
       </div>

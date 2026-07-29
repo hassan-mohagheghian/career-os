@@ -19,7 +19,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
     def __init__(self, session: Session):
         self._session = session
 
-    EXCLUDED_STATUSES = {"completed"}
+    EXCLUDED_STATUSES = {"processed"}
 
     def list_pending(self, table: str = "pending_jobs") -> list[dict[str, Any]]:
         if table == "pending_jobs":
@@ -170,6 +170,18 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             ).count()
         return 0
 
+    def get_pending_count(self, table: str = "pending_jobs") -> int:
+        if table == "pending_jobs":
+            return self._session.query(JobModel).filter(
+                JobModel.deleted == 0,
+                JobModel.status == 'pending'
+            ).count()
+        elif table == "pending_companies":
+            return self._session.query(CompanyModel).filter(
+                CompanyModel.status == 'pending'
+            ).count()
+        return 0
+
     def get_queued_count(self, table: str = "pending_jobs") -> int:
         if table == "pending_jobs":
             return self._session.query(JobModel).filter(
@@ -201,11 +213,11 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             count = self._session.query(JobModel).filter(
                 JobModel.deleted == 0,
                 JobModel.status.in_(self.ACTIVE_STATUSES)
-            ).update({"status": "waiting"})
+            ).update({"status": "pending"})
         elif table == "pending_companies":
             count = self._session.query(CompanyModel).filter(
                 CompanyModel.status.in_(self.ACTIVE_STATUSES)
-            ).update({"status": "waiting"})
+            ).update({"status": "pending"})
         else:
             count = 0
         self._session.commit()

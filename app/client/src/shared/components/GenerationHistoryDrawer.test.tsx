@@ -4,7 +4,7 @@ import '@testing-library/jest-dom'
 import GenerationHistoryDrawer from './GenerationHistoryDrawer'
 
 const mockItems = [
-  { id: 1, source: 'job-processing', title: 'Job #1', status: 'completed', started_at: '2026-07-27T10:00:00Z', completed_at: '2026-07-27T10:05:00Z', error: null, session_id: null, provider: null },
+  { id: 1, source: 'job-processing', title: 'Job #1', status: 'processed', started_at: '2026-07-27T10:00:00Z', completed_at: '2026-07-27T10:05:00Z', error: null, session_id: null, provider: null },
   { id: 2, source: 'roadmap', title: 'Skill Roadmap', status: 'failed', started_at: '2026-07-27T11:00:00Z', completed_at: null, error: 'Failed', session_id: null, provider: null },
 ]
 

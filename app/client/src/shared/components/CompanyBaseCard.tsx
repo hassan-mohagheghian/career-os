@@ -32,12 +32,12 @@ interface CompanyBaseCardProps {
   onDelete?: () => void
   onProcess?: () => void
   onCancel?: () => void
-  onReset?: () => void
+  onMoveToCreated?: () => void
 }
 
 export default function CompanyBaseCard({
   item, dotColor, statusText, disabled = false,
-  onDelete, onProcess, onCancel, onReset,
+  onDelete, onProcess, onCancel, onMoveToCreated,
 }: CompanyBaseCardProps) {
   const [editing, setEditing] = useState(false)
   const [editNotes, setEditNotes] = useState<any[]>([])
@@ -239,7 +239,7 @@ export default function CompanyBaseCard({
             <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-3xs text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
               {item.session_id.slice(0, 6)}...
             </button>
-          ) : item.status !== 'done' && item.status !== 'completed' ? (
+          ) : item.status !== 'processed' ? (
             <span className="text-3xs text-muted-foreground/50 font-mono ml-1">no_session_id</span>
           ) : null}
         </span>
@@ -251,7 +251,7 @@ export default function CompanyBaseCard({
           onDelete={onDelete}
           onProcess={onProcess}
           onCancel={onCancel}
-          onReset={onReset}
+          onMoveToCreated={onMoveToCreated}
         />
       </div>
     </ProcessingCardFrame>

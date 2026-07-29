@@ -8,11 +8,10 @@ import { SOURCE_CONFIG, PROVIDER_LABELS, type HistoryItemData } from '@/shared/l
 export type { HistoryItemData }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === 'completed' ? 'bg-green-500' :
+  const color = status === 'processed' ? 'bg-green-500' :
     status === 'failed' ? 'bg-red-500' :
     status === 'cancelled' ? 'bg-yellow-500' :
     status === 'processing' || status === 'running' ? 'bg-blue-500 animate-pulse' :
-    status === 'done' ? 'bg-green-500' :
     'bg-gray-400'
   return <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-1", color)} />
 }
@@ -20,7 +19,7 @@ function StatusDot({ status }: { status: string }) {
 function StatusText({ status }: { status: string }) {
   return (
     <span className={cn("font-semibold text-2xs shrink-0",
-      status === 'completed' || status === 'done' ? "text-green-500" :
+      status === 'processed' ? "text-green-500" :
       status === 'failed' ? "text-red-500" :
       status === 'cancelled' ? "text-yellow-500" : "text-muted-foreground"
     )}>{status}</span>

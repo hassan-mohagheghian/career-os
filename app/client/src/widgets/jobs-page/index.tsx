@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
 import { useJobs } from '@/features/jobs/hooks/useJobs'
@@ -15,6 +15,7 @@ import WorkflowTerminal from '@/shared/components/WorkflowTerminal'
 import JobDrawer from '@/features/jobs/components/drawer/JobDrawer'
 import CompanyDrawer from '@/features/companies/components/CompanyDrawer'
 import { toast } from 'sonner'
+import { setSearchParam, getSearchParam } from '@/shared/lib/url'
 
 const API = '/api'
 
@@ -80,6 +81,20 @@ function JobsPageAdapter() {
     }
   }, [generationResult])
 
+  const deepLinked = useRef(false)
+
+  useEffect(() => {
+    if (deepLinked.current || !jobs) return
+    deepLinked.current = true
+    const jobNum = getSearchParam('job')
+    const companyId = getSearchParam('company')
+    if (jobNum) {
+      openDrawerHandler(Number(jobNum))
+    } else if (companyId) {
+      openCompanyDrawer(companyId)
+    }
+  }, [jobs])
+
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
 
   const showConfirm = useCallback((title: string, message: string, confirmLabel: string, variant = 'danger') => {
@@ -123,6 +138,8 @@ function JobsPageAdapter() {
       coverLetter: fullJob?.coverLetter || null,
     })
     setDrawerTab('details')
+    setCompanyDrawer(null)
+    setSearchParam('job', String(num))
   }, [jobs, summaries])
 
   const openCompanyDrawer = useCallback(async (id: string) => {
@@ -130,6 +147,8 @@ function JobsPageAdapter() {
       const res = await fetch(`${API}/companies/${id}`)
       const data = await res.json()
       setCompanyDrawer(data)
+      setDrawer(null)
+      setSearchParam('company', id)
     } catch (e) {
       console.error('Failed to load company', e)
     }
@@ -138,11 +157,13 @@ function JobsPageAdapter() {
   const handleDeleteCompany = useCallback(async (id: number) => {
     await deleteCompany(id)
     setCompanyDrawer(null)
+    setSearchParam('company', null)
   }, [deleteCompany])
 
   const handleReprocessCompany = useCallback(async (id: number) => {
     await reprocessCompany(id)
     setCompanyDrawer(null)
+    setSearchParam('company', null)
   }, [reprocessCompany])
 
   if (jobs === null) {
@@ -204,6 +225,7 @@ function JobsPageAdapter() {
             deletePending={deletePending}
             processPending={processPending}
             resetPending={resetPending}
+            moveToCreated={resetPending}
             pausePending={pausePending}
             openWorkflow={openWorkflow}
             rescoreJob={rescoreJob}
@@ -223,7 +245,7 @@ function JobsPageAdapter() {
         drawerTab={drawerTab}
         activeGens={activeGens}
         companies={companies}
-        onClose={() => setDrawer(null)}
+        onClose={() => { setDrawer(null); setSearchParam('job', null) }}
         onSetDrawerTab={setDrawerTab}
         onRescoreJob={rescoreJob}
         onRequeueJob={handleRequeueJob}
@@ -250,7 +272,7 @@ function JobsPageAdapter() {
 
       <CompanyDrawer
         company={companyDrawer}
-        onClose={() => setCompanyDrawer(null)}
+        onClose={() => { setCompanyDrawer(null); setSearchParam('company', null) }}
         onDelete={handleDeleteCompany}
         onReprocess={handleReprocessCompany}
         onOpenJob={(num: number) => openDrawerHandler(num)}
@@ -259,6 +281,7 @@ function JobsPageAdapter() {
         }}
         onViewAllJobs={(companyName: string) => {
           setCompanyDrawer(null)
+          setSearchParam('company', null)
           setFilterCompanies([companyName])
         }}
       />

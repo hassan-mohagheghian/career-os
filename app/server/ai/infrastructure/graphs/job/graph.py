@@ -8,6 +8,7 @@ from ..runtime.graph import GraphBuilder
 from ..runtime.state import BaseState, JobExtractionOutput, JobAnalysisOutput
 
 from ai.infrastructure.tools.fetch import fetch_page
+from shared.infrastructure.utils import repair_llm_json
 
 
 def build_job_processing_graph() -> GraphBuilder:
@@ -243,7 +244,7 @@ def build_job_processing_graph() -> GraphBuilder:
                 prompt,
                 timeout=90,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
 
             if result:
                 state["metadata"]["extraction"] = result
@@ -358,6 +359,7 @@ def build_job_processing_graph() -> GraphBuilder:
 
     def score_job(state: BaseState) -> BaseState:
         extraction = state["metadata"].get("extraction", {})
+        structured = state["metadata"].get("structured", {})
 
         if not extraction:
             state["metadata"]["scoring"] = {
@@ -367,17 +369,94 @@ def build_job_processing_graph() -> GraphBuilder:
             return state
 
         try:
+            import json
+            from shared.infrastructure.ai.compat import get_llm_service
             from jobs.infrastructure.workers.worker import normalize_score
 
-            score = normalize_score(extraction.get("score", "P"))
-            state["metadata"]["score"] = score
-            state["metadata"]["fit_score"] = extraction.get("fit_score")
-            state["metadata"]["success_score"] = extraction.get("success_score")
-            state["metadata"]["overall_score"] = extraction.get("overall_score")
-            state["metadata"]["scoring"] = {"success": True, "score": score}
+            def safe(val, default=""):
+                if val is None:
+                    return default
+                s = str(val)
+                return s[:2000].replace("{", "(").replace("}", ")")
+
+            title = safe(structured.get("title") or extraction.get("role") or "Unknown", "Unknown")
+            company = safe(structured.get("company") or extraction.get("company") or "Unknown", "Unknown")
+            location = safe(structured.get("location") or extraction.get("location") or "Unknown", "Unknown")
+            stack = safe(structured.get("stack") or extraction.get("stack") or "")
+            description = safe(structured.get("description") or "")
+            requirements = extraction.get("requirements") or structured.get("requirements") or ""
+            req_str = safe(requirements[:1000] if isinstance(requirements, str) else " ".join(str(r) for r in list(requirements)[:10]) if isinstance(requirements, list) else "")
+            ext_json = safe(json.dumps(extraction, default=str)[:2000])
+
+            prompt = (
+                "You are a job fit analyzer. Score this job for the candidate.\n\n"
+                "Job:\n"
+                f"- Title: {title}\n"
+                f"- Company: {company}\n"
+                f"- Location: {location}\n"
+                f"- Tech Stack: {stack}\n"
+                f"- Description: {description}\n"
+                f"- Requirements: {req_str}\n"
+                f"- extraction: {ext_json}\n\n"
+                "Return ONLY valid JSON with:\n"
+                '- fit_score (0-100, technical fit), success_score (0-100, hiring probability)\n'
+                '- score (letter grade: D/C/B/A/A+/A++ matching fit_score)\n'
+                '- success (letter grade matching success_score)\n'
+                '- match ("High"/"Medium"/"Low")\n'
+                '- action ("Apply Now"/"Apply Soon"/"Consider"/"Skip")\n'
+                '- apply_reason (1-2 sentence explanation)\n\n'
+                'Numeric scale: 0-29=D, 30-49=C, 50-69=B, 70-79=A, 80-89=A+, 90-100=A++\n\n'
+                'Response must be valid JSON only:\n'
+                '{"fit_score": integer, "success_score": integer, "score": "letter", "success": "letter", "match": "High|Medium|Low", "action": "...", "apply_reason": "..."}'
+            )
+
+            llm = get_llm_service()
+            resp = llm.generate_structured(prompt, timeout=300)
+
+            result = repair_llm_json(resp.content)
+            if result is None:
+                raise ValueError("Failed to parse scoring JSON from LLM response")
+
+            fit_score = result.get("fit_score")
+            success_score = result.get("success_score")
+            if fit_score is not None:
+                fit_score = max(0, min(100, int(fit_score)))
+            if success_score is not None:
+                success_score = max(0, min(100, int(success_score)))
+
+            overall_score = None
+            if fit_score is not None and success_score is not None:
+                overall_score = round(fit_score * 0.6 + success_score * 0.4, 1)
+
+            state["metadata"]["fit_score"] = fit_score
+            state["metadata"]["success_score"] = success_score
+            state["metadata"]["overall_score"] = overall_score
+            score_letter = normalize_score(result.get("score", "P"))
+            success_letter = result.get("success", "P")
+            match_val = result.get("match", extraction.get("match", "Medium"))
+
+            state["metadata"]["score"] = score_letter
+            state["metadata"]["success"] = success_letter
+            state["metadata"]["match"] = match_val
+            state["metadata"]["action"] = result.get("action", extraction.get("action", ""))
+            state["metadata"]["apply_reason"] = result.get("apply_reason", extraction.get("apply_reason", ""))
+            state["metadata"]["scoring"] = {"success": True, "fit_score": fit_score, "success_score": success_score, "overall_score": overall_score, "score": score_letter, "success": success_letter, "match": match_val}
+
+            extraction["fit_score"] = fit_score
+            extraction["success_score"] = success_score
+            extraction["score"] = score_letter
+            extraction["success"] = success_letter
+            extraction["match"] = match_val
+            extraction["action"] = state["metadata"]["action"]
+            extraction["apply_reason"] = state["metadata"]["apply_reason"]
+            state["metadata"]["extraction"] = extraction
         except Exception as e:
             state["errors"].append(f"Scoring failed: {e}")
             state["metadata"]["scoring"] = {"success": False, "error": str(e)}
+            state["metadata"]["score"] = normalize_score(extraction.get("score", "P"))
+            state["metadata"]["fit_score"] = extraction.get("fit_score")
+            state["metadata"]["success_score"] = extraction.get("success_score")
+            state["metadata"]["overall_score"] = extraction.get("overall_score")
 
         return state
 
@@ -449,7 +528,7 @@ def build_job_processing_graph() -> GraphBuilder:
                 company = structured.get("company") or extraction.get("company") or "Unknown"
                 title = structured.get("title") or extraction.get("title") or "Unknown"
                 score = state["metadata"].get("score", "P")
-                match = extraction.get("match", "Medium")
+                match = state["metadata"].get("match") or extraction.get("match", "Medium")
                 fit_score = state["metadata"].get("fit_score")
                 success_score = state["metadata"].get("success_score")
                 overall_score = state["metadata"].get("overall_score")
@@ -461,7 +540,7 @@ def build_job_processing_graph() -> GraphBuilder:
                     "location": structured.get("location", "Not specified"),
                     "match": match,
                     "score": score,
-                    "success": extraction.get("success", "P"),
+                    "success": state["metadata"].get("success") or extraction.get("success", "P"),
                     "salary": structured.get("salary", "Not specified"),
                     "stack": structured.get("stack", ""),
                     "visa": extraction.get("visa", "Uncertain"),

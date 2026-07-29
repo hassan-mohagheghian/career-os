@@ -6,12 +6,12 @@ interface Props {
   onProcess?: () => void
 }
 
-export default function CompanyPendingCard({ item, onDelete, onProcess }: Props) {
+export default function CompanyProcessedCard({ item, onDelete, onProcess }: Props) {
   return (
     <CompanyBaseCard
       item={item}
-      dotColor="bg-sky-400"
-      statusText={<span className="text-sky-500">pending</span>}
+      dotColor="bg-green-500"
+      statusText={<span className="text-green-500">processed</span>}
       onDelete={onDelete}
       onProcess={onProcess}
     />

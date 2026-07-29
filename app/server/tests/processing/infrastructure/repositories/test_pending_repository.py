@@ -197,7 +197,7 @@ class TestResetStepsKeepStatusInQueue:
         job = db.query(JobModel).filter(JobModel.num == pid).first()
         db.commit()
 
-        with patch('shared.infrastructure.config.queue.get_session_sync', return_value=db):
+        with patch('shared.infrastructure.database.session.get_session_sync', return_value=db):
             mgr = JobQueueManager(concurrency=1)
             mgr.reset_item(pid)
 

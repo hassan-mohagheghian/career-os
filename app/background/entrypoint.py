@@ -46,14 +46,18 @@ init_logging(level=LOG_LEVEL)
 async def create_worker() -> ArqWorker:
     pool = await create_pool(redis_settings())
 
+    async def shutdown(ctx: dict) -> None:
+        await pool.aclose()
+
     worker = ArqWorker(
-        pool=pool,
+        redis_pool=pool,
         functions=FUNCTIONS,
-        concurrency=WORKER_CONCURRENCY,
+        max_jobs=WORKER_CONCURRENCY,
         poll_delay=WORKER_POLL_INTERVAL,
         burst=WORKER_BURST,
-        max_retries=MAX_RETRIES,
+        max_tries=MAX_RETRIES,
         job_timeout=JOB_TIMEOUT,
+        on_shutdown=shutdown,
     )
     return worker
 

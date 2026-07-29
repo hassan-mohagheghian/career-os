@@ -243,6 +243,12 @@ class SQLAlchemyJobRepository(IJobRepository):
 
     ACTIVE_STATUSES = {'processing'}
 
+    def get_pending_count(self) -> int:
+        return self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status == 'pending',
+        ).count()
+
     def list_by_status(self, status: str) -> list[dict[str, Any]]:
         rows = self._session.query(JobModel).filter(
             JobModel.deleted == 0,

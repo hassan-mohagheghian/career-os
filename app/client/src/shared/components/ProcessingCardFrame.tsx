@@ -1,7 +1,7 @@
 import { cn } from '@/shared/lib/utils'
 
 const FAILED = new Set(['failed', 'error'])
-const DONE = new Set(['completed', 'done', 'cancelled'])
+const DONE = new Set(['processed', 'cancelled'])
 
 export default function ProcessingCardFrame({ status, className, onDragStart, children }: {
   status: string

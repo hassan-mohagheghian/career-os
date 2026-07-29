@@ -18,7 +18,9 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         self._session = session
 
     def list_all(self) -> list[dict[str, Any]]:
-        rows = self._session.query(CompanyModel).order_by(CompanyModel.name).all()
+        rows = self._session.query(CompanyModel).filter(
+            CompanyModel.name.isnot(None), CompanyModel.name != ''
+        ).order_by(CompanyModel.name).all()
         return [company_model_to_dict(r) for r in rows]
 
     def get_by_id(self, company_id: int) -> dict[str, Any] | None:
@@ -84,6 +86,11 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
     # ── Lifecycle methods ───────────────────────────────────────────
 
     ACTIVE_STATUSES = {'processing'}
+
+    def get_pending_count(self) -> int:
+        return self._session.query(CompanyModel).filter(
+            CompanyModel.status == 'pending',
+        ).count()
 
     def list_by_status(self, status: str) -> list[dict[str, Any]]:
         rows = self._session.query(CompanyModel).filter(

@@ -6,6 +6,15 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Ensure app/ and app/server/ are on sys.path for imports
+_this_file = os.path.abspath(__file__ if '__file__' in dir() else '.')
+_app_dir = os.path.dirname(_this_file)
+if _app_dir not in sys.path:
+    sys.path.insert(0, _app_dir)
+_server_dir = os.path.join(_app_dir, "server")
+if _server_dir not in sys.path:
+    sys.path.insert(0, _server_dir)
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -261,11 +270,17 @@ def _start_frontend(port: int):
 def _start_background():
     _log("Starting background worker...")
     python = _python_path()
+    env = os.environ.copy()
+    app_dir = str(REPO_ROOT / "app")
+    server_dir = str(REPO_ROOT / "app" / "server")
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{app_dir}:{server_dir}" + (f":{existing}" if existing else "")
     proc = subprocess.Popen(
         [
             python, "-m", "background.main",
         ],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     _save_pid(PID_BG_FILE, proc.pid)
     _ok(f"Background worker started (PID: {proc.pid})")
@@ -341,9 +356,15 @@ def background():
     """Start only the background worker"""
     _log("Starting background worker...")
     python = _python_path()
+    env = os.environ.copy()
+    app_dir = str(REPO_ROOT / "app")
+    server_dir = str(REPO_ROOT / "app" / "server")
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{app_dir}:{server_dir}" + (f":{existing}" if existing else "")
     proc = subprocess.Popen(
         [python, "-m", "background.main"],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     _save_pid(PID_BG_FILE, proc.pid)
     _ok(f"Background worker started (PID: {proc.pid})")

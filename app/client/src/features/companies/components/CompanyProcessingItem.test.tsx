@@ -28,9 +28,9 @@ describe('CompanyProcessingItem', () => {
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
   })
 
-  it('renders done status', () => {
-    render(<CompanyProcessingItem item={{ ...base, status: 'done' }} />)
-    expect(screen.getByText('done')).toBeInTheDocument()
+  it('renders processed status', () => {
+    render(<CompanyProcessingItem item={{ ...base, status: 'processed' }} />)
+    expect(screen.getByText('processed')).toBeInTheDocument()
   })
 
   it('renders failed status', () => {

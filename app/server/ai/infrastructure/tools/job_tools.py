@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from .base import BaseTool, ToolResult
 from .web import WebFetchTool, MultiSourceFetchTool
+from shared.infrastructure.utils import repair_llm_json
 
 
 class FetchJobTool(BaseTool):
@@ -104,7 +105,7 @@ class ExtractJobDataTool(BaseTool):
                 prompt,
                 timeout=90,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
             return ToolResult(
                 success=True,
                 data=result,

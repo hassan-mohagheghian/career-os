@@ -98,14 +98,15 @@ class PendingJobRepository(IPendingRepository):
         self._session.refresh(m)
         return self._to_dict(m)
 
-    def count_by_status(self) -> Dict[ItemStatus, int]:
+    def count_by_status(self) -> Dict[str, int]:
+        from shared.infrastructure.process.models import JobStatus
         counts = {}
-        for status in ItemStatus:
+        for status in JobStatus:
             cnt = self._session.query(JobModel).filter(
                 JobModel.deleted == 0,
                 JobModel.status == status.value
             ).count()
-            counts[status] = cnt
+            counts[status.value] = cnt
         return counts
 
     def reset_orphans(self) -> int:

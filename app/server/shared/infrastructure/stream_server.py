@@ -12,6 +12,7 @@ from datetime import datetime
 import websockets
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.prompts.loader import load_prompt
+from shared.infrastructure.utils import repair_llm_json
 
 log = get_logger('stream')
 
@@ -451,10 +452,10 @@ async def stream_provider(pid, prompt):
     result_dict = None
     if resp.content:
         try:
-            parsed = json.loads(resp.content)
+            parsed = repair_llm_json(resp.content)
             if isinstance(parsed, dict):
                 result_dict = parsed
-        except json.JSONDecodeError:
+        except Exception:
             pass
 
     return returncode, result_dict

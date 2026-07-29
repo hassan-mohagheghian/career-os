@@ -14,6 +14,7 @@ import ProcessingItem from '@/shared/components/ProcessingItem'
 import { JobCard } from '@/shared/components/ProcessedCards'
 import { MultiSelect } from '@/shared/components/MultiSelect'
 import NotesLinksInput from '@/shared/components/NotesLinksInput'
+import JobCreatedCard from './JobCreatedCard'
 import JobPendingCard from './JobPendingCard'
 import JobProcessingCard from './JobProcessingCard'
 import JobFailedCard from './JobFailedCard'
@@ -28,14 +29,15 @@ export default function JobsPage({
   filterApplied, setFilterApplied, filterScores, setFilterScores, allCities, allCompanies, activeFilterCount,
   collapsedSections, setCollapsedSections,
   loadingMore, jobsScrollRef, jobsSentinelRef,
-  submitUrl, deletePending, processPending, resetPending, pausePending, openWorkflow,
+  submitUrl, deletePending, processPending, resetPending, pausePending, moveToCreated, openWorkflow,
   rescoreJob, deleteJob, requeueJob, openDrawer, refreshJobs, clearFilters, loadMoreJobs, onOpenCompany
 }) {
   const createdCount = pending.filter(p => p.status === 'created').length
-  const queuedCount = pending.filter(p => p.status === 'queued' || p.status === 'waiting').length
-  const processingCount = pending.filter(p => ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)).length
+  const pendingCount = pending.filter(p => p.status === 'pending').length
+  const queuedCount = pending.filter(p => p.status === 'queued').length
+  const processingCount = pending.filter(p => p.status === 'processing').length
   const failedCount = pending.filter(p => p.status === 'failed' || p.status === 'cancelled').length
-  const stackedTotal = createdCount + queuedCount + processingCount + failedCount
+  const stackedTotal = createdCount + pendingCount + queuedCount + processingCount + failedCount
 
   const [dragId, setDragId] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
@@ -49,6 +51,7 @@ export default function JobsPage({
     e.preventDefault(); setDragOverCol(null)
     if (!dragId) return
     if (colId === 'created') resetPending(dragId)
+    else if (colId === 'pending') processPending(dragId)
     else if (colId === 'queued') processPending(dragId)
     else if (colId === 'processing') processPending(dragId)
     setDragId(null)
@@ -81,7 +84,8 @@ export default function JobsPage({
           />
           <div className="flex flex-col flex-1 min-h-0 gap-1">
             {[
-              { id: 'created', count: createdCount, label: 'Pending', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
+              { id: 'created', count: createdCount, label: 'Created', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
+              { id: 'pending', count: pendingCount, label: 'Pending', icon: <Clock className="w-3 h-3" />, color: 'sky', iconClass: 'text-sky-500', bgClass: 'bg-gradient-to-r from-sky-500/10 to-sky-500/5', borderClass: 'border-b border-sky-500/20', textClass: 'text-sky-600 dark:text-sky-400' },
               { id: 'queued', count: queuedCount, label: 'Queued', icon: <Stack className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
               { id: 'processing', count: processingCount, label: 'Processing', icon: <Gear className="w-3 h-3" />, color: 'blue', iconClass: 'text-blue-500', bgClass: 'bg-gradient-to-r from-blue-500/10 to-blue-500/5', borderClass: 'border-b border-blue-500/20', textClass: 'text-blue-600 dark:text-blue-500' },
               { id: 'failed', count: failedCount, label: 'Failed/Cancelled', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
@@ -102,7 +106,16 @@ export default function JobsPage({
                       onDragOver={e => handleDragOver(e, 'created')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'created')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pending.filter(p => p.status === 'created').map(p =>
-                          <JobPendingCard key={p.num} item={p} onProcess={() => processPending(p.num)} onDelete={() => deletePending(p.num)} onDragStart={e => handleDragStart(e, p.num)} onViewWorkflow={openWorkflow} />)}
+                          <JobCreatedCard key={p.num} item={p} onProcess={() => processPending(p.num)} onDelete={() => deletePending(p.num)} onDragStart={e => handleDragStart(e, p.num)} onViewWorkflow={openWorkflow} />)}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  {isOpen && s.id === 'pending' && (
+                    <ScrollArea className="flex-1 min-h-0 min-w-0"
+                      onDragOver={e => handleDragOver(e, 'pending')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'pending')}>
+                      <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
+                        {pending.filter(p => p.status === 'pending').map(p =>
+                          <ProcessingItem key={p.num} item={p} onProcess={() => processPending(p.num)} onDelete={() => deletePending(p.num)} onDragStart={e => handleDragStart(e, p.num)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}
@@ -110,8 +123,8 @@ export default function JobsPage({
                     <ScrollArea className="flex-1 min-h-0 min-w-0"
                       onDragOver={e => handleDragOver(e, 'queued')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'queued')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pending.filter(p => p.status === 'queued' || p.status === 'waiting').map(p =>
-                          <ProcessingItem key={p.num} item={p} onProcess={() => processPending(p.num)} onDelete={() => deletePending(p.num)} onReset={() => resetPending(p.num)} onDragStart={e => handleDragStart(e, p.num)} onViewWorkflow={openWorkflow} />)}
+                        {pending.filter(p => p.status === 'queued').map(p =>
+                          <ProcessingItem key={p.num} item={p} onProcess={() => processPending(p.num)} onDelete={() => deletePending(p.num)} onMoveToCreated={() => resetPending(p.num)} onDragStart={e => handleDragStart(e, p.num)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}
@@ -119,9 +132,9 @@ export default function JobsPage({
                     <ScrollArea className="flex-1 min-h-0 min-w-0"
                       onDragOver={e => handleDragOver(e, 'processing')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'processing')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pending.filter(p => ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)).map(p =>
+                        {pending.filter(p => p.status === 'processing').map(p =>
                           <JobProcessingCard key={p.num} item={p} onDragStart={e => handleDragStart(e, p.num)}
-                            onCancel={() => pausePending(p.num)} onDelete={() => deletePending(p.num)} onViewWorkflow={openWorkflow} />)}
+                            onCancel={() => pausePending(p.num)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}
@@ -129,7 +142,7 @@ export default function JobsPage({
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pending.filter(p => p.status === 'failed' || p.status === 'cancelled').map(p =>
-                          <JobFailedCard key={p.num} item={p} onDelete={() => deletePending(p.num)} onProcess={() => processPending(p.num)} onReset={() => resetPending(p.num)} onViewWorkflow={openWorkflow} />)}
+                          <JobFailedCard key={p.num} item={p} onDelete={() => deletePending(p.num)} onProcess={() => processPending(p.num)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}

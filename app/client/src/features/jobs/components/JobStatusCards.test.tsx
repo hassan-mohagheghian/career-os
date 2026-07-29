@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import JobCreatedCard from './JobCreatedCard'
 import JobPendingCard from './JobPendingCard'
 import JobQueuedCard from './JobQueuedCard'
 import JobProcessingCard from './JobProcessingCard'
 import JobFailedCard from './JobFailedCard'
-import JobCompletedCard from './JobCompletedCard'
+import JobProcessedCard from './JobProcessedCard'
 
 vi.mock('@/shared/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <>{children}</>,
@@ -20,16 +21,24 @@ const baseItem = {
   step_extract_struct: 0, step_summary: 0, step_analyze: 0, step_done: 0,
 }
 
-describe('JobPendingCard', () => {
+describe('JobCreatedCard', () => {
   it('renders company name and created status', () => {
-    render(<JobPendingCard item={{ ...baseItem, status: 'created' }} />)
+    render(<JobCreatedCard item={{ ...baseItem, status: 'created' }} />)
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
     expect(screen.getByText('created')).toBeInTheDocument()
   })
 
   it('renders Start process button when onProcess is provided', () => {
-    render(<JobPendingCard item={{ ...baseItem, status: 'created' }} onProcess={vi.fn()} />)
+    render(<JobCreatedCard item={{ ...baseItem, status: 'created' }} onProcess={vi.fn()} />)
     expect(screen.getByText('Start')).toBeInTheDocument()
+  })
+})
+
+describe('JobPendingCard', () => {
+  it('renders company name and pending status', () => {
+    render(<JobPendingCard item={{ ...baseItem, status: 'pending' }} />)
+    expect(screen.getByText('TechCorp')).toBeInTheDocument()
+    expect(screen.getByText('pending')).toBeInTheDocument()
   })
 })
 
@@ -47,12 +56,12 @@ describe('JobQueuedCard', () => {
 
 describe('JobProcessingCard', () => {
   it('renders active status label', () => {
-    render(<JobProcessingCard item={{ ...baseItem, status: 'fetching', current_node: 'fetch' }} />)
-    expect(screen.getByText('Fetching...')).toBeInTheDocument()
+    render(<JobProcessingCard item={{ ...baseItem, status: 'processing', current_node: 'fetch' }} />)
+    expect(screen.getByText('Processing...')).toBeInTheDocument()
   })
 
   it('renders Cancel button when onCancel is provided', () => {
-    render(<JobProcessingCard item={{ ...baseItem, status: 'fetching' }} onCancel={vi.fn()} />)
+    render(<JobProcessingCard item={{ ...baseItem, status: 'processing' }} onCancel={vi.fn()} />)
     expect(screen.getByTitle('Cancel')).toBeInTheDocument()
   })
 })
@@ -69,14 +78,14 @@ describe('JobFailedCard', () => {
   })
 })
 
-describe('JobCompletedCard', () => {
-  it('renders completed status', () => {
-    render(<JobCompletedCard item={{ ...baseItem, status: 'completed', step_done: 1 }} />)
-    expect(screen.getByText('completed')).toBeInTheDocument()
+describe('JobProcessedCard', () => {
+  it('renders processed status', () => {
+    render(<JobProcessedCard item={{ ...baseItem, status: 'processed', step_done: 1 }} />)
+    expect(screen.getByText('processed')).toBeInTheDocument()
   })
 
   it('renders Process button when onProcess is provided', () => {
-    render(<JobCompletedCard item={{ ...baseItem, status: 'completed' }} onProcess={vi.fn()} />)
+    render(<JobProcessedCard item={{ ...baseItem, status: 'processed' }} onProcess={vi.fn()} />)
     expect(screen.getByTitle('Process')).toBeInTheDocument()
   })
 })

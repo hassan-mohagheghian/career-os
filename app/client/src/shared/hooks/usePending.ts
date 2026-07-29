@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useSocketIO, cancelJob, resetJob } from './useSocketIO'
+import { useSocketIO, cancelJob, resetJob, watchJob, unwatchJob, watchCompany, unwatchCompany } from './useSocketIO'
 
 const API = '/api'
 
@@ -15,6 +15,8 @@ interface PendingJob {
   [key: string]: any
 }
 
+const MAX_PROCESSING_JOBS = 2
+
 export function usePending(onJobDone?: () => void) {
   const [pending, setPending] = useState<PendingJob[]>([])
   const [urlInput, setUrlInput] = useState('')
@@ -26,13 +28,45 @@ export function usePending(onJobDone?: () => void) {
   const onJobDoneRef = useRef(onJobDone)
   onJobDoneRef.current = onJobDone
   const socket = useSocketIO()
+  const watchedRef = useRef(new Set<number>())
+
+  const getProcessingCount = (list: PendingJob[]) =>
+    list.filter(p => p.status === 'processing').length
+
+  const syncWatchRooms = useCallback((list: PendingJob[]) => {
+    const newIds = new Set(list.map(p => p.id))
+    for (const id of watchedRef.current) {
+      if (!newIds.has(id)) {
+        unwatchJob(id)
+        unwatchCompany(id)
+        watchedRef.current.delete(id)
+      }
+    }
+    for (const id of newIds) {
+      if (!watchedRef.current.has(id)) {
+        watchJob(id)
+        watchCompany(id)
+        watchedRef.current.add(id)
+      }
+    }
+  }, [])
 
   const fetchPending = useCallback(() => {
     return fetch(`${API}/pending`).then(r => r.json()).then((list: PendingJob[]) => {
       setPending(list)
+      syncWatchRooms(list)
       return list
     })
-  }, [])
+  }, [syncWatchRooms])
+
+  const autoQueue = useCallback(async (id: number) => {
+    const list = await fetchPending()
+    const processingCount = getProcessingCount(list)
+    if (processingCount < MAX_PROCESSING_JOBS) {
+      await fetch(`${API}/pending/${id}/process`, { method: 'POST' })
+    }
+    fetchPending()
+  }, [fetchPending])
 
   const processPending = useCallback(async (id: number) => {
     await fetch(`${API}/pending/${id}/process`, { method: 'POST' })
@@ -63,12 +97,14 @@ export function usePending(onJobDone?: () => void) {
         return
       }
       setUrlInput('')
-      fetchPending()
-      if (processImmediately && data.num) await processPending(data.num)
+      const list = await fetchPending()
+      if (processImmediately && data.num) {
+        await autoQueue(data.num)
+      }
     } finally {
       setSubmitting(false)
     }
-  }, [urlInput, processImmediately, fetchPending, processPending])
+  }, [urlInput, processImmediately, fetchPending, autoQueue])
 
   const deletePending = useCallback(async (id: number) => {
     await fetch(`${API}/pending/${id}`, { method: 'DELETE' })
@@ -88,7 +124,7 @@ export function usePending(onJobDone?: () => void) {
   useEffect(() => {
     const handleUpdate = (data: any) => {
       setPending(prev => prev.map(p => {
-        if (p.id !== data.id) return p
+        if (p.num !== data.id) return p
         const updated = { ...p, ...data }
         if (data.step && data.step !== 'session_id') {
           updated[data.step] = data.val
@@ -98,28 +134,29 @@ export function usePending(onJobDone?: () => void) {
     }
     const handleLog = (data: any) => {
       setPending(prev => prev.map(p => {
-        if (p.id !== data.id) return p
+        if (p.num !== data.id) return p
         const logs = Array.isArray(p.workflow_log) ? p.workflow_log : JSON.parse(p.workflow_log || '[]')
         return { ...p, workflow_log: [...logs, { step: data.step, msg: data.msg, ts: data.ts }] }
       }))
     }
     const handleComplete = (data: any) => {
       setPending(prev => prev.map(p =>
-        p.id === data.id ? { ...p, status: 'completed', ...data } : p
+        p.num === data.id ? { ...p, status: 'processed', ...data } : p
       ))
       if (!seenDoneRef.current.has(data.id)) {
         seenDoneRef.current.add(data.id)
         onJobDoneRef.current?.()
+        fetchPending()
       }
     }
     const handleError = (data: any) => {
       setPending(prev => prev.map(p =>
-        p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
+        p.num === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
     }
     const handleProgress = (data: any) => {
       setPending(prev => prev.map(p => {
-        if (p.id !== data.id) return p
+        if (p.num !== data.id) return p
         return {
           ...p,
           status: data.status || p.status,

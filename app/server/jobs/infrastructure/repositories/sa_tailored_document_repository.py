@@ -1,5 +1,7 @@
 """SQLAlchemy-based tailored document repository implementation."""
 
+import json
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -74,19 +76,42 @@ class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):
         return self._to_dict(m) if m else None
 
     def get_active_for_job(self, job_num: int, doc_type: str) -> dict[str, Any] | None:
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        pending_repo = SQLAlchemyPendingGenerationRepository(self._session)
-        return pending_repo.get_active_for_job(job_num, doc_type)
+        resume_id = f"{doc_type}_{job_num}"
+        m = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
+        if not m:
+            return None
+        state = json.loads(m.raw_text) if m.raw_text else {}
+        if state.get("status") in ("queued", "processing"):
+            return {"id": job_num, "job_num": job_num, "type": doc_type, "status": state.get("status")}
+        return None
 
     def create_generation(self, job_num: int, doc_type: str) -> dict[str, Any]:
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        pending_repo = SQLAlchemyPendingGenerationRepository(self._session)
-        return pending_repo.create(job_num=job_num, gen_type=doc_type)
+        resume_id = f"{doc_type}_{job_num}"
+        now = datetime.utcnow().isoformat()
+        state = json.dumps({"status": "queued", "created_at": now})
+        existing = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
+        if existing:
+            existing.raw_text = state
+            existing.content = None
+            self._session.commit()
+            self._session.refresh(existing)
+        else:
+            m = ResumeModel(
+                id=resume_id,
+                title=f"{doc_type} for job #{job_num}",
+                job_num=job_num,
+                raw_text=state,
+            )
+            self._session.add(m)
+            self._session.commit()
+            self._session.refresh(m)
+        return {"id": job_num, "job_num": job_num, "type": doc_type, "status": "queued"}
 
     def get_all_active(self) -> list[dict[str, Any]]:
         return []
 
     def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        pending_repo = SQLAlchemyPendingGenerationRepository(self._session)
-        return pending_repo.get_history_for_job(job_num)
+        rows = self._session.query(ResumeModel).filter(
+            ResumeModel.job_num == job_num
+        ).order_by(ResumeModel.created_at.desc()).all()
+        return [self._to_dict(r) for r in rows]

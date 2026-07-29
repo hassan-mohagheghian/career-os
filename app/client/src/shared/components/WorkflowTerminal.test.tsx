@@ -127,7 +127,7 @@ describe('WorkflowTerminal', () => {
 
   it('does not render LIVE badge when not processing', () => {
     render(
-      <WorkflowTerminal workflowDrawer={{ ...baseDrawer, status: 'done' }} workflowLogs={[]} workflowEndRef={{ current: null }} onClose={vi.fn()} />
+      <WorkflowTerminal workflowDrawer={{ ...baseDrawer, status: 'processed' }} workflowLogs={[]} workflowEndRef={{ current: null }} onClose={vi.fn()} />
     )
     expect(screen.queryByText('● LIVE')).not.toBeInTheDocument()
   })

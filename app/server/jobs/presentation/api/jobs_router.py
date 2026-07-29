@@ -81,7 +81,7 @@ def get_job_generation_history(num: int, session = Depends(get_session_sync)):
             "status": r["status"],
             "error": r.get("error"),
             "started_at": r.get("created_at"),
-            "completed_at": r.get("updated_at") if r.get("status") in ("done", "completed", "failed") else None,
+            "completed_at": r.get("updated_at") if r.get("status") in ("processed", "failed", "cancelled") else None,
         }
         for r in items
     ]

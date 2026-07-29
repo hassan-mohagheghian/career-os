@@ -39,7 +39,7 @@ function SkillBadge({ category }: { category?: string }) {
 
 const ALL_CATEGORIES = '__all__'
 
-export default function SkillsTab({ deepLinkSkill, onClearDeepLink }: { deepLinkSkill?: string | null; onClearDeepLink?: () => void } = {}) {
+export default function SkillsTab({ deepLinkSkill, onClearDeepLink, onSkillOpen }: { deepLinkSkill?: string | null; onClearDeepLink?: () => void; onSkillOpen?: (skillName: string) => void } = {}) {
   const {
     skills, skillRoadmapProgress, skillGenJobs,
     fetchSkills, dashboardData,
@@ -90,7 +90,8 @@ export default function SkillsTab({ deepLinkSkill, onClearDeepLink }: { deepLink
   const openSkill = useCallback((skill: any) => {
     setSelectedSkill(skill)
     fetchRoadmap(skill.name)
-  }, [fetchRoadmap])
+    onSkillOpen?.(skill.name)
+  }, [fetchRoadmap, onSkillOpen])
 
   const closeSkill = useCallback(() => {
     setSelectedSkill(null)

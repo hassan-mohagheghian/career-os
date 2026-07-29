@@ -67,7 +67,7 @@ class Broadcaster(IBroadcaster):
     def _room_for(self, table: str, pid: int) -> str:
         if table == 'pending_generations':
             return f'generation_{pid}'
-        return f'{"pending" if table == "pending_jobs" else "company"}_{pid}'
+        return f'{"job" if table == "pending_jobs" else "company"}_{pid}'
 
     def _prefix(self, table: str) -> str:
         if table == 'pending_generations':

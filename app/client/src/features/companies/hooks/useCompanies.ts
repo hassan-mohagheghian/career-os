@@ -81,8 +81,9 @@ export function useCompanies() {
     }
     const handleComplete = (data: any) => {
       setCompanies(prev => prev.map(p =>
-        p.id === data.id ? { ...p, status: 'completed', ...data } : p
+        p.id === data.id ? { ...p, status: 'processed', ...data } : p
       ))
+      fetchCompanies()
     }
     const handleError = (data: any) => {
       setCompanies(prev => prev.map(p =>

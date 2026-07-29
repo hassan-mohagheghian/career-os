@@ -23,7 +23,7 @@ class TestBroadcaster:
         assert args[0][0] == 'pending:update'
         assert args[0][1]['id'] == 42
         assert args[0][1]['step'] == 'step_fetch'
-        assert args[1]['room'] == 'pending_42'
+        assert args[1]['room'] == 'job_42'
 
     def test_step_update_company_table(self):
         event = StatusUpdate(table='pending_companies', pid=5, step='step_extract', val=1)

@@ -312,14 +312,14 @@ def process_company(pid):
 
 
 NODE_TO_STATUS = {
-    'load_context': JobStatus.STARTING,
-    'validate_input': JobStatus.STARTING,
-    'fetch_content': JobStatus.FETCHING,
-    'extract_company_data': JobStatus.ANALYZING,
-    'analyze_company': JobStatus.ANALYZING,
-    'score_company': JobStatus.GENERATING,
-    'save_results': JobStatus.FINALIZING,
-    'completion_event': JobStatus.FINALIZING,
+    'load_context': JobStatus.PROCESSING,
+    'validate_input': JobStatus.PROCESSING,
+    'fetch_content': JobStatus.PROCESSING,
+    'extract_company_data': JobStatus.PROCESSING,
+    'analyze_company': JobStatus.PROCESSING,
+    'score_company': JobStatus.PROCESSING,
+    'save_results': JobStatus.PROCESSING,
+    'completion_event': JobStatus.PROCESSING,
 }
 
 NODE_TO_STEP = {
@@ -359,7 +359,7 @@ class CompanyWorker(WorkerBase):
         return []
 
     def _reset_steps(self, pid: int) -> None:
-        self._pending_repo.update_status(pid, 'created', workflow_log='[]')
+        self._pending_repo.update_status(pid, 'processing', workflow_log='[]')
 
     def _get_graph(self):
         if self._graph is None:
@@ -411,7 +411,7 @@ class CompanyWorker(WorkerBase):
             "company_id": company_id,
         }
 
-        self._pending_repo.update_status(pid, JobStatus.STARTING, current_node='load_context')
+        self._pending_repo.update_status(pid, JobStatus.PROCESSING, current_node='load_context')
 
         initial = create_initial_state(
             input="",

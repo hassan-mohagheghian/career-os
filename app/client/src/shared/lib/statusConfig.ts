@@ -1,15 +1,11 @@
-export const ACTIVE_STATUSES = new Set(['starting', 'fetching', 'analyzing', 'generating', 'finalizing'])
+export const ACTIVE_STATUSES = new Set(['processing'])
 
 export const STATUS_LABELS: Record<string, string> = {
   created: 'Created',
+  pending: 'Pending',
   queued: 'Queued',
-  waiting: 'Waiting',
-  starting: 'Starting...',
-  fetching: 'Fetching...',
-  analyzing: 'Analyzing...',
-  generating: 'Generating...',
-  finalizing: 'Finalizing...',
-  completed: 'Completed',
+  processing: 'Processing...',
+  processed: 'Processed',
   failed: 'Failed',
   cancelled: 'Cancelled',
 }

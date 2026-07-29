@@ -8,7 +8,7 @@ let socket: Socket | null = null
 function getSocket(): Socket {
   if (!socket) {
     socket = io(window.location.origin, {
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

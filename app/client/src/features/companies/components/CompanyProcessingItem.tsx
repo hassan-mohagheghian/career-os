@@ -24,7 +24,7 @@ const STEPS = [
 const STEP_KEYS = ['step_fetch', 'step_extract', 'step_analyze', 'step_save', 'step_done']
 
 function getStatus(item) {
-  if (item.status === 'done') return 'done'
+  if (item.status === 'processed') return 'processed'
   if (item.status === 'failed') return 'failed'
   if (item.status === 'processing') {
     const vals = STEP_KEYS.map(k => item[k])
@@ -33,10 +33,11 @@ function getStatus(item) {
     return labels[Math.min(done, labels.length - 1)] || 'Processing'
   }
   if (item.status === 'queued') return 'Queued'
-  return 'Pending'
+  if (item.status === 'pending') return 'Pending'
+  return 'Created'
 }
 
-export default function CompanyProcessingItem({ item, onDelete, onProcess, onReset, onPause, onReprocess }) {
+export default function CompanyProcessingItem({ item, onDelete, onProcess, onMoveToCreated, onPause, onReprocess }) {
   const [processing, setProcessing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editNotes, setEditNotes] = useState([])
@@ -46,12 +47,13 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
   const [newLinkTitle, setNewLinkTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const statusKey = getStatus(item)
-  const isDone = item.status === 'done'
+  const isDone = item.status === 'processed'
   const isFailed = item.status === 'failed'
-  const isPaused = item.status === 'paused'
-  const isQueued = statusKey === 'Queued'
+  const isCancelled = item.status === 'cancelled'
+  const isQueued = item.status === 'queued'
   const isPending = item.status === 'pending'
-  const isProcessing = !isDone && !isFailed && !isPaused && !isQueued && !isPending
+  const isCreated = item.status === 'created'
+  const isProcessing = !isDone && !isFailed && !isCancelled && !isQueued && !isPending && !isCreated
 
   const vals = STEP_KEYS.map(k => item[k])
   const done = vals.filter(s => s === 1).length
@@ -141,7 +143,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
       <div className="flex items-center gap-1 mb-1 min-w-0">
         <div className={cn(
           "w-2 h-2 rounded-full shrink-0",
-          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isPaused ? "bg-yellow-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : "bg-muted-foreground"
+          isDone ? "bg-green-500" : isFailed ? "bg-red-500" : isCancelled ? "bg-gray-500" : isProcessing ? "bg-blue-500 animate-pulse" : isQueued ? "bg-yellow-400" : isPending ? "bg-sky-400" : "bg-muted-foreground"
         )} />
         {item.source === 'reprocess' && <span className="text-3xs px-0.5 rounded bg-secondary text-secondary-foreground shrink-0">R</span>}
         <span className="text-2xs font-bold truncate min-w-0">{item.company_name || 'Processing...'}</span>
@@ -274,16 +276,17 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
         )}
         <span className="text-2xs truncate flex-1 min-w-0 text-muted-foreground">
           {isProcessing && <span className="text-blue-500">{statusKey}...</span>}
-          {isPending && <span className="text-gray-400">pending</span>}
-          {isPaused && <span className="text-yellow-500">paused</span>}
+          {isPending && <span className="text-sky-500">pending</span>}
+          {isCreated && <span className="text-gray-400">created</span>}
+          {isCancelled && <span className="text-gray-500">cancelled</span>}
           {isFailed && <span className="text-red-500" title={item.error || 'Failed'}><Warning className="w-1.5 h-1.5 inline mr-0.5" />{item.error ? item.error.slice(0, 50) : 'Failed'}</span>}
           {isQueued && <span className="text-yellow-500">queued</span>}
-          {isDone && <span className="text-green-500">done</span>}
+          {isDone && <span className="text-green-500">processed</span>}
           {item.session_id ? (
             <button onClick={(e) => { e.stopPropagation(); handleCopySession() }} className="text-3xs text-muted-foreground hover:text-foreground font-mono ml-1" title={`Click to copy: ${item.session_id}`}>
               {item.session_id.slice(0, 6)}...
             </button>
-          ) : !isDone ? (
+          ) : !isDone && !isCancelled ? (
             <span className="text-3xs text-muted-foreground/50 font-mono ml-1">no_session_id</span>
           ) : null}
         </span>
@@ -295,7 +298,7 @@ export default function CompanyProcessingItem({ item, onDelete, onProcess, onRes
           onDelete={onDelete}
           onProcess={handleProcess}
           onCancel={isProcessing ? handleReprocess : (onPause || undefined)}
-          onReset={onReset}
+          onMoveToCreated={onMoveToCreated}
         />
       </div>
     </div>

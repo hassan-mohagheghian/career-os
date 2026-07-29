@@ -1,6 +1,6 @@
 import {
   Pause, Repeat, Trash, ArrowBendUpLeft,
-  Copy, Rocket, FileText, X
+  Copy, Rocket, FileText, X, ArrowUUpLeft
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -14,7 +14,7 @@ interface CardActionsProps {
   onDelete?: () => void
   onProcess?: () => void
   onCancel?: () => void
-  onReset?: () => void
+  onMoveToCreated?: () => void
   onViewWorkflow?: () => void
   className?: string
 }
@@ -23,33 +23,31 @@ function setToast(msg: string) {
   window.dispatchEvent(new CustomEvent('toast', { detail: msg }))
 }
 
-const ACTIVE = new Set(['starting', 'fetching', 'analyzing', 'generating', 'finalizing', 'processing'])
+const ACTIVE = new Set(['processing'])
 const PRE_PROCESS = new Set(['created', 'pending', 'queued'])
 const FAILED = new Set(['failed', 'error'])
-const COMPLETED = new Set(['completed', 'done', 'cancelled'])
+const COMPLETED = new Set(['processed', 'cancelled'])
 
 export default function CardActions({
   status, size = 'sm', disabled = false, error, hasWorkflowLogs,
-  onDelete, onProcess, onCancel, onReset, onViewWorkflow, className,
+  onDelete, onProcess, onCancel, onMoveToCreated, onViewWorkflow, className,
 }: CardActionsProps) {
   const isActive = ACTIVE.has(status)
   const isPreProcess = PRE_PROCESS.has(status)
   const isFailed = FAILED.has(status)
   const isCompleted = COMPLETED.has(status)
-  const isWaiting = status === 'waiting'
-  const isPaused = status === 'paused'
 
-  const showProcess = onProcess && (isPreProcess || isFailed || isCompleted)
+  const showProcess = onProcess && (isPreProcess || isFailed || isCompleted) && !isActive
   const showCancel = onCancel && isActive
-  const showReset = onReset && (isPreProcess || isActive || isFailed || isWaiting || isPaused)
+  const showMoveToCreated = onMoveToCreated && status === 'queued'
   const showWorkflow = onViewWorkflow && hasWorkflowLogs
-  const showDelete = !!onDelete
+  const showDelete = !!onDelete && !isActive
   const showCopyError = isFailed && error
 
   const iconSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2'
   const iconBtnSize = size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5'
 
-  if (!showProcess && !showCancel && !showReset && !showWorkflow && !showDelete && !showCopyError) {
+  if (!showProcess && !showCancel && !showMoveToCreated && !showWorkflow && !showDelete && !showCopyError) {
     return null
   }
 
@@ -99,15 +97,15 @@ export default function CardActions({
           <X className={iconSize} />
         </Button>
       )}
-      {showReset && (
+      {showMoveToCreated && (
         <Button
           variant="ghost" size="icon"
           className={cn(iconBtnSize, 'shrink-0 text-orange-500 hover:bg-orange-500/10')}
-          onClick={(e) => { e.stopPropagation(); onReset?.() }}
+          onClick={(e) => { e.stopPropagation(); onMoveToCreated?.() }}
           disabled={disabled}
-          title="Reset"
+          title="Move to Created"
         >
-          <ArrowBendUpLeft className={iconSize} />
+          <ArrowUUpLeft className={iconSize} />
         </Button>
       )}
       {showWorkflow && (

@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from .base import BaseTool, ToolResult
 from .web import CompanyFetchTool, MultiSourceFetchTool
+from shared.infrastructure.utils import repair_llm_json
 
 
 class FetchCompanyTool(BaseTool):
@@ -85,7 +86,7 @@ class ExtractCompanyTool(BaseTool):
                 prompt,
                 timeout=180,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
             return ToolResult(success=True, data=result)
         except Exception as e:
             return ToolResult(success=False, error=f"Extraction failed: {e}")
@@ -154,7 +155,7 @@ class AnalyzeCompanyTool(BaseTool):
                 prompt,
                 timeout=300,
             )
-            result = json.loads(resp.content)
+            result = repair_llm_json(resp.content)
             return ToolResult(success=True, data=result)
         except Exception as e:
             return ToolResult(success=False, error=f"Analysis failed: {e}")
