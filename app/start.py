@@ -30,9 +30,11 @@ console = Console()
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVER_DIR = REPO_ROOT / "app" / "server"
 CLIENT_DIR = REPO_ROOT / "app" / "client"
+BACKGROUND_DIR = REPO_ROOT / "app" / "background"
 VENV_DIR = REPO_ROOT / ".venv"
 PID_FILE = REPO_ROOT / ".server.pid"
 CLIENT_PID_FILE = REPO_ROOT / ".client.pid"
+PID_BG_FILE = REPO_ROOT / ".background.pid"
 
 
 def _load_port_from_env(key: str, default: int) -> int:
@@ -181,6 +183,9 @@ def dev(
     frontend_port: Optional[int] = typer.Option(
         None, "--frontend-port", help="Frontend port"
     ),
+    with_background: bool = typer.Option(
+        False, "--background", "-b", help="Also start the background worker"
+    ),
 ):
     """Start backend + frontend"""
     port_be = backend_port or _load_port_from_env("BACKEND_PORT", 5000)
@@ -194,11 +199,17 @@ def dev(
     time.sleep(2)
     _start_frontend(port_fe)
 
+    if with_background:
+        time.sleep(1)
+        _start_background()
+
     console.print()
     _ok("All services started!")
     console.print()
     console.print(f"  Backend:  http://localhost:{port_be}")
     console.print(f"  Frontend: http://localhost:{port_fe}")
+    if with_background:
+        console.print("  Background: worker running")
     console.print()
     console.print("  Press Ctrl+C to stop all services")
     console.print()
@@ -211,6 +222,8 @@ def dev(
 
     _stop_service("backend", PID_FILE)
     _stop_service("frontend", CLIENT_PID_FILE)
+    if with_background:
+        _stop_service("background", PID_BG_FILE)
     _kill_by_pattern("mimo run")
     _ok("All processes stopped.")
 
@@ -243,6 +256,19 @@ def _start_frontend(port: int):
     )
     _save_pid(CLIENT_PID_FILE, proc.pid)
     _ok(f"Frontend started (PID: {proc.pid}) on http://localhost:{port}")
+
+
+def _start_background():
+    _log("Starting background worker...")
+    python = _python_path()
+    proc = subprocess.Popen(
+        [
+            python, "-m", "background.main",
+        ],
+        cwd=str(REPO_ROOT),
+    )
+    _save_pid(PID_BG_FILE, proc.pid)
+    _ok(f"Background worker started (PID: {proc.pid})")
 
 
 @app.command()
@@ -308,6 +334,28 @@ def frontend(
     _log("Shutting down frontend...")
     _stop_service("frontend", CLIENT_PID_FILE)
     _ok("Frontend stopped.")
+
+
+@app.command()
+def background():
+    """Start only the background worker"""
+    _log("Starting background worker...")
+    python = _python_path()
+    proc = subprocess.Popen(
+        [python, "-m", "background.main"],
+        cwd=str(REPO_ROOT),
+    )
+    _save_pid(PID_BG_FILE, proc.pid)
+    _ok(f"Background worker started (PID: {proc.pid})")
+
+    try:
+        signal.pause()
+    except KeyboardInterrupt:
+        pass
+
+    _log("Shutting down background worker...")
+    _stop_service("background", PID_BG_FILE)
+    _ok("Background worker stopped.")
 
 
 test_app = typer.Typer(help="Run tests")
@@ -637,6 +685,7 @@ def stop():
     _log("Stopping all processes...")
     _stop_service("backend", PID_FILE)
     _stop_service("frontend", CLIENT_PID_FILE)
+    _stop_service("background", PID_BG_FILE)
     _kill_by_pattern("mimo run")
     _ok("All processes stopped.")
 
@@ -659,6 +708,12 @@ def status():
         _ok(f"Frontend: Running (PID: {frontend_pid}) — http://localhost:{port}")
     else:
         _warn("Frontend: Not running")
+
+    background_pid = _read_pid(PID_BG_FILE)
+    if background_pid is not None and _is_process_alive(background_pid):
+        _ok(f"Background: Running (PID: {background_pid})")
+    else:
+        _warn("Background: Not running")
 
     mimo = subprocess.run(
         ["pgrep", "-f", "mimo run"], capture_output=True, text=True

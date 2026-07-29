@@ -1,6 +1,6 @@
 # Job Search Intelligence
 
-AI-powered career intelligence platform for engineers — job discovery, company analysis, skill management, resume generation, and career insights. Built for visa-sponsored roles in Europe (Germany, Netherlands).
+AI-powered career platform for software engineers — job discovery, company analysis, skill management, resume generation, and career insights. Built for visa-sponsored roles in Europe (Germany, Netherlands).
 
 ## Quick Start
 
@@ -8,105 +8,94 @@ AI-powered career intelligence platform for engineers — job discovery, company
 ./start
 ```
 
-Opens FastAPI backend (port 5000) + React dev server (port 5173).
+Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + optional background worker (arq + Redis).
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.14+, FastAPI, SQLite (SQLAlchemy ORM + Alembic), python-socketio |
-| Frontend | React 18, TypeScript, Vite 6, shadcn/ui, Tailwind CSS |
-| AI | LLMService (Mimo CLI / OpenAI / Local via `AI_PROVIDER`), LangGraph workflows |
+| Frontend | React 18, Next.js (App Router), TypeScript, shadcn/ui, Tailwind CSS |
+| AI | LLMService (OpenAI / Mimo CLI / Local via `AI_PROVIDER`), LangGraph workflows |
+| Queue | ARQ + Redis for background job processing |
 | Realtime | WebSocket (python-socketio, ASGI mode) |
-| Testing | pytest (376+ tests), vitest (23 tests) |
+| Testing | pytest (535+ tests), vitest (401 tests) |
 | API Docs | Swagger UI (`/api/docs`), ReDoc (`/api/redoc`) |
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              React SPA (Vite + TypeScript)                │
-│  ┌──────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ ┌──────┐│
-│  │ Jobs │ │Companies │ │Insights │ │ Skills │ │Resume││
-│  └──┬───┘ └────┬─────┘ └────┬────┘ └───┬────┘ └──┬───┘│
-│     └──────────┴────────────┴──────────┴─────────┘     │
-│                  Hash-based routing                      │
-└─────────────────────────┬───────────────────────────────┘
-                          │ HTTP + WebSocket
-┌─────────────────────────┼───────────────────────────────┐
-│               FastAPI (port 5000)                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│  │  Routers │ │Services  │ │  Repos   │ │ WebSocket│  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘  │
-│       └────────────┴────────────┴────────────┘         │
-│            ┌────────────▼────────────┐                   │
-│            │      SQLite DB          │                   │
-│            │      (jobs.db)          │                   │
-│            └─────────────────────────┘                   │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-              ┌───────────▼───────────┐
-              │   AI Agent Layer      │
-              │   (LLMService)        │
-              └───────────┬───────────┘
-                          │
-              ┌───────────▼───────────┐
-              │   Provider Layer      │
-              │  ┌─────┬──────┬─────┐│
-              │  │Mimo │OpenAI│Local││
-              │  └─────┴──────┴─────┘│
-              └───────────────────────┘
+                     ┌──────────────────────────────┐
+                     │    Next.js (App Router)       │
+                     │   ┌──────┐ ┌──────────┐      │
+                     │   │ Jobs │ │Companies │      │
+                     │   ├──────┤ ├──────────┤      │
+                     │   │Skills│ │  Resume  │      │
+                     │   ├──────┤ ├──────────┤      │
+                     │   │Rules │ │  ...     │      │
+                     │   └──────┴────────────┘      │
+                     │   FSD: entities/features/    │
+                     │        widgets/shared         │
+                     └──────────────┬───────────────┘
+                                    │ HTTP + WebSocket
+                     ┌──────────────┼───────────────┐
+                     │    FastAPI (port 5000)         │
+                     │  ┌──────┐ ┌──────┐ ┌──────┐  │
+                     │  │ Jobs │ │Comp. │ │Skills│  │
+                     │  ├──────┤ ├──────┤ ├──────┤  │
+                     │  │Rules │ │ AI   │ │Shared│  │
+                     │  └──┬───┘ └──┬───┘ └──────┘  │
+                     │     └────────┴──┐             │
+                     │          ┌──────▼──────┐      │
+                     │          │  SQLite DB   │      │
+                     │          └──────┬──────┘      │
+                     └─────────────────┼─────────────┘
+                                       │
+                    ┌──────────────────┼──────────────────┐
+                    │    ARQ Worker     │     Redis         │
+                    │  (background/)    │  (queue + cache)  │
+                    └──────────────────┴──────────────────┘
+                                       │
+                    ┌──────────────────▼──────────────────┐
+                    │       AI Agent Layer (LLMService)    │
+                    │    LangGraph workflows + Providers    │
+                    │  ┌──────┬──────┬──────┬──────────┐   │
+                    │  │OpenAI│ Mimo │Local │ Anthropic│   │
+                    │  └──────┴──────┴──────┴──────────┘   │
+                    └─────────────────────────────────────┘
 ```
 
 ## Navigation
 
 ```
 Jobs              Job processing queue + processed cards
-Companies         Company intelligence + processing
+Companies         Company intelligence + processing queue
 Skills            Skill management, roadmaps, progress tracking
-Insights          Career intelligence analysis
-  ├── Overview    Career health score, next actions
-  ├── Skills      Skills analysis (extracted skills, fill into DB)
-  ├── Opportunities  Job funnel, best jobs, missed opportunities
-  ├── Companies   Company scoring, top targets
-  ├── Market      Countries, cities, remote opportunities
-  └── Networking  Connection strategy, LinkedIn targets
-Settings
-  ├── Resume      Resume/cover letter generation
-  └── Rules       Scoring rules configuration
+Resume            Resume/cover letter generation
+Rules             Scoring rules configuration
 ```
 
 ## Features
 
 ### Job Processing
-- URL submission → fetch → extract → AI analysis → score → save
-- Real-time WebSocket progress (step-by-step updates)
+- URL/notes submission → fetch → extract → AI analysis → score → save
+- Real-time WebSocket progress (step-by-step updates per 13-node LangGraph)
 - Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING)
-- Version tracking for retries (version column incremented on reset)
+- Version tracking for retries, deduplication by base URL
 
 ### Company Intelligence
-- Company profile extraction and analysis
-- Product vs Recruiting classification
-- Visa friendliness assessment
-- Fit/Success/Overall scoring
+- Multi-source input (notes + links) for profile extraction
+- Product vs Recruiting classification, visa friendliness assessment
+- Fit/Success/Overall scoring (A++ to D)
 
 ### Skills Management
-- **5 Categories**: Technical, Engineering, Professional, Domain, Career
-- **Skill Aliases**: Merge duplicate skills (e.g., Postgres → PostgreSQL)
-- **Drag-and-Drop Merge**: Combine skills across all sections
-- **Checkable Roadmaps**: Track learning progress per skill
-- **Auto-categorization**: AI categorizes skills from job analysis
-
-### Insights (Career Intelligence)
-- Career health score (0-100)
-- Strengths, gaps, learning recommendations
-- Market analysis (countries, cities, remote)
-- Real-time progress with session tracking
-- Per-section generation (overview, opportunities, companies, market, networking)
+- 5 categories: Technical, Engineering, Professional, Domain, Career
+- Skill aliases/merge, drag-and-drop reorganization
+- AI-powered roadmap generation with checkable progress tracking
 
 ### Resume Generation
-- AI-powered resume tailoring
-- Cover letter generation
+- AI-powered resume tailoring and cover letter generation
+- Real-time progress with WebSocket updates
 - LinkedIn profile integration
 
 ## API Documentation
@@ -114,29 +103,6 @@ Settings
 - **Swagger UI**: `http://localhost:5000/api/docs`
 - **ReDoc**: `http://localhost:5000/api/redoc`
 - **OpenAPI Spec**: `http://localhost:5000/api/openapi.json`
-
-## API Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/jobs` | GET | Paginated job list |
-| `/api/jobs/:num` | GET/PUT/DELETE | Job CRUD |
-| `/api/jobs/:num/requeue` | POST | Re-queue for processing |
-| `/api/jobs/:num/rescore` | POST | Rescore existing job |
-| `/api/pending` | GET/POST | Job queue management |
-| `/api/companies` | GET/POST | Company CRUD |
-| `/api/companies/:id` | GET/DELETE | Company details/delete |
-| `/api/tech-stack` | GET/POST | Skills CRUD |
-| `/api/tech-stack/:id/hide` | PATCH | Hide skill |
-| `/api/tech-stack/:id/rename` | PATCH | Rename skill |
-| `/api/tech-stack/merge` | POST | Merge skills |
-| `/api/skill-roadmaps` | GET | Roadmap tree |
-| `/api/skill-roadmaps/generate` | POST | AI roadmap generation |
-| `/api/insights` | GET | Career insights |
-| `/api/insights/:section/refresh` | POST | Generate single section |
-| `/api/insights/progress` | GET | Real-time progress |
-| `/api/generation-history` | GET | Unified generation history |
-| `/api/rules` | GET/PUT | Scoring rules |
 
 ## WebSocket Events
 
@@ -147,92 +113,67 @@ Settings
 | `pending:complete` | Server→Client | Job finished |
 | `pending:error` | Server→Client | Job processing error |
 | `company:update` | Server→Client | Company processing progress |
-| `insights:progress` | Server→Client | Insights analysis progress |
-| `skill_roadmap:update` | Server→Client | Roadmap generation status |
 | `generation:*` | Server→Client | Resume/cover generation progress |
 
 ## Project Structure
 
 ```
 app/
-├── server/
-│   ├── entrypoints/
-│   │   ├── api.py                # FastAPI app factory + SocketIO
-│   │   └── cli.py                # Typer CLI for job management
-│   ├── shared/                   # Shared Kernel (cross-cutting)
-│   │   ├── domain/               # Base entity, value objects, repositories
-│   │   ├── application/          # DTOs, exceptions, schemas
-│   │   ├── presentation/         # Routers, error handlers, WebSocket
-│   │   └── infrastructure/       # Config, DB, workers, AI compat, logging
-│   ├── jobs/                     # Jobs Bounded Context
-│   │   ├── domain/               # Job entity, value objects, repository interfaces
-│   │   ├── application/          # Use cases, commands, DTOs
-│   │   ├── infrastructure/       # Models, repositories, workers, AI prompts
-│   │   └── presentation/         # FastAPI routers, schemas
-│   ├── companies/                # Companies Bounded Context
-│   ├── skills/                   # Skills Bounded Context
-│   ├── career/                   # Career Bounded Context
-│   ├── resume/                   # Resume Bounded Context
-│   ├── ai/                       # AI Bounded Context
-│   │   ├── domain/               # Generation session entities
-│   │   ├── application/          # Use cases, commands, DTOs
-│   │   ├── infrastructure/       # Providers (Mimo/OpenAI/Local/Gemini), tools, graphs
-│   │   │   ├── providers/        # LLM provider implementations
-│   │   │   ├── tools/            # Domain tools (fetch, web, database, job, company, skill)
-│   │   │   ├── graphs/           # LangGraph workflows
-│   │   │   └── prompts/          # Centralized prompt registry
-│   │   └── logging.py            # Structured agent events
-│   ├── dependencies.py           # FastAPI dependency injection
-│   ├── exceptions.py             # Exception hierarchy
-│   └── tests/                    # 376+ tests by bounded context
-│       ├── ai/
-│       ├── jobs/
-│       ├── companies/
-│       ├── skills/
-│       ├── career/
-│       ├── processing/
-│       ├── shared/
-│       └── migration/
-└── client/
-    └── src/
-        ├── features/             # Feature-based architecture
-        │   ├── jobs/             # Job processing (components, hooks, tests)
-        │   ├── companies/        # Company intelligence
-        │   ├── insights/         # Career insights
-        │   ├── skills/           # Skills management + roadmaps
-        │   ├── resume/           # Resume generation
-        │   └── rules/            # Scoring rules
-        ├── shared/               # Shared components, hooks, UI, lib
-        │   ├── components/       # ProcessingItem, GenerationProgressCard, NotesLinksInput
-        │   ├── hooks/            # useSocketIO, usePending, useWorkflow, useToast
-        │   ├── lib/              # utils, skills helpers
-        │   └── ui/               # shadcn/ui components (15 primitives)
-        ├── layout/               # Header, Sidebar
-        ├── App.tsx               # Root app
-        └── main.tsx              # Entry point
+├── server/                    # Python FastAPI backend (DDD monolith)
+│   ├── entrypoints/           # FastAPI app + SocketIO + Typer CLI
+│   ├── shared/                # Shared Kernel (domain, infra, config)
+│   ├── jobs/                  # Jobs bounded context
+│   ├── companies/             # Companies bounded context
+│   ├── skills/                # Skills bounded context
+│   ├── rules/                 # Rules bounded context
+│   ├── ai/                    # AI bounded context (LLM, LangGraph, providers)
+│   └── tests/                 # 535+ tests by bounded context
+├── background/                # ARQ background worker
+├── client/                    # Next.js frontend (FSD architecture)
+│   └── src/
+│       ├── app/               # App providers, TanStack Query
+│       ├── entities/          # Business entities (job, company, skill, etc.)
+│       ├── features/          # Feature slices (jobs, companies, skills, etc.)
+│       ├── widgets/           # Page adapters, drawers, terminals
+│       ├── shared/            # API client, UI kit, hooks, lib
+│       └── layout/            # Header, Sidebar
+├── alembic/                   # Database migrations
+└── start.py                   # Developer CLI (Typer)
+docs/                          # Full documentation index
 ```
 
 ## Testing
 
 ```bash
-# Backend (376+ tests)
-uv run pytest app/server/tests/ -v
+# Backend (535+ tests)
+./start test backend
 
-# AI layer (70 tests)
-uv run pytest tests/test_ai/ -v
+# Frontend (401 tests)
+./start test frontend
 
-# All backend tests
-uv run pytest tests/test_ai/ app/server/tests/ -v
+# All
+./start test all
 
-# Frontend (23 tests)
-cd app/client && npx vitest run
+# Or directly:
+cd app/server && python3 -m pytest tests/ -v
+cd app/client && npm run test
 ```
 
 ## Documentation
 
-- `docs/README.md` — Documentation index
-- `docs/architecture/ARCHITECTURE.md` — System design, DDD contexts, entities, data flows
-- `docs/CHANGELOG.md` — Version history
-- `docs/AI_ARCHITECTURE.md` — Provider abstraction, agents, tools, LangGraph workflows
-- `docs/API.md` — Complete REST API and WebSocket reference
-- API docs at runtime: `/api/docs` (Swagger UI), `/api/redoc` (ReDoc)
+See `docs/README.md` for the full index. Key files:
+
+| File | Purpose |
+|------|---------|
+| `docs/DEVELOPMENT.md` | Setup, env vars, debugging |
+| `docs/architecture/ARCHITECTURE.md` | System design, DDD contexts |
+| `docs/ai/architecture.md` | AI bounded context, providers, graphs |
+| `docs/API.md` | REST API + WebSocket reference |
+| `docs/websocket-events.md` | Socket.IO event protocol |
+| `docs/workflow-progress.md` | 13-node LangGraph pipeline |
+| `docs/feature-sliced-design.md` | FSD frontend architecture |
+| `docs/nextjs-app-router.md` | Next.js migration guide |
+| `docs/tanstack-query.md` | TanStack Query patterns |
+| `docs/DOMAIN.md` | Business entities and rules |
+| `docs/FEATURES.md` | Feature descriptions and status |
+| `docs/development/cli.md` | CLI reference |

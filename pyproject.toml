@@ -19,6 +19,8 @@ dependencies = [
     "langchain-core>=0.3.0",
     "sqlalchemy>=2.0",
     "alembic>=1.13",
+    "arq>=0.26",
+    "redis>=5.0",
 ]
 
 [project.optional-dependencies]

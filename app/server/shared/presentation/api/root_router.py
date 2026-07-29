@@ -207,7 +207,7 @@ def link_job_to_company(num: int, data: dict):
 
 @api_router.post("/companies/{id}/reprocess")
 def reprocess_company(id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_company_sync
     from companies.infrastructure import SQLAlchemyCompanyRepository
     company_repo = SQLAlchemyCompanyRepository(session)
     company = company_repo.get_by_id(id)
@@ -215,7 +215,7 @@ def reprocess_company(id: int, session: Session = Depends(get_session_sync)):
         return {"error": "Not found"}
     company_repo.update_fields(id, status='queued', error=None, updated_at=datetime.now(UTC).isoformat())
     session.commit()
-    get_queue_manager().enqueue(id, entity_type='company')
+    enqueue_company_sync(id)
     return {"status": "queued"}
 
 
@@ -238,11 +238,11 @@ def create_pending_job(data: dict, session: Session = Depends(get_session_sync))
 @api_router.post("/pending/process-all")
 def process_all_pending_jobs(session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
     repo = SQLAlchemyPendingRepository(session)
     items = repo.list_pending("pending_jobs")
     for item in items:
-        get_queue_manager().enqueue(item['num'], entity_type='job')
+        enqueue_job_sync(item['num'])
     return {"status": "queued", "count": len(items)}
 
 
@@ -260,12 +260,10 @@ def get_pending_job(item_id: str, session: Session = Depends(get_session_sync)):
 @api_router.delete("/pending/{item_id}")
 def cancel_pending_job(item_id: str, session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.config.queue import get_queue_manager
     repo = SQLAlchemyPendingRepository(session)
     item = repo.get_by_id(item_id, "pending_jobs")
     if not item:
         return {"error": "Not found"}
-    get_queue_manager().cancel_item(int(item_id), entity_type='job')
     repo.update_status(str(item_id), "cancelled", "pending_jobs")
     return {"status": "cancelled"}
 
@@ -273,17 +271,15 @@ def cancel_pending_job(item_id: str, session: Session = Depends(get_session_sync
 @api_router.post("/pending/{item_id}/reset")
 def reset_pending_job(item_id: int, session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.config.queue import get_queue_manager
     repo = SQLAlchemyPendingRepository(session)
-    get_queue_manager().reset_item(item_id, entity_type='job')
     repo.reset_steps(item_id, version=2)
     return {"status": "reset"}
 
 
 @api_router.post("/pending/{item_id}/process")
 def process_pending_job(item_id: int):
-    from shared.infrastructure.config.queue import get_queue_manager
-    get_queue_manager().enqueue(item_id, entity_type='job')
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    enqueue_job_sync(item_id)
     return {"status": "queued"}
 
 
@@ -306,11 +302,11 @@ def create_pending_company(data: dict, session: Session = Depends(get_session_sy
 @api_router.post("/pending-companies/queue-all")
 def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_company_sync
     repo = SQLAlchemyPendingRepository(session)
     items = repo.list_pending("pending_companies")
     for item in items:
-        get_queue_manager().enqueue(item['id'], entity_type='company')
+        enqueue_company_sync(item['id'])
     return {"status": "queued", "count": len(items)}
 
 
@@ -328,14 +324,12 @@ def get_pending_company(item_id: str, session: Session = Depends(get_session_syn
 @api_router.delete("/pending-companies/{item_id}")
 def cancel_pending_company(item_id: str, session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.config.queue import get_queue_manager
     from fastapi.responses import JSONResponse
     repo = SQLAlchemyPendingRepository(session)
     result = repo.get_by_id(str(item_id), "pending_companies")
     if not result:
         return JSONResponse(status_code=404, content={"error": "Not found"})
     repo.update_status(str(item_id), "cancelled", "pending_companies")
-    get_queue_manager().cancel_item(int(item_id), entity_type='company')
     return {"status": "cancelled"}
 
 
@@ -371,8 +365,8 @@ def add_pending_company_links(item_id: str, data: dict = None, session: Session 
 
 @api_router.post("/pending-companies/{item_id}/process")
 def process_pending_company(item_id: int):
-    from shared.infrastructure.config.queue import get_queue_manager
-    get_queue_manager().enqueue(item_id, entity_type='company')
+    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    enqueue_company_sync(item_id)
     return {"status": "queued"}
 
 

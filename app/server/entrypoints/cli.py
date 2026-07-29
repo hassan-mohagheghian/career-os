@@ -119,6 +119,12 @@ def process_pending_sync(pid):
     from jobs.infrastructure.workers.worker import process_job
     process_job(pid)
 
+
+def enqueue_pending_arq(pid):
+    """Enqueue a job via ARQ for background processing."""
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    enqueue_job_sync(pid)
+
 # --- Commands ---
 
 @app.command()

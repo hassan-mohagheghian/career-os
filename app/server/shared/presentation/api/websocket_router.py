@@ -34,18 +34,30 @@ async def websocket_endpoint(ws: WebSocket):
                 manager.leave_room(ws, room)
 
             elif event_type == "cancel_job":
-                from shared.infrastructure.config.queue import get_queue_manager
                 job_id = data.get("id")
                 table = data.get("table", "pending_jobs")
                 if job_id:
-                    get_queue_manager().cancel_job(job_id, table)
+                    from dependencies import get_session_sync
+                    session = get_session_sync()
+                    try:
+                        from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                        repo = SQLAlchemyPendingRepository(session)
+                        repo.update_status(str(job_id), "cancelled", table)
+                    finally:
+                        session.close()
 
             elif event_type == "reset_job":
-                from shared.infrastructure.config.queue import get_queue_manager
                 job_id = data.get("id")
                 table = data.get("table", "pending_jobs")
                 if job_id:
-                    get_queue_manager().reset_job(job_id, table)
+                    from dependencies import get_session_sync
+                    session = get_session_sync()
+                    try:
+                        from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+                        repo = SQLAlchemyPendingRepository(session)
+                        repo.reset_steps(int(job_id), version=2)
+                    finally:
+                        session.close()
 
     except WebSocketDisconnect:
         for room in rooms:

@@ -40,28 +40,29 @@ def delete_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pend
 @router.post("/{id}/process")
 def process_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Enqueue a pending job for processing."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
     item = repo.get_by_id(id, "pending_jobs")
     if not item:
         raise NotFoundError(f"Pending job {id} not found")
-    get_queue_manager().enqueue(int(id))
+    enqueue_job_sync(int(id))
     return {"status": "queued", "id": id}
 
 
 @router.post("/{id}/reset")
 def reset_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Reset a pending job."""
-    from shared.infrastructure.config.queue import get_queue_manager
-    get_queue_manager().reset_job(id, "pending_jobs")
+    repo.update_fields(int(id), table="pending_jobs", status='pending', error=None,
+        current_node=None, progress_pct=0, retry_count=0,
+        failure_reason=None, failure_step=None, failure_timestamp=None)
     return {"status": "reset", "id": id}
 
 
 @router.post("/process-all")
 def process_all(repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Queue all created jobs for processing."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
     items = repo.list_pending("pending_jobs")
     ids = [i["id"] for i in items if i.get("status") == "created"]
-    if ids:
-        get_queue_manager().enqueue_bulk(ids)
+    for pid in ids:
+        enqueue_job_sync(pid)
     return {"queued": len(ids)}

@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_PATH=/data/jobs.db
+      - AI_PROVIDER=${AI_PROVIDER:-opencode}
+    volumes:
+      - db_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  background:
+    build:
+      context: .
+      dockerfile: Dockerfile.background
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_PATH=/data/jobs.db
+      - AI_PROVIDER=${AI_PROVIDER:-opencode}
+      - WORKER_CONCURRENCY=4
+    volumes:
+      - db_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --port 5173 --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./app/client:/app
+    environment:
+      - VITE_API_URL=http://backend:5000
+
+volumes:
+  db_data:

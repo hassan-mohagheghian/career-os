@@ -110,9 +110,22 @@ async def cancel_job(sid, data):
     pid = data.get('id')
     entity_type = data.get('entity_type', 'job')
     if pid:
-        from shared.infrastructure.config.queue import get_queue_manager
-        ok = get_queue_manager().cancel_item(pid, entity_type)
-        log.info("socketio.cancel", pid=pid, success=ok)
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            if entity_type == 'job':
+                from jobs.infrastructure import SQLAlchemyJobRepository
+                repo = SQLAlchemyJobRepository(session)
+                from datetime import datetime, UTC
+                repo.update_fields(pid, status='cancelled', updated_at=datetime.now(UTC).isoformat())
+            else:
+                from companies.infrastructure import SQLAlchemyCompanyRepository
+                repo = SQLAlchemyCompanyRepository(session)
+                from datetime import datetime, UTC
+                repo.update_fields(pid, status='cancelled', updated_at=datetime.now(UTC).isoformat())
+            log.info("socketio.cancel", pid=pid, success=True)
+        finally:
+            session.close()
 
 
 @sio.event
@@ -120,9 +133,26 @@ async def reset_job(sid, data):
     pid = data.get('id')
     entity_type = data.get('entity_type', 'job')
     if pid:
-        from shared.infrastructure.config.queue import get_queue_manager
-        ok = get_queue_manager().reset_item(pid, entity_type)
-        log.info("socketio.reset", pid=pid, success=ok)
+        from dependencies import get_session_sync
+        session = get_session_sync()
+        try:
+            from datetime import datetime, UTC
+            now = datetime.now(UTC).isoformat()
+            if entity_type == 'job':
+                from jobs.infrastructure import SQLAlchemyJobRepository
+                repo = SQLAlchemyJobRepository(session)
+                repo.update_fields(pid, status='pending', error=None, current_node=None,
+                    progress_pct=0, retry_count=0, failure_reason=None,
+                    failure_step=None, failure_timestamp=None, updated_at=now)
+            else:
+                from companies.infrastructure import SQLAlchemyCompanyRepository
+                repo = SQLAlchemyCompanyRepository(session)
+                repo.update_fields(pid, status='pending', error=None, current_node=None,
+                    progress_pct=0, retry_count=0, failure_reason=None,
+                    failure_step=None, failure_timestamp=None, updated_at=now)
+            log.info("socketio.reset", pid=pid, success=True)
+        finally:
+            session.close()
 
 
 # ── Lifespan ──────────────────────────────────────────────────────
@@ -131,7 +161,7 @@ async def reset_job(sid, data):
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     from shared.infrastructure.config.db import init_db
-    from shared.infrastructure.config.queue import init_queue_manager
+    from shared.infrastructure.queue.arq_client import get_arq_pool, close_arq_pool
 
     # Startup
     log.info("fastapi.startup")
@@ -144,8 +174,12 @@ async def lifespan(app: FastAPI):
     init_db()
     log.info("fastapi.database_ready")
 
-    init_queue_manager(DB_PATH)
-    log.info("fastapi.queue_started")
+    # Initialize ARQ connection pool
+    try:
+        await get_arq_pool()
+        log.info("fastapi.arq_pool_ready")
+    except Exception as e:
+        log.warning("fastapi.arq_pool_init_failed", error=str(e))
 
     # Recover interrupted tasks
     _recover_tasks()
@@ -154,11 +188,10 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     log.info("fastapi.shutdown")
-    from shared.infrastructure.config.queue import get_queue_manager
     try:
-        get_queue_manager().stop(timeout=15)
+        await close_arq_pool()
     except Exception as e:
-        log.warning("fastapi.queue_stop_error", error=str(e))
+        log.warning("fastapi.arq_pool_close_error", error=str(e))
     log.info("fastapi.shutdown_complete")
 
 

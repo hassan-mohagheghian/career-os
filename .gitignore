@@ -15,6 +15,8 @@ app/client/node_modules/
 
 # Build outputs
 app/client/dist/
+app/client/.next/
+.next/
 
 # Database files
 *.db

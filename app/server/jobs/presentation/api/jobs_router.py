@@ -130,7 +130,7 @@ def requeue_job(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Re-queue a job for processing."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
 
     job = repo.get_by_num(num)
     if not job:
@@ -141,7 +141,7 @@ def requeue_job(
         retry_count=0, failure_reason=None, failure_step=None,
         failure_timestamp=None, updated_at=datetime.now(UTC).isoformat(),
     )
-    get_queue_manager().enqueue(num)
+    enqueue_job_sync(num)
     return {"status": "queued", "num": num}
 
 
@@ -151,7 +151,7 @@ def rescore_job(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Rescore an existing job. Sets the rescoring flag and re-queues."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
 
     job = repo.get_by_num(num)
     if not job:
@@ -163,7 +163,7 @@ def rescore_job(
         retry_count=0, failure_reason=None, failure_step=None,
         failure_timestamp=None, updated_at=datetime.now(UTC).isoformat(),
     )
-    get_queue_manager().enqueue(num)
+    enqueue_job_sync(num)
     return {"status": "queued", "num": num}
 
 
@@ -172,13 +172,13 @@ def rescore_all(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Rescore all non-deleted jobs."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
 
     jobs = repo.get_all_active()
     for job in jobs:
         repo.mark_rescoring(job["num"])
         repo.update_fields(job["num"], status='queued', updated_at=datetime.now(UTC).isoformat())
-        get_queue_manager().enqueue(job["num"])
+        enqueue_job_sync(job["num"])
     return {"status": "rescoring", "count": len(jobs)}
 
 
@@ -188,7 +188,7 @@ def reprocess_all(
     summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
 ):
     """Reprocess all jobs from scratch."""
-    from shared.infrastructure.config.queue import get_queue_manager
+    from shared.infrastructure.queue.arq_client import enqueue_job_sync
 
     jobs = repo.get_all_active()
     repo.delete_all_active()
@@ -201,29 +201,31 @@ def reprocess_all(
             "company": job.get("company", ""),
             "status": "queued",
         })
-        get_queue_manager().enqueue(result["num"])
+        enqueue_job_sync(result["num"])
     return {"status": "reprocessing", "count": len(jobs)}
 
 
 @router.post("/{num}/cancel")
 def cancel_job_lifecycle(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Cancel a job's processing."""
-    from shared.infrastructure.config.queue import get_queue_manager
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
-    get_queue_manager().cancel_item(num)
+    repo.update_fields(num, status='cancelled', updated_at=datetime.now(UTC).isoformat())
     return {"status": "cancelled", "num": num}
 
 
 @router.post("/{num}/reset")
 def reset_job_lifecycle(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Reset a job back to pending."""
-    from shared.infrastructure.config.queue import get_queue_manager
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
-    get_queue_manager().reset_item(num)
+    repo.update_fields(num,
+        status='pending', error=None, current_node=None, progress_pct=0,
+        retry_count=0, failure_reason=None, failure_step=None,
+        failure_timestamp=None, updated_at=datetime.now(UTC).isoformat(),
+    )
     return {"status": "reset", "num": num}
 
 
