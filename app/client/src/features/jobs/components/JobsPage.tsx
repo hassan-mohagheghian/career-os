@@ -11,6 +11,9 @@ import { Input } from '@/shared/ui/input'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import ProcessingItem from '@/shared/components/ProcessingItem'
+import JobPendingCard from './JobPendingCard'
+import JobProcessingCard from './JobProcessingCard'
+import JobFailedCard from './JobFailedCard'
 import { JobCard } from '@/shared/components/ProcessedCards'
 import { MultiSelect } from '@/shared/components/MultiSelect'
 import NotesLinksInput from '@/shared/components/NotesLinksInput'
@@ -101,7 +104,7 @@ export default function JobsPage({
                       onDragOver={e => handleDragOver(e, 'created')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'created')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pending.filter(p => p.status === 'created').map(p =>
-                          <ProcessingItem key={p.id} item={p} onProcess={() => processPending(p.id)} onDelete={() => deletePending(p.id)} onDragStart={e => handleDragStart(e, p.id)} onViewWorkflow={openWorkflow} />)}
+                          <JobPendingCard key={p.id} item={p} onProcess={() => processPending(p.id)} onDelete={() => deletePending(p.id)} onDragStart={e => handleDragStart(e, p.id)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}
@@ -119,8 +122,8 @@ export default function JobsPage({
                       onDragOver={e => handleDragOver(e, 'processing')} onDragLeave={handleDragLeave} onDrop={e => handleDrop(e, 'processing')}>
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pending.filter(p => ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)).map(p =>
-                          <ProcessingItem key={p.id} item={p} onDragStart={e => handleDragStart(e, p.id)}
-                            onPause={() => pausePending(p.id)} onDelete={() => deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
+                          <JobProcessingCard key={p.id} item={p} onDragStart={e => handleDragStart(e, p.id)}
+                            onCancel={() => pausePending(p.id)} onDelete={() => deletePending(p.id)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}
@@ -128,7 +131,7 @@ export default function JobsPage({
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
                         {pending.filter(p => p.status === 'failed' || p.status === 'cancelled').map(p =>
-                          <ProcessingItem key={p.id} item={p} onDelete={() => deletePending(p.id)} onProcess={() => processPending(p.id)} onReset={() => resetPending(p.id)} onViewWorkflow={openWorkflow} />)}
+                          <JobFailedCard key={p.id} item={p} onDelete={() => deletePending(p.id)} onProcess={() => processPending(p.id)} onReset={() => resetPending(p.id)} onViewWorkflow={openWorkflow} />)}
                       </div>
                     </ScrollArea>
                   )}

@@ -28,15 +28,14 @@ function renderCard(props = {}) {
     job: mockJob,
     rank: 1,
     onClick: vi.fn(),
-    onRescore: vi.fn(),
+    onProcess: vi.fn(),
     onDelete: vi.fn(),
-    onRequeue: vi.fn(),
     onViewWorkflow: vi.fn(),
   }
   return render(<JobCard {...defaults} {...props} />)
 }
 
-describe('JobCard action buttons hover behavior', () => {
+describe('JobCard action buttons', () => {
   it('renders the card with job info', () => {
     renderCard()
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()
@@ -46,56 +45,45 @@ describe('JobCard action buttons hover behavior', () => {
 
   it('action buttons container is hidden by default (opacity-0)', () => {
     renderCard()
-    // The actions div has classes: opacity-0 group-hover/card:opacity-100
-    // Find the div that contains the action buttons
-    const actionsContainer = screen.getByTitle('Rescore').closest('div[class*="opacity-0"]')
+    const actionsContainer = screen.getByTitle('Process').closest('div[class*="opacity-0"]')
     expect(actionsContainer).toBeInTheDocument()
     expect(actionsContainer.className).toContain('opacity-0')
   })
 
-  it('action buttons become visible on card hover (opacity-100)', () => {
+  it('action buttons become visible on card hover', () => {
     renderCard()
     const card = document.querySelector('.group\\/card')
     expect(card).toBeInTheDocument()
-
-    // Simulate mouse enter on the card
-    fireEvent.mouseEnter(card)
-
-    const actionsContainer = screen.getByTitle('Rescore').closest('div[class*="opacity-0"]')
-    // After hover, the Tailwind class group-hover/card:opacity-100 applies
-    // In jsdom, computed styles don't resolve Tailwind utilities,
-    // so we verify the class structure is correct
+    const actionsContainer = screen.getByTitle('Process').closest('div[class*="opacity-0"]')
     expect(actionsContainer.className).toContain('group-hover/card:opacity-100')
   })
 
-  it('all 4 action buttons exist: Rescore, Reprocess, Workflow, Delete', () => {
-    renderCard()
-    expect(screen.getByTitle('Rescore')).toBeInTheDocument()
-    expect(screen.getByTitle('Reprocess')).toBeInTheDocument()
+  it('all 3 action buttons exist: Process, Workflow, Delete', () => {
+    const jobWithLogs = { ...mockJob, workflow_log: JSON.stringify([{ step: 'fetch', msg: 'done' }]) }
+    renderCard({ job: jobWithLogs })
+    expect(screen.getByTitle('Process')).toBeInTheDocument()
+    expect(screen.getByTitle('Workflow')).toBeInTheDocument()
     expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
   it('Workflow button only appears when job has workflow logs', () => {
     const jobWithLogs = { ...mockJob, workflow_log: JSON.stringify([{ step: 'fetch', msg: 'done' }]) }
     renderCard({ job: jobWithLogs })
-    // The FileText icon button doesn't have a title, but it's in the actions div
-    // We check by finding all buttons in the hover-actions area
-    const actionsDiv = screen.getByTitle('Rescore').closest('div')
+    const actionsDiv = screen.getByTitle('Process').closest('div')
     const buttons = actionsDiv.querySelectorAll('button')
-    expect(buttons.length).toBe(4) // Rescore, Reprocess, Workflow, Delete
+    expect(buttons.length).toBe(3)
   })
 
   it('Workflow button is absent when job has no logs', () => {
-    renderCard({ job: { ...mockJob, workflow_log: '[]' } })
-    const actionsDiv = screen.getByTitle('Rescore').closest('div')
+    renderCard()
+    const actionsDiv = screen.getByTitle('Process').closest('div')
     const buttons = actionsDiv.querySelectorAll('button')
-    expect(buttons.length).toBe(3) // Rescore, Reprocess, Delete (no Workflow)
+    expect(buttons.length).toBe(2)
   })
 
   it('action buttons use group-hover/card for visibility toggle', () => {
     renderCard()
-    const actionsContainer = screen.getByTitle('Rescore').closest('div')
-    // Verify the class list contains both opacity-0 (default hidden) and group-hover/card:opacity-100 (visible on hover)
+    const actionsContainer = screen.getByTitle('Process').closest('div[class*="opacity-0"]')
     expect(actionsContainer.className).toContain('opacity-0')
     expect(actionsContainer.className).toContain('group-hover/card:opacity-100')
     expect(actionsContainer.className).toContain('transition-opacity')
@@ -111,18 +99,17 @@ describe('JobCard action buttons hover behavior', () => {
     const onClick = vi.fn()
     renderCard({ onClick })
 
-    fireEvent.click(screen.getByTitle('Rescore'))
-    fireEvent.click(screen.getByTitle('Reprocess'))
+    fireEvent.click(screen.getByTitle('Process'))
     fireEvent.click(screen.getByTitle('Delete'))
 
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('onRescore is called with job.num when Rescore button clicked', () => {
-    const onRescore = vi.fn()
-    renderCard({ onRescore })
-    fireEvent.click(screen.getByTitle('Rescore'))
-    expect(onRescore).toHaveBeenCalledWith(1)
+  it('onProcess is called with job.num when Process button clicked', () => {
+    const onProcess = vi.fn()
+    renderCard({ onProcess })
+    fireEvent.click(screen.getByTitle('Process'))
+    expect(onProcess).toHaveBeenCalledWith(1)
   })
 
   it('onDelete is called with job.num when Delete button clicked', () => {
@@ -132,10 +119,24 @@ describe('JobCard action buttons hover behavior', () => {
     expect(onDelete).toHaveBeenCalledWith(1)
   })
 
-  it('onRequeue is called with job.num when Reprocess button clicked', () => {
+  it('supports legacy onRescore prop', () => {
+    const onRescore = vi.fn()
+    renderCard({ onProcess: undefined, onRequeue: undefined, onRescore })
+    fireEvent.click(screen.getByTitle('Process'))
+    expect(onRescore).toHaveBeenCalledWith(1)
+  })
+
+  it('onRequeue takes priority over onRescore', () => {
+    const onRescore = vi.fn()
     const onRequeue = vi.fn()
-    renderCard({ onRequeue })
-    fireEvent.click(screen.getByTitle('Reprocess'))
+    renderCard({ onProcess: undefined, onRescore, onRequeue })
+    fireEvent.click(screen.getByTitle('Process'))
     expect(onRequeue).toHaveBeenCalledWith(1)
+    expect(onRescore).not.toHaveBeenCalled()
+  })
+
+  it('renders rescoring badge when rescoring is active', () => {
+    renderCard({ job: { ...mockJob, rescoring: 1 } })
+    expect(screen.getByText('Rescore')).toBeInTheDocument()
   })
 })

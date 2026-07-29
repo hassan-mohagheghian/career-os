@@ -76,10 +76,10 @@ describe('CompanyCard', () => {
     expect(onDelete).toHaveBeenCalledWith(1)
   })
 
-  it('calls onReprocess when reprocess button clicked', () => {
+  it('calls onReprocess when Process button clicked', () => {
     const onReprocess = vi.fn()
     render(<CompanyCard company={baseCompany} onClick={vi.fn()} onReprocess={onReprocess} />)
-    fireEvent.click(screen.getByTitle('Reprocess'))
+    fireEvent.click(screen.getByTitle('Process'))
     expect(onReprocess).toHaveBeenCalledWith(1)
   })
 

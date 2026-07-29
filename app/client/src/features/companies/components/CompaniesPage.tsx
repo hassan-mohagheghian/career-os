@@ -10,7 +10,10 @@ import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/textarea'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
-import CompanyProcessingItem from './CompanyProcessingItem'
+import CompanyPendingCard from './CompanyPendingCard'
+import CompanyQueuedCard from './CompanyQueuedCard'
+import CompanyProcessingCard from './CompanyProcessingCard'
+import CompanyFailedCard from './CompanyFailedCard'
 import CompanyCard from './CompanyCard'
 import CompanyDrawer from './CompanyDrawer'
 import ConfirmDialog from '@/shared/components/ConfirmDialog'
@@ -405,13 +408,20 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   {isOpen && (
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pendingCompanies.filter(p => p.status === s.id).map(p => (
+                        {pendingCompanies.filter(p => p.status === s.id).map(p => {
+                          const Card = ({
+                            pending: CompanyPendingCard,
+                            queued: CompanyQueuedCard,
+                            processing: CompanyProcessingCard,
+                            failed: CompanyFailedCard,
+                          } as Record<string, any>)[s.id] || CompanyPendingCard
+                          return (
                           <div key={p.id} className="w-full overflow-hidden">
-                            <CompanyProcessingItem item={p}
+                            <Card item={p}
                               onProcess={() => processCompany(p.id)}
                               onDelete={() => deletePending(p.id)}
                               onReset={() => resetPending(p.id)}
-                              onReprocess={async () => { await resetPending(p.id); await processCompany(p.id) }} />
+                              onCancel={async () => { await resetPending(p.id); await processCompany(p.id) }} />
                             {(() => {
                               const pNotes = parseNotes(p.notes)
                               return s.id === 'pending' && pNotes.length > 0 && (
@@ -427,7 +437,8 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                               )
                             })()}
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </ScrollArea>
                   )}

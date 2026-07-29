@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  Rocket, Pause, Repeat, Trash, FileText, ArrowBendUpLeft,
   Check, Spinner, Globe, CheckCircle, MagnifyingGlass, Clipboard,
   Brain, Warning, LinkSimple, Copy, ListChecks, Note, Link,
   PencilSimple, Plus, X
@@ -9,6 +8,7 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Progress } from '@/shared/ui/progress'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip'
+import CardActions from './CardActions'
 
 const STEPS = [
   { key: 'validate', icon: <CheckCircle className="w-3 h-3" />, abbr: 'Valid', label: 'Validate input' },
@@ -84,6 +84,9 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
   const isQueued = item.status === 'queued'
   const isCreated = item.status === 'created'
   const isProcessing = ACTIVE_STATUSES.has(item.status)
+
+  const workflowLogs = item.workflow_log ? (Array.isArray(item.workflow_log) ? item.workflow_log : JSON.parse(item.workflow_log || '[]')) : []
+  const hasWorkflowLogs = workflowLogs.length > 0
 
   const vals = STEP_KEYS.map(k => item[k])
   const done = vals.filter(s => s === 1).length
@@ -327,44 +330,18 @@ export default function ActiveItem({ item, onDelete, onProcess, onReset, onPause
           {item.current_node && isProcessing && <span className="text-3xs text-blue-400 ml-1">({item.current_node})</span>}
           <span className="text-3xs text-muted-foreground/50 font-mono ml-1">v{item.version || 1}</span>
         </span>
-        {/* Action buttons — always visible, compact */}
-        <div className="flex items-center gap-0 shrink-0">
-          {isFailed && item.error && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-red-400 hover:bg-red-500/10" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.error); setToast('Error copied!') }} title="Copy error message">
-              <Copy className="w-1.5 h-1.5" />
-            </Button>
-          )}
-          {isQueued && onProcess && (
-            <Button size="sm" onClick={handleProcess} disabled={processing} className="h-3.5 px-1 text-3xs gap-0.5 shrink-0">
-              <Rocket className="w-1.5 h-1.5" /> Start
-            </Button>
-          )}
-          {isProcessing && onPause && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-yellow-500 hover:bg-yellow-500/10" onClick={onPause} title="Pause">
-              <Pause className="w-1.5 h-1.5" />
-            </Button>
-          )}
-          {isFailed && onProcess && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-green-500 hover:bg-green-500/10" onClick={handleProcess} title="Retry">
-              <Repeat className={cn("w-1.5 h-1.5", processing && "animate-spin")} />
-            </Button>
-          )}
-          {onViewWorkflow && item.workflow_log && (Array.isArray(item.workflow_log) ? item.workflow_log : JSON.parse(item.workflow_log || '[]')).length > 0 && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0" onClick={() => onViewWorkflow(item)} title="Workflow">
-              <FileText className="w-1.5 h-1.5" />
-            </Button>
-          )}
-          {onReset && (isQueued || isProcessing || isWaiting || isFailed || isCreated) && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-orange-500 hover:bg-orange-500/10" onClick={onReset} title="Reset">
-              <ArrowBendUpLeft className="w-1.5 h-1.5" />
-            </Button>
-          )}
-          {onDelete && (
-            <Button variant="ghost" size="icon" className="h-3 w-3 shrink-0 text-destructive hover:bg-destructive/10" onClick={onDelete} title="Remove">
-              <Trash className="w-1.5 h-1.5" />
-            </Button>
-          )}
-        </div>
+        <CardActions
+          status={item.status}
+          size="sm"
+          disabled={processing}
+          error={item.error}
+          hasWorkflowLogs={hasWorkflowLogs}
+          onDelete={onDelete}
+          onProcess={handleProcess}
+          onCancel={onPause}
+          onReset={onReset}
+          onViewWorkflow={onViewWorkflow ? () => onViewWorkflow(item) : undefined}
+        />
       </div>
     </div>
   )

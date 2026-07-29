@@ -30,6 +30,10 @@ class IPendingRepository(abc.ABC):
         """Update status and optional extra fields."""
 
     @abc.abstractmethod
+    def update_fields(self, pid: int, table: str = "pending_jobs", **fields) -> None:
+        """Update arbitrary fields without changing status."""
+
+    @abc.abstractmethod
     def update_step(self, pid: int, step: str, val: int, **fields) -> None:
         """Update a pipeline step value."""
 

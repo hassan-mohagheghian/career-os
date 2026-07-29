@@ -1,12 +1,13 @@
 import {
-  TrendUp, IdentificationCard, Users, HouseSimple, ArrowsClockwise,
-  Buildings, FileText, Repeat, Trash, MapPin, LinkSimple, Copy, Clock, Calendar,
+  IdentificationCard, Users, HouseSimple, ArrowsClockwise,
+  Buildings, MapPin, LinkSimple, Copy, Clock, Calendar,
   PaperPlaneRight, CheckCircle, XCircle
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Card } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
+import CardActions from './CardActions'
 
 const CITY_COLORS = {
   'Berlin': { bg: 'rgba(239,68,68,0.15)', text: '#ef4444' },
@@ -169,12 +170,20 @@ export function CompactJobCard({ job, onClick }) {
   )
 }
 
-export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWorkflow, onOpenCompany }) {
+export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, onViewWorkflow, onOpenCompany, onProcess }) {
   const locations = job.parsedLocations || (job.location ? [job.location] : [])
   const hasLogs = job.workflow_log && (Array.isArray(job.workflow_log) ? job.workflow_log : JSON.parse(job.workflow_log || '[]')).length > 0
   const isRescoring = job.rescoring === 1
   const overallGrade = job.overall_score != null ? numericToGrade(job.overall_score) : job.score
   const borderColor = getScoreBorder(overallGrade)
+
+  const processHandler = (onProcess || onRequeue || onRescore)
+    ? () => (onProcess || onRequeue || onRescore)?.(job.num)
+    : undefined
+  const deleteHandler = onDelete ? () => onDelete(job.num) : undefined
+  const workflowHandler = onViewWorkflow
+    ? () => onViewWorkflow({ id: job.num, workflow_log: job.workflow_log, company: job.company, job_num: job.num })
+    : undefined
 
   return (
     <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px]", borderColor)}>
@@ -226,26 +235,14 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
         )}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
           {isRescoring && <span className="text-2xs px-1.5 py-0.5 rounded bg-primary text-primary-foreground animate-pulse">Rescore</span>}
-          {onRescore && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5" onClick={(e) => { e.stopPropagation(); onRescore(job.num) }} title="Rescore">
-              <TrendUp className="w-2 h-2" />
-            </Button>
-          )}
-          {onRequeue && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-blue-500 hover:text-blue-500" onClick={(e) => { e.stopPropagation(); onRequeue(job.num) }} title="Reprocess">
-              <Repeat className="w-2 h-2" />
-            </Button>
-          )}
-          {onViewWorkflow && hasLogs && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5" onClick={(e) => { e.stopPropagation(); onViewWorkflow({ id: job.num, workflow_log: job.workflow_log, company: job.company, job_num: job.num }) }}>
-              <FileText className="w-2 h-2" />
-            </Button>
-          )}
-          {onDelete && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(job.num) }} title="Delete">
-              <Trash className="w-2 h-2" />
-            </Button>
-          )}
+          <CardActions
+            status="completed"
+            size="md"
+            hasWorkflowLogs={hasLogs}
+            onProcess={processHandler}
+            onViewWorkflow={workflowHandler}
+            onDelete={deleteHandler}
+          />
         </div>
       </div>
 

@@ -56,7 +56,7 @@ describe('ProcessingItem', () => {
   it('renders remove button', () => {
     const onDelete = vi.fn()
     render(<ProcessingItem item={base} onDelete={onDelete} />)
-    expect(screen.getByTitle('Remove')).toBeInTheDocument()
+    expect(screen.getByTitle('Delete')).toBeInTheDocument()
   })
 
   it('renders start button for queued items', () => {

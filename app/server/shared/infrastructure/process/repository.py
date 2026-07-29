@@ -47,6 +47,16 @@ class PendingJobRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
+    def update_fields(self, pid: int, table: str = "pending_jobs", **fields) -> None:
+        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        if not m:
+            return
+        m.updated_at = datetime.now().isoformat()
+        for k, v in fields.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
+        self._session.commit()
+
     def update_step(self, pid: int, step: str, val: int, **fields) -> None:
         m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
         if not m:
@@ -145,6 +155,16 @@ class PendingCompanyRepository(IPendingRepository):
         if not m:
             return
         m.status = status.value if isinstance(status, ItemStatus) else status
+        m.updated_at = datetime.now().isoformat()
+        for k, v in fields.items():
+            if hasattr(m, k):
+                setattr(m, k, v)
+        self._session.commit()
+
+    def update_fields(self, pid: int, table: str = "pending_companies", **fields) -> None:
+        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        if not m:
+            return
         m.updated_at = datetime.now().isoformat()
         for k, v in fields.items():
             if hasattr(m, k):

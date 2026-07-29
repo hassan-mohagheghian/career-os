@@ -1,9 +1,10 @@
 import {
-  Buildings, MapPin, Trash, Repeat, Globe, Users, Briefcase
+  Buildings, MapPin, Globe, Users, Briefcase
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
+import CardActions from '@/shared/components/CardActions'
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   'A++': { bg: 'rgba(16,185,129,0.2)', text: '#10b981', border: 'border-emerald-400/30' },
@@ -16,11 +17,12 @@ const PRIORITY_STYLES: Record<string, { bg: string; text: string; border: string
   'D': { bg: 'rgba(239,68,68,0.12)', text: '#ef4444', border: 'border-red-500/30' },
 }
 
-export default function CompanyCard({ company, onClick, onDelete, onReprocess }: {
+export default function CompanyCard({ company, onClick, onDelete, onReprocess, onProcess }: {
   company: any
   onClick: () => void
   onDelete?: (id: number) => void
   onReprocess?: (id: number) => void
+  onProcess?: (id: number) => void
 }) {
   const scores = company.scores || {}
   const fitScore = scores.company_fit_score ?? null
@@ -28,6 +30,9 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
   const overallScore = scores.company_overall_score ?? null
   const overallGrade = scores.overall_grade || scores.fit_grade || '—'
   const ps = PRIORITY_STYLES[overallGrade] || PRIORITY_STYLES['B']
+
+  const processHandler = (onProcess || onReprocess) ? () => (onProcess || onReprocess)?.(company.id) : undefined
+  const deleteHandler = onDelete ? () => onDelete(company.id) : undefined
 
   return (
     <Card className={cn("group/card p-3 transition hover:shadow-lg hover:-translate-y-0.5 border-l-[3px] w-full min-w-0 overflow-hidden box-border")}
@@ -42,16 +47,12 @@ export default function CompanyCard({ company, onClick, onDelete, onReprocess }:
         {successScore != null && <ScoreBadge label="Success" value={successScore} />}
         {overallScore != null && <ScoreBadge label="Overall" value={overallScore} />}
         <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover/card:opacity-100 transition-opacity">
-          {onReprocess && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-blue-500" onClick={(e) => { e.stopPropagation(); onReprocess(company.id) }} title="Reprocess">
-              <Repeat className="w-2 h-2" />
-            </Button>
-          )}
-          {onDelete && (
-            <Button variant="ghost" size="icon" className="h-3.5 w-3.5 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); onDelete(company.id) }} title="Delete">
-              <Trash className="w-2 h-2" />
-            </Button>
-          )}
+          <CardActions
+            status="completed"
+            size="md"
+            onProcess={processHandler}
+            onDelete={deleteHandler}
+          />
         </div>
       </div>
 
