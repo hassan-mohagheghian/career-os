@@ -12,7 +12,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # Add the app/server directory to sys.path so imports work correctly
-_server_dir = os.path.join(os.path.dirname(__file__), '..', 'app', 'server')
+_server_dir = os.path.join(os.path.dirname(__file__), '..', 'server')
 sys.path.insert(0, os.path.abspath(_server_dir))
 
 from shared.infrastructure.config.app_config import DB_PATH

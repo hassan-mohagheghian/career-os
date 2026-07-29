@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Integer, String, Text
+from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.infrastructure.database.sqlalchemy_config import Base
@@ -54,3 +54,15 @@ class JobModel(Base):
     response_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     response_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     rescoring: Mapped[int] = mapped_column(Integer, default=0)
+    links: Mapped[str] = mapped_column(Text, default="[]")
+    source: Mapped[Optional[str]] = mapped_column(String, default="web")
+    status: Mapped[str] = mapped_column(String, default="pending")
+    queue_order: Mapped[int] = mapped_column(Integer, default=0)
+    current_node: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    progress_pct: Mapped[float] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    failure_step: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    failure_timestamp: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)

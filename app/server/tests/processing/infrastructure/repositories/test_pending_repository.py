@@ -3,12 +3,13 @@
 import os
 import tempfile
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
-from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
-from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+from jobs.infrastructure.models.job_model import JobModel
+from companies.infrastructure.models.company_model import CompanyModel
+from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 
 
 @pytest.fixture
@@ -25,16 +26,19 @@ def db():
     os.remove(path)
 
 
+_counter = 0
 def _insert_job(session, url='https://example.com', status='queued', queue_order=0):
-    m = PendingJobModel(url=url, status=status, source='cli', queue_order=queue_order)
+    global _counter
+    _counter += 1
+    m = JobModel(num=_counter, url=url, status=status, source='cli', queue_order=queue_order)
     session.add(m)
     session.commit()
     session.refresh(m)
-    return m.id
+    return m.num
 
 
 def _insert_company(session, text='TestCorp', status='queued'):
-    m = PendingCompanyModel(input_text=text, status=status, source='web')
+    m = CompanyModel(name=text, status=status, source='web')
     session.add(m)
     session.commit()
     session.refresh(m)
@@ -51,8 +55,8 @@ class TestPickQueuedItem:
 
         result = repo.pick_queued_item('pending_jobs')
         assert result is not None
-        assert result['id'] == id1
-        assert result['status'] == 'starting'
+        assert result['num'] == id1
+        assert result['status'] == 'processing'
 
     def test_skips_non_queued_jobs(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -61,7 +65,7 @@ class TestPickQueuedItem:
 
         result = repo.pick_queued_item('pending_jobs')
         assert result is not None
-        assert result['id'] == id2
+        assert result['num'] == id2
 
     def test_returns_none_when_no_queued(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -81,7 +85,7 @@ class TestPickQueuedItem:
         id_low = _insert_job(db, 'https://b.com', 'queued', queue_order=1)
 
         result = repo.pick_queued_item('pending_jobs')
-        assert result['id'] == id_low
+        assert result['num'] == id_low
 
     def test_commits_status_change(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -89,8 +93,8 @@ class TestPickQueuedItem:
 
         repo.pick_queued_item('pending_jobs')
 
-        row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'starting'
+        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.status == 'processing'
 
     def test_pick_company(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -99,7 +103,7 @@ class TestPickQueuedItem:
         result = repo.pick_queued_item('pending_companies')
         assert result is not None
         assert result['id'] == cid
-        assert result['status'] == 'starting'
+        assert result['status'] == 'processing'
 
     def test_pick_company_returns_none_when_empty(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -125,111 +129,61 @@ class TestResetSteps:
     def test_reset_steps_sets_queued_by_default(self, db):
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        job.step_fetch = 1
-        job.step_analyze = 1
+        job = db.query(JobModel).filter(JobModel.num == pid).first()
         job.error = 'some error'
         db.commit()
 
         repo.reset_steps(pid, version=2, table='pending_jobs')
 
-        row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = db.query(JobModel).filter(JobModel.num == pid).first()
         assert row.status == 'created'
-        assert row.step_fetch == 0
-        assert row.step_analyze == 0
         assert row.error is None
-        assert row.version == 2
 
     def test_reset_steps_keep_status(self, db):
         """keep_status=True should reset steps but NOT change status."""
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        job.step_fetch = 1
-        job.step_analyze = 1
+        job = db.query(JobModel).filter(JobModel.num == pid).first()
         db.commit()
 
         repo.reset_steps(pid, version=3, table='pending_jobs', keep_status=True)
 
-        row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'starting'  # NOT changed to created
-        assert row.step_fetch == 0
-        assert row.step_analyze == 0
-        assert row.version == 3
+        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.status == 'starting'
 
     def test_reset_steps_company(self, db):
         repo = SQLAlchemyPendingRepository(db)
         cid = _insert_company(db, 'Corp', 'starting')
-        comp = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
-        comp.step_fetch = 1
-        comp.step_extract = 1
+        comp = db.query(CompanyModel).filter(CompanyModel.id == cid).first()
         db.commit()
 
         repo.reset_steps(cid, version=1, table='pending_companies')
 
-        row = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
+        row = db.query(CompanyModel).filter(CompanyModel.id == cid).first()
         assert row.status == 'created'
-        assert row.step_fetch == 0
-        assert row.step_extract == 0
 
     def test_reset_steps_company_keep_status(self, db):
         repo = SQLAlchemyPendingRepository(db)
         cid = _insert_company(db, 'Corp', 'starting')
-        comp = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
-        comp.step_fetch = 1
+        comp = db.query(CompanyModel).filter(CompanyModel.id == cid).first()
         db.commit()
 
         repo.reset_steps(cid, version=1, table='pending_companies', keep_status=True)
 
-        row = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
+        row = db.query(CompanyModel).filter(CompanyModel.id == cid).first()
         assert row.status == 'starting'
-        assert row.step_fetch == 0
 
     def test_reset_steps_clears_workflow_log(self, db):
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        job = db.query(JobModel).filter(JobModel.num == pid).first()
         job.workflow_log = '[{"step": "fetch"}]'
         db.commit()
 
         repo.reset_steps(pid, version=1, table='pending_jobs')
 
-        row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = db.query(JobModel).filter(JobModel.num == pid).first()
         assert row.workflow_log == '[]'
-
-
-class TestHasPartialSteps:
-    """Test _has_partial_steps in queue manager."""
-
-    def test_all_zero_is_not_partial(self):
-        from shared.infrastructure.config.queue import JobQueueManager
-        mgr = JobQueueManager(concurrency=1)
-        item = {
-            'step_fetch': 0, 'step_validate': 0, 'step_extract_raw': 0,
-            'step_extract_struct': 0, 'step_analyze': 0, 'step_summary': 0,
-            'step_db': 0, 'step_done': 0,
-        }
-        assert not mgr._has_partial_steps(item)
-
-    def test_one_done_is_partial(self):
-        from shared.infrastructure.config.queue import JobQueueManager
-        mgr = JobQueueManager(concurrency=1)
-        item = {
-            'step_fetch': 1, 'step_validate': 0, 'step_extract_raw': 0,
-            'step_extract_struct': 0, 'step_analyze': 0, 'step_summary': 0,
-            'step_db': 0, 'step_done': 0,
-        }
-        assert mgr._has_partial_steps(item)
-
-    def test_all_done_is_not_partial(self):
-        from shared.infrastructure.config.queue import JobQueueManager
-        mgr = JobQueueManager(concurrency=1)
-        item = {
-            'step_fetch': 1, 'step_validate': 1, 'step_extract_raw': 1,
-            'step_extract_struct': 1, 'step_analyze': 1, 'step_summary': 1,
-            'step_db': 1, 'step_done': 1,
-        }
-        assert not mgr._has_partial_steps(item)
 
 
 class TestResetStepsKeepStatusInQueue:
@@ -240,14 +194,12 @@ class TestResetStepsKeepStatusInQueue:
         from unittest.mock import patch
 
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        job.step_fetch = 1
+        job = db.query(JobModel).filter(JobModel.num == pid).first()
         db.commit()
 
         with patch('shared.infrastructure.config.queue.get_session_sync', return_value=db):
             mgr = JobQueueManager(concurrency=1)
-            mgr._reset_steps(pid, version=2, table='pending_jobs')
+            mgr.reset_item(pid)
 
-        row = db.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.status == 'starting'  # Should NOT be reset to queued
-        assert row.step_fetch == 0
+        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.status == 'pending'

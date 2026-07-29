@@ -15,7 +15,10 @@ DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_p
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.database.sqlalchemy_config import Base
+
+log = get_logger('jobs.commands.backfill_raw')
 import jobs.infrastructure.models.job_model
 from jobs.infrastructure.models.job_model import JobModel
 
@@ -39,7 +42,7 @@ def main():
     session, engine = get_session()
     try:
         rows = session.query(JobModel).filter(JobModel.deleted == 0, JobModel.raw_description.is_(None)).order_by(JobModel.num).all()
-        print(f"Found {len(rows)} jobs without raw descriptions")
+        log.info("Found jobs without raw descriptions", count=len(rows))
         fetched, failed = 0, 0
         for i, job in enumerate(rows):
             if not job.url:
@@ -54,7 +57,7 @@ def main():
                 failed += 1
             if i < len(rows) - 1:
                 time.sleep(2 + (i % 3))
-        print(f"\nDone: {fetched} fetched, {failed} failed")
+        log.info("Backfill raw done", fetched=fetched, failed=failed)
     finally:
         session.close()
         engine.dispose()

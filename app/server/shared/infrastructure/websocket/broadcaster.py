@@ -6,10 +6,10 @@ Bridges the existing Broadcaster interface to SocketIO connections.
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
+from shared.infrastructure.process.logging_config import get_logger
+logger = get_logger('websocket.broadcaster')
 
 # SocketIO server instance (set during app initialization)
 _socketio_server = None
@@ -76,22 +76,22 @@ class WebSocketBroadcaster:
             except Exception as e:
                 logger.debug("Listener failed: %s", e)
 
-    def _room_for(self, table: str, pid: Any) -> str:
-        """Get room name for a table/pid combination."""
-        if table == "pending_generations":
+    def _room_for(self, entity_type: str, pid: Any) -> str:
+        """Get room name for an entity_type/pid combination."""
+        if entity_type == "generation":
             return f"generation_{pid}"
-        return f'{"pending" if table == "pending_jobs" else "company"}_{pid}'
+        return f'{entity_type}_{pid}'
 
-    def _prefix(self, table: str) -> str:
-        """Get event prefix for a table."""
-        if table == "pending_generations":
+    def _prefix(self, entity_type: str) -> str:
+        """Get event prefix for an entity type."""
+        if entity_type == "generation":
             return "generation"
-        return "pending" if table == "pending_jobs" else "company"
+        return "job" if entity_type == "job" else "company"
 
     def step_update(self, event: Any) -> None:
         """Broadcast a step update event."""
-        room = self._room_for(event.table, event.pid)
-        prefix = self._prefix(event.table)
+        room = self._room_for(event.entity_type, event.pid)
+        prefix = self._prefix(event.entity_type)
         data = {
             "id": event.pid,
             "step": event.step,
@@ -100,7 +100,7 @@ class WebSocketBroadcaster:
             "error": event.error,
             "ts": event.ts,
         }
-        if event.extra:
+        if hasattr(event, 'extra') and event.extra:
             data.update(event.extra)
         logger.info("ws.%s:update id=%s step=%s val=%s", prefix, event.pid, event.step, event.val)
         self._emit(f"{prefix}:update", data, room=room)
@@ -108,8 +108,8 @@ class WebSocketBroadcaster:
 
     def log(self, event: Any) -> None:
         """Broadcast a log event."""
-        room = self._room_for(event.table, event.pid)
-        prefix = self._prefix(event.table)
+        room = self._room_for(event.entity_type, event.pid)
+        prefix = self._prefix(event.entity_type)
         data = {"id": event.pid, "step": event.step, "msg": event.msg, "ts": event.ts}
         logger.info("ws.%s:log id=%s step=%s msg=%s", prefix, event.pid, event.step, event.msg[:80])
         self._emit(f"{prefix}:log", data, room=room)
@@ -117,8 +117,8 @@ class WebSocketBroadcaster:
 
     def complete(self, event: Any) -> None:
         """Broadcast a completion event."""
-        room = self._room_for(event.table, event.pid)
-        prefix = self._prefix(event.table)
+        room = self._room_for(event.entity_type, event.pid)
+        prefix = self._prefix(event.entity_type)
         data = {"id": event.pid, **event.result, "ts": event.ts}
         logger.info("ws.%s:complete id=%s result=%s", prefix, event.pid, event.result)
         self._emit(f"{prefix}:complete", data, room=room)
@@ -126,8 +126,8 @@ class WebSocketBroadcaster:
 
     def error(self, event: Any) -> None:
         """Broadcast an error event."""
-        room = self._room_for(event.table, event.pid)
-        prefix = self._prefix(event.table)
+        room = self._room_for(event.entity_type, event.pid)
+        prefix = self._prefix(event.entity_type)
         error_msg = f"[{event.step}] {event.msg}" if event.step else event.msg
         data = {"id": event.pid, "msg": error_msg, "step": event.step, "ts": event.ts}
         logger.error("ws.%s:error id=%s step=%s msg=%s", prefix, event.pid, event.step, event.msg[:80])
@@ -147,8 +147,8 @@ class WebSocketBroadcaster:
 
     def progress(self, event: Any) -> None:
         """Broadcast workflow progress update."""
-        room = self._room_for(event.table, event.pid)
-        prefix = self._prefix(event.table)
+        room = self._room_for(event.entity_type, event.pid)
+        prefix = self._prefix(event.entity_type)
         data = {
             "id": event.pid,
             "status": event.status,

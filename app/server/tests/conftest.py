@@ -17,7 +17,6 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-import processing.infrastructure.models.pending_model
 import career.infrastructure.models.insight_model
 import shared.infrastructure.database.models.misc_models
 
@@ -83,14 +82,14 @@ def client(sa_session):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
-    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
     from career.infrastructure.repositories.sa_insight_repository import SQLAlchemyInsightRepository
     from career.infrastructure.repositories.sa_preference_repository import SQLAlchemyPreferenceRepository
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     from career.infrastructure.repositories.sa_career_insight_run_repository import SQLAlchemyCareerInsightRunRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository

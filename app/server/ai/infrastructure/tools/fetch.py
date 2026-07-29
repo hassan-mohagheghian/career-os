@@ -8,7 +8,6 @@ Design: Single Responsibility — one place for all URL fetching.
 
 from __future__ import annotations
 
-import logging
 import re
 import time
 import urllib.error
@@ -16,9 +15,9 @@ import urllib.request
 from datetime import datetime
 from typing import Any, Optional
 
+from shared.infrastructure.process.logging_config import get_logger
 from .models import ContentExtraction, FetchError, FetchStatus, FetchedPage
-
-log = logging.getLogger("ai.tools.fetch")
+log = get_logger("ai.tools.fetch")
 
 DEFAULT_HEADERS = {
     "User-Agent": (

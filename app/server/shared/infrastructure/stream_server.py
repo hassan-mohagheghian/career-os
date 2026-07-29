@@ -10,7 +10,10 @@ import signal
 from datetime import datetime
 
 import websockets
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.prompts.loader import load_prompt
+
+log = get_logger('stream')
 
 # AI Agent Layer — unified LLM service
 from shared.infrastructure.ai.compat import get_llm_service
@@ -27,7 +30,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 
 def _log(pid, step, msg):
     from dependencies import get_session_sync
-    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyPendingRepository(session)
@@ -67,7 +70,7 @@ def _load_rules(context='job'):
 
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     from dependencies import get_session_sync
-    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyPendingRepository(session)
@@ -461,7 +464,7 @@ async def stream_mimo(pid, prompt):
 async def process_job_stream(pid):
     """Full pipeline with streaming output using LangGraph state management (no file I/O)."""
     from dependencies import get_session_sync
-    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 
     session = get_session_sync()
     try:
@@ -565,7 +568,7 @@ async def process_job_stream(pid):
         if company or title:
             sess2 = _gss()
             try:
-                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
+                from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR
                 _SPR(sess2).update_fields(pid, company=company or title[:40])
             finally:
                 sess2.close()
@@ -611,7 +614,7 @@ async def process_job_stream(pid):
             from jobs.infrastructure.workers.worker import _save_job_workflow_log
             sess3 = _gss()
             try:
-                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository as _SPR3
+                from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository as _SPR3
                 _item = _SPR3(sess3).get_by_id(pid)
             finally:
                 sess3.close()
@@ -620,7 +623,7 @@ async def process_job_stream(pid):
 
             await broadcast(pid, {'type': 'step', 'step': 'done', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
             await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_num, 'company': company_name, 'ts': datetime.now().strftime('%H:%M:%S')})
-            print(f"[stream] Job {pid} done: {company_name} #{job_num}")
+            log.info("Job done", pid=pid, company=company_name, num=job_num)
         else:
             persist_error = persistence.get("error", "Unknown error")
             raise RuntimeError(f"Persistence failed: {persist_error}")
@@ -648,7 +651,7 @@ async def handler(websocket):
                 clients[pid].add(websocket)
                 # Send current state
                 from dependencies import get_session_sync
-                from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+                from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
                 session = get_session_sync()
                 try:
                     pending_repo = SQLAlchemyPendingRepository(session)
@@ -684,7 +687,7 @@ async def handler(websocket):
 # --- Start server ---
 
 async def main():
-    print(f"[stream] WebSocket server starting on ws://0.0.0.0:8765")
+    log.info("WebSocket server starting", address="ws://0.0.0.0:8765")
     async with websockets.serve(handler, "0.0.0.0", 8765):
         await asyncio.Future()  # Run forever
 

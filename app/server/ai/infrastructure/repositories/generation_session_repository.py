@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 
 from ...domain.entities.generation_session import GenerationSession
@@ -38,7 +38,7 @@ class SQLAlchemyGenerationSessionRepository(IGenerationSessionRepository):
                 model.entity_id = session.entity_id
                 model.started_at = session.started_at
                 model.completed_at = session.completed_at
-                model.updated_at = datetime.utcnow()
+                model.updated_at = datetime.now(UTC)
             else:
                 model = GenerationSessionModel(
                     id=session.id,

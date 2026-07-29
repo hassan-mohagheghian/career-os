@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
 
 from fastapi import WebSocket
+from shared.infrastructure.process.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('websocket.manager')
 
 
 class ConnectionManager:

@@ -10,7 +10,6 @@ from typing import Any
 from jobs.infrastructure.models.job_model import JobModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
-from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 from career.infrastructure.models.insight_model import CareerInsightModel, CareerInsightRunModel
 from shared.infrastructure.database.models.misc_models import ResumeModel
 
@@ -60,6 +59,16 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "response_time": model.response_time,
         "response_status": model.response_status,
         "rescoring": model.rescoring,
+        "status": model.status,
+        "queue_order": model.queue_order,
+        "current_node": model.current_node,
+        "progress_pct": model.progress_pct,
+        "error": model.error,
+        "retry_count": model.retry_count,
+        "failure_reason": model.failure_reason,
+        "failure_step": model.failure_step,
+        "failure_timestamp": model.failure_timestamp,
+        "session_id": model.session_id,
     }
 
 
@@ -133,9 +142,18 @@ def company_model_to_dict(model: CompanyModel) -> dict[str, Any]:
         "tech_stack": model.tech_stack,
         "work_environment": model.work_environment,
         "extra": model.extra,
-        "processing_status": model.processing_status,
+        "status": model.status,
         "created_at": model.created_at,
         "updated_at": model.updated_at,
+        "queue_order": model.queue_order,
+        "current_node": model.current_node,
+        "progress_pct": model.progress_pct,
+        "error": model.error,
+        "retry_count": model.retry_count,
+        "failure_reason": model.failure_reason,
+        "failure_step": model.failure_step,
+        "failure_timestamp": model.failure_timestamp,
+        "session_id": model.session_id,
     }
 
 
@@ -163,84 +181,6 @@ def company_intelligence_model_to_dict(model: CompanyIntelligenceModel) -> dict[
         "raw_source_data": model.raw_source_data,
         "generated_at": model.generated_at,
     }
-
-
-# ── Pending Job Mappers ──────────────────────────────────────────
-
-def pending_job_model_to_dict(model: PendingJobModel) -> dict[str, Any]:
-    """Convert a PendingJobModel to a domain dictionary."""
-    return {
-        "id": model.id,
-        "url": model.url,
-        "source": model.source,
-        "status": model.status,
-        "previous_status": model.previous_status,
-        "version": model.version,
-        "notes": model.notes,
-        "links": model.links,
-        "step_fetch": model.step_fetch,
-        "step_analyze": model.step_analyze,
-        "step_resume": model.step_resume,
-        "step_cover": model.step_cover,
-        "step_db": model.step_db,
-        "step_done": model.step_done,
-        "job_num": model.job_num,
-        "company": model.company,
-        "error": model.error,
-        "workflow_log": model.workflow_log,
-        "created_at": model.created_at,
-        "updated_at": model.updated_at,
-        "queue_order": model.queue_order,
-        "step_extract_raw": model.step_extract_raw,
-        "step_extract_struct": model.step_extract_struct,
-        "session_id": model.session_id,
-        "current_node": model.current_node,
-        "retry_count": model.retry_count,
-        "failure_details": model.failure_details,
-        "auto_process": model.auto_process,
-    }
-
-
-def dict_to_pending_job_model(data: dict[str, Any]) -> PendingJobModel:
-    """Convert a domain dictionary to a PendingJobModel."""
-    return PendingJobModel(**{k: v for k, v in data.items() if hasattr(PendingJobModel, k)})
-
-
-# ── Pending Company Mappers ──────────────────────────────────────
-
-def pending_company_model_to_dict(model: PendingCompanyModel) -> dict[str, Any]:
-    """Convert a PendingCompanyModel to a domain dictionary."""
-    return {
-        "id": model.id,
-        "input_text": model.input_text,
-        "notes": model.notes,
-        "input_type": model.input_type,
-        "source": model.source,
-        "status": model.status,
-        "previous_status": model.previous_status,
-        "version": model.version,
-        "step_fetch": model.step_fetch,
-        "step_extract": model.step_extract,
-        "step_analyze": model.step_analyze,
-        "step_save": model.step_save,
-        "step_done": model.step_done,
-        "company_id": model.company_id,
-        "company_name": model.company_name,
-        "error": model.error,
-        "workflow_log": model.workflow_log,
-        "links": model.links,
-        "session_id": model.session_id,
-        "current_node": model.current_node,
-        "retry_count": model.retry_count,
-        "failure_details": model.failure_details,
-        "created_at": model.created_at,
-        "updated_at": model.updated_at,
-    }
-
-
-def dict_to_pending_company_model(data: dict[str, Any]) -> PendingCompanyModel:
-    """Convert a domain dictionary to a PendingCompanyModel."""
-    return PendingCompanyModel(**{k: v for k, v in data.items() if hasattr(PendingCompanyModel, k)})
 
 
 # ── Career Insight Mappers ───────────────────────────────────────

@@ -17,27 +17,27 @@ from sqlalchemy.orm import Session
 from .interfaces import IPendingRepository, IJobRepository
 from .models import ItemStatus, WorkflowLogEntry
 
-from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
 from jobs.infrastructure.models.job_model import JobModel
+from companies.infrastructure.models.company_model import CompanyModel
 from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
 
-# ── Pending Jobs Repository ───────────────────────────────────────
+# ── Pending Jobs Repository (backed by JobModel) ─────────────────
 
 class PendingJobRepository(IPendingRepository):
-    """Repository for pending_jobs table via SQLAlchemy."""
+    """Repository for job processing backed by JobModel."""
 
     def __init__(self, session: Session):
         self._session = session
 
     def get(self, pid: int) -> Optional[dict]:
-        row = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not row:
             return None
         return self._to_dict(row)
 
     def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
-        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not m:
             return
         m.status = status.value if isinstance(status, ItemStatus) else status
@@ -48,7 +48,7 @@ class PendingJobRepository(IPendingRepository):
         self._session.commit()
 
     def update_fields(self, pid: int, table: str = "pending_jobs", **fields) -> None:
-        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not m:
             return
         m.updated_at = datetime.now().isoformat()
@@ -58,10 +58,11 @@ class PendingJobRepository(IPendingRepository):
         self._session.commit()
 
     def update_step(self, pid: int, step: str, val: int, **fields) -> None:
-        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not m:
             return
-        setattr(m, step, val)
+        if hasattr(m, step):
+            setattr(m, step, val)
         m.updated_at = datetime.now().isoformat()
         for k, v in fields.items():
             if hasattr(m, k):
@@ -69,7 +70,7 @@ class PendingJobRepository(IPendingRepository):
         self._session.commit()
 
     def append_log(self, pid: int, entry: WorkflowLogEntry) -> None:
-        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not m:
             return
         logs = json.loads(m.workflow_log or '[]')
@@ -78,19 +79,20 @@ class PendingJobRepository(IPendingRepository):
         self._session.commit()
 
     def get_logs(self, pid: int) -> List[WorkflowLogEntry]:
-        m = self._session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
         if not m:
             return []
         logs = json.loads(m.workflow_log or '[]')
         return [WorkflowLogEntry.from_dict(e) for e in logs]
 
     def claim_next(self) -> Optional[dict]:
-        m = self._session.query(PendingJobModel).filter(
-            PendingJobModel.status == ItemStatus.QUEUED.value
-        ).order_by(PendingJobModel.queue_order.asc(), PendingJobModel.created_at.asc()).first()
+        m = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status == 'queued'
+        ).order_by(JobModel.queue_order.asc(), JobModel.num.asc()).first()
         if not m:
             return None
-        m.status = ItemStatus.PROCESSING.value
+        m.status = 'processing'
         m.updated_at = datetime.now().isoformat()
         self._session.commit()
         self._session.refresh(m)
@@ -99,21 +101,24 @@ class PendingJobRepository(IPendingRepository):
     def count_by_status(self) -> Dict[ItemStatus, int]:
         counts = {}
         for status in ItemStatus:
-            cnt = self._session.query(PendingJobModel).filter(
-                PendingJobModel.status == status.value
+            cnt = self._session.query(JobModel).filter(
+                JobModel.deleted == 0,
+                JobModel.status == status.value
             ).count()
             counts[status] = cnt
         return counts
 
     def reset_orphans(self) -> int:
-        count = self._session.query(PendingJobModel).filter(
-            PendingJobModel.status == ItemStatus.PROCESSING.value
+        count = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status == 'processing'
         ).count()
         if count > 0:
-            self._session.query(PendingJobModel).filter(
-                PendingJobModel.status == ItemStatus.PROCESSING.value
+            self._session.query(JobModel).filter(
+                JobModel.deleted == 0,
+                JobModel.status == 'processing'
             ).update({
-                'status': ItemStatus.QUEUED.value,
+                'status': 'queued',
                 'error': None,
                 'updated_at': datetime.now().isoformat(),
             })
@@ -121,37 +126,45 @@ class PendingJobRepository(IPendingRepository):
         return count
 
     @staticmethod
-    def _to_dict(m: PendingJobModel) -> dict:
+    def _to_dict(m: JobModel) -> dict:
         return {
-            'id': m.id, 'url': m.url, 'source': m.source, 'status': m.status,
-            'version': m.version, 'notes': m.notes, 'links': m.links,
-            'job_num': m.job_num, 'company': m.company,
-            'step_fetch': m.step_fetch, 'step_resume': m.step_resume,
-            'step_extract_raw': m.step_extract_raw, 'step_extract_struct': m.step_extract_struct,
-            'step_cover': m.step_cover, 'step_analyze': m.step_analyze,
-            'step_db': m.step_db, 'step_done': m.step_done,
-            'workflow_log': m.workflow_log, 'error': m.error,
-            'queue_order': m.queue_order, 'session_id': m.session_id,
-            'created_at': m.created_at, 'updated_at': m.updated_at,
+            'id': m.num,
+            'num': m.num,
+            'url': m.url or '',
+            'source': m.source or 'web',
+            'status': m.status,
+            'notes': m.notes or '[]',
+            'links': m.links or '[]',
+            'workflow_log': m.workflow_log or '[]',
+            'error': m.error,
+            'queue_order': m.queue_order,
+            'session_id': m.session_id,
+            'current_node': m.current_node,
+            'retry_count': m.retry_count,
+            'company': m.company or '',
+            'job_num': m.num,
+            'failure_details': m.failure_reason,
+            'created_at': m.created_at.isoformat() if isinstance(m.created_at, datetime) else m.created_at,
+            'updated_at': m.updated_at.isoformat() if isinstance(m.updated_at, datetime) else m.updated_at,
         }
 
 
-# ── Pending Companies Repository ──────────────────────────────────
+# ── Pending Companies Repository (backed by CompanyModel) ─────────
 
 class PendingCompanyRepository(IPendingRepository):
-    """Repository for pending_companies table via SQLAlchemy."""
+    """Repository for company processing backed by CompanyModel."""
 
     def __init__(self, session: Session):
         self._session = session
 
     def get(self, pid: int) -> Optional[dict]:
-        row = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        row = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not row:
             return None
         return self._to_dict(row)
 
     def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
-        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
         m.status = status.value if isinstance(status, ItemStatus) else status
@@ -162,7 +175,7 @@ class PendingCompanyRepository(IPendingRepository):
         self._session.commit()
 
     def update_fields(self, pid: int, table: str = "pending_companies", **fields) -> None:
-        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
         m.updated_at = datetime.now().isoformat()
@@ -172,10 +185,11 @@ class PendingCompanyRepository(IPendingRepository):
         self._session.commit()
 
     def update_step(self, pid: int, step: str, val: int, **fields) -> None:
-        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
-        setattr(m, step, val)
+        if hasattr(m, step):
+            setattr(m, step, val)
         m.updated_at = datetime.now().isoformat()
         for k, v in fields.items():
             if hasattr(m, k):
@@ -183,7 +197,7 @@ class PendingCompanyRepository(IPendingRepository):
         self._session.commit()
 
     def append_log(self, pid: int, entry: WorkflowLogEntry) -> None:
-        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
         logs = json.loads(m.workflow_log or '[]')
@@ -192,45 +206,43 @@ class PendingCompanyRepository(IPendingRepository):
         self._session.commit()
 
     def get_logs(self, pid: int) -> List[WorkflowLogEntry]:
-        m = self._session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return []
         logs = json.loads(m.workflow_log or '[]')
         return [WorkflowLogEntry.from_dict(e) for e in logs]
 
-    ACTIVE_STATUSES = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing'}
+    ACTIVE_STATUSES = {'processing'}
 
     def claim_next(self) -> Optional[dict]:
-        m = self._session.query(PendingCompanyModel).filter(
-            PendingCompanyModel.status == 'queued'
-        ).order_by(PendingCompanyModel.created_at.asc()).first()
+        m = self._session.query(CompanyModel).filter(
+            CompanyModel.status == 'queued'
+        ).order_by(CompanyModel.id.asc()).first()
         if not m:
             return None
-        m.status = 'starting'
+        m.status = 'processing'
         m.updated_at = datetime.now().isoformat()
         self._session.commit()
         self._session.refresh(m)
-        result = self._to_dict(m)
-        result['table'] = 'pending_companies'
-        return result
+        return self._to_dict(m)
 
     def count_by_status(self) -> Dict[str, int]:
         from shared.infrastructure.process.models import JobStatus
         counts = {}
         for status in JobStatus:
-            cnt = self._session.query(PendingCompanyModel).filter(
-                PendingCompanyModel.status == status.value
+            cnt = self._session.query(CompanyModel).filter(
+                CompanyModel.status == status.value
             ).count()
             counts[status.value] = cnt
         return counts
 
     def reset_orphans(self) -> int:
-        count = self._session.query(PendingCompanyModel).filter(
-            PendingCompanyModel.status.in_(self.ACTIVE_STATUSES)
+        count = self._session.query(CompanyModel).filter(
+            CompanyModel.status.in_(self.ACTIVE_STATUSES)
         ).count()
         if count > 0:
-            self._session.query(PendingCompanyModel).filter(
-                PendingCompanyModel.status.in_(self.ACTIVE_STATUSES)
+            self._session.query(CompanyModel).filter(
+                CompanyModel.status.in_(self.ACTIVE_STATUSES)
             ).update({
                 'status': 'created',
                 'error': None,
@@ -240,19 +252,25 @@ class PendingCompanyRepository(IPendingRepository):
         return count
 
     @staticmethod
-    def _to_dict(m: PendingCompanyModel) -> dict:
+    def _to_dict(m: CompanyModel) -> dict:
         return {
-            'id': m.id, 'input_text': m.input_text, 'source': m.source,
-            'status': m.status, 'version': m.version,
-            'notes': m.notes, 'links': m.links, 'input_type': m.input_type,
-            'step_fetch': m.step_fetch, 'step_extract': m.step_extract,
-            'step_analyze': m.step_analyze, 'step_save': m.step_save,
-            'step_done': m.step_done, 'company_id': m.company_id,
-            'company_name': m.company_name, 'error': m.error,
-            'workflow_log': m.workflow_log, 'session_id': m.session_id,
-            'current_node': m.current_node, 'retry_count': m.retry_count,
-            'failure_details': m.failure_details,
-            'created_at': m.created_at, 'updated_at': m.updated_at,
+            'id': m.id,
+            'input_text': m.notes or '[]',
+            'notes': m.notes or '[]',
+            'links': m.links or '[]',
+            'source': m.source or 'web',
+            'input_type': m.input_type or 'url',
+            'status': m.status,
+            'workflow_log': m.workflow_log or '[]',
+            'error': m.error,
+            'session_id': m.session_id,
+            'current_node': m.current_node,
+            'retry_count': m.retry_count,
+            'company_id': m.id,
+            'company_name': m.name or '',
+            'failure_details': m.failure_reason,
+            'created_at': m.created_at.isoformat() if isinstance(m.created_at, datetime) else m.created_at,
+            'updated_at': m.updated_at.isoformat() if isinstance(m.updated_at, datetime) else m.updated_at,
         }
 
 

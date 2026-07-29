@@ -28,10 +28,10 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column('failure_details', sa.Text(), nullable=True))
 
     # Set previous_status from current status for existing rows
+    pending_companies = sa.table('pending_companies', sa.column('previous_status'), sa.column('status'))
     op.execute(
-        sa.text(
-            "UPDATE pending_companies SET previous_status = status WHERE previous_status IS NULL"
-        )
+        sa.update(pending_companies).where(pending_companies.c.previous_status.is_(None))
+        .values(previous_status=pending_companies.c.status)
     )
 
 

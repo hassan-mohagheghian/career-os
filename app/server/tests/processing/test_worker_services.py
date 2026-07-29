@@ -13,9 +13,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
-from processing.infrastructure.models.pending_model import (
-    PendingJobModel, PendingCompanyModel, PendingGenerationModel,
-)
+from jobs.infrastructure.models.job_model import JobModel
+from companies.infrastructure.models.company_model import CompanyModel
 from shared.domain.models.generation_models import GenerationSource, GenerationStatus
 from shared.infrastructure.process.models import ItemStatus, WorkflowLogEntry, StatusUpdate, ProcessingComplete
 from shared.infrastructure.process.worker_base import WorkerBase
@@ -32,14 +31,14 @@ class ConcreteWorker(WorkerBase):
 
     @property
     def pipeline_steps(self):
-        return ['step_fetch', 'step_analyze', 'step_done']
+        return ['fetch', 'analyze', 'done']
 
     def _execute_pipeline(self, pid, item):
-        self._mark_step(pid, 'step_fetch')
+        self._mark_step(pid, 'fetch')
         self._log(pid, 'fetch', 'Fetched content')
         if self._is_cancelled(pid):
             return None
-        self._mark_step(pid, 'step_analyze')
+        self._mark_step(pid, 'analyze')
         self._log(pid, 'analyze', 'Analyzed')
         return {'result': 'ok', 'num': 42}
 
@@ -53,10 +52,10 @@ class FailingWorker(WorkerBase):
 
     @property
     def pipeline_steps(self):
-        return ['step_fetch', 'step_analyze', 'step_done']
+        return ['fetch', 'analyze', 'done']
 
     def _execute_pipeline(self, pid, item):
-        self._mark_step(pid, 'step_fetch')
+        self._mark_step(pid, 'fetch')
         raise RuntimeError("AI service unavailable")
 
 
@@ -69,13 +68,13 @@ class CompanyTestWorker(WorkerBase):
 
     @property
     def pipeline_steps(self):
-        return ['step_fetch', 'step_extract', 'step_analyze', 'step_save', 'step_done']
+        return ['fetch', 'extract', 'analyze', 'save', 'done']
 
     def _execute_pipeline(self, pid, item):
-        self._mark_step(pid, 'step_fetch')
-        self._mark_step(pid, 'step_extract')
-        self._mark_step(pid, 'step_analyze')
-        self._mark_step(pid, 'step_save')
+        self._mark_step(pid, 'fetch')
+        self._mark_step(pid, 'extract')
+        self._mark_step(pid, 'analyze')
+        self._mark_step(pid, 'save')
         return {'company_id': 1, 'name': 'TestCo'}
 
 
@@ -96,16 +95,15 @@ class TestWorkerBase:
         return ConcreteWorker(repo, proc_mgr, temp_mgr, mimo, broadcaster)
 
     def _insert_pending_job(self, sa_session, url='https://example.com', status='processing'):
-        m = PendingJobModel(
-            url=url,
-            status=status,
+        m = JobModel(
+            num=1, url=url, status=status, source='cli',
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat(),
         )
         sa_session.add(m)
         sa_session.commit()
         sa_session.refresh(m)
-        return m.id
+        return m.num
 
     def test_successful_pipeline(self, sa_session):
         worker = self._make_worker(sa_session)
@@ -113,11 +111,8 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
         assert row.status == 'completed'
-        assert row.step_fetch == 1
-        assert row.step_analyze == 1
-        assert row.step_done == 1
 
     def test_failed_pipeline(self, sa_session):
         from shared.infrastructure.process.repository import PendingJobRepository
@@ -128,7 +123,7 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
         assert row.status == 'failed'
         assert row.error is not None
 
@@ -138,7 +133,7 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) >= 2
         assert logs[0]['msg'] == 'Fetched content'
@@ -156,7 +151,6 @@ class TestWorkerBase:
         worker = FailingWorker(repo, MagicMock(), MagicMock(), MagicMock(), MagicMock())
         pid = self._insert_pending_job(sa_session, url='https://paused.example.com', status='paused')
 
-        # Paused item should be detected as cancelled
         assert worker._is_cancelled(pid) is True
 
     def test_company_worker_table(self, sa_session):
@@ -172,28 +166,21 @@ class TestWorkerBase:
         worker = self._make_worker(sa_session)
         pid = self._insert_pending_job(sa_session)
 
-        # Manually set steps
-        m = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        m.step_fetch = 1
-        m.step_analyze = 1
-        sa_session.commit()
-
         worker._reset_steps(pid)
 
-        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
-        assert row.step_fetch == 0
-        assert row.step_analyze == 0
+        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.workflow_log == '[]'
 
     def test_mark_step_broadcasts(self, sa_session):
         worker = self._make_worker(sa_session)
         pid = self._insert_pending_job(sa_session)
 
         with patch.object(worker._broadcaster, 'step_update') as mock_broadcast:
-            worker._mark_step(pid, 'step_fetch', 1)
+            worker._mark_step(pid, 'fetch', 1)
             mock_broadcast.assert_called_once()
             event = mock_broadcast.call_args[0][0]
             assert isinstance(event, StatusUpdate)
-            assert event.step == 'step_fetch'
+            assert event.step == 'fetch'
             assert event.val == 1
 
     def test_log_appends_entry(self, sa_session):
@@ -202,7 +189,7 @@ class TestWorkerBase:
 
         worker._log(pid, 'test', 'Test message')
 
-        row = sa_session.query(PendingJobModel).filter(PendingJobModel.id == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) == 1
         assert logs[0]['step'] == 'test'

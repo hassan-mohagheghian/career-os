@@ -38,30 +38,29 @@ OLD_TO_NEW_STATUS = {
 
 
 def upgrade() -> None:
+    pending_companies = sa.table('pending_companies', sa.column('status'))
     for old_status, new_status in OLD_TO_NEW_STATUS.items():
         if old_status != new_status:
             op.execute(
-                sa.text(
-                    "UPDATE pending_companies SET status = :new WHERE status = :old"
-                ).bindparams(new=new_status, old=old_status)
+                sa.update(pending_companies).where(pending_companies.c.status == old_status)
+                .values(status=new_status)
             )
 
 
 def downgrade() -> None:
     NEW_TO_OLD_STATUS = {v: k for k, v in OLD_TO_NEW_STATUS.items()}
 
+    pending_companies = sa.table('pending_companies', sa.column('status'))
     for new_status, old_status in NEW_TO_OLD_STATUS.items():
         if new_status != old_status:
             op.execute(
-                sa.text(
-                    "UPDATE pending_companies SET status = :old WHERE status = :new"
-                ).bindparams(old=old_status, new=new_status)
+                sa.update(pending_companies).where(pending_companies.c.status == new_status)
+                .values(status=old_status)
             )
 
     # Handle statuses that don't have a direct old mapping
     for extra_status in ('analyzing', 'generating', 'finalizing', 'cancelled'):
         op.execute(
-            sa.text(
-                "UPDATE pending_companies SET status = 'pending' WHERE status = :extra"
-            ).bindparams(extra=extra_status)
+            sa.update(pending_companies).where(pending_companies.c.status == extra_status)
+            .values(status='pending')
         )

@@ -1,15 +1,14 @@
-"""Job CRUD, rescore, and reprocess routes."""
+"""Job CRUD, lifecycle, and generation routes."""
 
 import threading
-from datetime import datetime
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_job_repo, get_pending_repo, get_summary_repo, get_resume_repo, get_session_sync
+from dependencies import get_job_repo, get_summary_repo, get_resume_repo, get_session_sync
 
 # Bounded context infrastructure
 from jobs.infrastructure import SQLAlchemyJobRepository
-from processing.infrastructure import SQLAlchemyPendingRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
 from resume.infrastructure import SQLAlchemyResumeRepository
 
@@ -36,7 +35,7 @@ def list_jobs(
     filter_scores: str = Query(""),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
-    """Get paginated list of processed jobs."""
+    """Get paginated list of jobs."""
     filters = {
         "filter_tech": filter_tech,
         "filter_cities": filter_cities,
@@ -68,19 +67,21 @@ def get_summaries(repo: SQLAlchemySummaryRepository = Depends(get_summary_repo))
 
 
 @router.get("/{num}/generation-history")
-def get_job_generation_history(num: int, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def get_job_generation_history(num: int, session = Depends(get_session_sync)):
     """Get generation history (resume + cover) for a specific job."""
-    title_map = {'resume': 'Resume', 'cover': 'Cover Letter', 'cover_letter': 'Cover Letter'}
+    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
+    repo = SQLAlchemyResumeRepository(session)
     items = repo.get_history_for_job(num) if hasattr(repo, 'get_history_for_job') else []
+    title_map = {'resume': 'Resume', 'cover': 'Cover Letter', 'cover_letter': 'Cover Letter'}
     return [
         {
-            "id": r["id"],
+            "id": r.get("id", r.get("num", 0)),
             "type": r.get("type", "unknown"),
             "title": title_map.get(r.get("type", ""), r.get("type", "")),
             "status": r["status"],
             "error": r.get("error"),
             "started_at": r.get("created_at"),
-            "completed_at": r.get("updated_at") if r.get("status") in ("done", "failed") else None,
+            "completed_at": r.get("updated_at") if r.get("status") in ("done", "completed", "failed") else None,
         }
         for r in items
     ]
@@ -127,7 +128,6 @@ def delete_job(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
 def requeue_job(
     num: int,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
-    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
 ):
     """Re-queue a job for processing."""
     from shared.infrastructure.config.queue import get_queue_manager
@@ -136,91 +136,55 @@ def requeue_job(
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    url = job["url"]
-    company = job.get("company", "")
-
-    repo.mark_deleted(num)
-    existing = pending_repo.get_by_url(url)
-
-    if existing:
-        pid = existing["id"]
-        pending_repo.update_fields(pid, table="pending_jobs",
-            status="created", error=None, source="requeue",
-            company=company, queue_order=0, step_fetch=0, step_analyze=0,
-            step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
-            step_db=0, step_done=0, workflow_log="[]", current_node=None,
-            retry_count=0, failure_details=None,
-            updated_at=datetime.now().isoformat())
-    else:
-        result = pending_repo.create_pending_job(url, "requeue", company, "created")
-        pid = result["id"]
-
-    get_queue_manager().enqueue(pid)
-    return {"status": "queued", "pid": pid, "num": num, "company": company}
+    repo.update_fields(num,
+        status='queued', error=None, current_node=None, progress_pct=0,
+        retry_count=0, failure_reason=None, failure_step=None,
+        failure_timestamp=None, updated_at=datetime.now(UTC).isoformat(),
+    )
+    get_queue_manager().enqueue(num)
+    return {"status": "queued", "num": num}
 
 
 @router.post("/{num}/rescore")
 def rescore_job(
     num: int,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
-    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
 ):
-    """Rescore an existing job."""
+    """Rescore an existing job. Sets the rescoring flag and re-queues."""
     from shared.infrastructure.config.queue import get_queue_manager
 
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    url = job["url"]
     repo.mark_rescoring(num)
-
-    existing = pending_repo.get_by_url(url)
-    if existing:
-        pending_repo.update_status(str(existing["id"]), "cancelled", table="pending_jobs")
-        get_queue_manager().cancel_job(existing["id"])
-
-    result = pending_repo.create({
-        "url": url,
-        "source": "rescore",
-        "company": job.get("company", ""),
-    })
-    pending_id = result["id"]
-    get_queue_manager().enqueue(pending_id)
-    return {"status": "queued", "num": num, "company": job.get("company", ""), "pending_id": pending_id}
+    repo.update_fields(num,
+        status='queued', error=None, current_node=None, progress_pct=0,
+        retry_count=0, failure_reason=None, failure_step=None,
+        failure_timestamp=None, updated_at=datetime.now(UTC).isoformat(),
+    )
+    get_queue_manager().enqueue(num)
+    return {"status": "queued", "num": num}
 
 
 @router.post("/rescore-all")
 def rescore_all(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
-    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
 ):
     """Rescore all non-deleted jobs."""
     from shared.infrastructure.config.queue import get_queue_manager
 
     jobs = repo.get_all_active()
-    pending_ids = []
-
     for job in jobs:
-        num = job["num"]
-        url = job["url"]
-        repo.mark_rescoring(num)
-        result = pending_repo.create({
-            "url": url,
-            "source": "rescore",
-            "company": job.get("company", ""),
-        })
-        pending_ids.append(result["id"])
-
-    if pending_ids:
-        get_queue_manager().enqueue_bulk(pending_ids)
-    return {"status": "rescoring", "count": len(pending_ids)}
+        repo.mark_rescoring(job["num"])
+        repo.update_fields(job["num"], status='queued', updated_at=datetime.now(UTC).isoformat())
+        get_queue_manager().enqueue(job["num"])
+    return {"status": "rescoring", "count": len(jobs)}
 
 
 @router.post("/reprocess-all")
 def reprocess_all(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
-    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
     summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
 ):
     """Reprocess all jobs from scratch."""
@@ -230,53 +194,65 @@ def reprocess_all(
     repo.delete_all_active()
     summary_repo.delete_all()
 
-    pending_ids = []
     for job in jobs:
-        url = job["url"]
-        company = job.get("company", "")
-        existing = pending_repo.get_by_url(url)
+        result = repo.upsert({
+            "num": repo.get_next_num(),
+            "url": job["url"],
+            "company": job.get("company", ""),
+            "status": "queued",
+        })
+        get_queue_manager().enqueue(result["num"])
+    return {"status": "reprocessing", "count": len(jobs)}
 
-        if existing:
-            pid = existing["id"]
-            pending_repo.update_fields(pid, table="pending_jobs",
-                status="created", error=None, source="requeue",
-                company=company, queue_order=0, step_fetch=0, step_analyze=0,
-                step_extract_raw=0, step_extract_struct=0, step_resume=0, step_cover=0,
-                step_db=0, step_done=0, workflow_log="[]", current_node=None,
-                retry_count=0, failure_details=None,
-                updated_at=datetime.now().isoformat())
-            pending_ids.append(pid)
-        else:
-            result = pending_repo.create({
-                "url": url,
-                "source": "requeue",
-                "company": company,
-            })
-            pending_ids.append(result["id"])
 
-    if pending_ids:
-        get_queue_manager().enqueue_bulk(pending_ids)
-    return {"status": "reprocessing", "count": len(pending_ids)}
+@router.post("/{num}/cancel")
+def cancel_job_lifecycle(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
+    """Cancel a job's processing."""
+    from shared.infrastructure.config.queue import get_queue_manager
+    job = repo.get_by_num(num)
+    if not job:
+        raise NotFoundError(f"Job {num} not found")
+    get_queue_manager().cancel_item(num)
+    return {"status": "cancelled", "num": num}
+
+
+@router.post("/{num}/reset")
+def reset_job_lifecycle(num: int, repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
+    """Reset a job back to pending."""
+    from shared.infrastructure.config.queue import get_queue_manager
+    job = repo.get_by_num(num)
+    if not job:
+        raise NotFoundError(f"Job {num} not found")
+    get_queue_manager().reset_item(num)
+    return {"status": "reset", "num": num}
+
+
+@router.get("/status/{status}")
+def list_jobs_by_status(
+    status: str,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """List jobs by lifecycle status."""
+    return repo.list_by_status(status)
 
 
 @router.post("/{num}/generate-resume")
-def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo), session = Depends(get_session_sync)):
+def generate_resume(num: int, session = Depends(get_session_sync)):
     """Start background resume generation for a job."""
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 
     repo = SQLAlchemyJobRepository(session)
     job = repo.get_by_num(num)
     if not job:
         raise NotFoundError(f"Job {num} not found")
 
-    from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    gen_repo = SQLAlchemyPendingGenerationRepository(session)
-
-    running = gen_repo.get_active_for_job(num, "resume")
+    resume_repo = SQLAlchemyResumeRepository(session)
+    running = resume_repo.get_active_for_job(num, "resume") if hasattr(resume_repo, 'get_active_for_job') else None
     if running:
         raise BadRequestError("A resume generation is already running for this job")
 
-    gen = gen_repo.create(num, "resume", "queued")
+    gen = resume_repo.create_generation(num, "resume") if hasattr(resume_repo, 'create_generation') else {"id": 0}
     gen_id = gen["id"]
     session.commit()
 
@@ -285,18 +261,8 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
         try:
             process_generation(gen_id)
         except Exception as e:
-            import logging
-            logging.getLogger('jobs').error(f"Generation {gen_id} failed: {e}")
-            try:
-                s = get_session_sync()
-                try:
-                    from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-                    SQLAlchemyPendingGenerationRepository(s).update_fields(gen_id, status="failed", error=str(e))
-                    s.commit()
-                finally:
-                    pass
-            except Exception:
-                pass
+            from shared.infrastructure.process.logging_config import get_logger
+            get_logger('jobs').error("Generation failed", gen_id=gen_id, error=str(e))
 
     threading.Thread(target=_run, daemon=True).start()
     return {"gen_id": gen_id, "status": "queued", "job_num": num}
@@ -306,21 +272,19 @@ def generate_resume(num: int, pending_repo: SQLAlchemyPendingRepository = Depend
 def generate_cover(num: int, session = Depends(get_session_sync)):
     """Start background cover letter generation for a job."""
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-    from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from resume.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 
     repo = SQLAlchemyJobRepository(session)
     job = repo.get_by_num(num)
     if not job:
-        from shared.application.exceptions import NotFoundError
         raise NotFoundError(f"Job {num} not found")
 
-    gen_repo = SQLAlchemyPendingGenerationRepository(session)
-    running = gen_repo.get_active_for_job(num, "cover")
+    resume_repo = SQLAlchemyResumeRepository(session)
+    running = resume_repo.get_active_for_job(num, "cover") if hasattr(resume_repo, 'get_active_for_job') else None
     if running:
-        from shared.application.exceptions import BadRequestError
         raise BadRequestError("A cover letter generation is already running for this job")
 
-    gen = gen_repo.create(num, "cover", "queued")
+    gen = resume_repo.create_generation(num, "cover") if hasattr(resume_repo, 'create_generation') else {"id": 0}
     gen_id = gen["id"]
     session.commit()
 

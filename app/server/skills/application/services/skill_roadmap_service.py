@@ -12,7 +12,10 @@ import re
 import traceback
 from datetime import datetime
 
+from shared.infrastructure.process.logging_config import get_logger
 from dependencies import get_session_sync
+
+log = get_logger('skills.roadmap')
 from shared.infrastructure.prompts.loader import load_prompt
 from shared.infrastructure.ai.compat import get_llm_service
 from shared.infrastructure.websocket.broadcaster import WebSocketBroadcaster
@@ -431,13 +434,12 @@ def generate_roadmap(skill_name: str):
         _finish_job(job_id, skill_name, "completed", job_type="generate",
                     version=version, count=len(items), session_id=session_id,
                     provider_name=provider_name)
-        print(f"[skill_roadmap] Generated roadmap for '{skill_name}' "
-              f"(v{version}, {len(items)} items, provider={provider_name}, session={session_id})")
+        log.info("Generated roadmap", skill=skill_name, version=version,
+                 items=len(items), provider=provider_name, session=session_id)
 
     except Exception as e:
         _finish_job(job_id, skill_name, "failed", job_type="generate", error=str(e))
-        print(f"[skill_roadmap] Generate failed for '{skill_name}': {e}")
-        traceback.print_exc()
+        log.exception("Generate failed", skill=skill_name, error=str(e))
 
 
 def extend_roadmap(skill_name: str):
@@ -490,13 +492,12 @@ def extend_roadmap(skill_name: str):
         _finish_job(job_id, skill_name, "completed", job_type="extend",
                     version=version, count=len(items), session_id=session_id,
                     provider_name=provider_name)
-        print(f"[skill_roadmap] Extended roadmap for '{skill_name}' "
-              f"(v{version}, {len(items)} items, provider={provider_name})")
+        log.info("Extended roadmap", skill=skill_name, version=version,
+                 items=len(items), provider=provider_name)
 
     except Exception as e:
         _finish_job(job_id, skill_name, "failed", job_type="extend", error=str(e))
-        print(f"[skill_roadmap] Extend failed for '{skill_name}': {e}")
-        traceback.print_exc()
+        log.exception("Extend failed", skill=skill_name, error=str(e))
 
 
 def finegrain_roadmap(skill_name: str):
@@ -549,10 +550,9 @@ def finegrain_roadmap(skill_name: str):
         _finish_job(job_id, skill_name, "completed", job_type="finegrain",
                     version=version, count=len(items), session_id=session_id,
                     provider_name=provider_name)
-        print(f"[skill_roadmap] Fine-grained roadmap for '{skill_name}' "
-              f"(v{version}, {len(items)} items, provider={provider_name})")
+        log.info("Fine-grained roadmap", skill=skill_name, version=version,
+                 items=len(items), provider=provider_name)
 
     except Exception as e:
         _finish_job(job_id, skill_name, "failed", job_type="finegrain", error=str(e))
-        print(f"[skill_roadmap] Finegrain failed for '{skill_name}': {e}")
-        traceback.print_exc()
+        log.exception("Finegrain failed", skill=skill_name, error=str(e))

@@ -25,6 +25,13 @@ import structlog
 _initialized = False
 
 
+def _auto_init():
+    """Lazy-init if setup_logging wasn't called (e.g. in scripts/tests)."""
+    global _initialized
+    if not _initialized:
+        setup_logging()
+
+
 def setup_logging(log_dir: str = None, level: str = 'INFO') -> None:
     """Configure structlog + stdlib logging. Call once at app startup.
 
@@ -75,7 +82,9 @@ def setup_logging(log_dir: str = None, level: str = 'INFO') -> None:
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
-    root_logger.handlers.clear()
+    for h in root_logger.handlers[:]:
+        h.close()
+        root_logger.removeHandler(h)
     root_logger.addHandler(handler)
     root_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 
@@ -101,5 +110,10 @@ def setup_logging(log_dir: str = None, level: str = 'INFO') -> None:
 
 
 def get_logger(name: str = 'process') -> structlog.stdlib.BoundLogger:
-    """Get a bound logger for the processing pipeline."""
+    """Get a bound logger for the processing pipeline.
+    
+    Auto-initializes structlog with defaults if setup_logging() wasn't
+    explicitly called (e.g. in CLI scripts or one-off commands).
+    """
+    _auto_init()
     return structlog.get_logger(name)

@@ -1,19 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  Buildings, Plus, X, CheckCircle, Clock, Stack, Gear, Warning,
-  ArrowsClockwise, MagnifyingGlass, Note, LinkSimple, ArrowSquareOut
+  Buildings, X, CheckCircle, MagnifyingGlass, Note, LinkSimple, ArrowSquareOut
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/textarea'
-import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
-import CompanyPendingCard from './CompanyPendingCard'
-import CompanyQueuedCard from './CompanyQueuedCard'
-import CompanyProcessingCard from './CompanyProcessingCard'
-import CompanyFailedCard from './CompanyFailedCard'
 import CompanyCard from './CompanyCard'
 import CompanyDrawer from './CompanyDrawer'
 import ConfirmDialog from '@/shared/components/ConfirmDialog'
@@ -67,7 +61,7 @@ function LinkItem({ link, onRemove }) {
   )
 }
 
-export default function CompaniesPage({ companies, pendingCompanies, deepLinkId, onClearDeepLink, onRefresh, onOpenJob, onNavigateToJob, onOpenCompany }) {
+export default function CompaniesPage({ companies, deepLinkId, onClearDeepLink, onRefresh, onOpenJob, onNavigateToJob, onOpenCompany }) {
   const [noteInput, setNoteInput] = useState('')
   const [notes, setNotes] = useState([])
   const [links, setLinks] = useState([])
@@ -77,18 +71,10 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [confirmDialog, setConfirmDialog] = useState(null)
-  const [collapsedSections, setCollapsedSections] = useState({})
-  const [editingId, setEditingId] = useState(null)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
   const [filterIndustry, setFilterIndustry] = useState('')
-
-  const pendingCount = pendingCompanies.filter(p => p.status === 'created').length
-  const queuedCount = pendingCompanies.filter(p => p.status === 'queued' || p.status === 'waiting').length
-  const processingCount = pendingCompanies.filter(p => ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)).length
-  const failedCount = pendingCompanies.filter(p => p.status === 'failed' || p.status === 'cancelled').length
-  const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
   useEffect(() => {
     if (deepLinkId && companies.length > 0) {
@@ -97,7 +83,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
     }
   }, [deepLinkId, companies])
 
-  // Listen for cross-entity navigation (e.g. from JobDrawer -> CompanyDrawer)
   useEffect(() => {
     const handleOpenCompany = (e) => {
       const id = e.detail
@@ -193,37 +178,16 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
     if (allNotes.length === 0 && links.length === 0) return
     setSubmitting(true)
     try {
-      if (editingId) {
-        // Adding to existing pending company
-        for (const note of allNotes) {
-          await fetch(`${API}/pending-companies`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ company_id: editingId, note: note.content, note_type: note.type })
-          })
-        }
-        // Store links in pending_companies for the worker to pick up
-        if (links.length > 0) {
-          await fetch(`${API}/pending-companies/${editingId}/links`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ links })
-          })
-        }
-        setEditingId(null)
-      } else {
-        // Create pending company — goes through processing pipeline
-        const res = await fetch(`${API}/pending-companies`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes: allNotes, links, source: 'web' })
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Failed to add')
-          setSubmitting(false)
-          return
-        }
+      const res = await fetch(`${API}/companies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: allNotes, links, source: 'web' })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to add')
+        setSubmitting(false)
+        return
       }
       setNotes([])
       setLinks([])
@@ -247,10 +211,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
     }
   }
 
-  const processCompany = async (id) => { await fetch(`${API}/pending-companies/${id}/process`, { method: 'POST' }); onRefresh?.() }
-  const deletePending = async (id) => { await fetch(`${API}/pending-companies/${id}`, { method: 'DELETE' }); onRefresh?.() }
-  const resetPending = async (id) => { await fetch(`${API}/pending-companies/${id}/reset`, { method: 'PUT' }); onRefresh?.() }
-
   const deleteCompany = async (id) => {
     const ok = await showConfirm('Delete Company', 'Permanently delete this company and all its intelligence data?', 'Delete')
     if (!ok) return
@@ -267,46 +227,16 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
     onOpenCompany?.(id)
   }
 
-  const startEditing = (pendingId) => {
-    setEditingId(pendingId)
-    setNotes([])
-    setNoteInput('')
-  }
-
-  const cancelEditing = () => {
-    setEditingId(null)
-    setNotes([])
-    setNoteInput('')
-  }
-
-  const sections = [
-    { id: 'created', count: pendingCount, label: 'Created', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
-    { id: 'queued', count: queuedCount, label: 'Queued', icon: <Stack className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
-    { id: 'processing', count: processingCount, label: 'Processing', icon: <Gear className="w-3 h-3" />, color: 'blue', iconClass: 'text-blue-500', bgClass: 'bg-gradient-to-r from-blue-500/10 to-blue-500/5', borderClass: 'border-b border-blue-500/20', textClass: 'text-blue-600 dark:text-blue-500' },
-    { id: 'failed', count: failedCount, label: 'Failed/Cancelled', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
-  ]
-
   return (
     <div className="flex gap-2 h-[calc(100vh-80px)]">
-      {/* Processing Queue column */}
+      {/* Add Company panel */}
       <div className="w-1/4 flex flex-col rounded-lg border overflow-hidden bg-card">
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
-          <Gear className="w-4 h-4 text-primary" />
-          <span className="font-bold text-xs text-primary">Company Queue</span>
-          <Badge variant="default" className="ml-auto text-2xs h-4">{stackedTotal}</Badge>
+          <Buildings className="w-4 h-4 text-primary" />
+          <span className="font-bold text-xs text-primary">Add Company</span>
         </div>
         <div className="flex flex-col flex-1 min-h-0 p-2">
-          {/* Multi-note input area */}
           <div className="rounded border p-1.5 shrink-0 mb-1 bg-muted min-w-0">
-            {editingId && (
-              <div className="flex items-center gap-1 mb-1 text-2xs text-primary">
-                <Plus className="w-2.5 h-2.5" />
-                <span>Adding to pending #{editingId}</span>
-                <button onClick={cancelEditing} className="ml-auto text-muted-foreground hover:text-foreground"><X className="w-2.5 h-2.5" /></button>
-              </div>
-            )}
-
-            {/* Notes section */}
             <div className="mb-1">
               <div className="flex items-center gap-1 text-2xs text-muted-foreground mb-0.5">
                 <Note className="w-2.5 h-2.5" />
@@ -322,15 +252,14 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
               <div className="flex gap-1">
                 <Textarea value={noteInput} onChange={e => { setNoteInput(e.target.value); setError('') }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Add a note: company name, description, observations..."
+                  placeholder="Company name, description, observations..."
                   className="w-full h-8 rounded border text-2xs min-w-0 resize-none flex-1" />
                 <Button onClick={addNote} disabled={!noteInput.trim()} size="sm" variant="outline" className="h-8 px-2 shrink-0">
-                  <Plus className="w-3 h-3" />
+                  +
                 </Button>
               </div>
             </div>
 
-            {/* Links section */}
             <div className="border-t pt-1 mt-1">
               <div className="flex items-center justify-between mb-0.5">
                 <div className="flex items-center gap-1 text-2xs text-muted-foreground">
@@ -339,7 +268,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                 </div>
                 {!showLinkInput && (
                   <button onClick={() => setShowLinkInput(true)} className="text-2xs text-primary hover:underline flex items-center gap-0.5">
-                    <Plus className="w-2 h-2" /> Add
+                    + Add
                   </button>
                 )}
               </div>
@@ -382,77 +311,14 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
               )}
             </div>
 
-            {error && <div className="text-2xs mt-1 px-0.5 flex items-center gap-1 text-destructive"><Warning className="w-2.5 h-2.5" /> {error}</div>}
+            {error && <div className="text-2xs mt-1 px-0.5 flex items-center gap-1 text-destructive">{error}</div>}
 
             <div className="flex items-center gap-1 mt-1.5">
               <Button onClick={handleSubmit} disabled={submitting || (notes.length === 0 && !noteInput.trim() && links.length === 0)} size="sm" className="flex-1 h-6 text-2xs">
-                {submitting ? '...' : editingId ? 'Add Notes & Links' : 'Add & Process'}
+                {submitting ? '...' : 'Add & Process'}
               </Button>
             </div>
           </div>
-
-          {/* Stacked sections */}
-          <div className="flex flex-col flex-1 min-h-0 gap-1">
-            {sections.map(s => {
-              const isEmpty = s.count === 0
-              const isOpen = isEmpty ? false : !collapsedSections[s.id]
-              return (
-                <div key={s.id} className={cn("flex flex-col rounded-lg border min-w-0 max-w-full overflow-hidden", isOpen ? "flex-1 min-h-0" : "", isEmpty && "opacity-60")}>
-                  <div onClick={() => !isEmpty && setCollapsedSections(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
-                    className={cn("px-2 py-1 flex items-center gap-1 shrink-0 transition", !isEmpty && "cursor-pointer select-none hover:bg-muted/50", s.bgClass, s.borderClass)}>
-                    <span className={s.iconClass}>{s.icon}</span>
-                    <span className={cn("font-bold text-2xs uppercase tracking-wider", s.textClass)}>{s.label}</span>
-                    <Badge variant="secondary" className={cn("text-2xs h-4 ml-auto", isEmpty && "bg-muted text-muted-foreground")}>{s.count}</Badge>
-                    {!isEmpty && <span className="text-2xs text-muted-foreground">{isOpen ? '▾' : '▸'}</span>}
-                  </div>
-                  {isOpen && (
-                    <ScrollArea className="flex-1 min-h-0 min-w-0">
-                      <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pendingCompanies.filter(p => {
-                          if (s.id === 'created') return p.status === 'created'
-                          if (s.id === 'queued') return p.status === 'queued' || p.status === 'waiting'
-                          if (s.id === 'processing') return ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)
-                          if (s.id === 'failed') return p.status === 'failed' || p.status === 'cancelled'
-                          return p.status === s.id
-                        }).map(p => {
-                          const Card = ({
-                            created: CompanyPendingCard,
-                            queued: CompanyQueuedCard,
-                            processing: CompanyProcessingCard,
-                            failed: CompanyFailedCard,
-                          } as Record<string, any>)[s.id] || CompanyPendingCard
-                          return (
-                          <div key={p.id} className="w-full overflow-hidden">
-                            <Card item={p}
-                              onProcess={() => processCompany(p.id)}
-                              onDelete={() => deletePending(p.id)}
-                              onReset={() => resetPending(p.id)}
-                              onCancel={async () => { await resetPending(p.id); await processCompany(p.id) }} />
-                            {(() => {
-                              const pNotes = parseNotes(p.notes)
-                              return s.id === 'created' && pNotes.length > 0 && (
-                                <div className="ml-3 mt-0.5 space-y-0.5">
-                                  {pNotes.map((n, i) => (
-                                    <NoteItem key={i} note={n} />
-                                  ))}
-                                  <button onClick={() => startEditing(p.id)}
-                                    className="text-2xs text-primary hover:underline flex items-center gap-0.5">
-                                    <Plus className="w-2 h-2" /> Add note
-                                  </button>
-                                </div>
-                              )
-                            })()}
-                          </div>
-                          )
-                        })}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          {stackedTotal === 0 && <div className="text-center py-8 text-2xs text-muted-foreground shrink-0">No pending companies</div>}
         </div>
       </div>
 
@@ -460,11 +326,11 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
       <div className="w-3/4 flex flex-col rounded-lg border overflow-hidden bg-card">
         <div className="px-2 py-1.5 flex items-center gap-1 shrink-0 bg-gradient-to-r from-green-500/10 to-green-500/5 border-b border-green-500/20">
           <CheckCircle className="w-4 h-4 text-green-500" />
-          <span className="font-bold text-xs text-green-500">Processed Companies</span>
+          <span className="font-bold text-xs text-green-500">Companies</span>
           <Badge variant="secondary" className="text-2xs h-4 bg-green-500/15 text-green-500">{filteredCompanies.length}/{companies.length}</Badge>
           <div className="flex items-center gap-0.5 ml-auto">
             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onRefresh} title="Refresh">
-              <ArrowsClockwise className="w-3 h-3 text-green-500" />
+              <ArrowSquareOut className="w-3 h-3 text-green-500" />
             </Button>
           </div>
         </div>
@@ -477,7 +343,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
             </div>
           ) : (
             <>
-              {/* Search + Sort + Filter bar */}
               <div className="flex items-center gap-1 mb-2 sticky top-0 z-10 bg-card pb-1">
                 <div className="relative flex-1">
                   <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -530,8 +395,6 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
           )}
         </div>
       </div>
-
-      {/* CompanyDrawer is now rendered in App.jsx for cross-page navigation */}
 
       <ConfirmDialog dialog={confirmDialog} onClose={() => setConfirmDialog(null)} />
     </div>

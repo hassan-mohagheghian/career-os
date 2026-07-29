@@ -10,6 +10,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from server.shared.infrastructure.process.logging_config import setup_logging, get_logger
+
+setup_logging(level='INFO')
+log = get_logger('dev-cli')
+
 app = typer.Typer(
     name="start",
     help="Job Search Application — Developer CLI",
@@ -22,7 +27,7 @@ app.add_typer(docker_app, name="docker")
 
 console = Console()
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVER_DIR = REPO_ROOT / "app" / "server"
 CLIENT_DIR = REPO_ROOT / "app" / "client"
 VENV_DIR = REPO_ROOT / ".venv"
@@ -112,18 +117,22 @@ def _kill_by_pattern(pattern: str):
 
 
 def _log(msg: str):
+    log.info(msg)
     console.print(f"[blue][job-search][/] {msg}")
 
 
 def _ok(msg: str):
+    log.info(msg)
     console.print(f"[green][job-search][/] {msg}")
 
 
 def _warn(msg: str):
+    log.warning(msg)
     console.print(f"[yellow][job-search][/] {msg}")
 
 
 def _err(msg: str):
+    log.error(msg)
     console.print(f"[red][job-search][/] {msg}")
 
 
@@ -137,14 +146,14 @@ def _run_migrations():
     alembic = _alembic_path()
     if not Path(alembic).exists():
         return
-    _log("Running database migrations...")
+    log.info("Running database migrations")
     result = subprocess.run(
         [alembic, "upgrade", "head"],
         cwd=str(REPO_ROOT),
         capture_output=True,
     )
     if result.returncode != 0:
-        _warn("Alembic migration warning (non-fatal)")
+        log.warning("Alembic migration warning (non-fatal)", stderr=result.stderr.decode() if result.stderr else None)
 
 
 def _check_tool(name: str, *args: str):
@@ -178,21 +187,21 @@ def dev(
     port_fe = frontend_port or _load_port_from_env("FRONTEND_PORT", 5173)
 
     _log("Starting all services...")
-    print()
+    console.print()
 
     _start_backend(port_be)
     import time
     time.sleep(2)
     _start_frontend(port_fe)
 
-    print()
+    console.print()
     _ok("All services started!")
-    print()
+    console.print()
     console.print(f"  Backend:  http://localhost:{port_be}")
     console.print(f"  Frontend: http://localhost:{port_fe}")
-    print()
+    console.print()
     console.print("  Press Ctrl+C to stop all services")
-    print()
+    console.print()
 
     try:
         signal.signal(signal.SIGINT, lambda s, f: (_stop_service("backend", PID_FILE), _stop_service("frontend", CLIENT_PID_FILE), _kill_by_pattern("mimo run"), _ok("All processes stopped."), sys.exit(0)))
@@ -547,7 +556,7 @@ def doctor():
     else:
         _warn(".env file not found")
 
-    print()
+    console.print()
     if all_ok:
         _ok("All checks passed! Environment is ready.")
     else:
@@ -573,7 +582,7 @@ def version():
     _header("Job Search Developer CLI")
     console.print("  Version: 0.1.0")
     console.print("  Binary:  start")
-    print()
+    console.print()
 
 
 @app.command()
@@ -622,7 +631,7 @@ def status():
                 _ok(f"AI Provider: {provider}")
                 break
 
-    print()
+    console.print()
 
 
 if __name__ == "__main__":

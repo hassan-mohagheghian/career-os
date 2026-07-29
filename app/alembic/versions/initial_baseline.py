@@ -299,7 +299,7 @@ def upgrade() -> None:
         sa.Column('analysis_json', sa.Text(), nullable=False),
     )
     op.create_index('idx_analysis_runs_page', 'analysis_runs', ['page'])
-    op.create_index('idx_analysis_runs_page_created', 'analysis_runs', ['page', sa.text('created_at DESC')])
+    op.create_index('idx_analysis_runs_page_created', 'analysis_runs', ['page', sa.desc('created_at')])
 
     # ── Pending Companies ─────────────────────────────────────────
     op.create_table(
@@ -399,7 +399,7 @@ def upgrade() -> None:
         sa.Column('data_json', sa.Text(), nullable=False),
         sa.Column('created_at', sa.Text(), nullable=True),
     )
-    op.create_index('idx_career_insights_type', 'career_insights', ['insight_type', 'version', sa.text('created_at DESC')])
+    op.create_index('idx_career_insights_type', 'career_insights', ['insight_type', 'version', sa.desc('created_at')])
 
     # ── Career Insight Runs ───────────────────────────────────────
     op.create_table(

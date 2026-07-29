@@ -31,7 +31,6 @@ def test_db():
     from shared.infrastructure.database.sqlalchemy_config import Base
     from jobs.infrastructure.models.job_model import JobModel
     from skills.infrastructure.models.skill_model import SkillModel
-    from processing.infrastructure.models.pending_model import PendingJobModel
 
     fd, path = tempfile.mkstemp(suffix='.db')
     os.close(fd)

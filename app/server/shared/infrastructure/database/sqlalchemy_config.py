@@ -9,7 +9,7 @@ This module provides:
 
 from typing import Generator
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from shared.infrastructure.config.app_config import DB_PATH

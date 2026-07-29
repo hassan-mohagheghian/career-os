@@ -11,7 +11,10 @@ import time
 import traceback
 from datetime import datetime
 
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.prompts.loader import load_prompt
+
+log = get_logger('career.insights')
 
 # AI Agent Layer — unified LLM service
 from shared.infrastructure.ai.compat import get_llm_service
@@ -172,7 +175,7 @@ def cancel_run():
         if run_id:
             _complete_run(run_id, 'cancelled', 'Cancelled by user')
         _emit_progress({'running': False, 'status': 'cancelled', 'type': _current_run.get('type'), 'run_id': run_id})
-        print(f"[insights] Run {run_id} cancelled")
+        log.info("Run cancelled", run_id=run_id)
         return True
     # Also handle stale DB records (from crashed sessions)
     from dependencies import get_session_sync
@@ -184,7 +187,7 @@ def cancel_run():
         if row:
             _complete_run(row['id'], 'cancelled', 'Cancelled by user (stale)')
             _emit_progress({'running': False, 'status': 'cancelled', 'run_id': row['id']})
-            print(f"[insights] Stale run {row['id']} cancelled")
+            log.info("Stale run cancelled", run_id=row['id'])
             return True
     finally:
         session.close()
@@ -364,7 +367,7 @@ def generate_skills_intel(pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[insights] Analysis already running: {info}")
+        log.warning("Analysis already running", info=info)
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -401,18 +404,17 @@ def generate_skills_intel(pid=0):
         if section_data:
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'skills_intel', 'run_id': run_id})
-            print(f"[insights] Skills intelligence generated successfully (session: {session_id})")
+            log.info("Skills intelligence generated successfully", session_id=session_id)
             return section_data
 
         _complete_run(run_id, 'failed', error_msg or 'Mimo analysis returned no result', session_id=session_id)
         _emit_progress({'running': False, 'status': 'failed', 'type': 'skills_intel', 'error': error_msg, 'run_id': run_id})
-        print(f"[insights] Skills intelligence generation failed: {error_msg}")
+        log.error("Skills intelligence generation failed", error=error_msg)
         return None
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[insights] Error: {e}")
-        traceback.print_exc()
+        log.exception("Error in generate_skills_intel", error=str(e))
         return None
     finally:
         _current_run['active'] = False
@@ -517,7 +519,7 @@ def _fill_skills_from_insights(result):
                         'market_relevance': market_demand,
                         'evidence': evidence,
                     })
-                    print(f"[insights] Added new skill: {canonical}")
+                    log.info("Added new skill", skill=canonical)
 
             # 3. Create skill relationships
             for rel in relationships:
@@ -547,11 +549,11 @@ def _fill_skills_from_insights(result):
                     if not alias_repo.exists(canonical_skill['id'], name):
                         alias_repo.create(canonical_skill['id'], name, _normalize_skill_name(name))
 
-            print(f"[insights] Skills DB filled from insights report")
+            log.info("Skills DB filled from insights report")
         finally:
             session.close()
     except Exception as e:
-        print(f"[insights] Error filling skills from insights: {e}")
+        log.error("Error filling skills from insights", error=str(e))
 
 
 def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=None):
@@ -597,7 +599,7 @@ def _generate_section_internal(section, pid=0, timeout=600, previous_session_id=
     if section == 'skills_intel':
         _fill_skills_from_insights(result)
 
-    print(f"[insights] {section} saved to DB (session: {session_id})")
+    log.info("Section saved to DB", section=section, session_id=session_id)
     return result, None, session_id
 
 
@@ -611,7 +613,7 @@ def generate_all(pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[insights] Analysis already running: {info}")
+        log.warning("Analysis already running", info=info)
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -650,7 +652,7 @@ def generate_all(pid=0):
 
         for section in sections:
             if _cancel_requested:
-                print(f"[insights] All sections generation cancelled at {section}")
+                log.info("All sections generation cancelled", at=section)
                 break
 
             _emit_progress({
@@ -669,12 +671,12 @@ def generate_all(pid=0):
                 results[section] = section_data
             elif err and err != 'Cancelled':
                 errors.append(f'{section}: {err}')
-                print(f"[insights] {section} failed: {err}")
+                log.error("Section failed", section=section, error=err)
 
         if _cancel_requested:
             _complete_run(run_id, 'cancelled', session_id=last_session_id)
             _emit_progress({'running': False, 'status': 'cancelled', 'type': 'all', 'run_id': run_id})
-            print(f"[insights] All sections generation cancelled")
+            log.info("All sections generation cancelled")
             return None
 
         if not results:
@@ -692,15 +694,14 @@ def generate_all(pid=0):
             _complete_run(run_id, 'completed', session_id=last_session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': 'all', 'run_id': run_id})
 
-        print(f"[insights] All sections generated: {len(results)}/{len(sections)} succeeded "
-              f"(errors: {len(errors)}, session: {last_session_id})")
+        log.info("All sections generated", succeeded=len(results), total=len(sections),
+                 errors=len(errors), session=last_session_id)
         return results if results else None
 
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[insights] Error: {e}")
-        traceback.print_exc()
+        log.exception("Error in generate_all", error=str(e))
         return None
     finally:
         _current_run['active'] = False
@@ -720,7 +721,7 @@ def generate_section(section, pid=0):
     global _cancel_requested
     if not _analysis_lock.acquire(blocking=False):
         running, info = is_running()
-        print(f"[insights] Analysis already running: {info}")
+        log.warning("Analysis already running", info=info)
         return {'error': 'Analysis already running', 'running': info}
     try:
         _cancel_requested = False
@@ -755,7 +756,7 @@ def generate_section(section, pid=0):
         if section_data:
             _complete_run(run_id, 'completed', session_id=session_id)
             _emit_progress({'running': False, 'status': 'completed', 'type': section, 'run_id': run_id})
-            print(f"[insights] {section} generated successfully (session: {session_id})")
+            log.info("Section generated successfully", section=section, session_id=session_id)
             return section_data
 
         _complete_run(run_id, 'failed', error_msg or f'Mimo analysis failed for {section}', session_id=session_id)
@@ -764,7 +765,7 @@ def generate_section(section, pid=0):
     except Exception as e:
         if not _cancel_requested:
             _complete_run(run_id, 'failed', str(e))
-        print(f"[insights] Error generating {section}: {e}")
+        log.error("Error generating section", section=section, error=str(e))
         return None
     finally:
         _current_run['active'] = False

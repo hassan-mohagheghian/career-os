@@ -4,11 +4,10 @@ import json
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_job_repo, get_company_repo, get_skill_repo, get_pending_repo
+from dependencies import get_job_repo, get_company_repo, get_skill_repo
 from jobs.infrastructure import SQLAlchemyJobRepository
 from companies.infrastructure import SQLAlchemyCompanyRepository
 from skills.infrastructure import SQLAlchemySkillRepository
-from processing.infrastructure import SQLAlchemyPendingRepository
 
 router = APIRouter()
 
@@ -18,20 +17,17 @@ def get_dashboard(
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
     skill_repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
-    pending_repo: SQLAlchemyPendingRepository = Depends(get_pending_repo),
 ):
     """Get dashboard summary data."""
     job_counts = job_repo.get_dashboard_counts()
     companies_total = company_repo.get_total_count()
     skills_total = len([s for s in skill_repo.list_visible() if not s.get("hidden")])
-    pending_count = pending_repo.count_pending("pending_jobs")
 
     return {
         "jobs_total": job_counts["jobs_total"],
         "jobs_high_match": job_counts["jobs_high_match"],
         "companies_total": companies_total,
         "skills_total": skills_total,
-        "pending_count": pending_count,
         "recent_activity": [],
     }
 

@@ -6,6 +6,9 @@ that need processing. This is called by MiMoCode to pick up jobs from the UI.
 import os
 import json
 import glob
+from shared.infrastructure.process.logging_config import get_logger
+
+log = get_logger('commands.trigger_processor')
 
 QUEUE_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '.queue')
 
@@ -31,8 +34,8 @@ def complete_trigger(trigger_file, success=True, error=None):
 if __name__ == '__main__':
     triggers = get_pending_triggers()
     if triggers:
-        print(f"Found {len(triggers)} pending trigger(s):")
+        log.info("Pending triggers", count=len(triggers))
         for t in triggers:
-            print(json.dumps(t, indent=2))
+            log.info("Trigger", data=json.dumps(t, indent=2))
     else:
-        print("No pending triggers.")
+        log.info("No pending triggers")

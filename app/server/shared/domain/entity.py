@@ -10,7 +10,7 @@ New entities automatically receive a UUID v4 identifier.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 
@@ -35,8 +35,8 @@ class BaseEntity:
         if id is None:
             id = str(uuid.uuid4())
         self._id = id
-        self._created_at = created_at or datetime.utcnow()
-        self._updated_at = updated_at or datetime.utcnow()
+        self._created_at = created_at or datetime.now(UTC)
+        self._updated_at = updated_at or datetime.now(UTC)
 
     @property
     def id(self) -> Any:

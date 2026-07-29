@@ -11,11 +11,12 @@ DB_PATH = _db_path if os.path.isabs(_db_path) else os.path.join(_file_dir, _db_p
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.database.sqlalchemy_config import Base
-import processing.infrastructure.models.pending_model
+
+log = get_logger('jobs.commands.process_pending')
 import jobs.infrastructure.models.job_model
 import shared.infrastructure.database.models.misc_models
-from processing.infrastructure.models.pending_model import PendingJobModel
 from jobs.infrastructure.models.job_model import JobModel
 from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
@@ -26,17 +27,16 @@ def get_session():
     return Session(), engine
 
 
-def update_step(session, pending_id, step, value, status=None, company=None, job_num=None, error=None):
-    m = session.query(PendingJobModel).filter(PendingJobModel.id == pending_id).first()
+def update_step(session, job_num, step, value, status=None, company=None, job_num_field=None, error=None):
+    m = session.query(JobModel).filter(JobModel.num == job_num).first()
     if not m:
         return
-    setattr(m, step, value)
+    if hasattr(m, step):
+        setattr(m, step, value)
     if status:
         m.status = status
     if company:
         m.company = company
-    if job_num:
-        m.job_num = job_num
     if error:
         m.error = error
     m.updated_at = datetime.now().isoformat()
@@ -44,10 +44,11 @@ def update_step(session, pending_id, step, value, status=None, company=None, job
 
 
 def get_pending(session):
-    rows = session.query(PendingJobModel).filter(
-        PendingJobModel.status.notin_(['done', 'failed'])
-    ).order_by(PendingJobModel.created_at.asc()).all()
-    return [{'id': r.id, 'url': r.url, 'source': r.source, 'status': r.status} for r in rows]
+    rows = session.query(JobModel).filter(
+        JobModel.deleted == 0,
+        ~JobModel.status.in_(['completed', 'failed'])
+    ).order_by(JobModel.created_at.asc()).all()
+    return [{'id': r.num, 'url': r.url or '', 'source': r.source or '', 'status': r.status} for r in rows]
 
 
 def add_job(session, data):
@@ -85,9 +86,9 @@ if __name__ == '__main__':
     session, engine = get_session()
     try:
         pending = get_pending(session)
-        print(f'Pending jobs: {len(pending)}')
+        log.info('Pending jobs', count=len(pending))
         for p in pending:
-            print(f"  [{p['id']}] {p['source']} | {p['status']} | {p['url'][:60]}...")
+            log.info('  pending item', id=p['id'], source=p['source'], status=p['status'], url=p['url'][:60])
     finally:
         session.close()
         engine.dispose()

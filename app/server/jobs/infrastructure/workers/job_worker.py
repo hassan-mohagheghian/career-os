@@ -4,7 +4,7 @@ import json
 from typing import Dict, Any, Optional
 
 from shared.infrastructure.process.worker_base import WorkerBase
-from shared.infrastructure.process.models import PipelineStep, WorkflowStep, JobStatus
+from shared.infrastructure.process.models import WorkflowStep, JobStatus
 from ai.infrastructure.graphs.runtime.state import create_initial_state
 from ai.infrastructure.graphs.job.graph import build_job_processing_graph
 
@@ -64,11 +64,14 @@ class JobWorker(WorkerBase):
 
     @property
     def table(self) -> str:
-        return 'pending_jobs'
+        return 'job'
 
     @property
     def pipeline_steps(self) -> list:
-        return [step.value for step in PipelineStep]
+        return []
+
+    def _reset_steps(self, pid: int) -> None:
+        self._pending_repo.update_status(pid, 'created', workflow_log='[]')
 
     def _get_graph(self):
         if self._graph is None:

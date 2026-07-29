@@ -115,13 +115,13 @@ def get_summary_repo(session: Session = Depends(get_session)):
     return SQLAlchemySummaryRepository(session)
 
 
-# ── Pending Context Dependencies ──────────────────────────────────
+# ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
 def get_pending_repo(session: Session = Depends(get_session)):
-    from processing.infrastructure import SQLAlchemyPendingRepository
-    return SQLAlchemyPendingRepository(session)
+    from jobs.infrastructure import SQLAlchemyJobRepository
+    return SQLAlchemyJobRepository(session)
 
 
 def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from processing.infrastructure import SQLAlchemyPendingGenerationRepository
-    return SQLAlchemyPendingGenerationRepository(session)
+    from resume.infrastructure import SQLAlchemyResumeRepository
+    return SQLAlchemyResumeRepository(session)

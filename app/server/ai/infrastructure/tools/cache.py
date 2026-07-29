@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 import time
 from pathlib import Path
 from typing import Any, Optional
 
+from shared.infrastructure.process.logging_config import get_logger
 from .models import FetchedPage, FetchStatus
-
-log = logging.getLogger("ai.tools.cache")
+log = get_logger("ai.tools.cache")
 
 DEFAULT_TTL_SECONDS = 3600 * 6  # 6 hours
 DEFAULT_CACHE_DIR = "tmp/ai_tool_cache"

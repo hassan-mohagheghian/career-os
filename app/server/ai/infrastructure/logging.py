@@ -9,26 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-try:
-    from services.process.logging_config import get_logger
-except ImportError:
-    import logging
-
-    class _CompatLogger:
-        def __init__(self, name):
-            self._logger = logging.getLogger(name)
-
-        def info(self, event, **kwargs):
-            self._logger.info("%s %s", event, kwargs)
-
-        def warning(self, event, **kwargs):
-            self._logger.warning("%s %s", event, kwargs)
-
-        def error(self, event, **kwargs):
-            self._logger.error("%s %s", event, kwargs)
-
-    def get_logger(name):
-        return _CompatLogger(name)
+from shared.infrastructure.process.logging_config import get_logger
 
 
 _log = get_logger("ai")

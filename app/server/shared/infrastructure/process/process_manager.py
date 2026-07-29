@@ -12,13 +12,13 @@ import signal
 import subprocess
 import threading
 import time
-import logging
 from typing import Optional, Dict
 
+from shared.infrastructure.process.logging_config import get_logger
 from .interfaces import IProcessManager
 from .models import ProcessHandle
 
-logger = logging.getLogger(__name__)
+logger = get_logger('process.manager')
 
 
 class ProcessManager(IProcessManager):

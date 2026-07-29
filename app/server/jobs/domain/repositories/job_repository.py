@@ -53,3 +53,38 @@ class IJobRepository(ABC):
     def get_all_active(self) -> list[dict[str, Any]]:
         """Get all non-deleted jobs."""
         ...
+
+    @abstractmethod
+    def list_by_status(self, status: str) -> list[dict[str, Any]]:
+        """List jobs by lifecycle status."""
+        ...
+
+    @abstractmethod
+    def get_processing_count(self) -> int:
+        """Count jobs currently in processing status."""
+        ...
+
+    @abstractmethod
+    def get_queued_count(self) -> int:
+        """Count jobs in queued status."""
+        ...
+
+    @abstractmethod
+    def update_status(self, num: int, status: str, **extra: Any) -> bool:
+        """Update job status and optional extra fields."""
+        ...
+
+    @abstractmethod
+    def pick_queued_item(self) -> dict[str, Any] | None:
+        """Pick the oldest queued job and claim it (set to processing). Returns item or None."""
+        ...
+
+    @abstractmethod
+    def get_processing_items(self) -> list[dict[str, Any]]:
+        """Get all currently processing jobs."""
+        ...
+
+    @abstractmethod
+    def update_fields(self, num: int, **fields: Any) -> bool:
+        """Update arbitrary fields on a job."""
+        ...

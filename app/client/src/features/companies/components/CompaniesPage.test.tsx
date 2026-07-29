@@ -19,14 +19,14 @@ describe('CompaniesPage', () => {
     ))
   })
 
-  it('renders Company Queue header', () => {
+  it('renders Add Company header', () => {
     render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
-    expect(screen.getByText('Company Queue')).toBeInTheDocument()
+    expect(screen.getByText('Add Company')).toBeInTheDocument()
   })
 
-  it('renders Processed Companies header', () => {
+  it('renders Companies header', () => {
     render(<CompaniesPage companies={[]} pendingCompanies={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
-    expect(screen.getByText('Processed Companies')).toBeInTheDocument()
+    expect(screen.getByText('Companies')).toBeInTheDocument()
   })
 
   it('renders empty state when no companies', () => {

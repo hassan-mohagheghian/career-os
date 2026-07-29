@@ -7,7 +7,7 @@ Two value objects are equal if all their attributes are equal.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 import uuid
 
@@ -45,11 +45,11 @@ class UUID(ValueObject):
 @dataclass(frozen=True)
 class DateTime(ValueObject):
     """DateTime value object."""
-    value: datetime = field(default_factory=datetime.utcnow)
+    value: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @classmethod
     def now(cls) -> DateTime:
-        return cls(value=datetime.utcnow())
+        return cls(value=datetime.now(UTC))
 
     @classmethod
     def from_string(cls, value: str) -> DateTime:

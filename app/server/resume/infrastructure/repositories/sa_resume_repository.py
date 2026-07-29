@@ -31,6 +31,9 @@ class SQLAlchemyResumeRepository(IResumeRepository):
         rows = self._session.query(ResumeModel).order_by(ResumeModel.created_at.desc()).all()
         return [self._to_dict(r) for r in rows]
 
+    def get_all_active(self) -> list[dict[str, Any]]:
+        return []
+
     def get_by_id(self, resume_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
         return self._to_dict(m) if m else None

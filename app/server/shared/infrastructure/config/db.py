@@ -8,7 +8,10 @@ import json
 import os
 
 from dotenv import load_dotenv
+from shared.infrastructure.process.logging_config import get_logger
 load_dotenv()
+
+log = get_logger('db')
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..', '..', '..')
@@ -32,7 +35,6 @@ def init_db():
     import jobs.infrastructure.models.job_model
     import skills.infrastructure.models.skill_model
     import companies.infrastructure.models.company_model
-    import processing.infrastructure.models.pending_model
     import career.infrastructure.models.insight_model
     import shared.infrastructure.database.models.misc_models
 
@@ -107,7 +109,7 @@ def _seed_initial_rules(session):
             value=value, description=desc, priority=priority, score_weight=weight,
         ))
     session.commit()
-    print(f"[db] Seeded {len(rules)} scoring rules")
+    log.info("Seeded scoring rules", count=len(rules))
 
 
 def load_json_to_db():
@@ -149,7 +151,7 @@ def migrate_existing_analysis_files():
                     ))
                     migrated += 1
                 except Exception as e:
-                    print(f"Warning: Failed to migrate {filename}: {e}")
+                    log.warning("Failed to migrate analysis file", filename=filename, error=str(e))
 
         for filename in os.listdir(data_dir):
             match = re.match(r"skills_insights_(\d+)\.json", filename)
@@ -165,10 +167,10 @@ def migrate_existing_analysis_files():
                     ))
                     migrated += 1
                 except Exception as e:
-                    print(f"Warning: Failed to migrate {filename}: {e}")
+                    log.warning("Failed to migrate skills file", filename=filename, error=str(e))
 
         session.commit()
-        print(f"Migrated {migrated} analysis records to analysis_runs table")
+        log.info("Migrated analysis records", count=migrated)
     finally:
         session.close()
 
@@ -198,7 +200,7 @@ def migrate_resume_files_to_db():
                         created_at=datetime.now().isoformat(),
                     ))
                     session.commit()
-                    print(f"[migrate] Imported master resume from {master_path}")
+                    log.info("Imported master resume", path=master_path)
                     try:
                         os.remove(master_path)
                     except OSError:
@@ -240,7 +242,7 @@ def migrate_resume_files_to_db():
 
             session.commit()
             if migrated_count > 0:
-                print(f"[migrate] Imported {migrated_count} tailored resumes from {by_job_dir}")
+                log.info("Imported tailored resumes", count=migrated_count, path=str(by_job_dir))
 
             for filepath in txt_files:
                 try:
@@ -280,4 +282,4 @@ if __name__ == "__main__":
     load_json_to_db()
     migrate_existing_analysis_files()
     migrate_resume_files_to_db()
-    print(f"Database initialized at {DB_PATH}")
+    log.info("Database initialized", path=DB_PATH)

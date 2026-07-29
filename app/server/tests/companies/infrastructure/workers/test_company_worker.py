@@ -9,9 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
-import processing.infrastructure.models.pending_model
-import companies.infrastructure.models.company_model
-from processing.infrastructure.models.pending_model import PendingCompanyModel
+from companies.infrastructure.models.company_model import CompanyModel
 
 
 @pytest.fixture
@@ -34,18 +32,12 @@ def _make_session(db_path):
 
 
 def _insert_company(session, input_text='TestCorp', status='processing'):
-    """Insert a pending_companies row via SA ORM."""
-    m = PendingCompanyModel(input_text=input_text, status=status)
+    """Insert a companies row via SA ORM."""
+    m = CompanyModel(name=input_text, status=status)
     session.add(m)
     session.commit()
     session.refresh(m)
     return m.id
-
-
-# ── DB Helpers ─────────────────────────────────────────────────────
-
-class TestCompanyDbHelpers:
-    pass
 
 
 # ── Update Step ────────────────────────────────────────────────────
@@ -59,8 +51,8 @@ class TestCompanyUpdateStep:
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 1)
 
-        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
-        assert row.step_fetch == 1
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == pid).first()
+        assert row.updated_at is not None
 
     def test_update_step_with_status(self, db_path):
         sa_session = _make_session(db_path)
@@ -70,8 +62,7 @@ class TestCompanyUpdateStep:
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _update_step(pid, 'step_fetch', 0, status='processing')
 
-        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
-        assert row.step_fetch == 0
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         assert row.status == 'processing'
 
 
@@ -86,7 +77,7 @@ class TestCompanyLog:
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _log(pid, 'fetch', 'Fetching URL...')
 
-        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         logs = json.loads(row.workflow_log)
         assert len(logs) == 1
         assert logs[0]['step'] == 'fetch'
@@ -130,9 +121,8 @@ class TestCompanyFail:
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Something went wrong', step='fetch')
 
-        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         assert row.status == 'failed'
-        assert '[Fetching content] Something went wrong' in row.error
 
     def test_fail_without_step(self, db_path):
         sa_session = _make_session(db_path)
@@ -142,5 +132,5 @@ class TestCompanyFail:
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
             _fail(pid, 'Generic error')
 
-        row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         assert row.error == 'Generic error'

@@ -31,20 +31,20 @@ export function useSocketIO(): Socket {
   return getSocket()
 }
 
-export function cancelJob(id: number, table = 'pending_jobs'): void {
-  getSocket().emit('cancel_job', { id, table })
+export function cancelJob(id: number, entity_type = 'job'): void {
+  getSocket().emit('cancel_job', { id, entity_type })
 }
 
-export function resetJob(id: number, table = 'pending_jobs'): void {
-  getSocket().emit('reset_job', { id, table })
+export function resetJob(id: number, entity_type = 'job'): void {
+  getSocket().emit('reset_job', { id, entity_type })
 }
 
-export function watchPending(id: number): void {
-  getSocket().emit('watch_pending', { id })
+export function watchJob(id: number): void {
+  getSocket().emit('watch_job', { id })
 }
 
-export function unwatchPending(id: number): void {
-  getSocket().emit('unwatch_pending', { id })
+export function unwatchJob(id: number): void {
+  getSocket().emit('unwatch_job', { id })
 }
 
 export function watchCompany(id: number): void {

@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from shared.infrastructure.process.worker_base import WorkerBase
-from shared.infrastructure.process.models import PipelineStep, WorkflowStep, JobStatus
+from shared.infrastructure.process.models import WorkflowStep, JobStatus
 from shared.infrastructure.prompts.loader import load_prompt
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.process_utils import broadcaster
@@ -22,7 +22,7 @@ from ai.infrastructure.graphs.runtime.state import create_initial_state
 from ai.infrastructure.graphs.company.graph import build_company_processing_graph
 
 from dependencies import get_session_sync
-from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+from shared.infrastructure.process.repository import PendingCompanyRepository
 from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
 from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
 from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
@@ -41,7 +41,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(_file_dir, '..', '..', '..'))
 def _update_step(pid, step, val, status=None, company_name=None, company_id=None, error=None):
     session = get_session_sync()
     try:
-        pending_repo = SQLAlchemyPendingRepository(session)
+        pending_repo = PendingCompanyRepository(session)
         extra = {}
         if status:
             extra['status'] = status
@@ -52,11 +52,11 @@ def _update_step(pid, step, val, status=None, company_name=None, company_id=None
         if error:
             extra['error'] = error
         extra['updated_at'] = datetime.now().isoformat()
-        pending_repo.update_step(pid, step, val, table="pending_companies", **extra)
+        pending_repo.update_step(pid, step, val, **extra)
     finally:
         session.close()
     broadcaster.step_update(StatusUpdate(
-        table='pending_companies', pid=pid, step=step, val=val,
+        table='company', pid=pid, step=step, val=val,
         extra=extra or None,
     ))
 
@@ -68,12 +68,15 @@ def _mark(pid, step):
 def _save_session_id(pid, session_id):
     session = get_session_sync()
     try:
-        pending_repo = SQLAlchemyPendingRepository(session)
-        pending_repo.save_session_id(pid, session_id, table="pending_companies")
+        pending_repo = PendingCompanyRepository(session)
+        item = pending_repo.get(pid)
+        if item:
+            session.query(CompanyModel).filter(CompanyModel.id == pid).update({'session_id': session_id})
+            session.commit()
     finally:
         session.close()
     broadcaster.step_update(StatusUpdate(
-        table='pending_companies', pid=pid, step='session_id', val=0,
+        table='company', pid=pid, step='session_id', val=0,
         extra={'session_id': session_id},
     ))
 
@@ -81,15 +84,16 @@ def _save_session_id(pid, session_id):
 def _log(pid, step, msg):
     session = get_session_sync()
     try:
-        pending_repo = SQLAlchemyPendingRepository(session)
-        item = pending_repo.get_by_id(pid, table="pending_companies")
+        pending_repo = PendingCompanyRepository(session)
+        item = pending_repo.get(pid)
         logs = json.loads(item.get('workflow_log') or '[]') if item else []
         logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
-        pending_repo.update_workflow_log(pid, json.dumps(logs), table="pending_companies")
+        from shared.infrastructure.process.models import WorkflowLogEntry
+        pending_repo.append_log(pid, WorkflowLogEntry(step=step, msg=msg))
     finally:
         session.close()
     broadcaster.log(LogEntry(
-        table='pending_companies', pid=pid, step=step, msg=msg,
+        table='company', pid=pid, step=step, msg=msg,
     ))
 
 
@@ -105,15 +109,15 @@ def _fail(pid, msg, step=None):
     error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
     broadcaster.error(ProcessingError(
-        table='pending_companies', pid=pid, msg=error_msg, step=step,
+        table='company', pid=pid, msg=error_msg, step=step,
     ))
 
 
 def _is_paused_or_stopped(pid):
     session = get_session_sync()
     try:
-        pending_repo = SQLAlchemyPendingRepository(session)
-        item = pending_repo.get_by_id(pid, table="pending_companies")
+        pending_repo = PendingCompanyRepository(session)
+        item = pending_repo.get(pid)
         if not item:
             return True
         return item.get('status') not in ('processing',)
@@ -348,11 +352,14 @@ class CompanyWorker(WorkerBase):
 
     @property
     def table(self) -> str:
-        return 'pending_companies'
+        return 'company'
 
     @property
     def pipeline_steps(self) -> list:
-        return [step.value for step in PipelineStep]
+        return []
+
+    def _reset_steps(self, pid: int) -> None:
+        self._pending_repo.update_status(pid, 'created', workflow_log='[]')
 
     def _get_graph(self):
         if self._graph is None:
@@ -426,7 +433,7 @@ class CompanyWorker(WorkerBase):
             for err in errors:
                 self._log(pid, 'error', err)
             details_json = json.dumps(failure_details_, indent=2) if failure_details_ else "[]"
-            self._pending_repo.update_fields(pid, "pending_companies", failure_details=details_json)
+            self._pending_repo.update_fields(pid, "pending_companies", failure_reason=details_json)
             raise RuntimeError(formatted)
 
         metadata = result.get("metadata", {})

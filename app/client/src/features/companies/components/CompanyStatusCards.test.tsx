@@ -10,7 +10,7 @@ import CompanyCompletedCard from './CompanyCompletedCard'
 vi.mock('@/shared/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <>{children}</>,
   Tooltip: ({ children }: any) => <>{children}</>,
-  TooltipTrigger: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+  TooltipTrigger: ({ children, asChild, ...props }: any) => <span {...props}>{children}</span>,
   TooltipContent: ({ children }: any) => <div>{children}</div>,
 }))
 
@@ -20,10 +20,10 @@ const baseItem = {
 }
 
 describe('CompanyPendingCard', () => {
-  it('renders company name and pending status', () => {
+  it('renders company name and created status', () => {
     render(<CompanyPendingCard item={{ ...baseItem, status: 'pending' }} />)
     expect(screen.getByText('TechCorp')).toBeInTheDocument()
-    expect(screen.getByText('pending')).toBeInTheDocument()
+    expect(screen.getByText('created')).toBeInTheDocument()
   })
 
   it('renders Start button when onProcess is provided', () => {
@@ -42,7 +42,7 @@ describe('CompanyQueuedCard', () => {
 describe('CompanyProcessingCard', () => {
   it('renders processing status text', () => {
     render(<CompanyProcessingCard item={{ ...baseItem, status: 'processing' }} />)
-    expect(screen.getByText('Fetching...')).toBeInTheDocument()
+    expect(screen.getByText('Processing...')).toBeInTheDocument()
   })
 })
 

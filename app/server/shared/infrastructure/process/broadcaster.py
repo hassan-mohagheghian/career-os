@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from typing import Optional, List, Callable
 
+from shared.infrastructure.process.logging_config import get_logger
 from .interfaces import IBroadcaster
 from .models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 
-logger = logging.getLogger(__name__)
+logger = get_logger('process.broadcaster')
 
 
 class Broadcaster(IBroadcaster):

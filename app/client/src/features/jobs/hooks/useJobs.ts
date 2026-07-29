@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { useSocketIO, cancelJob, resetJob, watchJob, unwatchJob } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 const PAGE_SIZE = 30
@@ -22,6 +23,10 @@ interface Job {
   applicants: string | null
   locations: string | null
   linked_company: number | null
+  status: string
+  current_node: string | null
+  progress_pct: number
+  error: string | null
   [key: string]: any
 }
 
@@ -56,6 +61,33 @@ export function useJobs() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const jobsScrollRef = useRef<HTMLDivElement>(null)
   const jobsSentinelRef = useRef<HTMLDivElement>(null)
+  const socket = useSocketIO()
+  const watchedRef = useRef(new Set<number>())
+
+  const syncWatchRooms = useCallback((list: Job[]) => {
+    const newIds = new Set(list.map(j => j.num))
+    for (const id of watchedRef.current) {
+      if (!newIds.has(id)) {
+        unwatchJob(id)
+        watchedRef.current.delete(id)
+      }
+    }
+    for (const id of newIds) {
+      if (!watchedRef.current.has(id)) {
+        watchJob(id)
+        watchedRef.current.add(id)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      for (const id of watchedRef.current) {
+        unwatchJob(id)
+      }
+      watchedRef.current.clear()
+    }
+  }, [])
 
   const [filterCities, setFilterCities] = useState<string[]>([])
   const [filterCompanies, setFilterCompanies] = useState<string[]>([])
@@ -195,6 +227,48 @@ export function useJobs() {
     [jobsWithLocations]
   )
 
+  const cancelJobAction = useCallback((num: number) => {
+    cancelJob(num, 'job')
+    refreshJobs()
+  }, [refreshJobs])
+
+  const resetJobAction = useCallback((num: number) => {
+    resetJob(num, 'job')
+    refreshJobs()
+  }, [refreshJobs])
+
+  useEffect(() => {
+    const handleUpdate = (data: any) => {
+      setJobs(prev => prev ? prev.map(j => j.num === data.id ? { ...j, ...data } : j) : prev)
+    }
+    const handleProgress = (data: any) => {
+      setJobs(prev => prev ? prev.map(j => {
+        if (j.num !== data.id) return j
+        return { ...j, status: data.status || j.status, current_node: data.current_node, progress_pct: data.progress_pct }
+      }) : prev)
+    }
+    const handleComplete = (data: any) => {
+      setJobs(prev => prev ? prev.map(j => j.num === data.id ? { ...j, status: 'completed', ...data } : j) : prev)
+      fetchJobs()
+    }
+    const handleError = (data: any) => {
+      setJobs(prev => prev ? prev.map(j => j.num === data.id ? { ...j, status: 'failed', error: data.msg } : j) : prev)
+    }
+
+    socket.on('job:update', handleUpdate)
+    socket.on('job:progress', handleProgress)
+    socket.on('job:complete', handleComplete)
+    socket.on('job:error', handleError)
+    fetchJobs()
+
+    return () => {
+      socket.off('job:update', handleUpdate)
+      socket.off('job:progress', handleProgress)
+      socket.off('job:complete', handleComplete)
+      socket.off('job:error', handleError)
+    }
+  }, [socket, fetchJobs])
+
   const filteredJobs = useMemo(() => {
     if (!jobsWithLocations) return []
     let r = [...jobsWithLocations]
@@ -238,6 +312,7 @@ export function useJobs() {
     activeFilterCount,
     jobsWithLocations, allCities, allCompanies, filteredJobs,
     refreshJobs, loadMoreJobs, fetchJobs, fetchSummaries,
-    deleteJob, requeueJob, rescoreJob, updateJob, clearFilters
+    deleteJob, requeueJob, rescoreJob, updateJob, clearFilters,
+    cancelJobAction, resetJobAction
   }
 }

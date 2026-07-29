@@ -33,9 +33,18 @@ class Company(BaseEntity):
         tech_stack: str | None = None,
         work_environment: str | None = None,
         extra: str | None = None,
-        processing_status: str = "pending",
+        status: str = "pending",
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
+        queue_order: int = 0,
+        current_node: str | None = None,
+        progress_pct: float = 0,
+        error: str | None = None,
+        retry_count: int = 0,
+        failure_reason: str | None = None,
+        failure_step: str | None = None,
+        failure_timestamp: str | None = None,
+        session_id: str | None = None,
     ):
         super().__init__(id=id, created_at=created_at, updated_at=updated_at)
         self.name = name
@@ -57,7 +66,16 @@ class Company(BaseEntity):
         self.tech_stack = tech_stack
         self.work_environment = work_environment
         self.extra = extra
-        self.processing_status = processing_status
+        self.status = status
+        self.queue_order = queue_order
+        self.current_node = current_node
+        self.progress_pct = progress_pct
+        self.error = error
+        self.retry_count = retry_count
+        self.failure_reason = failure_reason
+        self.failure_step = failure_step
+        self.failure_timestamp = failure_timestamp
+        self.session_id = session_id
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -81,9 +99,18 @@ class Company(BaseEntity):
             "tech_stack": self.tech_stack,
             "work_environment": self.work_environment,
             "extra": self.extra,
-            "processing_status": self.processing_status,
+            "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "queue_order": self.queue_order,
+            "current_node": self.current_node,
+            "progress_pct": self.progress_pct,
+            "error": self.error,
+            "retry_count": self.retry_count,
+            "failure_reason": self.failure_reason,
+            "failure_step": self.failure_step,
+            "failure_timestamp": self.failure_timestamp,
+            "session_id": self.session_id,
         }
 
     @classmethod
@@ -109,7 +136,16 @@ class Company(BaseEntity):
             tech_stack=data.get("tech_stack"),
             work_environment=data.get("work_environment"),
             extra=data.get("extra"),
-            processing_status=data.get("processing_status", "pending"),
+            status=data.get("status", "pending"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
+            queue_order=data.get("queue_order", 0),
+            current_node=data.get("current_node"),
+            progress_pct=data.get("progress_pct", 0),
+            error=data.get("error"),
+            retry_count=data.get("retry_count", 0),
+            failure_reason=data.get("failure_reason"),
+            failure_step=data.get("failure_step"),
+            failure_timestamp=data.get("failure_timestamp"),
+            session_id=data.get("session_id"),
         )

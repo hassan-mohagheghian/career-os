@@ -18,7 +18,10 @@ DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.database.sqlalchemy_config import Base
+
+log = get_logger('jobs.commands.analyze')
 import jobs.infrastructure.models.job_model
 from jobs.infrastructure.models.job_model import JobModel
 
@@ -121,7 +124,7 @@ def main():
     session, engine = get_session()
     try:
         jobs = get_all_jobs(session)
-        print(f"Total jobs analyzed: {len(jobs)}")
+        log.info("Total jobs analyzed", count=len(jobs))
         skill_counts = analyze_skills(jobs)
         strategy = generate_strategy(jobs, skill_counts)
         strengths, weaknesses = generate_strengths_weaknesses(skill_counts, len(jobs), jobs)
@@ -131,7 +134,7 @@ def main():
         output_path = os.path.join(DATA_DIR, 'dashboard_insights_0.json')
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(dashboard_insights, f, indent=2, ensure_ascii=False)
-        print(f"\nDashboard insights saved to: {output_path}")
+        log.info("Dashboard insights saved", path=output_path)
     finally:
         session.close()
         engine.dispose()

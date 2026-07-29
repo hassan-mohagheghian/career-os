@@ -36,10 +36,18 @@ test = [
 
 [project.scripts]
 jobsearch = "app.server.entrypoints.cli:app"
+start = "app.start:app"
 
 [tool.pytest.ini_options]
 testpaths = ["app/server/tests"]
 addopts = "--tb=short -q"
+filterwarnings = [
+    "ignore::DeprecationWarning:sqlalchemy.*",
+    "ignore::ResourceWarning",
+    "ignore:The default datetime adapter is deprecated:DeprecationWarning",
+    "ignore:pending_generations is deprecated:DeprecationWarning",
+    "ignore:pending models are deprecated:DeprecationWarning",
+]
 
 [dependency-groups]
 dev = [

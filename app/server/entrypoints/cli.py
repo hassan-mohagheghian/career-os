@@ -8,6 +8,9 @@ load_dotenv()
 
 import os
 import sys
+
+from shared.infrastructure.process.logging_config import setup_logging
+setup_logging(level='INFO')
 import subprocess
 import threading
 from datetime import datetime
@@ -49,7 +52,7 @@ def _get_job_repo():
 
 def _get_pending_repo():
     from dependencies import get_session_sync
-    from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
+    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
     return session, SQLAlchemyPendingRepository(session)
 
@@ -102,10 +105,10 @@ def reset_pending(pid):
         session.close()
 
 def delete_pending(pid):
+    from jobs.infrastructure.models.job_model import JobModel
     session, repo = _get_pending_repo()
     try:
-        from processing.infrastructure.models.pending_model import PendingJobModel
-        session.query(PendingJobModel).filter(PendingJobModel.id == pid).delete()
+        session.query(JobModel).filter(JobModel.num == pid).update({"deleted": 1})
         session.commit()
     finally:
         session.close()
@@ -169,12 +172,13 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
         # Include done too
         session, _repo = _get_pending_repo()
         try:
-            from processing.infrastructure.models.pending_model import PendingJobModel
-            done_rows = session.query(PendingJobModel).filter(
-                PendingJobModel.status == 'completed'
-            ).order_by(PendingJobModel.created_at.desc()).limit(10).all()
-            from shared.infrastructure.database.mappers import pending_job_model_to_dict
-            done = [pending_job_model_to_dict(r) for r in done_rows]
+            from jobs.infrastructure.models.job_model import JobModel
+            done_rows = session.query(JobModel).filter(
+                JobModel.deleted == 0,
+                JobModel.status == 'completed'
+            ).order_by(JobModel.created_at.desc()).limit(10).all()
+            from shared.infrastructure.database.mappers import job_model_to_dict
+            done = [job_model_to_dict(r) for r in done_rows]
             rows = done + rows
         finally:
             session.close()
@@ -325,16 +329,15 @@ def rescore_all():
 @app.command()
 def status():
     """Show summary of all job states."""
-    from processing.infrastructure.models.pending_model import PendingJobModel
     from jobs.infrastructure.models.job_model import JobModel
     from dependencies import get_session_sync
     session = get_session_sync()
     try:
         counts = {}
-        for s in ['queued','processing','failed','done']:
-            counts[s] = session.query(PendingJobModel).filter(PendingJobModel.status == s).count()
-        total = session.query(PendingJobModel).count()
-        jobs_count = session.query(JobModel).count()
+        for s in ['queued','processing','failed','completed']:
+            counts[s] = session.query(JobModel).filter(JobModel.deleted == 0, JobModel.status == s).count()
+        total = session.query(JobModel).filter(JobModel.deleted == 0).count()
+        jobs_count = total
     finally:
         session.close()
 

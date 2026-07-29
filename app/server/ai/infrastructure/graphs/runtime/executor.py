@@ -12,29 +12,8 @@ from typing import Any, Callable, Optional
 
 from .state import BaseState, create_initial_state
 
-try:
-    import structlog
-
-    _log = structlog.get_logger("ai.executor")
-except ImportError:
-    import logging
-
-    class _CompatLogger:
-        """Adapter: converts structlog-style kwargs to stdlib logging."""
-
-        def __init__(self, name):
-            self._logger = logging.getLogger(name)
-
-        def info(self, event, **kwargs):
-            self._logger.info("%s %s", event, kwargs)
-
-        def warning(self, event, **kwargs):
-            self._logger.warning("%s %s", event, kwargs)
-
-        def error(self, event, **kwargs):
-            self._logger.error("%s %s", event, kwargs)
-
-    _log = _CompatLogger("ai.executor")
+from shared.infrastructure.process.logging_config import get_logger
+_log = get_logger("ai.executor")
 
 
 class AgentExecutor:

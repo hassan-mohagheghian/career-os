@@ -5,7 +5,6 @@ const API = '/api'
 
 export function useCompanies() {
   const [companies, setCompanies] = useState<any[]>([])
-  const [pendingCompanies, setPendingCompanies] = useState<any[]>([])
   const socket = useSocketIO()
   const watchedRef = useRef(new Set<number>())
 
@@ -35,12 +34,8 @@ export function useCompanies() {
   }, [])
 
   const fetchCompanies = useCallback(() => {
-    return fetch(`${API}/companies`).then(r => r.json()).then(setCompanies)
-  }, [])
-
-  const fetchPendingCompanies = useCallback(() => {
-    return fetch(`${API}/pending-companies`).then(r => r.json()).then((list: any[]) => {
-      setPendingCompanies(list)
+    return fetch(`${API}/companies`).then(r => r.json()).then((list: any[]) => {
+      setCompanies(list)
       syncWatchRooms(list)
       return list
     })
@@ -56,52 +51,46 @@ export function useCompanies() {
     fetchCompanies()
   }, [fetchCompanies])
 
-  const cancelPendingCompany = useCallback((id: number) => {
-    cancelJob(id, 'pending_companies')
-    fetchPendingCompanies()
-  }, [fetchPendingCompanies])
+  const cancelCompanyAction = useCallback((id: number) => {
+    cancelJob(id, 'company')
+    fetchCompanies()
+  }, [fetchCompanies])
 
-  const resetPendingCompany = useCallback((id: number) => {
-    resetJob(id, 'pending_companies')
-    fetchPendingCompanies()
-  }, [fetchPendingCompanies])
+  const resetCompanyAction = useCallback((id: number) => {
+    resetJob(id, 'company')
+    fetchCompanies()
+  }, [fetchCompanies])
 
   const refresh = useCallback(() => {
     fetchCompanies()
-    fetchPendingCompanies()
-  }, [fetchCompanies, fetchPendingCompanies])
+  }, [fetchCompanies])
 
   useEffect(() => {
     const handleUpdate = (data: any) => {
-      setPendingCompanies(prev => prev.map(p => {
+      setCompanies(prev => prev.map(p => {
         if (p.id !== data.id) return p
-        const updated = { ...p, ...data }
-        if (data.step && data.step !== 'session_id') {
-          updated[data.step] = data.val
-        }
-        return updated
+        return { ...p, ...data }
       }))
     }
     const handleLog = (data: any) => {
-      setPendingCompanies(prev => prev.map(p => {
+      setCompanies(prev => prev.map(p => {
         if (p.id !== data.id) return p
         const logs = Array.isArray(p.workflow_log) ? p.workflow_log : JSON.parse(p.workflow_log || '[]')
         return { ...p, workflow_log: [...logs, { step: data.step, msg: data.msg, ts: data.ts }] }
       }))
     }
     const handleComplete = (data: any) => {
-      setPendingCompanies(prev => prev.map(p =>
+      setCompanies(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'completed', ...data } : p
       ))
-      fetchCompanies()
     }
     const handleError = (data: any) => {
-      setPendingCompanies(prev => prev.map(p =>
+      setCompanies(prev => prev.map(p =>
         p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
     }
     const handleProgress = (data: any) => {
-      setPendingCompanies(prev => prev.map(p => {
+      setCompanies(prev => prev.map(p => {
         if (p.id !== data.id) return p
         return {
           ...p,
@@ -120,7 +109,6 @@ export function useCompanies() {
     socket.on('company:progress', handleProgress)
 
     fetchCompanies()
-    fetchPendingCompanies()
 
     return () => {
       socket.off('company:update', handleUpdate)
@@ -129,11 +117,11 @@ export function useCompanies() {
       socket.off('company:error', handleError)
       socket.off('company:progress', handleProgress)
     }
-  }, [socket, fetchCompanies, fetchPendingCompanies])
+  }, [socket, fetchCompanies])
 
   return {
-    companies, setCompanies, pendingCompanies,
-    fetchCompanies, fetchPendingCompanies,
-    deleteCompany, reprocessCompany, cancelPendingCompany, resetPendingCompany, refresh
+    companies, setCompanies,
+    fetchCompanies,
+    deleteCompany, reprocessCompany, cancelCompanyAction, resetCompanyAction, refresh
   }
 }

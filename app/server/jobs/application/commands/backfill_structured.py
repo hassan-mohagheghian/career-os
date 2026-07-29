@@ -16,7 +16,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 
 import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
+from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.database.sqlalchemy_config import Base
+
+log = get_logger('jobs.commands.backfill_struct')
 import jobs.infrastructure.models.job_model
 from jobs.infrastructure.models.job_model import JobModel
 
@@ -79,7 +82,7 @@ def extract_structured(raw_text, num):
         resp = llm.generate_structured(prompt, timeout=60)
         return resp.content
     except Exception as e:
-        print(f"  LLM error: {e}")
+        log.warning("LLM error in backfill structured", error=str(e))
     return None
 
 
@@ -91,10 +94,10 @@ def main():
             JobModel.raw_description.isnot(None),
             JobModel.structured_description.is_(None)
         ).order_by(JobModel.num).all()
-        print(f"Found {len(rows)} jobs needing structured extraction")
+        log.info("Found jobs needing structured extraction", count=len(rows))
         success, failed = 0, 0
         for i, job in enumerate(rows):
-            print(f"#{job.num:03d} {job.company}: extracting...")
+            log.info("Extracting structured description", num=job.num, company=job.company)
             structured_json = extract_structured(job.raw_description, job.num)
             if structured_json:
                 job.structured_description = structured_json
@@ -104,7 +107,7 @@ def main():
                 failed += 1
             if i < len(rows) - 1:
                 time.sleep(3 + (i % 3))
-        print(f"\nDone: {success} extracted, {failed} failed")
+        log.info("Backfill structured done", success=success, failed=failed)
     finally:
         session.close()
         engine.dispose()

@@ -18,26 +18,8 @@ from typing import Any, Callable, Optional
 from .providers import get_provider
 from .providers.base import LLMProvider, ProviderConfig, ProviderResponse
 
-try:
-    from services.process.logging_config import get_logger
-    _log = get_logger("ai.service")
-except ImportError:
-    import logging
-
-    class _CompatLogger:
-        def __init__(self, name):
-            self._logger = logging.getLogger(name)
-
-        def info(self, event, **kwargs):
-            self._logger.info("%s %s", event, kwargs)
-
-        def warning(self, event, **kwargs):
-            self._logger.warning("%s %s", event, kwargs)
-
-        def error(self, event, **kwargs):
-            self._logger.error("%s %s", event, kwargs)
-
-    _log = _CompatLogger("ai.service")
+from shared.infrastructure.process.logging_config import get_logger
+_log = get_logger("ai.service")
 
 
 class LLMService:

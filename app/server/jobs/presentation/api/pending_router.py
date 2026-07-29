@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 
 from dependencies import get_pending_repo
-from processing.infrastructure import SQLAlchemyPendingRepository
+from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
 from shared.application.exceptions import NotFoundError
 
 router = APIRouter()

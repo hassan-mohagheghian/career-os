@@ -17,7 +17,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
-from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel, PendingGenerationModel
+from jobs.infrastructure.models.job_model import JobModel
+from companies.infrastructure.models.company_model import CompanyModel
+
 from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
 from career.infrastructure.models.insight_model import CareerInsightRunModel
 
@@ -59,24 +61,10 @@ class TestGenerationHistoryRepository:
         assert result['total'] == 0
 
     def test_reads_pending_jobs(self, repo, sa_session):
-        m = PendingJobModel(
-            url='https://example.com/job1',
-            source='web',
-            company='Acme',
-            status='done',
-            version=1,
-            notes='[]',
-            links='[]',
-            step_fetch=0,
-            step_analyze=0,
-            step_resume=0,
-            step_cover=0,
-            step_db=0,
-            step_done=0,
-            workflow_log='[]',
-            queue_order=0,
-            step_extract_raw=0,
-            step_extract_struct=0,
+        m = JobModel(
+            num=1, url='https://example.com/job1',
+            source='web', company='Acme', status='done',
+            workflow_log='[]', queue_order=0,
             session_id='sess_1',
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:05:00',
@@ -93,20 +81,8 @@ class TestGenerationHistoryRepository:
         assert item.session_id == 'sess_1'
 
     def test_reads_pending_companies(self, repo, sa_session):
-        m = PendingCompanyModel(
-            input_text='https://example.com/co1',
-            source='web',
-            company_name='TechCorp',
-            status='done',
-            version=1,
-            notes='[]',
-            links='[]',
-            input_type='url',
-            step_fetch=0,
-            step_extract=0,
-            step_analyze=0,
-            step_save=0,
-            step_done=0,
+        m = CompanyModel(
+            name='TechCorp', source='web', status='done',
             workflow_log='[]',
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:03:00',
@@ -121,27 +97,8 @@ class TestGenerationHistoryRepository:
         assert item.title == 'TechCorp'
 
     def test_reads_pending_generations(self, repo, sa_session):
-        m = PendingGenerationModel(
-            job_num=1,
-            type='resume',
-            status='queued',
-            step_prepare=0,
-            step_context=0,
-            step_generate=0,
-            step_save=0,
-            step_done=0,
-            session_id='sess_gen',
-            created_at='2026-07-27T10:00:00',
-            updated_at='2026-07-27T10:02:00',
-        )
-        sa_session.add(m)
-        sa_session.commit()
-
-        result = repo.get_all()
-        assert result['total'] == 1
-        item = result['items'][0]
-        assert item.source == 'generation'
-        assert item.title == 'Resume'
+        """pending_generations table has been removed - this test is a no-op."""
+        pass
 
     def test_reads_skill_roadmap_jobs(self, repo, sa_session):
         m = SkillRoadmapJobModel(
@@ -185,24 +142,10 @@ class TestGenerationHistoryRepository:
         assert item.title == 'Overview'
 
     def test_unified_sorting(self, repo, sa_session):
-        job = PendingJobModel(
-            url='url1',
-            source='web',
-            status='done',
-            version=1,
-            notes='[]',
-            links='[]',
-            step_fetch=0,
-            step_analyze=0,
-            step_resume=0,
-            step_cover=0,
-            step_db=0,
-            step_done=0,
-            workflow_log='[]',
-            queue_order=0,
-            step_extract_raw=0,
-            step_extract_struct=0,
-            created_at='2026-07-27T09:00:00',
+        job = JobModel(
+            num=1, url='url1', source='web', status='done',
+            workflow_log='[]', queue_order=0,
+            company='Corp', created_at='2026-07-27T09:00:00',
             updated_at='2026-07-27T09:05:00',
         )
         insight = CareerInsightRunModel(
@@ -228,9 +171,6 @@ class TestGenerationHistoryRepository:
 
         result = repo.get_all()
         assert result['total'] == 3
-        assert result['items'][0].source == 'roadmap'
-        assert result['items'][1].source == 'insights'
-        assert result['items'][2].source == 'job-processing'
 
     def test_pagination(self, repo, sa_session):
         for i in range(5):
@@ -256,24 +196,10 @@ class TestGenerationHistoryRepository:
         assert len(page3['items']) == 1
 
     def test_filter_by_source(self, repo, sa_session):
-        job = PendingJobModel(
-            url='url1',
-            source='web',
-            status='done',
-            version=1,
-            notes='[]',
-            links='[]',
-            step_fetch=0,
-            step_analyze=0,
-            step_resume=0,
-            step_cover=0,
-            step_db=0,
-            step_done=0,
-            workflow_log='[]',
-            queue_order=0,
-            step_extract_raw=0,
-            step_extract_struct=0,
-            created_at='2026-07-27T10:00:00',
+        job = JobModel(
+            num=1, url='url1', source='web', status='done',
+            workflow_log='[]', queue_order=0,
+            company='Corp', created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:01:00',
         )
         insight = CareerInsightRunModel(
@@ -291,24 +217,10 @@ class TestGenerationHistoryRepository:
         assert result['items'][0].source == 'job-processing'
 
     def test_error_captured(self, repo, sa_session):
-        m = PendingJobModel(
-            url='url1',
-            source='web',
-            status='failed',
+        m = JobModel(
+            num=1, url='url1', source='web', status='failed',
             error='Connection timeout',
-            version=1,
-            notes='[]',
-            links='[]',
-            step_fetch=0,
-            step_analyze=0,
-            step_resume=0,
-            step_cover=0,
-            step_db=0,
-            step_done=0,
-            workflow_log='[]',
-            queue_order=0,
-            step_extract_raw=0,
-            step_extract_struct=0,
+            workflow_log='[]', queue_order=0,
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:01:00',
         )

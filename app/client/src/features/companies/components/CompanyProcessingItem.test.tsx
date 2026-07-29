@@ -6,7 +6,7 @@ import CompanyProcessingItem from './CompanyProcessingItem'
 vi.mock('@/shared/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <>{children}</>,
   Tooltip: ({ children }: any) => <>{children}</>,
-  TooltipTrigger: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+  TooltipTrigger: ({ children, asChild, ...props }: any) => <span {...props}>{children}</span>,
   TooltipContent: ({ children }: any) => <div>{children}</div>,
 }))
 

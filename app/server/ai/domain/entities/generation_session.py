@@ -8,7 +8,7 @@ Every graph execution creates a GenerationSession that tracks:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Optional
 
 from shared.domain.entity import BaseEntity
@@ -42,7 +42,7 @@ class GenerationSession(BaseEntity):
         self.metadata = metadata or {}
         self.entity_type = entity_type
         self.entity_id = entity_id
-        self.started_at = started_at or datetime.utcnow()
+        self.started_at = started_at or datetime.now(UTC)
         self.completed_at = completed_at
 
     @property
@@ -59,17 +59,17 @@ class GenerationSession(BaseEntity):
 
     def start(self) -> None:
         self.status = "processing"
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(UTC)
 
     def complete(self) -> None:
         self.status = "completed"
         self.progress = 1.0
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(UTC)
 
     def fail(self, error: str) -> None:
         self.status = "failed"
         self.errors.append(error)
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(UTC)
 
     def update_progress(self, stage: str, progress: float) -> None:
         self.current_stage = stage

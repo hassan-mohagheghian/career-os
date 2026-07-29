@@ -50,18 +50,18 @@ async def disconnect(sid):
 
 
 @sio.event
-async def watch_pending(sid, data):
+async def watch_job(sid, data):
     pid = data.get('id')
     if pid:
-        await sio.enter_room(sid, f'pending_{pid}')
-        log.info("socketio.watch", room=f'pending_{pid}')
+        await sio.enter_room(sid, f'job_{pid}')
+        log.info("socketio.watch", room=f'job_{pid}')
 
 
 @sio.event
-async def unwatch_pending(sid, data):
+async def unwatch_job(sid, data):
     pid = data.get('id')
     if pid:
-        await sio.leave_room(sid, f'pending_{pid}')
+        await sio.leave_room(sid, f'job_{pid}')
 
 
 @sio.event
@@ -119,20 +119,20 @@ async def unwatch_insights(sid):
 @sio.event
 async def cancel_job(sid, data):
     pid = data.get('id')
-    table = data.get('table', 'pending_jobs')
+    entity_type = data.get('entity_type', 'job')
     if pid:
         from shared.infrastructure.config.queue import get_queue_manager
-        ok = get_queue_manager().cancel_job(pid, table)
+        ok = get_queue_manager().cancel_item(pid, entity_type)
         log.info("socketio.cancel", pid=pid, success=ok)
 
 
 @sio.event
 async def reset_job(sid, data):
     pid = data.get('id')
-    table = data.get('table', 'pending_jobs')
+    entity_type = data.get('entity_type', 'job')
     if pid:
         from shared.infrastructure.config.queue import get_queue_manager
-        ok = get_queue_manager().reset_job(pid, table)
+        ok = get_queue_manager().reset_item(pid, entity_type)
         log.info("socketio.reset", pid=pid, success=ok)
 
 
@@ -201,41 +201,34 @@ def _recover_tasks():
     """On startup, check for interrupted tasks and mark them as failed."""
     try:
         from dependencies import get_session_sync
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        from processing.infrastructure.models.pending_model import PendingJobModel, PendingCompanyModel
-        from datetime import datetime
+        from jobs.infrastructure import SQLAlchemyJobRepository
+        from companies.infrastructure import SQLAlchemyCompanyRepository
+        from datetime import datetime, UTC
 
         session = get_session_sync()
         try:
-            repo = SQLAlchemyPendingRepository(session)
+            job_repo = SQLAlchemyJobRepository(session)
+            company_repo = SQLAlchemyCompanyRepository(session)
+            now = datetime.now(UTC).isoformat()
 
-            # Mark stuck pending jobs as failed
-            active_statuses = ['starting', 'fetching', 'analyzing', 'generating', 'finalizing']
-            stuck_jobs = session.query(PendingJobModel).filter(
-                PendingJobModel.status.in_(active_statuses)
-            ).all()
+            stuck_jobs = job_repo.get_processing_items()
             if stuck_jobs:
                 log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))
                 for job in stuck_jobs:
-                    new_version = (job.version or 1) + 1
-                    repo.update_fields(
-                        job.id, table="pending_jobs",
-                        status='failed', error='Interrupted by server restart',
-                        version=new_version, updated_at=datetime.now().isoformat(),
+                    job_repo.update_fields(
+                        job['num'], status='failed', error='Interrupted by server restart',
+                        failure_reason='Server restart', failure_timestamp=now,
+                        updated_at=now,
                     )
 
-            # Mark stuck pending companies as failed
-            stuck_companies = session.query(PendingCompanyModel).filter(
-                PendingCompanyModel.status == 'processing'
-            ).all()
+            stuck_companies = company_repo.get_processing_items()
             if stuck_companies:
                 log.info("fastapi.recovery_stuck_companies", count=len(stuck_companies))
                 for company in stuck_companies:
-                    new_version = (company.version or 1) + 1
-                    repo.update_fields(
-                        company.id, table="pending_companies",
-                        status='failed', error='Interrupted by server restart',
-                        version=new_version, updated_at=datetime.now().isoformat(),
+                    company_repo.update_fields(
+                        company['id'], status='failed', error='Interrupted by server restart',
+                        failure_reason='Server restart', failure_timestamp=now,
+                        updated_at=now,
                     )
         finally:
             session.close()

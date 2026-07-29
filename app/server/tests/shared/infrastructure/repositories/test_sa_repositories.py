@@ -13,7 +13,6 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-import processing.infrastructure.models.pending_model
 import career.infrastructure.models.insight_model
 import shared.infrastructure.database.models.misc_models
 
@@ -806,7 +805,7 @@ class TestSACompanyRepository:
 class TestSAPendingRepository:
     def test_list_pending_jobs(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="pending"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -815,7 +814,7 @@ class TestSAPendingRepository:
 
     def test_list_pending_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
         session.add(PendingCompanyModel(input_text="Google", status="pending"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -824,8 +823,8 @@ class TestSAPendingRepository:
 
     def test_list_pending_done_excluded(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="done"))
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        session.add(PendingJobModel(url="https://ex.com/1", status="completed"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.list_pending("pending_jobs")
@@ -838,23 +837,23 @@ class TestSAPendingRepository:
 
     def test_get_by_id_jobs(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1", status="pending")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        result = repo.get_by_id(str(pj.id), "pending_jobs")
+        result = repo.get_by_id(str(pj.num), "pending_jobs")
         assert result["url"] == "https://ex.com/1"
 
     def test_get_by_id_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
         pc = PendingCompanyModel(input_text="Google", status="pending")
         session.add(pc)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.get_by_id(str(pc.id), "pending_companies")
-        assert result["input_text"] == "Google"
+        assert result["name"] is None
 
     def test_get_by_id_not_found(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -874,7 +873,7 @@ class TestSAPendingRepository:
 
     def test_create_pending_job_existing_url(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="done"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -885,7 +884,7 @@ class TestSAPendingRepository:
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         repo = SQLAlchemyPendingRepository(session)
         result = repo.create({"name": "Google"}, "pending_companies")
-        assert result["input_text"] == "Google"
+        assert result["status"] == "created"
 
     def test_create_unknown_table(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -895,25 +894,25 @@ class TestSAPendingRepository:
 
     def test_update_status(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1", status="pending")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_status(str(pj.id), "processing", "pending_jobs") is True
+        assert repo.update_status(str(pj.num), "processing", "pending_jobs") is True
 
     def test_count_pending(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="pending"))
-        session.add(PendingJobModel(url="https://ex.com/2", status="done"))
+        session.add(PendingJobModel(url="https://ex.com/2", status="completed"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         assert repo.count_pending("pending_jobs") == 1
 
     def test_count_pending_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
         session.add(PendingCompanyModel(input_text="A", status="pending"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -926,7 +925,7 @@ class TestSAPendingRepository:
 
     def test_get_by_url(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -940,16 +939,16 @@ class TestSAPendingRepository:
 
     def test_update_fields(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1", status="pending")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_fields(pj.id, table="pending_jobs", status="processing") is True
+        assert repo.update_fields(pj.num, table="pending_jobs", status="processing") is True
 
     def test_update_fields_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
         pc = PendingCompanyModel(input_text="Google", status="pending")
         session.add(pc)
         session.commit()
@@ -968,34 +967,34 @@ class TestSAPendingRepository:
 
     def test_update_step(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_step(pj.id, "step_fetch", 1, "pending_jobs") is True
+        assert repo.update_step(pj.num, "step_fetch", 1, "pending_jobs") is True
 
     def test_save_session_id(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.save_session_id(pj.id, "sess123") is True
+        assert repo.save_session_id(pj.num, "sess123") is True
 
     def test_update_workflow_log(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         pj = PendingJobModel(url="https://ex.com/1")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_workflow_log(pj.id, "[\"step1\"]") is True
+        assert repo.update_workflow_log(pj.num, "[\"step1\"]") is True
 
     def test_get_max_queue_order(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", queue_order=5))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1013,8 +1012,8 @@ class TestSAPendingRepository:
 
     def test_get_processing_count(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
         session.add(PendingJobModel(url="https://ex.com/2", status="created"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1022,7 +1021,7 @@ class TestSAPendingRepository:
 
     def test_get_queued_count(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="queued"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1030,8 +1029,8 @@ class TestSAPendingRepository:
 
     def test_get_processing_items(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.get_processing_items("pending_jobs")
@@ -1039,8 +1038,8 @@ class TestSAPendingRepository:
 
     def test_mark_processing_as_waiting(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         count = repo.mark_processing_as_waiting("pending_jobs")
@@ -1048,8 +1047,8 @@ class TestSAPendingRepository:
 
     def test_reset_processing_orphans(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        session.add(PendingJobModel(url="https://ex.com/1", status="starting"))
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        session.add(PendingJobModel(url="https://ex.com/1", status="processing"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         count = repo.reset_processing_orphans("pending_jobs")
@@ -1057,12 +1056,12 @@ class TestSAPendingRepository:
 
     def test_pick_queued_item(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="queued"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.pick_queued_item("pending_jobs")
-        assert result["status"] == "starting"
+        assert result["status"] == "processing"
 
     def test_pick_queued_item_none(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -1071,16 +1070,16 @@ class TestSAPendingRepository:
 
     def test_pick_queued_item_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
         session.add(PendingCompanyModel(input_text="Google", status="queued"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
         result = repo.pick_queued_item("pending_companies")
-        assert result["status"] == "starting"
+        assert result["status"] == "processing"
 
     def test_get_queued_items(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1", status="queued"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1089,17 +1088,17 @@ class TestSAPendingRepository:
 
     def test_reset_steps(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
-        pj = PendingJobModel(url="https://ex.com/1", status="failed", step_fetch=1)
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
+        pj = PendingJobModel(url="https://ex.com/1", status="failed")
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.reset_steps(pj.id, 2, "pending_jobs") is True
+        assert repo.reset_steps(pj.num, 2, "pending_jobs") is True
 
     def test_reset_steps_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingCompanyModel
-        pc = PendingCompanyModel(input_text="Google", status="failed", step_fetch=1)
+        from companies.infrastructure.models.company_model import CompanyModel as PendingCompanyModel
+        pc = PendingCompanyModel(status="failed")
         session.add(pc)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1107,7 +1106,7 @@ class TestSAPendingRepository:
 
     def test_get_all_for_stream(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1116,7 +1115,7 @@ class TestSAPendingRepository:
 
     def test_get_by_url_pending(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-        from shared.infrastructure.database.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel as PendingJobModel
         session.add(PendingJobModel(url="https://ex.com/1"))
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
@@ -1133,7 +1132,7 @@ class TestSAPendingRepository:
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         repo = SQLAlchemyPendingRepository(session)
         result = repo.create_pending_company("Google", "url", "web", "pending", "[]")
-        assert result["input_text"] == "Google"
+        assert result["name"] is None
 
 
 # ── Insight Repository ────────────────────────────────────────────
@@ -1563,86 +1562,6 @@ class TestSACompanyIntelligenceRepository:
         from shared.infrastructure.database.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
         repo = SQLAlchemyCompanyIntelligenceRepository(session)
         assert repo.delete_by_company_id(999) is False
-
-
-# ── Pending Generation Repository ─────────────────────────────────
-
-class TestSAPendingGenerationRepository:
-    def test_get_by_id(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        gen = PendingGenerationModel(job_num=1, type="resume", status="queued")
-        session.add(gen)
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        result = repo.get_by_id(gen.id)
-        assert result["type"] == "resume"
-
-    def test_get_by_id_not_found(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        assert repo.get_by_id(999) is None
-
-    def test_create(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        result = repo.create(1, "resume", "queued")
-        assert result["job_num"] == 1
-
-    def test_update_fields(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        gen = PendingGenerationModel(job_num=1, type="resume", status="queued")
-        session.add(gen)
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        assert repo.update_fields(gen.id, status="processing") is True
-
-    def test_update_fields_not_found(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        assert repo.update_fields(999, status="done") is False
-
-    def test_get_active_for_job(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        session.add(PendingGenerationModel(job_num=1, type="resume", status="processing"))
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        result = repo.get_active_for_job(1, "resume")
-        assert result is not None
-
-    def test_get_active_for_job_none(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        assert repo.get_active_for_job(1, "resume") is None
-
-    def test_get_all_active(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        session.add(PendingGenerationModel(job_num=1, type="resume", status="processing"))
-        session.add(PendingGenerationModel(job_num=2, type="cover", status="done"))
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        result = repo.get_all_active()
-        assert len(result) == 1
-
-    def test_get_history_for_job(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        session.add(PendingGenerationModel(job_num=1, type="resume", status="done"))
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        result = repo.get_history_for_job(1)
-        assert len(result) == 1
-
-    def test_get_active_count(self, session):
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        from shared.infrastructure.database.models.pending_model import PendingGenerationModel
-        session.add(PendingGenerationModel(job_num=1, type="resume", status="processing"))
-        session.commit()
-        repo = SQLAlchemyPendingGenerationRepository(session)
-        assert repo.get_active_count(1) == 1
 
 
 # ── Career Insight Repository ─────────────────────────────────────

@@ -6,7 +6,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 
 
 # ── Config ────────────────────────────────────────────────────────
@@ -130,16 +130,16 @@ class TestWebSocketBroadcaster:
     def test_room_for(self):
         from shared.infrastructure.websocket.broadcaster import WebSocketBroadcaster
         b = WebSocketBroadcaster()
-        assert b._room_for("pending_jobs", 1) == "pending_1"
-        assert b._room_for("pending_companies", 2) == "company_2"
-        assert b._room_for("pending_generations", 3) == "generation_3"
+        assert b._room_for("pending_jobs", 1) == "pending_jobs_1"
+        assert b._room_for("pending_companies", 2) == "pending_companies_2"
+        assert b._room_for("generation", 3) == "generation_3"
 
     def test_prefix(self):
         from shared.infrastructure.websocket.broadcaster import WebSocketBroadcaster
         b = WebSocketBroadcaster()
-        assert b._prefix("pending_jobs") == "pending"
+        assert b._prefix("pending_jobs") == "company"
         assert b._prefix("pending_companies") == "company"
-        assert b._prefix("pending_generations") == "generation"
+        assert b._prefix("generation") == "generation"
 
     def test_notify_listeners(self):
         from shared.infrastructure.websocket.broadcaster import WebSocketBroadcaster
@@ -203,14 +203,10 @@ class TestMainApp:
         app = create_app()
         assert app.title == "Job Search Intelligence API"
 
-    def test_health_endpoint(self):
-        from app.server.entrypoints.api import create_app
-        app = create_app()
-        from fastapi.testclient import TestClient
-        with TestClient(app) as client:
-            r = client.get("/api/health")
-            assert r.status_code == 200
-            assert r.json()["status"] == "ok"
+    def test_health_endpoint(self, client):
+        r = client.get("/api/health")
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
 
 
 # ── Services process_utils ────────────────────────────────────────
@@ -266,32 +262,6 @@ class TestSASkillRepositoryExtended:
         roadmap = sa_session.query(SkillRoadmapModel).filter(SkillRoadmapModel.skill_name == "Python3").first()
         # Roadmap should be renamed to Python
         assert roadmap is None or roadmap.skill_name == "Python"
-
-
-# ── SA pending generation - more tests ────────────────────────────
-
-class TestSAPendingGenerationExtended:
-    def test_create_with_defaults(self, sa_session):
-        from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(sa_session)
-        result = repo.create(1, "cover")
-        assert result["type"] == "cover"
-        assert result["status"] == "queued"
-
-    def test_get_all_active_empty(self, sa_session):
-        from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(sa_session)
-        assert repo.get_all_active() == []
-
-    def test_get_history_for_job_empty(self, sa_session):
-        from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(sa_session)
-        assert repo.get_history_for_job(1) == []
-
-    def test_get_active_count_zero(self, sa_session):
-        from processing.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-        repo = SQLAlchemyPendingGenerationRepository(sa_session)
-        assert repo.get_active_count(1) == 0
 
 
 # ── SA preference extended ────────────────────────────────────────

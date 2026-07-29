@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import os
 import json
-import logging
 import threading
 import uuid
 from typing import Optional, Callable
 
+from shared.infrastructure.process.logging_config import get_logger
 from .interfaces import IMimoRunner, IProcessManager
 
-logger = logging.getLogger(__name__)
+logger = get_logger('process.mimo_runner')
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _server_dir = os.path.join(_file_dir, '..', '..', '..')

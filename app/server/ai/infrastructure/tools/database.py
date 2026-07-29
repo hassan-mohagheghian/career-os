@@ -361,41 +361,37 @@ class DatabaseTool(BaseTool):
         }]
 
     def _list_pending_jobs(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from processing.infrastructure.models.pending_model import PendingJobModel
+        from jobs.infrastructure.models.job_model import JobModel
 
-        query = select(PendingJobModel)
+        query = select(JobModel).where(JobModel.deleted == 0)
         if "status" in params:
-            query = query.where(PendingJobModel.status == params["status"])
+            query = query.where(JobModel.status == params["status"])
         if "limit" in params:
-            query = query.limit(params["limit"])
-        else:
-            query = query.limit(20)
+            query = query.limit(params.get("limit", 20))
 
         rows = session.execute(query).scalars().all()
         return [{
-            "id": row.id,
+            "id": row.num,
             "url": row.url,
             "company": row.company,
             "status": row.status,
-            "job_num": row.job_num,
+            "job_num": row.num,
         } for row in rows]
 
     def _list_pending_companies(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from processing.infrastructure.models.pending_model import PendingCompanyModel
+        from companies.infrastructure.models.company_model import CompanyModel
 
-        query = select(PendingCompanyModel)
+        query = select(CompanyModel)
         if "status" in params:
-            query = query.where(PendingCompanyModel.status == params["status"])
+            query = query.where(CompanyModel.status == params["status"])
         if "limit" in params:
-            query = query.limit(params["limit"])
-        else:
-            query = query.limit(20)
+            query = query.limit(params.get("limit", 20))
 
         rows = session.execute(query).scalars().all()
         return [{
             "id": row.id,
-            "input_text": row.input_text,
-            "company_name": row.company_name,
+            "input_text": row.notes or "",
+            "company_name": row.name,
             "status": row.status,
         } for row in rows]
 

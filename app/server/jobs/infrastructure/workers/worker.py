@@ -93,8 +93,8 @@ _load_env()
 def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
     session = get_session_sync()
     try:
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        pending_repo = SQLAlchemyPendingRepository(session)
+        from shared.infrastructure.process.repository import PendingJobRepository
+        pending_repo = PendingJobRepository(session)
         fields = {step: val}
         if status:
             fields['status'] = status
@@ -104,10 +104,9 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
             fields['job_num'] = job_num
         if error:
             fields['error'] = error
-        pending_repo.update_fields(pid, "pending_jobs", **fields)
+        pending_repo.update_fields(pid, **fields)
     finally:
         session.close()
-    # Emit real-time update for step progress
     extra = {}
     if status:
         extra['status'] = status
@@ -118,21 +117,21 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
     if error:
         extra['error'] = error
     broadcaster.step_update(StatusUpdate(
-        table='pending_jobs', pid=pid, step=step, val=val,
+        table='job', pid=pid, step=step, val=val,
         extra=extra or None,
     ))
 
 def _save_session_id(pid, session_id):
-    """Save mimo session_id to pending_jobs."""
+    """Save session_id to job."""
     session = get_session_sync()
     try:
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        pending_repo = SQLAlchemyPendingRepository(session)
-        pending_repo.save_session_id(pid, session_id)
+        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+        job_repo = SQLAlchemyJobRepository(session)
+        job_repo.update_fields(pid, session_id=session_id)
     finally:
         session.close()
     broadcaster.step_update(StatusUpdate(
-        table='pending_jobs', pid=pid, step='session_id', val=0,
+        table='job', pid=pid, step='session_id', val=0,
         extra={'session_id': session_id},
     ))
 
@@ -362,12 +361,12 @@ def _mark(pid, step, company=None, job_num=None):
     _update_step(pid, step, 1, company=company, job_num=job_num)
 
 def _get_item(pid):
-    """Re-read the pending item from DB to check for status changes (pause/stop)."""
+    """Re-read the job from DB to check for status changes (pause/stop)."""
     session = get_session_sync()
     try:
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        pending_repo = SQLAlchemyPendingRepository(session)
-        return pending_repo.get_by_id(pid, "pending_jobs")
+        from shared.infrastructure.process.repository import PendingJobRepository
+        pending_repo = PendingJobRepository(session)
+        return pending_repo.get(pid)
     finally:
         session.close()
 
@@ -577,23 +576,21 @@ def _fail(pid, msg, step=None):
     error_msg = f"[{label}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
     broadcaster.error(ProcessingError(
-        table='pending_jobs', pid=pid, msg=error_msg, step=step,
+        table='job', pid=pid, msg=error_msg, step=step,
     ))
 
 def _log(pid, step, msg):
     """Append a workflow log entry."""
     session = get_session_sync()
     try:
-        from processing.infrastructure.repositories.sa_pending_repository import SQLAlchemyPendingRepository
-        pending_repo = SQLAlchemyPendingRepository(session)
-        item = pending_repo.get_by_id(pid, "pending_jobs")
-        logs = json.loads(item['workflow_log'] or '[]') if item else []
-        logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
-        pending_repo.update_workflow_log(pid, json.dumps(logs))
+        from shared.infrastructure.process.repository import PendingJobRepository
+        from shared.infrastructure.process.models import WorkflowLogEntry
+        pending_repo = PendingJobRepository(session)
+        pending_repo.append_log(pid, WorkflowLogEntry(step=step, msg=msg))
     finally:
         session.close()
     broadcaster.log(LogEntry(
-        table='pending_jobs', pid=pid, step=step, msg=msg,
+        table='job', pid=pid, step=step, msg=msg,
     ))
 
 def _load_rules(context='job'):
@@ -949,10 +946,9 @@ def _handle_mimo_event(pid, evt):
 # --- Main pipeline ---
 
 def process_job(pid):
-    """Process a pending job using LangGraph state management (no file I/O).
+    """Process a pending job using LangGraph state management.
 
     Delegates to JobWorker which uses the LangGraph job graph.
-    All state is managed in memory through LangGraph state — no temp files.
     """
     from shared.infrastructure.process_utils import (
         ProcessManager, TempFileManager, MimoRunner, broadcaster,

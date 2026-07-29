@@ -8,14 +8,13 @@ Design: Registry Pattern + Strategy Pattern.
 
 from __future__ import annotations
 
-import logging
 from enum import Enum
 from typing import Any, Optional
 
+from shared.infrastructure.process.logging_config import get_logger
 from .base import BaseTool, ToolResult
 from .models import ToolExecutionLog
-
-log = logging.getLogger("ai.tools.registry")
+log = get_logger("ai.tools.registry")
 
 
 class ToolCategory(str, Enum):

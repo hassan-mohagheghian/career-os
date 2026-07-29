@@ -7,10 +7,10 @@ job processing, company analysis, and insights generation.
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any, Callable, Coroutine
 
-logger = logging.getLogger(__name__)
+from shared.infrastructure.process.logging_config import get_logger
+logger = get_logger('workers.background')
 
 
 class BackgroundTaskManager:
@@ -31,6 +31,7 @@ class BackgroundTaskManager:
         """Run a coroutine as a background task."""
         if task_id in self._tasks and not self._tasks[task_id].done():
             logger.warning("Task %s already running", task_id)
+            coro.close()
             return self._tasks[task_id]
 
         task = asyncio.create_task(coro, name=name or task_id)

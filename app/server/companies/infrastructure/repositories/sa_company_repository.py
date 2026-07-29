@@ -81,6 +81,56 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
     def get_intelligence_by_company_id(self, company_id: int) -> dict[str, Any] | None:
         return self.get_intelligence(company_id)
 
+    # ── Lifecycle methods ───────────────────────────────────────────
+
+    ACTIVE_STATUSES = {'processing'}
+
+    def list_by_status(self, status: str) -> list[dict[str, Any]]:
+        rows = self._session.query(CompanyModel).filter(
+            CompanyModel.status == status,
+        ).order_by(CompanyModel.created_at.desc()).all()
+        return [company_model_to_dict(r) for r in rows]
+
+    def get_processing_count(self) -> int:
+        return self._session.query(CompanyModel).filter(
+            CompanyModel.status.in_(self.ACTIVE_STATUSES),
+        ).count()
+
+    def get_queued_count(self) -> int:
+        return self._session.query(CompanyModel).filter(
+            CompanyModel.status == 'queued',
+        ).count()
+
+    def update_status(self, company_id: int, status: str, **extra: Any) -> bool:
+        fields = {'status': status, **extra}
+        self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
+        self._session.commit()
+        return True
+
+    def pick_queued_item(self) -> dict[str, Any] | None:
+        model = self._session.query(CompanyModel).filter(
+            CompanyModel.status == 'queued',
+        ).order_by(
+            CompanyModel.id.asc(),
+        ).first()
+        if model:
+            model.status = 'processing'
+            self._session.commit()
+            self._session.refresh(model)
+            return company_model_to_dict(model)
+        return None
+
+    def get_processing_items(self) -> list[dict[str, Any]]:
+        rows = self._session.query(CompanyModel).filter(
+            CompanyModel.status.in_(self.ACTIVE_STATUSES),
+        ).all()
+        return [company_model_to_dict(r) for r in rows]
+
+    def update_fields(self, company_id: int, **fields: Any) -> bool:
+        self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
+        self._session.commit()
+        return True
+
     def get_total_count(self) -> int:
         return self._session.query(func.count(CompanyModel.id)).scalar() or 0
 

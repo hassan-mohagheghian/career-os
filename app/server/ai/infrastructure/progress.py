@@ -7,7 +7,7 @@ Strategy Pattern: Different emitters for different transport mechanisms.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any, Callable, Optional
 
 
@@ -27,7 +27,7 @@ class ProgressEvent:
         self.progress = progress
         self.message = message
         self.metadata = metadata or {}
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
         return {

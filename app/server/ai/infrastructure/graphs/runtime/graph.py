@@ -14,12 +14,8 @@ except ImportError:
 
 from .state import BaseState, create_initial_state, CheckpointConfig
 
-try:
-    import structlog
-    _log = structlog.get_logger("ai.graph")
-except ImportError:
-    import logging
-    _log = logging.getLogger("ai.graph")
+from shared.infrastructure.process.logging_config import get_logger
+_log = get_logger("ai.graph")
 
 
 def _create_checkpointer(config: Optional[CheckpointConfig] = None) -> Any:

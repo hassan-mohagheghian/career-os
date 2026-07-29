@@ -6,7 +6,7 @@ Preserves existing `num` (int) primary key from the database.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 
 from shared.domain.entity import BaseEntity
@@ -64,6 +64,16 @@ class Job(BaseEntity):
         response_time: str | None = None,
         response_status: str | None = None,
         rescoring: int = 0,
+        status: str = "pending",
+        queue_order: int = 0,
+        current_node: str | None = None,
+        progress_pct: float = 0,
+        error: str | None = None,
+        retry_count: int = 0,
+        failure_reason: str | None = None,
+        failure_step: str | None = None,
+        failure_timestamp: str | None = None,
+        session_id: str | None = None,
     ):
         # Use num as the identity (preserving existing schema)
         super().__init__(id=num, created_at=created_at, updated_at=updated_at)
@@ -104,6 +114,16 @@ class Job(BaseEntity):
         self.response_time = response_time
         self.response_status = response_status
         self.rescoring = rescoring
+        self.status = status
+        self.queue_order = queue_order
+        self.current_node = current_node
+        self.progress_pct = progress_pct
+        self.error = error
+        self.retry_count = retry_count
+        self.failure_reason = failure_reason
+        self.failure_step = failure_step
+        self.failure_timestamp = failure_timestamp
+        self.session_id = session_id
 
     @property
     def num(self) -> int:
@@ -115,14 +135,14 @@ class Job(BaseEntity):
 
     def mark_deleted(self) -> None:
         self.deleted = 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def is_rescoring(self) -> bool:
         return self.rescoring == 1
 
     def set_rescoring(self, value: bool) -> None:
         self.rescoring = 1 if value else 0
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert entity to dictionary for persistence."""
@@ -167,6 +187,16 @@ class Job(BaseEntity):
             "response_time": self.response_time,
             "response_status": self.response_status,
             "rescoring": self.rescoring,
+            "status": self.status,
+            "queue_order": self.queue_order,
+            "current_node": self.current_node,
+            "progress_pct": self.progress_pct,
+            "error": self.error,
+            "retry_count": self.retry_count,
+            "failure_reason": self.failure_reason,
+            "failure_step": self.failure_step,
+            "failure_timestamp": self.failure_timestamp,
+            "session_id": self.session_id,
         }
 
     @classmethod
@@ -213,4 +243,14 @@ class Job(BaseEntity):
             response_time=data.get("response_time"),
             response_status=data.get("response_status"),
             rescoring=data.get("rescoring", 0),
+            status=data.get("status", "pending"),
+            queue_order=data.get("queue_order", 0),
+            current_node=data.get("current_node"),
+            progress_pct=data.get("progress_pct", 0),
+            error=data.get("error"),
+            retry_count=data.get("retry_count", 0),
+            failure_reason=data.get("failure_reason"),
+            failure_step=data.get("failure_step"),
+            failure_timestamp=data.get("failure_timestamp"),
+            session_id=data.get("session_id"),
         )

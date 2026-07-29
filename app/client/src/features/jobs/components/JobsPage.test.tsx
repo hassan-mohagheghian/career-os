@@ -6,7 +6,7 @@ import JobsPage from './JobsPage'
 vi.mock('@/shared/ui/tooltip', () => ({
   TooltipProvider: ({ children }: any) => <>{children}</>,
   Tooltip: ({ children }: any) => <>{children}</>,
-  TooltipTrigger: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+  TooltipTrigger: ({ children, asChild, ...props }: any) => <span {...props}>{children}</span>,
   TooltipContent: ({ children }: any) => <div>{children}</div>,
 }))
 
@@ -78,14 +78,14 @@ const defaultProps = {
 }
 
 describe('JobsPage', () => {
-  it('renders processed jobs section', () => {
+  it('renders Jobs section', () => {
     render(<JobsPage {...defaultProps} />)
-    expect(screen.getByText('Processed Jobs')).toBeInTheDocument()
+    expect(screen.getByText('Jobs')).toBeInTheDocument()
   })
 
-  it('renders empty state when no jobs', () => {
-    render(<JobsPage {...defaultProps} />)
-    expect(screen.getByText(/All jobs processed/)).toBeInTheDocument()
+  it('renders all jobs loaded state', () => {
+    render(<JobsPage {...defaultProps} jobsTotal={5} filteredJobsCount={5} />)
+    expect(screen.getByText('All 5 jobs loaded')).toBeInTheDocument()
   })
 
   it('renders job cards when jobs exist', () => {

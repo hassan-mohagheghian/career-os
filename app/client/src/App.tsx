@@ -34,7 +34,6 @@ import DuplicateJobDialog from "@/shared/components/DuplicateJobDialog";
 
 import {
   useJobs,
-  usePending,
   useCompanies,
   useWorkflow,
   useResume,
@@ -101,29 +100,8 @@ function App() {
   } = useJobs();
 
   const {
-    pending,
-    urlInput,
-    setUrlInput,
-    urlError,
-    setUrlError,
-    submitting,
-    processImmediately,
-    setProcessImmediately,
-    duplicateJob,
-    setDuplicateJob,
-    fetchPending,
-    submitUrl,
-    deletePending,
-    processPending,
-    resetPending,
-    pausePending,
-  } = usePending(refreshJobs);
-
-  const {
     companies,
-    pendingCompanies,
     fetchCompanies,
-    fetchPendingCompanies,
     deleteCompany,
     reprocessCompany,
   } = useCompanies();
@@ -230,10 +208,8 @@ function App() {
       fetchResumes(),
       fetchLinkedin(),
     ]);
-    fetchPending();
     fetchRules();
     fetchCompanies();
-    fetchPendingCompanies();
     fetchCareerData();
     fetchCareerStatus();
     fetchCareerProgress();
@@ -502,18 +478,10 @@ function App() {
           <div className="max-w-[1400px] mx-auto">
             {tab === "jobs" && (
               <JobsPage
-                pending={pending}
                 jobs={jobs}
                 filteredJobs={filteredJobs}
                 jobsTotal={jobsTotal}
                 filteredJobsCount={filteredJobs.length}
-                urlInput={urlInput}
-                setUrlInput={setUrlInput}
-                urlError={urlError}
-                setUrlError={setUrlError}
-                submitting={submitting}
-                processImmediately={processImmediately}
-                setProcessImmediately={setProcessImmediately}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
                 sortDir={sortDir}
@@ -539,16 +507,9 @@ function App() {
                 allCities={allCities}
                 allCompanies={allCompanies}
                 activeFilterCount={activeFilterCount}
-                collapsedSections={collapsedSections}
-                setCollapsedSections={setCollapsedSections}
                 loadingMore={loadingMore}
                 jobsScrollRef={jobsScrollRef}
                 jobsSentinelRef={jobsSentinelRef}
-                submitUrl={submitUrl}
-                deletePending={deletePending}
-                processPending={processPending}
-                resetPending={resetPending}
-                pausePending={pausePending}
                 openWorkflow={openWorkflow}
                 rescoreJob={rescoreJob}
                 deleteJob={handleDeleteJob}
@@ -563,12 +524,10 @@ function App() {
             {tab === "companies" && (
               <CompaniesPage
                 companies={companies}
-                pendingCompanies={pendingCompanies}
                 deepLinkId={deepLinkCompanyId}
                 onClearDeepLink={() => setDeepLinkCompanyId(null)}
                 onRefresh={() => {
                   fetchCompanies();
-                  fetchPendingCompanies();
                 }}
                 onOpenJob={openDrawer}
                 onNavigateToJob={(num) => {
@@ -678,16 +637,14 @@ function App() {
       />
 
       <DuplicateJobDialog
-        duplicateJob={duplicateJob}
-        setDuplicateJob={setDuplicateJob}
+        duplicateJob={null}
+        setDuplicateJob={() => {}}
         onRescore={async (num) => {
           await rescoreJob(num);
-          fetchPending();
           setDuplicateJob(null);
         }}
         onReprocess={async (num) => {
           await requeueJob(num);
-          fetchPending();
           setDuplicateJob(null);
         }}
       />
