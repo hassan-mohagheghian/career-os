@@ -49,7 +49,11 @@ class PendingJobModel(Base):
 
 
 class PendingCompanyModel(Base):
-    """SQLAlchemy model for the pending_companies table."""
+    """SQLAlchemy model for the pending_companies table.
+
+    Status uses JobStatus enum values: created, queued, waiting, starting,
+    fetching, analyzing, generating, finalizing, completed, failed, cancelled.
+    """
 
     __tablename__ = "pending_companies"
 
@@ -58,7 +62,8 @@ class PendingCompanyModel(Base):
     notes: Mapped[str] = mapped_column(Text, default="[]")
     input_type: Mapped[str] = mapped_column(String, default="url")
     source: Mapped[str] = mapped_column(String, default="web")
-    status: Mapped[str] = mapped_column(String, default="pending")
+    status: Mapped[str] = mapped_column(String, default="created")
+    previous_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     step_fetch: Mapped[int] = mapped_column(Integer, default=0)
     step_extract: Mapped[int] = mapped_column(Integer, default=0)
@@ -71,6 +76,9 @@ class PendingCompanyModel(Base):
     workflow_log: Mapped[str] = mapped_column(Text, default="[]")
     links: Mapped[str] = mapped_column(Text, default="[]")
     session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_node: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    failure_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 

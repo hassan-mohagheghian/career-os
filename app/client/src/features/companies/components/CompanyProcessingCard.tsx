@@ -8,12 +8,11 @@ interface Props {
 }
 
 export default function CompanyProcessingCard({ item, onDelete, onCancel, onReset }: Props) {
-  const statusKey = (() => {
-    const labels = ['Fetching', 'Extracting', 'Analyzing', 'Saving', 'Done']
-    const vals = ['step_fetch', 'step_extract', 'step_analyze', 'step_save', 'step_done'].map(k => item[k])
-    const done = vals.filter((s: number) => s === 1).length
-    return labels[Math.min(done, labels.length - 1)] || 'Processing'
-  })()
+  const statusLabels: Record<string, string> = {
+    starting: 'Starting', fetching: 'Fetching', analyzing: 'Analyzing',
+    generating: 'Generating', finalizing: 'Finalizing',
+  }
+  const statusKey = statusLabels[item.status] || item.current_node || 'Processing'
 
   return (
     <CompanyBaseCard

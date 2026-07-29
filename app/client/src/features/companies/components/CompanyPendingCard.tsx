@@ -12,7 +12,7 @@ export default function CompanyPendingCard({ item, onDelete, onProcess, onReset 
     <CompanyBaseCard
       item={item}
       dotColor="bg-muted-foreground"
-      statusText={<span className="text-gray-400">pending</span>}
+      statusText={<span className="text-gray-400">created</span>}
       onDelete={onDelete}
       onProcess={onProcess}
       onReset={onReset}

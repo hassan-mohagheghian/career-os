@@ -333,7 +333,8 @@ class JobQueueManager:
                 from jobs.infrastructure.workers.worker import process_job
                 from companies.infrastructure.workers.company_worker import process_company
                 try:
-                    if item.get('input_text'):
+                    table = item.get('table', 'pending_jobs')
+                    if table == 'pending_companies':
                         process_company(pid)
                     else:
                         process_job(pid)

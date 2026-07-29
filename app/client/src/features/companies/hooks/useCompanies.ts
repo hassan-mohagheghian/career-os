@@ -91,7 +91,7 @@ export function useCompanies() {
     }
     const handleComplete = (data: any) => {
       setPendingCompanies(prev => prev.map(p =>
-        p.id === data.id ? { ...p, status: 'done', ...data } : p
+        p.id === data.id ? { ...p, status: 'completed', ...data } : p
       ))
       fetchCompanies()
     }
@@ -100,11 +100,24 @@ export function useCompanies() {
         p.id === data.id ? { ...p, status: 'failed', error: data.msg } : p
       ))
     }
+    const handleProgress = (data: any) => {
+      setPendingCompanies(prev => prev.map(p => {
+        if (p.id !== data.id) return p
+        return {
+          ...p,
+          status: data.status || p.status,
+          current_node: data.current_node,
+          progress_pct: data.progress_pct,
+          progress_msg: data.message,
+        }
+      }))
+    }
 
     socket.on('company:update', handleUpdate)
     socket.on('company:log', handleLog)
     socket.on('company:complete', handleComplete)
     socket.on('company:error', handleError)
+    socket.on('company:progress', handleProgress)
 
     fetchCompanies()
     fetchPendingCompanies()
@@ -114,6 +127,7 @@ export function useCompanies() {
       socket.off('company:log', handleLog)
       socket.off('company:complete', handleComplete)
       socket.off('company:error', handleError)
+      socket.off('company:progress', handleProgress)
     }
   }, [socket, fetchCompanies, fetchPendingCompanies])
 

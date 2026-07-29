@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  Buildings, Plus, X, CheckCircle, Clock, Gear, Warning,
+  Buildings, Plus, X, CheckCircle, Clock, Stack, Gear, Warning,
   ArrowsClockwise, MagnifyingGlass, Note, LinkSimple, ArrowSquareOut
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
@@ -84,10 +84,10 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   const [sortDir, setSortDir] = useState('desc')
   const [filterIndustry, setFilterIndustry] = useState('')
 
-  const pendingCount = pendingCompanies.filter(p => p.status === 'pending').length
-  const queuedCount = pendingCompanies.filter(p => p.status === 'queued').length
-  const processingCount = pendingCompanies.filter(p => p.status === 'processing').length
-  const failedCount = pendingCompanies.filter(p => p.status === 'failed').length
+  const pendingCount = pendingCompanies.filter(p => p.status === 'created').length
+  const queuedCount = pendingCompanies.filter(p => p.status === 'queued' || p.status === 'waiting').length
+  const processingCount = pendingCompanies.filter(p => ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)).length
+  const failedCount = pendingCompanies.filter(p => p.status === 'failed' || p.status === 'cancelled').length
   const stackedTotal = pendingCount + queuedCount + processingCount + failedCount
 
   useEffect(() => {
@@ -280,10 +280,10 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
   }
 
   const sections = [
-    { id: 'pending', count: pendingCount, label: 'Pending', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
-    { id: 'queued', count: queuedCount, label: 'Queued', icon: <Gear className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
+    { id: 'created', count: pendingCount, label: 'Created', icon: <Clock className="w-3 h-3" />, color: 'gray', iconClass: 'text-gray-500', bgClass: 'bg-gradient-to-r from-gray-500/10 to-gray-500/5', borderClass: 'border-b border-gray-500/20', textClass: 'text-gray-600 dark:text-gray-400' },
+    { id: 'queued', count: queuedCount, label: 'Queued', icon: <Stack className="w-3 h-3" />, color: 'yellow', iconClass: 'text-yellow-500', bgClass: 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5', borderClass: 'border-b border-yellow-500/20', textClass: 'text-yellow-600 dark:text-yellow-500' },
     { id: 'processing', count: processingCount, label: 'Processing', icon: <Gear className="w-3 h-3" />, color: 'blue', iconClass: 'text-blue-500', bgClass: 'bg-gradient-to-r from-blue-500/10 to-blue-500/5', borderClass: 'border-b border-blue-500/20', textClass: 'text-blue-600 dark:text-blue-500' },
-    { id: 'failed', count: failedCount, label: 'Failed', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
+    { id: 'failed', count: failedCount, label: 'Failed/Cancelled', icon: <X className="w-3 h-3" />, color: 'red', iconClass: 'text-red-500', bgClass: 'bg-gradient-to-r from-red-500/10 to-red-500/5', borderClass: 'border-b border-red-500/20', textClass: 'text-red-600 dark:text-red-500' },
   ]
 
   return (
@@ -408,9 +408,15 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                   {isOpen && (
                     <ScrollArea className="flex-1 min-h-0 min-w-0">
                       <div className="p-1 space-y-1 min-w-0 max-w-full overflow-hidden">
-                        {pendingCompanies.filter(p => p.status === s.id).map(p => {
+                        {pendingCompanies.filter(p => {
+                          if (s.id === 'created') return p.status === 'created'
+                          if (s.id === 'queued') return p.status === 'queued' || p.status === 'waiting'
+                          if (s.id === 'processing') return ['starting','fetching','analyzing','generating','finalizing'].includes(p.status)
+                          if (s.id === 'failed') return p.status === 'failed' || p.status === 'cancelled'
+                          return p.status === s.id
+                        }).map(p => {
                           const Card = ({
-                            pending: CompanyPendingCard,
+                            created: CompanyPendingCard,
                             queued: CompanyQueuedCard,
                             processing: CompanyProcessingCard,
                             failed: CompanyFailedCard,
@@ -424,7 +430,7 @@ export default function CompaniesPage({ companies, pendingCompanies, deepLinkId,
                               onCancel={async () => { await resetPending(p.id); await processCompany(p.id) }} />
                             {(() => {
                               const pNotes = parseNotes(p.notes)
-                              return s.id === 'pending' && pNotes.length > 0 && (
+                              return s.id === 'created' && pNotes.length > 0 && (
                                 <div className="ml-3 mt-0.5 space-y-0.5">
                                   {pNotes.map((n, i) => (
                                     <NoteItem key={i} note={n} />

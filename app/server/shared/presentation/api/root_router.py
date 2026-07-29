@@ -294,7 +294,7 @@ def reprocess_company(id: int):
             input_text=company.get("name", ""),
             input_type="text",
             source="reprocess",
-            status="pending",
+            status="created",
             notes=json.dumps([{"type": "text", "content": company.get("name", "")}]),
             company_id=id,
             links=json.dumps(links_data),

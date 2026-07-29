@@ -37,7 +37,7 @@ def create_pending_company(data: dict, repo: SQLAlchemyPendingRepository = Depen
         input_text=input_text,
         input_type=data.get("input_type", "url"),
         source=data.get("source", "web"),
-        status="pending",
+        status="created",
         notes=json.dumps(all_notes),
     )
     pid = result["id"]

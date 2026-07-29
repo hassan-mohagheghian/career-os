@@ -148,7 +148,7 @@ class TestResetJob:
         ok = mgr.reset_job(pid, table='pending_companies')
         assert ok
         row = sa_session.query(PendingCompanyModel).filter(PendingCompanyModel.id == pid).first()
-        assert row.status == 'queued'
+        assert row.status == 'created'
         assert row.step_fetch == 0
 
     def test_reset_nonexistent(self, queue):

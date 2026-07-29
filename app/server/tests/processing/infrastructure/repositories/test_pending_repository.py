@@ -168,7 +168,7 @@ class TestResetSteps:
         repo.reset_steps(cid, version=1, table='pending_companies')
 
         row = db.query(PendingCompanyModel).filter(PendingCompanyModel.id == cid).first()
-        assert row.status == 'queued'
+        assert row.status == 'created'
         assert row.step_fetch == 0
         assert row.step_extract == 0
 

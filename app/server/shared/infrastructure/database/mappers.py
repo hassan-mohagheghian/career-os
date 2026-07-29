@@ -217,6 +217,7 @@ def pending_company_model_to_dict(model: PendingCompanyModel) -> dict[str, Any]:
         "input_type": model.input_type,
         "source": model.source,
         "status": model.status,
+        "previous_status": model.previous_status,
         "version": model.version,
         "step_fetch": model.step_fetch,
         "step_extract": model.step_extract,
@@ -228,6 +229,10 @@ def pending_company_model_to_dict(model: PendingCompanyModel) -> dict[str, Any]:
         "error": model.error,
         "workflow_log": model.workflow_log,
         "links": model.links,
+        "session_id": model.session_id,
+        "current_node": model.current_node,
+        "retry_count": model.retry_count,
+        "failure_details": model.failure_details,
         "created_at": model.created_at,
         "updated_at": model.updated_at,
     }

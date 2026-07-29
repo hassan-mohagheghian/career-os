@@ -198,13 +198,15 @@ class PendingCompanyRepository(IPendingRepository):
         logs = json.loads(m.workflow_log or '[]')
         return [WorkflowLogEntry.from_dict(e) for e in logs]
 
+    ACTIVE_STATUSES = {'starting', 'fetching', 'analyzing', 'generating', 'finalizing'}
+
     def claim_next(self) -> Optional[dict]:
         m = self._session.query(PendingCompanyModel).filter(
-            PendingCompanyModel.status == ItemStatus.QUEUED.value
+            PendingCompanyModel.status == 'queued'
         ).order_by(PendingCompanyModel.created_at.asc()).first()
         if not m:
             return None
-        m.status = ItemStatus.PROCESSING.value
+        m.status = 'starting'
         m.updated_at = datetime.now().isoformat()
         self._session.commit()
         self._session.refresh(m)
@@ -212,24 +214,25 @@ class PendingCompanyRepository(IPendingRepository):
         result['table'] = 'pending_companies'
         return result
 
-    def count_by_status(self) -> Dict[ItemStatus, int]:
+    def count_by_status(self) -> Dict[str, int]:
+        from shared.infrastructure.process.models import JobStatus
         counts = {}
-        for status in ItemStatus:
+        for status in JobStatus:
             cnt = self._session.query(PendingCompanyModel).filter(
                 PendingCompanyModel.status == status.value
             ).count()
-            counts[status] = cnt
+            counts[status.value] = cnt
         return counts
 
     def reset_orphans(self) -> int:
         count = self._session.query(PendingCompanyModel).filter(
-            PendingCompanyModel.status == ItemStatus.PROCESSING.value
+            PendingCompanyModel.status.in_(self.ACTIVE_STATUSES)
         ).count()
         if count > 0:
             self._session.query(PendingCompanyModel).filter(
-                PendingCompanyModel.status == ItemStatus.PROCESSING.value
+                PendingCompanyModel.status.in_(self.ACTIVE_STATUSES)
             ).update({
-                'status': ItemStatus.QUEUED.value,
+                'status': 'created',
                 'error': None,
                 'updated_at': datetime.now().isoformat(),
             })
@@ -247,6 +250,8 @@ class PendingCompanyRepository(IPendingRepository):
             'step_done': m.step_done, 'company_id': m.company_id,
             'company_name': m.company_name, 'error': m.error,
             'workflow_log': m.workflow_log, 'session_id': m.session_id,
+            'current_node': m.current_node, 'retry_count': m.retry_count,
+            'failure_details': m.failure_details,
             'created_at': m.created_at, 'updated_at': m.updated_at,
         }
 
