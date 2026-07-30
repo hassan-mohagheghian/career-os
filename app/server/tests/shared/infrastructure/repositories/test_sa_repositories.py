@@ -4,7 +4,6 @@ import sys
 import os
 import json
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
@@ -18,14 +17,15 @@ import shared.infrastructure.database.models.misc_models
 
 
 @pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:", echo=False, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
+def session(_engine):
+    connection = _engine.connect()
+    transaction = connection.begin()
+    Session = sessionmaker(bind=connection)
     s = Session()
     yield s
     s.close()
-    engine.dispose()
+    transaction.rollback()
+    connection.close()
 
 
 # ── Job Repository ────────────────────────────────────────────────

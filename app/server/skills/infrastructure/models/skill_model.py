@@ -10,9 +10,8 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 
 
 class SkillModel(Base):
-    """SQLAlchemy model for the skills table."""
-
     __tablename__ = "skills"
+    __table_args__ = {"schema": "skill"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
@@ -32,38 +31,33 @@ class SkillModel(Base):
     tags: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
-    # Relationships
     aliases: Mapped[list["SkillAliasModel"]] = relationship(
         back_populates="skill", cascade="all, delete-orphan"
     )
 
 
 class SkillAliasModel(Base):
-    """SQLAlchemy model for the skill_aliases table."""
-
     __tablename__ = "skill_aliases"
+    __table_args__ = {"schema": "skill"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skills.id"), nullable=False)
+    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
     alias_name: Mapped[str] = mapped_column(String, nullable=False)
     normalized_name: Mapped[str] = mapped_column(String, default="")
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
-    # Relationships
     skill: Mapped["SkillModel"] = relationship(back_populates="aliases")
 
 
 class SkillRelationshipModel(Base):
-    """SQLAlchemy model for the skill_relationships table."""
-
     __tablename__ = "skill_relationships"
+    __table_args__ = (
+        UniqueConstraint("skill_name", "related_name", "relation_type"),
+        {"schema": "skill"},
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     skill_name: Mapped[str] = mapped_column(String, nullable=False)
     related_name: Mapped[str] = mapped_column(String, nullable=False)
     relation_type: Mapped[str] = mapped_column(String, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0)
-
-    __table_args__ = (
-        UniqueConstraint("skill_name", "related_name", "relation_type"),
-    )

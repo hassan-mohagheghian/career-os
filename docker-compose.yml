@@ -1,6 +1,20 @@
-version: "3.8"
-
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: jobsearch
+      POSTGRES_PASSWORD: jobsearch
+      POSTGRES_DB: jobsearch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobsearch"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     ports:
@@ -11,6 +25,18 @@ services:
       timeout: 3s
       retries: 5
 
+  alembic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run alembic upgrade head
+    environment:
+      - DATABASE_URL=postgresql+psycopg://jobsearch:jobsearch@postgres:5432/jobsearch
+      - AI_PROVIDER=${AI_PROVIDER:-opencode}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build:
       context: .
@@ -18,13 +44,13 @@ services:
     ports:
       - "5000:5000"
     environment:
+      - DATABASE_URL=postgresql+psycopg://jobsearch:jobsearch@postgres:5432/jobsearch
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DB_PATH=/data/jobs.db
       - AI_PROVIDER=${AI_PROVIDER:-opencode}
-    volumes:
-      - db_data:/data
     depends_on:
+      alembic:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -33,14 +59,14 @@ services:
       context: .
       dockerfile: Dockerfile.background
     environment:
+      - DATABASE_URL=postgresql+psycopg://jobsearch:jobsearch@postgres:5432/jobsearch
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DB_PATH=/data/jobs.db
       - AI_PROVIDER=${AI_PROVIDER:-opencode}
       - WORKER_CONCURRENCY=4
-    volumes:
-      - db_data:/data
     depends_on:
+      alembic:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -56,4 +82,4 @@ services:
       - VITE_API_URL=http://backend:5000
 
 volumes:
-  db_data:
+  pg_data:

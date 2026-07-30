@@ -1,9 +1,6 @@
 """Tests for SQLAlchemyPendingRepository — atomic claim, reset_steps with keep_status."""
 
-import os
-import tempfile
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
@@ -13,17 +10,15 @@ from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendi
 
 
 @pytest.fixture
-def db():
-    fd, path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-    engine = create_engine(f"sqlite:///{path}")
-    Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
+def db(_engine):
+    connection = _engine.connect()
+    transaction = connection.begin()
+    Session = sessionmaker(bind=connection)
     session = Session()
     yield session
     session.close()
-    engine.dispose()
-    os.remove(path)
+    transaction.rollback()
+    connection.close()
 
 
 _counter = 0

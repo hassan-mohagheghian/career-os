@@ -10,9 +10,8 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 
 
 class SummaryModel(Base):
-    """SQLAlchemy model for the summaries table."""
-
     __tablename__ = "summaries"
+    __table_args__ = {"schema": "job"}
 
     num: Mapped[int] = mapped_column(Integer, primary_key=True)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -26,9 +25,8 @@ class SummaryModel(Base):
 
 
 class ResumeModel(Base):
-    """SQLAlchemy model for the resumes table."""
-
     __tablename__ = "resumes"
+    __table_args__ = {"schema": "job"}
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -42,14 +40,13 @@ class ResumeModel(Base):
 
 
 class SkillRoadmapModel(Base):
-    """SQLAlchemy model for the skill_roadmaps table."""
-
     __tablename__ = "skill_roadmaps"
+    __table_args__ = {"schema": "skill"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     skill_name: Mapped[str] = mapped_column(String, nullable=False)
     parent_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("skill_roadmaps.id"), nullable=True
+        Integer, ForeignKey("skill.skill_roadmaps.id"), nullable=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -59,7 +56,6 @@ class SkillRoadmapModel(Base):
     numbering: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
-    # Self-referential relationship
     children: Mapped[list["SkillRoadmapModel"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan"
     )
@@ -69,25 +65,21 @@ class SkillRoadmapModel(Base):
 
 
 class SkillRoadmapProgressModel(Base):
-    """SQLAlchemy model for the skill_roadmap_progress table."""
-
     __tablename__ = "skill_roadmap_progress"
+    __table_args__ = (UniqueConstraint("roadmap_id"), {"schema": "skill"})
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     roadmap_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("skill_roadmaps.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("skill.skill_roadmaps.id", ondelete="CASCADE"), nullable=False
     )
     skill_name: Mapped[str] = mapped_column(String, nullable=False)
     completed: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint("roadmap_id"),)
-
 
 class SkillRoadmapJobModel(Base):
-    """SQLAlchemy model for the skill_roadmap_jobs table."""
-
     __tablename__ = "skill_roadmap_jobs"
+    __table_args__ = {"schema": "skill"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     skill_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -108,9 +100,8 @@ class SkillRoadmapJobModel(Base):
 
 
 class RuleModel(Base):
-    """SQLAlchemy model for the rules table."""
-
     __tablename__ = "rules"
+    __table_args__ = (UniqueConstraint("category", "key"), {"schema": "shared"})
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     category: Mapped[str] = mapped_column(String, nullable=False)
@@ -124,14 +115,10 @@ class RuleModel(Base):
     enabled: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint("category", "key"),)
-
-
 
 class CityModel(Base):
-    """SQLAlchemy model for the cities table."""
-
     __tablename__ = "cities"
+    __table_args__ = {"schema": "shared"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     icon: Mapped[Optional[str]] = mapped_column(String, nullable=True)

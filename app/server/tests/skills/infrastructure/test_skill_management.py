@@ -43,22 +43,22 @@ def _merge(session, target_id, source_ids):
 
 class TestMergeSkills:
     def test_merge_renames_roadmaps(self, sa_session):
-        sa_session.add(SkillModel(name="PostgreSQL", level=3, source="user"))
-        sa_session.add(SkillModel(name="postgres", level=2, source="service"))
+        s1 = SkillModel(name="PostgreSQL", level=3, source="user")
+        s2 = SkillModel(name="postgres", level=2, source="service")
+        sa_session.add_all([s1, s2])
+        sa_session.flush()
+        roadmap = SkillRoadmapModel(skill_name="postgres", title="Basics", level=1)
+        sa_session.add(roadmap)
         sa_session.flush()
         sa_session.add(
-            SkillRoadmapModel(skill_name="postgres", title="Basics", level=1)
-        )
-        sa_session.flush()
-        sa_session.add(
-            SkillRoadmapProgressModel(roadmap_id=1, skill_name="postgres", completed=1)
+            SkillRoadmapProgressModel(roadmap_id=roadmap.id, skill_name="postgres", completed=1)
         )
         sa_session.add(
             SkillRoadmapJobModel(skill_name="postgres", status="completed")
         )
         sa_session.commit()
 
-        merged = _merge(sa_session, 1, [2])
+        merged = _merge(sa_session, s1.id, [s2.id])
         assert merged == ["postgres"]
 
         roads = sa_session.query(SkillRoadmapModel.skill_name).all()
@@ -87,28 +87,29 @@ class TestMergeSkills:
         assert len(visible) == 0
 
     def test_merge_skips_self(self, sa_session):
-        sa_session.add(SkillModel(name="Python", level=4, source="user"))
+        m = SkillModel(name="Python", level=4, source="user")
+        sa_session.add(m)
         sa_session.commit()
 
-        merged = _merge(sa_session, 1, [1])
+        merged = _merge(sa_session, m.id, [m.id])
         assert merged == []
         assert sa_session.query(SkillModel).count() == 1
 
     def test_merge_multiple_sources(self, sa_session):
-        sa_session.add(SkillModel(name="React", level=4, source="user"))
-        sa_session.add(SkillModel(name="ReactJS", level=3, source="service"))
-        sa_session.add(SkillModel(name="react.js", level=2, source="service"))
+        s1 = SkillModel(name="React", level=4, source="user")
+        s2 = SkillModel(name="ReactJS", level=3, source="service")
+        s3 = SkillModel(name="react.js", level=2, source="service")
+        sa_session.add_all([s1, s2, s3])
+        sa_session.flush()
+        roadmap = SkillRoadmapModel(skill_name="ReactJS", title="Basics", level=1)
+        sa_session.add(roadmap)
         sa_session.flush()
         sa_session.add(
-            SkillRoadmapModel(skill_name="ReactJS", title="Basics", level=1)
-        )
-        sa_session.flush()
-        sa_session.add(
-            SkillRoadmapProgressModel(roadmap_id=1, skill_name="ReactJS", completed=1)
+            SkillRoadmapProgressModel(roadmap_id=roadmap.id, skill_name="ReactJS", completed=1)
         )
         sa_session.commit()
 
-        merged = _merge(sa_session, 1, [2, 3])
+        merged = _merge(sa_session, s1.id, [s2.id, s3.id])
         assert set(merged) == {"ReactJS", "react.js"}
 
         roads = sa_session.query(SkillRoadmapModel.skill_name).all()
@@ -119,14 +120,14 @@ class TestMergeSkills:
         assert tech[0][0] == "React"
 
     def test_merge_user_into_service(self, sa_session):
-        """User-input skill can merge with service-detected skill and vice versa."""
-        sa_session.add(SkillModel(name="PostgreSQL", level=3, source="user"))
-        sa_session.add(SkillModel(name="postgres", level=2, source="service"))
+        s1 = SkillModel(name="PostgreSQL", level=3, source="user")
+        s2 = SkillModel(name="postgres", level=2, source="service")
+        sa_session.add_all([s1, s2])
         sa_session.commit()
 
-        merged = _merge(sa_session, 1, [2])
+        merged = _merge(sa_session, s1.id, [s2.id])
         assert merged == ["postgres"]
-        assert sa_session.query(SkillModel).filter(SkillModel.id == 1).first().source == "user"
+        assert sa_session.query(SkillModel).filter(SkillModel.id == s1.id).first().source == "user"
 
 
 class TestSkillTaxonomy:

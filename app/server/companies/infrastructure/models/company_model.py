@@ -13,6 +13,7 @@ class CompanyModel(Base):
     """SQLAlchemy model for the companies table."""
 
     __tablename__ = "companies"
+    __table_args__ = {"schema": "company"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -66,9 +67,10 @@ class CompanyIntelligenceModel(Base):
     """SQLAlchemy model for the company_intelligence table."""
 
     __tablename__ = "company_intelligence"
+    __table_args__ = {"schema": "company"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("companies.id"), nullable=False)
+    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("company.companies.id"), nullable=False)
     overview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     culture_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     international_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -89,9 +91,10 @@ class CompanyLinkModel(Base):
     """SQLAlchemy model for the company_links table."""
 
     __tablename__ = "company_links"
+    __table_args__ = {"schema": "company"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("companies.id"), nullable=False)
+    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("company.companies.id"), nullable=False)
     url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

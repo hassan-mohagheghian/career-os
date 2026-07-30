@@ -3,8 +3,9 @@
 import json
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import cast, func
 from sqlalchemy.orm import Session
+from sqlalchemy.types import Numeric
 
 from skills.domain.repositories.skill_repository import ISkillRepository
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
@@ -184,8 +185,8 @@ class SQLAlchemySkillRepository(ISkillRepository):
         rows = self._session.query(
             SkillModel.category,
             func.count(SkillModel.id).label("count"),
-            func.round(func.avg(SkillModel.market_relevance), 1).label("avg_demand"),
-            func.round(func.avg(SkillModel.level), 1).label("avg_level"),
+            func.round(cast(func.avg(SkillModel.market_relevance), Numeric), 1).label("avg_demand"),
+            func.round(cast(func.avg(SkillModel.level), Numeric), 1).label("avg_level"),
         ).filter(
             SkillModel.hidden == 0, SkillModel.category != ""
         ).group_by(SkillModel.category).order_by(func.count(SkillModel.id).desc()).all()
@@ -201,8 +202,8 @@ class SQLAlchemySkillRepository(ISkillRepository):
         ).filter(SkillModel.hidden == 0).group_by(SkillModel.source).all()
         by_source = {r[0]: r[1] for r in by_source_rows}
 
-        avg_level = self._session.query(func.round(func.avg(SkillModel.level), 1)).filter(SkillModel.hidden == 0).scalar()
-        avg_demand = self._session.query(func.round(func.avg(SkillModel.market_relevance), 1)).filter(
+        avg_level = self._session.query(func.round(cast(func.avg(SkillModel.level), Numeric), 1)).filter(SkillModel.hidden == 0).scalar()
+        avg_demand = self._session.query(func.round(cast(func.avg(SkillModel.market_relevance), Numeric), 1)).filter(
             SkillModel.hidden == 0, SkillModel.market_relevance > 0
         ).scalar()
         total_relationships = self._session.query(func.count(SkillRelationshipModel.id)).scalar()

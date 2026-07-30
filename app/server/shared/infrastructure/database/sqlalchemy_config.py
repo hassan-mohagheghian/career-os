@@ -1,50 +1,49 @@
 """SQLAlchemy engine, session, and Base configuration.
 
 This module provides:
-- SQLAlchemy 2.x declarative Base
-- Engine creation with SQLite-specific settings
+- SQLAlchemy 2.x declarative Base with schema-aware naming convention
+- Engine creation for PostgreSQL
 - Session factory for request-scoped sessions
+- Schema initialization for PostgreSQL (per bounded context)
 - FastAPI dependency injection for database sessions
 """
 
 from typing import Generator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from shared.infrastructure.config.app_config import DB_PATH
+from shared.infrastructure.config.app_config import DATABASE_URL
+
+_naming_convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
 
 
 class Base(DeclarativeBase):
-    """Declarative base for all SQLAlchemy ORM models."""
-    pass
+    metadata = MetaData(naming_convention=_naming_convention)
 
 
-# SQLite-specific engine configuration
+SCHEMAS = {
+    "job": ["jobs", "summaries"],
+    "company": ["companies", "company_intelligence", "company_links"],
+    "skill": ["skills", "skill_aliases", "skill_relationships", "skill_roadmaps", "skill_roadmap_progress", "skill_roadmap_jobs"],
+    "shared": ["rules", "cities", "resumes", "metadata", "generation_history", "alembic_version"],
+}
+
+
 engine = create_engine(
-    f"sqlite:///{DB_PATH}",
+    DATABASE_URL,
     echo=False,
-    connect_args={
-        "check_same_thread": False,
-        "timeout": 15,
-    },
+    connect_args={},
     poolclass=NullPool,
 )
 
-
-# SQLite PRAGMA settings applied to every new connection
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Set SQLite pragmas for every new connection."""
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA busy_timeout=5000")
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-
-# Session factory
 SessionLocal = sessionmaker(
     bind=engine,
     class_=Session,
@@ -53,10 +52,7 @@ SessionLocal = sessionmaker(
 
 
 def get_session() -> Generator[Session, None, None]:
-    """FastAPI dependency that yields a database session.
-
-    The session is automatically closed after the request completes.
-    """
+    """FastAPI dependency that yields a database session."""
     session = SessionLocal()
     try:
         yield session
@@ -71,3 +67,11 @@ def get_session() -> Generator[Session, None, None]:
 def get_session_sync() -> Session:
     """Get a synchronous database session (for non-async contexts)."""
     return SessionLocal()
+
+
+def ensure_schemas():
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for schema in SCHEMAS:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        conn.commit()

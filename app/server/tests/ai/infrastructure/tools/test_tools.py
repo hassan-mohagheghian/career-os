@@ -161,19 +161,15 @@ class TestFindSkillTool:
 # ── Database Tool Tests ─────────────────────────────────────────────
 
 class TestDatabaseTool:
-    def test_tool_name(self):
-        from sqlalchemy import create_engine
+    def test_tool_name(self, _engine):
         from sqlalchemy.orm import Session
-        engine = create_engine("sqlite:///:memory:")
-        session = Session(engine)
+        session = Session(_engine)
         tool = DatabaseTool(session=session)
         assert tool.name == "database"
 
-    def test_run_requires_query(self):
-        from sqlalchemy import create_engine
+    def test_run_requires_query(self, _engine):
         from sqlalchemy.orm import Session
-        engine = create_engine("sqlite:///:memory:")
-        session = Session(engine)
+        session = Session(_engine)
         tool = DatabaseTool(session=session)
         result = tool.run()
         assert result.success is False

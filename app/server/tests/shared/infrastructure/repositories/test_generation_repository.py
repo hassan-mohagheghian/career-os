@@ -6,15 +6,12 @@ Tests cover: unified history reads from all source tables.
 
 import sys
 import os
-import tempfile
 import pytest
 from datetime import datetime
 from unittest.mock import patch
+from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
 from jobs.infrastructure.models.job_model import JobModel
@@ -27,22 +24,15 @@ from shared.infrastructure.repositories.generation_repository import GenerationH
 
 
 @pytest.fixture
-def test_db():
-    fd2, path = tempfile.mkstemp(suffix='.db')
-    os.close(fd2)
-    yield path
-    os.remove(path)
-
-
-@pytest.fixture
-def sa_session(test_db):
-    engine = create_engine(f"sqlite:///{test_db}")
-    Base.metadata.create_all(bind=engine)
-    SessionLocal = sessionmaker(bind=engine)
+def sa_session(_engine):
+    connection = _engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
     yield session
     session.close()
-    engine.dispose()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture

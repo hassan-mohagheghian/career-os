@@ -14,6 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobsearch
+          POSTGRES_PASSWORD: jobsearch
+          POSTGRES_DB: jobsearch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -36,6 +49,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Run Alembic migrations
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
+
       - name: Lint with ruff
         run: uv run ruff check app/server app/background
 
@@ -45,6 +63,7 @@ jobs:
       - name: Run backend tests
         run: uv run pytest app/server/tests -v --tb=short
         env:
+          DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
           REDIS_HOST: localhost
           REDIS_PORT: 6379
 

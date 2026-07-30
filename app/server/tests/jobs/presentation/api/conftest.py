@@ -5,29 +5,31 @@ from contextlib import asynccontextmanager
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
 
-from shared.infrastructure.database.sqlalchemy_config import Base
+from dotenv import load_dotenv
+load_dotenv()
+
+from shared.infrastructure.database.sqlalchemy_config import Base, ensure_schemas
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-
 import shared.infrastructure.database.models.misc_models
 
 
 @pytest.fixture
-def test_db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(bind=engine)
-    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+def test_db(_engine):
+    connection = _engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection, expire_on_commit=False)
     session = SessionLocal()
     yield session
     session.close()
-    engine.dispose()
+    transaction.rollback()
+    connection.close()
 
 
 @asynccontextmanager

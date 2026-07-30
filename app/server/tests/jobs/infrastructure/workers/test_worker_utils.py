@@ -1,17 +1,11 @@
 """Tests for worker.py utility functions — scoring, normalization, DB helpers."""
 
-import os
-import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from shared.infrastructure.database.sqlalchemy_config import Base
 import jobs.infrastructure.models.job_model
 
-
-# ── Score Normalization ────────────────────────────────────────────
 
 class TestNormalizeScore:
     def test_valid_grades_passthrough(self):
@@ -70,8 +64,8 @@ class TestNormalizeScore:
 
     def test_clamping(self):
         from jobs.infrastructure.workers.worker import normalize_score
-        assert normalize_score(-10) == 'D'  # clamped to 0
-        assert normalize_score(150) == 'A++'  # clamped to 100
+        assert normalize_score(-10) == 'D'
+        assert normalize_score(150) == 'A++'
 
 
 class TestScoreToGrade:
@@ -109,8 +103,6 @@ class TestCalculateOverallScore:
         assert calculate_overall_score(100, 100) == 100.0
         assert calculate_overall_score(0, 0) == 0.0
 
-
-# ── Job Data Normalization ─────────────────────────────────────────
 
 class TestNormalizeJobData:
     def test_known_city_extraction(self):
@@ -152,11 +144,8 @@ class TestNormalizeJobData:
         from jobs.infrastructure.workers.worker import _normalize_job_data
         d = {'location': '', 'work_type': 'On-site'}
         result = _normalize_job_data(d)
-        # Empty location keeps empty locations array
         assert isinstance(result['locations'], list)
 
-
-# ── URL Fetching ───────────────────────────────────────────────────
 
 class TestFetchUrl:
     def test_fetch_invalid_url_raises(self):
@@ -185,8 +174,6 @@ class TestFetchUrl:
             _fetch_url("http://test")
 
 
-# ── Date Parsing ───────────────────────────────────────────────────
-
 class TestParsePostedDate:
     def test_hours_ago(self):
         from jobs.infrastructure.workers.worker import _parse_posted_date
@@ -205,9 +192,7 @@ class TestParsePostedDate:
 
     def test_months_ago(self):
         from jobs.infrastructure.workers.worker import _parse_posted_date
-        # dateutil may not be installed — months parsing is best-effort
         result = _parse_posted_date('1 month ago')
-        # Accept either a result or None (depends on dateutil availability)
         assert result is None or isinstance(result, str)
 
     def test_active_returns_none(self):
@@ -223,77 +208,37 @@ class TestParsePostedDate:
         assert _parse_posted_date('N/A') is None
 
 
-# ── DB Helpers ─────────────────────────────────────────────────────
-
 class TestGetNextNum:
-    def test_empty_table_returns_1(self):
+    def test_empty_table_returns_1(self, sa_session):
         from jobs.infrastructure.workers.worker import _get_next_num
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            test_db = f.name
-        try:
-            engine = create_engine(f"sqlite:///{test_db}")
-            Base.metadata.create_all(bind=engine)
-            Session = sessionmaker(bind=engine)
-            sa_session = Session()
-            with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-                assert _get_next_num() == 1
-        finally:
-            os.unlink(test_db)
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
+            assert _get_next_num() == 1
 
-    def test_existing_jobs(self):
+    def test_existing_jobs(self, sa_session):
         from jobs.infrastructure.workers.worker import _get_next_num
         from jobs.infrastructure.models.job_model import JobModel
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            test_db = f.name
-        try:
-            engine = create_engine(f"sqlite:///{test_db}")
-            Base.metadata.create_all(bind=engine)
-            Session = sessionmaker(bind=engine)
-            sa_session = Session()
-            job = JobModel(num=42, company="Test", role="Dev", url="https://example.com")
-            sa_session.add(job)
-            sa_session.commit()
-            with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-                assert _get_next_num() == 43
-        finally:
-            os.unlink(test_db)
+        job = JobModel(num=42, company="Test", role="Dev", url="https://example.com")
+        sa_session.add(job)
+        sa_session.commit()
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
+            assert _get_next_num() == 43
 
 
 class TestGetExistingNum:
-    def test_existing_url(self):
+    def test_existing_url(self, sa_session):
         from jobs.infrastructure.workers.worker import _get_existing_num
         from jobs.infrastructure.models.job_model import JobModel
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            test_db = f.name
-        try:
-            engine = create_engine(f"sqlite:///{test_db}")
-            Base.metadata.create_all(bind=engine)
-            Session = sessionmaker(bind=engine)
-            sa_session = Session()
-            job = JobModel(num=10, company="Test", role="Dev", url="https://example.com")
-            sa_session.add(job)
-            sa_session.commit()
-            with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-                assert _get_existing_num('https://example.com') == 10
-        finally:
-            os.unlink(test_db)
+        job = JobModel(num=10, company="Test", role="Dev", url="https://example.com")
+        sa_session.add(job)
+        sa_session.commit()
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
+            assert _get_existing_num('https://example.com') == 10
 
-    def test_new_url(self):
+    def test_new_url(self, sa_session):
         from jobs.infrastructure.workers.worker import _get_existing_num
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            test_db = f.name
-        try:
-            engine = create_engine(f"sqlite:///{test_db}")
-            Base.metadata.create_all(bind=engine)
-            Session = sessionmaker(bind=engine)
-            sa_session = Session()
-            with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-                assert _get_existing_num('https://new.com') is None
-        finally:
-            os.unlink(test_db)
+        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
+            assert _get_existing_num('https://new.com') is None
 
-
-# ── Pause/Stop Detection ───────────────────────────────────────────
 
 class TestIsPausedOrStopped:
     def test_item_deleted_returns_true(self):

@@ -14,9 +14,6 @@ def __getattr__(name: str):
         "CompanyModel": ("companies.infrastructure.models.company_model", "CompanyModel"),
         "CompanyIntelligenceModel": ("companies.infrastructure.models.company_model", "CompanyIntelligenceModel"),
         "CompanyLinkModel": ("companies.infrastructure.models.company_model", "CompanyLinkModel"),
-        "PendingJobModel": ("pending.infrastructure.models.pending_model", "PendingJobModel"),
-        "PendingCompanyModel": ("pending.infrastructure.models.pending_model", "PendingCompanyModel"),
-        "PendingGenerationModel": ("pending.infrastructure.models.pending_model", "PendingGenerationModel"),
 
         "SummaryModel": ("shared.infrastructure.database.models.misc_models", "SummaryModel"),
         "ResumeModel": ("shared.infrastructure.database.models.misc_models", "ResumeModel"),
@@ -38,7 +35,6 @@ def __getattr__(name: str):
 __all__ = [
     "JobModel", "SkillModel", "SkillAliasModel", "SkillRelationshipModel",
     "CompanyModel", "CompanyIntelligenceModel", "CompanyLinkModel",
-    "PendingJobModel", "PendingCompanyModel", "PendingGenerationModel",
     "SummaryModel", "ResumeModel", "SkillRoadmapModel", "SkillRoadmapProgressModel",
     "SkillRoadmapJobModel", "RuleModel", "CityModel",
 ]

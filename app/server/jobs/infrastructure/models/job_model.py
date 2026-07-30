@@ -13,6 +13,7 @@ class JobModel(Base):
     """SQLAlchemy model for the jobs table."""
 
     __tablename__ = "jobs"
+    __table_args__ = {"schema": "job"}
 
     num: Mapped[int] = mapped_column(Integer, primary_key=True)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -6,6 +6,10 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Ensure app/ and app/server/ are on sys.path for imports
 _this_file = os.path.abspath(__file__ if '__file__' in dir() else '.')
 _app_dir = os.path.dirname(_this_file)
@@ -158,9 +162,11 @@ def _run_migrations():
     if not Path(alembic).exists():
         return
     log.info("Running database migrations")
+    env = os.environ.copy()
     result = subprocess.run(
         [alembic, "upgrade", "head"],
         cwd=str(REPO_ROOT),
+        env=env,
         capture_output=True,
     )
     if result.returncode != 0:
@@ -245,12 +251,14 @@ def _start_backend(port: int):
     _run_migrations()
 
     port_str = str(port)
+    env = os.environ.copy()
     proc = subprocess.Popen(
         [
             python, "-m", "uvicorn", "app.server.entrypoints.api:app",
             "--host", "0.0.0.0", "--port", port_str, "--reload",
         ],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     _save_pid(PID_FILE, proc.pid)
     _ok(f"Backend started (PID: {proc.pid}) on http://localhost:{port}")
@@ -302,12 +310,14 @@ def backend(
     _run_migrations()
 
     port_str = str(port_val)
+    env = os.environ.copy()
     proc = subprocess.Popen(
         [
             python, "-m", "uvicorn", "app.server.entrypoints.api:app",
             "--host", "0.0.0.0", "--port", port_str, "--reload",
         ],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     _save_pid(PID_FILE, proc.pid)
     _ok(f"Backend started (PID: {proc.pid}) on http://localhost:{port_val}")
@@ -513,9 +523,11 @@ def migrate():
     """Run database migrations"""
     _log("Running database migrations...")
     alembic = _alembic_path()
+    env = os.environ.copy()
     result = subprocess.run(
         [alembic, "upgrade", "head"],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     if result.returncode == 0:
         _ok("Migrations applied successfully.")
@@ -528,9 +540,11 @@ def up():
     """Run pending migrations up"""
     _log("Running migrations up...")
     alembic = _alembic_path()
+    env = os.environ.copy()
     result = subprocess.run(
         [alembic, "upgrade", "head"],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     if result.returncode == 0:
         _ok("Migrations applied.")
@@ -543,9 +557,11 @@ def down():
     """Rollback last migration"""
     _log("Rolling back last migration...")
     alembic = _alembic_path()
+    env = os.environ.copy()
     result = subprocess.run(
         [alembic, "downgrade", "-1"],
         cwd=str(REPO_ROOT),
+        env=env,
     )
     if result.returncode == 0:
         _ok("Migration rolled back.")
@@ -569,15 +585,27 @@ def new(name: str = typer.Argument(..., help="Migration name")):
 
 
 @docker_app.command()
-def up():
-    """Start docker containers"""
-    _log("Starting docker containers...")
+def up(
+    services: list[str] = typer.Argument(
+        None, help="Specific services to start (e.g., db redis). Starts all if omitted."
+    ),
+):
+    """Start docker containers (optionally specific services)"""
+    cmd = ["docker", "compose", "up", "-d"]
+    if services:
+        cmd.extend(services)
+        _log(f"Starting docker services: {', '.join(services)}...")
+    else:
+        _log("Starting all docker containers...")
     result = subprocess.run(
-        ["docker", "compose", "up", "-d"],
+        cmd,
         cwd=str(REPO_ROOT),
     )
     if result.returncode == 0:
-        _ok("Docker containers started.")
+        if services:
+            _ok(f"Docker services started: {', '.join(services)}")
+        else:
+            _ok("Docker containers started.")
     else:
         raise typer.Exit(code=1)
 

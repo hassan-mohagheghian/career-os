@@ -1,7 +1,11 @@
-"""Alembic environment configuration.
+"""Alembic environment configuration for multi-schema, multi-context migrations.
 
-This file configures Alembic for the Job Search Intelligence project.
-It supports both autogeneration from SQLAlchemy models and manual migration scripts.
+Each bounded context owns its own PostgreSQL schema and migration history.
+Migration scripts are organized in separate directories per context:
+  - app/alembic/job/versions/     (job schema)
+  - app/alembic/company/versions/ (company schema)
+  - app/alembic/skill/versions/   (skill schema)
+  - app/alembic/shared/versions/  (shared schema)
 """
 
 import os
@@ -11,63 +15,45 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-# Add the app/server directory to sys.path so imports work correctly
 _server_dir = os.path.join(os.path.dirname(__file__), '..', 'server')
 sys.path.insert(0, os.path.abspath(_server_dir))
 
-from shared.infrastructure.config.app_config import DB_PATH
+from shared.infrastructure.config.app_config import DATABASE_URL
 from shared.infrastructure.database.sqlalchemy_config import Base
 
-# Import all models so Alembic can detect them for autogeneration
 from shared.infrastructure.database import models  # noqa: F401
 
-
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
 config = context.config
+config.set_main_option('sqlalchemy.url', DATABASE_URL)
 
-# Override sqlalchemy.url with the actual database path
-config.set_main_option('sqlalchemy.url', f'sqlite:///{DB_PATH}')
-
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
 target_metadata = Base.metadata
 
 
+def include_object(obj, name, type_, reflected, compare_to):
+    if type_ == "table":
+        schema = getattr(obj, "schema", None)
+        if schema and context.get_context().get("schema") and schema != context.get_context().get("schema"):
+            return False
+    return True
+
+
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we create an Engine
-    and associate a connection with the context.
-    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -78,10 +64,9 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            # SQLite-specific: render server default to avoid issues
-            render_as_batch=True,
+            include_schemas=True,
+            version_table="alembic_version",
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

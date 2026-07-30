@@ -1,73 +1,76 @@
-"""Shared test fixtures and configuration."""
+"""Shared test fixtures and configuration.
+
+Uses PostgreSQL exclusively. Requires DATABASE_URL environment variable.
+Each test is wrapped in a transaction that rolls back after the test.
+"""
 
 import sys
 import os
-import tempfile
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-# Add server directory to Python path so imports work
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-# Import SA Base and all models to register them
-from shared.infrastructure.database.sqlalchemy_config import Base
+from dotenv import load_dotenv
+load_dotenv()
+
+from shared.infrastructure.database.sqlalchemy_config import Base, ensure_schemas
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-
 import shared.infrastructure.database.models.misc_models
 
+DB_URL = os.environ.get('DATABASE_URL')
+if not DB_URL:
+    raise RuntimeError("DATABASE_URL is required for tests. Set it to a PostgreSQL connection string.")
 
-@pytest.fixture
-def test_db():
-    """Create a temp DB using SA Base.metadata.create_all. Auto-cleanup."""
-    fd, path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-    engine = create_engine(f"sqlite:///{path}")
+
+@pytest.fixture(scope="session")
+def _engine():
+    from sqlalchemy import create_engine
+    engine = create_engine(DB_URL)
+    ensure_schemas()
+    # Drop all existing data so tests start clean
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    yield engine
     engine.dispose()
-    yield path
-    os.remove(path)
 
 
 @pytest.fixture
-def sa_session(test_db):
-    """Create a SQLAlchemy session connected to the test DB with all tables."""
-    engine = create_engine(f"sqlite:///{test_db}")
-    Session = sessionmaker(bind=engine)
+def sa_session(_engine):
+    connection = _engine.connect()
+    transaction = connection.begin()
+    Session = sessionmaker(bind=connection)
     session = Session()
     yield session
     session.close()
-    engine.dispose()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture
 def mock_get_session(sa_session):
-    """Patch dependencies.get_session_sync to return our test SA session."""
     with patch('dependencies.get_session_sync', return_value=sa_session):
         yield sa_session
 
 
 @pytest.fixture
 def mock_get_session_worker(sa_session):
-    """Patch services.worker.get_session_sync to return our test SA session."""
     with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
         yield sa_session
 
 
 @pytest.fixture
 def mock_get_session_company_worker(sa_session):
-    """Patch services.company_worker.get_session_sync to return our test SA session."""
     with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
         yield sa_session
 
 
 @pytest.fixture
 def client(sa_session):
-    """Create a FastAPI test client with all routes wired to the test DB."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     from fastapi.responses import JSONResponse

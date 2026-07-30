@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from shared.infrastructure.config.app_config import DB_PATH, STATIC_FOLDER
+from shared.infrastructure.config.app_config import STATIC_FOLDER
 from shared.infrastructure.process.logging_config import setup_logging, get_logger
 
 # ── Logging ────────────────────────────────────────────────────────

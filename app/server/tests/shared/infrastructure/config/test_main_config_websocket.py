@@ -12,11 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..
 # ── Config ────────────────────────────────────────────────────────
 
 class TestConfig:
-    def test_db_path(self):
-        from shared.infrastructure.config.app_config import DB_PATH
-        assert DB_PATH is not None
-        assert isinstance(DB_PATH, str)
-
     def test_project_root(self):
         from shared.infrastructure.config.app_config import PROJECT_ROOT
         assert PROJECT_ROOT is not None
@@ -297,13 +292,16 @@ class TestSACompanyLinkExtended:
 
     def test_get_by_id(self, sa_session):
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
-        from companies.infrastructure.models.company_model import CompanyLinkModel
-        link = CompanyLinkModel(company_id=1, url="https://ex.com")
+        from companies.infrastructure.models.company_model import CompanyLinkModel, CompanyModel
+        company = CompanyModel(name="TestCorp", website="https://ex.com")
+        sa_session.add(company)
+        sa_session.flush()
+        link = CompanyLinkModel(company_id=company.id, url="https://ex.com/link")
         sa_session.add(link)
         sa_session.commit()
         repo = SQLAlchemyCompanyLinkRepository(sa_session)
         result = repo.get_by_id(link.id)
-        assert result["url"] == "https://ex.com"
+        assert result["url"] == "https://ex.com/link"
 
     def test_get_by_id_not_found(self, sa_session):
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
