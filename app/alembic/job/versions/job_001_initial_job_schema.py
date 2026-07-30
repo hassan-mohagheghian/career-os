@@ -62,7 +62,7 @@ def upgrade() -> None:
         sa.Column("rescoring", sa.Integer(), server_default="0"),
         sa.Column("links", sa.Text(), server_default="[]"),
         sa.Column("source", sa.String(), server_default="web"),
-        sa.Column("status", sa.String(), server_default="pending"),
+        sa.Column("status", sa.String(), server_default="imported"),
         sa.Column("queue_order", sa.Integer(), server_default="0"),
         sa.Column("current_node", sa.String(), nullable=True),
         sa.Column("progress_pct", sa.Integer(), server_default="0"),

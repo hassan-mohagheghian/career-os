@@ -57,7 +57,7 @@ class JobModel(Base):
     rescoring: Mapped[int] = mapped_column(Integer, default=0)
     links: Mapped[str] = mapped_column(Text, default="[]")
     source: Mapped[Optional[str]] = mapped_column(String, default="web")
-    status: Mapped[str] = mapped_column(String, default="pending")
+    status: Mapped[str] = mapped_column(String, default="imported")
     queue_order: Mapped[int] = mapped_column(Integer, default=0)
     current_node: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     progress_pct: Mapped[float] = mapped_column(Integer, default=0)

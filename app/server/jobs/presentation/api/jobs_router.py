@@ -63,7 +63,7 @@ def list_jobs(
     filter_scores: str = Query(""),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
-    """Get paginated list of processed and imported jobs."""
+    """Get paginated list of all jobs regardless of state."""
     filters = {
         "filter_tech": filter_tech,
         "filter_cities": filter_cities,
@@ -74,7 +74,6 @@ def list_jobs(
         "filter_response_status": filter_response_status,
         "filter_applied": filter_applied,
         "filter_scores": filter_scores,
-        "filter_status": "completed,imported",
     }
     filters = {k: v for k, v in filters.items() if v}
 

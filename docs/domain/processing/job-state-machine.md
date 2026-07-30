@@ -28,19 +28,19 @@ class JobStatus(str, Enum):
 
 ## Valid Transitions
 
-| From        | To                                                                 |
-|-------------|--------------------------------------------------------------------|
-| created     | queued, failed, cancelled                                          |
-| queued      | waiting, created, failed, cancelled                                |
-| waiting     | starting, created, failed, cancelled                               |
-| starting    | fetching, failed, cancelled                                        |
-| fetching    | analyzing, failed, cancelled                                       |
-| analyzing   | generating, failed, cancelled                                      |
-| generating  | finalizing, failed, cancelled                                      |
-| finalizing  | completed, failed, cancelled                                       |
-| completed   | queued, cancelled                                                  |
-| failed      | queued, cancelled                                                  |
-| cancelled   | created, queued                                                    |
+| From       | To                                   |
+| ---------- | ------------------------------------ |
+| created    | queued, failed, cancelled            |
+| queued     | waiting, created, failed, cancelled  |
+| waiting    | starting, created, failed, cancelled |
+| starting   | fetching, failed, cancelled          |
+| fetching   | analyzing, failed, cancelled         |
+| analyzing  | generating, failed, cancelled        |
+| generating | finalizing, failed, cancelled        |
+| finalizing | completed, failed, cancelled         |
+| completed  | queued, cancelled                    |
+| failed     | queued, cancelled                    |
+| cancelled  | created, queued                      |
 
 ## Enforcement
 
@@ -65,6 +65,7 @@ ItemStatus.FAILED     → JobStatus.FAILED
 ## Database Model
 
 The `pending_jobs` table stores:
+
 - `status` — current job status (JobStatus string value)
 - `previous_status` — previous status (for rollback/audit)
 - `current_node` — current LangGraph node name
