@@ -26,6 +26,7 @@ import CompanyDrawer from "@/features/companies/components/CompanyDrawer";
 import SkillsTab from "@/features/skills/components/SkillsTab";
 import ResumeTab from "@/features/resume/components/ResumeTab";
 import RulesTab from "@/features/rules/components/RulesTab";
+import LlmConfigurationsTab from "@/features/ai/llm-configurations/LlmConfigurationsTab";
 import CompaniesPage from "@/features/companies/components/CompaniesPage";
 import JobsPage from "@/features/jobs/components/JobsPage";
 import WorkflowTerminal from "@/shared/components/WorkflowTerminal";
@@ -140,6 +141,7 @@ function App() {
     const h = window.location.hash.replace("#", "") || "jobs";
     return h.split("/")[0] || "jobs";
   });
+  const [subTab, setSubTab] = useState<string | null>(null);
   const [deepLinkId, setDeepLinkId] = useState(() => {
     const h = window.location.hash.replace("#", "") || "jobs";
     const parts = h.split("/");
@@ -200,11 +202,11 @@ function App() {
       const second = parts[1] || null;
       if (newTab && newTab !== tab) setTab(newTab);
       if (newTab === "skills" && second && isNaN(parseInt(second))) {
-        // #skills/Kafka — skill name in second segment
         setDeepLinkSkill(decodeURIComponent(second));
       } else if (newTab === "companies" && second) {
-        // #companies/{id} — company drawer
         setDeepLinkCompanyId(second);
+      } else if (newTab === "ai" && second) {
+        setSubTab(second);
       } else if (second) {
         setDeepLinkId(parseInt(second));
       }
@@ -336,10 +338,11 @@ function App() {
     setCompanyDrawer(null);
   };
 
-  const switchTab = (t, sub) => {
+  const switchTab = (t, childId) => {
     setTab(t);
+    setSubTab(childId || null);
     setDeepLinkId(null);
-    window.location.hash = t;
+    window.location.hash = childId ? `${t}/${childId}` : t;
   };
 
   const tabs = [
@@ -368,6 +371,13 @@ function App() {
       icon: <FileText className="w-4 h-4" />,
       label: "Resume",
       section: "settings",
+    },
+    {
+      id: "ai",
+      icon: <Brain className="w-4 h-4" />,
+      label: "AI",
+      section: "settings",
+      children: [{ id: "llm-configurations", label: "LLM Configurations" }],
     },
     {
       id: "rules",
@@ -403,6 +413,8 @@ function App() {
         sidebarOpen={sidebarOpen}
         tabs={tabs}
         tab={tab}
+        subTab={subTab || undefined}
+        onSwitchSubTab={(id) => setSubTab(id)}
         onSwitchTab={switchTab}
         onClose={() => setSidebarOpen(false)}
       />
@@ -505,6 +517,9 @@ function App() {
                 onRefreshResumes={fetchResumes}
                 onRefreshLinkedin={fetchLinkedin}
               />
+            )}
+            {tab === "ai" && subTab === "llm-configurations" && (
+              <LlmConfigurationsTab />
             )}
             {tab === "rules" && (
               <RulesTab rules={rules} onUpdate={fetchRules} />

@@ -20,6 +20,7 @@ from skills.presentation.api.skill_roadmaps_router import router as skill_roadma
 from rules.presentation.api.rules_router import router as rules_router
 from shared.presentation.api.dashboard_router import router as dashboard_router
 from shared.presentation.api.websocket_router import router as websocket_router
+from ai.presentation.api.llm_configurations_router import router as llm_configurations_router
 
 # DI dependencies — wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
@@ -42,6 +43,7 @@ api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 api_router.include_router(websocket_router, tags=["websocket"])
+api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
 # ── SSE router (compat) ──────────────────────────────────────────
 
 @api_router.get("/api/jobs/stream")

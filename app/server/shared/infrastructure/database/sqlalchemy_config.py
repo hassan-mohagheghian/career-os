@@ -33,6 +33,7 @@ SCHEMAS = {
     "job": ["jobs", "summaries"],
     "company": ["companies", "company_intelligence", "company_links"],
     "skill": ["skills", "skill_aliases", "skill_relationships", "skill_roadmaps", "skill_roadmap_progress", "skill_roadmap_jobs"],
+    "ai": ["llm_configurations"],
     "shared": ["rules", "cities", "resumes", "metadata", "generation_history", "alembic_version"],
 }
 

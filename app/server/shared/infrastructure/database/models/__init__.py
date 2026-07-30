@@ -23,6 +23,8 @@ def __getattr__(name: str):
         "RuleModel": ("shared.infrastructure.database.models.misc_models", "RuleModel"),
 
         "CityModel": ("shared.infrastructure.database.models.misc_models", "CityModel"),
+
+        "LLMConfigurationModel": ("ai.infrastructure.models.llm_configuration_model", "LLMConfigurationModel"),
     }
     if name in _models:
         module_path, attr = _models[name]
@@ -37,4 +39,5 @@ __all__ = [
     "CompanyModel", "CompanyIntelligenceModel", "CompanyLinkModel",
     "SummaryModel", "ResumeModel", "SkillRoadmapModel", "SkillRoadmapProgressModel",
     "SkillRoadmapJobModel", "RuleModel", "CityModel",
+    "LLMConfigurationModel",
 ]

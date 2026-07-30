@@ -30,7 +30,8 @@ def init_db():
     the declarative models defined in infrastructure/database/models/.
     Schema migrations are handled by Alembic.
     """
-    from shared.infrastructure.database.sqlalchemy_config import engine, Base
+    from shared.infrastructure.database.sqlalchemy_config import engine, Base, ensure_schemas
+    ensure_schemas()
     # Import all models to register them with Base.metadata
     import jobs.infrastructure.models.job_model
     import skills.infrastructure.models.skill_model
