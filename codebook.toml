@@ -1,1 +1,5 @@
-words = ["LLM"]
+words = [
+    "ARQ",
+    "LLM",
+    "NATS",
+]

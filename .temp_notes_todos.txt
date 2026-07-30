@@ -1,0 +1,32 @@
+Note: don't commit to git
+Note: don't use for LLM or deciding.
+
+------------------------
+Notes
+
+
+
+
+
+
+
+
+
+
+-----------------------
+TODO:
+
+Prompt 1
+Implement ProcessingExecution backend only.
+Prompt 2
+Implement ARQ integration.
+Prompt 3
+Implement LangGraph workflow.
+Prompt 4
+Implement SSE.
+Prompt 5
+Implement new Processing Queue drawer.
+Prompt 6
+Add Process v2 button to Job Cards.
+Prompt 7
+Connect frontend to backend.
