@@ -6,6 +6,7 @@ export const STATUS_LABELS: Record<string, string> = {
   queued: 'Queued',
   processing: 'Processing...',
   processed: 'Processed',
+  imported: 'Imported',
   failed: 'Failed',
   cancelled: 'Cancelled',
 }

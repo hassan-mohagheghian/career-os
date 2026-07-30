@@ -104,7 +104,9 @@ class SQLAlchemyJobRepository(IJobRepository):
                     query = query.filter(JobModel.score.in_(scores))
 
             if filters.get("filter_status"):
-                query = query.filter(JobModel.status == filters["filter_status"])
+                statuses = [s.strip() for s in filters["filter_status"].split(",") if s.strip()]
+                if statuses:
+                    query = query.filter(JobModel.status.in_(statuses))
 
         total = query.count()
 
@@ -187,6 +189,22 @@ class SQLAlchemyJobRepository(IJobRepository):
     def get_next_num(self) -> int:
         result = self._session.query(func.max(JobModel.num)).scalar()
         return (result or 0) + 1
+
+    def create_job(self, url: str, title: str | None = None, notes: str = "[]", links: str = "[]", source: str = "api") -> dict[str, Any]:
+        num = self.get_next_num()
+        model = JobModel(
+            num=num,
+            url=url,
+            title=title,
+            links=links,
+            notes=notes,
+            status="imported",
+            source=source,
+        )
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return job_model_to_dict(model)
 
     def get_by_url(self, url: str) -> dict[str, Any] | None:
         m = self._session.query(JobModel).filter(JobModel.url == url).first()

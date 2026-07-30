@@ -78,3 +78,26 @@ class RescoreAllResponse(BaseModel):
 class ReprocessAllResponse(BaseModel):
     status: str = "reprocessing"
     count: int
+
+
+class CreateJobLinkItem(BaseModel):
+    title: str | None = None
+    url: str
+
+
+class CreateJobNoteItem(BaseModel):
+    title: str | None = None
+    content: str
+
+
+class CreateJobRequest(BaseModel):
+    job_post_url: str = Field(..., min_length=1, description="Primary job posting URL")
+    job_title: str | None = Field(None, description="Optional job title")
+    links: list[CreateJobLinkItem] = Field(default_factory=list)
+    notes: list[CreateJobNoteItem] = Field(default_factory=list)
+
+
+class CreateJobResponse(BaseModel):
+    id: int
+    status: str = "imported"
+    message: str = "Job created successfully."

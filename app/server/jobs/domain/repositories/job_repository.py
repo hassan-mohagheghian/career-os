@@ -85,6 +85,16 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_url(self, url: str) -> dict[str, Any] | None:
+        """Get a job by URL."""
+        ...
+
+    @abstractmethod
+    def create_job(self, url: str, title: str | None = None, notes: str = "[]", links: str = "[]", source: str = "api") -> dict[str, Any]:
+        """Create a new job. Returns the created job."""
+        ...
+
+    @abstractmethod
     def update_fields(self, num: int, **fields: Any) -> bool:
         """Update arbitrary fields on a job."""
         ...

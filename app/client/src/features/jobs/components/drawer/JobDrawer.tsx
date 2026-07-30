@@ -85,7 +85,7 @@ export default function JobDrawer({ drawer, drawerTab, activeGens, companies, on
                   </button>
                 )}
               </div>
-              <div className="text-sm text-muted-foreground">{job.role}</div>
+              <div className="text-sm text-muted-foreground">{job.role || job.title}</div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {job.industry && <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">{job.industry}</Badge>}
                 {drawerLocations.map((loc, i) => <LocationBadge key={i} loc={loc} />)}

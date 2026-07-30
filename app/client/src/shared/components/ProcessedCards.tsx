@@ -259,7 +259,7 @@ export function JobCard({ job, rank, onClick, onRescore, onDelete, onRequeue, on
       </div>
 
       {/* Row 3: Role */}
-      <div onClick={onClick} className="cursor-pointer text-xs text-muted-foreground truncate mb-1.5">{job.role}</div>
+      <div onClick={onClick} className="cursor-pointer text-xs text-muted-foreground truncate mb-1.5">{job.role || job.title}</div>
       <div className="flex gap-1 flex-wrap">
         {locations.slice(0, 2).map((loc, i) => <LocationBadge key={i} loc={loc} />)}
         {locations.length > 2 && <span className="text-2xs text-muted-foreground">+{locations.length - 2}</span>}

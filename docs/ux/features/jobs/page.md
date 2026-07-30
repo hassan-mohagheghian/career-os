@@ -50,13 +50,11 @@ Jobs Page
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Jobs                                                                 [Queue (2)] [+ Add Job] │
+│ Jobs                                                                     [Queue] [+ Add Job] │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [Search jobs...]                                                                   [Filters] │
+│ [Search jobs...]                                                                             │
+│ [Sorts]                                                                            [Filters] │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                              │
-│ Job List                                                                                     │
-│                                                                                              │
 │ ┌──────────────────────────────────────────────────────────────────────────────────────────┐ │
 │ │ Senior Backend Engineer                                                           [More] │ │
 │ │ Example Company                                                           Status: Queued │ │
@@ -369,3 +367,11 @@ Processing
 | Warning          | TriangleAlert     |
 
 ---
+
+# Related Documents
+
+- `docs/job-lifecycle.md`
+- `docs/job-state-machine.md`
+- `docs/workflow-progress.md`
+- `docs/ux/design-system/`
+- `docs/ux/wireframes/jobs/`

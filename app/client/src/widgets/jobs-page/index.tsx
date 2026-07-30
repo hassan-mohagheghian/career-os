@@ -7,11 +7,14 @@ import { useJobs } from '@/features/jobs/hooks/useJobs'
 import { usePending } from '@/shared/hooks/usePending'
 import { useCompanies } from '@/features/companies/hooks/useCompanies'
 import { useResume } from '@/features/jobs/hooks/useResume'
+import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
 import { useWorkflow } from '@/shared/hooks/useWorkflow'
 import { useSocketIO } from '@/shared/hooks/useSocketIO'
 import ConfirmDialog from '@/shared/components/ConfirmDialog'
 import DuplicateJobDialog from '@/shared/components/DuplicateJobDialog'
 import WorkflowTerminal from '@/shared/components/WorkflowTerminal'
+import QueueDrawer from '@/features/jobs/components/QueueDrawer'
+import AddJobDrawer from '@/features/jobs/components/AddJobDrawer'
 import JobDrawer from '@/features/jobs/components/drawer/JobDrawer'
 import CompanyDrawer from '@/features/companies/components/CompanyDrawer'
 import { toast } from 'sonner'
@@ -32,6 +35,8 @@ function JobsPageAdapter() {
   const [drawer, setDrawer] = useState<any>(null)
   const [drawerTab, setDrawerTab] = useState('details')
   const [companyDrawer, setCompanyDrawer] = useState<any>(null)
+  const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
+  const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
 
   const {
     workflowDrawer, workflowLogs, workflowEndRef,
@@ -39,9 +44,7 @@ function JobsPageAdapter() {
   } = useWorkflow()
 
   const {
-    pending, urlInput, setUrlInput, urlError, setUrlError,
-    submitting, processImmediately, setProcessImmediately,
-    submitUrl, deletePending, processPending, resetPending, pausePending,
+    pending, deletePending, processPending, resetPending, pausePending,
   } = usePending(() => { refreshJobs(); fetchCompanies() })
 
   const {
@@ -70,6 +73,18 @@ function JobsPageAdapter() {
     resumes, setResumes, linkedinProfiles, activeGens, generationResult,
     fetchResumes, fetchLinkedin, generateResume, generateCover, cancelGeneration,
   } = useResume()
+
+  const { createJob, submitting: createSubmitting, error: createError, clearError } = useCreateJob()
+
+  const handleCreateJob = useCallback(async (data: any) => {
+    clearError()
+    const result = await createJob(data)
+    if (result) {
+      setAddJobDrawerOpen(false)
+      refreshJobs()
+      toast.success('Job created successfully')
+    }
+  }, [createJob, clearError, refreshJobs])
 
   useEffect(() => {
     if (!generationResult) return
@@ -184,13 +199,6 @@ function JobsPageAdapter() {
             filteredJobs={filteredJobs}
             jobsTotal={jobsTotal}
             filteredJobsCount={filteredJobs.length}
-            urlInput={urlInput}
-            setUrlInput={setUrlInput}
-            urlError={urlError}
-            setUrlError={setUrlError}
-            submitting={submitting}
-            processImmediately={processImmediately}
-            setProcessImmediately={setProcessImmediately}
             sortBy={sortBy}
             setSortBy={setSortBy}
             sortDir={sortDir}
@@ -216,18 +224,9 @@ function JobsPageAdapter() {
             allCities={allCities}
             allCompanies={allCompanies}
             activeFilterCount={activeFilterCount}
-            collapsedSections={collapsedSections}
-            setCollapsedSections={setCollapsedSections}
             loadingMore={loadingMore}
             jobsScrollRef={jobsScrollRef}
             jobsSentinelRef={jobsSentinelRef}
-            submitUrl={submitUrl}
-            deletePending={deletePending}
-            processPending={processPending}
-            resetPending={resetPending}
-            moveToCreated={resetPending}
-            pausePending={pausePending}
-            openWorkflow={openWorkflow}
             rescoreJob={rescoreJob}
             deleteJob={handleDeleteJob}
             requeueJob={handleRequeueJob}
@@ -236,9 +235,33 @@ function JobsPageAdapter() {
             clearFilters={clearFilters}
             loadMoreJobs={loadMoreJobs}
             onOpenCompany={openCompanyDrawer}
+            openWorkflow={openWorkflow}
+            onOpenQueueDrawer={() => setQueueDrawerOpen(true)}
+            onOpenAddJobDrawer={() => setAddJobDrawerOpen(true)}
           />
         </div>
       </div>
+
+      <QueueDrawer
+        open={queueDrawerOpen}
+        onOpenChange={setQueueDrawerOpen}
+        pending={pending}
+        collapsedSections={collapsedSections}
+        setCollapsedSections={setCollapsedSections}
+        deletePending={deletePending}
+        processPending={processPending}
+        resetPending={resetPending}
+        pausePending={pausePending}
+        openWorkflow={openWorkflow}
+      />
+
+      <AddJobDrawer
+        open={addJobDrawerOpen}
+        onOpenChange={(open) => { setAddJobDrawerOpen(open); if (!open) clearError() }}
+        onSubmit={handleCreateJob}
+        submitting={createSubmitting}
+        error={createError}
+      />
 
       <JobDrawer
         drawer={drawer}

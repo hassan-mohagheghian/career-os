@@ -1,9 +1,11 @@
 """Job CRUD, lifecycle, and generation routes."""
 
+import json
 import threading
 from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, Query
+from fastapi import status as http_status
 
 from dependencies import get_job_repo, get_summary_repo, get_tailored_document_repo, get_session_sync
 
@@ -13,9 +15,35 @@ from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySum
 from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
 
 # Application exceptions
-from shared.application.exceptions import NotFoundError, BadRequestError
+from shared.application.exceptions import NotFoundError, BadRequestError, JobAlreadyExistsError
+
+# Pydantic schemas
+from jobs.presentation.api.schemas.jobs import CreateJobRequest, CreateJobResponse
 
 router = APIRouter()
+
+
+@router.post("", status_code=http_status.HTTP_201_CREATED, response_model=CreateJobResponse)
+def create_job(
+    body: CreateJobRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """Create a new job from a job posting URL."""
+    existing = repo.get_by_url(body.job_post_url)
+    if existing and not existing.get("deleted"):
+        raise JobAlreadyExistsError()
+
+    links_json = json.dumps([l.model_dump() for l in body.links], ensure_ascii=False)
+    notes_json = json.dumps([n.model_dump() for n in body.notes], ensure_ascii=False)
+
+    job = repo.create_job(
+        url=body.job_post_url,
+        title=body.job_title,
+        notes=notes_json,
+        links=links_json,
+    )
+
+    return CreateJobResponse(id=job["num"], status=job["status"])
 
 
 @router.get("")
@@ -35,7 +63,7 @@ def list_jobs(
     filter_scores: str = Query(""),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
-    """Get paginated list of processed (completed) jobs."""
+    """Get paginated list of processed and imported jobs."""
     filters = {
         "filter_tech": filter_tech,
         "filter_cities": filter_cities,
@@ -46,7 +74,7 @@ def list_jobs(
         "filter_response_status": filter_response_status,
         "filter_applied": filter_applied,
         "filter_scores": filter_scores,
-        "filter_status": "completed",
+        "filter_status": "completed,imported",
     }
     filters = {k: v for k, v in filters.items() if v}
 

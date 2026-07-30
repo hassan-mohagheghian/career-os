@@ -46,6 +46,12 @@ class BadRequestError(AppError):
     detail: str = "Bad request"
 
 
+class JobAlreadyExistsError(ConflictError):
+    """Job with the same URL already exists."""
+    code: str = "JOB_ALREADY_EXISTS"
+    detail: str = "A Job with the same primary URL already exists."
+
+
 class ExternalServiceError(AppError):
     """External API call failed."""
     code: str = "EXTERNAL_SERVICE_ERROR"

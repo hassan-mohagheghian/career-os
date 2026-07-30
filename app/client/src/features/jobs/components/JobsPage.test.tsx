@@ -24,13 +24,6 @@ const defaultProps = {
   filteredJobs: [],
   jobsTotal: 0,
   filteredJobsCount: 0,
-  urlInput: '',
-  setUrlInput: vi.fn(),
-  urlError: null,
-  setUrlError: vi.fn(),
-  submitting: false,
-  processImmediately: false,
-  setProcessImmediately: vi.fn(),
   sortBy: 'created_at',
   setSortBy: vi.fn(),
   sortDir: 'desc',
@@ -56,18 +49,9 @@ const defaultProps = {
   allCities: [],
   allCompanies: [],
   activeFilterCount: 0,
-  collapsedSections: {},
-  setCollapsedSections: vi.fn(),
   loadingMore: false,
   jobsScrollRef: { current: null },
   jobsSentinelRef: { current: null },
-  submitUrl: vi.fn(),
-  deletePending: vi.fn(),
-  processPending: vi.fn(),
-  resetPending: vi.fn(),
-  moveToCreated: vi.fn(),
-  pausePending: vi.fn(),
-  openWorkflow: vi.fn(),
   rescoreJob: vi.fn(),
   deleteJob: vi.fn(),
   requeueJob: vi.fn(),
@@ -76,12 +60,15 @@ const defaultProps = {
   clearFilters: vi.fn(),
   loadMoreJobs: vi.fn(),
   onOpenCompany: vi.fn(),
+  openWorkflow: vi.fn(),
+  onOpenQueueDrawer: vi.fn(),
+  onOpenAddJobDrawer: vi.fn(),
 }
 
 describe('JobsPage', () => {
   it('renders Jobs section', () => {
     render(<JobsPage {...defaultProps} />)
-    expect(screen.getByText('Processed Jobs')).toBeInTheDocument()
+    expect(screen.getByText('Jobs List')).toBeInTheDocument()
   })
 
   it('renders all jobs loaded state', () => {

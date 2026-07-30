@@ -26,7 +26,7 @@ function setToast(msg: string) {
 const ACTIVE = new Set(['processing'])
 const PRE_PROCESS = new Set(['created', 'pending', 'queued'])
 const FAILED = new Set(['failed', 'error'])
-const COMPLETED = new Set(['processed', 'cancelled'])
+const COMPLETED = new Set(['processed', 'cancelled', 'imported'])
 
 export default function CardActions({
   status, size = 'sm', disabled = false, error, hasWorkflowLogs,
