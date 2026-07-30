@@ -1,14 +1,16 @@
 """Shared test fixtures and configuration.
 
-Uses PostgreSQL exclusively. Requires DATABASE_URL environment variable.
-Each test is wrapped in a transaction that rolls back after the test.
+Uses PostgreSQL exclusively. Tests connect to a test-specific database
+derived from DATABASE_URL by appending '_test' to the database name.
+The test database is created automatically if it does not exist.
 """
 
 import sys
 import os
+import re
 import pytest
 from unittest.mock import patch
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -21,18 +23,46 @@ import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
 import shared.infrastructure.database.models.misc_models
+import processing.infrastructure.models.processing_execution_model
 
-DB_URL = os.environ.get('DATABASE_URL')
-if not DB_URL:
-    raise RuntimeError("DATABASE_URL is required for tests. Set it to a PostgreSQL connection string.")
+
+def _get_test_db_url() -> str:
+    url = os.environ.get('DATABASE_URL')
+    if not url:
+        raise RuntimeError("DATABASE_URL is required. Set it to a PostgreSQL connection string.")
+    m = re.match(r'^(postgresql(?:\+psycopg)?://[^/]+)/(.+)$', url)
+    if not m:
+        raise RuntimeError(f"Could not parse DATABASE_URL: {url}")
+    return f"{m.group(1)}/{m.group(2)}_test"
+
+
+TEST_DB_URL = os.environ.get('TEST_DATABASE_URL') or _get_test_db_url()
+
+
+def _ensure_test_database():
+    """Create the test database if it does not exist."""
+    url = os.environ.get('DATABASE_URL')
+    m = re.match(r'^(postgresql(?:\+psycopg)?://[^/]+)/.+$', url)
+    admin_url = m.group(1) + '/postgres'
+    db_name = TEST_DB_URL.split('/')[-1]
+    try:
+        admin_engine = create_engine(admin_url)
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+            conn.commit()
+        admin_engine.dispose()
+    except Exception:
+        pass
+
+
+_ensure_test_database()
 
 
 @pytest.fixture(scope="session")
 def _engine():
     from sqlalchemy import create_engine
-    engine = create_engine(DB_URL)
+    engine = create_engine(TEST_DB_URL)
     ensure_schemas()
-    # Drop all existing data so tests start clean
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -80,6 +110,7 @@ def client(sa_session):
         get_summary_repo, get_resume_repo, get_company_link_repo, get_company_intelligence_repo,
         get_pending_generation_repo,
         get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
+        get_processing_execution_repo,
     )
     from exceptions import AppError
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -95,6 +126,7 @@ def client(sa_session):
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from processing.infrastructure.repositories.sa_processing_execution_repository import SQLAlchemyProcessingExecutionRepository
     from shared.presentation.api.root_router import api_router
 
     app = FastAPI(title="Test API")
@@ -127,6 +159,7 @@ def client(sa_session):
     app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)
+    app.dependency_overrides[get_processing_execution_repo] = lambda: SQLAlchemyProcessingExecutionRepository(sa_session)
     app.include_router(api_router)
 
     @app.get("/api/health")

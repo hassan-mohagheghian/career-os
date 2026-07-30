@@ -5,6 +5,10 @@ Uses lazy imports to avoid circular dependencies.
 """
 
 
+# Eager import to register models with Base.metadata for Alembic autogeneration
+from processing.infrastructure.models import processing_execution_model  # noqa: F401
+
+
 def __getattr__(name: str):
     _models = {
         "JobModel": ("jobs.infrastructure.models.job_model", "JobModel"),
@@ -25,6 +29,8 @@ def __getattr__(name: str):
         "CityModel": ("shared.infrastructure.database.models.misc_models", "CityModel"),
 
         "LLMConfigurationModel": ("ai.infrastructure.models.llm_configuration_model", "LLMConfigurationModel"),
+
+        "ProcessingExecutionModel": ("processing.infrastructure.models.processing_execution_model", "ProcessingExecutionModel"),
     }
     if name in _models:
         module_path, attr = _models[name]
@@ -40,4 +46,5 @@ __all__ = [
     "SummaryModel", "ResumeModel", "SkillRoadmapModel", "SkillRoadmapProgressModel",
     "SkillRoadmapJobModel", "RuleModel", "CityModel",
     "LLMConfigurationModel",
+    "ProcessingExecutionModel",
 ]

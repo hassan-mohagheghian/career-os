@@ -102,6 +102,13 @@ def get_tailored_document_repo(session: Session = Depends(get_session)):
     return SQLAlchemyTailoredDocumentRepository(session)
 
 
+# ── Processing Context Dependencies ──────────────────────────────
+
+def get_processing_execution_repo(session: Session = Depends(get_session)):
+    from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
+    return SQLAlchemyProcessingExecutionRepository(session)
+
+
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
 def get_pending_repo(session: Session = Depends(get_session)):

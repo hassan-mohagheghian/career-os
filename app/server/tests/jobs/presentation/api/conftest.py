@@ -1,11 +1,12 @@
 """Conftest for integration API tests."""
 import sys
 import os
+import re
 from contextlib import asynccontextmanager
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
@@ -18,6 +19,48 @@ import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
 import shared.infrastructure.database.models.misc_models
+
+
+def _get_test_db_url() -> str:
+    url = os.environ.get('DATABASE_URL')
+    if not url:
+        raise RuntimeError("DATABASE_URL is required. Set it to a PostgreSQL connection string.")
+    m = re.match(r'^(postgresql(?:\+psycopg)?://[^/]+)/(.+)$', url)
+    if not m:
+        raise RuntimeError(f"Could not parse DATABASE_URL: {url}")
+    return f"{m.group(1)}/{m.group(2)}_test"
+
+
+TEST_DB_URL = os.environ.get('TEST_DATABASE_URL') or _get_test_db_url()
+
+
+def _ensure_test_database():
+    url = os.environ.get('DATABASE_URL')
+    m = re.match(r'^(postgresql(?:\+psycopg)?://[^/]+)/.+$', url)
+    admin_url = m.group(1) + '/postgres'
+    db_name = TEST_DB_URL.split('/')[-1]
+    try:
+        admin_engine = create_engine(admin_url)
+        with admin_engine.connect() as conn:
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+            conn.commit()
+        admin_engine.dispose()
+    except Exception:
+        pass
+
+
+_ensure_test_database()
+
+
+@pytest.fixture(scope="session")
+def _engine():
+    from sqlalchemy import create_engine
+    engine = create_engine(TEST_DB_URL)
+    ensure_schemas()
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
