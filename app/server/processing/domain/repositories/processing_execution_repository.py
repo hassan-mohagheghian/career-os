@@ -20,5 +20,9 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
+    def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
+        ...
+
+    @abstractmethod
     def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:
         ...

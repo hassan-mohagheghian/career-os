@@ -2,37 +2,67 @@
 
 ## Purpose
 
-The Processing Queue provides a real-time view of Jobs that are currently being processed or waiting to be processed.
+The Processing Queue provides a real-time execution view for Jobs that are queued or currently being processed.
 
-It is a temporary execution view and **does not own the Jobs**.
+The Processing Queue does not own Jobs.
 
-Jobs always remain in the Jobs list. The Processing Queue only reflects their current processing state.
+Jobs always remain in the Jobs list.
 
-The queue allows users to:
+The Processing Queue represents temporary processing execution state created by a ProcessingExecution.
+
+The execution relationship is:
+
+Jobs
+
+↓
+
+ProcessingExecution
+
+↓
+
+Background Execution (TaskIQ)
+
+↓
+
+Workflow Execution (LangGraph)
+
+↓
+
+Workflow Steps
+
+The Processing Queue allows users to:
 
 - Monitor background processing.
-- Track processing progress.
-- Manage queued Jobs.
-- Retry failed Jobs.
-- Cancel running Jobs.
+- Track execution state.
+- View workflow progress.
+- Inspect processing steps.
+- Retry failed executions.
+- Cancel running executions.
+- Remove queued or failed execution entries.
 
 ---
 
-# Related Page
+# Related Documents
 
-Opened from:
+Backend concepts:
 
-- `docs/ux/features/jobs/page.md`
+- docs/domain/processing/processing-execution.md
+- docs/domain/processing/job-state-machine.md
+- docs/domain/processing/events.md
 
-Uses:
+Runtime:
 
-- `docs/ux/design-system/drawer.md`
+- docs/architecture/runtime/background-service.md
+- docs/architecture/runtime/background-workflows.md
+- docs/architecture/runtime/workflow-progress.md
 
-Related Flows:
+API:
 
-- `docs/ux/flows/jobs/create-and-queue-job.md`
-- `docs/ux/flows/jobs/retry-job.md`
-- `docs/ux/flows/jobs/cancel-job.md`
+- docs/api/sse/processing-events.md
+
+Design system:
+
+- docs/ux/design-system/drawer.md
 
 ---
 
@@ -42,270 +72,522 @@ Current implementation:
 
 - Drawer
 
-Future implementations may include:
+Future implementations:
 
 - Split View
 - Side Panel
+- Processing Dashboard
 
-The behavior defined in this document is independent of the container type.
-
----
-
-# Drawer
-
-Variant
-
-- `lg`
-
-Placement
-
-- `right`
+The behavior defined in this document is independent from the container type.
 
 ---
 
 # Concept
 
-The Processing Queue is **not** the Jobs list.
+The Processing Queue is not the Jobs list.
 
 Jobs always exist in the Jobs list.
 
-The Queue only contains temporary processing entries.
+The Processing Queue only displays active execution information.
 
-```text
+Example:
+
 Jobs List
-────────────────────────────────────────
 
-Senior Backend Engineer      Imported
+    Senior Backend Engineer     Imported
 
-Python Developer            Queued
+    Python Developer            Queued
 
-Staff Engineer              Processing
+    Staff Engineer              Processing
 
-Frontend Engineer           Failed
-
-Data Engineer               Processed
-
+    Frontend Engineer           Failed
 
 Processing Queue
-────────────────────────────────────────
 
-Processing
+    Processing
 
-• Staff Engineer
+    - Staff Engineer
 
-Queued
 
-• Python Developer
+    Queued
 
-Failed
+    - Python Developer
 
-• Frontend Engineer
-```
 
-When processing finishes successfully:
+    Failed
 
-- The Job remains in the Jobs list.
-- The Job status changes to **Processed**.
-- The Queue entry is removed automatically.
+    - Frontend Engineer
 
-The Job is **never moved** from the Jobs list into the Queue.
+When processing completes successfully:
 
----
+- ProcessingExecution becomes completed.
+- Queue entry is removed.
+- Job remains in Jobs list.
+- Job status changes to Processed.
 
-# Sections
-
-The Processing Queue contains three sections.
-
-```text
-Processing
-
-Queued
-
-Failed
-```
-
-Completed Jobs are **not displayed** in the Processing Queue.
+The Job is never moved between lists.
 
 ---
 
-# Layout
+# Execution Model
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ Processing Queue                                   [Close]   │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│ Processing (2)                                               │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ Senior Backend Engineer                                  │ │
-│ │ Extracting requirements...                               │ │
-│ │ ███████████████─────────────── 62%                       │ │
-│ │                                              [Cancel]    │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│ Queued (4)                                                   │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ Python Developer                                         │ │
-│ │ Waiting for an available worker                          │ │
-│ │                                       [Start] [Remove]   │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│ Failed (1)                                                   │
-│                                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ Staff Engineer                                           │ │
-│ │ Failed to fetch job page                                │ │
-│ │                                      [Retry] [Remove]    │ │
-│ └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
+Each Processing Queue item represents one ProcessingExecution.
+
+The UI should display execution state, not internal implementation details.
+
+The relationship:
+
+Job
+
+↓
+
+ProcessingExecution
+
+↓
+
+Workflow Progress
+
+↓
+
+Workflow Steps
+
+↓
+
+Step Details
+
+The UI must not directly expose:
+
+- LangGraph node names.
+- TaskIQ task names.
+- Worker implementation details.
+
+The UI displays user-facing workflow steps.
+
+---
+
+# Queue Sections
+
+The Processing Queue contains:
+
+- Processing
+- Queued
+- Failed
+
+Completed executions are not displayed.
+
+# Drawer Overview
+
+    ┌─────────────────────────────────────────────┐
+    │ Processing Queue                      Close │
+    ├─────────────────────────────────────────────┤
+    │                                             │
+    │ Processing (2)                              │
+    │                                             │
+    │ ┌─────────────────────────────────────────┐ │
+    │ │ Senior Backend Engineer                 │ │
+    │ │ Preparing Context                       │ │
+    │ │ Fetching Sources                        │ │
+    │ │ ███████████░░░░░ 60%                    │ │
+    │ │                              Details    │ │
+    │ └─────────────────────────────────────────┘ │
+    │                                             │
+    │ Queued (3)                                  │
+    │                                             │
+    │ ┌─────────────────────────────────────────┐ │
+    │ │ Python Developer                        │ │
+    │ │ Waiting for available worker            │ │
+    │ │                         Start Remove    │ │
+    │ └─────────────────────────────────────────┘ │
+    │                                             │
+    │ Failed (1)                                  │
+    │                                             │
+    │ ┌─────────────────────────────────────────┐ │
+    │ │ Frontend Engineer                       │ │
+    │ │ Failed to fetch source                  │ │
+    │ │                         Retry Remove    │ │
+    │ └─────────────────────────────────────────┘ │
+    │                                             │
+    └─────────────────────────────────────────────┘
 
 ---
 
 # Processing
 
-Displays Jobs currently assigned to a worker.
+Processing displays Jobs with active ProcessingExecution.
 
-Displayed information
+Displayed information:
 
-- Job Title
-- Current Step
-- Progress
-- Running Time (optional)
+- Job title.
+- Current workflow step.
+- Progress.
+- Execution duration (optional).
 
-Available actions
+Example:
+
+    Senior Backend Engineer
+
+    Preparing Context
+
+    Fetching Sources
+
+    Progress: 60%
+
+Available actions:
 
 - Cancel
 
-Rules
+Rules:
 
 - Cannot be reordered.
 - Cannot be removed.
-- Only one active processing entry exists per Job.
+- Only one active execution exists per Job.
+
+---
+
+# Workflow Progress
+
+Each Processing item can expand to show workflow progress.
+
+The default view shows only the current user-facing step.
+
+Example:
+
+    Senior Backend Engineer
+
+    Fetching Sources
+
+    [Details]
+
+Expanded view:
+
+    Workflow Progress
+
+
+    ✓ Load Job
+
+
+    ✓ Collect Sources
+
+
+    ⟳ Fetch Sources
+
+        ✓ Primary Job URL
+
+        ⟳ Company Website
+
+        ○ Additional Links
+
+
+    ○ Extract Content
+
+
+    ○ Build Context
+
+
+    ○ Validate Context
+
+Example Expanded Workflow:
+
+    Senior Backend Engineer
+
+    Context Preparation
+
+    Progress: 60%
+
+
+    ┌────────────────────────────────────┐
+    │ Workflow Progress                  │
+    ├────────────────────────────────────┤
+    │                                    │
+    │ ✓ Load Job                         │
+    │                                    │
+    │ ✓ Collect Sources                  │
+    │                                    │
+    │ ⟳ Fetch Content                    │
+    │                                    │
+    │     ✓ Primary Job URL              │
+    │     ⟳ Company Website              │
+    │     ○ Additional Links             │
+    │                                    │
+    │ ○ Extract Content                  │
+    │                                    │
+    │ ○ Build Context                    │
+    │                                    │
+    │ ○ Validate Context                 │
+    │                                    │
+    └────────────────────────────────────┘
+
+---
+
+# Workflow Step Levels
+
+The UI supports two levels.
+
+## Level 1: User-facing Steps
+
+Displayed by default.
+
+Examples:
+
+- Load Job
+- Collect Sources
+- Fetch Content
+- Extract Content
+- Build Context
+- Validate Context
+- Ready For Analysis
+
+## Level 2: Step Details
+
+Displayed after expansion.
+
+Examples:
+
+Fetch Content
+
+    ✓ Primary Job URL
+
+    ✓ Company Website
+
+    ✕ GitHub URL
+
+    Reason:
+    Timeout
+
+---
+
+# Workflow Step State
+
+Workflow steps have independent states.
+
+Possible values:
+
+- Pending
+- Running
+- Completed
+- Failed
+- Skipped
+
+Example:
+
+    Fetch Content
+
+    Running
+
+    Progress: 45%
+
+---
+
+# Queue Entry State
+
+Queue state is different from workflow step state.
+
+Possible values:
+
+- Queued
+- Running
+- Completed
+- Failed
+- Cancelled
+
+Example:
+
+Queue state:
+
+    Running
+
+Workflow state:
+
+    Fetching Sources
+
+These concepts must not be combined.
 
 ---
 
 # Queued
 
-Displays Jobs waiting for an available worker.
+Queued displays Jobs waiting for execution.
 
-Displayed information
+Displayed information:
 
-- Job Title
-- Waiting Reason
-- Queue Position (optional)
+- Job title.
+- Waiting reason.
+- Queue position (optional).
 
-Possible waiting reasons
+Possible waiting reasons:
 
-- Waiting for available worker
-- Waiting after manual pause
-- Scheduled retry
+- Waiting for available worker.
+- Scheduled retry.
+- Manual pause.
 
-Available actions
+Actions:
 
-- Start
-- Remove
+- Start.
+- Remove.
 
-Rules
+Rules:
 
-- Can be reordered.
-- Can be removed from the queue.
-- Removing from the queue does **not** delete the Job.
-
-The Job remains in the Jobs list with status:
-
-```text
-Imported
-```
+- Removing queue entry does not delete Job.
+- Job remains in Jobs list.
+- Queue entry is removed only.
 
 ---
 
 # Failed
 
-Displays Jobs that failed during processing.
+Failed displays failed ProcessingExecutions.
 
-Displayed information
+Displayed information:
 
-- Job Title
-- Failure Reason
-- Last Attempt (optional)
+- Job title.
+- Failure reason.
+- Last attempt time.
 
-Available actions
+Actions:
 
-- Retry
-- Remove
+- Retry.
+- Remove.
 
-Rules
+Rules:
 
-Retry creates a new Queue entry.
+Retry:
 
-Remove only removes the Queue entry.
+- Creates a new ProcessingExecution.
+- Creates a new queue entry.
 
-The Job remains in the Jobs list.
+Remove:
+
+- Removes queue visibility only.
+- Does not delete Job.
+
+Failed Execution Detail:
+
+    ┌──────────────────────────────────┐
+    │ Frontend Engineer                │
+    ├──────────────────────────────────┤
+    │                                  │
+    │ Status                           │
+    │ Failed                           │
+    │                                  │
+    │ Step                             │
+    │ Fetch Content                    │
+    │                                  │
+    │ Error                            │
+    │ Primary URL timeout              │
+    │                                  │
+    │             Retry   Remove       │
+    │                                  │
+    └──────────────────────────────────┘
 
 ---
 
 # Processing Completion
 
-When processing finishes successfully:
+When execution completes successfully:
 
-1. Remove the Queue entry.
-2. Update the Job status in the Jobs list if is in that list.
+1. Mark ProcessingExecution as completed.
+2. Remove queue entry.
+3. Update Job status.
+4. Notify frontend through SSE.
 
-Example
+Before:
 
-Before
-
-```text
 Jobs List
 
-Python Developer      Processing
-```
+    Python Developer     Processing
 
-```text
 Processing Queue
 
-Processing
+    Processing
 
-• Python Developer
-```
+    - Python Developer
 
-After
+After:
 
-```text
 Jobs List
 
-Python Developer      Processed
-```
+    Python Developer     Processed
 
-```text
 Processing Queue
 
-(empty)
-```
-
-The Job is **never moved** between the Jobs list and the Processing Queue.
-
-Only its processing status changes.
+    Empty
 
 ---
 
-# Empty State
+# Real-Time Updates
 
-If there are no active Jobs:
+The Processing Queue updates through SSE.
 
-```text
-No Jobs are currently being processed.
+The frontend does not poll.
 
-Jobs added to the queue will appear here.
-```
+Supported events:
+
+- execution.created
+- execution.started
+- workflow.step.started
+- workflow.step.progress
+- workflow.step.completed
+- workflow.step.failed
+- execution.completed
+- execution.failed
+- execution.cancelled
+
+Live Update Example:
+
+Before SSE event:
+
+    Fetch Content
+
+    ⟳ Running
+
+After SSE event:
+
+    Fetch Content
+
+    ✓ Completed
+
+Next step automatically becomes active:
+
+    ⟳ Extract Content
+
+---
+
+# SSE Event Mapping
+
+The backend should expose presentation-oriented workflow events.
+
+The frontend should not depend on internal workflow implementation.
+
+Example mapping:
+
+Backend:
+
+    FetchSourcesNode
+
+Frontend:
+
+    Fetching Sources
+
+---
+
+# Workflow Progress Example
+
+A processing execution can expose:
+
+    Context Preparation
+
+
+    ✓ Load Job
+
+    ✓ Collect Sources
+
+    ⟳ Fetch Sources
+
+    ○ Extract Content
+
+    ○ Build Context
+
+    ○ Validate Context
 
 ---
 
@@ -314,59 +596,71 @@ Jobs added to the queue will appear here.
 The Processing Queue updates automatically when:
 
 - A Job is queued.
-- Processing starts.
+- Execution starts.
+- Workflow step changes.
 - Progress changes.
-- Processing completes.
-- Processing fails.
-- Processing is cancelled.
-- A Job is retried.
+- Execution completes.
+- Execution fails.
+- Execution is cancelled.
+- Execution is retried.
 
-Manual refresh should not be required.
+Manual refresh is not required.
 
 ---
 
 # Actions
 
-| Action | Description                                   |
-| ------ | --------------------------------------------- |
-| Cancel | Stop a running Job                            |
-| Start  | Start processing a queued Job (when possible) |
-| Retry  | Create a new Queue entry for a failed Job     |
-| Remove | Remove the Job from the Processing Queue only |
+| Action | Description                                |
+| ------ | ------------------------------------------ |
+| Cancel | Stop running execution                     |
+| Start  | Start queued execution                     |
+| Retry  | Create new execution from failed execution |
+| Remove | Remove queue entry only                    |
 
 ---
 
 # Queue Rules
 
-- A Job can have at most one active Queue entry.
-- Jobs are never removed from the Jobs list when queued.
-- Processing Queue entries are temporary.
-- Completed Jobs are automatically removed from the Queue.
-- Failed Jobs remain in the Queue until removed or retried.
-- Removing a Queue entry never deletes the Job.
-- The Jobs list is the source of truth.
-- The Processing Queue is a live execution view.
+- Jobs are the source of truth.
+- Processing Queue is a live execution view.
+- ProcessingExecution owns execution lifecycle.
+- A Job has at most one active execution.
+- Completed executions disappear from Queue.
+- Failed executions remain until retry or removal.
+- Removing queue entry never deletes Job.
+- Workflow details are expandable.
+- Internal workflow implementation is hidden.
 
 ---
 
-# States
+# Final UI Model
 
-- Empty
-- Queued
-- Processing
-- Failed
+Job
+
+↓
+
+ProcessingExecution
+
+↓
+
+Queue Entry
+
+↓
+
+Workflow Progress
+
+↓
+
+Workflow Steps
+
+↓
+
+Step Details
 
 ---
 
-# Related Documents
+# Empty State
 
-- `features/jobs/page.md`
-- `features/jobs/add-job.md`
-- `flows/jobs/create-and-queue-job.md`
-- `flows/jobs/retry-job.md`
-- `flows/jobs/cancel-job.md`
-- `docs/job-state-machine.md`
+No Jobs are currently being processed.
 
-```
-
-```
+Jobs added to the queue will appear here.

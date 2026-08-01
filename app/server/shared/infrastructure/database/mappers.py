@@ -20,6 +20,7 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
     """Convert a JobModel to a domain dictionary."""
     return {
         "num": model.num,
+        "id": model.id,
         "company": model.company,
         "role": model.role,
         "location": model.location,

@@ -19,7 +19,8 @@ dependencies = [
     "langchain-core>=0.3.0",
     "sqlalchemy>=2.0",
     "alembic>=1.13",
-    "arq>=0.26",
+    "taskiq>=0.12",
+    "taskiq-redis>=1.2",
     "redis>=5.0",
     "langchain>=1.3.14",
     "httpx>=0.28.1",
@@ -49,7 +50,10 @@ start = "app.start:app"
 
 [tool.pytest.ini_options]
 testpaths = ["app/server/tests"]
-addopts = "--tb=short -q"
+addopts = "--tb=short -q -m 'not slow'"
+markers = [
+    "slow: tests that take longer than 2s and are skipped in normal runs",
+]
 filterwarnings = [
     "ignore::DeprecationWarning:sqlalchemy.*",
     "ignore::ResourceWarning",
@@ -60,8 +64,23 @@ filterwarnings = [
 
 [dependency-groups]
 dev = [
+    "coverage>=7.15.2",
     "httpx2>=2.9.1",
+    "pytest-cov>=7.1.0",
 ]
 test = [
     "httpx2>=2.9.1",
+    "pytest-timeout>=2.4.0",
 ]
+
+[tool.coverage.run]
+source = ["app/server"]
+omit = [
+    "app/server/tests/*",
+    "app/server/**/__init__.py",
+    "app/server/db/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

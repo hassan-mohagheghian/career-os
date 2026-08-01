@@ -366,7 +366,6 @@ class ObservabilityEvent:
     """Observability tracking data for a workflow execution."""
     execution_id: str
     workflow_id: str
-    arq_job_id: Optional[str] = None
     correlation_id: Optional[str] = None
     current_node: str = ''
     current_state: str = ''

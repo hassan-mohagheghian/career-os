@@ -40,7 +40,7 @@ def delete_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pend
 @router.post("/{id}/process")
 def process_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Enqueue a pending job for processing."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
     item = repo.get_by_id(id, "pending_jobs")
     if not item:
         raise NotFoundError(f"Pending job {id} not found")
@@ -60,7 +60,7 @@ def reset_pending(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pendi
 @router.post("/process-all")
 def process_all(repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
     """Queue all created jobs for processing."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
     items = repo.list_pending("pending_jobs")
     ids = [i["id"] for i in items if i.get("status") == "created"]
     for pid in ids:

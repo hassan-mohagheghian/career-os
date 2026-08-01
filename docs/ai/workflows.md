@@ -1,101 +1,341 @@
-# AI Workflow Graphs
+# AI Workflows
 
-## Overview
+## Purpose
 
-All AI generation workflows are implemented as LangGraph-based state machines. Each graph is a self-contained pipeline that owns its prompts, returns typed Pydantic models, and supports retry, checkpointing, and streaming.
+This document describes the AI workflow architecture.
 
-## Architecture
+AI workflows define how complex processing tasks are orchestrated using LangGraph.
 
-```
-graphs/
-├── runtime/                    # Core graph infrastructure
-│   ├── state.py               # BaseState TypedDict + Pydantic output models
-│   ├── graph.py               # GraphBuilder + CompiledGraph
-│   ├── executor.py            # AgentExecutor with retry support
-│   └── registry.py            # AgentRegistry for discovery
-├── job/                        # Job processing workflows
-│   ├── graph.py               # Job processing pipeline
-│   ├── extractor.py           # Job extraction agent
-│   ├── analyzer.py            # Job analysis agent
-│   └── scorer.py              # Job scoring agent
-├── company/                    # Company intelligence workflows
-│   ├── graph.py               # Company processing pipeline
-│   ├── researcher.py          # Company research agent
-│   └── evaluator.py           # Company evaluation agent
-├── resume/                     # Resume generation workflows
-│   ├── generator.py           # Resume generation pipeline
-│   └── cover_letter.py        # Cover letter generation pipeline
-├── skills/                     # Skill management workflows
-│   ├── extraction.py          # Skill extraction pipeline
-│   ├── roadmap.py             # Skill roadmap generation
-│   └── intelligence.py        # Skill intelligence agent
-├── insights/                   # Career insights workflows
-│   ├── graph.py               # All insight graphs (6 children + parent)
-│   └── generator.py           # Insights generation agent
-└── generate_all.py            # Parent orchestrator graph
-```
+A workflow is responsible for coordinating multiple processing steps such as:
 
-## Available Graphs
+- Data fetching
+- Content extraction
+- Analysis
+- LLM execution
+- Scoring
+- Insight generation
 
-| Graph Name | Description | Entry Point |
-|------------|-------------|-------------|
-| `job_processing` | Job posting analysis pipeline | `validate_input` |
-| `company_processing` | Company intelligence pipeline | `validate_input` |
-| `resume_generation` | Tailored resume creation | `load_resume` |
-| `cover_letter_generation` | Cover letter creation | `load_resume` |
-| `skill_extraction` | Skill extraction from jobs | `load_jobs` |
-| `skill_roadmap` | Learning roadmap generation | `load_current_skills` |
-| `insights` | Career intelligence (6 sections) | `overview` |
-| `generate_all` | Parent orchestrator | `job_processing` |
+---
 
-## Usage
+# Workflow Architecture
 
-```python
-from ai.infrastructure.graphs import get_graph, get_all_graphs
+The workflow execution architecture:
 
-# Get a specific graph
-graph = get_graph("job_processing")
-compiled = graph.compile()
-result = compiled.invoke(create_initial_state(input="https://..."))
+API
 
-# Get all graphs
-graphs = get_all_graphs()
-for name, builder in graphs.items():
-    compiled = builder.compile()
-    # ...
-```
+↓
 
-## State Flow
+ProcessingExecution
 
-Each graph uses `BaseState` (TypedDict) flowing through nodes:
+↓
 
-```python
-BaseState = {
-    "input": str,           # User input
-    "output": str,          # Final output (JSON)
-    "context": dict,        # Shared context (provider, config)
-    "errors": list[str],    # Error messages
-    "metadata": dict,       # Intermediate data
-    "node_history": list,   # Executed node names
-}
-```
+TaskIQ Background Task
 
-## Typed Outputs
+↓
 
-Every graph returns strongly typed Pydantic models:
+LangGraph Workflow
 
-- `JobExtractionOutput` / `JobAnalysisOutput`
-- `CompanyExtractionOutput` / `CompanyAnalysisOutput`
-- `ResumeOutput`
-- `CoverLetterOutput`
-- `SkillExtractionOutput`
-- `SkillRoadmapOutput`
-- `InsightSectionOutput` / `CareerInsightsOutput`
+↓
 
-## Common Features
+Workflow Nodes
 
-- **Retry**: Configurable per-node with `builder.set_retry("node", max_retries=3)`
-- **Checkpoint**: Via LangGraph's `MemorySaver`
-- **Streaming**: Via `compiled.stream(state)`
-- **Error Recovery**: Partial failure support in insights graph
-- **Provider Abstraction**: All LLM calls through `LLMProvider` interface
+↓
+
+LLM Providers / Tools
+
+↓
+
+Result
+
+---
+
+# Workflow Engine
+
+LangGraph is the workflow execution engine.
+
+LangGraph provides:
+
+- Graph-based execution
+- Node orchestration
+- State management
+- Checkpointing
+- Recovery
+- Resumable execution
+
+Workflows should not be implemented as manually chained function calls.
+
+---
+
+# Workflow Responsibilities
+
+A workflow is responsible for:
+
+- Defining execution steps
+- Connecting processing nodes
+- Managing workflow transitions
+- Coordinating tools and providers
+- Producing intermediate results
+
+A workflow is not responsible for:
+
+- Queue management
+- Worker lifecycle
+- User authorization
+- Job lifecycle management
+
+---
+
+# Relationship With ProcessingExecution
+
+Each workflow execution belongs to a ProcessingExecution.
+
+Relationship:
+
+Job
+
+|
+
+ProcessingExecution
+
+|
+
+LangGraph Workflow Run
+
+ProcessingExecution manages:
+
+- Execution lifecycle
+- User-visible status
+- Failure state
+
+LangGraph manages:
+
+- Workflow state
+- Node execution
+- Checkpoints
+
+---
+
+# Workflow State
+
+Workflow state is owned by LangGraph.
+
+The state contains:
+
+- Current node
+- Intermediate results
+- Tool outputs
+- LLM responses
+- Temporary workflow data
+- Execution context
+
+Workflow state should not be stored inside Job entities.
+
+---
+
+# Checkpointing
+
+LangGraph checkpoints allow workflows to:
+
+- Resume after failures
+- Continue interrupted executions
+- Persist intermediate state
+
+Checkpoint data is separate from business data.
+
+Business data:
+
+PostgreSQL
+
+Workflow state:
+
+LangGraph checkpoint storage
+
+---
+
+# Workflow Nodes
+
+A workflow consists of multiple nodes.
+
+Example:
+
+Job URL
+
+↓
+
+Fetch Content Node
+
+↓
+
+Extract Information Node
+
+↓
+
+Analyze Content Node
+
+↓
+
+LLM Analysis Node
+
+↓
+
+Score Generation Node
+
+↓
+
+Career Guidance Node
+
+Each node:
+
+- Receives workflow state
+- Performs one responsibility
+- Updates workflow state
+
+---
+
+# Job Processing Workflow
+
+Example:
+
+1. Receive Job
+
+2. Fetch external data
+
+3. Extract information
+
+4. Analyze company and role
+
+5. Send context to LLM provider
+
+6. Generate score
+
+7. Generate career guidance
+
+8. Persist final result
+
+---
+
+# Tool Integration
+
+Workflow nodes can use tools.
+
+Examples:
+
+- Web fetching
+- Search providers
+- Data extraction tools
+- LLM providers
+
+Tools are called by workflow nodes.
+
+---
+
+# Failure Handling
+
+Failures can happen at different levels.
+
+## Task Execution Failure
+
+Examples:
+
+- Worker crash
+- Redis unavailable
+
+Handled by:
+
+- TaskIQ retry mechanism
+
+## Workflow Failure
+
+Examples:
+
+- Invalid state
+- Provider failure
+- Node execution error
+
+Handled by:
+
+- LangGraph checkpoints
+- Workflow recovery
+
+## Business Failure
+
+Examples:
+
+- Invalid job data
+- Missing required information
+
+Handled by:
+
+- Domain validation
+
+---
+
+# Progress Reporting
+
+Workflow progress is exposed through events.
+
+Flow:
+
+LangGraph Node
+
+↓
+
+Workflow Event
+
+↓
+
+Processing Event
+
+↓
+
+SSE
+
+↓
+
+Frontend
+
+Related:
+
+docs/api/sse/processing-events.md
+
+---
+
+# Workflow Lifecycle
+
+Created
+
+↓
+
+Initialized
+
+↓
+
+Running
+
+↓
+
+Checkpointed
+
+↓
+
+Completed
+
+or
+
+Running
+
+↓
+
+Failed
+
+---
+
+# Related Documents
+
+- docs/domain/processing/processing-execution.md
+- docs/domain/processing/events.md
+- docs/architecture/runtime/background-service.md
+- docs/architecture/runtime/background-workflows.md
+- docs/queue/processing/taskiq-processing.md
+- docs/ai/langgraph.md
+- docs/ai/langgraph-state.md

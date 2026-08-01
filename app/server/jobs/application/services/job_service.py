@@ -1,0 +1,30 @@
+"""JobService — application service for loading Job information.
+
+The Job Context bounded context owns Job loading. The processing workflow
+depends on this service (via the Job repository) rather than accessing the
+database directly from workflow nodes.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from jobs.domain.repositories.job_repository import IJobRepository
+from shared.application.exceptions import NotFoundError
+
+
+class JobService:
+    def __init__(self, repository: IJobRepository):
+        self._repository = repository
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        """Load a job by its UUID or numeric identifier."""
+        if job_id.isdigit():
+            return self._repository.get_by_num(int(job_id))
+        return self._repository.get_by_id(job_id)
+
+    def get_job_or_raise(self, job_id: str) -> dict[str, Any]:
+        job = self.get_job(job_id)
+        if not job:
+            raise NotFoundError(f"Job {job_id} not found")
+        return job

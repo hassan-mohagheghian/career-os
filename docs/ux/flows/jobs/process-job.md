@@ -36,7 +36,7 @@ Set status QUEUED
 
 ↓
 
-Push execution to ARQ queue
+Push execution to TaskIQ queue
 
 ↓
 

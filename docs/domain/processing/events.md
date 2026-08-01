@@ -1,62 +1,95 @@
-# Processing Events
+# Processing Domain Events
 
 ## Purpose
 
-Defines the domain events emitted during the lifecycle of a `ProcessingExecution`.
+This document describes domain events generated during processing execution.
 
-These events describe business state changes inside the Processing bounded context.
+Domain events represent important changes in the processing lifecycle.
 
-The events are independent from their delivery mechanism.
+They allow different parts of the system to react without creating direct dependencies.
 
-Currently they are delivered to the frontend through Server-Sent Events (SSE), but other transports (WebSocket, Redis Pub/Sub, Kafka, etc.) may be introduced in the future without changing the event definitions.
+Domain events are independent from:
 
----
-
-## Event Lifecycle
-
-Every ProcessingExecution emits events as it progresses.
-
-Typical lifecycle:
-
-ExecutionQueued
-
-↓
-
-ExecutionStarted
-
-↓
-
-ExecutionStepChanged
-
-↓
-
-ExecutionCompleted
-
-or
-
-ExecutionFailed
+- TaskIQ
+- Redis
+- SSE transport
+- Frontend implementation
+- LangGraph implementation
 
 ---
 
-## Events
+# Event Architecture
 
-### ExecutionQueued
+Event flow:
 
-Published when a ProcessingExecution is successfully created and added to the processing queue.
+ProcessingExecution
+
+↓
+
+Domain Event
+
+↓
+
+Event Handler
+
+↓
+
+Consumers
+
+Examples:
+
+- Persistence
+- Notifications
+- SSE publishing
+- Analytics
+
+---
+
+# Event Categories
+
+Processing events are divided into two categories:
+
+1. Execution Lifecycle Events
+2. Workflow Progress Events
+
+---
+
+# Execution Lifecycle Events
+
+These events represent changes in ProcessingExecution.
+
+## ProcessingExecutionCreated
+
+Triggered when a new execution is created.
 
 Payload:
 
 - execution_id
-- execution_type
-- target_type
-- target_id
-- queued_at
+- job_id
+- created_at
 
 ---
 
-### ExecutionStarted
+## ProcessingExecutionQueued
 
-Published when a worker begins processing the execution.
+Triggered when execution is dispatched for background processing.
+
+Payload:
+
+- execution_id
+- queued_at
+
+Note:
+
+This event does not depend on TaskIQ.
+
+TaskIQ is only the current execution mechanism.
+
+---
+
+## ProcessingExecutionStarted
+
+Triggered when processing begins.
 
 Payload:
 
@@ -65,94 +98,269 @@ Payload:
 
 ---
 
-### ExecutionStepChanged
+## ProcessingExecutionCompleted
 
-Published whenever the workflow enters a new processing step.
-
-Payload:
-
-- execution_id
-- current_step
-- current_step_index
-- total_steps
-- progress
-- message
-- updated_at
-
-This event is expected to be emitted multiple times during a single execution.
-
----
-
-### ExecutionCompleted
-
-Published after the workflow successfully finishes.
+Triggered after successful completion.
 
 Payload:
 
 - execution_id
 - completed_at
-- duration
 
 ---
 
-### ExecutionFailed
+## ProcessingExecutionFailed
 
-Published when processing terminates with an unrecoverable error.
+Triggered when execution fails.
 
 Payload:
 
 - execution_id
-- failed_at
-- error_code
 - error_message
+- failed_at
 
 ---
 
-## Ordering
+# Workflow Events
 
-Events must always be emitted in chronological order.
+Workflow events represent progress inside LangGraph execution.
 
-For a single execution:
+Examples:
 
-ExecutionQueued
+## WorkflowStarted
 
-↓
+The LangGraph workflow has started.
 
-ExecutionStarted
+Payload:
 
-↓
-
-ExecutionStepChanged*
-
-↓
-
-ExecutionCompleted | ExecutionFailed
-
-`ExecutionStepChanged` may occur zero or more times.
+- execution_id
+- workflow_id
 
 ---
 
-## Event Ownership
+## WorkflowNodeStarted
 
-The Processing bounded context owns these events.
+A workflow node started execution.
 
-Other bounded contexts may subscribe to them, but they must never modify or publish Processing events.
+Payload:
+
+- execution_id
+- node_name
 
 ---
 
-## Delivery
+## WorkflowNodeCompleted
 
-The Processing bounded context only defines the events.
+A workflow node completed.
 
-Transport is an infrastructure concern.
+Payload:
 
-Current implementation:
+- execution_id
+- node_name
+- result_metadata
 
-- Server-Sent Events (SSE)
+---
 
-Possible future transports:
+## WorkflowProgressUpdated
 
-- WebSocket
-- Redis Pub/Sub
-- Kafka
-- NATS
+Workflow progress changed.
+
+Payload:
+
+- execution_id
+- stage
+- progress
+
+---
+
+## WorkflowCompleted
+
+Workflow finished successfully.
+
+---
+
+## WorkflowFailed
+
+Workflow execution failed.
+
+Payload:
+
+- execution_id
+- node_name
+- error
+
+---
+
+# Event Ownership
+
+## Domain Layer
+
+Owns:
+
+- ProcessingExecution lifecycle events
+
+Examples:
+
+- Created
+- Queued
+- Started
+- Completed
+- Failed
+
+---
+
+## Workflow Layer
+
+Owns:
+
+- Workflow execution events
+
+Examples:
+
+- Node started
+- Node completed
+- Workflow progress
+
+---
+
+## Infrastructure Layer
+
+Consumes events for:
+
+- SSE publishing
+- Logging
+- Metrics
+- Notifications
+
+---
+
+# Event Persistence
+
+Not all events need permanent storage.
+
+## Persistent Events
+
+Examples:
+
+- Execution created
+- Execution completed
+- Execution failed
+
+Stored in PostgreSQL.
+
+## Temporary Events
+
+Examples:
+
+- Node progress
+- Intermediate workflow updates
+
+May be stored through:
+
+- LangGraph checkpoints
+- Event streaming mechanisms
+
+---
+
+# SSE Integration
+
+SSE consumes events but does not create them.
+
+Flow:
+
+Domain Event
+
+↓
+
+Event Handler
+
+↓
+
+SSE Publisher
+
+↓
+
+Frontend Client
+
+The frontend only receives events through the API layer.
+
+---
+
+# TaskIQ Integration
+
+TaskIQ does not produce domain events directly.
+
+Incorrect:
+
+TaskIQ Worker
+
+↓
+
+TaskIQ Event
+
+↓
+
+Frontend
+
+Correct:
+
+TaskIQ Worker
+
+↓
+
+ProcessingExecution Update
+
+↓
+
+Domain Event
+
+↓
+
+SSE
+
+---
+
+# Example Processing Flow
+
+1. API creates execution
+
+Event:
+
+ProcessingExecutionCreated
+
+2. TaskIQ task dispatched
+
+Event:
+
+ProcessingExecutionQueued
+
+3. Worker starts workflow
+
+Event:
+
+ProcessingExecutionStarted
+
+4. LangGraph nodes execute
+
+Events:
+
+WorkflowNodeStarted
+
+WorkflowNodeCompleted
+
+5. Workflow finishes
+
+Event:
+
+ProcessingExecutionCompleted
+
+---
+
+# Related Documents
+
+- docs/domain/processing/processing-execution.md
+- docs/api/sse/processing-events.md
+- docs/architecture/runtime/background-service.md
+- docs/architecture/runtime/background-workflows.md
+- docs/queue/processing/taskiq-processing.md
+- docs/ai/langgraph-state.md

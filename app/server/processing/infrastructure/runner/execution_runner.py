@@ -1,0 +1,179 @@
+"""Worker-side ProcessingExecution runner.
+
+Drives a ProcessingExecution through its lifecycle by coordinating the
+LangGraph workflow execution:
+
+    Load ProcessingExecution
+        ↓
+    Mark execution running
+        ↓
+    Start LangGraph workflow
+        ↓
+    Complete or fail execution
+
+TaskIQ starts this runner (via process_execution_task). The runner updates
+ProcessingExecution state and publishes processing events for SSE delivery.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, UTC
+
+from processing.domain.enums import ExecutionStatus, ExecutionType
+from processing.infrastructure.repositories.sa_processing_execution_repository import (
+    SQLAlchemyProcessingExecutionRepository,
+)
+from shared.infrastructure.database.session import get_session_sync
+from shared.infrastructure.events import processing_events
+from shared.infrastructure.process.logging_config import get_logger
+
+log = get_logger("processing.runner")
+
+
+class ProcessingExecutionRunner:
+    """Executes a ProcessingExecution and updates its lifecycle state."""
+
+    def __init__(self, repository=None, job_repository=None):
+        self._repository = repository
+        self._job_repository = job_repository
+
+    def run(self, execution_id: str) -> dict:
+        session = None
+        try:
+            if self._repository is not None:
+                repo = self._repository
+                job_repo = self._job_repository
+            else:
+                session = get_session_sync()
+                repo = SQLAlchemyProcessingExecutionRepository(session)
+                job_repo = None
+            execution = repo.get_by_id(execution_id)
+            if not execution:
+                raise RuntimeError(f"ProcessingExecution {execution_id} not found")
+
+            job_id = self._job_id(execution)
+            started_at = datetime.now(UTC)
+
+            execution.status = ExecutionStatus.RUNNING
+            execution.started_at = started_at
+            repo.save(execution)
+            processing_events.publish_sync(
+                processing_events.EXECUTION_STARTED,
+                execution.id,
+                job_id,
+                ExecutionStatus.RUNNING.value,
+                updated_at=started_at.isoformat(),
+            )
+            processing_events.publish_sync(
+                processing_events.EXECUTION_STEP_CHANGED,
+                execution.id,
+                job_id,
+                ExecutionStatus.RUNNING.value,
+                current_step="workflow_started",
+                progress=0.0,
+                message="Workflow execution started",
+                updated_at=started_at.isoformat(),
+            )
+
+            try:
+                result = self._run_workflow(execution, job_repo, session)
+            except Exception as e:
+                finished_at = datetime.now(UTC)
+                execution.status = ExecutionStatus.FAILED
+                execution.finished_at = finished_at
+                execution.error_message = str(e)
+                repo.save(execution)
+                processing_events.publish_sync(
+                    processing_events.EXECUTION_FAILED,
+                    execution.id,
+                    job_id,
+                    ExecutionStatus.FAILED.value,
+                    message=str(e),
+                    updated_at=finished_at.isoformat(),
+                )
+                log.error("processing.execution.failed", execution_id=execution.id, error=str(e))
+                raise
+
+            finished_at = datetime.now(UTC)
+            execution.status = ExecutionStatus.COMPLETED
+            execution.finished_at = finished_at
+            repo.save(execution)
+            processing_events.publish_sync(
+                processing_events.EXECUTION_COMPLETED,
+                execution.id,
+                job_id,
+                ExecutionStatus.COMPLETED.value,
+                updated_at=finished_at.isoformat(),
+            )
+            log.info("processing.execution.completed", execution_id=execution.id)
+            return result
+        finally:
+            if session is not None:
+                session.close()
+
+    @staticmethod
+    def _job_id(execution) -> str | None:
+        """Map a processing execution to the job_id used in SSE payloads.
+
+        The new processing features identify jobs by their UUID `id`, so the
+        SSE payload carries the job's UUID rather than the numeric `num`.
+        """
+        if execution.target_type == "job":
+            return execution.target_id
+        return None
+
+    def _run_workflow(self, execution, job_repo=None, session=None) -> dict:
+        """Start the LangGraph workflow matching the execution's type.
+
+        Business logic is not duplicated here — the runner delegates to the
+        existing application workers / workflows that own LangGraph execution.
+
+        JOB_PROCESSING executions run the JobContextPreparationGraph (no LLM).
+        """
+        if execution.execution_type == ExecutionType.JOB_PROCESSING:
+            from processing.domain.workflow.job_processing_state import JobProcessingState
+            from processing.infrastructure.workflow import build_job_context_preparation_graph
+
+            graph_session = session
+            owns_session = False
+            if graph_session is None:
+                graph_session = get_session_sync()
+                owns_session = True
+            try:
+                graph = build_job_context_preparation_graph(graph_session)
+                state = JobProcessingState(
+                    execution_id=execution.id,
+                    job_id=self._job_id(execution) or "",
+                )
+                final = graph.invoke(state)
+                if final.status == ExecutionStatus.FAILED:
+                    raise RuntimeError("; ".join(final.errors) or "Job context preparation failed")
+                return {"job_id": self._job_id(execution)}
+            finally:
+                if owns_session:
+                    graph_session.close()
+
+        if execution.execution_type == ExecutionType.COMPANY_PROCESSING:
+            from companies.infrastructure.workers.company_worker import process_company
+
+            process_company(self._resolve_company_id(execution))
+            return {"company_id": execution.target_id}
+
+        if execution.execution_type in (
+            ExecutionType.RESUME_GENERATION,
+            ExecutionType.COVER_LETTER_GENERATION,
+            ExecutionType.RESUME_OPTIMIZATION,
+        ):
+            from jobs.infrastructure.workers.generation_worker import process_generation
+
+            process_generation(execution.target_id)
+            return {"gen_id": execution.target_id}
+
+        raise RuntimeError(f"Unsupported execution type: {execution.execution_type}")
+
+    @staticmethod
+    def _resolve_company_id(execution) -> int:
+        target_id = execution.target_id
+        if target_id.isdigit():
+            return int(target_id)
+        raise ValueError(f"Invalid company id: {target_id}")

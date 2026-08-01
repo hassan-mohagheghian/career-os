@@ -1,13 +1,18 @@
-"""ARQ worker entrypoint — runs background workers.
+"""TaskIQ worker entrypoint — runs background workers.
 
 Usage:
-    python -m background.entrypoint
+    python -m background.main
+    BACKGROUND_WORKER=true python app/start.py dev
+
+The worker consumes the RedisStreamBroker declared in
+`shared.infrastructure.taskiq.config` and executes the tasks defined in
+`shared.infrastructure.taskiq.tasks`.
 
 Environment variables:
     REDIS_HOST, REDIS_PORT, REDIS_PASSWORD — Redis connection
     WORKER_CONCURRENCY — number of concurrent worker processes
-    WORKER_MAX_RETRIES — max retry attempts per job
-    WORKER_JOB_TIMEOUT — job timeout in seconds
+    WORKER_MAX_RETRIES — max retry attempts per task
+    WORKER_JOB_TIMEOUT — task timeout in seconds
 """
 
 import os
@@ -20,52 +25,32 @@ _server_dir = os.path.abspath(
 if _server_dir not in sys.path:
     sys.path.insert(0, _server_dir)
 
-import asyncio
+from taskiq.cli.worker.args import WorkerArgs, LogLevel
+from taskiq.cli.worker.run import run_worker
 
-from arq import create_pool
-from arq.worker import Worker as ArqWorker
-
-from background.config.settings import (
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_PASSWORD,
+from shared.infrastructure.taskiq.config import (
     WORKER_CONCURRENCY,
-    WORKER_POLL_INTERVAL,
-    WORKER_BURST,
-    MAX_RETRIES,
-    JOB_TIMEOUT,
     LOG_LEVEL,
 )
-from background.queue.arq_queue import FUNCTIONS, redis_settings
-from background.telemetry.logging import init_logging
+
+BROKER = "shared.infrastructure.taskiq.config:broker"
+TASK_MODULES = ["shared.infrastructure.taskiq.tasks"]
 
 
-init_logging(level=LOG_LEVEL)
-
-
-async def create_worker() -> ArqWorker:
-    pool = await create_pool(redis_settings())
-
-    async def shutdown(ctx: dict) -> None:
-        await pool.aclose()
-
-    worker = ArqWorker(
-        redis_pool=pool,
-        functions=FUNCTIONS,
-        max_jobs=WORKER_CONCURRENCY,
-        poll_delay=WORKER_POLL_INTERVAL,
-        burst=WORKER_BURST,
-        max_tries=MAX_RETRIES,
-        job_timeout=JOB_TIMEOUT,
-        on_shutdown=shutdown,
+def create_worker_args() -> WorkerArgs:
+    return WorkerArgs(
+        broker=BROKER,
+        modules=TASK_MODULES,
+        app_dir=_server_dir,
+        configure_logging=True,
+        log_level=LogLevel[LOG_LEVEL.upper()],
+        workers=WORKER_CONCURRENCY,
     )
-    return worker
 
 
-async def main():
-    worker = await create_worker()
-    await worker.async_run()
+def main() -> None:
+    run_worker(create_worker_args())
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

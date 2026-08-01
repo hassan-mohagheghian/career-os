@@ -42,7 +42,7 @@ Event Broadcaster
 
 ↓
 
-ARQ Worker
+TaskIQ Worker
 
 ↓
 

@@ -302,6 +302,10 @@ def create_app() -> FastAPI:
     from shared.presentation.api.root_router import api_router
     app.include_router(api_router)
 
+    # ── Processing-events SSE (no /api prefix — frontend subscribes at /events/processing) ──
+    from shared.presentation.api.processing_events_router import router as processing_events_router
+    app.include_router(processing_events_router, prefix="/events", tags=["processing-events"])
+
     # ── Health Check ─────────────────────────────────────────────
     @app.get("/api/health")
     async def health():

@@ -1,17 +1,18 @@
-"""Tests for ARQ queue integration and backward-compat queue manager."""
+"""Tests for TaskIQ queue integration and backward-compat queue manager."""
+
+import os
 
 import pytest
 
 
-class TestArqClient:
-    """Tests for the ARQ client enqueue helpers."""
+class TestTaskiqClient:
+    """Tests for the TaskIQ client enqueue helpers."""
 
-    def test_enqueue_job_sync_creates_task(self):
-        from shared.infrastructure.queue.arq_client import enqueue_job_sync
-        try:
-            enqueue_job_sync(1)
-        except Exception:
-            pass
+    def test_enqueue_job_sync_creates_task(self, monkeypatch):
+        from shared.infrastructure.taskiq.client import enqueue_job_sync
+        monkeypatch.setenv("TASKIQ_BROKER", "memory")
+        task_id = enqueue_job_sync(1)
+        assert task_id is not None
 
 
 class TestBackwardCompatQueue:

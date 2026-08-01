@@ -1,124 +1,375 @@
-# LangGraph Integration
+# LangGraph
 
-## Overview
+## Purpose
 
-This project uses LangGraph as the primary workflow orchestration engine. LangGraph provides state machine semantics, checkpointing, and streaming for AI workflows.
+This document describes the role of LangGraph in the AI processing architecture.
 
-## Key Concepts
+LangGraph is used as the workflow execution engine for complex AI-driven processing.
 
-### StateGraph
+It provides:
 
-LangGraph's `StateGraph` is the core abstraction. Each graph is a directed acyclic graph (DAG) of nodes connected by edges.
+- Graph-based workflow execution
+- State management
+- Checkpointing
+- Recovery
+- Resumable workflows
+- Node orchestration
 
-```python
-from langgraph.graph import StateGraph, END
+---
 
-graph = StateGraph(BaseState)
-graph.add_node("step1", step1_fn)
-graph.add_node("step2", step2_fn)
-graph.add_edge("step1", "step2")
-graph.add_edge("step2", END)
-graph.set_entry_point("step1")
-compiled = graph.compile()
+# Architecture Position
+
+LangGraph is part of the AI execution layer.
+
+System flow:
+
+API
+
+↓
+
+ProcessingExecution
+
+↓
+
+TaskIQ Task
+
+↓
+
+TaskIQ Worker
+
+↓
+
+LangGraph Workflow
+
+↓
+
+Workflow Nodes
+
+↓
+
+LLM Providers / Tools
+
+---
+
+# Responsibilities
+
+LangGraph is responsible for:
+
+- Executing workflow graphs
+- Managing workflow nodes
+- Passing state between nodes
+- Persisting checkpoints
+- Recovering interrupted executions
+- Coordinating AI processing steps
+
+LangGraph is not responsible for:
+
+- Queue management
+- Background worker lifecycle
+- User permissions
+- Job lifecycle
+- Business entities
+
+---
+
+# Relationship With TaskIQ
+
+TaskIQ starts the workflow execution.
+
+The responsibility boundary:
+
+TaskIQ:
+
+- Receives background tasks
+- Runs worker processes
+- Handles retries
+- Executes application services
+
+LangGraph:
+
+- Runs the workflow
+- Executes nodes
+- Manages workflow state
+
+Flow:
+
+TaskIQ Worker
+
+↓
+
+Create LangGraph Run
+
+↓
+
+Execute Workflow
+
+↓
+
+Update ProcessingExecution
+
+---
+
+# Relationship With ProcessingExecution
+
+Each LangGraph execution belongs to a ProcessingExecution.
+
+Relationship:
+
+Job
+
+↓
+
+ProcessingExecution
+
+↓
+
+LangGraph Workflow Run
+
+ProcessingExecution stores:
+
+- Execution status
+- Job relationship
+- Error state
+- User-visible lifecycle
+
+LangGraph stores:
+
+- Current node
+- Workflow state
+- Intermediate data
+- Checkpoints
+
+---
+
+# Workflow Graph
+
+A LangGraph workflow is represented as a graph.
+
+A graph contains:
+
+- Nodes
+- Edges
+- State transitions
+
+Example:
+
+START
+
+↓
+
+Fetch Content
+
+↓
+
+Extract Information
+
+↓
+
+Analyze Data
+
+↓
+
+LLM Processing
+
+↓
+
+Generate Score
+
+↓
+
+Generate Career Guidance
+
+↓
+
+END
+
+---
+
+# State Management
+
+LangGraph state represents temporary workflow execution context.
+
+Example state:
+
+```text
+{
+  job_data,
+  extracted_content,
+  analysis_results,
+  provider_responses,
+  generated_insights,
+  current_step
+}
 ```
 
-### State
+State is passed between workflow nodes.
 
-State is a TypedDict that flows through all nodes. Each node reads from state and returns updated state.
+State Ownership
 
-```python
-from typing import TypedDict
+Different types of data have different owners.
 
-class BaseState(TypedDict, total=False):
-    input: str
-    output: str
-    context: dict
-    errors: list[str]
-    metadata: dict
-    node_history: list[str]
-```
+PostgreSQL
 
-### Conditional Edges
+Owns:
 
-Graphs can branch based on state:
+Jobs
+ProcessingExecutions
+Final results
+Domain entities
+LangGraph State
 
-```python
-def route(state):
-    if state["metadata"]["has_data"]:
-        return "process"
-    return "skip"
+Owns:
 
-graph.add_conditional_edges("fetch", route, {
-    "process": "process_node",
-    "skip": "skip_node",
-})
-```
+Workflow progress
+Intermediate results
+Node outputs
+Temporary execution context
+Redis
 
-### Checkpointing
+Owns:
 
-Enable checkpointing for state persistence:
+Task communication
+Broker messages
+Checkpointing
 
-```python
-from langgraph.checkpoint.memory import MemorySaver
+Checkpointing allows workflows to continue after interruption.
 
-checkpointer = MemorySaver()
-compiled = graph.compile(checkpointer=checkpointer)
+Use cases:
 
-# Invoke with config for checkpointing
-config = {"configurable": {"thread_id": "session-123"}}
-result = compiled.invoke(state, config=config)
-```
+Worker restart
+Temporary failures
+Long-running workflows
+Human interruption
+External dependency failure
 
-### Streaming
+Checkpoint data allows:
 
-Stream execution step by step:
+Resume execution
+Restore workflow state
+Continue from previous node
+Recovery Model
 
-```python
-for event in compiled.stream(state):
-    print(event)  # {"node_name": updated_state}
-```
+Failures are handled at different layers.
 
-## GraphBuilder Wrapper
+TaskIQ Failure
 
-Our `GraphBuilder` wraps LangGraph with additional features:
+Example:
 
-```python
-from ai.infrastructure.graphs.runtime.graph import GraphBuilder
+Worker unavailable
+Redis connection failure
 
-builder = GraphBuilder("my_workflow")
-builder.add_node("step1", step1_fn)
-builder.add_node("step2", step2_fn)
-builder.add_edge("step1", "step2")
-builder.set_entry("step1")
-builder.set_finish("step2")
-builder.set_retry("step2", max_retries=3, delay=1.0)
+Handled by:
 
-compiled = builder.compile()
-result = compiled.invoke(state)
-```
+TaskIQ retry
+Workflow Failure
 
-## Retry Configuration
+Example:
 
-Per-node retry with exponential backoff:
+LLM provider error
+Tool execution failure
+Invalid workflow state
 
-```python
-builder.set_retry("flaky_node", max_retries=3, delay=1.0)
-```
+Handled by:
 
-## Error Handling
+LangGraph checkpoint recovery
+Domain Failure
 
-- Nodes that fail are marked as `"{name}:FAILED"` in `node_history`
-- Errors are appended to `state["errors"]`
-- Retry logic handles transient failures
-- Insights graph supports partial failure (one section failing doesn't stop others)
+Example:
 
-## Provider Integration
+Invalid job information
+Business rule violation
 
-All LLM calls go through the `LLMProvider` abstraction:
+Handled by:
 
-```python
-provider = get_provider()  # From env AI_PROVIDER
-llm = provider.as_langchain_llm()  # LangChain-compatible
-```
+Domain layer
+Node Design Rules
 
-This ensures provider-agnostic code that works with Mimo, OpenAI, Anthropic, etc.
+Workflow nodes should:
+
+Have a single responsibility
+Receive state
+Update state
+Avoid direct infrastructure coupling
+
+A node should not:
+
+Manage queues
+Update frontend directly
+Control workflow lifecycle manually
+Tool Usage
+
+LangGraph nodes can use tools.
+
+Examples:
+
+Web fetching
+Data extraction
+Search
+LLM providers
+
+Tool execution should happen through the application tool layer.
+
+Related:
+
+docs/ai/tooling.md
+
+Progress Events
+
+LangGraph execution generates workflow progress events.
+
+Example:
+
+Node Started
+
+↓
+
+Workflow Event
+
+↓
+
+Processing Event
+
+↓
+
+SSE Stream
+
+↓
+
+Frontend
+
+Related:
+
+docs/api/sse/processing-events.md
+
+Persistence
+
+LangGraph persistence is separate from domain persistence.
+
+Workflow state:
+
+LangGraph checkpoint storage
+
+Business state:
+
+PostgreSQL
+
+The system must not store workflow state directly inside domain entities.
+
+Testing
+
+LangGraph workflows should be tested independently.
+
+Tests should verify:
+
+Node behavior
+State transitions
+Failure recovery
+Checkpoint restoration
+Workflow completion
+Related Documents
+docs/ai/workflows.md
+docs/ai/langgraph-state.md
+docs/domain/processing/processing-execution.md
+docs/domain/processing/events.md
+docs/architecture/runtime/background-service.md
+docs/queue/processing/taskiq-processing.md

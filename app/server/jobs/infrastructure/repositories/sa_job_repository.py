@@ -206,6 +206,12 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.refresh(model)
         return job_model_to_dict(model)
 
+    def get_by_id(self, uuid: str) -> dict[str, Any] | None:
+        m = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        if not m:
+            return None
+        return job_model_to_dict(m)
+
     def get_by_url(self, url: str) -> dict[str, Any] | None:
         m = self._session.query(JobModel).filter(JobModel.url == url).first()
         return job_model_to_dict(m) if m else None
@@ -337,3 +343,184 @@ class SQLAlchemyJobRepository(IJobRepository):
             JobModel.deleted == 0,
         ).order_by(JobModel.created_at.desc()).all()
         return [job_model_to_dict(r) for r in rows]
+
+    def search_jobs(
+        self,
+        page: int = 1,
+        page_size: int = 25,
+        query: str | None = None,
+        sort: str = "updated_at",
+        order: str = "desc",
+        processing_status: str | None = None,
+        company_id: int | None = None,
+        remote: bool | None = None,
+        visa: bool | None = None,
+        overall_score_min: int | None = None,
+        overall_score_max: int | None = None,
+        fit_score_min: int | None = None,
+        fit_score_max: int | None = None,
+        success_score_min: int | None = None,
+        success_score_max: int | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        q = self._session.query(JobModel).filter(JobModel.deleted == 0)
+
+        if query:
+            like = f"%{query}%"
+            q = q.filter(
+                or_(
+                    JobModel.title.ilike(like),
+                    JobModel.company.ilike(like),
+                    JobModel.location.ilike(like),
+                    JobModel.role.ilike(like),
+                )
+            )
+
+        if processing_status:
+            q = q.filter(JobModel.status == processing_status)
+
+        if company_id is not None:
+            q = q.filter(JobModel.company_id == company_id)
+
+        if remote is not None:
+            work_type_filter = "Remote" if remote else "On-site"
+            q = q.filter(JobModel.work_type == work_type_filter)
+
+        if visa is not None:
+            if visa:
+                q = q.filter(JobModel.visa.isnot(None), JobModel.visa != "")
+            else:
+                q = q.filter(
+                    or_(JobModel.visa.is_(None), JobModel.visa == "")
+                )
+
+        if overall_score_min is not None:
+            q = q.filter(JobModel.overall_score >= overall_score_min)
+        if overall_score_max is not None:
+            q = q.filter(JobModel.overall_score <= overall_score_max)
+        if fit_score_min is not None:
+            q = q.filter(JobModel.fit_score >= fit_score_min)
+        if fit_score_max is not None:
+            q = q.filter(JobModel.fit_score <= fit_score_max)
+        if success_score_min is not None:
+            q = q.filter(JobModel.success_score >= success_score_min)
+        if success_score_max is not None:
+            q = q.filter(JobModel.success_score <= success_score_max)
+
+        total = q.count()
+
+        sort_map = {
+            "created_at": JobModel.created_at,
+            "updated_at": JobModel.updated_at,
+            "title": JobModel.title,
+            "company": JobModel.company,
+            "overall_score": JobModel.overall_score,
+            "fit_score": JobModel.fit_score,
+            "success_score": JobModel.success_score,
+        }
+        sort_column = sort_map.get(sort, JobModel.updated_at)
+        if order == "asc":
+            q = q.order_by(sort_column.asc())
+        else:
+            q = q.order_by(sort_column.desc())
+
+        offset = (page - 1) * page_size
+        q = q.offset(offset).limit(page_size)
+
+        rows = q.all()
+        return [job_model_to_dict(r) for r in rows], total
+
+    def search_jobs_cursor(
+        self,
+        cursor: str | None = None,
+        page_size: int = 25,
+        page: int = 1,
+        query: str | None = None,
+        sort: str = "updated_at",
+        order: str = "desc",
+        processing_status: str | None = None,
+        company_id: int | None = None,
+        remote: bool | None = None,
+        visa: bool | None = None,
+        overall_score_min: int | None = None,
+        overall_score_max: int | None = None,
+        fit_score_min: int | None = None,
+        fit_score_max: int | None = None,
+        success_score_min: int | None = None,
+        success_score_max: int | None = None,
+    ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
+        q = self._session.query(JobModel).filter(JobModel.deleted == 0)
+
+        if query:
+            like = f"%{query}%"
+            q = q.filter(
+                or_(
+                    JobModel.title.ilike(like),
+                    JobModel.company.ilike(like),
+                    JobModel.location.ilike(like),
+                    JobModel.role.ilike(like),
+                )
+            )
+
+        if processing_status:
+            q = q.filter(JobModel.status == processing_status)
+
+        if company_id is not None:
+            q = q.filter(JobModel.company_id == company_id)
+
+        if remote is not None:
+            work_type_filter = "Remote" if remote else "On-site"
+            q = q.filter(JobModel.work_type == work_type_filter)
+
+        if visa is not None:
+            if visa:
+                q = q.filter(JobModel.visa.isnot(None), JobModel.visa != "")
+            else:
+                q = q.filter(
+                    or_(JobModel.visa.is_(None), JobModel.visa == "")
+                )
+
+        if overall_score_min is not None:
+            q = q.filter(JobModel.overall_score >= overall_score_min)
+        if overall_score_max is not None:
+            q = q.filter(JobModel.overall_score <= overall_score_max)
+        if fit_score_min is not None:
+            q = q.filter(JobModel.fit_score >= fit_score_min)
+        if fit_score_max is not None:
+            q = q.filter(JobModel.fit_score <= fit_score_max)
+        if success_score_min is not None:
+            q = q.filter(JobModel.success_score >= success_score_min)
+        if success_score_max is not None:
+            q = q.filter(JobModel.success_score <= success_score_max)
+
+        total = q.count()
+
+        sort_map = {
+            "created_at": JobModel.created_at,
+            "updated_at": JobModel.updated_at,
+            "title": JobModel.title,
+            "company": JobModel.company,
+            "overall_score": JobModel.overall_score,
+            "fit_score": JobModel.fit_score,
+            "success_score": JobModel.success_score,
+        }
+        sort_column = sort_map.get(sort, JobModel.updated_at)
+
+        if cursor:
+            cursor_op = sort_column < cursor if order == "desc" else sort_column > cursor
+            q = q.filter(cursor_op)
+
+        if order == "asc":
+            q = q.order_by(sort_column.asc())
+        else:
+            q = q.order_by(sort_column.desc())
+
+        q = q.limit(page_size + 1)
+        if cursor is None and page and page > 1:
+            q = q.offset((page - 1) * page_size)
+
+        rows = q.all()
+        has_more = len(rows) > page_size
+        items = [job_model_to_dict(r) for r in rows[:page_size]]
+        next_cursor = str(getattr(rows[page_size - 1], sort, rows[page_size - 1].updated_at)) if len(rows) >= page_size else None
+
+        return items, total, next_cursor, has_more

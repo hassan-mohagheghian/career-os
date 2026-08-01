@@ -1,74 +1,324 @@
 # Job State Machine
 
-## Status Enum
+## Purpose
 
-Defined in `app/server/shared/infrastructure/process/models.py` as `JobStatus`:
+This document describes the lifecycle of a Job entity.
 
-```python
-class JobStatus(str, Enum):
-    CREATED = 'created'
-    QUEUED = 'queued'
-    WAITING = 'waiting'
-    STARTING = 'starting'
-    FETCHING = 'fetching'
-    ANALYZING = 'analyzing'
-    GENERATING = 'generating'
-    FINALIZING = 'finalizing'
-    COMPLETED = 'completed'
-    FAILED = 'failed'
-    CANCELLED = 'cancelled'
-```
+The Job state machine represents the business state of a job.
 
-## State Machine Properties
+It is separate from:
 
-- **Deterministic**: Every status has a defined set of valid target states
-- **Explicit**: No ambiguous boolean flags (e.g., no separate `is_processing` column)
-- **Terminal states**: `completed`, `failed`, `cancelled` — once reached, no further processing occurs
-- **Active states**: `starting`, `fetching`, `analyzing`, `generating`, `finalizing` — worker is actively processing
+- ProcessingExecution lifecycle
+- TaskIQ execution state
+- LangGraph workflow state
 
-## Valid Transitions
+---
 
-| From       | To                                   |
-| ---------- | ------------------------------------ |
-| created    | queued, failed, cancelled            |
-| queued     | waiting, created, failed, cancelled  |
-| waiting    | starting, created, failed, cancelled |
-| starting   | fetching, failed, cancelled          |
-| fetching   | analyzing, failed, cancelled         |
-| analyzing  | generating, failed, cancelled        |
-| generating | finalizing, failed, cancelled        |
-| finalizing | completed, failed, cancelled         |
-| completed  | queued, cancelled                    |
-| failed     | queued, cancelled                    |
-| cancelled  | created, queued                      |
+# State Ownership
 
-## Enforcement
+Job state belongs to the domain model.
 
-Transitions are enforced at two levels:
+Job state represents:
 
-1. **Repository level**: `SQLAlchemyPendingRepository.update_status()` calls `_validate_transition()` which checks `VALID_TRANSITIONS` dict
-2. **Queue manager level**: Before any status change, `_validate_transition()` checks the transition is valid
+- Availability of the job
+- Processing readiness
+- Business lifecycle
 
-## Legacy Compatibility
+ProcessingExecution represents:
 
-The `ItemStatus` enum is preserved for backward compatibility during migration:
+- A single processing attempt
+- Execution progress
+- Workflow execution
 
-```python
-ItemStatus.PENDING    → JobStatus.CREATED
-ItemStatus.QUEUED     → JobStatus.QUEUED
-ItemStatus.PROCESSING → JobStatus.FETCHING
-ItemStatus.PAUSED     → JobStatus.WAITING
-ItemStatus.DONE       → JobStatus.COMPLETED
-ItemStatus.FAILED     → JobStatus.FAILED
-```
+A Job can have multiple ProcessingExecutions.
 
-## Database Model
+---
 
-The `pending_jobs` table stores:
+# Relationship Between Job and ProcessingExecution
 
-- `status` — current job status (JobStatus string value)
-- `previous_status` — previous status (for rollback/audit)
-- `current_node` — current LangGraph node name
-- `retry_count` — number of retries attempted
-- `failure_details` — structured error information (JSON)
-- `auto_process` — whether to auto-enqueue on creation (boolean int)
+Job
+
+|
+
++-- ProcessingExecution #1
+
+|
+
++-- ProcessingExecution #2
+
+|
+
++-- ProcessingExecution #3
+
+The Job lifecycle does not depend on the background execution technology.
+
+---
+
+# Job States
+
+## Created
+
+The job has been created.
+
+No processing has started.
+
+Transitions:
+
+Created
+
+↓
+
+Ready
+
+---
+
+## Ready
+
+The job contains enough information to start processing.
+
+Possible actions:
+
+- Start processing
+- Update job information
+
+Transition:
+
+Ready
+
+↓
+
+Processing
+
+---
+
+## Processing
+
+A processing execution is currently running.
+
+Important:
+
+This state does not mean a worker is running.
+
+It means the job has an active ProcessingExecution.
+
+Flow:
+
+Job
+
+↓
+
+ProcessingExecution Created
+
+↓
+
+TaskIQ Execution
+
+↓
+
+LangGraph Workflow
+
+---
+
+## Completed
+
+Processing finished successfully.
+
+The job contains generated results.
+
+---
+
+## Failed
+
+Processing failed.
+
+Failure information belongs to:
+
+- ProcessingExecution
+- Error metadata
+
+The job can potentially be retried by creating a new ProcessingExecution.
+
+---
+
+# State Diagram
+
+Created
+
+↓
+
+Ready
+
+↓
+
+Processing
+
+↓
+
+Completed
+
+or
+
+Processing
+
+↓
+
+Failed
+
+---
+
+# Processing Integration
+
+When a job starts processing:
+
+1. Create ProcessingExecution
+
+Status:
+
+created
+
+2. Dispatch TaskIQ task
+
+3. ProcessingExecution moves to:
+
+queued
+
+4. Worker starts workflow
+
+5. ProcessingExecution moves to:
+
+running
+
+6. LangGraph executes workflow
+
+7. Job state updates after successful completion
+
+---
+
+# Retry Model
+
+Retries do not reset the Job lifecycle.
+
+Example:
+
+Job
+
+State:
+
+Failed
+
+New ProcessingExecution created:
+
+ProcessingExecution #2
+
+↓
+
+Queued
+
+↓
+
+Running
+
+↓
+
+Completed
+
+Job:
+
+Failed
+
+↓
+
+Processing
+
+↓
+
+Completed
+
+---
+
+# TaskIQ Relationship
+
+TaskIQ manages execution infrastructure only.
+
+TaskIQ states:
+
+- queued
+- running
+- retrying
+- failed
+
+These states should not become Job domain states.
+
+---
+
+# LangGraph Relationship
+
+LangGraph manages workflow execution state.
+
+Examples:
+
+- current node
+- checkpoint
+- intermediate data
+- workflow recovery
+
+LangGraph state does not replace Job state.
+
+---
+
+# Events
+
+Job lifecycle events:
+
+## JobCreated
+
+A new job was created.
+
+## JobReady
+
+The job is ready for processing.
+
+## JobProcessingStarted
+
+A processing execution started.
+
+## JobCompleted
+
+Processing finished successfully.
+
+## JobFailed
+
+Processing failed.
+
+---
+
+# Persistence
+
+Job state is stored in PostgreSQL.
+
+ProcessingExecution state is also stored separately.
+
+Example:
+
+jobs table:
+
+- id
+- status
+
+processing_executions table:
+
+- id
+- job_id
+- status
+- workflow_id
+
+---
+
+# Related Documents
+
+- docs/domain/processing/processing-execution.md
+- docs/domain/processing/events.md
+- docs/architecture/runtime/background-service.md
+- docs/architecture/runtime/background-workflows.md
+- docs/queue/processing/taskiq-processing.md
+- docs/ai/langgraph-state.md

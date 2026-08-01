@@ -13,6 +13,11 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_id(self, uuid: str) -> dict[str, Any] | None:
+        """Get a job by its UUID."""
+        ...
+
+    @abstractmethod
     def list_jobs(
         self,
         offset: int | None = None,
@@ -97,4 +102,31 @@ class IJobRepository(ABC):
     @abstractmethod
     def update_fields(self, num: int, **fields: Any) -> bool:
         """Update arbitrary fields on a job."""
+        ...
+
+    @abstractmethod
+    def search_jobs_cursor(
+        self,
+        cursor: str | None = None,
+        page_size: int = 25,
+        page: int = 1,
+        query: str | None = None,
+        sort: str = "updated_at",
+        order: str = "desc",
+        processing_status: str | None = None,
+        company_id: int | None = None,
+        remote: bool | None = None,
+        visa: bool | None = None,
+        overall_score_min: int | None = None,
+        overall_score_max: int | None = None,
+        fit_score_min: int | None = None,
+        fit_score_max: int | None = None,
+        success_score_min: int | None = None,
+        success_score_max: int | None = None,
+    ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
+        """Search jobs with cursor-based pagination. Returns (items, total, next_cursor, has_more).
+
+        When `cursor` is None, `page` is applied as an offset ((page-1) * page_size)
+        so page-based navigation works as advertised by the API.
+        """
         ...

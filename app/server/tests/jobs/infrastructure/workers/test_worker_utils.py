@@ -148,6 +148,7 @@ class TestNormalizeJobData:
 
 
 class TestFetchUrl:
+    @pytest.mark.slow
     def test_fetch_invalid_url_raises(self):
         from jobs.infrastructure.workers.worker import _fetch_url
         with pytest.raises(RuntimeError, match="Network error|Failed to fetch"):

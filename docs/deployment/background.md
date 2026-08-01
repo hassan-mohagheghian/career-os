@@ -27,5 +27,5 @@ docker compose up -d background
 - Run multiple worker instances for higher throughput
 - Set `WORKER_CONCURRENCY` based on available CPU cores
 - Ensure Redis is highly available (Redis Sentinel or Cluster)
-- Monitor worker queues with ARQ's built-in health checks
+- Monitor worker queues with TaskIQ's built-in health checks
 - Configure `WORKER_JOB_TIMEOUT` appropriately for AI workflows

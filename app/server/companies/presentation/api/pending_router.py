@@ -42,7 +42,7 @@ def create_pending_company(data: dict, repo: SQLAlchemyPendingRepository = Depen
     )
     pid = result["id"]
 
-    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    from shared.infrastructure.taskiq.client import enqueue_company_sync
     enqueue_company_sync(pid)
 
     return repo.get_by_id(str(pid), "pending_companies")

@@ -1,8 +1,8 @@
 """
-Backward-compatible queue manager — delegates to ARQ.
+Backward-compatible queue manager — delegates to the TaskIQ client.
 
-This module exists for backward compatibility during the ARQ migration.
-New code should use `shared.infrastructure.queue.arq_client` directly.
+This module exists for backward compatibility during the ARQ → TaskIQ migration.
+New code should use `shared.infrastructure.taskiq.client` directly.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ logger = get_logger('queue')
 
 
 class JobQueueManager:
-    """Backward-compatible queue manager that delegates to ARQ."""
+    """Backward-compatible queue manager that delegates to TaskIQ."""
 
     def __init__(self, concurrency: int = 1):
         self._running = False
@@ -25,25 +25,25 @@ class JobQueueManager:
 
     def start(self):
         self._running = True
-        logger.info("[queue] ARQ-based — started (delegating to ARQ)")
+        logger.info("[queue] TaskIQ-based — started")
 
     def stop(self, timeout: float = 15.0):
         self._running = False
-        logger.info("[queue] ARQ-based — stopped")
+        logger.info("[queue] TaskIQ-based — stopped")
 
     def enqueue(self, item_id: int, entity_type: str = 'job'):
-        from shared.infrastructure.queue.arq_client import enqueue_job_sync, enqueue_company_sync
+        from shared.infrastructure.taskiq.client import enqueue_job_sync, enqueue_company_sync
         if entity_type == 'job':
             enqueue_job_sync(item_id)
         else:
             enqueue_company_sync(item_id)
-        logger.info(f"[queue] Enqueued {entity_type} {item_id} via ARQ")
+        logger.info(f"[queue] Enqueued {entity_type} {item_id}")
 
     def enqueue_bulk(self, ids: list):
-        from shared.infrastructure.queue.arq_client import enqueue_job_sync
+        from shared.infrastructure.taskiq.client import enqueue_job_sync
         for pid in ids:
             enqueue_job_sync(pid)
-        logger.info(f"[queue] Enqueued {len(ids)} items via ARQ")
+        logger.info(f"[queue] Enqueued {len(ids)} items")
 
     def cancel_item(self, item_id: int, entity_type: str = 'job'):
         session = None
@@ -90,7 +90,7 @@ class JobQueueManager:
                 session.close()
 
     def signal_job_done(self, item_id: int, entity_type: str = 'job'):
-        """Legacy callback — no-op with ARQ."""
+        """Legacy callback — no-op."""
         pass
 
     def cancel_job(self, job_id, table='pending_jobs'):

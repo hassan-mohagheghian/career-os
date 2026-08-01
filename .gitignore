@@ -64,6 +64,8 @@ app/server/logs/
 # Runtime process IDs
 .client.pid
 .server.pid
+.background.pid
+.scheduler.pid
 
 # Rust CLI binary (build artifact)
 /start

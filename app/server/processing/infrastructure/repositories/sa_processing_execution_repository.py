@@ -10,6 +10,14 @@ from processing.domain.repositories.processing_execution_repository import IProc
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
 
 
+def _ts(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
 def model_to_dict(model: ProcessingExecutionModel) -> dict[str, Any]:
     return {
         "id": model.id,
@@ -17,9 +25,9 @@ def model_to_dict(model: ProcessingExecutionModel) -> dict[str, Any]:
         "status": model.status,
         "target_type": model.target_type,
         "target_id": model.target_id,
-        "created_at": model.created_at.isoformat() if model.created_at else None,
-        "started_at": model.started_at.isoformat() if model.started_at else None,
-        "finished_at": model.finished_at.isoformat() if model.finished_at else None,
+        "created_at": _ts(model.created_at),
+        "started_at": _ts(model.started_at),
+        "finished_at": _ts(model.finished_at),
         "retry_count": model.retry_count,
         "error_message": model.error_message,
     }
@@ -72,6 +80,12 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
             ProcessingExecutionModel.target_type == target_type,
             ProcessingExecutionModel.target_id == target_id,
         ).order_by(ProcessingExecutionModel.created_at.desc()).all()
+        return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
+
+    def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
+        models = self._session.query(ProcessingExecutionModel).order_by(
+            ProcessingExecutionModel.created_at.desc()
+        ).limit(limit).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:

@@ -120,9 +120,9 @@ def process_pending_sync(pid):
     process_job(pid)
 
 
-def enqueue_pending_arq(pid):
-    """Enqueue a job via ARQ for background processing."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+def enqueue_pending(pid):
+    """Enqueue a job via TaskIQ for background processing."""
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
     enqueue_job_sync(pid)
 
 # --- Commands ---
@@ -206,16 +206,17 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
 
     status_colors = {'queued':'yellow','processing':'cyan','failed':'red','done':'green'}
     for r in rows:
-        steps = sum(1 for s in [r['step_fetch'],r['step_analyze'],r['step_db'],r['step_done']] if s == 1)
-        sc = status_colors.get(r['status'], 'dim')
-        err = (r['error'] or '')[:30]
+        steps = sum(1 for s in [r.get('step_fetch', 0), r.get('step_analyze', 0), r.get('step_db', 0), r.get('step_done', 0)] if s == 1)
+        sc = status_colors.get(r.get('status'), 'dim')
+        err = (r.get('error') or '')[:30]
+        url = r.get('url') or '-'
         table.add_row(
-            str(r['id']),
-            f"[{sc}]{r['status']}[/{sc}]",
-            r['source'] or '-',
-            r['company'] or '-',
+            str(r.get('id')),
+            f"[{sc}]{r.get('status')}[/{sc}]",
+            r.get('source') or '-',
+            r.get('company') or '-',
             f"{steps}/5",
-            r['url'][:50] + ('...' if len(r['url']) > 50 else ''),
+            url[:50] + ('...' if len(url) > 50 else ''),
             err
         )
     console.print(table)

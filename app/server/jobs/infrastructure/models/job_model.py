@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
+import uuid
 
 from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,6 +17,7 @@ class JobModel(Base):
     __table_args__ = {"schema": "job"}
 
     num: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), unique=True, default=lambda: str(uuid.uuid7()))
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     role: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String, nullable=True)

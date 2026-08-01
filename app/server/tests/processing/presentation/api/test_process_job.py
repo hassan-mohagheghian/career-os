@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from jobs.infrastructure.models.job_model import JobModel
 
 
@@ -19,11 +21,18 @@ def test_process_job_returns_202(client, sa_session):
     sa_session.add(job)
     sa_session.commit()
 
-    response = client.post("/api/jobs/1/process")
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+    ):
+        response = client.post("/api/jobs/1/process")
+
     assert response.status_code == 202
     data = response.json()
     assert "execution_id" in data
-    assert data["status"] == "created"
+    assert data["status"] == "queued"
+    enqueue.assert_called_once_with(data["execution_id"])
+    publish.assert_called_once()
 
 
 def test_process_job_returns_404_when_not_found(client):

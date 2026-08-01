@@ -8,7 +8,7 @@ It is the core AI workflow of the system.
 
 A ProcessingExecution is created whenever the user requests processing for a job.
 
-The execution runs asynchronously through ARQ and LangChain and streams live progress to the frontend using Server-Sent Events (SSE).
+The execution runs asynchronously through TaskIQ and LangGraph and streams live progress to the frontend using Server-Sent Events (SSE).
 
 ---
 
@@ -98,8 +98,8 @@ This feature depends on:
 
 - Processing bounded context
 - AI bounded context
-- ARQ
-- LangChain
+- TaskIQ
+- LangGraph
 - Prompt Registry
 - Rule Engine
 - LLM Configuration

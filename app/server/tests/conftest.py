@@ -18,6 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from dotenv import load_dotenv
 load_dotenv()
 
+# Tests never touch the real TaskIQ broker — use the in-memory broker.
+os.environ["TASKIQ_BROKER"] = "memory"
+
 from shared.infrastructure.database.sqlalchemy_config import Base, ensure_schemas
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
@@ -60,9 +63,13 @@ _ensure_test_database()
 
 @pytest.fixture(scope="session")
 def _engine():
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine, text
+    from shared.infrastructure.database.sqlalchemy_config import SCHEMAS
     engine = create_engine(TEST_DB_URL)
-    ensure_schemas()
+    with engine.connect() as conn:
+        for schema in SCHEMAS:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        conn.commit()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield engine

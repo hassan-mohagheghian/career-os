@@ -1,5 +1,10 @@
 words = [
+    "ADR",
     "ARQ",
+    "Checkpointing",
+    "HTTPX",
     "LLM",
     "NATS",
+    "langgraph",
+    "taskiq",
 ]

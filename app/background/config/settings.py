@@ -1,26 +1,54 @@
-"""Background application settings — environment-driven configuration."""
+"""Background application settings — environment-driven configuration.
+
+Re-exports the TaskIQ broker configuration from the server's shared
+infrastructure so the background worker and scheduler stay consistent
+with the API server.
+
+Environment variables:
+    REDIS_HOST, REDIS_PORT, REDIS_PASSWORD — Redis connection
+    WORKER_CONCURRENCY — number of concurrent worker processes
+    WORKER_MAX_RETRIES — max retry attempts per task
+    WORKER_JOB_TIMEOUT — task timeout in seconds
+    WORKER_LOG_LEVEL — worker log level
+"""
 
 import os
+import sys
 
-REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+_server_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "server")
+)
+if _server_dir not in sys.path:
+    sys.path.insert(0, _server_dir)
 
-REDIS_URL = f"redis://{':' + REDIS_PASSWORD + '@' if REDIS_PASSWORD else ''}{REDIS_HOST}:{REDIS_PORT}"
-
-QUEUE_NAME = os.environ.get("ARQ_QUEUE_NAME", "arq:queue")
-QUEUE_GROUP = os.environ.get("ARQ_QUEUE_GROUP", "job-search")
-
-WORKER_CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", "4"))
-WORKER_POLL_INTERVAL = float(os.environ.get("WORKER_POLL_INTERVAL", "0.5"))
-WORKER_BURST = os.environ.get("WORKER_BURST", "0") == "1"
-
-MAX_RETRIES = int(os.environ.get("WORKER_MAX_RETRIES", "3"))
-RETRY_BACKOFF = float(os.environ.get("WORKER_RETRY_BACKOFF", "10.0"))
-JOB_TIMEOUT = int(os.environ.get("WORKER_JOB_TIMEOUT", "600"))
-
-LOG_LEVEL = os.environ.get("WORKER_LOG_LEVEL", "INFO")
+from shared.infrastructure.taskiq.config import (
+    REDIS_HOST,
+    REDIS_PORT,
+    REDIS_PASSWORD,
+    REDIS_URL,
+    QUEUE_NAME,
+    WORKER_CONCURRENCY,
+    WORKER_MAX_RETRIES,
+    WORKER_RETRY_BACKOFF,
+    WORKER_JOB_TIMEOUT,
+    LOG_LEVEL,
+)
 
 # Database — reuses the same DB as the server
 DB_PATH = os.environ.get("DB_PATH", "app/server/db/jobs.db")
 SERVER_DIR = os.environ.get("SERVER_DIR", "")
+
+__all__ = [
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "REDIS_PASSWORD",
+    "REDIS_URL",
+    "QUEUE_NAME",
+    "WORKER_CONCURRENCY",
+    "WORKER_MAX_RETRIES",
+    "WORKER_RETRY_BACKOFF",
+    "WORKER_JOB_TIMEOUT",
+    "LOG_LEVEL",
+    "DB_PATH",
+    "SERVER_DIR",
+]

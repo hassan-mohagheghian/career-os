@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
         source: '/socket.io/:path*',
         destination: 'http://localhost:5000/socket.io/:path*',
       },
+      {
+        source: '/events/:path*',
+        destination: 'http://localhost:5000/events/:path*',
+      },
     ]
   },
 }

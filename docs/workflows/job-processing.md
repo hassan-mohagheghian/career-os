@@ -2,46 +2,317 @@
 
 ## Purpose
 
-Defines the workflow responsible for processing a job using AI.
+This document describes the workflow responsible for processing jobs.
 
-## Trigger
+The workflow analyzes job information, extracts relevant data, uses AI providers, and generates scoring and career guidance.
 
-A ProcessingExecution with type:
+---
 
-JOB_PROCESSING
+# Architecture Flow
 
-## Workflow Steps
+Job
 
-1. Load ProcessingExecution
+↓
 
-2. Load Job
+ProcessingExecution
 
-3. Load Job Resources
+↓
 
-4. Load Rules
+TaskIQ Worker
 
-5. Load LLM Configuration
+↓
 
-6. Build AI Context
+LangGraph Workflow
 
-7. Execute AI Chain
+↓
 
-8. Persist Result
+Processing Nodes
 
-9. Complete Execution
+↓
 
-## Output
+Result
 
-The workflow produces:
+---
 
-- Structured job information
-- Summary
-- Scores
-- Recommendation
-- Processing metadata
+# Workflow Responsibilities
 
-## Failure Handling
+The job processing workflow is responsible for:
 
-Any workflow failure changes execution state:
+- Collecting job information
+- Extracting structured data
+- Running AI analysis
+- Generating job score
+- Generating career guidance
+- Persisting final results
 
-RUNNING → FAILED
+---
+
+# Workflow Graph
+
+START
+
+↓
+
+Load Job Context
+
+↓
+
+Fetch External Data
+
+↓
+
+Extract Information
+
+↓
+
+Normalize Data
+
+↓
+
+Analyze Job
+
+↓
+
+Generate Score
+
+↓
+
+Generate Career Guidance
+
+↓
+
+Persist Result
+
+↓
+
+END
+
+---
+
+# Node Description
+
+## Load Job Context
+
+Loads job information from the domain layer.
+
+Input:
+
+- job_id
+- execution_id
+
+Output:
+
+- job context
+
+---
+
+## Fetch External Data
+
+Retrieves additional information.
+
+Examples:
+
+- Company website
+- External resources
+- Job descriptions
+
+Output:
+
+- External content
+
+---
+
+## Extract Information
+
+Transforms raw content into structured information.
+
+Examples:
+
+- Required skills
+- Experience level
+- Responsibilities
+- Technologies
+
+---
+
+## Normalize Data
+
+Creates consistent workflow input.
+
+Examples:
+
+- Skill normalization
+- Category mapping
+
+---
+
+## Analyze Job
+
+Uses AI capabilities to analyze the job.
+
+Examples:
+
+- Difficulty estimation
+- Skill analysis
+- Market relevance
+
+---
+
+## Generate Score
+
+Generates job intelligence score.
+
+Examples:
+
+- Career fit score
+- Skill match score
+- Opportunity score
+
+---
+
+## Generate Career Guidance
+
+Generates recommendations.
+
+Examples:
+
+- Required improvements
+- Learning path
+- Career direction
+
+---
+
+## Persist Result
+
+Stores final business results.
+
+Stored in:
+
+PostgreSQL
+
+---
+
+# Workflow State
+
+Workflow state contains:
+
+- Job context
+- Extracted information
+- Analysis results
+- LLM responses
+- Generated insights
+
+Workflow state is managed by LangGraph.
+
+---
+
+# ProcessingExecution Integration
+
+Each workflow execution belongs to a ProcessingExecution.
+
+ProcessingExecution tracks:
+
+- Status
+- Lifecycle
+- Failure state
+
+LangGraph tracks:
+
+- Workflow progress
+- Node execution
+- Checkpoints
+
+---
+
+# Failure Handling
+
+## External Data Failure
+
+Example:
+
+- Website unavailable
+
+Handled by:
+
+- Node retry
+- Alternative sources
+
+---
+
+## LLM Failure
+
+Example:
+
+- Provider unavailable
+
+Handled by:
+
+- Retry policy
+- Provider fallback
+
+---
+
+## Workflow Failure
+
+Example:
+
+- Invalid state
+
+Handled by:
+
+- LangGraph checkpoint recovery
+
+---
+
+# Progress Events
+
+Workflow nodes emit progress events.
+
+Example:
+
+Fetch Data Started
+
+↓
+
+Extract Started
+
+↓
+
+Analysis Started
+
+↓
+
+Scoring Started
+
+↓
+
+Completed
+
+Events are delivered through SSE.
+
+Related:
+
+docs/api/sse/processing-events.md
+
+---
+
+# Testing
+
+Workflow tests should verify:
+
+- Node behavior
+- State transitions
+- Failure recovery
+- Provider integration
+- Final result generation
+
+---
+
+# Related Documents
+
+- docs/ai/workflows.md
+- docs/ai/langgraph.md
+- docs/ai/langgraph-state.md
+- docs/domain/processing/processing-execution.md
+- docs/api/processing/process-job.md
+- docs/api/sse/processing-events.md

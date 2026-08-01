@@ -2,95 +2,325 @@
 
 ## Purpose
 
-The Processing bounded context manages the lifecycle of background executions across the platform.
+This document describes the domain concept of ProcessingExecution.
 
-A `ProcessingExecution` represents one execution attempt of an asynchronous operation.
+ProcessingExecution represents one attempt of running a long-running processing operation.
 
-Examples:
+It is responsible for tracking execution lifecycle, status, and domain-level execution information.
 
-- Job processing
-- Cover letter generation
-- Resume tailoring
-- Company analysis
-- Insight generation
+ProcessingExecution is independent from:
 
-## Responsibilities
+- TaskIQ
+- Redis
+- Worker implementation
+- LangGraph implementation
+
+---
+
+# Responsibility
 
 ProcessingExecution is responsible for:
 
-- Tracking execution lifecycle
-- Managing execution status
-- Linking execution to the target resource
-- Tracking execution metadata
-- Supporting retries and failures
-- Providing execution history
+- Representing a processing attempt
+- Tracking execution status
+- Storing execution metadata
+- Recording execution timestamps
+- Tracking failures
+- Exposing execution state to other layers
 
-## Entity Definition
+ProcessingExecution is not responsible for:
+
+- Running background tasks
+- Managing queues
+- Executing workflows
+- Calling external providers
+
+---
+
+# Architecture Position
+
+ProcessingExecution belongs to the domain layer.
+
+Flow:
+
+API
+
+↓
 
 ProcessingExecution
 
-Fields:
+↓
 
-- id: UUIDv7
-- type: ExecutionType
-- status: ExecutionStatus
-- target_id
-- target_type
+TaskIQ Task
+
+↓
+
+TaskIQ Worker
+
+↓
+
+LangGraph Workflow
+
+↓
+
+Domain Updates
+
+The domain object exists before background execution starts.
+
+---
+
+# Lifecycle
+
+A ProcessingExecution follows this lifecycle:
+
+Created
+
+↓
+
+Queued
+
+↓
+
+Running
+
+↓
+
+Completed
+
+or
+
+Created
+
+↓
+
+Queued
+
+↓
+
+Running
+
+↓
+
+Failed
+
+---
+
+# States
+
+## Created
+
+The execution record has been created.
+
+The workflow has not started yet.
+
+## Queued
+
+The execution has been dispatched for background processing.
+
+A TaskIQ task has been created.
+
+## Running
+
+The worker has started execution.
+
+The workflow is currently processing.
+
+## Completed
+
+The workflow finished successfully.
+
+## Failed
+
+The workflow failed.
+
+Failure information should be stored with the execution.
+
+---
+
+# Domain State Model
+
+Example:
+
+ProcessingExecution
+
+- id
+- job_id
+- status
+- workflow_id
 - created_at
 - started_at
-- finished_at
-- retry_count
+- completed_at
+- failed_at
 - error_message
 
-## Execution Types
+---
+
+# Workflow Integration
+
+ProcessingExecution tracks workflow execution.
+
+LangGraph manages:
+
+- Workflow graph
+- Node state
+- Checkpoints
+- Intermediate results
+
+ProcessingExecution manages:
+
+- Execution lifecycle
+- User-visible status
+- High-level metadata
+
+---
+
+# Task Execution Integration
+
+TaskIQ interacts with ProcessingExecution through application services.
+
+Example flow:
+
+Application Service
+
+↓
+
+Create ProcessingExecution
+
+↓
+
+Dispatch TaskIQ Task
+
+Worker:
+
+↓
+
+Load ProcessingExecution
+
+↓
+
+Start LangGraph Workflow
+
+↓
+
+Update Execution Status
+
+---
+
+# Events
+
+ProcessingExecution can produce domain events.
 
 Examples:
 
-- JOB_PROCESSING
-- COVER_LETTER_GENERATION
-- RESUME_TAILORING
-- COMPANY_ANALYSIS
-- INSIGHT_GENERATION
+## ExecutionCreated
 
-## Status
+Triggered when a new execution is created.
 
-Supported statuses:
+## ExecutionQueued
 
-- PENDING
-- QUEUED
-- RUNNING
-- COMPLETED
-- FAILED
-- CANCELLED
+Triggered when execution is dispatched.
 
-## Lifecycle
+## ExecutionStarted
 
-PENDING
+Triggered when processing begins.
 
-↓
+## ExecutionCompleted
 
-QUEUED
+Triggered after successful completion.
 
-↓
+## ExecutionFailed
 
-RUNNING
+Triggered after failure.
 
-↓
+---
 
-COMPLETED
+# Failure Handling
 
-Failure:
+Failures are divided into categories.
 
-RUNNING
+## Infrastructure Failures
 
-↓
+Examples:
 
-FAILED
+- Worker crash
+- Redis unavailable
+- Temporary network issues
 
-## Business Rules
+Handled by:
 
-- Every execution must have a target resource.
-- Every execution must have a defined execution type.
-- Completed executions are immutable.
-- Failed executions may be retried.
-- Every execution must be traceable.
+- TaskIQ retry mechanism
+
+## Domain Processing Failures
+
+Examples:
+
+- Invalid processing input
+- Workflow failure
+- Provider failure
+
+Stored in:
+
+ProcessingExecution
+
+---
+
+# Persistence
+
+ProcessingExecution is persisted in PostgreSQL.
+
+PostgreSQL stores:
+
+- Execution lifecycle
+- Status
+- Metadata
+- Error information
+
+LangGraph checkpoint storage manages workflow state separately.
+
+---
+
+# Relationship With Job
+
+A Job can have multiple ProcessingExecutions.
+
+Example:
+
+Job
+
+|
+
++-- ProcessingExecution 1
+
+|
+
++-- ProcessingExecution 2
+
+|
+
++-- ProcessingExecution 3
+
+Each execution represents one processing attempt.
+
+---
+
+# API Exposure
+
+Clients access execution information through APIs.
+
+Examples:
+
+- Execution status endpoint
+- SSE progress endpoint
+
+Clients should not access TaskIQ directly.
+
+---
+
+# Related Documents
+
+- docs/api/processing/process-job.md
+- docs/api/sse/processing-events.md
+- docs/queue/processing/taskiq-processing.md
+- docs/architecture/runtime/background-service.md
+- docs/architecture/runtime/background-workflows.md
+- docs/ai/langgraph-state.md

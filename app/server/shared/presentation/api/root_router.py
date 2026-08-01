@@ -7,7 +7,7 @@ presentation/api/ layer with routers and schemas.
 import json
 from datetime import datetime, UTC
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 # Bounded context routers — imported from their owning context's presentation layer
@@ -22,6 +22,7 @@ from shared.presentation.api.dashboard_router import router as dashboard_router
 from shared.presentation.api.websocket_router import router as websocket_router
 from ai.presentation.api.llm_configurations_router import router as llm_configurations_router
 from processing.presentation.api.process_router import router as process_router
+from processing.presentation.api.executions_router import router as executions_router
 
 # DI dependencies — wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
@@ -32,6 +33,11 @@ from skills.infrastructure import SQLAlchemySkillRepository
 
 
 api_router = APIRouter(prefix="/api")
+
+# ── V2 routers (registered before legacy to prevent path conflicts) ──
+
+from jobs.presentation.api.jobs_v2_router import router as jobs_v2_router
+api_router.include_router(jobs_v2_router, prefix="/jobs/list", tags=["jobs-v2"])
 
 # ── Feature routers ──────────────────────────────────────────────
 
@@ -46,6 +52,8 @@ api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 api_router.include_router(websocket_router, tags=["websocket"])
 api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
+api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
+
 # ── SSE router (compat) ──────────────────────────────────────────
 
 @api_router.get("/api/jobs/stream")
@@ -211,7 +219,7 @@ def link_job_to_company(num: int, data: dict):
 
 @api_router.post("/companies/{id}/reprocess")
 def reprocess_company(id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    from shared.infrastructure.taskiq.client import enqueue_company_sync
     from companies.infrastructure import SQLAlchemyCompanyRepository
     company_repo = SQLAlchemyCompanyRepository(session)
     company = company_repo.get_by_id(id)
@@ -242,7 +250,7 @@ def create_pending_job(data: dict, session: Session = Depends(get_session_sync))
 @api_router.post("/pending/process-all")
 def process_all_pending_jobs(session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
     repo = SQLAlchemyPendingRepository(session)
     items = repo.list_pending("pending_jobs")
     for item in items:
@@ -282,7 +290,7 @@ def reset_pending_job(item_id: int, session: Session = Depends(get_session_sync)
 @api_router.post("/pending/{item_id}/process")
 def process_pending_job(item_id: int, session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
     repo = SQLAlchemyPendingRepository(session)
     repo.update_fields(item_id, table="pending_jobs", status="queued")
     enqueue_job_sync(item_id)
@@ -302,7 +310,7 @@ def list_pending_companies(session: Session = Depends(get_session_sync)):
 def create_pending_company(data: dict, session: Session = Depends(get_session_sync)):
     import json
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    from shared.infrastructure.taskiq.client import enqueue_company_sync
     repo = SQLAlchemyPendingRepository(session)
 
     notes = data.get("notes", [])
@@ -333,7 +341,7 @@ def create_pending_company(data: dict, session: Session = Depends(get_session_sy
 @api_router.post("/pending-companies/queue-all")
 def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    from shared.infrastructure.taskiq.client import enqueue_company_sync
     repo = SQLAlchemyPendingRepository(session)
     items = repo.list_pending("pending_companies")
     for item in items:
@@ -396,7 +404,7 @@ def add_pending_company_links(item_id: str, data: dict = None, session: Session 
 @api_router.post("/pending-companies/{item_id}/process")
 def process_pending_company(item_id: int, session: Session = Depends(get_session_sync)):
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.queue.arq_client import enqueue_company_sync
+    from shared.infrastructure.taskiq.client import enqueue_company_sync
     repo = SQLAlchemyPendingRepository(session)
     repo.update_fields(item_id, table="pending_companies", status="queued")
     enqueue_company_sync(item_id)

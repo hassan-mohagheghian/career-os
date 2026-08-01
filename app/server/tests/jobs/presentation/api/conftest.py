@@ -52,17 +52,6 @@ def _ensure_test_database():
 _ensure_test_database()
 
 
-@pytest.fixture(scope="session")
-def _engine():
-    from sqlalchemy import create_engine
-    engine = create_engine(TEST_DB_URL)
-    ensure_schemas()
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    engine.dispose()
-
-
 @pytest.fixture
 def test_db(_engine):
     connection = _engine.connect()

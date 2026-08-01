@@ -1,4 +1,15 @@
-# ARQ Processing Queue
+# ARQ Processing (Deprecated)
+
+> ⚠️ This document is deprecated.
+>
+> ARQ is no longer used as the background task execution system.
+>
+> The system migrated to TaskIQ.
+>
+> New documentation:
+>
+> - `docs/queue/processing/taskiq-processing.md`
+> - `docs/adr/019-taskiq-migration.md`
 
 ## Purpose
 

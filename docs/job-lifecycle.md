@@ -47,7 +47,7 @@ Status comes exclusively from the backend database (`pending_jobs.status` column
 FastAPI endpoints only:
 1. Validate input
 2. Create the Job record
-3. Enqueue via ARQ/JobQueueManager
+3. Enqueue via TaskIQ/JobQueueManager
 4. Return immediately
 
 All processing happens in background workers.

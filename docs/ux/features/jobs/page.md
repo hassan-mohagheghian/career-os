@@ -2,528 +2,921 @@
 
 ## Purpose
 
-The Jobs page is the primary workspace for managing imported jobs.
+The Jobs page is the primary workspace for browsing, managing, and processing imported jobs.
 
 Users can:
 
-- Import jobs
+- Import new jobs
 - Browse imported jobs
-- Search and filter jobs
-- Review processing status
-- Start legacy processing
-- Start ProcessingExecution
-- Monitor background executions
-- Open job details
-- Review completed AI analysis
+- Search jobs
+- Filter jobs
+- Sort jobs
+- View job details
+- Start AI Processing Execution
+- Monitor live processing
+- Open the Processing Queue
+- Retry failed executions
+- Review completed executions
 
-The page is centered around two concepts:
+The Jobs page always remains the primary workspace.
 
-- Jobs
-- Processing Executions
-
-Jobs remain the primary business entity.
-
-ProcessingExecution is the infrastructure responsible for running asynchronous AI workflows.
-
-The legacy processing system remains available until migration is complete.
+Background processing is completely separated from browsing and is monitored through the Processing Queue.
 
 ---
 
-# Design Goals
+# Design Principles
 
-- Jobs are always the primary focus.
-- Browsing should never be interrupted by processing.
-- Processing runs completely in the background.
-- Live execution progress is always available.
-- The page should scale to thousands of jobs.
-- Users should understand exactly where each execution currently is.
-- Future execution types should reuse the same infrastructure.
+The page follows these principles.
+
+- Jobs are always the primary business entity.
+- Browsing must never be blocked by background processing.
+- Processing is asynchronous.
+- The Job List is optimized for very large datasets.
+- Users can continue working while jobs are processing.
+- Live updates are received through Server-Sent Events (SSE).
+- The Processing Queue is a monitoring tool, not a replacement for the Job List.
 
 ---
 
-# Page Structure
+# High-Level Layout
 
-```
+```text
 Jobs Page
 
-│
-
-├── Jobs Header
-
+├── Header
 ├── Toolbar
-
-├── Row-based Job List
-
-├── Job Details Drawer
-
+├── Job List
 └── Processing Queue Drawer
 ```
 
 ---
 
-# Default Layout
+# Desktop Layout
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Jobs                                                     Queue           + Add Job          │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search                                                                            Filters    │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                              │
-│ □ Senior Backend Engineer                    GetYourGuide               Berlin               │
-│   Overall A++      Processing Running        Fit 92     Success 95                     [...] │
-│                                                                                              │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                              │
-│ □ Python Platform Engineer                   Karla                      Berlin               │
-│   Overall A       Completed                  Fit 84     Success 81                     [...] │
-│                                                                                              │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                              │
-│ □ Staff Backend Engineer                     EMIL Group                 Munich               │
-│   Overall B       Queued                     Fit 71     Success 63                     [...] │
-│                                                                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Jobs                                                    Queue (2 Running • 4 Waiting)      + Import Job      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Search .................................................................................................... │
+│                                                                                                              │
+│ Sort ▼                                         Filters ▼                                   Refresh          │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                              │
+│ # │ Job │ Company │ Location │ Overall │ Fit │ Success │ Processing │ Updated │ Actions                    │
+│──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+│                                                                                                              │
+│ 1 │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ Ready │ 2m │ ...                     │
+│ 2 │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ Running │ now │ ...                   │
+│ 3 │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ Failed │ 5m │ ...                    │
+│                                                                                                              │
+│                                         Loading more jobs...                                                 │
+│                                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# Jobs Header
+# Primary Sections
+
+## Header
 
 Responsibilities
 
-- Display page title
-- Open Processing Queue
-- Import jobs
+- Display page title.
+- Display processing queue summary.
+- Open Processing Queue drawer.
+- Open Import Job dialog.
 
 Controls
 
-| Control | Description                   |
-| ------- | ----------------------------- |
-| Queue   | Opens Processing Queue Drawer |
-| Add Job | Opens Import Job Drawer       |
+| Control    | Description                        |
+| ---------- | ---------------------------------- |
+| Queue      | Opens the Processing Queue drawer. |
+| Import Job | Opens the Import Job dialog.       |
 
 ---
 
-# Toolbar
+## Queue Badge
+
+The Queue button always displays current execution statistics.
+
+Example
+
+```text
+Queue
+
+2 Running
+
+4 Waiting
+```
+
+The badge is updated in real time through SSE.
+
+---
+
+## Toolbar
 
 Responsibilities
 
-- Search jobs
-- Filter jobs
-- Sort jobs
+- Search jobs.
+- Filter jobs.
+- Sort jobs.
+- Refresh current result set.
 
 Controls
 
-| Control | Description                         |
-| ------- | ----------------------------------- |
-| Search  | Search by title, company or keyword |
-| Filters | Filter jobs                         |
-| Sort    | Sort jobs                           |
+| Control | Description                          |
+| ------- | ------------------------------------ |
+| Search  | Search by title, company or keyword. |
+| Sort    | Sort current result set.             |
+| Filters | Opens filter panel.                  |
+| Refresh | Reload current query.                |
+
+Changing filters never reloads the entire page.
+
+The current scroll position is preserved whenever possible.
 
 ---
 
 # Job List
 
-The Job List is the primary workspace.
+The Job List is implemented as a virtualized row-based table.
 
-Jobs are displayed as rows rather than cards.
+The frontend **does not use page numbers**.
 
-The row layout improves:
+Instead it uses **Infinite Loading**.
 
-- scanning
-- sorting
-- filtering
-- batch operations
-- processing visibility
+The backend still exposes a paginated API.
 
-Each row represents one Job.
+The frontend automatically requests the next page while the user scrolls.
+
+The Job List preserves:
+
+- Search
+- Filters
+- Sorting
+- Scroll position
+
+when opening Job Details.
+
+---
+
+# Infinite Loading
+
+Loading sequence
+
+```text
+Open Jobs
+
+↓
+
+Load first page
+
+↓
+
+Render rows
+
+↓
+
+User scrolls
+
+↓
+
+Reach loading threshold
+
+↓
+
+Request next page
+
+↓
+
+Append rows
+
+↓
+
+Repeat until has_next = false
+```
+
+Configuration
+
+| Property          | Value               |
+| ----------------- | ------------------- |
+| Initial page size | 50                  |
+| Next page size    | 50                  |
+| Load threshold    | 80% of visible list |
+| Pagination        | Backend only        |
+| Frontend UX       | Infinite Loading    |
+
+The user never interacts with page numbers.
+
+The backend remains fully paginated.
+
+Benefits
+
+- Continuous browsing.
+- Smaller network requests.
+- Excellent performance.
+- Preserved scroll position.
+- Scales to tens of thousands of jobs.
+
+---
+
+# Job Selection
+
+Selecting a row opens the Job Details drawer.
+
+The row never expands inline.
+
+Opening Job Details never interrupts active processing.
+
+The Processing Queue drawer may remain open independently.
+
+---
+
+# Data Refresh
+
+The list is refreshed through two mechanisms.
+
+## Manual Refresh
+
+The Refresh button reloads the current query.
+
+## Automatic Refresh
+
+Only the affected row is updated when:
+
+- Processing status changes.
+- Scores become available.
+- Job metadata changes.
+
+The entire table must never be re-rendered because of a single processing update.
+
+# Job Row
+
+Each row represents a single Job.
+
+The row provides a compact overview of:
+
+- Job identity
+- Company
+- Location
+- AI evaluation
+- Processing state
+- Last update
+- Available actions
+
+Rows are never expandable.
 
 Selecting a row opens the Job Details Drawer.
 
 ---
 
-# Job Row
+# Row Columns
 
-Each row displays:
+| Column     | Description                                         |
+| ---------- | --------------------------------------------------- |
+| Select     | Multi-selection checkbox for future bulk operations |
+| #          | Legacy numeric identifier (`num`)                   |
+| Job        | Job title and employment type                       |
+| Company    | Company logo and company name                       |
+| Location   | City, country or Remote                             |
+| Overall    | Overall AI Score                                    |
+| Fit        | Fit Score                                           |
+| Success    | Success Score                                       |
+| Processing | Current Processing Execution state                  |
+| Updated    | Relative update time                                |
+| Actions    | Row actions                                         |
 
-- Selection checkbox
-- Job title
-- Company
-- Location
-- Overall Score
-- Fit Score
-- Success Score
-- Current ProcessingExecution status
-- Updated time
-- Quick actions
+---
+
+# Column Details
+
+##
+
+Displays the legacy numeric identifier.
 
 Example
 
+```text
+42
 ```
-□ Senior Backend Engineer
 
-GetYourGuide
+This value exists only for compatibility.
 
+All new APIs use the UUID v7 identifier.
+
+---
+
+## Job
+
+Displays
+
+- Job title
+- Employment type
+
+Example
+
+```text
+Senior Backend Engineer
+
+Full-time
+```
+
+---
+
+## Company
+
+Displays
+
+- Company logo
+- Company name
+
+Example
+
+```text
+◉ GetYourGuide
+```
+
+If no logo exists
+
+```text
+□ GetYourGuide
+```
+
+---
+
+## Location
+
+Displays
+
+Examples
+
+```text
 Berlin
 
-Overall A++
+Germany
+```
 
-Fit 92
+or
 
-Success 95
+```text
+Remote
+```
 
-Running
+---
 
-[...]
+# Overall Score
 
+The Overall Score is the primary recommendation score.
+
+It is calculated independently.
+
+It is **not** the average of Fit and Success.
+
+Example
+
+```text
+A++
+
+94
+
+Excellent Match
+```
+
+Color
+
+| Grade | Color  |
+| ----- | ------ |
+| A++   | Green  |
+| A+    | Green  |
+| A     | Lime   |
+| B     | Blue   |
+| C     | Orange |
+| D     | Red    |
+
+Hovering displays
+
+```text
+Overall Score
+
+Calculated using
+
+• Shared Rules
+
+• Job Rules
+
+• AI Recommendation Rules
+```
+
+---
+
+# Fit Score
+
+Measures technical compatibility.
+
+Example
+
+```text
+95
+```
+
+Hover
+
+```text
+Fit Score
+
+Python Backend
+
+DDD
+
+FastAPI
+
+PostgreSQL
+```
+
+---
+
+# Success Score
+
+Measures application success probability.
+
+Example
+
+```text
+91
+```
+
+Hover
+
+```text
+Success Score
+
+Visa
+
+Relocation
+
+Language
+
+Market
+
+Company
+```
+
+---
+
+# Processing Column
+
+The Processing column represents the current Processing Execution.
+
+Examples
+
+## Ready
+
+```text
+Ready
+```
+
+---
+
+## Queued
+
+```text
+Queued
+
+Position #3
+```
+
+---
+
+## Starting
+
+```text
+Starting...
+```
+
+---
+
+## Running
+
+```text
+Extracting Resources
+
+43%
+
+2m remaining
+```
+
+---
+
+## Completed
+
+```text
+Completed
+
+5 minutes ago
+```
+
+---
+
+## Failed
+
+```text
+Failed
+
+Retry available
+```
+
+---
+
+## Cancelled
+
+```text
+Cancelled
+```
+
+The Processing column updates live using SSE.
+
+Only the affected row is updated.
+
+The table must never refresh completely.
+
+---
+
+# Updated Column
+
+Displays relative time.
+
+Examples
+
+```text
+Just now
+
+2 minutes ago
+
+Yesterday
+```
+
+Hover shows the absolute timestamp.
+
+```text
+2026-07-30 14:32 UTC
 ```
 
 ---
 
 # Row Actions
 
-Each row contains two processing actions.
+Each row contains two processing systems.
 
-## Legacy Process
+The Legacy system remains available.
 
-Uses the existing processing implementation.
+The new AI Processing Execution is introduced alongside it.
 
-This action remains available until migration is complete.
-
-The implementation is intentionally unchanged.
-
----
-
-## Process V2
-
-Creates a new ProcessingExecution.
-
-The execution is processed asynchronously.
-
-Execution flow:
-
-ProcessingExecution
-
-↓
-
-Queue
-
-↓
-
-Worker
-
-↓
-
-LangChain
-
-↓
-
-Result persistence
-
-↓
-
-Live updates through SSE
-
-Legacy processing is never modified by this action.
+| Action         | Description                               |
+| -------------- | ----------------------------------------- |
+| Legacy Process | Existing processing pipeline (deprecated) |
+| AI Process     | Starts Processing Execution               |
+| Retry          | Retry failed execution                    |
+| Cancel         | Cancel queued execution                   |
+| Details        | Open Job Details                          |
+| More           | Additional actions                        |
 
 ---
 
-# ProcessingExecution
+# AI Process Button
 
-Each ProcessingExecution belongs to exactly one Job.
+The new button starts the Processing Execution workflow.
 
-The Job row always displays the latest execution.
+It is independent of the legacy implementation.
 
-Displayed information includes:
+Clicking the button
 
-- Current status
-- Current workflow step
-- Last update time
+```text
+Ready
 
-The row never displays workflow logs.
+↓
 
-Detailed execution information is available inside the Processing Queue Drawer.
+Queued
 
----
+↓
 
-# Execution Types
+Processing Queue
+```
 
-The infrastructure supports multiple execution types.
+The Jobs page remains visible.
 
-Current:
-
-- Job Processing
-
-Future:
-
-- Company Processing
-- Resume Generation
-- Resume Optimization
-- Cover Letter Generation
-- Company Analysis
-- Career Insights
-- Market Analysis
-
-The current Jobs page only exposes Job Processing.
+The Queue drawer updates automatically.
 
 ---
 
-# Job Details Drawer
+# Legacy Process Button
 
-Selecting a Job row opens the Job Details Drawer.
+The previous implementation remains available.
 
-The drawer is independent from Processing.
+It is marked as
 
-The drawer displays:
+```text
+Legacy
+```
 
-- Job information
-- Imported resources
-- Parsed content
-- Scores
-- Recommendations
-- Processing history
-- Actions
+or
 
-The drawer never displays live workflow execution.
+```text
+Deprecated
+```
 
-Live execution belongs to the Processing Queue Drawer.
+No new features are added to the legacy workflow.
 
----
+It exists only for migration compatibility.
 
 # Processing Queue Drawer
 
-The Processing Queue Drawer is the operational workspace for monitoring background executions.
+The Processing Queue is a monitoring workspace.
 
-The drawer is opened from:
+It is **not** the primary place for managing jobs.
 
-- Queue button
-- Process V2 button
-- Active execution indicator
+Users continue browsing the Job List while monitoring active executions.
+
+The drawer slides in from the right.
 
 It never replaces the Jobs page.
 
-The Jobs list always remains visible.
-
 ---
 
-# Processing Drawer Layout
+# Drawer Layout
 
+```text
+┌──────────────────────────────────────────────┐
+│ Processing Queue                             │
+│                                              │
+│ Running (2)                                  │
+│──────────────────────────────────────────────│
+│ Senior Backend Engineer                      │
+│ Extracting Resources                         │
+│ ████████████░░░░░░░░░░ 43%                   │
+│                                              │
+│ Python Developer                             │
+│ Scoring Job                                  │
+│ ██████████████████░░░░ 71%                   │
+│                                              │
+│──────────────────────────────────────────────│
+│ Waiting (4)                                  │
+│──────────────────────────────────────────────│
+│ Backend Engineer                             │
+│ Position #1                                  │
+│                                              │
+│ DevOps Engineer                              │
+│ Position #2                                  │
+│                                              │
+│──────────────────────────────────────────────│
+│ Failed (1)                                   │
+│──────────────────────────────────────────────│
+│ Rust Engineer                                │
+│ Retry                                        │
+└──────────────────────────────────────────────┘
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Processing Queue                                                [Close]      │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ Running (2)                                                                  │
-│                                                                              │
-│ Senior Backend Engineer                                                      │
-│ Step: Extract Structured Information                                         │
-│ ██████████████░░░░░░░░░░░░░░░░░░ 43%                                          │
-│                                                                              │
-│ Python Platform Engineer                                                     │
-│ Step: Calculate Scores                                                       │
-│ ███████████████████████████░░░░ 81%                                           │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Waiting (3)                                                                  │
-│                                                                              │
-│ Backend Engineer                                                             │
-│ Staff Engineer                                                               │
-│ Platform Developer                                                           │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Failed (1)                                                                   │
-│                                                                              │
-│ Senior Python Engineer                                                       │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
-# Processing Execution Details
+# Drawer Sections
 
-Selecting an execution expands its details.
+The drawer always contains three sections.
 
-The details page contains:
+## Running
 
-- Overview
-- Timeline
-- Current Step
-- Progress
-- Logs
-- Execution Metadata
+Contains executions currently processed by workers.
+
+Each execution displays
+
+- Job title
+- Current workflow step
+- Progress bar
+- Percentage
+- Estimated remaining time
 
 ---
 
-# Timeline
+## Waiting
 
-The timeline visualizes workflow progress.
+Contains queued executions.
+
+Each execution displays
+
+- Job title
+- Queue position
 
 Example
 
-```
+```text
 Queued
 
-✓
-
-Started
-
-✓
-
-Fetch Resources
-
-✓
-
-Validate Resources
-
-✓
-
-Extract Structured Information
-
-● Running
-
-Calculate Scores
-
-Pending
-
-Generate Recommendations
-
-Pending
-
-Completed
+Position #4
 ```
 
-The active step is always highlighted.
+---
+
+## Failed
+
+Contains failed executions.
+
+Each execution displays
+
+- Job title
+- Failure state
+- Retry action
 
 ---
 
-# Live Progress
+# Running Item
 
-Progress is streamed using Server-Sent Events (SSE).
+Example
 
-The UI updates automatically.
+```text
+Senior Backend Engineer
 
-No manual refresh is required.
+Extracting Resources
 
-Displayed values include:
+██████████░░░░░░░░░░
 
-- Current status
-- Current workflow step
-- Percentage
-- Current message
-- Last update timestamp
+43%
 
----
+Estimated
 
-# Execution Status
-
-| Status    | Description                              |
-| --------- | ---------------------------------------- |
-| Created   | Execution exists but has not been queued |
-| Queued    | Waiting for an available worker          |
-| Starting  | Worker initialization                    |
-| Running   | Workflow currently executing             |
-| Completed | Successfully finished                    |
-| Failed    | Finished with an unrecoverable error     |
-| Cancelled | Execution cancelled                      |
-
----
-
-# Job Status
-
-Job Status and ProcessingExecution Status are different concepts.
-
-Job Status describes the lifecycle of the Job entity.
-
-ProcessingExecution Status describes the lifecycle of one execution.
-
-A Job may have many ProcessingExecutions over time.
-
-The UI always displays the latest execution.
-
----
-
-# Processing Actions
-
-While Running
-
-Available actions:
-
-- View Details
-
-Unavailable:
-
-- Process V2
-
----
-
-While Queued
-
-Available actions:
-
-- Cancel
-
----
-
-While Failed
-
-Available actions:
-
-- Retry
-
----
-
-While Completed
-
-Available actions:
-
-- View Results
-- Reprocess
-
----
-
-# User Flow
-
-## Process V2
-
+2m remaining
 ```
-User clicks Process V2
 
-↓
+---
 
-ProcessingExecution created
+# Workflow Progress
 
-↓
+The drawer reflects the Processing Execution workflow.
 
+Typical execution
+
+```text
 Queued
 
 ↓
 
-Worker starts
+Starting
 
 ↓
 
-Workflow executes
+Initializing Context
 
 ↓
 
-Progress streamed through SSE
+Loading Rules
+
+↓
+
+Loading Prompt
+
+↓
+
+Extracting Resources
+
+↓
+
+Extracting Job
+
+↓
+
+Scoring Job
+
+↓
+
+Generating Summary
+
+↓
+
+Persisting Results
 
 ↓
 
 Completed
+```
+
+Each transition is streamed immediately through SSE.
+
+---
+
+# Live Updates
+
+The drawer is completely event-driven.
+
+Every Processing Execution publishes events.
+
+Examples
+
+```text
+Queued
 
 ↓
 
-Job updated
+Running
+
+↓
+
+Extracting Resources
+
+↓
+
+Scoring
+
+↓
+
+Completed
+```
+
+Only the affected execution is updated.
+
+The drawer never refreshes completely.
+
+---
+
+# Server-Sent Events
+
+The frontend subscribes once.
+
+```text
+GET
+
+/api/sse/processing
+```
+
+The connection remains open.
+
+Incoming events update
+
+- Running list
+- Waiting list
+- Failed list
+- Progress bars
+- Current workflow stage
+- Queue positions
+
+No polling is used.
+
+---
+
+# Job Details Integration
+
+Clicking an execution inside the drawer opens the Job Details drawer.
+
+The Processing Queue drawer automatically closes.
+
+The user always has only one drawer open.
+
+---
+
+# User Flows
+
+## Start Processing
+
+```text
+Click
+
+AI Process
+
+↓
+
+Job
+
+Queued
+
+↓
+
+Appears
+
+Waiting
+
+↓
+
+Worker Available
+
+↓
+
+Running
+
+↓
+
+Completed
 ```
 
 ---
 
-## Retry
+## Failure
 
-```
+```text
+Running
+
+↓
+
+Error
+
+↓
+
 Failed
 
 ↓
@@ -532,68 +925,221 @@ Retry
 
 ↓
 
-New ProcessingExecution
+Queued
+```
 
-↓
+---
 
+## Cancel
+
+```text
 Queued
 
 ↓
 
-Running
+Cancel
 
 ↓
 
-Completed
+Cancelled
+
+↓
+
+Removed
+
+from Queue
+```
+
+Running executions cannot be cancelled immediately.
+
+They request graceful termination.
+
+---
+
+# Empty States
+
+## Running Empty
+
+```text
+No jobs are currently processing.
 ```
 
 ---
 
-## Legacy Processing
+## Waiting Empty
 
+```text
+Queue is empty.
 ```
-Legacy Process
-
-↓
-
-Existing Processing Pipeline
-
-↓
-
-Legacy Result
-```
-
-Legacy Processing remains unchanged until it is fully deprecated.
 
 ---
 
+## Failed Empty
+
+```text
+No failed executions.
+```
+
 ---
+
+# Connection States
+
+## Connected
+
+```text
+Live Updates
+
+Connected
+```
+
+---
+
+## Reconnecting
+
+```text
+Reconnecting...
+
+Attempt 2
+```
+
+---
+
+## Disconnected
+
+```text
+Connection Lost
+
+Retrying...
+```
+
+The frontend automatically reconnects using EventSource.
+
+---
+
+# Performance Rules
+
+The Processing Queue must
+
+- Update only modified executions.
+- Never reload the complete drawer.
+- Never reload the Job List.
+- Support hundreds of simultaneous executions.
+- Preserve scroll position during updates.
+- Batch frequent UI updates when necessary.
+
+---
+
+# Accessibility
+
+- Progress bars expose ARIA progress values.
+- Queue changes are announced to screen readers.
+- Keyboard navigation is fully supported.
+- Drawer can be closed with Escape.
+- Focus returns to the Queue button after closing.
 
 # Responsive Behavior
 
 ## Desktop
 
-- Full-width row-based Jobs List
-- Job Details Drawer opens from the right
-- Processing Queue Drawer opens from the right
-- Both drawers never replace the Jobs List
+The Jobs page is optimized for widescreen development workstations.
+
+Layout
+
+- Full-width virtualized Job List.
+- Right-side Processing Queue drawer.
+- Persistent toolbar.
+- Sticky table header.
+
+The Job List always remains visible while the Processing Queue drawer is open.
 
 ---
 
 ## Tablet
 
-- Responsive row layout
-- Narrower drawers
-- Columns collapse when necessary
+The layout adapts to medium screens.
+
+Changes
+
+- Reduced column spacing.
+- Company logo becomes optional.
+- Processing drawer width is reduced.
+- Secondary columns may collapse.
+
+Priority order
+
+1. Job
+2. Company
+3. Overall
+4. Processing
+5. Actions
 
 ---
 
 ## Mobile
 
-- Jobs displayed as compact rows
-- Job Details opens as a full-screen sheet
-- Processing Queue opens as a full-screen page
-- Timeline becomes vertically scrollable
+The page switches to a mobile-friendly layout.
+
+Changes
+
+- Rows become stacked cards.
+- Toolbar collapses.
+- Filters open in a bottom sheet.
+- Processing Queue opens as a full-screen modal.
+- Infinite scrolling remains enabled.
+
+---
+
+# Search Behavior
+
+Search is incremental.
+
+Typing updates the result set after a debounce delay.
+
+Supported fields
+
+- Job Title
+- Company Name
+- Keywords
+- Location
+
+Search preserves
+
+- Sorting
+- Filters
+- Scroll position (when possible)
+
+---
+
+# Filtering
+
+Supported filters
+
+- Processing Status
+- Overall Score
+- Company
+- Country
+- Employment Type
+- Remote / Hybrid / On-site
+- Date Imported
+- Processing State
+
+Filters are applied server-side.
+
+---
+
+# Sorting
+
+Supported sort fields
+
+- Imported Date
+- Updated Date
+- Overall Score
+- Fit Score
+- Success Score
+- Company Name
+- Job Title
+
+Sorting is always performed by the backend.
 
 ---
 
@@ -601,198 +1147,241 @@ Legacy Processing remains unchanged until it is fully deprecated.
 
 ## No Jobs
 
-Display:
+```text
+No jobs have been imported yet.
 
-- Empty illustration
-- "No jobs have been imported yet."
-- Add Job button
+Import your first job to begin.
+```
 
----
+Actions
 
-## No Active Executions
-
-Display:
-
-"No Processing Executions are currently running."
+- Import Job
 
 ---
 
-## No Failed Executions
+## No Search Results
 
-Display:
+```text
+No matching jobs were found.
 
-"No failed executions."
+Try another keyword or remove filters.
+```
+
+---
+
+## No Filter Results
+
+```text
+No jobs match the selected filters.
+```
+
+Action
+
+```text
+Clear Filters
+```
 
 ---
 
 # Loading States
 
-Jobs List
+## Initial Loading
+
+Display
 
 - Skeleton rows
-- Preserve table layout
+- Loading indicator
 
-Processing Queue
+The page layout must remain stable.
 
-- Skeleton timeline
-- Skeleton progress bars
+---
+
+## Infinite Loading
+
+When requesting the next page
+
+```text
+Loading more jobs...
+```
+
+Existing rows remain interactive.
+
+---
+
+## Refreshing
+
+Refreshing does not clear the table.
+
+Only affected rows are updated.
 
 ---
 
 # Error States
 
-Jobs
+## Backend Error
 
-- Unable to load jobs
+```text
+Unable to load jobs.
 
-Processing Queue
-
-- Unable to load processing executions
-
-SSE
-
-- Lost connection
-- Attempting to reconnect...
-
-The UI should automatically reconnect.
+Retry
+```
 
 ---
 
-# Batch Selection
+## Network Error
 
-The row layout supports future batch operations.
+```text
+Connection lost.
 
-Potential future actions include:
-
-- Batch Process
-- Batch Delete
-- Batch Retry
-- Batch Export
-
-Batch operations are not part of the current implementation.
+Trying to reconnect...
+```
 
 ---
 
-# Sorting
+## SSE Disconnected
 
-The Jobs List should support sorting by:
+```text
+Live updates unavailable.
 
-- Updated Time
-- Company
-- Overall Score
-- Fit Score
-- Success Score
-- Processing Status
+Reconnecting...
+```
 
----
+The user can continue browsing.
 
-# Filtering
-
-Filters may include:
-
-- Company
-- Location
-- Processing Status
-- Overall Score
-- Visa Sponsorship
-- Remote
-- Imported Date
+Only live updates pause temporarily.
 
 ---
 
-# Search
+# Row Density
 
-Search should match:
+Supported display modes
 
-- Job title
-- Company
-- Keywords
-- Location
+## Comfortable
+
+Row Height
+
+```text
+80px
+```
+
+Default mode.
+
+---
+
+## Compact
+
+Row Height
+
+```text
+64px
+```
+
+Optimized for large datasets.
 
 ---
 
 # Accessibility
 
-The page should support:
+The page follows WCAG AA.
 
-- Keyboard navigation
-- Screen readers
-- High contrast mode
-- Visible focus states
+Requirements
 
-All interactive controls must be reachable without a mouse.
+- Keyboard navigation.
+- Screen-reader labels.
+- ARIA progress indicators.
+- Visible focus states.
+- High contrast support.
+- Reduced motion support.
+
+Keyboard shortcuts
+
+| Shortcut | Action           |
+| -------- | ---------------- |
+| ↑ ↓      | Navigate rows    |
+| Enter    | Open Job Details |
+| Esc      | Close Drawer     |
+| Ctrl + F | Focus Search     |
+
+---
+
+# Performance Requirements
+
+The page must support
+
+- 100,000+ jobs
+- Virtual scrolling
+- Infinite loading
+- Partial row updates
+- Stable scroll position
+
+The frontend must never render all rows simultaneously.
+
+Only visible rows are mounted.
+
+---
+
+# Design Tokens
+
+## Status Colors
+
+| Status    | Color  |
+| --------- | ------ |
+| Ready     | Gray   |
+| Queued    | Blue   |
+| Running   | Cyan   |
+| Completed | Green  |
+| Failed    | Red    |
+| Cancelled | Orange |
+
+---
+
+## Score Colors
+
+| Grade | Color  |
+| ----- | ------ |
+| A++   | Green  |
+| A+    | Green  |
+| A     | Lime   |
+| B     | Blue   |
+| C     | Orange |
+| D     | Red    |
 
 ---
 
 # Icons (Lucide)
 
-| UI Element      | Icon              |
-| --------------- | ----------------- |
-| Add Job         | Plus              |
-| Queue           | ListTodo          |
-| Process V2      | Bot               |
-| Legacy Process  | Play              |
-| Search          | Search            |
-| Filters         | SlidersHorizontal |
-| Details         | Eye               |
-| Retry           | RotateCcw         |
-| Cancel          | Square            |
-| Delete          | Trash2            |
-| Success         | CircleCheck       |
-| Failed          | CircleX           |
-| Running         | LoaderCircle      |
-| Timeline        | GitBranch         |
-| Logs            | ScrollText        |
-| Scores          | BadgePercent      |
-| Recommendations | Sparkles          |
-
----
-
-# Design Notes
-
-The Jobs page is intentionally designed around **rows**, not cards.
-
-Reasons:
-
-- Faster scanning
-- Better scalability
-- Better sorting
-- Better filtering
-- Better operational visibility
-- Consistent with professional tools such as GitHub, Jira, Linear, and Azure DevOps
-
-Cards are intentionally avoided because this page is an operational workspace rather than a content browsing experience.
+| Element        | Icon              |
+| -------------- | ----------------- |
+| Import Job     | Plus              |
+| Queue          | Workflow          |
+| Search         | Search            |
+| Filters        | SlidersHorizontal |
+| Refresh        | RefreshCcw        |
+| Legacy Process | PlayCircle        |
+| AI Process     | Sparkles          |
+| Retry          | RotateCcw         |
+| Cancel         | Square            |
+| Details        | Eye               |
+| More           | EllipsisVertical  |
+| Completed      | CircleCheck       |
+| Failed         | CircleX           |
+| Running        | LoaderCircle      |
+| Waiting        | Clock3            |
 
 ---
 
 # Related Documents
 
-Architecture
-
-- docs/features/job-processing.md
-- docs/domain/processing/processing-execution.md
-- docs/domain/processing/events.md
-
-API
-
-- docs/api/processing/process-job.md
-- docs/api/sse/processing-events.md
-
-AI
-
-- docs/ai/job-processing-chain.md
-- docs/ai/job-processing-context.md
-
-Queue
-
-- docs/queue/processing/arq-processing.md
-
-UX
-
-- docs/ux/flows/jobs/process-job.md
-- docs/ux/flows/jobs/process-job-live.md
-- docs/ux/features/jobs/processing-queue.md
-
-Development
-
-- docs/development/sse.md
+- `docs/features/job-processing.md`
+- `docs/workflows/job-processing.md`
+- `docs/domain/processing/processing-execution.md`
+- `docs/domain/processing/events.md`
+- `docs/api/jobs/list-jobs.md`
+- `docs/api/processing/process-job.md`
+- `docs/api/sse/processing-events.md`
+- `docs/ux/features/jobs/job-row.md`
+- `docs/ux/features/jobs/processing-queue.md`
+- `docs/ux/flows/jobs/browse-jobs.md`
+- `docs/ux/flows/jobs/process-job-live.md`
+- `docs/job-lifecycle.md`
+- `docs/job-state-machine.md`

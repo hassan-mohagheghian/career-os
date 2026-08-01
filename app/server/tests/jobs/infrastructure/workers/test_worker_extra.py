@@ -1,0 +1,818 @@
+"""Additional coverage for worker.py — DB helpers, rescoring, streaming, LLM helpers, pipeline entry."""
+import json
+import os
+import sys
+from datetime import datetime, timedelta
+from types import ModuleType
+from unittest.mock import patch, MagicMock
+
+import pytest
+
+from jobs.infrastructure.models.job_model import JobModel
+from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel, RuleModel
+
+
+def _seed_job(sa_session, num=1, url='https://example.com/job', **kw):
+    data = dict(
+        num=num, company='Acme', role='Engineer', location='Berlin',
+        match='High', score='A', url=url, status='processing',
+        raw_description='Engineer role responsibilities requirements python',
+        rescoring=0,
+    )
+    data.update(kw)
+    m = JobModel(**data)
+    sa_session.add(m)
+    sa_session.commit()
+    sa_session.refresh(m)
+    return m.num
+
+
+def _full_job_dict(num=100):
+    return {
+        'num': num, 'company': 'Acme', 'role': 'Engineer', 'location': 'Munich, Germany',
+        'match': 'High', 'score': 'A', 'salary': '120k', 'stack': 'Python, Go',
+        'visa': 'Yes', 'applicants': '10', 'posted': '2 weeks ago',
+        'industry': 'Tech', 'domain': 'job', 'notes': 'note', 'action': 'Apply Now',
+        'url': f'https://example.com/{num}', 'work_type': 'remote',
+        'locations': '["Berlin"]', 'posted_at': None, 'adv_at': None,
+        'employment_type': 'full-time', 'work_types': ['Remote Work', 'Hybrid'],
+        'raw_description': 'desc', 'structured_description': '{}',
+    }
+
+
+def _fake_dateutil():
+    fake_dt = ModuleType('dateutil')
+    fake_rel = ModuleType('dateutil.relativedelta')
+
+    class _Relativedelta:
+        def __init__(self, **kw):
+            self._months = kw.get('months', 0)
+
+        def __rsub__(self, other):
+            return other - timedelta(days=30 * self._months)
+
+    fake_rel.relativedelta = _Relativedelta
+    fake_dt.relativedelta = fake_rel
+    return patch.dict(sys.modules, {'dateutil': fake_dt, 'dateutil.relativedelta': fake_rel})
+
+
+def _fake_dateutil_raising():
+    fake_dt = ModuleType('dateutil')
+    fake_rel = ModuleType('dateutil.relativedelta')
+
+    class _RaisingRelativedelta:
+        def __rsub__(self, other):
+            raise RuntimeError('boom')
+
+    fake_rel.relativedelta = _RaisingRelativedelta
+    fake_dt.relativedelta = fake_rel
+    return patch.dict(sys.modules, {'dateutil': fake_dt, 'dateutil.relativedelta': fake_rel})
+
+
+class TestUpdateStep:
+    def test_update_step_fields_and_broadcast(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _update_step
+        broadcaster = MagicMock()
+        with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
+            _update_step(pid, 'step_fetch', 1, status='processing', company='Acme', job_num=5, error=None)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.status == 'processing'
+        assert row.company == 'Acme'
+        broadcaster.step_update.assert_called_once()
+
+    def test_update_step_minimal(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _update_step
+        with patch('jobs.infrastructure.workers.worker.broadcaster'):
+            _update_step(pid, 'step_done', 1)
+
+    def test_update_step_missing_row_still_broadcasts(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _update_step
+        broadcaster = MagicMock()
+        with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
+            _update_step(99999, 'step_fetch', 1, error='oops')
+        broadcaster.step_update.assert_called_once()
+        evt = broadcaster.step_update.call_args[0][0]
+        assert evt.extra == {'error': 'oops'}
+
+
+class TestSaveSessionId:
+    def test_saves_session_and_broadcasts(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _save_session_id
+        broadcaster = MagicMock()
+        with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
+            _save_session_id(pid, 'sess_abc')
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.session_id == 'sess_abc'
+        broadcaster.step_update.assert_called_once()
+
+
+class TestInsertJob:
+    @pytest.mark.parametrize('et,expected', [
+        ('Full-time', 'Full-time'), ('full time', 'Full-time'), ('part-time', 'Part-time'),
+        ('Contract', 'Contract'), ('freelance', 'Contract'), ('internship', 'Internship'),
+        ('temporary', 'Temporary'), ('anything else', 'Full-time'),
+    ])
+    def test_employment_type_normalization(self, mock_get_session_worker, et, expected):
+        from jobs.infrastructure.workers.worker import _insert_job
+        d = _full_job_dict()
+        d['employment_type'] = et
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        assert row.employment_type == expected
+
+    def test_work_types_from_string(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_job
+        d = _full_job_dict()
+        d['work_types'] = json.dumps(['Remote', 'On-site'])
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        assert json.loads(row.work_types) == ['Remote', 'On-site']
+
+    def test_work_types_invalid_string_falls_back(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_job
+        d = _full_job_dict()
+        d['work_types'] = 'not-json{{'
+        d['work_type'] = ''
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        assert json.loads(row.work_types) == ['On-site']
+
+    def test_work_types_from_single_work_type(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_job
+        d = _full_job_dict()
+        d['work_types'] = []
+        d['work_type'] = 'hybrid'
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        assert json.loads(row.work_types) == ['Hybrid']
+
+    def test_locations_as_string(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_job
+        d = _full_job_dict()
+        d['locations'] = 'Berlin'
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        assert json.loads(row.locations) == ['Munich']
+
+    def test_upsert_existing(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_job
+        pid = _seed_job(mock_get_session_worker, num=50)
+        d = _full_job_dict(num=50)
+        d['company'] = 'Updated'
+        _insert_job(d)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 50).first()
+        assert row.company == 'Updated'
+        assert row.num == pid
+
+
+class TestParseDates:
+    def test_parse_posted_date_month(self):
+        from jobs.infrastructure.workers.worker import _parse_posted_date
+        with _fake_dateutil():
+            result = _parse_posted_date('2 months ago')
+        assert result is not None
+
+    def test_parse_posted_date_exception_returns_none(self):
+        from jobs.infrastructure.workers.worker import _parse_posted_date
+        with _fake_dateutil_raising():
+            assert _parse_posted_date('1 month ago') is None
+
+    def test_parse_posted_date_no_match(self):
+        from jobs.infrastructure.workers.worker import _parse_posted_date
+        assert _parse_posted_date('some gibberish text') is None
+
+    def test_parse_adv_at_empty(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        result = _parse_adv_at('')
+        assert result is not None
+
+    def test_parse_adv_at_hours(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        assert _parse_adv_at('5 hours ago') is not None
+
+    def test_parse_adv_at_days(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        assert _parse_adv_at('3 days ago') is not None
+
+    def test_parse_adv_at_weeks(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        assert _parse_adv_at('1 week ago') is not None
+
+    def test_parse_adv_at_month_plain(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        with _fake_dateutil():
+            assert _parse_adv_at('1 month') is not None
+
+    def test_parse_adv_at_month_plus(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        with _fake_dateutil():
+            assert _parse_adv_at('4 months+') is not None
+
+    def test_parse_adv_at_exception(self):
+        from jobs.infrastructure.workers.worker import _parse_adv_at
+        with _fake_dateutil_raising():
+            assert _parse_adv_at('1 month') is not None
+
+
+class TestDbHelpers:
+    def test_mark(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _mark
+        with patch('jobs.infrastructure.workers.worker._update_step') as mock_update, \
+             patch('jobs.infrastructure.workers.worker.broadcaster'):
+            _mark(pid, 'step_fetch', company='Acme', job_num=3)
+        mock_update.assert_called_once_with(pid, 'step_fetch', 1, company='Acme', job_num=3)
+
+    def test_get_item(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker, status='queued')
+        from jobs.infrastructure.workers.worker import _get_item
+        item = _get_item(pid)
+        assert item['num'] == pid
+        assert item['status'] == 'queued'
+
+    def test_get_item_missing(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _get_item
+        assert _get_item(99999) is None
+
+    def test_save_workflow_log(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _save_job_workflow_log
+        _save_job_workflow_log(pid, json.dumps([{'step': 'a', 'msg': 'b'}]))
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert json.loads(row.workflow_log)[0]['step'] == 'a'
+
+    def test_insert_summary(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_summary
+        _insert_summary({'num': 7, 'company': 'Acme', 'match': 'High', 'score': 'A',
+                         'summary': 'sum', 'stack': 'py', 'resumeFit': 'rf', 'note': 'n', 'url': 'u'})
+        row = mock_get_session_worker.query(SummaryModel).filter(SummaryModel.num == 7).first()
+        assert row.company == 'Acme'
+        assert row.summary == 'sum'
+
+    def test_insert_resume(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _insert_resume
+        _insert_resume({'id': 'rescore_7', 'title': 'T', 'company': 'Acme', 'role': 'R',
+                        'job_num': 7, 'content': '<p>x</p>'})
+        row = mock_get_session_worker.query(ResumeModel).filter(ResumeModel.id == 'rescore_7').first()
+        assert row.content == '<p>x</p>'
+
+    def test_check_result_file_exists(self, tmp_path):
+        from jobs.infrastructure.workers.worker import _check_result_file
+        p = tmp_path / 'result.json'
+        p.write_text('{}')
+        _check_result_file(str(p))
+
+    def test_check_result_file_missing_raises(self, tmp_path):
+        from jobs.infrastructure.workers.worker import _check_result_file
+        with pytest.raises(RuntimeError, match='Result file not found'):
+            _check_result_file(str(tmp_path / 'nope.json'))
+
+    def test_mark_old_job_deleted(self, mock_get_session_worker):
+        _seed_job(mock_get_session_worker, num=1, url='https://dup.com')
+        _seed_job(mock_get_session_worker, num=2, url='https://dup.com')
+        from jobs.infrastructure.workers.worker import _mark_old_job_deleted
+        _mark_old_job_deleted('https://dup.com', exclude_num=2)
+        row1 = mock_get_session_worker.query(JobModel).filter(JobModel.num == 1).first()
+        row2 = mock_get_session_worker.query(JobModel).filter(JobModel.num == 2).first()
+        assert row1.deleted == 1
+        assert row2.deleted == 0
+
+
+class TestNormalizeJobDataExtra:
+    def test_location_with_parentheses(self):
+        from jobs.infrastructure.workers.worker import _normalize_job_data
+        d = {'location': 'Munich (Germany)', 'work_type': 'Remote'}
+        result = _normalize_job_data(d)
+        assert result['location'] == 'Munich'
+
+    def test_unknown_city_in_locations_array_kept(self):
+        from jobs.infrastructure.workers.worker import _normalize_job_data
+        d = {'location': 'Berlin', 'locations': ['Springfield', 'Berlin'], 'work_type': 'On-site'}
+        result = _normalize_job_data(d)
+        assert 'Springfield' in result['locations']
+        assert 'Berlin' in result['locations']
+
+    def test_locations_string_invalid_json(self):
+        from jobs.infrastructure.workers.worker import _normalize_job_data
+        d = {'location': 'Berlin', 'locations': 'not json {{', 'work_type': 'On-site'}
+        result = _normalize_job_data(d)
+        assert isinstance(result['locations'], list)
+        assert 'Berlin' in result['locations']
+
+    def test_unknown_work_type_defaults_onsite(self):
+        from jobs.infrastructure.workers.worker import _normalize_job_data
+        d = {'location': 'Berlin', 'work_type': 'weird'}
+        result = _normalize_job_data(d)
+        assert result['work_type'] == 'On-site'
+
+    def test_empty_entry_in_locations_array(self):
+        from jobs.infrastructure.workers.worker import _normalize_job_data
+        d = {'location': '', 'locations': ['', 'Berlin'], 'work_type': 'On-site'}
+        result = _normalize_job_data(d)
+        assert result['locations'] == ['Berlin']
+
+
+class TestFailAndLog:
+    def test_fail_with_step(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _fail
+        broadcaster = MagicMock()
+        with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
+            _fail(pid, 'Network timeout', step='fetch')
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.status == 'failed'
+        assert '[Fetching job page]' in row.error
+        broadcaster.error.assert_called_once()
+
+    def test_fail_without_step(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _fail
+        with patch('jobs.infrastructure.workers.worker.broadcaster'):
+            _fail(pid, 'Generic error')
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert row.error == 'Generic error'
+
+    def test_fail_unknown_step(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _fail
+        with patch('jobs.infrastructure.workers.worker.broadcaster'):
+            _fail(pid, 'msg', step='mystery')
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        assert '[mystery] msg' in row.error
+
+    def test_log_appends(self, mock_get_session_worker):
+        pid = _seed_job(mock_get_session_worker)
+        from jobs.infrastructure.workers.worker import _log
+        broadcaster = MagicMock()
+        with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
+            _log(pid, 'fetch', 'Fetching page...')
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        logs = json.loads(row.workflow_log)
+        assert logs[-1]['msg'] == 'Fetching page...'
+        broadcaster.log.assert_called_once()
+
+
+class TestLoadRules:
+    def test_no_rules(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _load_rules
+        assert _load_rules('job') == 'No scoring rules set.'
+
+    def test_with_rules(self, mock_get_session_worker):
+        sa_session = mock_get_session_worker
+        sa_session.add(RuleModel(category='fit', rule_type='job', scope='JOB', key='python',
+                                 value='Strong', priority=10, score_weight=0))
+        sa_session.add(RuleModel(category='company', rule_type='job', scope='SHARED', key='scale',
+                                 value='Large', priority=20, score_weight=30))
+        sa_session.commit()
+        from jobs.infrastructure.workers.worker import _load_rules
+        result = _load_rules('job')
+        assert 'FIT' in result
+        assert 'python' in result
+        assert 'scale' in result
+
+
+class TestLLMHelpers:
+    def test_extract_structured_description(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _extract_structured_description
+        llm = MagicMock()
+        llm.generate_structured.return_value.content = '{"title": "X"}'
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'):
+            assert _extract_structured_description('raw text', 5) == '{"title": "X"}'
+
+    def test_extract_all_with_session_id(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _extract_all
+        llm = MagicMock()
+        llm.generate_structured.return_value.content = '{"company": "Acme"}'
+        llm.generate_structured.return_value.metadata = {'session_id': 'sid123'}
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._save_session_id') as mock_save:
+            result = _extract_all('raw', 5)
+        assert result == {'company': 'Acme'}
+        mock_save.assert_called_once_with(5, 'sid123')
+
+    def test_extract_all_bad_json(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _extract_all
+        llm = MagicMock()
+        llm.generate_structured.return_value.content = 'not-json'
+        llm.generate_structured.return_value.metadata = {}
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'):
+            assert _extract_all('raw', 5) is None
+
+
+class TestFetch:
+    def test_fetch_multi_source_ok(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _fetch_multi_source
+        page = MagicMock()
+        page.is_ok = True
+        page.plain_text = 'Job page content'
+        with patch('jobs.infrastructure.workers.worker.fetch_page', return_value=page), \
+             patch('jobs.infrastructure.workers.worker._log'):
+            result = _fetch_multi_source('https://job.com', [
+                {'type': 'text', 'content': 'manual note'},
+                {'type': 'url', 'content': 'https://note.com'},
+            ], [{'url': 'https://link.com', 'title': 'Link'}], 1)
+        assert 'manual note' in result
+        assert 'Job page content' in result
+        assert 'Link' in result
+
+    def test_fetch_multi_source_failures_and_exceptions(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _fetch_multi_source
+        bad_page = MagicMock()
+        bad_page.is_ok = False
+        bad_page.error.message = '404'
+        pages = {'https://job.com': bad_page, 'https://note.com': bad_page, 'https://link.com': bad_page}
+        def _fake_fetch(url, **kw):
+            if url in ('https://boom.com', 'https://boom-link.com'):
+                raise ValueError('network down')
+            return pages.get(url, bad_page)
+        logs = []
+        with patch('jobs.infrastructure.workers.worker.fetch_page', side_effect=_fake_fetch), \
+             patch('jobs.infrastructure.workers.worker._log', side_effect=lambda *a, **k: logs.append(a)):
+            result = _fetch_multi_source('https://job.com', [
+                {'type': 'url', 'content': 'https://note.com'},
+                {'type': 'url', 'content': 'https://boom.com'},
+            ], [{'url': 'https://link.com'}, {'url': 'https://boom-link.com'}], 1)
+        assert result == ''
+        assert len(logs) >= 4
+
+    def test_fetch_multi_source_main_url_exception(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _fetch_multi_source
+        def _raising_fetch(url, **kw):
+            raise ValueError('main url exploded')
+        with patch('jobs.infrastructure.workers.worker.fetch_page', side_effect=_raising_fetch), \
+             patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            result = _fetch_multi_source('https://boom-main.com', [], [], 1)
+        assert result == ''
+        mock_log.assert_called_once()
+
+    def test_fetch_multi_source_empty(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _fetch_multi_source
+        with patch('jobs.infrastructure.workers.worker.fetch_page'), \
+             patch('jobs.infrastructure.workers.worker._log'):
+            assert _fetch_multi_source('', [], [], 1) == ''
+
+    def test_fetch_url_ok(self):
+        from jobs.infrastructure.workers.worker import _fetch_url
+        page = MagicMock()
+        page.is_ok = True
+        page.plain_text = 'text'
+        with patch('jobs.infrastructure.workers.worker.fetch_page', return_value=page):
+            assert _fetch_url('https://job.com') == 'text'
+
+    def test_fetch_url_raises(self):
+        from jobs.infrastructure.workers.worker import _fetch_url
+        page = MagicMock()
+        page.is_ok = False
+        page.error.message = 'Network error'
+        with patch('jobs.infrastructure.workers.worker.fetch_page', return_value=page), \
+             pytest.raises(RuntimeError, match='Network error'):
+            _fetch_url('https://job.com')
+
+
+class TestValidateJobContent:
+    def test_llm_returns_valid(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _validate_job_content
+        llm = MagicMock()
+        llm.generate_structured.return_value.content = '{"valid": true, "title": "Engineer"}'
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'):
+            assert _validate_job_content('text', 1) == {'valid': True, 'title': 'Engineer'}
+
+    def test_llm_bad_json_fallback_valid(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _validate_job_content
+        llm = MagicMock()
+        llm.generate_structured.return_value.content = 'broken'
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'):
+            result = _validate_job_content('software engineer developer python', 1)
+        assert result['valid'] is True
+
+    def test_llm_exception_fallback_invalid(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _validate_job_content
+        llm = MagicMock()
+        llm.generate_structured.side_effect = RuntimeError('boom')
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'):
+            result = _validate_job_content('plain text with no keywords at all', 1)
+        assert result['valid'] is False
+
+
+class TestProviderStreaming:
+    def test_build_provider_cmd_with_session(self):
+        from jobs.infrastructure.workers.worker import _build_provider_cmd
+        cmd = _build_provider_cmd('my prompt', session_id='sess1')
+        assert '--session' in cmd
+        assert 'sess1' in cmd
+
+    def test_build_provider_cmd_without_session(self):
+        from jobs.infrastructure.workers.worker import _build_provider_cmd
+        cmd = _build_provider_cmd('my prompt')
+        assert '--session' not in cmd
+
+    def test_stream_provider_output_full(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        resp = MagicMock()
+        resp.metadata = {'lines': ['line1'], 'session_id': 'sess-ok', 'returncode': 0}
+        resp.content = ''
+
+        def _fake_stream(prompt, context=None, timeout=None, on_event=None, on_session_id=None):
+            on_event({'type': 'tool_use', 'part': {'tool': 'write', 'state': {'title': 'x.txt', 'output': 'DATA', 'status': 'done'}}})
+            on_event({'type': 'step_finish', 'part': {'reason': 'done', 'tokens': {'total': 10}}})
+            on_session_id('sess-ok')
+            return resp
+
+        llm = MagicMock()
+        llm.generate_streaming.side_effect = _fake_stream
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker._save_session_id'), \
+             patch('jobs.infrastructure.workers.worker._log'):
+            rc, lines, sid, captured = _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1)
+        assert rc == 0
+        assert lines == ['line1']
+        assert sid == 'sess-ok'
+        assert captured['x.txt'] == 'DATA'
+
+    def test_stream_provider_generates_session_id(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        resp = MagicMock()
+        resp.metadata = {'lines': [], 'returncode': 1}
+        resp.content = ''
+        llm = MagicMock()
+        llm.generate_streaming.return_value = resp
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker._save_session_id') as mock_save:
+            rc, lines, sid, captured = _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1)
+        assert rc == 1
+        assert sid.startswith('ai_')
+        mock_save.assert_called_once()
+
+    def test_stream_provider_repairs_content(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        resp = MagicMock()
+        resp.metadata = {'lines': [], 'session_id': 's', 'returncode': 0}
+        resp.content = '{"a": 1}'
+        llm = MagicMock()
+        llm.generate_streaming.return_value = resp
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker._save_session_id'), \
+             patch('jobs.infrastructure.workers.worker.repair_llm_json', return_value={'a': 1}):
+            rc, lines, sid, captured = _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1)
+        assert captured['result'] == {'a': 1}
+
+    def test_stream_provider_timed_out(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        llm = MagicMock()
+        llm.generate_streaming.side_effect = RuntimeError('request timed out')
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm):
+            rc, lines, sid, captured = _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1, resume_session_id='old')
+        assert rc == -9
+        assert sid == 'old'
+
+    def test_stream_provider_repair_exception_swallowed(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        resp = MagicMock()
+        resp.metadata = {'lines': [], 'session_id': 's', 'returncode': 0}
+        resp.content = '{"a": 1}'
+        llm = MagicMock()
+        llm.generate_streaming.return_value = resp
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             patch('jobs.infrastructure.workers.worker._save_session_id'), \
+             patch('jobs.infrastructure.workers.worker.repair_llm_json', side_effect=RuntimeError('parse error')):
+            rc, lines, sid, captured = _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1)
+        assert captured == {}
+
+    def test_stream_provider_other_error_raises(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _stream_provider_output
+        llm = MagicMock()
+        llm.generate_streaming.side_effect = RuntimeError('server exploded')
+        with patch('jobs.infrastructure.workers.worker.get_llm_service', return_value=llm), \
+             pytest.raises(RuntimeError, match='server exploded'):
+            _stream_provider_output(['bin', 'run', 'prompt'], '.', {}, 30, 1)
+
+
+class TestProviderEvents:
+    def test_capture_write_tool_output(self):
+        from jobs.infrastructure.workers.worker import _capture_write_tool_output
+        captured = {}
+        _capture_write_tool_output({'type': 'tool_use', 'part': {'state': {'title': 'a.json', 'output': '{}'}}}, captured)
+        assert captured['a.json'] == '{}'
+        _capture_write_tool_output({'type': 'step_finish', 'part': {'result': 'res'}}, captured)
+        assert captured['result'] == 'res'
+        _capture_write_tool_output({'type': 'tool_use', 'part': {'state': {}}}, captured)
+        _capture_write_tool_output({'type': 'step_finish', 'part': {}}, captured)
+
+    def test_handle_provider_event_text(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _handle_provider_event
+        with patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            _handle_provider_event(1, {'type': 'text', 'part': {'text': 'hello world'}})
+            mock_log.assert_called_once()
+        with patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            _handle_provider_event(1, {'type': 'text', 'part': {'text': ''}})
+            mock_log.assert_not_called()
+
+    def test_handle_provider_event_tool_use(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _handle_provider_event
+        with patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            _handle_provider_event(1, {'type': 'tool_use', 'part': {'tool': 'bash', 'state': {'status': 'done', 'title': 't'}}})
+            mock_log.assert_called_once()
+
+    def test_handle_provider_event_step_finish(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _handle_provider_event
+        with patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            _handle_provider_event(1, {'type': 'step_finish', 'part': {'reason': 'r', 'tokens': {'total': 5}}})
+            mock_log.assert_called_once()
+
+    def test_handle_provider_event_other(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import _handle_provider_event
+        with patch('jobs.infrastructure.workers.worker._log') as mock_log:
+            _handle_provider_event(1, {'type': 'unknown', 'part': {}})
+            mock_log.assert_not_called()
+
+
+class TestProcessJob:
+    def test_process_job_delegates(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import process_job
+        with patch('jobs.infrastructure.workers.job_worker.JobWorker') as MockJobWorker, \
+             patch('shared.infrastructure.config.queue.get_queue_manager') as mock_qm:
+            process_job(123)
+        MockJobWorker.return_value.process.assert_called_once_with(123)
+        mock_qm.return_value.signal_job_done.assert_called_once_with(123)
+
+    def test_process_job_signal_failure_swallowed(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import process_job
+        with patch('jobs.infrastructure.workers.job_worker.JobWorker') as MockJobWorker, \
+             patch('shared.infrastructure.config.queue.get_queue_manager') as mock_qm:
+            mock_qm.side_effect = RuntimeError('no queue')
+            process_job(123)
+        MockJobWorker.return_value.process.assert_called_once_with(123)
+
+
+class TestRescoreOnly:
+    def test_rescore_job_not_found(self, mock_get_session_worker):
+        from jobs.infrastructure.workers.worker import rescore_only
+        with patch('jobs.infrastructure.workers.worker.log') as mock_log:
+            rescore_only(9999)
+        mock_log.warning.assert_called_once()
+
+    def test_rescore_no_raw_desc(self, mock_get_session_worker):
+        _seed_job(mock_get_session_worker, num=60, raw_description=None)
+        from jobs.infrastructure.workers.worker import rescore_only
+        with patch('jobs.infrastructure.workers.worker.log') as mock_log:
+            rescore_only(60)
+        mock_log.warning.assert_called_once()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 60).first()
+        assert row.rescoring == 0
+
+    def test_rescore_success(self, mock_get_session_worker, tmp_path):
+        pid = _seed_job(mock_get_session_worker, num=61,
+                          raw_description='Senior Python engineer backend responsibilities requirements')
+        from jobs.infrastructure.workers.worker import rescore_only
+        analyzed = {
+            'company': 'NewCo', 'role': 'Staff', 'location': 'Berlin',
+            'locations': ['Munich'], 'match': 'High', 'score': 'A',
+            'success': 'A+', 'fit_score': '85', 'success_score': '70',
+            'salary': '150k', 'stack': 'Go', 'visa': 'Yes', 'applicants': '5',
+            'posted': '1 week ago', 'posted_at': None, 'adv_at': None,
+            'apply_reason': 'good', 'industry': 'AI', 'domain': 'web',
+            'notes': 'n', 'action': 'Apply', 'employment_type': 'full',
+            'work_types': ['Remote'], 'workflow_log': '[]',
+        }
+        def _fake_stream(cmd, cwd=None, env=None, timeout=None, pid=None, **kw):
+            return 0, [], 'sess', {'result': {'job': analyzed, 'summary': {'summary': 's', 'resumeFit': 'rf', 'note': 'n'}, 'resume_html': '<h1>'}}
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value='rules'), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='prompt'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output', side_effect=_fake_stream), \
+             patch('jobs.infrastructure.workers.worker._insert_job') as mock_insert_job, \
+             patch('jobs.infrastructure.workers.worker._insert_summary') as mock_insert_summary, \
+             patch('jobs.infrastructure.workers.worker._insert_resume') as mock_insert_resume:
+            rescore_only(61)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 61).first()
+        assert row.rescoring == 0
+        mock_insert_job.assert_called_once()
+        mock_insert_summary.assert_called_once()
+        mock_insert_resume.assert_called_once()
+        job_data = mock_insert_job.call_args[0][0]
+        assert job_data['fit_score'] == 85
+        assert job_data['overall_score'] == 79
+
+    def test_rescore_with_original_resume(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=62, raw_description='backend python developer role')
+        mock_get_session_worker.add(ResumeModel(id='original_1', title='orig', version=1, raw_text='My master resume'))
+        mock_get_session_worker.commit()
+        from jobs.infrastructure.workers.worker import rescore_only
+        analyzed = {'company': 'C', 'role': 'R', 'location': '', 'locations': [],
+                    'match': 'Medium', 'score': 'B', 'success': 'B', 'salary': 'x',
+                    'stack': '', 'visa': '', 'applicants': '', 'posted': '',
+                    'apply_reason': '', 'industry': '', 'domain': '', 'notes': '',
+                    'action': '', 'employment_type': 'Full-time', 'work_types': []}
+
+        def _fake_stream(cmd, cwd=None, env=None, timeout=None, pid=None, **kw):
+            return 0, [], 's', {'result': {'job': analyzed, 'summary': {}, 'resume_html': ''}}
+
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output', side_effect=_fake_stream), \
+             patch('jobs.infrastructure.workers.worker._insert_job'), \
+             patch('jobs.infrastructure.workers.worker._insert_summary'), \
+             patch('jobs.infrastructure.workers.worker._insert_resume'):
+            rescore_only(62)
+        assert os.path.exists(os.path.join(str(tmp_path), 'rescore_resume_62.txt'))
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 62).first()
+        assert row.rescoring == 0
+
+    def test_rescore_provider_error_clears_flag(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=63, raw_description='backend python developer role')
+        from jobs.infrastructure.workers.worker import rescore_only
+        output_lines = [
+            '{"type": "text", "part": {"text": "provider reported failure"}}',
+            'this is not valid json {{',
+        ]
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output',
+                   return_value=(1, output_lines, None, {})):
+            rescore_only(63)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 63).first()
+        assert row.rescoring == 0
+
+    def test_rescore_result_file_loaded(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=64, raw_description='backend python developer role')
+        from jobs.infrastructure.workers.worker import rescore_only
+        analyzed = {'company': 'FileCo', 'role': 'R', 'location': '', 'locations': [],
+                    'match': 'Medium', 'score': 'B', 'success': 'B', 'salary': 'x',
+                    'stack': '', 'visa': '', 'applicants': '', 'posted': '',
+                    'apply_reason': '', 'industry': '', 'domain': '', 'notes': '',
+                    'action': '', 'employment_type': 'Full-time', 'work_types': []}
+
+        def _create_result_file(result_path):
+            with open(result_path, 'w') as f:
+                json.dump({'job': analyzed, 'summary': {}, 'resume_html': ''}, f)
+
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._check_result_file', side_effect=_create_result_file), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output',
+                   return_value=(0, [], None, {})), \
+             patch('jobs.infrastructure.workers.worker._insert_job') as mock_insert_job, \
+             patch('jobs.infrastructure.workers.worker._insert_summary'), \
+             patch('jobs.infrastructure.workers.worker._insert_resume'), \
+             patch('jobs.infrastructure.workers.worker.os.remove', side_effect=OSError('gone')):
+            rescore_only(64)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 64).first()
+        assert row.rescoring == 0
+        mock_insert_job.assert_called_once()
+        assert mock_insert_job.call_args[0][0]['company'] == 'FileCo'
+
+    def test_rescore_missing_result_file(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=66, raw_description='backend python developer role')
+        from jobs.infrastructure.workers.worker import rescore_only
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output',
+                   return_value=(0, [], None, {})):
+            rescore_only(66)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 66).first()
+        assert row.rescoring == 0
+
+    def test_rescore_cleanup_oserror_swallowed(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=67, raw_description='backend python developer role')
+        from jobs.infrastructure.workers.worker import rescore_only
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output',
+                   return_value=(1, ['{"type": "text", "part": {"text": "fail"}}'], None, {})), \
+             patch('jobs.infrastructure.workers.worker.os.remove', side_effect=OSError('gone')):
+            rescore_only(67)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 67).first()
+        assert row.rescoring == 0
+
+    def test_rescore_exception_clears_flag(self, mock_get_session_worker, tmp_path):
+        _seed_job(mock_get_session_worker, num=65, raw_description='backend python developer role')
+        from jobs.infrastructure.workers.worker import rescore_only
+        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
+             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
+             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
+             patch('jobs.infrastructure.workers.worker._stream_provider_output',
+                   side_effect=RuntimeError('provider down')):
+            rescore_only(65)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 65).first()
+        assert row.rescoring == 0

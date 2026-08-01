@@ -157,7 +157,7 @@ def requeue_job(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Re-queue a job for processing."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
 
     job = repo.get_by_num(num)
     if not job:
@@ -178,7 +178,7 @@ def rescore_job(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Rescore an existing job. Sets the rescoring flag and re-queues."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
 
     job = repo.get_by_num(num)
     if not job:
@@ -199,7 +199,7 @@ def rescore_all(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
     """Rescore all non-deleted jobs."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
 
     jobs = repo.get_all_active()
     for job in jobs:
@@ -215,7 +215,7 @@ def reprocess_all(
     summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
 ):
     """Reprocess all jobs from scratch."""
-    from shared.infrastructure.queue.arq_client import enqueue_job_sync
+    from shared.infrastructure.taskiq.client import enqueue_job_sync
 
     jobs = repo.get_all_active()
     repo.delete_all_active()

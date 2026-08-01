@@ -43,3 +43,80 @@ export interface JobsResponse {
 }
 
 export type SortField = 'created_at' | 'overall_score' | 'fit_score' | 'success_score' | 'num' | 'company' | 'location' | 'applicants' | 'posted_at' | 'apply_time' | 'response_time'
+
+export interface Scores {
+  overall: number | null
+  fit: number | null
+  success: number | null
+}
+
+export interface ProcessingExecution {
+  id: string
+  status: ProcessingStatus
+  started_at: string | null
+  finished_at: string | null
+}
+
+export type ProcessingStatus = 'created' | 'queued' | 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'
+
+export interface JobListItem {
+  id: string
+  num: number
+  title: string
+  company_name: string
+  location: string
+  remote: boolean | null
+  visa_sponsorship: boolean | null
+  job_status: string
+  latest_processing_execution: ProcessingExecution | null
+  scores: Scores
+  updated_at: string | null
+  created_at: string
+}
+
+export function getProcessingStatus(job: JobListItem): ProcessingStatus | null {
+  return job.latest_processing_execution?.status ?? null
+}
+
+export interface JobSearchQuery {
+  page?: number
+  page_size?: number
+  cursor?: string
+  query?: string
+  company_id?: number
+  processing_status?: ProcessingStatus
+  job_status?: string
+  location?: string
+  remote?: boolean
+  visa?: boolean
+  overall_score_min?: number
+  overall_score_max?: number
+  fit_score_min?: number
+  fit_score_max?: number
+  success_score_min?: number
+  success_score_max?: number
+  sort?: string
+  order?: 'asc' | 'desc'
+}
+
+export interface JobSearchResult {
+  items: JobListItem[]
+  pagination: {
+    page: number
+    page_size: number
+    total_items: number
+    total_pages: number
+  }
+  cursor_pagination?: {
+    total_items: number
+    next_cursor: string | null
+    has_more: boolean
+  }
+}
+
+export interface InfiniteJobSearchResult {
+  items: JobListItem[]
+  next_cursor: string | null
+  has_more: boolean
+  total_items: number
+}

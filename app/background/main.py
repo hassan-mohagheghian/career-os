@@ -1,6 +1,6 @@
 """Background application entrypoint for the Job Search Intelligence platform.
 
-Starts ARQ worker with Redis queue connection.
+Starts the TaskIQ worker that consumes the Redis stream broker.
 
 Usage:
     python -m background.main
@@ -25,5 +25,4 @@ if _server_dir not in sys.path:
 from background.entrypoint import main
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
