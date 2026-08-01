@@ -1,16 +1,19 @@
 """ExtractContentNode — converts fetched data into clean text through the
 ContentExtractor abstraction.
 
-Emits the processing.extracting_content event.
+Emits workflow.step.started/completed events and updates the WorkflowProgress
+tree for the extract_content step.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from processing.application.workflows import progress_ops
 from processing.domain.workflow.extracted_content import ExtractedContent
 from processing.domain.workflow.job_processing_state import JobProcessingState
-from shared.infrastructure.events.processing_events import CONTEXT_EXTRACTING_CONTENT
+
+NODE_ID = "extract_content"
 
 
 class ExtractContentNode:
@@ -19,10 +22,11 @@ class ExtractContentNode:
         self._events = event_publisher
 
     def __call__(self, state: JobProcessingState) -> JobProcessingState:
-        self._emit(state)
+        progress_ops.start_step(self._events, state, NODE_ID)
 
         extracted: list[ExtractedContent] = []
-        for fetched in state.fetched_contents:
+        total = len(state.fetched_contents)
+        for i, fetched in enumerate(state.fetched_contents):
             if not fetched.success:
                 continue
             try:
@@ -31,18 +35,14 @@ class ExtractContentNode:
                 state.errors.append(f"Extraction failed: {fetched.url}: {e}")
                 continue
             extracted.append(result)
+            if total > 0:
+                progress_ops.update_step(
+                    self._events,
+                    state,
+                    NODE_ID,
+                    round(((i + 1) / total) * 100, 1),
+                )
 
         state.extracted_contents = extracted
+        progress_ops.complete_step(self._events, state, NODE_ID)
         return state
-
-    def _emit(self, state: JobProcessingState) -> None:
-        if self._events is None:
-            return
-        self._events.publish(
-            CONTEXT_EXTRACTING_CONTENT,
-            state.execution_id,
-            state.job_id,
-            "running",
-            current_step="extracting_content",
-            message="Extracting clean text from fetched content",
-        )

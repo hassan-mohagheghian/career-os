@@ -1,7 +1,8 @@
 """Processing event publisher.
 
-Publishes ProcessingExecution lifecycle events over Redis pub/sub so that the
-API server's SSE endpoints can stream them to frontend clients.
+Publishes ProcessingExecution lifecycle + workflow progress events over Redis
+pub/sub so that the API server's SSE endpoints can stream them to frontend
+clients.
 
 Event flow (per docs/domain/processing/events.md):
 
@@ -24,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import uuid
 from datetime import datetime, UTC
 from typing import Any
 
@@ -40,20 +42,21 @@ REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
 CHANNEL_PREFIX = "processing:events"
 CHANNEL_PATTERN = f"{CHANNEL_PREFIX}:*"
 
-# Event names emitted over SSE (matches the frontend useProcessingEvents hook).
-EXECUTION_QUEUED = "ExecutionQueued"
-EXECUTION_STARTED = "ExecutionStarted"
-EXECUTION_STEP_CHANGED = "ExecutionStepChanged"
-EXECUTION_COMPLETED = "ExecutionCompleted"
-EXECUTION_FAILED = "ExecutionFailed"
+# ── Execution lifecycle events (user-facing) ────────────────────────────
+EXECUTION_CREATED = "execution.created"
+EXECUTION_STARTED = "execution.started"
+EXECUTION_COMPLETED = "execution.completed"
+EXECUTION_FAILED = "execution.failed"
+EXECUTION_CANCELLED = "execution.cancelled"
 
-# Job Context Preparation workflow events (consumed by SSE + frontend).
-CONTEXT_STARTED = "processing.started"
-CONTEXT_LOADING_JOB = "processing.loading_job"
-CONTEXT_FETCHING_SOURCES = "processing.fetching_sources"
-CONTEXT_EXTRACTING_CONTENT = "processing.extracting_content"
-CONTEXT_READY = "processing.context_ready"
-CONTEXT_FAILED = "processing.failed"
+# ── Workflow progress events (user-facing) ──────────────────────────────
+WORKFLOW_STEP_STARTED = "workflow.step.started"
+WORKFLOW_STEP_PROGRESS = "workflow.step.progress"
+WORKFLOW_STEP_COMPLETED = "workflow.step.completed"
+WORKFLOW_STEP_FAILED = "workflow.step.failed"
+
+# ── Queue events (user-facing) ──────────────────────────────────────────
+QUEUE_ENTRY_REMOVED = "queue.entry.removed"
 
 
 def _redis_url() -> str:
@@ -70,22 +73,26 @@ def build_event(
     execution_id: str,
     job_id: str | None,
     status: str,
-    current_step: str | None = None,
-    progress: float | None = None,
-    message: str | None = None,
-    updated_at: str | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any]:
-    """Build the wire event in the format the SSE endpoint and frontend expect."""
+    """Build the wire event in the format the SSE endpoint and frontend expect.
+
+    The outer envelope ``{"event": ..., "data": ...}`` is the Redis pub/sub
+    message. ``data`` is the SSE payload with a stable public contract:
+
+    {id, type, timestamp, job_id, execution_id, payload}
+    """
+    payload: dict[str, Any] = {"status": status}
+    payload.update(kwargs)
     return {
         "event": event_name,
         "data": {
-            "execution_id": execution_id,
+            "id": str(uuid.uuid4()),
+            "type": event_name,
+            "timestamp": datetime.now(UTC).isoformat(),
             "job_id": job_id,
-            "status": status,
-            "current_step": current_step,
-            "progress": progress,
-            "message": message,
-            "updated_at": updated_at or datetime.now(UTC).isoformat(),
+            "execution_id": execution_id,
+            "payload": payload,
         },
     }
 

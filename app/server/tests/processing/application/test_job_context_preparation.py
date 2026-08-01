@@ -224,7 +224,7 @@ class TestLoadJobNode:
         publisher = RecordingEventPublisher()
         node = LoadJobNode(FakeJobService(_job_dict()), publisher)
         node(_initial_state())
-        assert publisher.events[0][0] == "processing.loading_job"
+        assert publisher.events[0][0] == "workflow.step.started"
 
 
 class TestCollectSourcesNode:
@@ -328,7 +328,7 @@ class TestFetchSourcesNode:
 
         publisher = RecordingEventPublisher()
         state = FetchSourcesNode(FakeFetcher(_successful_outcomes()), publisher)(state)
-        assert publisher.events[0][0] == "processing.fetching_sources"
+        assert publisher.events[0][0] == "workflow.step.started"
 
 
 class TestExtractContentNode:
@@ -364,7 +364,7 @@ class TestExtractContentNode:
 
         publisher = RecordingEventPublisher()
         state = ExtractContentNode(FakeExtractor(), publisher)(state)
-        assert publisher.events[0][0] == "processing.extracting_content"
+        assert publisher.events[0][0] == "workflow.step.started"
 
 
 class TestBuildContextNode:
@@ -498,9 +498,8 @@ class TestJobContextPreparationGraph:
         graph.invoke(_initial_state())
 
         names = [e[0] for e in publisher.events]
-        assert "processing.loading_job" in names
-        assert "processing.fetching_sources" in names
-        assert "processing.extracting_content" in names
+        assert "workflow.step.started" in names
+        assert "workflow.step.completed" in names
 
 
 # --------------------------------------------------------------------------- #

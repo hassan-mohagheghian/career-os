@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 from datetime import datetime
 
@@ -30,7 +31,23 @@ def model_to_dict(model: ProcessingExecutionModel) -> dict[str, Any]:
         "finished_at": _ts(model.finished_at),
         "retry_count": model.retry_count,
         "error_message": model.error_message,
+        "workflow_progress": _loads(model.workflow_progress),
     }
+
+
+def _loads(raw: str | None) -> dict[str, Any] | None:
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _dumps(value: dict[str, Any] | None) -> str | None:
+    if value is None:
+        return None
+    return json.dumps(value, default=str)
 
 
 class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
@@ -48,6 +65,7 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
             model.finished_at = execution.finished_at
             model.retry_count = execution.retry_count
             model.error_message = execution.error_message
+            model.workflow_progress = _dumps(execution.workflow_progress)
         else:
             model = ProcessingExecutionModel(
                 id=execution.id,
@@ -60,6 +78,7 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
                 finished_at=execution.finished_at,
                 retry_count=execution.retry_count,
                 error_message=execution.error_message,
+                workflow_progress=_dumps(execution.workflow_progress),
             )
             self._session.add(model)
 

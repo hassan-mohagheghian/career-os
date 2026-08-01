@@ -63,27 +63,6 @@ def _seed_roadmap(sa_session, skill_name, completed=0, title="Basics"):
     return rm.id
 
 
-# ── SSE compat stubs ────────────────────────────────────────────
-
-
-def test_jobs_stream_compat(client):
-    resp = client.get("/api/api/jobs/stream")
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "removed",
-        "message": "Use WebSocket for real-time updates",
-    }
-
-
-def test_companies_stream_compat(client):
-    resp = client.get("/api/api/companies/stream")
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "status": "removed",
-        "message": "Use WebSocket for real-time updates",
-    }
-
-
 # ── summaries / linkedin / tech-stack ───────────────────────────
 
 

@@ -5,6 +5,7 @@ import MainLayout from '@/widgets/main-layout'
 import { useState, useCallback, useMemo } from 'react'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
+import { processingApi } from '@/entities/processing/api'
 import { toast } from 'sonner'
 
 const JobsPageContent = dynamic(
@@ -15,12 +16,13 @@ const JobsPageContent = dynamic(
 function JobsPageV2Adapter() {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
+  const [detailJobId, setDetailJobId] = useState<string | null>(null)
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
     isError, error, refetch,
     query, setQuery,
-    sort, setSort, order, toggleOrder,
+    sort, order, handleHeaderSort,
     filterProcessingStatus, setFilterProcessingStatus,
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
@@ -42,12 +44,8 @@ function JobsPageV2Adapter() {
     setQueueDrawerOpen(true)
   }, [processMutation])
 
-  const handleLegacyProcess = useCallback((id: string) => {
-    toast.success(`Legacy processing started for job #${id}`)
-  }, [])
-
   const handleViewDetails = useCallback((id: string) => {
-    toast.info(`Opening details for job #${id}`)
+    setDetailJobId(id)
   }, [])
 
   const handleRetry = useCallback((id: string) => {
@@ -55,9 +53,17 @@ function JobsPageV2Adapter() {
     setQueueDrawerOpen(true)
   }, [processMutation])
 
-  const handleCancel = useCallback((_id: string) => {
-    toast.success('Cancelled processing')
-  }, [])
+  const handleCancel = useCallback((id: string) => {
+    const job = items.find(j => j.id === id)
+    const executionId = job?.latest_processing_execution?.id
+    if (!executionId) return
+    processingApi.cancel(executionId)
+      .then(() => {
+        toast.success('Cancelled processing')
+        refetch()
+      })
+      .catch(() => toast.error('Failed to cancel processing'))
+  }, [items, refetch])
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
@@ -75,9 +81,8 @@ function JobsPageV2Adapter() {
         query={query}
         onQueryChange={setQuery}
         sort={sort}
-        onSortChange={setSort}
+        onSortChange={handleHeaderSort}
         order={order}
-        onToggleOrder={toggleOrder}
         filterProcessingStatus={filterProcessingStatus}
         onFilterProcessingStatusChange={setFilterProcessingStatus}
         filterRemote={filterRemote}
@@ -87,7 +92,6 @@ function JobsPageV2Adapter() {
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}
-        onLegacyProcess={handleLegacyProcess}
         onViewDetails={handleViewDetails}
         onRetry={handleRetry}
         onCancel={handleCancel}
@@ -96,6 +100,8 @@ function JobsPageV2Adapter() {
         onQueueDrawerOpenChange={setQueueDrawerOpen}
         addJobDrawerOpen={addJobDrawerOpen}
         onAddJobDrawerOpenChange={setAddJobDrawerOpen}
+        detailJobId={detailJobId}
+        onDetailJobIdChange={setDetailJobId}
         processingCount={processingCount}
       />
     </div>

@@ -6,6 +6,7 @@ keeping the domain layer clean of persistence concerns.
 """
 
 from typing import Any
+from datetime import datetime
 
 from jobs.infrastructure.models.job_model import JobModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
@@ -15,6 +16,13 @@ from shared.infrastructure.database.models.misc_models import ResumeModel
 
 
 # ── Job Mappers ──────────────────────────────────────────────────
+
+def _to_str(value: Any) -> Any:
+    """Normalize datetime values to ISO strings (Text columns may hold datetimes on fresh inserts)."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
 
 def job_model_to_dict(model: JobModel) -> dict[str, Any]:
     """Convert a JobModel to a domain dictionary."""
@@ -52,8 +60,8 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "success_score": model.success_score,
         "overall_score": model.overall_score,
         "company_id": model.company_id,
-        "created_at": model.created_at,
-        "updated_at": model.updated_at,
+        "created_at": _to_str(model.created_at),
+        "updated_at": _to_str(model.updated_at),
         "title": model.title,
         "description": model.description,
         "apply_time": model.apply_time,
@@ -98,7 +106,7 @@ def skill_model_to_dict(model: SkillModel, aliases: list[str] | None = None) -> 
         "evidence": model.evidence,
         "source_type": model.source_type,
         "tags": json.loads(model.tags) if model.tags else [],
-        "created_at": model.created_at,
+        "created_at": _to_str(model.created_at),
     }
     if aliases is not None:
         result["aliases"] = aliases
@@ -144,7 +152,7 @@ def company_model_to_dict(model: CompanyModel) -> dict[str, Any]:
         "work_environment": model.work_environment,
         "extra": model.extra,
         "status": model.status,
-        "created_at": model.created_at,
+        "created_at": _to_str(model.created_at),
         "updated_at": model.updated_at,
         "queue_order": model.queue_order,
         "current_node": model.current_node,
@@ -196,6 +204,6 @@ def resume_model_to_dict(model: ResumeModel) -> dict[str, Any]:
         "content": model.content,
         "version": model.version,
         "raw_text": model.raw_text,
-        "created_at": model.created_at,
+        "created_at": _to_str(model.created_at),
         "job_num": model.job_num,
     }

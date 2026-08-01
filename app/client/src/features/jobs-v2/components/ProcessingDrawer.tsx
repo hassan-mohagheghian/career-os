@@ -1,122 +1,240 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
-import { Button } from '@/shared/ui/button'
 import { ScrollArea } from '@/shared/ui/scroll-area'
-import { X, CircleNotch, Clock, CheckCircle, XCircle } from '@phosphor-icons/react'
-import type { JobListItem, ProcessingStatus } from '@/entities/job/types'
+import { CircleNotch, Clock, CheckCircle, XCircle, CaretRight, CaretDown } from '@phosphor-icons/react'
+import { processingApi } from '@/entities/processing/api'
+import type { QueueEntry, QueueSnapshot, WorkflowStep, WorkflowProgress, SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
 
 interface ProcessingDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  jobs: JobListItem[]
 }
 
-interface QueueEntry {
-  id: string
-  jobId: string
-  title: string
-  status: 'running' | 'waiting' | 'completed' | 'failed'
-  step?: string
-  progress?: number
-  error?: string
-}
-
-function toQueueEntry(job: JobListItem): QueueEntry | null {
-  const exec = job.latest_processing_execution
-  if (!exec) return null
-
-  const statusMap: Record<string, 'running' | 'waiting' | 'completed' | 'failed'> = {
-    queued: 'waiting',
-    starting: 'waiting',
-    running: 'running',
-    completed: 'completed',
-    failed: 'failed',
-    cancelled: 'failed',
-    created: 'waiting',
-  }
-
-  return {
-    id: exec.id,
-    jobId: job.id,
-    title: job.title || 'Untitled',
-    status: statusMap[exec.status] || 'waiting',
-    progress: undefined,
-  }
-}
-
-function StatusIcon({ status }: { status: QueueEntry['status'] }) {
+function stepStatusIcon(status: WorkflowStep['status']) {
   switch (status) {
-    case 'running': return <CircleNotch className="w-4 h-4 text-emerald-500 animate-spin" />
-    case 'waiting': return <Clock className="w-4 h-4 text-blue-500" />
-    case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />
-    case 'failed': return <XCircle className="w-4 h-4 text-red-500" />
+    case 'processing': return <CircleNotch className="w-3.5 h-3.5 text-emerald-500 animate-spin shrink-0" />
+    case 'completed': return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+    case 'failed': return <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+    case 'skipped': return <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+    default: return <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
   }
 }
 
-function QueueSection({ title, items }: { title: string; items: QueueEntry[] }) {
-  if (items.length === 0) return null
+function WorkflowStepItem({ step, depth }: { step: WorkflowStep; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1)
+  const hasChildren = step.children.length > 0
 
   return (
     <div>
-      <h3 className="text-xs font-medium text-muted-foreground px-4 py-2">{title} ({items.length})</h3>
-      <div className="space-y-1 px-4">
-        {items.map(item => (
-          <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg border border-border/40 bg-muted/20">
-            <StatusIcon status={item.status} />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
-              {item.progress !== undefined && (
-                <div className="w-full h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: `${item.progress}%` }}
-                  />
-                </div>
-              )}
-            </div>
+      <button
+        type="button"
+        className="w-full flex items-start gap-2 text-left p-1.5 rounded hover:bg-muted/40"
+        style={{ paddingLeft: `${depth * 16 + 6}px` }}
+        onClick={() => hasChildren && setExpanded(e => !e)}
+      >
+        {hasChildren ? (
+          expanded
+            ? <CaretDown className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            : <CaretRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+        ) : (
+          <span className="w-3.5 shrink-0" />
+        )}
+        {stepStatusIcon(step.status)}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-foreground truncate">{step.title}</p>
+            {step.progress !== null && step.progress !== undefined && (
+              <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress * 100)}%</span>
+            )}
           </div>
-        ))}
-      </div>
+          {step.progress !== null && step.progress !== undefined && (
+            <div className="w-full h-1 bg-muted rounded-full mt-1 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.round(step.progress * 100)}%` }}
+              />
+            </div>
+          )}
+          {step.error && (
+            <p className="text-2xs text-red-500 mt-1">{step.error.message}</p>
+          )}
+        </div>
+      </button>
+      {expanded && hasChildren && (
+        <div>
+          {step.children.map(child => (
+            <WorkflowStepItem key={child.id} step={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-export function ProcessingDrawer({ open, onOpenChange, jobs }: ProcessingDrawerProps) {
-  const entries: QueueEntry[] = useMemo(() => {
-    return jobs.map(toQueueEntry).filter((e): e is QueueEntry => e !== null)
-  }, [jobs])
+function WorkflowPanel({ workflow, entry }: { workflow: WorkflowProgress | null; entry: QueueEntry }) {
+  const steps = workflow?.steps ?? []
 
-  const running = entries.filter(i => i.status === 'running')
-  const waiting = entries.filter(i => i.status === 'waiting')
-  const failed = entries.filter(i => i.status === 'failed')
-  const completed = entries.filter(i => i.status === 'completed')
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/10 p-3 space-y-1">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">{workflow?.name ?? 'Workflow'}</p>
+        {workflow?.progress !== null && workflow?.progress !== undefined && (
+          <span className="text-2xs text-muted-foreground">{Math.round(workflow.progress * 100)}%</span>
+        )}
+      </div>
+      {workflow?.progress !== null && workflow?.progress !== undefined && (
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+            style={{ width: `${Math.round(workflow.progress * 100)}%` }}
+          />
+        </div>
+      )}
+      <div className="pt-1">
+        {steps.length === 0 ? (
+          <p className="text-2xs text-muted-foreground">No steps recorded yet.</p>
+        ) : (
+          steps.map(step => <WorkflowStepItem key={step.id} step={step} depth={0} />)
+        )}
+      </div>
+      {entry.error && (
+        <p className="text-2xs text-red-500 pt-1">{entry.error}</p>
+      )}
+    </div>
+  )
+}
 
-  const totalActive = running.length + waiting.length
+function QueueSection({
+  title,
+  items,
+  color,
+  renderDetail,
+}: {
+  title: string
+  items: QueueEntry[]
+  color: string
+  renderDetail: (entry: QueueEntry) => React.ReactNode
+}) {
+  return (
+    <div>
+      <h3 className={`text-xs font-semibold uppercase tracking-wide ${color} px-4 py-2`}>
+        {title} ({items.length})
+      </h3>
+      {items.length === 0 ? (
+        <p className="text-2xs text-muted-foreground px-4 pb-2">No jobs in this state.</p>
+      ) : (
+        <div className="space-y-2 px-4">
+          {items.map(entry => (
+            <div key={entry.execution_id}>
+              <div className="flex items-start gap-3 p-2 rounded-lg border border-border/40 bg-muted/20">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{entry.title}</p>
+                  <p className="text-2xs text-muted-foreground">
+                    {entry.current_step ? `Step: ${entry.current_step}` : entry.status}
+                  </p>
+                </div>
+              </div>
+              {renderDetail(entry)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ProcessingDrawer({ open, onOpenChange }: ProcessingDrawerProps) {
+  const [snapshot, setSnapshot] = useState<QueueSnapshot>({ processing: [], queued: [], failed: [] })
+  const [workflows, setWorkflows] = useState<Record<string, WorkflowProgress | null>>({})
+
+  const loadSnapshot = useCallback(async () => {
+    try {
+      const data = await processingApi.queue()
+      setSnapshot(data)
+    } catch {
+      // best effort
+    }
+  }, [])
+
+  const loadWorkflow = useCallback(async (executionId: string) => {
+    try {
+      const detail = await processingApi.get(executionId)
+      setWorkflows(prev => ({ ...prev, [executionId]: detail.workflow }))
+    } catch {
+      // best effort
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    loadSnapshot()
+  }, [open, loadSnapshot])
+
+  useEffect(() => {
+    if (!open) return
+    const allEntries = [...snapshot.processing, ...snapshot.queued, ...snapshot.failed]
+    for (const entry of allEntries) {
+      loadWorkflow(entry.execution_id)
+    }
+  }, [open, snapshot, loadWorkflow])
+
+  useEffect(() => {
+    if (!open) return
+
+    const es = new EventSource('/events/processing')
+
+    const eventTypes: SSEEventType[] = [
+      'execution.created',
+      'execution.started',
+      'execution.completed',
+      'execution.failed',
+      'execution.cancelled',
+      'queue.entry.removed',
+      'workflow.step.started',
+      'workflow.step.progress',
+      'workflow.step.completed',
+      'workflow.step.failed',
+    ]
+
+    const handle = (type: SSEEventType) => (e: MessageEvent) => {
+      try {
+        const data: SSEEventEnvelope = JSON.parse(e.data)
+        if (data.execution_id) {
+          loadWorkflow(data.execution_id)
+        }
+        loadSnapshot()
+      } catch {
+        // best effort
+      }
+    }
+
+    for (const type of eventTypes) {
+      es.addEventListener(type, handle(type))
+    }
+
+    return () => {
+      es.close()
+    }
+  }, [open, loadSnapshot, loadWorkflow])
+
+  const renderDetail = useCallback((entry: QueueEntry) => {
+    return <WorkflowPanel workflow={workflows[entry.execution_id] ?? null} entry={entry} />
+  }, [workflows])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40">
           <SheetTitle className="text-sm font-semibold">Processing Queue</SheetTitle>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onOpenChange(false)}>
-            <X className="w-4 h-4" />
-          </Button>
         </SheetHeader>
         <ScrollArea className="flex-1 h-[calc(100vh-60px)]">
-          {totalActive === 0 && failed.length === 0 && completed.length === 0 ? (
-            <div className="flex items-center justify-center h-40">
-              <p className="text-sm text-muted-foreground">No Processing Executions are currently running.</p>
-            </div>
-          ) : (
-            <div className="py-2 space-y-4">
-              {running.length > 0 && <QueueSection title="Running" items={running} />}
-              {waiting.length > 0 && <QueueSection title="Waiting" items={waiting} />}
-              {failed.length > 0 && <QueueSection title="Failed" items={failed} />}
-              {completed.length > 0 && <QueueSection title="Completed" items={completed} />}
-            </div>
-          )}
+          <div className="py-2 space-y-4">
+            <QueueSection title="Running" items={snapshot.processing} color="text-emerald-500" renderDetail={renderDetail} />
+            <QueueSection title="Waiting" items={snapshot.queued} color="text-blue-500" renderDetail={renderDetail} />
+            <QueueSection title="Failed" items={snapshot.failed} color="text-red-500" renderDetail={renderDetail} />
+          </div>
         </ScrollArea>
       </SheetContent>
     </Sheet>

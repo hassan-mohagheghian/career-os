@@ -18,6 +18,15 @@ from processing.domain.workflow.job_data import JobData
 from processing.domain.workflow.job_processing_context import JobProcessingContext
 from processing.domain.workflow.validation_result import ContextValidationResult
 from processing.domain.workflow.job_processing_state import JobProcessingState
+from processing.domain.workflow.workflow_step import (
+    WorkflowStep,
+    WorkflowStepError,
+    WorkflowStepStatus,
+)
+from processing.domain.workflow.workflow_progress import (
+    WorkflowProgress,
+    WorkflowProgressStatus,
+)
 
 __all__ = [
     "JobSource",
@@ -28,4 +37,9 @@ __all__ = [
     "JobProcessingContext",
     "ContextValidationResult",
     "JobProcessingState",
+    "WorkflowStep",
+    "WorkflowStepError",
+    "WorkflowStepStatus",
+    "WorkflowProgress",
+    "WorkflowProgressStatus",
 ]

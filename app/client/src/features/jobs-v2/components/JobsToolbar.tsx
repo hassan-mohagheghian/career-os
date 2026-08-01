@@ -2,7 +2,7 @@
 
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import type { ProcessingStatus } from '@/entities/job/types'
 import { cn } from '@/shared/lib/utils'
 import { MagnifyingGlass, Funnel } from '@phosphor-icons/react'
@@ -10,10 +10,6 @@ import { MagnifyingGlass, Funnel } from '@phosphor-icons/react'
 interface JobsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
-  sort: string
-  onSortChange: (value: string) => void
-  order: 'asc' | 'desc'
-  onToggleOrder: () => void
   filterProcessingStatus: ProcessingStatus | ''
   onFilterProcessingStatusChange: (value: ProcessingStatus | '') => void
   filterRemote: boolean | ''
@@ -26,7 +22,6 @@ interface JobsToolbarProps {
 
 export function JobsToolbar({
   query, onQueryChange,
-  sort, onSortChange, order, onToggleOrder,
   filterProcessingStatus, onFilterProcessingStatusChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
@@ -51,24 +46,6 @@ export function JobsToolbar({
               ✕
             </button>
           )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Select value={sort} onValueChange={onSortChange}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="created_at">Newest</SelectItem>
-              <SelectItem value="updated_at">Updated</SelectItem>
-              <SelectItem value="overall_score">Overall Score</SelectItem>
-              <SelectItem value="fit_score">Fit Score</SelectItem>
-              <SelectItem value="success_score">Success Score</SelectItem>
-              <SelectItem value="company">Company</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" className="h-7 text-2xs w-7 p-0" onClick={onToggleOrder} title={order === 'desc' ? 'Descending' : 'Ascending'}>
-            {order === 'desc' ? '↓' : '↑'}
-          </Button>
         </div>
         <div className="flex items-center gap-1.5">
           <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatus | '')}>

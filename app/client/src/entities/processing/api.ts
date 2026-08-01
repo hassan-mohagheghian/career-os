@@ -1,10 +1,11 @@
 import { api } from '@/shared/api'
-import type { ProcessingExecution } from './types'
+import type { ProcessingExecutionDetail, QueueSnapshot } from './types'
 
 export const processingApi = {
-  list: (params?: Record<string, string>) => {
-    const search = params ? `?${new URLSearchParams(params).toString()}` : ''
-    return api.get<ProcessingExecution[]>(`/processing/executions${search}`)
-  },
-  get: (id: string) => api.get<ProcessingExecution>(`/processing/executions/${id}`),
+  list: () => api.get<ProcessingExecutionDetail[]>('/processing/executions'),
+  get: (id: string) => api.get<ProcessingExecutionDetail>(`/processing/executions/${id}`),
+  cancel: (id: string) => api.post<void>(`/processing/executions/${id}/cancel`),
+  retry: (id: string) => api.post<void>(`/processing/executions/${id}/retry`),
+  queue: () => api.get<QueueSnapshot>('/processing/queue'),
+  removeQueueEntry: (id: string) => api.delete<void>(`/processing/queue/${id}`),
 }

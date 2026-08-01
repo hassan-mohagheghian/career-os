@@ -2,6 +2,8 @@ import { useRef, useCallback, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { JobListItem } from '@/entities/job/types'
 import { JobRow } from './JobRow'
+import { SortableHeader, type ScoreSortOption } from './SortableHeader'
+import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -14,17 +16,43 @@ interface JobsTableProps {
   hasNextPage?: boolean
   onFetchNextPage?: () => void
   onProcessV2: (id: string) => void
-  onLegacyProcess: (id: string) => void
   onViewDetails: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  sort?: string
+  order?: 'asc' | 'desc'
+  onSortChange?: (field: string) => void
 }
 
-const TABLE_HEADERS = ['Title', 'Company', 'Location', 'Scores', 'Status', 'Updated', 'Actions']
+const SCORE_SORT_OPTIONS: ScoreSortOption[] = [
+  { field: 'overall_score', label: 'Overall' },
+  { field: 'fit_score', label: 'Fit' },
+  { field: 'success_score', label: 'Success' },
+]
+
+interface ColumnDef {
+  label: string
+  field?: string
+  scoreOptions?: ScoreSortOption[]
+}
+
+const COLUMN_DEFS: ColumnDef[] = [
+  { label: 'Title', field: 'title' },
+  { label: 'Company', field: 'company' },
+  { label: 'Location' },
+  { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
+  { label: 'Status', field: 'status' },
+  { label: 'Updated', field: 'updated_at' },
+  { label: 'Created', field: 'created_at' },
+  { label: 'Actions' },
+]
+
+const gridStyle = { gridTemplateColumns: COLUMN_GRID_TEMPLATE }
 
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onLegacyProcess, onViewDetails, onRetry, onCancel,
+  onProcessV2, onViewDetails, onRetry, onCancel,
+  sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -60,9 +88,18 @@ export function JobsTable({
     return (
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
         <div className="w-full">
-          <div className="sticky top-0 z-10 bg-card flex border-b border-border/40">
-            {TABLE_HEADERS.map(h => (
-              <div key={h} className="flex-1 py-2 px-3 text-2xs font-medium text-muted-foreground uppercase tracking-wider">{h}</div>
+          <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
+            {COLUMN_DEFS.map((col, i) => (
+              <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
+                <SortableHeader
+                  label={col.label}
+                  field={col.field}
+                  scoreOptions={col.scoreOptions}
+                  sort={sort}
+                  order={order}
+                  onSortChange={onSortChange}
+                />
+              </div>
             ))}
           </div>
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -76,11 +113,12 @@ export function JobsTable({
                   width: '100%',
                   height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
+                  gridTemplateColumns: COLUMN_GRID_TEMPLATE,
                 }}
-                className="flex border-b border-border/40"
+                className="grid border-b border-border/40"
               >
-                {TABLE_HEADERS.map((_, j) => (
-                  <div key={j} className="flex-1 py-3 px-3">
+                {COLUMN_DEFS.map((_, j) => (
+                  <div key={j} className="py-2 px-3">
                     <div className="h-3 bg-muted rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
                   </div>
                 ))}
@@ -105,9 +143,18 @@ export function JobsTable({
   return (
     <div className="flex-1 overflow-y-auto" ref={scrollRef}>
       <div className="w-full">
-        <div className="sticky top-0 z-10 bg-card flex border-b border-border/40">
-          {TABLE_HEADERS.map(h => (
-            <div key={h} className="flex-1 py-2 px-3 text-2xs font-medium text-muted-foreground uppercase tracking-wider">{h}</div>
+        <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
+          {COLUMN_DEFS.map((col, i) => (
+            <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
+              <SortableHeader
+                label={col.label}
+                field={col.field}
+                scoreOptions={col.scoreOptions}
+                sort={sort}
+                order={order}
+                onSortChange={onSortChange}
+              />
+            </div>
           ))}
         </div>
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -129,7 +176,6 @@ export function JobsTable({
                 <JobRow
                   job={job}
                   onProcessV2={onProcessV2}
-                  onLegacyProcess={onLegacyProcess}
                   onViewDetails={onViewDetails}
                   onRetry={onRetry}
                   onCancel={onCancel}

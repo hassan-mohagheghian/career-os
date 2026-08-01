@@ -95,8 +95,8 @@ class TestProcessingExecutionRunner:
         assert execution.finished_at is not None
         assert result["done"] is True
         names = [call.args[0] for call in publish.call_args_list]
-        assert "ExecutionStarted" in names
-        assert "ExecutionCompleted" in names
+        assert "execution.started" in names
+        assert "execution.completed" in names
 
     def test_run_marks_failed_and_publishes_on_error(self):
         repo = FakeExecutionRepo()
@@ -116,4 +116,4 @@ class TestProcessingExecutionRunner:
         assert execution.status == ExecutionStatus.FAILED
         assert "workflow crashed" in (execution.error_message or "")
         names = [call.args[0] for call in publish.call_args_list]
-        assert "ExecutionFailed" in names
+        assert "execution.failed" in names

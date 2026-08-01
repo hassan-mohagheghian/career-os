@@ -67,13 +67,13 @@ class JobContextPreparationGraph:
         graph = StateGraph(JobProcessingState)
 
         graph.add_node(NODE_LOAD_JOB, LoadJobNode(self._job_service, self._event_publisher))
-        graph.add_node(NODE_COLLECT_SOURCES, CollectSourcesNode())
+        graph.add_node(NODE_COLLECT_SOURCES, CollectSourcesNode(self._event_publisher))
         graph.add_node(NODE_FETCH_SOURCES, FetchSourcesNode(self._fetcher, self._event_publisher))
         graph.add_node(NODE_EXTRACT_CONTENT, ExtractContentNode(self._extractor, self._event_publisher))
-        graph.add_node(NODE_BUILD_CONTEXT, BuildContextNode(self._builder))
-        graph.add_node(NODE_VALIDATE_CONTEXT, ValidateContextNode(self._validator))
-        graph.add_node(NODE_CONTEXT_READY, ContextReadyNode())
-        graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode())
+        graph.add_node(NODE_BUILD_CONTEXT, BuildContextNode(self._builder, self._event_publisher))
+        graph.add_node(NODE_VALIDATE_CONTEXT, ValidateContextNode(self._validator, self._event_publisher))
+        graph.add_node(NODE_CONTEXT_READY, ContextReadyNode(self._event_publisher))
+        graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._event_publisher))
 
         graph.add_edge(START, NODE_LOAD_JOB)
 

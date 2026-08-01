@@ -11,8 +11,8 @@ const JOBS_KEY = 'jobs-v2-infinite'
 export function useJobsInfiniteQuery() {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('created_at')
-  const [order, setOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortState, setSortState] = useState<{ sort: string; order: 'asc' | 'desc' }>({ sort: 'updated_at', order: 'desc' })
+  const { sort, order } = sortState
   const [filterProcessingStatus, setFilterProcessingStatus] = useState<ProcessingStatus | ''>('')
   const [filterLocation, setFilterLocation] = useState('')
   const [filterRemote, setFilterRemote] = useState<boolean | ''>('')
@@ -74,6 +74,14 @@ export function useJobsInfiniteQuery() {
     setFilterVisa('')
   }, [])
 
+  const handleHeaderSort = useCallback((field: string) => {
+    setSortState(prev => {
+      if (prev.sort === field) {
+        return { sort: field, order: prev.order === 'desc' ? 'asc' : 'desc' }
+      }
+      return { sort: field, order: 'desc' }
+    })
+  }, [])
   const processMutation = useMutation({
     mutationFn: (jobId: string) => jobApi.processJob(jobId),
     onMutate: async (jobId) => {
@@ -130,9 +138,8 @@ export function useJobsInfiniteQuery() {
     query,
     setQuery: useCallback((v: string) => { setQuery(v) }, []),
     sort,
-    setSort: useCallback((v: string) => { setSort(v) }, []),
     order,
-    toggleOrder: useCallback(() => { setOrder(o => o === 'desc' ? 'asc' : 'desc') }, []),
+    handleHeaderSort,
     hasNextPage: !!hasNextPage,
     fetchNextPage,
     filterProcessingStatus,

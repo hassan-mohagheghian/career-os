@@ -37,7 +37,7 @@ api_router = APIRouter(prefix="/api")
 # ── V2 routers (registered before legacy to prevent path conflicts) ──
 
 from jobs.presentation.api.jobs_v2_router import router as jobs_v2_router
-api_router.include_router(jobs_v2_router, prefix="/jobs/list", tags=["jobs-v2"])
+api_router.include_router(jobs_v2_router, prefix="/jobs", tags=["jobs-v2"])
 
 # ── Feature routers ──────────────────────────────────────────────
 
@@ -53,18 +53,6 @@ api_router.include_router(websocket_router, tags=["websocket"])
 api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
 api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
-
-# ── SSE router (compat) ──────────────────────────────────────────
-
-@api_router.get("/api/jobs/stream")
-def jobs_stream_compat():
-    return {"status": "removed", "message": "Use WebSocket for real-time updates"}
-
-
-@api_router.get("/api/companies/stream")
-def companies_stream_compat():
-    return {"status": "removed", "message": "Use WebSocket for real-time updates"}
-
 
 # ── Flask compat routes ─────────────────────────────────────────
 

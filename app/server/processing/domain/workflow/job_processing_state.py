@@ -29,6 +29,7 @@ from processing.domain.workflow.job_data import JobData
 from processing.domain.workflow.job_processing_context import JobProcessingContext
 from processing.domain.workflow.source import JobSource
 from processing.domain.workflow.validation_result import ContextValidationResult
+from processing.domain.workflow.workflow_progress import WorkflowProgress
 
 
 class JobProcessingState(BaseModel):
@@ -42,4 +43,5 @@ class JobProcessingState(BaseModel):
     processing_context: JobProcessingContext | None = None
     validation_result: ContextValidationResult | None = None
     errors: list[str] = Field(default_factory=list)
+    workflow_progress: WorkflowProgress | None = None
     status: ExecutionStatus = ExecutionStatus.CREATED

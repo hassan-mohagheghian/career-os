@@ -1,28 +1,24 @@
 import type { ProcessingStatus } from '@/entities/job/types'
 import { ProcessingButton } from './ProcessingButton'
 import { Button } from '@/shared/ui/button'
-import { Play, Eye, ArrowsClockwise, Square } from '@phosphor-icons/react'
+import { Eye, ArrowsClockwise, Square } from '@phosphor-icons/react'
 
 interface JobActionsProps {
   processingStatus: ProcessingStatus | null
   onProcessV2: () => void
-  onLegacyProcess: () => void
   onViewDetails: () => void
   onRetry?: () => void
   onCancel?: () => void
 }
 
 export function JobActions({
-  processingStatus, onProcessV2, onLegacyProcess, onViewDetails, onRetry, onCancel,
+  processingStatus, onProcessV2, onViewDetails, onRetry, onCancel,
 }: JobActionsProps) {
   return (
     <div className="flex items-center gap-1">
       {(!processingStatus || processingStatus === 'created') && (
         <>
           <ProcessingButton onClick={onProcessV2} />
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={onLegacyProcess} title="Legacy Process">
-            <Play className="w-3 h-3" />
-          </Button>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={onViewDetails} title="Details">
             <Eye className="w-3 h-3" />
           </Button>

@@ -4,11 +4,11 @@ import { ScoreBadge } from './ScoreBadge'
 import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
 import { formatTimeAgo } from '@/shared/lib/formatTimeAgo'
+import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
 
 interface JobRowProps {
   job: JobListItem
   onProcessV2: (id: string) => void
-  onLegacyProcess: (id: string) => void
   onViewDetails: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
@@ -16,30 +16,31 @@ interface JobRowProps {
 }
 
 export function JobRow({
-  job, onProcessV2, onLegacyProcess, onViewDetails, onRetry, onCancel,
+  job, onProcessV2, onViewDetails, onRetry, onCancel,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
   return (
     <div
-      className="flex border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors"
+      className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
+      style={{ gridTemplateColumns: COLUMN_GRID_TEMPLATE }}
       onClick={() => onViewDetails(job.id)}
     >
-      <div className="flex-1 py-2 px-3 flex items-center">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-foreground truncate max-w-[240px]">
+      <div className="py-2 px-3 flex items-center">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-medium text-foreground truncate">
             {job.title || 'Untitled'}
           </span>
         </div>
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center">
-        <span className="text-xs text-muted-foreground truncate max-w-[140px] block">
+      <div className="py-2 px-3 flex items-center">
+        <span className="text-xs text-muted-foreground truncate block">
           {job.company_name || 'Unknown'}
         </span>
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+      <div className="py-2 px-3 flex items-center">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs text-muted-foreground truncate">
             {job.location || 'Unknown'}
           </span>
           {job.remote && (
@@ -54,26 +55,30 @@ export function JobRow({
           )}
         </div>
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center">
+      <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 whitespace-nowrap">
           <ScoreBadge label="O" value={job.scores?.overall ?? null} />
           <ScoreBadge label="F" value={job.scores?.fit ?? null} />
           <ScoreBadge label="S" value={job.scores?.success ?? null} />
         </div>
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center">
+      <div className="py-2 px-3 flex items-center">
         <ProcessingStatus status={processingStatus} />
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center">
+      <div className="py-2 px-3 flex items-center">
         <span className="text-2xs text-muted-foreground whitespace-nowrap">
           {job.updated_at ? formatTimeAgo(job.updated_at) : '—'}
         </span>
       </div>
-      <div className="flex-1 py-2 px-3 flex items-center justify-end" onClick={e => e.stopPropagation()}>
+      <div className="py-2 px-3 flex items-center">
+        <span className="text-2xs text-muted-foreground whitespace-nowrap">
+          {job.created_at ? formatTimeAgo(job.created_at) : '—'}
+        </span>
+      </div>
+      <div className="py-2 px-3 flex items-center justify-end" onClick={e => e.stopPropagation()}>
         <JobActions
           processingStatus={processingStatus}
           onProcessV2={() => onProcessV2(job.id)}
-          onLegacyProcess={() => onLegacyProcess(job.id)}
           onViewDetails={() => onViewDetails(job.id)}
           onRetry={() => onRetry?.(job.id)}
           onCancel={() => onCancel?.(job.id)}

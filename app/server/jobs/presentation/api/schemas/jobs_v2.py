@@ -54,3 +54,58 @@ class JobListResponseSchema(BaseModel):
     items: list[JobListItemSchema] = Field(default_factory=list)
     pagination: PaginationSchema | None = None
     cursor_pagination: CursorPaginationSchema | None = None
+
+
+class JobDetailWorkflowStepSchema(BaseModel):
+    id: str
+    title: str
+    status: str = "pending"
+    progress: float | None = None
+    displayable: bool = True
+    children: list["JobDetailWorkflowStepSchema"] = Field(default_factory=list)
+    error: dict[str, str] | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+class JobDetailWorkflowSchema(BaseModel):
+    id: str
+    name: str = "Job Context Preparation"
+    status: str = "pending"
+    current_step: JobDetailWorkflowStepSchema | None = None
+    progress: float | None = None
+    steps: list[JobDetailWorkflowStepSchema] = Field(default_factory=list)
+
+
+class JobDetailExecutionSchema(BaseModel):
+    execution_id: str
+    status: str
+    created_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    error: dict[str, str] | None = None
+    current_step: str | None = None
+    workflow: JobDetailWorkflowSchema | None = None
+
+
+class JobDetailResponseSchema(BaseModel):
+    id: str
+    num: int
+    title: str | None = None
+    company_name: str | None = Field(default=None, validation_alias="company")
+    role: str | None = None
+    location: str | None = None
+    work_type: str | None = None
+    employment_type: str | None = None
+    salary: str | None = None
+    visa: str | None = None
+    url: str | None = None
+    status: str | None = None
+    scores: ScoresSchema | None = None
+    latest_processing_execution: JobDetailExecutionSchema | None = None
+    description: str | None = None
+    notes: str | None = None
+    updated_at: str | None = None
+    created_at: str | None = None
+
+    model_config = {"populate_by_name": True, "from_attributes": True}

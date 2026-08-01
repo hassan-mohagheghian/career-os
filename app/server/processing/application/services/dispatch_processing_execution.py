@@ -44,12 +44,12 @@ class DispatchProcessingExecutionService:
         from shared.infrastructure.taskiq.client import enqueue_execution_sync
         from shared.infrastructure.events.processing_events import (
             publish_sync,
-            EXECUTION_QUEUED,
+            EXECUTION_CREATED,
         )
 
         enqueue_execution_sync(execution_id)
         publish_sync(
-            EXECUTION_QUEUED,
+            EXECUTION_CREATED,
             execution.id,
             job_id,
             ExecutionStatus.QUEUED.value,

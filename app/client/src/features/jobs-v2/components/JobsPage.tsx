@@ -7,6 +7,7 @@ import { JobsHeader } from './JobsHeader'
 import { JobsToolbar } from './JobsToolbar'
 import { JobsTable } from './JobsTable'
 import { ProcessingDrawer } from './ProcessingDrawer'
+import { JobDetailDrawer } from './JobDetailDrawer'
 import AddJobDrawer from '@/features/jobs/components/AddJobDrawer'
 import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
 import { toast } from 'sonner'
@@ -27,7 +28,6 @@ interface JobsPageProps {
   sort: string
   onSortChange: (value: string) => void
   order: 'asc' | 'desc'
-  onToggleOrder: () => void
   filterProcessingStatus: ProcessingStatus | ''
   onFilterProcessingStatusChange: (value: ProcessingStatus | '') => void
   filterRemote: boolean | ''
@@ -37,7 +37,6 @@ interface JobsPageProps {
   activeFilterCount: number
   onClearFilters: () => void
   onProcessV2: (id: string) => void
-  onLegacyProcess: (id: string) => void
   onViewDetails: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
@@ -46,6 +45,8 @@ interface JobsPageProps {
   onQueueDrawerOpenChange: (open: boolean) => void
   addJobDrawerOpen: boolean
   onAddJobDrawerOpenChange: (open: boolean) => void
+  detailJobId: string | null
+  onDetailJobIdChange: (id: string | null) => void
   processingCount: number
 }
 
@@ -53,14 +54,15 @@ export function JobsPage({
   items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, onFetchNextPage,
   isError, error, onRefetch,
   query, onQueryChange,
-  sort, onSortChange, order, onToggleOrder,
+  sort, onSortChange, order,
   filterProcessingStatus, onFilterProcessingStatusChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onLegacyProcess, onViewDetails, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onRetry, onCancel, isProcessing,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addJobDrawerOpen, onAddJobDrawerOpenChange,
+  detailJobId, onDetailJobIdChange,
   processingCount,
 }: JobsPageProps) {
   const { createJob, submitting, error: createError, clearError } = useCreateJob()
@@ -109,10 +111,6 @@ export function JobsPage({
       <JobsToolbar
         query={query}
         onQueryChange={onQueryChange}
-        sort={sort}
-        onSortChange={onSortChange}
-        order={order}
-        onToggleOrder={onToggleOrder}
         filterProcessingStatus={filterProcessingStatus}
         onFilterProcessingStatusChange={onFilterProcessingStatusChange}
         filterRemote={filterRemote}
@@ -131,17 +129,21 @@ export function JobsPage({
         hasNextPage={hasNextPage}
         onFetchNextPage={onFetchNextPage}
         onProcessV2={onProcessV2}
-        onLegacyProcess={onLegacyProcess}
         onViewDetails={onViewDetails}
         onRetry={onRetry}
         onCancel={onCancel}
+        sort={sort}
+        order={order}
+        onSortChange={onSortChange}
       />
       <ProcessingDrawer
         open={queueDrawerOpen}
         onOpenChange={onQueueDrawerOpenChange}
-        jobs={items}
       />
-      <AddJobDrawer
+      <JobDetailDrawer
+        jobId={detailJobId}
+        onOpenChange={onDetailJobIdChange}
+      />      <AddJobDrawer
         open={addJobDrawerOpen}
         onOpenChange={(open) => { onAddJobDrawerOpenChange(open); if (!open) clearError() }}
         onSubmit={handleCreateJob}

@@ -9,6 +9,8 @@ LangGraph workflow execution:
         ↓
     Start LangGraph workflow
         ↓
+    Update workflow progress after each node
+        ↓
     Complete or fail execution
 
 TaskIQ starts this runner (via process_execution_task). The runner updates
@@ -19,6 +21,7 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 
+from processing.application.workflows import progress_ops
 from processing.domain.enums import ExecutionStatus, ExecutionType
 from processing.infrastructure.repositories.sa_processing_execution_repository import (
     SQLAlchemyProcessingExecutionRepository,
@@ -56,22 +59,13 @@ class ProcessingExecutionRunner:
 
             execution.status = ExecutionStatus.RUNNING
             execution.started_at = started_at
+            execution.workflow_progress = progress_ops.build_initial_progress(execution.id).to_dict()
             repo.save(execution)
             processing_events.publish_sync(
                 processing_events.EXECUTION_STARTED,
                 execution.id,
                 job_id,
                 ExecutionStatus.RUNNING.value,
-                updated_at=started_at.isoformat(),
-            )
-            processing_events.publish_sync(
-                processing_events.EXECUTION_STEP_CHANGED,
-                execution.id,
-                job_id,
-                ExecutionStatus.RUNNING.value,
-                current_step="workflow_started",
-                progress=0.0,
-                message="Workflow execution started",
                 updated_at=started_at.isoformat(),
             )
 
@@ -82,6 +76,8 @@ class ProcessingExecutionRunner:
                 execution.status = ExecutionStatus.FAILED
                 execution.finished_at = finished_at
                 execution.error_message = str(e)
+                if execution.workflow_progress:
+                    execution.workflow_progress["status"] = "failed"
                 repo.save(execution)
                 processing_events.publish_sync(
                     processing_events.EXECUTION_FAILED,
@@ -97,6 +93,8 @@ class ProcessingExecutionRunner:
             finished_at = datetime.now(UTC)
             execution.status = ExecutionStatus.COMPLETED
             execution.finished_at = finished_at
+            if execution.workflow_progress:
+                execution.workflow_progress["status"] = "completed"
             repo.save(execution)
             processing_events.publish_sync(
                 processing_events.EXECUTION_COMPLETED,
@@ -144,8 +142,11 @@ class ProcessingExecutionRunner:
                 state = JobProcessingState(
                     execution_id=execution.id,
                     job_id=self._job_id(execution) or "",
+                    workflow_progress=progress_ops.build_initial_progress(execution.id),
                 )
                 final = graph.invoke(state)
+                if final.workflow_progress is not None:
+                    execution.workflow_progress = final.workflow_progress.to_dict()
                 if final.status == ExecutionStatus.FAILED:
                     raise RuntimeError("; ".join(final.errors) or "Job context preparation failed")
                 return {"job_id": self._job_id(execution)}

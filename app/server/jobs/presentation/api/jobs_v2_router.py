@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from jobs.presentation.api.schemas.jobs_v2 import (
     JobListItemSchema,
@@ -14,10 +14,16 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     CursorPaginationSchema,
     ScoresSchema,
     ProcessingExecutionSchema,
+    JobDetailResponseSchema,
+    JobDetailExecutionSchema,
+    JobDetailWorkflowSchema,
+    JobDetailWorkflowStepSchema,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
-from dependencies import get_job_repo
+from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
+from processing.domain.enums import ExecutionStatus
+from dependencies import get_job_repo, get_processing_execution_repo
 
 router = APIRouter()
 
@@ -55,7 +61,7 @@ def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
     )
 
 
-@router.get("", response_model=JobListResponseSchema)
+@router.get("/list", response_model=JobListResponseSchema)
 def list_jobs_v2(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
@@ -98,4 +104,89 @@ def list_jobs_v2(
             next_cursor=result.next_cursor,
             has_more=result.has_more,
         ),
+    )
+
+
+def _step_to_schema(step: Any) -> JobDetailWorkflowStepSchema:
+    return JobDetailWorkflowStepSchema(
+        id=step.get("id"),
+        title=step.get("title"),
+        status=step.get("status", "pending"),
+        progress=step.get("progress"),
+        displayable=step.get("displayable", True),
+        children=[_step_to_schema(c) for c in step.get("children", [])],
+        error=step.get("error"),
+        started_at=step.get("started_at"),
+        completed_at=step.get("completed_at"),
+    )
+
+
+def _workflow_to_schema(workflow: Any) -> JobDetailWorkflowSchema | None:
+    if not workflow:
+        return None
+    current_step = workflow.get("current_step")
+    return JobDetailWorkflowSchema(
+        id=workflow.get("id"),
+        name=workflow.get("name", "Job Context Preparation"),
+        status=workflow.get("status", "pending"),
+        current_step=_step_to_schema(current_step) if current_step else None,
+        progress=workflow.get("progress"),
+        steps=[_step_to_schema(s) for s in workflow.get("steps", [])],
+    )
+
+
+def _execution_to_schema(execution: Any) -> JobDetailExecutionSchema | None:
+    if not execution:
+        return None
+    workflow = execution.workflow_progress or {}
+    current_step = workflow.get("current_step") or {}
+    return JobDetailExecutionSchema(
+        execution_id=execution.id,
+        status=execution.status.value,
+        created_at=execution.created_at.isoformat() if execution.created_at else None,
+        started_at=execution.started_at.isoformat() if execution.started_at else None,
+        completed_at=execution.finished_at.isoformat() if execution.finished_at else None,
+        error={"message": execution.error_message} if execution.error_message else None,
+        current_step=current_step.get("title") or current_step.get("id"),
+        workflow=_workflow_to_schema(workflow),
+    )
+
+
+@router.get("/{job_id}", response_model=JobDetailResponseSchema)
+def get_job_detail(
+    job_id: str,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    job_dict = repo.get_by_id(job_id)
+    if not job_dict:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    executions = exec_repo.list_by_target("job", job_id)
+    latest_execution = executions[0] if executions else None
+
+    work_type = (job_dict.get("work_type") or "").lower()
+    return JobDetailResponseSchema(
+        id=job_dict.get("id"),
+        num=job_dict.get("num"),
+        title=job_dict.get("title") or job_dict.get("role"),
+        company_name=job_dict.get("company"),
+        role=job_dict.get("role"),
+        location=job_dict.get("location"),
+        work_type=job_dict.get("work_type"),
+        employment_type=job_dict.get("employment_type"),
+        salary=job_dict.get("salary"),
+        visa=job_dict.get("visa"),
+        url=job_dict.get("url"),
+        status=job_dict.get("status"),
+        scores=ScoresSchema(
+            overall=job_dict.get("overall_score"),
+            fit=job_dict.get("fit_score"),
+            success=job_dict.get("success_score"),
+        ),
+        latest_processing_execution=_execution_to_schema(latest_execution),
+        description=job_dict.get("description"),
+        notes=job_dict.get("notes"),
+        updated_at=job_dict.get("updated_at"),
+        created_at=job_dict.get("created_at"),
     )

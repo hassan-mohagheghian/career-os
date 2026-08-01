@@ -10,13 +10,21 @@ Sources:
 from __future__ import annotations
 
 import json
+from typing import Any
 
+from processing.application.workflows import progress_ops
 from processing.domain.workflow.job_processing_state import JobProcessingState
 from processing.domain.workflow.source import JobSource, SourceType
 
+NODE_ID = "collect_sources"
+
 
 class CollectSourcesNode:
+    def __init__(self, event_publisher: Any | None = None):
+        self._events = event_publisher
+
     def __call__(self, state: JobProcessingState) -> JobProcessingState:
+        progress_ops.start_step(self._events, state, NODE_ID)
         sources: list[JobSource] = []
         notes: list[str] = []
 
@@ -25,6 +33,7 @@ class CollectSourcesNode:
             state.errors.append("No job data available to collect sources from")
             state.sources = []
             state.notes = []
+            progress_ops.complete_step(self._events, state, NODE_ID)
             return state
 
         if job.url:
@@ -35,6 +44,7 @@ class CollectSourcesNode:
 
         state.sources = sources
         state.notes = notes
+        progress_ops.complete_step(self._events, state, NODE_ID)
         return state
 
     def _collect_notes(self, job, sources: list[JobSource], notes: list[str]) -> None:

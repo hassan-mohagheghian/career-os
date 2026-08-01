@@ -21,6 +21,7 @@ class ProcessingExecution(BaseEntity):
         finished_at: datetime | None = None,
         retry_count: int = 0,
         error_message: str | None = None,
+        workflow_progress: dict[str, Any] | None = None,
     ):
         if id is None:
             id = str(uuid.uuid4())
@@ -33,6 +34,7 @@ class ProcessingExecution(BaseEntity):
         self._finished_at = finished_at
         self._retry_count = retry_count
         self._error_message = error_message
+        self._workflow_progress = workflow_progress
 
     @property
     def status(self) -> ExecutionStatus:
@@ -75,6 +77,14 @@ class ProcessingExecution(BaseEntity):
     def error_message(self, value: str | None) -> None:
         self._error_message = value
 
+    @property
+    def workflow_progress(self) -> dict[str, Any] | None:
+        return self._workflow_progress
+
+    @workflow_progress.setter
+    def workflow_progress(self, value: dict[str, Any] | None) -> None:
+        self._workflow_progress = value
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -87,6 +97,7 @@ class ProcessingExecution(BaseEntity):
             "finished_at": self._finished_at.isoformat() if self._finished_at else None,
             "retry_count": self._retry_count,
             "error_message": self._error_message,
+            "workflow_progress": self._workflow_progress,
         }
 
     @classmethod
@@ -102,4 +113,5 @@ class ProcessingExecution(BaseEntity):
             finished_at=datetime.fromisoformat(data["finished_at"]) if data.get("finished_at") else None,
             retry_count=data.get("retry_count", 0),
             error_message=data.get("error_message"),
+            workflow_progress=data.get("workflow_progress"),
         )

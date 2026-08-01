@@ -14,12 +14,12 @@ def test_health_check(client):
 
 def test_list_jobs_empty(client):
     """Test listing jobs when database is empty."""
-    response = client.get("/api/jobs")
+    response = client.get("/api/jobs/list")
     assert response.status_code == 200
     data = response.json()
-    assert "jobs" in data
-    assert "total" in data
-    assert data["total"] == 0
+    assert "items" in data
+    assert "pagination" in data
+    assert data["pagination"]["total_items"] == 0
 
 
 def test_create_and_get_job(client, test_db):
@@ -41,11 +41,14 @@ def test_create_and_get_job(client, test_db):
     test_db.add(job)
     test_db.commit()
 
-    response = client.get("/api/jobs/1")
+    response = client.get("/api/jobs/list?query=Software&page_size=25")
     assert response.status_code == 200
     data = response.json()
-    assert data["num"] == 1
-    assert data["url"] == "https://example.com/job/1"
+    assert data["pagination"]["total_items"] == 1
+    item = data["items"][0]
+    assert item["num"] == 1
+    assert item["title"] == "Software Engineer"
+    assert item["company_name"] == "Tech Corp"
 
 
 def test_list_skills_empty(client):
@@ -72,3 +75,35 @@ def test_list_companies_empty(client):
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 0
+
+
+def test_get_job_detail(client, test_db):
+    """Test fetching a single job via the V2 detail endpoint."""
+    job = JobModel(
+        num=42,
+        url="https://example.com/job/42",
+        title="Backend Engineer",
+        company="Example Co",
+        location="London",
+        work_type="On-site",
+        deleted=0,
+        workflow_log="[]",
+        locations='["London"]',
+        work_types='["On-site"]',
+        employment_type="Full-time",
+        rescoring=0,
+    )
+    test_db.add(job)
+    test_db.commit()
+
+    response = client.get(f"/api/jobs/{job.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["num"] == 42
+    assert data["title"] == "Backend Engineer"
+    assert data["company_name"] == "Example Co"
+    assert data["location"] == "London"
+    assert data["scores"]["overall"] is None
+
+    missing = client.get("/api/jobs/does-not-exist")
+    assert missing.status_code == 404

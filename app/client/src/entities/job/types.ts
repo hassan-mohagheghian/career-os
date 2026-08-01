@@ -120,3 +120,56 @@ export interface InfiniteJobSearchResult {
   has_more: boolean
   total_items: number
 }
+
+export interface JobDetailWorkflowStep {
+  id: string
+  title: string
+  status: string
+  progress: number | null
+  displayable: boolean
+  children: JobDetailWorkflowStep[]
+  error: { code: string; message: string } | null
+  started_at: string | null
+  completed_at: string | null
+}
+
+export interface JobDetailWorkflow {
+  id: string
+  name: string
+  status: string
+  current_step: JobDetailWorkflowStep | null
+  progress: number | null
+  steps: JobDetailWorkflowStep[]
+}
+
+export interface JobDetailExecution {
+  execution_id: string
+  status: string
+  created_at: string | null
+  started_at: string | null
+  completed_at: string | null
+  error: { message: string } | null
+  current_step: string | null
+  workflow: JobDetailWorkflow | null
+}
+
+export interface JobDetail {
+  id: string
+  num: number
+  title: string | null
+  company_name: string | null
+  role: string | null
+  location: string | null
+  work_type: string | null
+  employment_type: string | null
+  salary: string | null
+  visa: string | null
+  url: string | null
+  status: string | null
+  scores: Scores
+  latest_processing_execution: JobDetailExecution | null
+  description: string | null
+  notes: string | null
+  updated_at: string | null
+  created_at: string | null
+}
