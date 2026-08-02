@@ -45,11 +45,11 @@ test = [
 ]
 
 [project.scripts]
-jobsearch = "app.server.entrypoints.cli:app"
-start = "app.start:app"
+jobsearch = "apps.backend.entrypoints.cli:app"
+start = "apps.start:app"
 
 [tool.pytest.ini_options]
-testpaths = ["app/server/tests"]
+testpaths = ["apps/backend/tests"]
 addopts = "--tb=short -q -m 'not slow'"
 markers = [
     "slow: tests that take longer than 2s and are skipped in normal runs",
@@ -74,11 +74,11 @@ test = [
 ]
 
 [tool.coverage.run]
-source = ["app/server"]
+source = ["apps/backend"]
 omit = [
-    "app/server/tests/*",
-    "app/server/**/__init__.py",
-    "app/server/db/*",
+    "apps/backend/tests/*",
+    "apps/backend/**/__init__.py",
+    "apps/backend/db/*",
 ]
 
 [tool.coverage.report]

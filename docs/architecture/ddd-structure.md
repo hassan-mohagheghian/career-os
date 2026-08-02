@@ -6,7 +6,7 @@ The backend follows Domain-Driven Design principles organized as a modular monol
 
 ## Bounded Contexts
 
-Each bounded context is a Python package under `app/server/`:
+Each bounded context is a Python package under `apps/backend/`:
 
 ```
 <context>/

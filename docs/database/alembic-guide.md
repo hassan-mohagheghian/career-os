@@ -7,7 +7,7 @@ Alembic manages database schema migrations across four bounded contexts. Each co
 ## Directory Structure
 
 ```
-app/alembic/
+apps/alembic/
 ├── alembic.ini
 ├── env.py              # shared environment config
 ├── job/
@@ -22,8 +22,8 @@ app/alembic/
 
 ## Setup
 
-- **Config**: `app/alembic/alembic.ini`
-- **Environment**: `app/alembic/env.py`
+- **Config**: `apps/alembic/alembic.ini`
+- **Environment**: `apps/alembic/env.py`
 - **Version locations**: configured per context in `alembic.ini`
 
 ```ini
@@ -36,21 +36,21 @@ Each bounded context owns a PostgreSQL schema:
 
 | Context | Schema | Migration Dir |
 |---------|--------|---------------|
-| Job | `job` | `app/alembic/job/` |
-| Company | `company` | `app/alembic/company/` |
-| Skill | `skill` | `app/alembic/skill/` |
-| Shared | `shared` | `app/alembic/shared/` |
+| Job | `job` | `apps/alembic/job/` |
+| Company | `company` | `apps/alembic/company/` |
+| Skill | `skill` | `apps/alembic/skill/` |
+| Shared | `shared` | `apps/alembic/shared/` |
 
 The `env.py` imports all models from `shared.infrastructure.database.models` so Alembic can autogenerate migrations for all schemas. `include_schemas=True` ensures schema-aware operations.
 
 ## Common Commands
 
-Run all commands from the `app/alembic/` directory:
+Run all commands from the `apps/alembic/` directory:
 
 ### Check current migration state for all contexts
 
 ```bash
-cd app/alembic
+cd apps/alembic
 alembic current
 ```
 

@@ -4,7 +4,7 @@
 
 The refactoring follows a **test-after** strategy for structural migration:
 
-1. Verify existing tests pass (148 tests in `app/server/tests/`)
+1. Verify existing tests pass (148 tests in `apps/backend/tests/`)
 2. Move code into new structure
 3. Verify tests still pass
 4. Add new tests for new code (entities, value objects, use cases)
@@ -28,13 +28,13 @@ The refactoring follows a **test-after** strategy for structural migration:
 
 ```bash
 # Core tests (queue, services)
-python -m pytest app/server/tests/test_core/ app/server/tests/test_services/ -q
+python -m pytest apps/backend/tests/test_core/ apps/backend/tests/test_services/ -q
 
 # API tests (requires httpx2)
-python -m pytest app/server/tests/test_api/ -q
+python -m pytest apps/backend/tests/test_api/ -q
 
 # All tests
-python -m pytest app/server/tests/ -q
+python -m pytest apps/backend/tests/ -q
 ```
 
 ## Test Fixtures

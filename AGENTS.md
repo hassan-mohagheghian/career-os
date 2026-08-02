@@ -16,8 +16,8 @@ This file gives AI coding agents the context needed to work correctly in this re
 
 ```bash
 ./start                                    # backend (5000) + frontend (5173)
-uv run uvicorn app.server.entrypoints.api:fastapi_app --reload --port 5000
-cd app/client && npm run dev               # frontend dev server
+uv run uvicorn apps.backend.entrypoints.api:fastapi_app --reload --port 5000
+cd apps/frontend && npm run dev               # frontend dev server
 ```
 
 ## Tech Stack
@@ -75,13 +75,13 @@ app/
 
 ```bash
 # Backend
-uv run pytest app/server/tests/ -v
+uv run pytest apps/backend/tests/ -v
 
 # Frontend
-cd app/client && npx vitest run
+cd apps/frontend && npx vitest run
 
 # All
-uv run pytest tests/ app/server/tests/ -v && cd app/client && npx vitest run
+uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 ```
 
 ## Before Making Changes

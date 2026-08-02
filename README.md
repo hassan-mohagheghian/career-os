@@ -155,8 +155,8 @@ docs/                          # Full documentation index
 ./start test all
 
 # Or directly:
-cd app/server && python3 -m pytest tests/ -v
-cd app/client && npm run test
+cd apps/backend && python3 -m pytest tests/ -v
+cd apps/frontend && npm run test
 ```
 
 ## Documentation

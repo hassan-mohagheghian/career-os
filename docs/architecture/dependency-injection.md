@@ -36,9 +36,9 @@ def get_db():
 
 ```python
 # dependencies.py
-from app.server.infrastructure.database.job_repository import JobRepository
-from app.server.infrastructure.database.company_repository import CompanyRepository
-from app.server.infrastructure.database.skill_repository import SkillRepository
+from apps.backend.infrastructure.database.job_repository import JobRepository
+from apps.backend.infrastructure.database.company_repository import CompanyRepository
+from apps.backend.infrastructure.database.skill_repository import SkillRepository
 
 async def get_job_repository(db=Depends(get_db)) -> JobRepository:
     return JobRepository(db)
@@ -53,9 +53,9 @@ async def get_skill_repository(db=Depends(get_db)) -> SkillRepository:
 ### 3. Service Dependencies
 
 ```python
-from app.server.application.services.job_service import JobService
-from app.server.application.services.company_service import CompanyService
-from app.server.application.services.insight_service import InsightService
+from apps.backend.application.services.job_service import JobService
+from apps.backend.application.services.company_service import CompanyService
+from apps.backend.application.services.insight_service import InsightService
 
 async def get_job_service(repo=Depends(get_job_repository)) -> JobService:
     return JobService(repo)
@@ -80,7 +80,7 @@ async def get_llm():
 ### 5. Configuration Dependencies
 
 ```python
-from app.server.config import settings
+from apps.backend.config import settings
 
 def get_settings() -> Settings:
     return settings
@@ -89,7 +89,7 @@ def get_settings() -> Settings:
 ### 6. WebSocket Dependencies
 
 ```python
-from app.server.infrastructure.websocket.manager import ConnectionManager
+from apps.backend.infrastructure.websocket.manager import ConnectionManager
 
 _manager: ConnectionManager | None = None
 
@@ -164,8 +164,8 @@ def get_llm_service():
 ```python
 # tests/conftest.py
 from fastapi.testclient import TestClient
-from app.server.main import app
-from app.server.dependencies import get_job_repository
+from apps.backend.main import app
+from apps.backend.dependencies import get_job_repository
 from tests.mocks import MockJobRepository
 
 def override_job_repository():
@@ -184,7 +184,7 @@ def test_list_jobs():
 
 ```python
 # tests/mocks/mock_job_repository.py
-from app.server.domain.repositories.job_repository import IJobRepository
+from apps.backend.domain.repositories.job_repository import IJobRepository
 
 class MockJobRepository(IJobRepository):
     def __init__(self):
@@ -226,7 +226,7 @@ async def list_jobs(
 
 ```python
 # BAD: Hidden dependency via module import
-from app.server.database import get_db  # Implicit dependency
+from apps.backend.database import get_db  # Implicit dependency
 
 @router.get("/jobs")
 async def list_jobs():

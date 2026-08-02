@@ -212,19 +212,19 @@ Presentation (api/)
 
 ```python
 # ALLOWED: Router imports service
-from app.server.application.services.job_service import JobService
+from apps.backend.application.services.job_service import JobService
 
 # ALLOWED: Service imports repository interface
-from app.server.domain.repositories.job_repository import IJobRepository
+from apps.backend.domain.repositories.job_repository import IJobRepository
 
 # ALLOWED: Infrastructure implements interface
-from app.server.infrastructure.database.job_repository import JobRepository
+from apps.backend.infrastructure.database.job_repository import JobRepository
 
 # FORBIDDEN: Domain imports infrastructure
-from app.server.infrastructure.database.connection import get_db  # NO
+from apps.backend.infrastructure.database.connection import get_db  # NO
 
 # FORBIDDEN: Router imports repository directly
-from app.server.infrastructure.database.job_repository import JobRepository  # NO
+from apps.backend.infrastructure.database.job_repository import JobRepository  # NO
 ```
 
 ## Feature Organization
@@ -263,9 +263,9 @@ jobs/                              # Jobs Bounded Context
 ```python
 # dependencies.py
 from fastapi import Depends
-from app.server.infrastructure.database.connection import get_db
-from app.server.infrastructure.database.job_repository import JobRepository
-from app.server.application.services.job_service import JobService
+from apps.backend.infrastructure.database.connection import get_db
+from apps.backend.infrastructure.database.job_repository import JobRepository
+from apps.backend.application.services.job_service import JobService
 
 async def get_job_repository(db=Depends(get_db)) -> JobRepository:
     return JobRepository(db)
@@ -278,8 +278,8 @@ async def get_job_service(repo=Depends(get_job_repository)) -> JobService:
 
 ```python
 from fastapi import APIRouter, Depends
-from app.server.dependencies import get_job_service
-from app.server.application.services.job_service import JobService
+from apps.backend.dependencies import get_job_service
+from apps.backend.application.services.job_service import JobService
 
 router = APIRouter()
 

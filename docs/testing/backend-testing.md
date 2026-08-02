@@ -53,8 +53,8 @@ tests/
 
 ```python
 # tests/unit/domain/test_job.py
-from app.server.domain.entities.job import Job
-from app.server.domain.value_objects.score import Score
+from apps.backend.domain.entities.job import Job
+from apps.backend.domain.value_objects.score import Score
 
 def test_job_creation():
     job = Job(
@@ -85,7 +85,7 @@ def test_job_validation():
 ```python
 # tests/unit/application/test_job_service.py
 import pytest
-from app.server.application.services.job_service import JobService
+from apps.backend.application.services.job_service import JobService
 from tests.mocks import MockJobRepository
 
 @pytest.fixture
@@ -109,7 +109,7 @@ async def test_get_job_not_found(service):
 ```python
 # tests/unit/infrastructure/test_job_repository.py
 import pytest
-from app.server.infrastructure.database.job_repository import JobRepository
+from apps.backend.infrastructure.database.job_repository import JobRepository
 
 @pytest.mark.asyncio
 async def test_create_job(test_db):
@@ -215,7 +215,7 @@ async def test_delete_job(client: AsyncClient):
 ```python
 # tests/integration/database/test_repositories.py
 import pytest
-from app.server.infrastructure.database.connection import get_db
+from apps.backend.infrastructure.database.connection import get_db
 
 @pytest.mark.asyncio
 async def test_database_connection(test_db):
@@ -225,7 +225,7 @@ async def test_database_connection(test_db):
 
 @pytest.mark.asyncio
 async def test_migration_runs(test_db):
-    from app.server.infrastructure.database.migrations import run_migrations
+    from apps.backend.infrastructure.database.migrations import run_migrations
     await run_migrations(test_db)
     
     # Verify tables exist
@@ -281,9 +281,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from httpx import AsyncClient, ASGITransport
-from app.server.main import app
-from app.server.dependencies import get_db
-from app.server.infrastructure.database.models import Base
+from apps.backend.main import app
+from apps.backend.dependencies import get_db
+from apps.backend.infrastructure.database.models import Base
 
 @pytest.fixture
 def test_db():
@@ -340,7 +340,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["app/server"]
+source = ["apps/backend"]
 omit = ["*/tests/*", "*/migrations/*"]
 
 [tool.coverage.report]
@@ -378,7 +378,7 @@ pytest -m "not slow"
 ### With Coverage
 
 ```bash
-pytest --cov=app/server --cov-report=html
+pytest --cov=apps/backend --cov-report=html
 ```
 
 ### Specific Test
@@ -463,7 +463,7 @@ jobs:
         run: pip install -r requirements.txt
       
       - name: Run tests
-        run: pytest --cov=app/server
+        run: pytest --cov=apps/backend
       
       - name: Upload coverage
         uses: codecov/codecov-action@v3

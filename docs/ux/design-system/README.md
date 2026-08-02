@@ -61,5 +61,5 @@ Place stories at the same FSD layer as the component they document.
 
 ### Storybook Configuration
 
-- `app/client/.storybook/main.ts` — Storybook config (stories pattern, addons, framework)
-- `app/client/.storybook/preview.tsx` — Global preview config (CSS import, controls, a11y)
+- `apps/frontend/.storybook/main.ts` — Storybook config (stories pattern, addons, framework)
+- `apps/frontend/.storybook/preview.tsx` — Global preview config (CSS import, controls, a11y)

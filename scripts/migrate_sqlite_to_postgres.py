@@ -1,4 +1,4 @@
-"""Migrate data from SQLite (app/server/db/jobs.db) to PostgreSQL.
+"""Migrate data from SQLite (apps/backend/db/jobs.db) to PostgreSQL.
 
 Handles column type mismatches, different schemas, and data inconsistencies.
 """
@@ -7,7 +7,7 @@ import sqlite3
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-SQLITE_PATH = "app/server/db/jobs.db"
+SQLITE_PATH = "apps/backend/db/jobs.db"
 DATABASE_URL = "postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch"
 
 TABLE_MAP = {

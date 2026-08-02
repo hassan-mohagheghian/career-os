@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving as an AI-powered career intelligence system. The backend currently lives in `app/server/` with a partial clean architecture (repository pattern, domain interfaces, infrastructure implementations) but mixed concerns across layers. This analysis identifies **8 bounded contexts** and a **shared kernel** to guide the DDD modular monolith restructuring.
+The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving as an AI-powered career intelligence system. The backend currently lives in `apps/backend/` with a partial clean architecture (repository pattern, domain interfaces, infrastructure implementations) but mixed concerns across layers. This analysis identifies **8 bounded contexts** and a **shared kernel** to guide the DDD modular monolith restructuring.
 
 ---
 

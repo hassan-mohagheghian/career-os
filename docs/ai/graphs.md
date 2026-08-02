@@ -123,7 +123,7 @@ START → job_processing → company_processing → resume_generation
 
 ## Adding a New Graph
 
-1. Create `app/server/ai/infrastructure/graphs/{name}/graph.py`
+1. Create `apps/backend/ai/infrastructure/graphs/{name}/graph.py`
 2. Implement `build_{name}_graph() -> GraphBuilder`
 3. Add typed output model to `runtime/state.py`
 4. Register in `graphs/__init__.py`

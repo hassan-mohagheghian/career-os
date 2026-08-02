@@ -451,10 +451,10 @@ app.add_middleware(
 
 ## Static Frontend Serving
 
-In production, the built frontend (`app/client/dist/`, produced by `npm run build` in `app/client`) is served by FastAPI as static files:
+In production, the built frontend (`apps/frontend/dist/`, produced by `npm run build` in `apps/frontend`) is served by FastAPI as static files:
 
 - Assets under `/assets` are mounted from `client/dist/assets` via `StaticFiles`.
 - The SPA catch-all serves `client/dist/index.html` for non-API routes.
 - During development the Next.js dev server runs separately on port 5173 (see `docker-compose.yml`).
 
-Python dependencies are managed with **uv** (`uv sync` / `uv run`); the server runs via `uv run uvicorn app.server.entrypoints.api:fastapi_app`.
+Python dependencies are managed with **uv** (`uv sync` / `uv run`); the server runs via `uv run uvicorn apps.backend.entrypoints.api:fastapi_app`.

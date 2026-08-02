@@ -3,7 +3,7 @@
 ## Target DDD Structure
 
 ```
-app/server/
+apps/backend/
 ├── entrypoints/                   # Application entry points
 │   ├── cli.py                     # Typer CLI
 │   └── api.py                     # FastAPI app + SocketIO

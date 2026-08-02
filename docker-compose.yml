@@ -77,7 +77,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./app/client:/app
+      - ./apps/frontend:/app
     environment:
       - VITE_API_URL=http://backend:5000
 

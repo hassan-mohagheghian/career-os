@@ -3,7 +3,7 @@
 Usage:
     DATABASE_URL=postgresql+psycopg://user:pass@host/db python scripts/migrate_data.py
 
-Reads from app/server/db/jobs.db and writes to the target PostgreSQL.
+Reads from apps/backend/db/jobs.db and writes to the target PostgreSQL.
 Only migrates columns that exist in the target schema.
 Skips rows that fail type conversion.
 """

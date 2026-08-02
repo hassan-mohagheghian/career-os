@@ -7,7 +7,7 @@ The backend uses a **modular monolith** architecture with 8 bounded contexts. Ea
 ## Actual Structure
 
 ```
-app/server/
+apps/backend/
 ├── entrypoints/                   # Application entry points
 │   ├── cli.py                     # Typer CLI
 │   └── api.py                     # FastAPI app + SocketIO

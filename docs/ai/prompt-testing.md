@@ -14,12 +14,12 @@ Every prompt should have tests verifying:
 ## Running tests
 
 ```bash
-pytest app/server/tests/ai/infrastructure/prompts/ -v
+pytest apps/backend/tests/ai/infrastructure/prompts/ -v
 ```
 
 ## Test structure
 
-Tests are in `app/server/tests/ai/infrastructure/prompts/test_prompt_platform.py`:
+Tests are in `apps/backend/tests/ai/infrastructure/prompts/test_prompt_platform.py`:
 
 - `TestPromptRegistry` — Registry operations (register, get, list, versioning)
 - `TestPromptRendering` — Each prompt renders correctly with typical inputs
