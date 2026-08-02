@@ -277,17 +277,21 @@ def _start_frontend(port: int):
     _ok(f"Frontend started (PID: {proc.pid}) on http://localhost:{port}")
 
 
+def _background_env() -> dict:
+    env = os.environ.copy()
+    server_dir = str(REPO_ROOT / "apps" / "backend")
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = server_dir + (f":{existing}" if existing else "")
+    return env
+
+
 def _start_background():
     _log("Starting background worker...")
     python = _python_path()
-    env = os.environ.copy()
-    app_dir = str(REPO_ROOT / "apps")
-    server_dir = str(REPO_ROOT / "apps" / "backend")
-    existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = f"{app_dir}:{server_dir}" + (f":{existing}" if existing else "")
+    env = _background_env()
     proc = subprocess.Popen(
         [
-            python, "-m", "background.main",
+            python, "-m", "apps.backend.entrypoints.worker",
         ],
         cwd=str(REPO_ROOT),
         env=env,
@@ -301,15 +305,11 @@ def _start_scheduler(env: dict = None):
     _log("Starting background scheduler...")
     python = _python_path()
     if env is None:
-        env = os.environ.copy()
-        app_dir = str(REPO_ROOT / "apps")
-        server_dir = str(REPO_ROOT / "apps" / "backend")
-        existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = f"{app_dir}:{server_dir}" + (f":{existing}" if existing else "")
+        env = _background_env()
     proc = subprocess.Popen(
         [
             python, "-m", "taskiq", "scheduler",
-            "background.scheduler.scheduler:create_scheduler",
+            "apps.backend.entrypoints.scheduler:create_scheduler",
             "shared.infrastructure.taskiq.tasks",
         ],
         cwd=str(REPO_ROOT),
@@ -391,13 +391,9 @@ def background():
     """Start only the background worker + scheduler"""
     _log("Starting background worker...")
     python = _python_path()
-    env = os.environ.copy()
-    app_dir = str(REPO_ROOT / "apps")
-    server_dir = str(REPO_ROOT / "apps" / "backend")
-    existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = f"{app_dir}:{server_dir}" + (f":{existing}" if existing else "")
+    env = _background_env()
     proc = subprocess.Popen(
-        [python, "-m", "background.main"],
+        [python, "-m", "apps.backend.entrypoints.worker"],
         cwd=str(REPO_ROOT),
         env=env,
     )

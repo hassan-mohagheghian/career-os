@@ -7,6 +7,6 @@ COPY apps/ ./apps/
 
 RUN pip install uv && uv sync --frozen --no-dev
 
-ENV PYTHONPATH=/apps
+ENV PYTHONPATH=/app:/app/apps/backend
 
-CMD ["uv", "run", "python", "-m", "background.main"]
+CMD ["uv", "run", "python", "-m", "apps.backend.entrypoints.worker"]

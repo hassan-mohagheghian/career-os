@@ -55,10 +55,10 @@ jobs:
           DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
 
       - name: Lint with ruff
-        run: uv run ruff check apps/backend apps/background || true
+        run: uv run ruff check apps/backend || true
 
       - name: Type check with mypy
-        run: uv run mypy apps/backend apps/background --ignore-missing-imports || true
+        run: uv run mypy apps/backend --ignore-missing-imports || true
 
       - name: Run backend tests
         run: uv run pytest apps/backend/tests/ -v --tb=short --cov=apps.backend --cov-report=term-missing --cov-report=html
