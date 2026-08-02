@@ -47,7 +47,7 @@ jobs:
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: Run Alembic migrations
         run: uv run alembic upgrade head
@@ -61,7 +61,7 @@ jobs:
         run: uv run mypy app/server app/background --ignore-missing-imports || true
 
       - name: Run backend tests
-        run: uv run pytest app/server/tests -v --tb=short
+        run: uv run pytest app/server/tests/ -v --tb=short --cov=app.server --cov-report=term-missing --cov-report=html
         env:
           DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
           REDIS_HOST: localhost
@@ -83,4 +83,8 @@ jobs:
 
       - name: Run frontend tests
         run: npm test
+        working-directory: app/client
+
+      - name: Build frontend
+        run: npm run build
         working-directory: app/client
