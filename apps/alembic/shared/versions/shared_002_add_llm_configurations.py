@@ -18,6 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.execute("CREATE SCHEMA IF NOT EXISTS ai")
 
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "llm_configurations" in inspector.get_table_names(schema="ai"):
+        return
+
     op.create_table(
         "llm_configurations",
         sa.Column("id", sa.String(36), nullable=False),
