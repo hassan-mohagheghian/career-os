@@ -64,6 +64,18 @@ The codebase currently does NOT use provider-native tool calling. All LLM intera
 - Multi-step analysis requiring tool chains
 - Tasks that benefit from provider-specific capabilities (e.g., grounding)
 
+## Troubleshooting
+
+### Mimo CLI not found
+
+**Symptom**: `mimo: command not found` or analysis fails to start.
+**Fix**: The Mimo CLI is expected at `~/.mimocode/bin/mimo`. Verify it exists and is executable:
+
+```bash
+ls -la ~/.mimocode/bin/mimo
+chmod +x ~/.mimocode/bin/mimo
+```
+
 ## Future Provider Support
 
 When adding new providers:

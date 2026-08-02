@@ -30,3 +30,7 @@ pages → widgets → features → entities → shared
 - ❌ Business logic in `shared/`
 - ❌ Multiple entities in a single file
 - ❌ Direct `fetch()` calls in components (use entity APIs)
+
+## Common Mistakes
+
+- **Wrong UI component path** — UI components live in `shared/ui/`, not `components/ui/`. Feature-specific components live in `features/{name}/components/`. Stale import paths cause Vite "Could not load" build errors.

@@ -387,6 +387,12 @@ pytest --cov=app/server --cov-report=html
 pytest tests/integration/api/test_jobs.py::test_list_jobs -v
 ```
 
+## Common Issues
+
+### Tests fail with "no such column"
+
+Test fixtures must have the same columns as production. If the schema changes (new migration), update the fixtures to match. Check `tests/conftest.py` for the shared fixture and the per-context test `conftest.py` for context-specific fixtures.
+
 ## Test Data Management
 
 ### Test Data Factory
