@@ -40,10 +40,9 @@ def _ensure_test_database():
     admin_url = m.group(1) + '/postgres'
     db_name = TEST_DB_URL.split('/')[-1]
     try:
-        admin_engine = create_engine(admin_url)
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         with admin_engine.connect() as conn:
             conn.execute(text(f"CREATE DATABASE {db_name}"))
-            conn.commit()
         admin_engine.dispose()
     except Exception:
         pass
