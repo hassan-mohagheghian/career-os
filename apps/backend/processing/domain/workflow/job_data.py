@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class JobData(BaseModel):
@@ -26,6 +26,15 @@ class JobData(BaseModel):
     notes_raw: str = "[]"
     links_raw: str = "[]"
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("notes_raw", "links_raw", mode="before")
+    @classmethod
+    def _raw_can_be_none(cls, v: Any) -> str:
+        if v is None:
+            return "[]"
+        if not isinstance(v, str):
+            return str(v)
+        return v
 
     @classmethod
     def from_job_dict(cls, data: dict[str, Any]) -> "JobData":

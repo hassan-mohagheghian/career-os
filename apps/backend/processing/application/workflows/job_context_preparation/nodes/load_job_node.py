@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from processing.application.workflows import progress_ops
+from processing.domain.enums import ExecutionStatus
 from processing.domain.workflow.job_data import JobData
 from processing.domain.workflow.job_processing_state import JobProcessingState
 
@@ -26,16 +27,24 @@ class LoadJobNode:
         try:
             job = self._job_service.get_job(state.job_id)
         except Exception as e:
-            state.errors.append(f"Failed to load job {state.job_id}: {e}")
+            state.errors.append(f"[{NODE_ID}] Failed to load job {state.job_id}: {e}")
             progress_ops.complete_step(self._events, state, NODE_ID)
             return state
 
         if job is None:
-            state.errors.append(f"Job {state.job_id} not found")
+            state.errors.append(f"[{NODE_ID}] Job {state.job_id} not found")
+            state.status = ExecutionStatus.FAILED
             progress_ops.complete_step(self._events, state, NODE_ID)
             return state
 
-        state.job = JobData.from_job_dict(job)
+        try:
+            state.job = JobData.from_job_dict(job)
+        except Exception as e:
+            state.errors.append(f"[{NODE_ID}] Failed to parse job data: {e}")
+            state.status = ExecutionStatus.FAILED
+            progress_ops.complete_step(self._events, state, NODE_ID)
+            return state
+
         state.job_id = job.get("id") or state.job_id
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state

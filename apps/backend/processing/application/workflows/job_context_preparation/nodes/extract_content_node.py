@@ -32,7 +32,7 @@ class ExtractContentNode:
             try:
                 result = self._extractor.extract(fetched)
             except Exception as e:
-                state.errors.append(f"Extraction failed: {fetched.url}: {e}")
+                state.errors.append(f"[{NODE_ID}] Extraction failed: {fetched.url}: {e}")
                 continue
             extracted.append(result)
             if total > 0:

@@ -33,6 +33,6 @@ class ValidateContextNode:
         result = self._validator.validate(context)
         state.validation_result = result
         if not result.valid:
-            state.errors.extend(result.reasons)
+            state.errors.extend(f"[{NODE_ID}] {r}" for r in result.reasons)
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state

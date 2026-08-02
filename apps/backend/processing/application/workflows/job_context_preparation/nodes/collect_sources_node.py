@@ -30,7 +30,7 @@ class CollectSourcesNode:
 
         job = state.job
         if job is None:
-            state.errors.append("No job data available to collect sources from")
+            state.errors.append(f"[{NODE_ID}] No job data available to collect sources from")
             state.sources = []
             state.notes = []
             progress_ops.complete_step(self._events, state, NODE_ID)

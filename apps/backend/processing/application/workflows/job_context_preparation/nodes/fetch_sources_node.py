@@ -86,7 +86,7 @@ class FetchSourcesNode:
 
         state.fetched_contents = fetched
         state.errors.extend(
-            f"Fetch failed: {f.url}: {f.error}"
+            f"[{NODE_ID}] Fetch failed: {f.url}: {f.error}"
             for f in fetched if not f.success and f.error
         )
         progress_ops.complete_step(self._events, state, NODE_ID)

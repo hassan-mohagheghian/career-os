@@ -226,6 +226,27 @@ class TestLoadJobNode:
         node(_initial_state())
         assert publisher.events[0][0] == "workflow.step.started"
 
+    def test_job_without_notes_or_links_loads(self):
+        job = _job_dict(notes=None, links=None)
+        node = LoadJobNode(FakeJobService(job), RecordingEventPublisher())
+        state = node(_initial_state())
+        assert state.job is not None
+        assert state.job.notes_raw == "[]"
+        assert state.job.links_raw == "[]"
+        assert state.errors == []
+
+    def test_malformed_job_data_records_prefixed_error(self):
+        job = _job_dict(notes=["not", "a", "string"])
+        node = LoadJobNode(FakeJobService(job), RecordingEventPublisher())
+        state = node(_initial_state())
+        assert state.job is not None
+        assert state.job.notes_raw == "['not', 'a', 'string']"
+
+    def test_errors_are_prefixed_with_step(self):
+        node = LoadJobNode(FakeJobService(None))
+        state = node(_initial_state())
+        assert any(e.startswith("[load_job]") for e in state.errors)
+
 
 class TestCollectSourcesNode:
     def test_collects_primary_url_notes_and_links(self):
@@ -414,7 +435,7 @@ class TestValidateContextNode:
 
         assert state.validation_result is not None
         assert state.validation_result.valid is False
-        assert state.errors == state.validation_result.reasons
+        assert state.errors == [f"[validate_context] {r}" for r in state.validation_result.reasons]
 
 
 # --------------------------------------------------------------------------- #
