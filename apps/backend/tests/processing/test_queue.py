@@ -8,10 +8,10 @@ import pytest
 class TestTaskiqClient:
     """Tests for the TaskIQ client enqueue helpers."""
 
-    def test_enqueue_job_sync_creates_task(self, monkeypatch):
-        from shared.infrastructure.taskiq.client import enqueue_job_sync
+    def test_enqueue_execution_sync_creates_task(self, monkeypatch):
+        from shared.infrastructure.taskiq.client import enqueue_execution_sync
         monkeypatch.setenv("TASKIQ_BROKER", "memory")
-        task_id = enqueue_job_sync(1)
+        task_id = enqueue_execution_sync("exec-1")
         assert task_id is not None
 
 

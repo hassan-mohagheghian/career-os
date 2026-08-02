@@ -32,18 +32,18 @@ class JobQueueManager:
         logger.info("[queue] TaskIQ-based — stopped")
 
     def enqueue(self, item_id: int, entity_type: str = 'job'):
-        from shared.infrastructure.taskiq.client import enqueue_job_sync, enqueue_company_sync
-        if entity_type == 'job':
-            enqueue_job_sync(item_id)
-        else:
+        """Legacy enqueue — job processing now uses the ProcessingExecution flow.
+
+        Only companies retain a direct legacy enqueue path here.
+        """
+        if entity_type != 'job':
+            from shared.infrastructure.taskiq.client import enqueue_company_sync
             enqueue_company_sync(item_id)
-        logger.info(f"[queue] Enqueued {entity_type} {item_id}")
+            logger.info(f"[queue] Enqueued {entity_type} {item_id}")
 
     def enqueue_bulk(self, ids: list):
-        from shared.infrastructure.taskiq.client import enqueue_job_sync
-        for pid in ids:
-            enqueue_job_sync(pid)
-        logger.info(f"[queue] Enqueued {len(ids)} items")
+        """Legacy bulk enqueue for jobs is no longer supported."""
+        logger.info("[queue] Job bulk enqueue removed — use ProcessingExecution")
 
     def cancel_item(self, item_id: int, entity_type: str = 'job'):
         session = None

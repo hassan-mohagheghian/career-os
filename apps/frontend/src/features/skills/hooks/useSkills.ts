@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useSocketIO, watchSkills, unwatchSkills } from '@/shared/hooks/useSocketIO'
 
 const API = '/api'
 
@@ -33,7 +32,6 @@ export function useSkills() {
   const [skillRoadmapProgress, setSkillRoadmapProgress] = useState<Record<string, any>>({})
   const [skillGenJobs, setSkillGenJobs] = useState<any[]>([])
   const [dashboardData, setDashboardData] = useState<any>(null)
-  const socket = useSocketIO()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchData = useCallback(() => {
@@ -91,61 +89,6 @@ export function useSkills() {
     fetchDashboard()
     pollActiveSkillJobs()
   }, [fetchData, fetchStatus, fetchProgress, fetchSkills, fetchSkillProgress, fetchDashboard, pollActiveSkillJobs])
-
-  // SocketIO for real-time updates
-  useEffect(() => {
-    if (!socket) return
-
-    const handleProgress = (data: any) => {
-      setProgress(prev => ({ ...prev, ...data }))
-      if (!data.running) {
-        setRefreshing(false)
-        fetchStatus()
-        fetchData()
-        fetchSkillProgress()
-        fetchDashboard()
-      }
-    }
-
-    const handleSkillUpdate = (evt: any) => {
-      const { skill, job_id, status: jobStatus, ...rest } = evt
-      if (!skill) return
-
-      setSkillGenJobs(prev => {
-        const idx = prev.findIndex((j: any) => j.skill_name === skill || j.job_id === job_id)
-        const merged = {
-          skill_name: skill,
-          job_id,
-          ...rest,
-          status: jobStatus,
-        }
-
-        if (jobStatus === 'processed' || jobStatus === 'cancelled') {
-          return idx >= 0 ? [...prev.slice(0, idx), ...prev.slice(idx + 1)] : prev
-        }
-
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = { ...next[idx], ...merged }
-          return next
-        }
-        return [...prev, merged]
-      })
-
-      fetchSkillProgress()
-      if (jobStatus === 'processed' || jobStatus === 'failed' || jobStatus === 'cancelled') {
-        pollActiveSkillJobs()
-      }
-    }
-
-    socket.on('skill_roadmap:update', handleSkillUpdate)
-    watchSkills()
-
-    return () => {
-      socket.off('skill_roadmap:update', handleSkillUpdate)
-      unwatchSkills()
-    }
-  }, [socket, fetchStatus, fetchData, fetchSkillProgress, pollActiveSkillJobs])
 
   // Poll active skill jobs — always if there are active jobs
   useEffect(() => {

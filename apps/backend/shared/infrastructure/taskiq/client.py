@@ -16,7 +16,6 @@ from shared.infrastructure.taskiq.tasks import (
     process_company_task,
     process_execution_task,
     process_generation_task,
-    process_job_task,
 )
 
 log = get_logger("taskiq.client")
@@ -36,11 +35,6 @@ async def _enqueue(task, *args, **kwargs) -> str | None:
         await broker.shutdown()
 
 
-async def enqueue_job(job_id: int) -> str | None:
-    """Dispatch a job processing task."""
-    return await _enqueue(process_job_task, job_id)
-
-
 async def enqueue_company(company_id: int) -> str | None:
     """Dispatch a company processing task."""
     return await _enqueue(process_company_task, company_id)
@@ -54,10 +48,6 @@ async def enqueue_generation(gen_id: str) -> str | None:
 async def enqueue_execution(execution_id: str) -> str | None:
     """Dispatch a ProcessingExecution task."""
     return await _enqueue(process_execution_task, execution_id)
-
-
-def enqueue_job_sync(job_id: int) -> str | None:
-    return asyncio.run(enqueue_job(job_id))
 
 
 def enqueue_company_sync(company_id: int) -> str | None:

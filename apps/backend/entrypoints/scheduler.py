@@ -18,7 +18,6 @@ from shared.infrastructure.taskiq.tasks import (  # noqa: F401  (register tasks 
     process_company_task,
     process_execution_task,
     process_generation_task,
-    process_job_task,
 )
 
 

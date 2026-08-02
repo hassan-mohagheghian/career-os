@@ -28,21 +28,6 @@ log = get_logger("taskiq.tasks")
 
 
 @broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
-async def process_job_task(job_id: int) -> dict:
-    """Process a pending job through the LangGraph job pipeline."""
-    log.info("taskiq.task.job.start", job_id=job_id)
-    try:
-        from jobs.infrastructure.workers.worker import process_job
-
-        await asyncio.to_thread(process_job, job_id)
-        log.info("taskiq.task.job.complete", job_id=job_id)
-        return {"status": "completed", "job_id": job_id}
-    except Exception as e:
-        log.error("taskiq.task.job.failed", job_id=job_id, error=str(e))
-        raise
-
-
-@broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
 async def process_company_task(company_id: int) -> dict:
     """Process a pending company through its processing pipeline."""
     log.info("taskiq.task.company.start", company_id=company_id)

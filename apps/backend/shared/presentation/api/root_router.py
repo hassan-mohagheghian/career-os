@@ -19,7 +19,6 @@ from jobs.presentation.api.resumes_router import router as resumes_router
 from skills.presentation.api.skill_roadmaps_router import router as skill_roadmaps_router
 from rules.presentation.api.rules_router import router as rules_router
 from shared.presentation.api.dashboard_router import router as dashboard_router
-from shared.presentation.api.websocket_router import router as websocket_router
 from ai.presentation.api.llm_configurations_router import router as llm_configurations_router
 from processing.presentation.api.process_router import router as process_router
 from processing.presentation.api.executions_router import router as executions_router
@@ -49,7 +48,6 @@ api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
 api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
-api_router.include_router(websocket_router, tags=["websocket"])
 api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
 api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
@@ -219,73 +217,7 @@ def reprocess_company(id: int, session: Session = Depends(get_session_sync)):
     return {"status": "queued"}
 
 
-# ── Pending jobs compat routes ──────────────────────────────────
-
-@api_router.get("/pending")
-def list_pending_jobs(session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    repo = SQLAlchemyPendingRepository(session)
-    return repo.list_pending("pending_jobs")
-
-
-@api_router.post("/pending")
-def create_pending_job(data: dict, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    repo = SQLAlchemyPendingRepository(session)
-    return repo.create(data, "pending_jobs")
-
-
-@api_router.post("/pending/process-all")
-def process_all_pending_jobs(session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.taskiq.client import enqueue_job_sync
-    repo = SQLAlchemyPendingRepository(session)
-    items = repo.list_pending("pending_jobs")
-    for item in items:
-        enqueue_job_sync(item['num'])
-    return {"status": "queued", "count": len(items)}
-
-
-@api_router.get("/pending/{item_id}")
-def get_pending_job(item_id: str, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingRepository(session)
-    result = repo.get_by_id(item_id, "pending_jobs")
-    if result is None:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    return result
-
-
-@api_router.delete("/pending/{item_id}")
-def delete_pending_job(item_id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    repo = SQLAlchemyPendingRepository(session)
-    ok = repo.delete(item_id, "pending_jobs")
-    if not ok:
-        return {"error": "Not found"}
-    return {"status": "deleted"}
-
-
-@api_router.post("/pending/{item_id}/reset")
-def reset_pending_job(item_id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    repo = SQLAlchemyPendingRepository(session)
-    repo.reset_steps(item_id, version=2)
-    return {"status": "reset"}
-
-
-@api_router.post("/pending/{item_id}/process")
-def process_pending_job(item_id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    from shared.infrastructure.taskiq.client import enqueue_job_sync
-    repo = SQLAlchemyPendingRepository(session)
-    repo.update_fields(item_id, table="pending_jobs", status="queued")
-    enqueue_job_sync(item_id)
-    return {"status": "queued"}
-
-
-# ── Pending companies compat routes ─────────────────────────────
+@api_router.post("/companies/{id}/reprocess")
 
 @api_router.get("/pending-companies")
 def list_pending_companies(session: Session = Depends(get_session_sync)):

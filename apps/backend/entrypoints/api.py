@@ -18,7 +18,6 @@ _server_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _server_dir not in sys.path:
     sys.path.insert(0, _server_dir)
 
-import socketio
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -32,134 +31,6 @@ from shared.infrastructure.process.logging_config import setup_logging, get_logg
 _log_dir = os.path.join(_server_dir, 'logs')
 setup_logging(log_dir=_log_dir, level='INFO')
 log = get_logger('fastapi')
-
-
-# ── SocketIO Server ───────────────────────────────────────────────
-
-import engineio.payload
-engineio.payload.Payload.max_decode_packets = 1000
-
-sio = socketio.AsyncServer(
-    async_mode='asgi',
-    cors_allowed_origins='*',
-    max_http_buffer_size=10**7,
-)
-
-
-@sio.event
-async def connect(sid, environ):
-    log.info("socketio.connect", sid=sid)
-
-
-@sio.event
-async def disconnect(sid):
-    log.info("socketio.disconnect", sid=sid)
-
-
-@sio.event
-async def watch_job(sid, data):
-    pid = data.get('id')
-    if pid:
-        await sio.enter_room(sid, f'job_{pid}')
-        log.info("socketio.watch", room=f'job_{pid}')
-
-
-@sio.event
-async def unwatch_job(sid, data):
-    pid = data.get('id')
-    if pid:
-        await sio.leave_room(sid, f'job_{pid}')
-
-
-@sio.event
-async def watch_company(sid, data):
-    pid = data.get('id')
-    if pid:
-        await sio.enter_room(sid, f'company_{pid}')
-        log.info("socketio.watch", room=f'company_{pid}')
-
-
-@sio.event
-async def unwatch_company(sid, data):
-    pid = data.get('id')
-    if pid:
-        await sio.leave_room(sid, f'company_{pid}')
-
-
-@sio.event
-async def watch_generation(sid, data):
-    gen_id = data.get('id')
-    if gen_id:
-        await sio.enter_room(sid, f'generation_{gen_id}')
-        log.info("socketio.watch", room=f'generation_{gen_id}')
-
-
-@sio.event
-async def unwatch_generation(sid, data):
-    gen_id = data.get('id')
-    if gen_id:
-        await sio.leave_room(sid, f'generation_{gen_id}')
-
-
-@sio.event
-async def watch_skills(sid):
-    await sio.enter_room(sid, 'skills')
-    log.info("socketio.watch", room='skills')
-
-
-@sio.event
-async def unwatch_skills(sid):
-    await sio.leave_room(sid, 'skills')
-
-
-@sio.event
-async def cancel_job(sid, data):
-    pid = data.get('id')
-    entity_type = data.get('entity_type', 'job')
-    if pid:
-        from dependencies import get_session_sync
-        session = get_session_sync()
-        try:
-            if entity_type == 'job':
-                from jobs.infrastructure import SQLAlchemyJobRepository
-                repo = SQLAlchemyJobRepository(session)
-                from datetime import datetime, UTC
-                repo.update_fields(pid, status='cancelled', updated_at=datetime.now(UTC).isoformat())
-            else:
-                from companies.infrastructure import SQLAlchemyCompanyRepository
-                repo = SQLAlchemyCompanyRepository(session)
-                from datetime import datetime, UTC
-                repo.update_fields(pid, status='cancelled', updated_at=datetime.now(UTC).isoformat())
-            log.info("socketio.cancel", pid=pid, success=True)
-        finally:
-            session.close()
-
-
-@sio.event
-async def reset_job(sid, data):
-    pid = data.get('id')
-    entity_type = data.get('entity_type', 'job')
-    if pid:
-        from dependencies import get_session_sync
-        session = get_session_sync()
-        try:
-            from datetime import datetime, UTC
-            now = datetime.now(UTC).isoformat()
-            if entity_type == 'job':
-                from jobs.infrastructure import SQLAlchemyJobRepository
-                repo = SQLAlchemyJobRepository(session)
-                repo.update_fields(pid, status='created', error=None, current_node=None,
-                    progress_pct=0, retry_count=0, failure_reason=None,
-                    failure_step=None, failure_timestamp=None, updated_at=now)
-            else:
-                from companies.infrastructure import SQLAlchemyCompanyRepository
-                repo = SQLAlchemyCompanyRepository(session)
-                repo.update_fields(pid, status='created', error=None, current_node=None,
-                    progress_pct=0, retry_count=0, failure_reason=None,
-                    failure_step=None, failure_timestamp=None, updated_at=now)
-            log.info("socketio.reset", pid=pid, success=True)
-        finally:
-            session.close()
 
 
 # ── Lifespan ──────────────────────────────────────────────────────
@@ -330,25 +201,14 @@ def create_app() -> FastAPI:
 # ── App Instance ─────────────────────────────────────────────────
 
 fastapi_app = create_app()
-
-# Wire SocketIO to the broadcaster for real-time events
-from shared.infrastructure.process_utils import broadcaster as _shared_broadcaster
-_shared_broadcaster.set_socketio(sio)
-
-# Also wire the new WebSocket broadcaster
-from shared.infrastructure.websocket.broadcaster import set_socketio_server
-set_socketio_server(sio)
-
-# Wrap with SocketIO for real-time events
-app = socketio.ASGIApp(sio, fastapi_app)
-
+app = fastapi_app
 
 # ── Run ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "apps.backend.entrypoints.api:app",
+        "apps.backend.entrypoints.api:fastapi_app",
         host=os.environ.get("HOST", "0.0.0.0"),
         port=int(os.environ.get("PORT", "5000")),
         reload=True,

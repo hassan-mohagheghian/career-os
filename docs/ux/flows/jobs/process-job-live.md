@@ -540,4 +540,5 @@ Models:
 - docs/api/sse/processing-events.md
 - docs/domain/processing/workflow-progress.md
 - docs/architecture/frontend-sync.md
+- docs/workflows/job-processing.md (realized trace-through: click → queue → SSE)
 ````

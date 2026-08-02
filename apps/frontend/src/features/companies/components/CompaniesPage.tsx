@@ -64,7 +64,7 @@ function LinkItem({ link, onRemove }) {
   )
 }
 
-export default function CompaniesPage({ companies, deepLinkId, onClearDeepLink, onRefresh, onOpenJob, onNavigateToJob, onOpenCompany, pending = [], deletePending, processPending, resetPending, moveToCreated, pausePending, openWorkflow, collapsedSections, setCollapsedSections }) {
+export default function CompaniesPage({ companies, deepLinkId, onClearDeepLink, onRefresh, onOpenJob, onNavigateToJob, onOpenCompany, pending = [], deletePending = undefined, processPending = undefined, resetPending = undefined, moveToCreated = undefined, pausePending = undefined, openWorkflow, collapsedSections, setCollapsedSections }) {
   const [noteInput, setNoteInput] = useState('')
   const [notes, setNotes] = useState([])
   const [links, setLinks] = useState([])

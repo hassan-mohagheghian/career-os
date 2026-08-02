@@ -510,3 +510,4 @@ When no active executions exist:
 - docs/architecture/runtime/workflow-progress.md
 - docs/ux/features/jobs/processing-queue.md
 - docs/ux/features/jobs/workflow-progress.md
+- docs/workflows/job-processing.md (realized trace-through + current two-path note)

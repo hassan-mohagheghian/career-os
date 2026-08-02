@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
 import { useCompanies } from '@/features/companies/hooks/useCompanies'
-import { usePending } from '@/shared/hooks/usePending'
 import { useWorkflow } from '@/shared/hooks/useWorkflow'
 import CompanyDrawer from '@/features/companies/components/CompanyDrawer'
 import WorkflowTerminal from '@/shared/components/WorkflowTerminal'
@@ -20,10 +19,6 @@ const CompaniesPageContent = dynamic(
 function CompaniesPageAdapter() {
   const { companies, fetchCompanies, deleteCompany, reprocessCompany } = useCompanies()
   const [companyDrawer, setCompanyDrawer] = useState<any>(null)
-
-  const {
-    pending, deletePending, processPending, resetPending, pausePending,
-  } = usePending(() => { fetchCompanies() })
 
   const {
     workflowDrawer, workflowLogs, workflowEndRef,
@@ -77,12 +72,6 @@ function CompaniesPageAdapter() {
           setTimeout(() => openDrawer(num), 200)
         }}
         onOpenCompany={openCompanyDrawer}
-        pending={pending}
-        deletePending={deletePending}
-        processPending={processPending}
-        resetPending={resetPending}
-        moveToCreated={resetPending}
-        pausePending={pausePending}
         openWorkflow={openWorkflow}
       />
 
