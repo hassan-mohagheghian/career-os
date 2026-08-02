@@ -256,7 +256,6 @@ Potential future capabilities:
 
 # Related Documents
 
-- `docs/ux/design-system/layout.md`
-- `docs/ux/design-system/buttons.md`
-- `docs/ux/pages/jobs.md`
-- `docs/ux/pages/companies.md`
+- `docs/ux/design-system/README.md`
+- `docs/ux/features/jobs/page.md`
+- `docs/ux/features/jobs/job-row.md`

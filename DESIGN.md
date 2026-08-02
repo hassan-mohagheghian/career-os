@@ -1,0 +1,143 @@
+# Product & UX Design
+
+## Design Language
+
+Job Search Intelligence is a **dense, data-focused dashboard** built for software engineers comparing many job opportunities at once.
+
+- **UI library**: shadcn/ui primitives (Radix UI + Tailwind CSS)
+- **Icons**: Lucide
+- **Density tokens**: custom Tailwind font sizes `text-3xs` (6px) and `text-2xs` (8px) for compact tables and cards
+- **Status colors**: Ready (gray), Queued (blue), Running (cyan), Completed (green), Failed (red), Cancelled (orange)
+- **Score grades**: A++ / A+ (green), A (lime), B (blue), C (orange), D (red)
+
+The interface follows WCAG AA: keyboard navigation, focus management, screen-reader labels, and ARIA progress indicators.
+
+---
+
+## Navigation Structure
+
+```
+JOBS
+  ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
+  └── Companies      Company intelligence + processing queue
+
+GROWTH PATH
+  └── Skills         Skill management, roadmaps, progress
+
+INSIGHTS
+  ├── Overview       Career health score, next actions
+  ├── Opportunities  Job funnel, best jobs
+  ├── Companies      Company scoring, top targets
+  ├── Market         Countries, cities, remote opportunities
+  ├── Networking     Connection strategy, LinkedIn targets
+  └── Skills         Skills analysis
+
+SETTINGS
+  ├── Resume         Resume / cover letter generation
+  └── Rules          Scoring rules configuration
+```
+
+---
+
+## Design System
+
+### Drawer
+
+The Drawer is the primary secondary workspace. It opens without leaving the current page.
+
+| Variant | Width | Typical Usage        |
+| ------- | ----: | -------------------- |
+| xs      | 320px | Confirmations        |
+| sm      | 420px | Filters, simple forms |
+| md      | 560px | Processing Queue     |
+| lg      | 720px | Company Details      |
+| xl      | 960px | Job Details          |
+| full    |  100% | Mobile / full screen |
+
+Placement is right by default; all variants become full-screen on mobile.
+
+---
+
+## Wireframes
+
+### Jobs Page
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Jobs                                          Queue (2 Running · 4 Waiting)  + Import │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│ Search .......................................................................       │
+│ Sort ▼                  Filters ▼                                        Refresh     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│ # │ Job                  │ Company    │ Location │ Overall │ Fit │ Proc.  │ Updated │
+│─────────────────────────────────────────────────────────────────────────────────────│
+│ 1 │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ A++  94  │ 95  │ Ready  │ 2m      │
+│ 2 │ Backend Engineer     │ Karla      │ Berlin   │ A+  90   │ 90  │ Running│ now     │
+│ 3 │ Python Developer     │ Flexa      │ Remote   │ A   86   │ 86  │ Failed │ 5m      │
+│                                                                                     │
+│                                       Loading more jobs...                          │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Processing Queue Drawer
+
+```text
+┌─────────────────────────────────────────────┐
+│ Processing Queue                      Close │
+├─────────────────────────────────────────────┤
+│ Processing (2)                              │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Senior Backend Engineer                 │ │
+│ │ Fetching Sources                        │ │
+│ │ ██████████████░░░░ 60%                  │ │
+│ │                             Details    │ │
+│ └─────────────────────────────────────────┘ │
+│ Queued (3)                                  │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Python Developer                        │ │
+│ │ Position #1                             │ │
+│ │                        Start    Remove  │ │
+│ └─────────────────────────────────────────┘ │
+│ Failed (1)                                  │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Frontend Engineer                       │ │
+│ │ Failed to fetch source                  │ │
+│ │                         Retry   Remove  │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+```
+
+### Add Job Drawer
+
+```text
+┌─────────────────────────────────────────────┐
+│ Add Job                              [Close]│
+├─────────────────────────────────────────────┤
+│ Job Post URL *                              │
+│ ┌─────────────────────────────────────────┐ │
+│ │ https://...                             │ │
+│ └─────────────────────────────────────────┘ │
+│ Job Title (Optional)                        │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Senior Backend Engineer                 │ │
+│ └─────────────────────────────────────────┘ │
+│ Additional Links                     [+Add] │
+│ No additional links                         │
+│ Notes                                [+Add] │
+│ No notes                                    │
+├─────────────────────────────────────────────┤
+│                     [Cancel] [Create] [Queue]│
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## UX Documentation
+
+Full UX specs live under `docs/ux/` and are split into:
+
+- `docs/ux/design-system/` — reusable primitives (Drawer, ...)
+- `docs/ux/features/` — component/page specifications (Jobs page, Add Job, Processing Queue, ...)
+- `docs/ux/flows/` — end-to-end user flows (browse, create, process live, ...)
+
+See `docs/ux/README.md` for the full index.

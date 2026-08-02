@@ -81,8 +81,7 @@ We redesigned the complete Job lifecycle with:
 
 ## References
 
-- [Job Lifecycle](../job-lifecycle.md)
-- [State Machine](../job-state-machine.md)
+- [Job Lifecycle](../domain/processing/job-state-machine.md)
 - [WebSocket Events](../websocket-events.md)
 - [Workflow Progress](../workflow-progress.md)
 - [Frontend Sync](../frontend-sync.md)

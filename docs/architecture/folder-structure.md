@@ -209,7 +209,6 @@ app/server/
 │   │   ├── ai/
 │   │   │   ├── compat.py
 │   │   │   └── prompts/
-│   │   │       └── features_refactors/
 │   │   ├── commands/
 │   │   │   └── trigger_processor.py
 │   │   ├── process_utils.py

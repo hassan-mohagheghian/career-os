@@ -565,4 +565,3 @@ When snapshot recovery is running.
 - docs/api/sse/processing-events.md
 - docs/domain/processing/workflow-progress.md
 - docs/ux/features/jobs/processing-queue.md
-- docs/tanstack-query.md

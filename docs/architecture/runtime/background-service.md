@@ -363,5 +363,6 @@ LangGraph Workflow
 - docs/queue/processing/taskiq-processing.md
 - docs/domain/processing/processing-execution.md
 - docs/workflows/job-processing.md
-- docs/ai/job-processing-workflow-engine.md
+- docs/ai/workflows.md
 - docs/api/processing/process-job.md
+- docs/architecture/runtime/redis.md

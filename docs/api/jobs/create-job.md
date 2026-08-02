@@ -8,7 +8,7 @@ The Job is stored in the Jobs list but is **not** automatically added to the Pro
 
 To create a Job and immediately queue it for processing, see:
 
-- `queue-job.md`
+- `docs/api/processing/process-job.md`
 
 ---
 
@@ -243,4 +243,4 @@ On success:
 
 - `docs/ux/features/jobs/add-job.md`
 - `docs/ux/flows/jobs/create-job.md`
-- `docs/api/jobs/queue-job.md`
+- `docs/api/processing/process-job.md`

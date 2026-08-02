@@ -155,6 +155,7 @@ Migrate the backend from Flask to FastAPI while preserving all existing behavior
 
 ## Related Decisions
 
-- ADR-002: Database Choice (SQLite → PostgreSQL future)
-- ADR-003: AI Integration (LLMService abstraction preserved)
-- ADR-004: AI Agent Orchestration (LangGraph preserved)
+- ADR-003: Modular Monolith with DDD — successor architecture
+- ADR-004: Code Ownership Refactoring to DDD
+- ADR-009: AI Tool Platform — LLMService abstraction preserved
+- ADR-017: LangGraph Platform — LangGraph preserved

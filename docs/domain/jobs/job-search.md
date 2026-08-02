@@ -300,4 +300,4 @@ These are intentionally out of scope for the current implementation.
 
 - docs/api/jobs/list-jobs.md
 - docs/ux/features/jobs/page.md
-- docs/features/job-processing.md
+- docs/workflows/job-processing.md

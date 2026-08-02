@@ -1372,7 +1372,6 @@ Only visible rows are mounted.
 
 # Related Documents
 
-- `docs/features/job-processing.md`
 - `docs/workflows/job-processing.md`
 - `docs/domain/processing/processing-execution.md`
 - `docs/domain/processing/events.md`
@@ -1383,5 +1382,4 @@ Only visible rows are mounted.
 - `docs/ux/features/jobs/processing-queue.md`
 - `docs/ux/flows/jobs/browse-jobs.md`
 - `docs/ux/flows/jobs/process-job-live.md`
-- `docs/job-lifecycle.md`
-- `docs/job-state-machine.md`
+- `docs/domain/processing/job-state-machine.md`

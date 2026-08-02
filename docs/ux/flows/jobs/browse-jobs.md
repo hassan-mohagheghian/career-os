@@ -314,4 +314,4 @@ The Jobs page should:
 - docs/ux/features/jobs/page.md
 - docs/api/jobs/list-jobs.md
 - docs/api/sse/processing-events.md
-- docs/features/job-processing.md
+- docs/workflows/job-processing.md

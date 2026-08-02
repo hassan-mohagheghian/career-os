@@ -73,4 +73,4 @@ app/server/logs/
 # Generated schema
 sql_roadmap.json
 .aider*
-features_refactors_prompts_for_todos_only_don't_read_by_llm/
+todo-prompts/

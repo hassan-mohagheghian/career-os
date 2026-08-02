@@ -161,19 +161,18 @@ cd app/client && npm run test
 
 ## Documentation
 
-See `docs/README.md` for the full index. Key files:
+Key files:
 
 | File | Purpose |
 |------|---------|
-| `docs/DEVELOPMENT.md` | Setup, env vars, debugging |
-| `docs/architecture/ARCHITECTURE.md` | System design, DDD contexts |
-| `docs/ai/architecture.md` | AI bounded context, providers, graphs |
-| `docs/API.md` | REST API + WebSocket reference |
-| `docs/websocket-events.md` | Socket.IO event protocol |
-| `docs/workflow-progress.md` | 13-node LangGraph pipeline |
-| `docs/feature-sliced-design.md` | FSD frontend architecture |
-| `docs/nextjs-app-router.md` | Next.js migration guide |
-| `docs/tanstack-query.md` | TanStack Query patterns |
-| `docs/DOMAIN.md` | Business entities and rules |
-| `docs/FEATURES.md` | Feature descriptions and status |
-| `docs/development/cli.md` | CLI reference |
+| `CONTEXT.md` | Project context, target users, key rules |
+| `AGENTS.md` | Coding rules, architecture, agent workflow |
+| `API.md` | API overview |
+| `ARCHITECTURE.md` | System design overview |
+| `DOMAIN.md` | Core entities and business rules |
+| `DESIGN.md` | Product & UX design |
+| `docs/architecture/` | Full system design, DDD contexts, runtime |
+| `docs/ai/` | AI bounded context, providers, graphs |
+| `docs/api/` | Per-context API reference |
+| `docs/domain/` | Domain model documentation |
+| `docs/ux/` | UX feature and flow documentation |
