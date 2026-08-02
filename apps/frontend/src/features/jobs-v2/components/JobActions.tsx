@@ -1,66 +1,73 @@
 import type { ProcessingStatus } from '@/entities/job/types'
 import { ProcessingButton } from './ProcessingButton'
 import { Button } from '@/shared/ui/button'
-import { Eye, ArrowsClockwise, Square } from '@phosphor-icons/react'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/shared/ui/tooltip'
+import { Eye, ArrowsClockwise, Square, PencilSimple } from '@phosphor-icons/react'
 
 interface JobActionsProps {
   processingStatus: ProcessingStatus | null
   onProcessV2: () => void
   onViewDetails: () => void
+  onEdit: () => void
   onRetry?: () => void
   onCancel?: () => void
 }
 
+function IconButton({
+  icon,
+  label,
+  onClick,
+  color,
+}: {
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  color?: string
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={onClick} aria-label={label}>
+          <span className={color}>{icon}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">{label}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function JobActions({
-  processingStatus, onProcessV2, onViewDetails, onRetry, onCancel,
+  processingStatus, onProcessV2, onViewDetails, onEdit, onRetry, onCancel,
 }: JobActionsProps) {
   return (
-    <div className="flex items-center gap-1">
-      {(!processingStatus || processingStatus === 'created') && (
-        <>
-          <ProcessingButton onClick={onProcessV2} />
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={onViewDetails} title="Details">
-            <Eye className="w-3 h-3" />
-          </Button>
-        </>
-      )}
-      {processingStatus === 'running' && (
-        <>
-          <Button variant="ghost" size="sm" className="h-6 text-2xs gap-1 text-emerald-500" onClick={onViewDetails}>
-            <Eye className="w-3 h-3" />
-            View Progress
-          </Button>
-        </>
-      )}
-      {processingStatus === 'completed' && (
-        <>
-          <Button variant="ghost" size="sm" className="h-6 text-2xs gap-1 text-green-500" onClick={onViewDetails}>
-            <Eye className="w-3 h-3" />
-            View Results
-          </Button>
-          <Button variant="ghost" size="sm" className="h-6 text-2xs gap-1 text-muted-foreground" onClick={onProcessV2}>
-            <ArrowsClockwise className="w-3 h-3" />
-            Reprocess
-          </Button>
-        </>
-      )}
-      {processingStatus === 'failed' && (
-        <>
-          <Button variant="ghost" size="sm" className="h-6 text-2xs gap-1 text-red-500" onClick={onRetry}>
-            <ArrowsClockwise className="w-3 h-3" />
-            Retry
-          </Button>
-          <Button variant="ghost" size="sm" className="h-6 text-2xs gap-1 text-muted-foreground" onClick={onViewDetails}>
-            <Eye className="w-3 h-3" />
-            Details
-          </Button>
-        </>
-      )}
-      {(processingStatus === 'queued' || processingStatus === 'starting') && (
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={onCancel} title="Cancel">
-          <Square className="w-3 h-3" />
-        </Button>
-      )}
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="flex items-center gap-1">
+        {(!processingStatus || processingStatus === 'created') && (
+          <>
+            <ProcessingButton onClick={onProcessV2} />
+            <IconButton icon={<Eye className="w-3 h-3" />} label="Details" onClick={onViewDetails} />
+          </>
+        )}
+        {processingStatus === 'running' && (
+          <IconButton icon={<Eye className="w-3 h-3 text-emerald-500" />} label="View Progress" onClick={onViewDetails} />
+        )}
+        {processingStatus === 'completed' && (
+          <>
+            <IconButton icon={<Eye className="w-3 h-3 text-green-500" />} label="View Results" onClick={onViewDetails} />
+            <IconButton icon={<ArrowsClockwise className="w-3 h-3" />} label="Reprocess" onClick={onProcessV2} />
+          </>
+        )}
+        {processingStatus === 'failed' && (
+          <>
+            <IconButton icon={<ArrowsClockwise className="w-3 h-3 text-red-500" />} label="Retry" onClick={onRetry!} />
+            <IconButton icon={<Eye className="w-3 h-3" />} label="Details" onClick={onViewDetails} />
+          </>
+        )}
+        {(processingStatus === 'queued' || processingStatus === 'starting') && (
+          <IconButton icon={<Square className="w-3 h-3" />} label="Cancel" onClick={onCancel!} />
+        )}
+        <IconButton icon={<PencilSimple className="w-3 h-3" />} label="Edit" onClick={onEdit} />
+      </div>
+    </TooltipProvider>
   )
 }

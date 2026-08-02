@@ -153,6 +153,16 @@ export interface JobDetailExecution {
   workflow: JobDetailWorkflow | null
 }
 
+export interface JobNoteItem {
+  title?: string | null
+  content: string
+}
+
+export interface JobLinkItem {
+  title?: string | null
+  url: string
+}
+
 export interface JobDetail {
   id: string
   num: number
@@ -169,7 +179,23 @@ export interface JobDetail {
   scores: Scores
   latest_processing_execution: JobDetailExecution | null
   description: string | null
-  notes: string | null
+  notes: JobNoteItem[]
+  links: JobLinkItem[]
   updated_at: string | null
   created_at: string | null
+}
+
+export interface JobEditInput {
+  title?: string | null
+  role?: string | null
+  company?: string | null
+  location?: string | null
+  url?: string | null
+  work_type?: string | null
+  employment_type?: string | null
+  visa?: string | null
+  salary?: string | null
+  description?: string | null
+  notes?: JobNoteItem[]
+  links?: JobLinkItem[]
 }

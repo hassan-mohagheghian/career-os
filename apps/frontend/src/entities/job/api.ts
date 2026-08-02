@@ -1,5 +1,5 @@
 import { api } from '@/shared/api'
-import type { JobSearchQuery, JobSearchResult, InfiniteJobSearchResult, JobDetail } from './types'
+import type { JobSearchQuery, JobSearchResult, InfiniteJobSearchResult, JobDetail, JobEditInput } from './types'
 
 export const jobApi = {
   search: (query: JobSearchQuery) => {
@@ -56,4 +56,5 @@ export const jobApi = {
   processJob: (jobId: string) =>
     api.post<{ execution_id: string; status: string }>(`/jobs/${jobId}/process`),
   getDetail: (jobId: string) => api.get<JobDetail>(`/jobs/${jobId}`),
+  updateJob: (jobId: string, data: JobEditInput) => api.patch<JobDetail>(`/jobs/${jobId}`, data),
 }

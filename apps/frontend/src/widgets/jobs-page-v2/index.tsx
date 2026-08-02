@@ -17,6 +17,7 @@ function JobsPageV2Adapter() {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
+  const [editJobId, setEditJobId] = useState<string | null>(null)
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
@@ -46,6 +47,10 @@ function JobsPageV2Adapter() {
 
   const handleViewDetails = useCallback((id: string) => {
     setDetailJobId(id)
+  }, [])
+
+  const handleEdit = useCallback((id: string) => {
+    setEditJobId(id)
   }, [])
 
   const handleRetry = useCallback((id: string) => {
@@ -93,6 +98,7 @@ function JobsPageV2Adapter() {
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}
         onViewDetails={handleViewDetails}
+        onEdit={handleEdit}
         onRetry={handleRetry}
         onCancel={handleCancel}
         isProcessing={processMutation.isPending}
@@ -102,6 +108,8 @@ function JobsPageV2Adapter() {
         onAddJobDrawerOpenChange={setAddJobDrawerOpen}
         detailJobId={detailJobId}
         onDetailJobIdChange={setDetailJobId}
+        editJobId={editJobId}
+        onEditJobIdChange={setEditJobId}
         processingCount={processingCount}
       />
     </div>

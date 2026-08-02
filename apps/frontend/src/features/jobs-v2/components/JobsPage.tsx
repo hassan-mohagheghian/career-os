@@ -8,6 +8,7 @@ import { JobsToolbar } from './JobsToolbar'
 import { JobsTable } from './JobsTable'
 import { ProcessingDrawer } from './ProcessingDrawer'
 import { JobDetailDrawer } from './JobDetailDrawer'
+import { JobEditDrawer } from './JobEditDrawer'
 import AddJobDrawer from '@/features/jobs/components/AddJobDrawer'
 import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
 import { toast } from 'sonner'
@@ -38,6 +39,7 @@ interface JobsPageProps {
   onClearFilters: () => void
   onProcessV2: (id: string) => void
   onViewDetails: (id: string) => void
+  onEdit: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   isProcessing: boolean
@@ -47,6 +49,8 @@ interface JobsPageProps {
   onAddJobDrawerOpenChange: (open: boolean) => void
   detailJobId: string | null
   onDetailJobIdChange: (id: string | null) => void
+  editJobId: string | null
+  onEditJobIdChange: (id: string | null) => void
   processingCount: number
 }
 
@@ -59,10 +63,11 @@ export function JobsPage({
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onEdit, onRetry, onCancel, isProcessing,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addJobDrawerOpen, onAddJobDrawerOpenChange,
   detailJobId, onDetailJobIdChange,
+  editJobId, onEditJobIdChange,
   processingCount,
 }: JobsPageProps) {
   const { createJob, submitting, error: createError, clearError } = useCreateJob()
@@ -130,6 +135,7 @@ export function JobsPage({
         onFetchNextPage={onFetchNextPage}
         onProcessV2={onProcessV2}
         onViewDetails={onViewDetails}
+        onEdit={onEdit}
         onRetry={onRetry}
         onCancel={onCancel}
         sort={sort}
@@ -143,7 +149,12 @@ export function JobsPage({
       <JobDetailDrawer
         jobId={detailJobId}
         onOpenChange={onDetailJobIdChange}
-      />      <AddJobDrawer
+      />
+      <JobEditDrawer
+        jobId={editJobId}
+        onOpenChange={onEditJobIdChange}
+      />
+      <AddJobDrawer
         open={addJobDrawerOpen}
         onOpenChange={(open) => { onAddJobDrawerOpenChange(open); if (!open) clearError() }}
         onSubmit={handleCreateJob}

@@ -120,10 +120,29 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
           <p className="text-xs text-foreground whitespace-pre-wrap">{detail.description}</p>
         </div>
       )}
-      {detail.notes && (
+      {detail.notes && detail.notes.length > 0 && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
           <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
-          <p className="text-xs text-foreground whitespace-pre-wrap">{detail.notes}</p>
+          <div className="space-y-1.5">
+            {detail.notes.map((n, i) => (
+              <div key={i} className="text-xs text-foreground whitespace-pre-wrap">
+                {n.title && <span className="font-medium">{n.title}: </span>}
+                {n.content}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {detail.links && detail.links.length > 0 && (
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Links</p>
+          <div className="space-y-1.5">
+            {detail.links.map((l, i) => (
+              <a key={i} href={l.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline break-all">
+                {l.title || l.url}
+              </a>
+            ))}
+          </div>
         </div>
       )}
     </div>
