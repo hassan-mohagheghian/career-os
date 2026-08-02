@@ -226,6 +226,47 @@ LangGraph tracks:
 
 # Failure Handling
 
+## Error Message Format
+
+Every user-facing error emitted by a workflow step is prefixed with the
+step that produced it, in the form:
+
+```
+[step] message
+```
+
+Example:
+
+```
+[load_job] Failed to parse job data: ...
+[fetch_sources] Fetch failed: https://example.com/a: ...
+[validate_context] No usable content source was collected.
+```
+
+The `[step]` token uses the node id (`load_job`, `collect_sources`,
+`fetch_sources`, `extract_content`, `build_context`, `validate_context`).
+This makes it clear at a glance **which step failed**, both in the SSE
+stream and in the persisted failure state.
+
+Reasons surfaced from validation are each prefixed with the step id:
+
+```
+[validate_context] reason one
+[validate_context] reason two
+```
+
+## Data tolerance
+
+Workflow input is tolerant of missing optional data so valid jobs are not
+rejected:
+
+- **notes / links** — jobs with `notes = None` / `links = None` (or any
+  non-string value) are normalized to `"[]"` when mapped into `JobData`
+  (`notes_raw` / `links_raw`) rather than raising a `ValidationError`.
+- **Parse failures** — any error raised while building `JobData` is caught
+  by `load_job`, recorded with the `[load_job]` prefix, and the execution
+  is marked failed instead of crashing the worker.
+
 ## External Data Failure
 
 Example:

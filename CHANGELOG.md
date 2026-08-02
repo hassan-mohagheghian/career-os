@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.4.0] — 2026-08-02
+
+### Added
+
+- **Edit Job feature** — Edit Job Drawer with a **PATCH `/api/jobs/{job_id}`** endpoint and icon-only row action:
+  - Backend: `UpdateJobRequest` schema (partial update, whitelisted `EDITABLE_FIELDS`), `update_by_id()` repository method, `JobNoteItem`/`JobLinkItem` models.
+  - Notes and Additional Links are now **editable and addable** from the Edit Job drawer (add/remove, persisted on Save), not just read-only.
+  - `JobData` notes/links tolerance — jobs with `notes=None`/`links=None` normalize to `"[]"` instead of raising a pydantic `ValidationError`.
+  - Workflow errors now use a clear **`[step] error`** prefix (e.g. `[load_job]`, `[validate_context]`) so the failing step is obvious.
+- **Frontend tests** — `JobActions.test.tsx` and `JobEditDrawer.test.tsx` (icon-only actions, edit drawer prefill/submit/validation/notes-links).
+
+### Changed
+
+- **All job row actions are now icon-only** with tooltips (Edit, Details, Process, Cancel, Retry, View Progress/Results) — no text labels in the Actions column.
+- **Edit Job Drawer layout fixed** — header/scroll/footer now fill the viewport (scroll area uses `flex-1 min-h-0`), so the **Save/Cancel buttons stay visible** instead of being pushed off-screen.
+- **Edit-Job docs updated** — notes and links documented as editable in `docs/ux/features/jobs/edit-job.md` and `docs/ux/flows/jobs/edit-job.md`.
+
+### Fixed
+
+- Jobs without notes/links no longer fail workflow load with `JobData notes_raw Input should be a valid string`.
+- `links` was missing from `job_model_to_dict` mapper output; now included so the edit/detail responses return them.
+
 ## [2.3.0] — 2026-07-27
 
 ### Added

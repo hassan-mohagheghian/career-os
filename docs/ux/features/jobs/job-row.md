@@ -99,28 +99,34 @@ Running executions additionally display:
 
 # Actions
 
-The Actions column contains context-sensitive actions.
+The Actions column contains context-sensitive actions. All actions are
+**icon-only buttons with tooltips**, keeping rows compact and scanable.
+
+An **Edit** action is always available, allowing the user to update the Job's
+core data (see `features/jobs/edit-job.md`).
 
 Created
 
-- Process V2
-- Legacy Process
-- Details
+- Process (icon)
+- Details (icon)
+- Edit (icon)
 
 Running
 
-- View Progress
-- Details
+- View Progress (icon)
+- Edit (icon)
 
 Completed
 
-- View Results
-- Reprocess
+- View Results (icon)
+- Reprocess (icon)
+- Edit (icon)
 
 Failed
 
-- Retry
-- Details
+- Retry (icon)
+- Details (icon)
+- Edit (icon)
 
 ---
 
@@ -166,7 +172,7 @@ Rows become stacked.
 
 Scores remain visible.
 
-Actions move into an overflow menu.
+Actions stay icon-only (tooltips remain on tap).
 
 ---
 

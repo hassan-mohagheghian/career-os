@@ -406,6 +406,12 @@ Primary URL timeout
 
 Error details should be expandable.
 
+Errors are prefixed with the failing step, e.g. `[load_job]`:
+
+Reason:
+
+`[load_job] Failed to parse job data: ...`
+
 ---
 
 # Responsive Behavior
