@@ -16,6 +16,7 @@ apps/frontend/node_modules/
 # Build outputs
 apps/frontend/dist/
 apps/frontend/.next/
+apps/frontend/storybook-static/
 .next/
 
 # Database files
