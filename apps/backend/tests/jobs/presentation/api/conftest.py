@@ -19,6 +19,7 @@ import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
 import shared.infrastructure.database.models.misc_models
+import processing.infrastructure.models.processing_execution_model
 
 
 def _get_test_db_url() -> str:
@@ -76,6 +77,7 @@ def _build_app(sa_session):
         get_summary_repo, get_resume_repo, get_company_link_repo, get_company_intelligence_repo,
         get_pending_generation_repo,
         get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
+        get_processing_execution_repo,
     )
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
@@ -90,6 +92,7 @@ def _build_app(sa_session):
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
+    from processing.infrastructure.repositories.sa_processing_execution_repository import SQLAlchemyProcessingExecutionRepository
 
     app = create_app()
     app.router.lifespan_context = no_lifespan
@@ -115,6 +118,7 @@ def _build_app(sa_session):
     app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)
+    app.dependency_overrides[get_processing_execution_repo] = lambda: SQLAlchemyProcessingExecutionRepository(sa_session)
 
     return app
 

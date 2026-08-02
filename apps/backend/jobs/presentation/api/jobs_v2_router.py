@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from typing import Any
 
@@ -18,6 +19,9 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     JobDetailExecutionSchema,
     JobDetailWorkflowSchema,
     JobDetailWorkflowStepSchema,
+    UpdateJobRequest,
+    JobNoteItem,
+    JobLinkItem,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -26,6 +30,21 @@ from processing.domain.enums import ExecutionStatus
 from dependencies import get_job_repo, get_processing_execution_repo
 
 router = APIRouter()
+
+
+def _parse_items(raw: Any) -> list[dict[str, Any]]:
+    """Parse a stored JSON string (notes/links) into a list of items."""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, list) else [parsed]
+        except (TypeError, ValueError):
+            return []
+    return []
 
 
 def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
@@ -186,7 +205,55 @@ def get_job_detail(
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
         description=job_dict.get("description"),
-        notes=job_dict.get("notes"),
+        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"))],
+        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"))],
+        updated_at=job_dict.get("updated_at"),
+        created_at=job_dict.get("created_at"),
+    )
+
+
+@router.patch("/{job_id}", response_model=JobDetailResponseSchema)
+def update_job(
+    job_id: str,
+    body: UpdateJobRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Partially update a job's core data (Edit Job feature)."""
+    data = body.model_dump(exclude_unset=True)
+    if "notes" in data and data["notes"] is not None:
+        data["notes"] = json.dumps(data["notes"], ensure_ascii=False)
+    if "links" in data and data["links"] is not None:
+        data["links"] = json.dumps(data["links"], ensure_ascii=False)
+    job_dict = repo.update_by_id(job_id, data)
+    if not job_dict:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    executions = exec_repo.list_by_target("job", job_id)
+    latest_execution = executions[0] if executions else None
+
+    return JobDetailResponseSchema(
+        id=job_dict.get("id"),
+        num=job_dict.get("num"),
+        title=job_dict.get("title") or job_dict.get("role"),
+        company_name=job_dict.get("company"),
+        role=job_dict.get("role"),
+        location=job_dict.get("location"),
+        work_type=job_dict.get("work_type"),
+        employment_type=job_dict.get("employment_type"),
+        salary=job_dict.get("salary"),
+        visa=job_dict.get("visa"),
+        url=job_dict.get("url"),
+        status=job_dict.get("status"),
+        scores=ScoresSchema(
+            overall=job_dict.get("overall_score"),
+            fit=job_dict.get("fit_score"),
+            success=job_dict.get("success_score"),
+        ),
+        latest_processing_execution=_execution_to_schema(latest_execution),
+        description=job_dict.get("description"),
+        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"))],
+        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"))],
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )

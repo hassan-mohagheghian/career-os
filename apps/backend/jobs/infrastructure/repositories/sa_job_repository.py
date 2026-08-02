@@ -1,6 +1,7 @@
 """SQLAlchemy-based job repository implementation."""
 
 from typing import Any
+from datetime import datetime, UTC
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -185,6 +186,41 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [{"num": r.num, "url": r.url, "company": r.company} for r in rows]
 
     # ── Extended methods for services ───────────────────────────────
+
+    # Editable job fields for the Edit Job feature (whitelist).
+    EDITABLE_FIELDS = {
+        "title",
+        "role",
+        "company",
+        "location",
+        "url",
+        "work_type",
+        "employment_type",
+        "visa",
+        "salary",
+        "description",
+        "notes",
+        "links",
+    }
+
+    def update_by_id(self, uuid: str, data: dict[str, Any]) -> dict[str, Any] | None:
+        """Partially update a job's core data by UUID.
+
+        Only whitelisted fields are applied; keys not present in ``data`` are
+        left unchanged. ``None`` values are ignored (treated as "not provided").
+        Returns the updated job dict, or ``None`` if the job does not exist.
+        """
+        updates = {k: v for k, v in data.items() if k in self.EDITABLE_FIELDS and v is not None}
+        model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        if not model:
+            return None
+        if updates:
+            model.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            for k, v in updates.items():
+                setattr(model, k, v)
+            self._session.commit()
+            self._session.refresh(model)
+        return job_model_to_dict(model)
 
     def get_next_num(self) -> int:
         result = self._session.query(func.max(JobModel.num)).scalar()

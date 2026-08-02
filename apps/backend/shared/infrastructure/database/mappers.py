@@ -43,6 +43,7 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "industry": model.industry,
         "domain": model.domain,
         "notes": model.notes,
+        "links": model.links,
         "action": model.action,
         "url": model.url,
         "work_type": model.work_type,

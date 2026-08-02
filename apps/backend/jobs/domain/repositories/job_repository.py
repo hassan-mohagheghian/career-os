@@ -40,6 +40,11 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def update_by_id(self, uuid: str, data: dict[str, Any]) -> dict[str, Any] | None:
+        """Partially update a job's core data by UUID. Returns updated job or None."""
+        ...
+
+    @abstractmethod
     def delete(self, num: int) -> bool:
         """Delete a job and related data. Returns True if deleted."""
         ...
