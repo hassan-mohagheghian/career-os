@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 revision: str = "shared_002"
 down_revision: Union[str, None] = "shared_001"
-branch_labels: Union[str, Sequence[str], None] = ("shared",)
+branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
