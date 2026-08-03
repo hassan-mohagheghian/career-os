@@ -64,11 +64,40 @@ jobs:
         run: uv run mypy apps/backend --ignore-missing-imports || true
 
       - name: Run backend tests
-        run: uv run pytest apps/backend/tests/ -v --tb=short --cov=apps.backend --cov-report=term-missing --cov-report=html
+        run: uv run pytest apps/backend/tests/ -v --tb=short --junitxml=test-results/pytest.xml --cov=apps.backend --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=html
         env:
           DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+
+      - name: Publish backend test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: pytest
+          path: test-results/pytest.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+
+      - name: Publish backend coverage report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: coverage
+          path: coverage.xml
+          reporter: cobertura
+          fail-on-error: 'false'
+
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            test-results/pytest.xml
+            coverage.xml
+            htmlcov/
+          retention-days: 7
 
   test-frontend:
     runs-on: ubuntu-latest

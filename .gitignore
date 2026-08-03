@@ -59,6 +59,8 @@ exp-file.txt
 .coverage
 .pytest_cache/
 htmlcov/
+coverage.xml
+test-results/
 
 # Server logs
 apps/backend/logs/
