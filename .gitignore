@@ -17,6 +17,7 @@ apps/frontend/node_modules/
 apps/frontend/dist/
 apps/frontend/.next/
 apps/frontend/storybook-static/
+apps/frontend/tsconfig.tsbuildinfo
 .next/
 
 # Database files
