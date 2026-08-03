@@ -132,15 +132,15 @@ class TestAsgiApp:
         assert response.json() == {'status': 'ok'}
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
     async def test_events_processing_stream(self):
-        from shared.presentation.api import processing_events_router as router_mod
-        from fastapi import Request
+        from fastapi import FastAPI, Request
         from fastapi.responses import StreamingResponse
+        from shared.presentation.api import processing_events_router as router_mod
 
         async def fake_processing_events(request: Request):
             async def event_stream():
                 yield 'data: ping\n\n'
+
             return StreamingResponse(
                 event_stream(),
                 media_type='text/event-stream',
@@ -150,12 +150,16 @@ class TestAsgiApp:
         original_endpoint = router_mod.router.routes[0].endpoint
         router_mod.router.routes[0].endpoint = fake_processing_events
         try:
-            transport = httpx.ASGITransport(app=api.fastapi_app)
-            async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:
+            # Fresh app so the deferred router resolution picks up the patched
+            # endpoint before any request caches the real SSE handler.
+            app = FastAPI()
+            app.include_router(router_mod.router, prefix='/events')
+
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(transport=transport, base_url='http://test', timeout=5) as client:
                 response = await client.get('/events/processing')
+                assert response.status_code == 200
+                assert 'text/event-stream' in response.headers['content-type']
+                assert response.text == 'data: ping\n\n'
         finally:
             router_mod.router.routes[0].endpoint = original_endpoint
-
-        assert response.status_code == 200
-        assert 'text/event-stream' in response.headers['content-type']
-        assert response.text == 'data: ping\n\n'

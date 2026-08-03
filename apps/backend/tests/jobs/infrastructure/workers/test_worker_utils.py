@@ -148,8 +148,18 @@ class TestNormalizeJobData:
 
 
 class TestFetchUrl:
-    @pytest.mark.slow
-    def test_fetch_invalid_url_raises(self):
+    @patch('jobs.infrastructure.workers.worker.fetch_page')
+    def test_fetch_invalid_url_raises(self, mock_fetch_page):
+        from ai.infrastructure.tools.models import FetchError, FetchedPage
+        mock_fetch_page.return_value = FetchedPage(
+            url='https://this-domain-does-not-exist-12345.invalid',
+            status='failed',
+            error=FetchError(
+                code='FETCH_FAILED',
+                message='Network error: <urlopen error name not resolved>',
+                url='https://this-domain-does-not-exist-12345.invalid',
+            ),
+        )
         from jobs.infrastructure.workers.worker import _fetch_url
         with pytest.raises(RuntimeError, match="Network error|Failed to fetch"):
             _fetch_url("https://this-domain-does-not-exist-12345.invalid")
