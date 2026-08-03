@@ -19,15 +19,21 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     JobDetailExecutionSchema,
     JobDetailWorkflowSchema,
     JobDetailWorkflowStepSchema,
+    JobAnalysisBlockSchema,
+    JobAnalysisScoresExplanationSchema,
+    JobAnalysisSummarySchema,
+    JobAnalysisSkillSchema,
     UpdateJobRequest,
     JobNoteItem,
     JobLinkItem,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
+from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
+from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.domain.enums import ExecutionStatus
-from dependencies import get_job_repo, get_processing_execution_repo
+from dependencies import get_job_repo, get_processing_execution_repo, get_job_analysis_repo, get_summary_repo
 
 router = APIRouter()
 
@@ -184,11 +190,63 @@ def _execution_to_schema(execution: Any) -> JobDetailExecutionSchema | None:
     )
 
 
+def _analysis_to_schema(
+    analysis: dict | None,
+    job_dict: dict[str, Any],
+    summary: dict | None,
+) -> JobAnalysisBlockSchema | None:
+    """Build the analysis block from the canonical row, falling back to the
+    legacy jobs/summaries projection for rows processed before the analysis
+    phase existed.
+    """
+    if analysis:
+        payload = analysis.get("payload") or {}
+        explanation = payload.get("scores_explanation") or {}
+        summary_block = payload.get("summary") or {}
+        skills = payload.get("skills") or []
+        return JobAnalysisBlockSchema(
+            recommendation=analysis.get("recommendation"),
+            apply_reason=analysis.get("apply_reason") or job_dict.get("apply_reason"),
+            scores_explanation=JobAnalysisScoresExplanationSchema(
+                fit_factors=explanation.get("fit_factors") or [],
+                success_factors=explanation.get("success_factors") or [],
+                concerns=explanation.get("concerns") or [],
+            ),
+            summary=JobAnalysisSummarySchema(
+                summary=summary_block.get("summary") or analysis.get("summary") or "",
+                resume_fit=summary_block.get("resume_fit") or "",
+                note=summary_block.get("note") or "",
+            ),
+            skills=[JobAnalysisSkillSchema(**s) for s in skills if isinstance(s, dict)],
+            insights=payload.get("insights") or [],
+            generated_at=analysis.get("generated_at"),
+        )
+
+    # Legacy fallback: summarize the projections that exist on the row.
+    if job_dict.get("overall_score") is not None or summary:
+        return JobAnalysisBlockSchema(
+            recommendation=None,
+            apply_reason=job_dict.get("apply_reason"),
+            scores_explanation=JobAnalysisScoresExplanationSchema(),
+            summary=JobAnalysisSummarySchema(
+                summary=(summary or {}).get("summary") or "",
+                resume_fit=(summary or {}).get("resumeFit") or "",
+                note=(summary or {}).get("note") or "",
+            ),
+            skills=[],
+            insights=[],
+            generated_at=None,
+        )
+    return None
+
+
 @router.get("/{job_id}", response_model=JobDetailResponseSchema)
 def get_job_detail(
     job_id: str,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    analysis_repo: SQLAlchemyJobAnalysisRepository = Depends(get_job_analysis_repo),
+    summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
 ):
     job_dict = repo.get_by_id(job_id)
     if not job_dict:
@@ -196,6 +254,8 @@ def get_job_detail(
 
     executions = exec_repo.list_by_target("job", job_id)
     latest_execution = executions[0] if executions else None
+    analysis = analysis_repo.get_by_job_id(job_id)
+    summary = summary_repo.get_by_job_id(job_id)
 
     work_type = (job_dict.get("work_type") or "").lower()
     return JobDetailResponseSchema(
@@ -216,6 +276,7 @@ def get_job_detail(
             success=job_dict.get("success_score"),
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
+        analysis=_analysis_to_schema(analysis, job_dict, summary),
         description=job_dict.get("description"),
         notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],

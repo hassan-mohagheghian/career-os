@@ -67,6 +67,10 @@ Example:
 "execution_id": "exec_123",
 "job_id": "job_123",
 "title": "Senior Backend Engineer",
+"url": "https://www.linkedin.com/jobs/view/1234567890123456",
+"links": [
+{ "title": "Company Website", "url": "https://acme.example.com/careers" }
+],
 "status": "processing",
 "current_step": "fetch_content",
 "progress": 60,
@@ -88,6 +92,14 @@ The related Job identifier.
 title
 
 Human readable Job title.
+
+url
+
+The Job's primary URL when the execution targets a Job, otherwise null.
+
+links
+
+Related link items parsed from the Job. Each item has an optional title and a url. Empty when the Job has no links or the execution does not target a Job.
 
 status
 

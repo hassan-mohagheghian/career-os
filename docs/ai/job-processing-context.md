@@ -35,6 +35,16 @@ The context contains:
 
 ---
 
+## Durable Context
+
+During Phase 1 (JobContextPreparationGraph), the `persist_context` node writes
+the prepared `combined_text` to the job row (`raw_description` +
+`description`) via `JobService.persist_prepared_context`. This makes the
+context durable so the analysis phase has a stable, reusable LLM input even
+though the in-memory workflow state is not persisted between phases.
+
+---
+
 ## Job Data
 
 The job data may include:

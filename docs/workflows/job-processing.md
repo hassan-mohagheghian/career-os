@@ -49,49 +49,104 @@ The job processing workflow is responsible for:
 
 # Workflow Graph
 
+A job processing run executes two LangGraph phases inside a single
+ProcessingExecution.
+
+## Phase 1 — Context Preparation
+
+`processing/application/workflows/job_context_preparation/graph.py`
+
 START
 
 ↓
 
-Load Job Context
+load_job
 
 ↓
 
-Fetch External Data
+collect_sources
 
 ↓
 
-Extract Information
+fetch_sources
 
 ↓
 
-Normalize Data
+extract_content
 
 ↓
 
-Analyze Job
+build_context
 
 ↓
 
-Generate Score
+validate_context
 
 ↓
 
-Generate Career Guidance
+persist_context
 
 ↓
 
-Persist Result
+context_ready | execution_failed
+
+No LLM calls. `persist_context` writes the combined text to the job row
+(`raw_description` + `description`) via `JobService.persist_prepared_context`,
+so the analysis phase has a durable LLM input.
+
+## Phase 2 — Job Analysis
+
+`processing/application/workflows/job_analysis/graph.py`
+
+load_context
 
 ↓
+
+prepare_profile
+
+↓
+
+analyze
+
+↓
+
+extract_skills
+
+↓
+
+score
+
+↓
+
+recommend
+
+↓
+
+summarize
+
+↓
+
+persist
+
+↓
+
+analysis_ready | execution_failed
+
+Exactly ONE LLM call: `analyze` runs the `job.analyze` prompt via
+`LLMService.generate_structured(prompt, schema=…, timeout=240)`.
 
 END
+
+If Phase 1 ends with `execution_failed`, the execution fails and Phase 2 is
+skipped.
 
 ---
 
 # Node Description
 
-## Load Job Context
+## Phase 1 — Context Preparation
+
+## load_job
 
 Loads job information from the domain layer.
 
@@ -104,11 +159,23 @@ Output:
 
 - job context
 
+On failure the execution is marked failed with the `[load_job]` prefix.
+
 ---
 
-## Fetch External Data
+## collect_sources
 
-Retrieves additional information.
+Collects the source list for the job (primary URL, reference URLs, notes).
+
+Output:
+
+- source list
+
+---
+
+## fetch_sources
+
+Retrieves external content for each source.
 
 Examples:
 
@@ -116,79 +183,146 @@ Examples:
 - External resources
 - Job descriptions
 
+Handled by `CompositeContentFetcher` (`HTTPXContentFetcher`,
+`PlaywrightContentFetcher`).
+
 Output:
 
 - External content
 
 ---
 
-## Extract Information
+## extract_content
 
-Transforms raw content into structured information.
+Transforms raw content into structured text.
 
-Examples:
+Handled by `CompositeContentExtractor` (`TrafilaturaContentExtractor`,
+`BeautifulSoupContentExtractor`).
 
-- Required skills
-- Experience level
-- Responsibilities
-- Technologies
+Output:
 
----
-
-## Normalize Data
-
-Creates consistent workflow input.
-
-Examples:
-
-- Skill normalization
-- Category mapping
+- Cleaned content per source
 
 ---
 
-## Analyze Job
+## build_context
 
-Uses AI capabilities to analyze the job.
+Combines the extracted content into a single `combined_text` processing
+context.
 
-Examples:
+Output:
 
-- Difficulty estimation
-- Skill analysis
-- Market relevance
-
----
-
-## Generate Score
-
-Generates job intelligence score.
-
-Examples:
-
-- Career fit score
-- Skill match score
-- Opportunity score
+- processing context
 
 ---
 
-## Generate Career Guidance
+## validate_context
 
-Generates recommendations.
+Validates the combined context is usable.
 
-Examples:
+On success routes to `persist_context`; on failure routes to
+`execution_failed`.
 
-- Required improvements
-- Learning path
-- Career direction
+Reasons surfaced from validation are each prefixed with `[validate_context]`.
 
 ---
 
-## Persist Result
+## persist_context
 
-Stores final business results.
+Persists the combined text to the job row (`raw_description` +
+`description`) via `JobService.persist_prepared_context`. This gives the
+analysis phase a durable LLM input.
 
-Stored in:
+No LLM call.
 
-PostgreSQL
+---
+
+## context_ready
+
+Marks Phase 1 complete. Internal node — not exposed to the frontend.
+
+---
+
+## execution_failed
+
+Marks the execution failed. Internal node — not exposed to the frontend.
+
+---
+
+## Phase 2 — Job Analysis
+
+## load_context
+
+Loads the persisted job context (the combined text written by
+`persist_context`) plus the analysis context. Internal node — not exposed to
+the frontend.
+
+---
+
+## prepare_profile
+
+Builds the user profile inputs (skills, resume, scoring rules) used by the
+analysis prompt. Internal node — not exposed to the frontend.
+
+---
+
+## analyze
+
+Runs the single combined LLM call: the versioned `job.analyze` prompt via
+`LLMService.generate_structured(prompt, schema=…, timeout=240)`. Exactly one
+LLM call per job.
+
+Output:
+
+- Structured analysis payload (job fields, scores, recommendation, summary,
+  skills, insights)
+
+---
+
+## extract_skills
+
+Normalizes the LLM skills list and tags each skill `matched`, `missing`, or
+`low` (`normalize_skills`).
+
+---
+
+## score
+
+Deterministic scoring (pure helpers in
+`processing/application/services/job_analysis_scoring.py`):
+
+- Scores clamped 0-100
+- `overall = round(fit * 0.6 + success * 0.4)`
+- Recommendation: `apply` ≥ 80, `consider` ≥ 60, else `skip`
+
+---
+
+## recommend
+
+Derives the recommendation from the overall score.
+
+---
+
+## summarize
+
+Builds the summary block (summary, resume fit, note).
+
+---
+
+## persist
+
+Writes results to three places:
+
+- the `jobs` row projection (fields + apply_reason + scores)
+- the `summaries` row (legacy grade via `grade_for_overall`)
+- the canonical `job_analysis` table (schema `job`) via
+  `SQLAlchemyJobAnalysisRepository.upsert_by_job_id`
+
+---
+
+## analysis_ready
+
+Marks Phase 2 complete. Internal node — not exposed to the frontend.
 
 ---
 
@@ -241,12 +375,16 @@ Example:
 [load_job] Failed to parse job data: ...
 [fetch_sources] Fetch failed: https://example.com/a: ...
 [validate_context] No usable content source was collected.
+[persist_context] No combined text to persist for {job_id}
+[analyze] Failed to run job.analyze via LLMService: ...
+[persist] Failed to persist analysis: ...
 ```
 
-The `[step]` token uses the node id (`load_job`, `collect_sources`,
-`fetch_sources`, `extract_content`, `build_context`, `validate_context`).
-This makes it clear at a glance **which step failed**, both in the SSE
-stream and in the persisted failure state.
+The `[step]` token uses the node id from either phase (`load_job`,
+`collect_sources`, `fetch_sources`, `extract_content`, `build_context`,
+`validate_context`, `persist_context`, `analyze`, `extract_skills`, `score`,
+`recommend`, `summarize`, `persist`). This makes it clear at a glance **which
+step failed**, both in the SSE stream and in the persisted failure state.
 
 Reasons surfaced from validation are each prefixed with the step id:
 
@@ -331,6 +469,10 @@ Scoring Started
 
 ↓
 
+Persist Started
+
+↓
+
 Completed
 
 Events are delivered through SSE.
@@ -392,22 +534,59 @@ current implementation (paths + line numbers).
 - Publishes `EXECUTION_COMPLETED` / `EXECUTION_FAILED` (lines 99-105 / 82-89).
 
 `_run_workflow` (line 123) delegates to `build_job_context_preparation_graph`
-(line 141) and `graph.invoke(state)` (line 147).
+(line 144) and `graph.invoke(state)` (line 150), then — when the result is not
+`FAILED` — builds and invokes the analysis graph with the same
+`JobProcessingState` (lines 151-153).
 
-## 5. Workflow — extraction / content prep (no LLM)
+## 5. Workflow — Phase 1: extraction / content prep (no LLM)
 
 `apps/backend/processing/application/workflows/job_context_preparation/graph.py`:
 
-- Node chain (lines 66-99): `load_job → collect_sources → fetch_sources →
-  extract_content → build_context → validate_context → context_ready | execution_failed`.
+- Node chain (lines 68-102): `load_job → collect_sources → fetch_sources →
+  extract_content → build_context → validate_context → persist_context →
+  context_ready | execution_failed`.
 - Graph docstring (line 12): "This phase must NOT include any LLM calls."
+- `_after_validate` routes to `persist_context` when the context is valid.
 
 `apps/backend/processing/infrastructure/workflow/assembly.py` —
-`build_job_context_preparation_graph` (line 26) wires the real infrastructure:
+`build_job_context_preparation_graph` (line 34) wires the real infrastructure:
 
-- `CompositeContentFetcher([HTTPXContentFetcher(), PlaywrightContentFetcher()])` (lines 31-33).
-- `CompositeContentExtractor([TrafilaturaContentExtractor(), BeautifulSoupContentExtractor()])` (lines 34-36).
-- `RedisProcessingEventPublisher()` (line 37).
+- `CompositeContentFetcher([HTTPXContentFetcher(), PlaywrightContentFetcher()])` (lines 39-41).
+- `CompositeContentExtractor([TrafilaturaContentExtractor(), BeautifulSoupContentExtractor()])` (lines 42-44).
+- `RedisProcessingEventPublisher()` (line 45).
+
+`persist_context` writes the combined text to the job row
+(`raw_description` + `description`) via `JobService.persist_prepared_context`
+(`apps/backend/jobs/application/services/job_service.py` line 30), so the
+analysis phase has a durable LLM input.
+
+## 5b. Workflow — Phase 2: LLM analysis, scoring, persist
+
+`apps/backend/processing/application/workflows/job_analysis/graph.py`:
+
+- Node chain (lines 79-112): `load_context → prepare_profile → analyze →
+  extract_skills → score → recommend → summarize → persist →
+  analysis_ready | execution_failed`.
+- Exactly ONE LLM call: `analyze` runs the versioned `job.analyze` prompt
+  (`processing/application/services/job_analysis_prompt.py`,
+  `JOB_ANALYSIS_PROMPT_VERSION` / `JOB_ANALYSIS_SCHEMA_VERSION` = "1.0.0")
+  via `LLMService.generate_structured(prompt, schema=…, timeout=240)`.
+- Deterministic scoring (`processing/application/services/job_analysis_scoring.py`):
+  scores clamped 0-100, `overall = round(fit*0.6 + success*0.4)`,
+  `apply` ≥ 80 / `consider` ≥ 60 / else `skip`.
+- `persist` writes three places: the `jobs` row projection, the `summaries`
+  row (legacy grade via `grade_for_overall`), and the canonical `job_analysis`
+  table (schema `job`) via `SQLAlchemyJobAnalysisRepository.upsert_by_job_id`.
+
+## 5c. User-facing steps — combined workflow
+
+`apps/backend/processing/application/workflows/workflow_step_mapper.py`
+exposes a single combined workflow `WORKFLOW_ID="job_processing"`,
+`WORKFLOW_NAME="Job Processing"` with 13 user-facing steps: `load_job`,
+`collect_sources`, `fetch_sources`, `extract_content`, `build_context`,
+`validate_context`, `persist_context`, `analyze`, `extract_skills`, `score`,
+`recommend`, `summarize`, `persist`. Hidden internal nodes: `execution_failed`,
+`context_ready`, `analysis_ready`, `load_context`, `prepare_profile`.
 
 ## 6. SSE progress — emit and consume
 
@@ -418,7 +597,30 @@ current implementation (paths + line numbers).
   `GET /events/processing` (line 23) → `stream_pattern(CHANNEL_PATTERN)`
   (`shared/infrastructure/events/sse.py`).
 - Frontend: `useProcessingEvents.ts` opens `EventSource('/events/processing')`
-  and maps events onto the react-query cache (`jobs-v2-infinite`).
+  and maps events onto the react-query cache (`jobs-v2-infinite`). On
+  `execution.completed` / `execution.failed` it also invalidates the
+  `['job-detail', jobId]` query
+  (`apps/frontend/src/shared/hooks/useProcessingEvents.ts` lines 71-89), so
+  results appear live in the Job Details drawer.
+
+## 7. Results — job detail reads the analysis block
+
+`apps/backend/jobs/presentation/api/jobs_v2_router.py` — `GET /api/jobs/{job_id}`
+(line 243) returns the job + `latest_processing_execution` + an `analysis`
+block: `{ recommendation, apply_reason, scores_explanation: {fit_factors,
+success_factors, concerns}, summary: {summary, resume_fit, note}, skills:
+[{name, category, level, status, evidence}], insights, generated_at }`
+(schemas in `apps/backend/jobs/presentation/api/schemas/jobs_v2.py`). For
+legacy rows (processed before analysis existed) the block is built from the
+`jobs`/`summaries` projections with no recommendation
+(`_analysis_to_schema`, line 193).
+
+The frontend Job Details drawer
+(`apps/frontend/src/features/jobs-v2/components/JobDetailDrawer.tsx`) renders
+an "AI Analysis" section (recommendation badge, apply reason, insights, scores
+explanation, summary, tagged skills) from `JobDetail['analysis']`
+(`apps/frontend/src/entities/job/types.ts` line 208) and re-fetches it via the
+SSE invalidation above.
 
 ---
 
@@ -433,16 +635,16 @@ not share the same workflow or the same real-time channel today:
 | Trigger | `POST /api/jobs/{id}/process` | `POST /api/pending/{id}/process` |
 | Task | `process_execution_task` | `process_job_task` |
 | Runner | `ProcessingExecutionRunner` | `JobWorker._execute_pipeline` |
-| Graph | `JobContextPreparationGraph` (fetch + extract, **no LLM**) | `build_job_processing_graph` (`extract_raw → analyze → score → persist`) |
+| Graph | Two-phase: `JobContextPreparationGraph` → `JobAnalysisGraph` (fetch → extract → **LLM analyze → score → recommend → persist**) | `build_job_processing_graph` (`extract_raw → analyze → score → persist`) |
 | Real-time | SSE `/events/processing` | Socket.IO broadcaster |
-| LLM + score + save | **not wired here** | present (`LLMService`, `persist_results`) |
+| LLM + score + save | **wired — `analyze` runs `job.analyze` via `LLMService`, `persist` writes jobs/summaries/job_analysis** | present (`LLMService`, `persist_results`) |
 
-Implication: the modern SSE queue today **stops at context preparation**;
-LLM analysis, scoring, and DB persistence still live on the legacy
-Socket.IO path. See
-`docs/adr/020-execution-queue-vs-llm-pipeline.md` for the decision and the
-preferred resolution (add LLM analysis/scoring/persist steps to the v2
-execution graph so a single SSE stream reaches the end).
+Implication: the modern SSE queue runs **LLM analysis, scoring, and DB
+persistence to completion** — a single SSE stream now reaches the end,
+producing scores, an `analysis` block, and a recommendation. The legacy
+Socket.IO path remains only for legacy/company/generation flows. See
+`docs/adr/020-execution-queue-vs-llm-pipeline.md` for the decision that
+moved the analysis steps onto the v2 execution graph.
 
 ---
 

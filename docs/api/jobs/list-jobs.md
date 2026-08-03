@@ -214,6 +214,36 @@ Excluded data includes:
 
 Those are loaded by dedicated endpoints.
 
+The job detail endpoint (`GET /api/jobs/{job_id}`) is the one that returns the
+full analysis block, not this list:
+
+```json
+{
+  "analysis": {
+    "recommendation": "apply",
+    "apply_reason": "...",
+    "scores_explanation": {
+      "fit_factors": ["..."],
+      "success_factors": ["..."],
+      "concerns": ["..."]
+    },
+    "summary": {
+      "summary": "...",
+      "resume_fit": "...",
+      "note": "..."
+    },
+    "skills": [
+      { "name": "Python", "category": "Language", "level": 4, "status": "matched", "evidence": "..." }
+    ],
+    "insights": ["..."],
+    "generated_at": "..."
+  }
+}
+```
+
+For jobs processed before the analysis phase existed, the block is built from
+the legacy `jobs`/`summaries` projections (no recommendation).
+
 ---
 
 # Performance Requirements

@@ -130,18 +130,48 @@ Example:
 
 The `id` field is a stable domain identifier.
 
-Examples:
+The combined Job Processing workflow (`job_processing`) exposes 13 steps:
 
 ```text
 load_job
 
 collect_sources
 
-fetch_content
+fetch_sources
+
+extract_content
 
 build_context
 
-analyze_content
+validate_context
+
+persist_context
+
+analyze
+
+extract_skills
+
+score
+
+recommend
+
+summarize
+
+persist
+```
+
+Internal nodes that are never rendered as steps:
+
+```text
+execution_failed
+
+context_ready
+
+analysis_ready
+
+load_context
+
+prepare_profile
 ```
 
 Rules:

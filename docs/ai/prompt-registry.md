@@ -1,6 +1,20 @@
 # Prompt Registry
 
-The `PromptRegistry` is the centralized access point for all prompts.
+> **Status:** the `PromptRegistry` and the `ai/infrastructure/prompts/`
+> package were **removed**; there is no runtime prompt registry anymore.
+> The v2 `job.analyze` prompt is self-contained and versioned in
+> `processing/application/services/job_analysis_prompt.py`
+> (`build_job_analysis_prompt`, `build_job_analysis_output_schema`,
+> `JOB_ANALYSIS_PROMPT_VERSION` = `JOB_ANALYSIS_SCHEMA_VERSION` = "1.0.0").
+> It is executed by the `analyze` node of the JobAnalysisGraph via
+> `LLMService.generate_structured(prompt, schema=…, timeout=240)` — exactly
+> one LLM call per job. The legacy `.txt` prompt files
+> (`job_processing/step2/3/4/8.txt`, `resume/step7_cover_generate.txt`,
+> `resume/step_resume_generate.txt`) remain for the legacy Socket.IO pipeline;
+> `jobs/infrastructure/ai/prompts/tailor.py`, `cover_letter.py`,
+> `generate_cover_letter.md`, `tailor_resume.md` were removed.
+
+The sections below document the registry design that previously existed.
 
 ## Architecture
 

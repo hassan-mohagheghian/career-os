@@ -43,6 +43,22 @@ Each bounded context owns a PostgreSQL schema:
 
 The `env.py` imports all models from `shared.infrastructure.database.models` so Alembic can autogenerate migrations for all schemas. `include_schemas=True` ensures schema-aware operations.
 
+## Recent Schema Additions
+
+- **`job_analysis` table** (schema `job`) was added by migration
+  `42c200d12fd5_add_job_analysis_table.py` (`42c200d12fd5`). It stores the
+  canonical per-job AI analysis: `id`, `job_id` (String(36), unique
+  `uq_job_analysis_job_id`), `payload` (JSON text), `fit_score`,
+  `success_score`, `overall_score`, `recommendation`, `apply_reason`,
+  `summary`, `prompt_version`, `schema_version`, `generated_at`.
+
+- Autogenerate can be scoped to a single schema via the
+  `ALEMBIC_TARGET_SCHEMA` environment variable (see `apps/alembic/env.py`).
+  Migration `42c200d12fd5` is **existence-guarded** (`_table_exists` check
+  before `create_table`) so it is non-destructive and safe to run against
+  databases where startup `Base.metadata.create_all()` already created the
+  table.
+
 ## Common Commands
 
 Run all commands from the `apps/alembic/` directory:

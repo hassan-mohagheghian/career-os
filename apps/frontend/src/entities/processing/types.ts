@@ -55,10 +55,17 @@ export interface ProcessingExecutionDetail {
   workflow: WorkflowProgress | null
 }
 
+export interface QueueEntryLink {
+  title?: string | null
+  url: string
+}
+
 export interface QueueEntry {
   execution_id: string
   job_id: string
   title: string
+  url: string | null
+  links: QueueEntryLink[]
   status: string
   current_step: string | null
   progress: number | null

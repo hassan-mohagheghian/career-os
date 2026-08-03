@@ -215,27 +215,40 @@ Model:
 
 # Example Workflow
 
-Job Processing workflow:
+Job Processing workflow — a single combined workflow
+(`WORKFLOW_ID="job_processing"`, `WORKFLOW_NAME="Job Processing"`) covering
+both phases:
 
-    Context Preparation
+    Load Job
 
-        Load Job
+    Collect Sources
 
-        Collect Sources
+    Fetch Content
 
-        Fetch Content
+    Extract Content
 
-        Extract Content
+    Build Context
 
-        Build Context
+    Validate Context
 
-        Validate Context
+    Save Context
 
-Future steps can be added:
+    Analyze Job
 
-    Analysis
+    Extract Skills
 
-    Ranking
+    Score Job
+
+    Recommendation
+
+    Summarize
+
+    Save Results
+
+Internal nodes that are never exposed as steps: `execution_failed`,
+`context_ready`, `analysis_ready`, `load_context`, `prepare_profile`.
+
+Future steps can be added
 
     Generation
 

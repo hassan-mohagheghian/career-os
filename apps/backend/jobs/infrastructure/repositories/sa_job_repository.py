@@ -148,10 +148,12 @@ class SQLAlchemyJobRepository(IJobRepository):
         caller via the processing execution repository.
         """
         from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
+        from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
         model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
         if not model:
             return False
         self._session.query(JobModel).filter(JobModel.id == uuid).delete()
+        self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == uuid).delete(synchronize_session=False)
         self._session.query(SummaryModel).filter(SummaryModel.job_id == uuid).delete(synchronize_session=False)
         self._session.query(ResumeModel).filter(ResumeModel.job_id == uuid).delete(synchronize_session=False)
         self._session.commit()

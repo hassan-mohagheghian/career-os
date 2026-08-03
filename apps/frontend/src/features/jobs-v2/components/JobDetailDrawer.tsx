@@ -24,12 +24,12 @@ function stepIcon(status: JobDetailWorkflowStep['status']) {
 
 function StepItem({ step, depth }: { step: JobDetailWorkflowStep; depth: number }) {
   return (
-    <div>
-      <div className="flex items-start gap-2 p-1" style={{ paddingLeft: `${depth * 16}px` }}>
+    <div className="min-w-0">
+      <div className="flex items-start gap-2 p-1 min-w-0" style={{ paddingLeft: `${depth * 16}px` }}>
         {stepIcon(step.status)}
-        <div className="flex-1 min-w-0">
-          <p className="text-2xs font-medium text-foreground truncate">{step.title}</p>
-          {step.error && <p className="text-2xs text-red-500">{step.error.message}</p>}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <p className="text-2xs font-medium text-foreground min-w-0 break-words">{step.title}</p>
+          {step.error && <p className="text-2xs text-red-500 break-words">{step.error.message}</p>}
         </div>
         {step.progress !== null && step.progress !== undefined && (
           <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress)}%</span>
@@ -51,12 +51,134 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   )
 }
 
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-md border border-border/60 px-2 py-0.5 text-2xs font-medium text-foreground">
+      {children}
+    </span>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+      <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analysis']> }) {
+  const recommendation = analysis.recommendation
+
+  return (
+    <div className="space-y-4">
+      <Section title="AI Analysis">
+        <div className="flex items-center gap-2 mb-2">
+          <Badge>
+            {recommendation === 'apply' && 'Apply'}
+            {recommendation === 'consider' && 'Consider'}
+            {recommendation === 'skip' && 'Skip'}
+            {!recommendation && '—'}
+          </Badge>
+          {analysis.generated_at && (
+            <span className="text-2xs text-muted-foreground">
+              {new Date(analysis.generated_at).toLocaleString()}
+            </span>
+          )}
+        </div>
+        {analysis.apply_reason && (
+          <p className="text-xs text-foreground whitespace-pre-wrap">{analysis.apply_reason}</p>
+        )}
+        {analysis.insights && analysis.insights.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {analysis.insights.map((insight, i) => (
+              <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{insight}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {analysis.scores_explanation && (
+        <Section title="Scores Explanation">
+          {analysis.scores_explanation.fit_factors.length > 0 && (
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Why it fits</p>
+          )}
+          <ul className="mb-2 space-y-1">
+            {analysis.scores_explanation.fit_factors.map((f, i) => (
+              <li key={i} className="text-xs text-foreground flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{f}</span>
+              </li>
+            ))}
+          </ul>
+          {analysis.scores_explanation.success_factors.length > 0 && (
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Chance of success</p>
+          )}
+          <ul className="mb-2 space-y-1">
+            {analysis.scores_explanation.success_factors.map((f, i) => (
+              <li key={i} className="text-xs text-foreground flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{f}</span>
+              </li>
+            ))}
+          </ul>
+          {analysis.scores_explanation.concerns.length > 0 && (
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Concerns</p>
+          )}
+          <ul className="space-y-1">
+            {analysis.scores_explanation.concerns.map((c, i) => (
+              <li key={i} className="text-xs text-red-500/90 flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{c}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {analysis.summary && (analysis.summary.summary || analysis.summary.resume_fit || analysis.summary.note) && (
+        <Section title="Summary">
+          {analysis.summary.summary && (
+            <p className="text-xs text-foreground whitespace-pre-wrap mb-2">{analysis.summary.summary}</p>
+          )}
+          {analysis.summary.resume_fit && (
+            <p className="text-xs text-muted-foreground whitespace-pre-wrap mb-2">
+              <span className="font-medium text-foreground">Resume fit: </span>{analysis.summary.resume_fit}
+            </p>
+          )}
+          {analysis.summary.note && (
+            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{analysis.summary.note}</p>
+          )}
+        </Section>
+      )}
+
+      {analysis.skills && analysis.skills.length > 0 && (
+        <Section title="Tagged Skills">
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.skills.map((skill, i) => (
+              <Badge key={i}>
+                {skill.name}
+                {skill.level != null && <span className="text-muted-foreground"> · L{skill.level}</span>}
+                {skill.category && <span className="text-muted-foreground"> · {skill.category}</span>}
+              </Badge>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
+  )
+}
+
 function JobDetailContent({ detail }: { detail: JobDetail }) {
   const exec = detail.latest_processing_execution
   const steps = exec?.workflow?.steps ?? []
 
   return (
-    <div className="space-y-4 px-4 py-4">
+    <div className="space-y-4 px-4 py-4 min-w-0">
       <div>
         <h2 className="text-base font-semibold text-foreground">{detail.title || detail.role || 'Untitled'}</h2>
         <p className="text-sm text-muted-foreground">{detail.company_name || 'Unknown'}</p>
@@ -114,6 +236,8 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         )}
       </div>
 
+      {detail.analysis && <AnalysisSection analysis={detail.analysis} />}
+
       {detail.description && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
           <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
@@ -158,11 +282,11 @@ export function JobDetailDrawer({ jobId, onOpenChange }: JobDetailDrawerProps) {
 
   return (
     <Sheet open={!!jobId} onOpenChange={(open) => { if (!open) onOpenChange(null) }}>
-      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0">
-        <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40">
+      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0 flex flex-col">
+        <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Job Details</SheetTitle>
         </SheetHeader>
-        <ScrollArea className="flex-1 h-[calc(100vh-60px)]">
+        <ScrollArea className="flex-1 min-h-0 min-w-0">
           {isLoading && (
             <div className="flex items-center justify-center h-40">
               <CircleNotch className="w-6 h-6 text-muted-foreground animate-spin" />

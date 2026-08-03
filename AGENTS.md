@@ -64,7 +64,7 @@ app/
 3. All frontend code is TypeScript (`.ts` / `.tsx`) — no JavaScript.
 4. Feature-based frontend: `entities/`, `features/`, `widgets/`, `shared/`.
 5. Backend follows DDD modular monolith + hexagonal architecture.
-6. Follow DDD / OOP / SOLID / TDD throughout.
+6. Follow DDD / CQRS / OOP / SOLID / TDD / Clean Codes throughout.
 7. Default sort is newest first (`created_at desc`).
 8. Hard delete for processed jobs: delete the job and related tables.
 9. All cards must have a delete button.

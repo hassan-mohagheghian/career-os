@@ -33,6 +33,7 @@ from processing.application.workflows.job_context_preparation.nodes import (
     ExtractContentNode,
     FetchSourcesNode,
     LoadJobNode,
+    PersistContextNode,
     ValidateContextNode,
 )
 from processing.domain.enums import ExecutionStatus
@@ -82,14 +83,23 @@ def _job_dict(**overrides) -> dict:
 
 
 class FakeJobService:
-    def __init__(self, job=None, error=None):
+    def __init__(self, job=None, error=None, persist_error=None):
         self._job = job
         self._error = error
+        self._persist_error = persist_error
+        self.persisted = None
 
     def get_job(self, job_id):
         if self._error is not None:
             raise self._error
         return self._job
+
+    def persist_prepared_context(self, job_id, combined_text):
+        if self._persist_error is not None:
+            raise self._persist_error
+        if self._error is not None:
+            raise self._error
+        self.persisted = (job_id, combined_text)
 
 
 class FakeFetcher:
@@ -140,9 +150,9 @@ class RecordingEventPublisher:
         self.events.append((event_name, execution_id, job_id, status, kwargs))
 
 
-def _build_graph(job=None, fetcher=None, extractor=None, job_error=None, publisher=None):
+def _build_graph(job=None, fetcher=None, extractor=None, job_error=None, publisher=None, persist_error=None):
     return JobContextPreparationGraph(
-        job_service=FakeJobService(job, job_error),
+        job_service=FakeJobService(job, job_error, persist_error),
         fetcher=fetcher or FakeFetcher(),
         extractor=extractor or FakeExtractor(),
         event_publisher=publisher or RecordingEventPublisher(),
@@ -479,6 +489,42 @@ class TestValidateContextNode:
 # --------------------------------------------------------------------------- #
 
 
+class TestPersistContextNode:
+    def test_persists_combined_text(self):
+        state = _initial_state()
+        state.job = JobData.from_job_dict(_job_dict())
+        state = CollectSourcesNode()(state)
+        state = FetchSourcesNode(FakeFetcher(_successful_outcomes()))(state)
+        state = ExtractContentNode(FakeExtractor())(state)
+        state = BuildContextNode(JobContextBuilderService())(state)
+
+        service = FakeJobService(_job_dict())
+        state = PersistContextNode(service, RecordingEventPublisher())(state)
+
+        assert service.persisted is not None
+        job_id, text = service.persisted
+        assert job_id == "job-uuid-1"
+        assert "[NOTE] Must know Python and Postgres" in text
+        assert state.errors == []
+
+    def test_persist_failure_records_error(self):
+        state = _initial_state()
+        state.job = JobData.from_job_dict(_job_dict())
+        state = CollectSourcesNode()(state)
+        state = FetchSourcesNode(FakeFetcher(_successful_outcomes()))(state)
+        state = ExtractContentNode(FakeExtractor())(state)
+        state = BuildContextNode(JobContextBuilderService())(state)
+
+        state = PersistContextNode(FakeJobService(None, error=RuntimeError("db down")))(state)
+
+        assert any("persist" in e and "db down" in e for e in state.errors)
+        assert state.status == ExecutionStatus.FAILED
+
+    def test_no_context_records_error(self):
+        state = PersistContextNode(FakeJobService(_job_dict()))(_initial_state())
+        assert any("No combined text" in e for e in state.errors)
+
+
 class TestJobContextPreparationGraph:
     def test_successful_execution(self):
         graph = _build_graph(job=_job_dict(), fetcher=FakeFetcher(_successful_outcomes()))
@@ -529,6 +575,18 @@ class TestJobContextPreparationGraph:
 
         assert state.status == ExecutionStatus.FAILED
         assert any("not found" in e for e in state.errors)
+
+    def test_persist_failure_fails_execution(self):
+        graph = _build_graph(
+            job=_job_dict(),
+            fetcher=FakeFetcher(_successful_outcomes()),
+            persist_error=RuntimeError("db down"),
+        )
+
+        state = graph.invoke(_initial_state())
+
+        assert state.status == ExecutionStatus.FAILED
+        assert any("persist" in e and "db down" in e for e in state.errors)
 
     def test_notes_alone_make_context_valid(self):
         job = _job_dict(
@@ -781,8 +839,12 @@ class TestRunnerJobContextWiring:
         with patch(
             "processing.infrastructure.workflow.build_job_context_preparation_graph",
             return_value=fake_graph,
-        ) as build_mock:
+        ) as build_mock, patch(
+            "processing.infrastructure.workflow.build_job_analysis_graph",
+            return_value=fake_graph,
+        ) as build_analysis_mock:
             result = ProcessingExecutionRunner()._run_workflow(execution)
 
         assert result == {"job_id": "job-uuid-1"}
         build_mock.assert_called_once()
+        build_analysis_mock.assert_called_once()

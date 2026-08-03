@@ -141,6 +141,36 @@ class JobDetailExecutionSchema(BaseModel):
     workflow: JobDetailWorkflowSchema | None = None
 
 
+class JobAnalysisScoresExplanationSchema(BaseModel):
+    fit_factors: list[str] = Field(default_factory=list)
+    success_factors: list[str] = Field(default_factory=list)
+    concerns: list[str] = Field(default_factory=list)
+
+
+class JobAnalysisSummarySchema(BaseModel):
+    summary: str = ""
+    resume_fit: str = ""
+    note: str = ""
+
+
+class JobAnalysisSkillSchema(BaseModel):
+    name: str
+    category: str | None = None
+    level: int | None = None
+    status: str | None = None
+    evidence: str | None = None
+
+
+class JobAnalysisBlockSchema(BaseModel):
+    recommendation: str | None = None
+    apply_reason: str | None = None
+    scores_explanation: JobAnalysisScoresExplanationSchema | None = None
+    summary: JobAnalysisSummarySchema | None = None
+    skills: list[JobAnalysisSkillSchema] = Field(default_factory=list)
+    insights: list[str] = Field(default_factory=list)
+    generated_at: str | None = None
+
+
 class JobDetailResponseSchema(BaseModel):
     id: str
     title: str | None = None
@@ -155,6 +185,7 @@ class JobDetailResponseSchema(BaseModel):
     status: str | None = None
     scores: ScoresSchema | None = None
     latest_processing_execution: JobDetailExecutionSchema | None = None
+    analysis: JobAnalysisBlockSchema | None = None
     description: str | None = None
     notes: list[JobNoteItem] = Field(default_factory=list)
     links: list[JobLinkItem] = Field(default_factory=list)

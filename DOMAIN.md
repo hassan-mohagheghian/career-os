@@ -8,6 +8,15 @@
 - **Scoring**: `fit_score` (0-100) + `success_score` (0-100) = `overall_score` (weighted 0.6/0.4)
 - **States**: pending → queued → processing → done/failed
 
+### JobAnalysis
+- **What**: Canonical AI analysis of a single job, produced by the v2 processing pipeline's single combined `job.analyze` LLM call
+- **Storage**: `job_analysis` table, one row per `job_id` (unique), upserted on every analysis
+- **Key fields**: `payload` (JSON: fields, scores_explanation, summary, skills, insights), `fit_score`, `success_score`, `overall_score`, `recommendation` (apply/consider/skip), `apply_reason`, `summary`, `prompt_version`, `schema_version`, `generated_at`
+- **Scoring rules**: deterministic — `overall = round(fit × 0.6 + success × 0.4)`; recommendation from overall: `apply ≥ 80`, `consider ≥ 60`, else `skip`; scores clamped to 0-100
+- **Skills**: each required skill tagged `matched` / `missing` / `low` relative to the user profile, with level, category, and evidence
+- **Lifecycle**: created only by the analysis phase; hard-deleted together with the job (`DELETE` on the job cascades by repository)
+- **Legacy rows**: jobs processed before the analysis phase existed expose an `analysis` block built from the legacy `jobs`/`summaries` projections (no recommendation, grade-derived summary)
+
 ### Company
 - **What**: A company profile with intelligence analysis
 - **Key fields**: `name`, `industry`, `company_type` (Product/Recruiting), `tech_stack`, `funding_stage`
@@ -53,6 +62,25 @@
 3. **Extract**: Parse structured fields (title, company, role, stack, etc.)
 4. **Score**: Apply scoring rules, calculate fit/success/overall
 5. **Save**: Write to DB with deduplication check
+
+### Job Processing Pipeline (v2, SSE)
+Runs as a single `ProcessingExecution` (`JOB_PROCESSING`) driven by the runner
+over two LangGraph phases:
+
+**Phase 1 — Context Preparation (no LLM)**
+1. `load_job` → `collect_sources` → `fetch_sources` → `extract_content` → `build_context` → `validate_context`
+2. `persist_context`: writes the combined text to the job row (`raw_description` + `description`) so the analysis phase has a durable LLM input
+3. `context_ready` / `execution_failed`
+
+**Phase 2 — Job Analysis (one LLM call)**
+1. `load_context` (read prepared content) → `prepare_profile` (skills, resume, scoring rules)
+2. `analyze`: single `job.analyze` call via `LLMService.generate_structured` (only provider entry point)
+3. `extract_skills` (normalize + tag matched/missing/low) → `score` (deterministic overall/recommendation) → `recommend` → `summarize`
+4. `persist`: update the jobs row projection + summaries row (legacy grade) + `job_analysis` row
+5. `analysis_ready` / `execution_failed`
+
+Each step emits SSE `workflow.step.*` events; the frontend refetches the Job
+Details on `execution.completed|failed`.
 
 ### Resume/Cover Generation Pipeline
 1. **Prepare**: Load job data, resume, rules

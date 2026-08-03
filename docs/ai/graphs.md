@@ -1,6 +1,48 @@
 # Graph Reference
 
-## Job Processing Graph
+## Job Processing Graph (v2 — two-phase)
+
+A v2 job processing run executes **two LangGraph phases** inside a single
+ProcessingExecution.
+
+**Phase 1 — JobContextPreparationGraph** (no LLM)
+**Name**: `job_context_preparation`
+**Entry**: `load_job`
+**Finish**: `context_ready`
+
+```
+START → load_job → collect_sources → fetch_sources → extract_content
+      → build_context → validate_context → persist_context
+      → context_ready | execution_failed → END
+```
+
+`persist_context` writes the combined text to the job row
+(`raw_description` + `description`) via `JobService.persist_prepared_context`
+so the analysis phase has a durable LLM input.
+
+**Phase 2 — JobAnalysisGraph** (exactly one LLM call)
+**Name**: `job_analysis`
+**Entry**: `load_context`
+**Finish**: `analysis_ready`
+
+```
+START → load_context → prepare_profile → analyze → extract_skills → score
+      → recommend → summarize → persist
+      → analysis_ready | execution_failed → END
+```
+
+Exactly **one LLM call** per job: `analyze` runs the versioned `job.analyze`
+prompt via `LLMService.generate_structured(prompt, schema=…, timeout=240)`.
+Scoring/recommendation are deterministic (`job_analysis_scoring.py`):
+`overall = round(fit*0.6 + success*0.4)`, `apply` ≥ 80 / `consider` ≥ 60 /
+else `skip`. `persist` writes the `jobs` row projection, the `summaries` row,
+and the canonical `job_analysis` table (schema `job`).
+
+If Phase 1 ends with `execution_failed`, Phase 2 is skipped. The runner
+(`processing/infrastructure/runner/execution_runner.py`) runs Phase 1, then
+invokes the analysis graph with the same `JobProcessingState`.
+
+## Job Processing Graph (legacy)
 
 **Name**: `job_processing`
 **Entry**: `validate_input`

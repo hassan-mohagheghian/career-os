@@ -20,6 +20,8 @@ full state model.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from processing.domain.enums import ExecutionStatus
@@ -45,3 +47,6 @@ class JobProcessingState(BaseModel):
     errors: list[str] = Field(default_factory=list)
     workflow_progress: WorkflowProgress | None = None
     status: ExecutionStatus = ExecutionStatus.CREATED
+    analysis_context: dict[str, Any] = Field(default_factory=dict)
+    analysis_result: dict[str, Any] | None = None
+    persisted: bool = False

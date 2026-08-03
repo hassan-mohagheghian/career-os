@@ -171,15 +171,24 @@ TaskIQ does not contain business logic.
 
 # LangGraph Workflow
 
-The workflow performs processing steps.
+The workflow is a two-phase pipeline producing scores, analysis, and a
+recommendation for the job.
 
-Example:
+## Phase 1 — Context Preparation (no LLM)
 
 Job Input
 
 ↓
 
-Fetch URL
+Load Job
+
+↓
+
+Collect Sources
+
+↓
+
+Fetch Content
 
 ↓
 
@@ -187,23 +196,51 @@ Extract Content
 
 ↓
 
-Analyze Content
+Build Context
 
 ↓
 
-LLM Processing
+Validate Context
 
 ↓
 
-Generate Score
+Persist Context
+
+## Phase 2 — Job Analysis (one LLM call)
+
+Load Context
 
 ↓
 
-Generate Career Guidance
+Prepare Profile
 
 ↓
 
-Save Result
+Analyze (job.analyze — exactly one LLM call)
+
+↓
+
+Extract Skills
+
+↓
+
+Score
+
+↓
+
+Recommend
+
+↓
+
+Summarize
+
+↓
+
+Persist
+
+Outcome: the run persists the scores (fit / success / overall), the `analysis`
+block, and the recommendation (apply / consider / skip), surfaced through
+`GET /api/jobs/{job_id}` and SSE progress events.
 
 ---
 

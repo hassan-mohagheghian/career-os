@@ -117,3 +117,57 @@ class TestProcessingExecutionRunner:
         assert "workflow crashed" in (execution.error_message or "")
         names = [call.args[0] for call in publish.call_args_list]
         assert "execution.failed" in names
+
+
+class TestProcessingExecutionRunnerRealSession:
+    def test_run_persists_real_error_after_aborted_transaction(self, sa_session):
+        """A DB error during the workflow aborts the session transaction; the
+        runner must roll back before saving the FAILED state so the real error
+        is recorded instead of being masked by InFailedSqlTransaction.
+        """
+        from sqlalchemy import text
+
+        from processing.infrastructure.models.processing_execution_model import (
+            ProcessingExecutionModel,
+        )
+        from processing.infrastructure.runner.execution_runner import (
+            get_session_sync,
+            ProcessingExecutionRunner,
+        )
+
+        execution = _execution(status=ExecutionStatus.QUEUED)
+        model = ProcessingExecutionModel(
+            id=execution.id,
+            execution_type=ExecutionType.JOB_PROCESSING.value,
+            status=ExecutionStatus.QUEUED.value,
+            target_type="job",
+            target_id="1",
+        )
+        sa_session.add(model)
+        sa_session.commit()
+
+        def boom(*args, **kwargs):
+            try:
+                sa_session.execute(text("SELECT * FROM nonexistent_trigger_table"))
+            except Exception:
+                pass
+            raise RuntimeError("real node error")
+
+        with (
+            patch.object(ProcessingExecutionRunner, "_run_workflow", side_effect=boom),
+            patch(
+                "processing.infrastructure.runner.execution_runner.get_session_sync",
+                return_value=sa_session,
+            ),
+        ):
+            with pytest.raises(RuntimeError, match="real node error"):
+                ProcessingExecutionRunner().run(execution.id)
+
+        row = (
+            sa_session.query(ProcessingExecutionModel)
+            .filter(ProcessingExecutionModel.id == execution.id)
+            .first()
+        )
+        assert row is not None
+        assert row.status == ExecutionStatus.FAILED.value
+        assert row.error_message == "real node error"

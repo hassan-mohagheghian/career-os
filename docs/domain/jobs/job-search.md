@@ -149,6 +149,11 @@ Each supports:
 - minimum
 - maximum
 
+Scores follow the deterministic Job Analysis scoring rules
+(`processing/application/services/job_analysis_scoring.py`): clamped 0-100,
+`overall = round(fit * 0.6 + success * 0.4)`. Search does not compute scores —
+it only filters and sorts on stored values.
+
 ---
 
 # Sorting

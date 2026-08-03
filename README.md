@@ -8,18 +8,18 @@ AI-powered career platform for software engineers — job discovery, company ana
 ./start
 ```
 
-Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + optional background worker (arq + Redis).
+Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + background workers (TaskIQ + Redis).
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.14+, FastAPI, SQLite (SQLAlchemy ORM + Alembic), python-socketio |
+| Backend | Python 3.14+, FastAPI, PostgreSQL (SQLAlchemy ORM + Alembic) |
 | Frontend | React 18, Next.js (App Router), TypeScript, shadcn/ui, Tailwind CSS |
 | AI | LLMService (OpenAI / Mimo CLI / Local via `AI_PROVIDER`), LangGraph workflows |
-| Queue | ARQ + Redis for background job processing |
-| Realtime | WebSocket (python-socketio, ASGI mode) |
-| Testing | pytest (535+ tests), vitest (401 tests) |
+| Queue | TaskIQ + Redis for background processing |
+| Realtime | Server-Sent Events (SSE, `/api/sse/processing-events`) |
+| Testing | pytest (1145+ backend), vitest (297+ frontend) |
 | API Docs | Swagger UI (`/api/docs`), ReDoc (`/api/redoc`) |
 
 ## Architecture
@@ -37,7 +37,7 @@ Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + optional back
                      │   FSD: entities/features/    │
                      │        widgets/shared         │
                      └──────────────┬───────────────┘
-                                    │ HTTP + WebSocket
+                                    │ HTTP + SSE
                      ┌──────────────┼───────────────┐
                      │    FastAPI (port 5000)         │
                      │  ┌──────┐ ┌──────┐ ┌──────┐  │
@@ -47,22 +47,22 @@ Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + optional back
                      │  └──┬───┘ └──┬───┘ └──────┘  │
                      │     └────────┴──┐             │
                      │          ┌──────▼──────┐      │
-                     │          │  SQLite DB   │      │
+                     │          │ PostgreSQL   │      │
                      │          └──────┬──────┘      │
                      └─────────────────┼─────────────┘
-                                       │
-                    ┌──────────────────┼──────────────────┐
-                    │    ARQ Worker     │     Redis         │
-                    │  (background/)    │  (queue + cache)  │
-                    └──────────────────┴──────────────────┘
-                                       │
-                    ┌──────────────────▼──────────────────┐
-                    │       AI Agent Layer (LLMService)    │
-                    │    LangGraph workflows + Providers    │
-                    │  ┌──────┬──────┬──────┬──────────┐   │
-                    │  │OpenAI│ Mimo │Local │ Anthropic│   │
-                    │  └──────┴──────┴──────┴──────────┘   │
-                    └─────────────────────────────────────┘
+                                        │
+                     ┌──────────────────┼──────────────────┐
+                     │    TaskIQ Worker  │     Redis        │
+                     │  (background/)    │  (broker + SSE)  │
+                     └──────────────────┴──────────────────┘
+                                        │
+                     ┌──────────────────▼──────────────────┐
+                     │       AI Agent Layer (LLMService)    │
+                     │    LangGraph workflows + Providers    │
+                     │  ┌──────┬──────┬──────┬──────────┐   │
+                     │  │OpenAI│ Mimo │Local │ Anthropic│   │
+                     │  └──────┴──────┴──────┴──────────┘   │
+                     └─────────────────────────────────────┘
 ```
 
 ## Navigation
@@ -79,9 +79,17 @@ Rules             Scoring rules configuration
 
 ### Job Processing
 - URL/notes submission → fetch → extract → AI analysis → score → save
-- Real-time WebSocket progress (step-by-step updates per 13-node LangGraph)
+- Two-phase LangGraph pipeline: LLM-free context preparation, then a single combined `job.analyze` call (fields, scores, recommendation, summary, tagged skills)
+- Real-time SSE progress (step-by-step updates across 13 visible workflow steps)
+- Analysis stored in the `job_analysis` table and surfaced in the Job Details drawer
 - Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING)
 - Version tracking for retries, deduplication by base URL
+
+### Job Analysis
+- Single LLM call (`job.analyze`) via `LLMService.generate_structured` — the only AI call in the v2 pipeline
+- Deterministic scoring: `overall = fit × 0.6 + success × 0.4`, recommendation `apply ≥ 80 / consider ≥ 60 / skip`
+- Skills tagged `matched` / `missing` / `low` with level, category, and evidence
+- Persisted to `job_analysis` (canonical) + `jobs` projection + `summaries` (legacy grade)
 
 ### Company Intelligence
 - Multi-source input (notes + links) for profile extraction
@@ -104,59 +112,62 @@ Rules             Scoring rules configuration
 - **ReDoc**: `http://localhost:5000/api/redoc`
 - **OpenAPI Spec**: `http://localhost:5000/api/openapi.json`
 
-## WebSocket Events
+## Realtime Events (SSE)
+
+Processing progress is delivered through Server-Sent Events at `/api/sse/processing-events`:
 
 | Event | Direction | Purpose |
 |-------|-----------|---------|
-| `pending:update` | Server→Client | Job step progress |
-| `pending:log` | Server→Client | Job processing logs |
-| `pending:complete` | Server→Client | Job finished |
-| `pending:error` | Server→Client | Job processing error |
-| `company:update` | Server→Client | Company processing progress |
-| `generation:*` | Server→Client | Resume/cover generation progress |
+| `execution.created` / `execution.started` | Server→Client | Execution created / running |
+| `workflow.step.started` / `workflow.step.progress` | Server→Client | Per-step progress (Load Job → Analyze Job → Save Results) |
+| `workflow.step.completed` / `workflow.step.failed` | Server→Client | Step finished / failed |
+| `execution.completed` | Server→Client | Job finished; frontend refetches Job Details (analysis block) |
+| `execution.failed` / `execution.cancelled` | Server→Client | Execution failed / cancelled |
+
+Legacy Socket.IO events (`pending:*`, `company:*`, `generation:*`) still exist for the legacy LLM pipeline.
 
 ## Project Structure
 
 ```
 app/
-├── server/                    # Python FastAPI backend (DDD monolith)
-│   ├── entrypoints/           # FastAPI app + SocketIO + Typer CLI
-│   ├── shared/                # Shared Kernel (domain, infra, config)
+├── server/                    # Python FastAPI backend (DDD modular monolith)
+│   ├── entrypoints/           # FastAPI app + SocketIO + CLI
+│   ├── shared/                # Shared Kernel (domain, application, infrastructure)
 │   ├── jobs/                  # Jobs bounded context
 │   ├── companies/             # Companies bounded context
 │   ├── skills/                # Skills bounded context
 │   ├── rules/                 # Rules bounded context
 │   ├── ai/                    # AI bounded context (LLM, LangGraph, providers)
-│   └── tests/                 # 535+ tests by bounded context
-├── background/                # ARQ background worker
+│   ├── processing/            # Processing bounded context (executions, queue)
+│   └── tests/                 # 1145+ tests by bounded context
 ├── client/                    # Next.js frontend (FSD architecture)
 │   └── src/
-│       ├── app/               # App providers, TanStack Query
+│       ├── app/               # App providers
 │       ├── entities/          # Business entities (job, company, skill, etc.)
 │       ├── features/          # Feature slices (jobs, companies, skills, etc.)
-│       ├── widgets/           # Page adapters, drawers, terminals
-│       ├── shared/            # API client, UI kit, hooks, lib
-│       └── layout/            # Header, Sidebar
+│       ├── widgets/           # Page adapters, drawers
+│       └── shared/            # API client, UI kit, hooks
 ├── alembic/                   # Database migrations
-└── start.py                   # Developer CLI (Typer)
+└── start                      # Dev CLI (backend + frontend + worker)
 docs/                          # Full documentation index
 ```
 
 ## Testing
 
 ```bash
-# Backend (535+ tests)
-./start test backend
+# Backend (1145+ tests)
+uv run pytest apps/backend/tests/ -v
 
-# Frontend (401 tests)
-./start test frontend
+# Frontend (297+ tests)
+cd apps/frontend && npx vitest run
 
 # All
-./start test all
+uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 
-# Or directly:
-cd apps/backend && python3 -m pytest tests/ -v
-cd apps/frontend && npm run test
+# Or via the dev CLI:
+./start test backend
+./start test frontend
+./start test all
 ```
 
 ## Documentation

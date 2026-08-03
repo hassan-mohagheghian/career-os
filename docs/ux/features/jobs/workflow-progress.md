@@ -91,7 +91,7 @@ Example:
 
     Workflow Progress
 
-    Context Preparation
+    Load Job
 
     ✓ Load Job
       Completed
@@ -117,6 +117,34 @@ Example:
 
     ○ Build Context
       Pending
+
+    ○ Validate Context
+      Pending
+
+    ○ Save Context
+      Pending
+
+    ○ Analyze Job
+      Pending
+
+    ○ Extract Skills
+      Pending
+
+    ○ Score Job
+      Pending
+
+    ○ Recommendation
+      Pending
+
+    ○ Summarize
+      Pending
+
+    ○ Save Results
+      Pending
+
+The combined workflow exposes 13 user-facing steps. Internal nodes
+(`execution_failed`, `context_ready`, `analysis_ready`, `load_context`,
+`prepare_profile`) are never rendered.
 
 ---
 
@@ -486,6 +514,58 @@ Workflow Progress owns:
 - Do not expose worker implementation details.
 - Do not connect directly to SSE.
 - Consume state from parent components.
+
+---
+
+# Job Details Drawer — AI Analysis
+
+Once a job finishes processing, the Job Details Drawer (xl, right side) shows
+an "AI Analysis" section fed by `GET /api/jobs/{job_id}` → `analysis`. It is
+refetched live when the execution completes/fails (SSE invalidates the
+`['job-detail', jobId]` query).
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Senior Backend Engineer                        [ Apply ]      │
+│ GetYourGuide · Berlin · visa-sponsored                        │
+├──────────────────────────────────────────────────────────────┤
+│ AI Analysis                          generated 2 min ago      │
+│                                                              │
+│  Recommendation: Apply ✓                                     │
+│  Because the role matches your Go + Postgres stack and the   │
+│  company sponsors work visas.                                │
+│                                                              │
+│  Why it fits                                                  │
+│    • Go, PostgreSQL, Kubernetes — core stack match           │
+│    • 4+ yrs seniority required, you have 5                   │
+│  Likelihood of success                                        │
+│    • Strong referral network in Berlin                        │
+│    • Competitive salary range (85-95k)                       │
+│  Concerns                                                     │
+│    • No Kafka experience (required, low)                     │
+│                                                              │
+│  Summary                                                      │
+│    Senior backend role at GetYourGuide, Berlin. Good fit,    │
+│    apply with Kafka spike on the resume.                     │
+│    Resume fit: Strong                                       │
+│    Note: Emphasize distributed-systems work.                 │
+│                                                              │
+│  Skills                                                       │
+│    • Go           Language   ████ 4  matched  “required”     │
+│    • PostgreSQL   Database   ████ 4  matched  “daily use”    │
+│    • Kubernetes   Infra      ███  3  matched  “k8s stack”    │
+│    • Kafka        Data       █    1  low      “eventing”     │
+│    • Vue.js       Frontend   —      missing  “modern UI”     │
+│                                                              │
+│  Insights                                                     │
+│    • Highlight distributed-systems projects in the cover     │
+│    • Salary is negotiable — apply early                      │
+└──────────────────────────────────────────────────────────────┘
+```
+
+For legacy rows (processed before the analysis phase existed) the section
+renders from the `jobs`/`summaries` projections without a recommendation
+badge.
 
 ---
 

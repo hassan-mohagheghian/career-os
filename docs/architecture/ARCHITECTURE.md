@@ -70,6 +70,7 @@
 | Entity                 | Table                    | Purpose                                                                       |
 | ---------------------- | ------------------------ | ----------------------------------------------------------------------------- |
 | Job                    | `jobs`                   | Processed postings with scores (fit_score, success_score, overall_score)      |
+| Job Analysis           | `job_analysis` (schema `job`) | Canonical LLM analysis per job (payload, scores, recommendation, summary, prompt/schema versions) |
 | Company                | `companies`              | Profiles with industry, tech_stack, funding_stage                             |
 | Company Intelligence   | `company_intelligence`   | AI analysis per company                                                       |
 | Resume                 | `resumes`                | Master, tailored, cover letters, LinkedIn                                     |
@@ -217,8 +218,21 @@ app/
 
 ### Job Processing
 
+Two-phase LangGraph pipeline inside a single ProcessingExecution
+(`POST /api/jobs/{id}/process` → TaskIQ → `ProcessingExecutionRunner`):
+
 ```
-URL/Notes/Links → pending_jobs → JobWorker (Template Method) → LLMService → fetch → validate → extract → score → save to jobs
+Phase 1 — JobContextPreparationGraph (no LLM):
+  URL/Notes/Links → load_job → collect_sources → fetch_sources
+  → extract_content → build_context → validate_context → persist_context
+  → context_ready | execution_failed
+
+Phase 2 — JobAnalysisGraph (exactly one LLM call):
+  load_context → prepare_profile → analyze (job.analyze via LLMService)
+  → extract_skills → score → recommend → summarize → persist
+  → analysis_ready | execution_failed
+
+persist → jobs row projection + summaries (legacy grade) + job_analysis table (schema job)
 ```
 
 ### Company Processing

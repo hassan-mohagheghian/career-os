@@ -9,6 +9,7 @@ def __getattr__(name: str):
         "SQLAlchemySummaryRepository": ("jobs.infrastructure.repositories.sa_summary_repository", "SQLAlchemySummaryRepository"),
         "SQLAlchemyResumeRepository": ("jobs.infrastructure.repositories.sa_resume_repository", "SQLAlchemyResumeRepository"),
         "SQLAlchemyTailoredDocumentRepository": ("jobs.infrastructure.repositories.sa_tailored_document_repository", "SQLAlchemyTailoredDocumentRepository"),
+        "SQLAlchemyJobAnalysisRepository": ("jobs.infrastructure.repositories.sa_job_analysis_repository", "SQLAlchemyJobAnalysisRepository"),
         "job_model_to_dict": ("shared.infrastructure.database.mappers", "job_model_to_dict"),
         "dict_to_job_model": ("shared.infrastructure.database.mappers", "dict_to_job_model"),
         "process_job": ("jobs.infrastructure.workers.worker", "process_job"),
@@ -24,6 +25,6 @@ def __getattr__(name: str):
 
 __all__ = [
     "JobModel", "SummaryModel", "SQLAlchemyJobRepository", "SQLAlchemySummaryRepository",
-    "SQLAlchemyResumeRepository", "SQLAlchemyTailoredDocumentRepository",
+    "SQLAlchemyResumeRepository", "SQLAlchemyTailoredDocumentRepository", "SQLAlchemyJobAnalysisRepository",
     "job_model_to_dict", "dict_to_job_model", "process_job", "process_generation",
 ]

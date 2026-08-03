@@ -7,6 +7,7 @@ Uses lazy imports to avoid circular dependencies.
 
 # Eager import to register models with Base.metadata for Alembic autogeneration
 from processing.infrastructure.models import processing_execution_model  # noqa: F401
+from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel  # noqa: F401
 
 
 def __getattr__(name: str):

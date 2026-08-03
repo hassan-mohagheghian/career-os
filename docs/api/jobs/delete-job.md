@@ -88,6 +88,7 @@ Returned when no Job exists with the given `job_id`.
 When the request succeeds:
 
 - The Job row is deleted.
+- The canonical `job_analysis` row (schema `job`) for the Job is deleted.
 - Related summary and resume rows (if any) are deleted.
 - All processing executions targeting the Job are deleted.
 - The job list cache is invalidated so the deleted Job disappears from the UI.

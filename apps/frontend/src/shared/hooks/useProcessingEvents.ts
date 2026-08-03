@@ -76,6 +76,7 @@ export function useProcessingEvents() {
             : { id: data.execution_id, status: 'completed', started_at: null, finished_at: data.payload.updated_at || null },
           updated_at: data.payload.updated_at || job.updated_at,
         }))
+        queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
         break
 
       case 'execution.failed':
@@ -85,6 +86,7 @@ export function useProcessingEvents() {
             ? { ...job.latest_processing_execution, status: 'failed', finished_at: data.payload.updated_at || null }
             : { id: data.execution_id, status: 'failed', started_at: null, finished_at: data.payload.updated_at || null },
         }))
+        queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
         break
 
       case 'execution.cancelled':

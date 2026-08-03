@@ -1,0 +1,653 @@
+"""Tests for the Job Analysis workflow.
+
+Covers:
+- Pure scoring helpers (normalization, overall, recommendation, grade, payload)
+- Prompt and output schema builders
+- User profile/resume/rules text builders
+- Analysis nodes (LoadContext, PrepareProfile, Analyze, ExtractSkills, Score,
+  Recommend, Summarize, Persist)
+- The JobAnalysisGraph end-to-end (mocked LLM)
+"""
+
+import json
+
+import pytest
+
+from processing.application.services.job_analysis_inputs import (
+    build_profile_text,
+    build_resume_text,
+    build_scoring_rules_text,
+)
+from processing.application.services.job_analysis_prompt import (
+    JOB_ANALYSIS_PROMPT_VERSION,
+    JOB_ANALYSIS_SCHEMA_VERSION,
+    build_job_analysis_output_schema,
+    build_job_analysis_prompt,
+)
+from processing.application.services import job_analysis_scoring as scoring
+from processing.application.workflows import progress_ops
+from processing.application.workflows.job_analysis import JobAnalysisGraph
+from processing.application.workflows.job_analysis.nodes import (
+    AnalysisReadyNode,
+    AnalyzeNode,
+    ExecutionFailedNode,
+    ExtractSkillsNode,
+    LoadContextNode,
+    PersistNode,
+    PrepareProfileNode,
+    RecommendNode,
+    ScoreNode,
+    SummarizeNode,
+)
+from processing.domain.enums import ExecutionStatus
+from processing.domain.workflow.job_processing_state import JobProcessingState
+
+
+# --------------------------------------------------------------------------- #
+# Fakes
+# --------------------------------------------------------------------------- #
+
+
+def _job_dict(**overrides) -> dict:
+    data = {
+        "id": "job-uuid-1",
+        "url": "https://example.com/job",
+        "company": "Acme Inc",
+        "role": "Senior Backend Engineer",
+        "title": "Senior Backend Engineer",
+        "location": "Berlin, Germany",
+        "notes": "[]",
+        "links": "[]",
+        "raw_description": "We need a senior backend engineer with Python, Postgres and Kafka.",
+        "description": "We need a senior backend engineer with Python, Postgres and Kafka.",
+    }
+    data.update(overrides)
+    return data
+
+
+class FakeJobService:
+    def __init__(self, job=None, error=None):
+        self._job = job
+        self._error = error
+
+    def get_job(self, job_id):
+        if self._error is not None:
+            raise self._error
+        return self._job
+
+
+class FakeLLM:
+    def __init__(self, content=None, error=None):
+        self._content = content
+        self._error = error
+        self.calls = []
+
+    def generate_structured(self, prompt, schema=None, timeout=None):
+        self.calls.append({"prompt": prompt, "schema": schema, "timeout": timeout})
+        if self._error is not None:
+            raise self._error
+        return type("Resp", (), {"content": self._content})
+
+
+class FakeSkillRepo:
+    def __init__(self, skills=None, error=None):
+        self._skills = skills or []
+        self._error = error
+
+    def list_visible(self):
+        if self._error is not None:
+            raise self._error
+        return self._skills
+
+
+class FakeResumeRepo:
+    def __init__(self, original=None, linkedin=None, error=None):
+        self._original = original
+        self._linkedin = linkedin
+        self._error = error
+
+    def get_latest_original_raw_text(self):
+        if self._error is not None:
+            raise self._error
+        return self._original
+
+    def get_latest_linkedin_raw_text(self):
+        if self._error is not None:
+            raise self._error
+        return self._linkedin
+
+
+class FakeRuleRepo:
+    def __init__(self, rules=None, error=None):
+        self._rules = rules or []
+        self._error = error
+
+    def get_enabled_by_scopes(self, scopes):
+        if self._error is not None:
+            raise self._error
+        return self._rules
+
+
+class FakeJobRepo:
+    def __init__(self):
+        self.updated = None
+
+    def update_fields(self, job_id, **fields):
+        self.updated = {"job_id": job_id, **fields}
+        return True
+
+
+class FakeSummaryRepo:
+    def __init__(self):
+        self.upserted = None
+
+    def upsert(self, data):
+        self.upserted = data
+        return data
+
+
+class FakeAnalysisRepo:
+    def __init__(self):
+        self.upserted = None
+
+    def upsert_by_job_id(self, job_id, data):
+        self.upserted = {"job_id": job_id, **data}
+        return self.upserted
+
+
+class RecordingEventPublisher:
+    def __init__(self):
+        self.events = []
+
+    def publish(self, event_name, execution_id, job_id, status, **kwargs):
+        self.events.append((event_name, execution_id, job_id, status, kwargs))
+
+
+def _state(job_id="job-uuid-1", execution_id="exec-1") -> JobProcessingState:
+    state = JobProcessingState(execution_id=execution_id, job_id=job_id)
+    state.workflow_progress = progress_ops.build_initial_progress(execution_id)
+    return state
+
+
+def _payload(**overrides) -> dict:
+    payload = {
+        "title": "Senior Backend Engineer",
+        "company": "Acme Inc",
+        "role": "Senior Backend Engineer",
+        "location": "Berlin, Germany",
+        "salary": "90k",
+        "stack": "Python, Postgres",
+        "visa": "sponsored",
+        "employment_type": "full-time",
+        "work_types": ["hybrid"],
+        "industry": "fintech",
+        "domain": "payments",
+        "description": "Long description here.",
+        "scores": {"fit": 85, "success": 70},
+        "scores_explanation": {
+            "fit_factors": ["Python backend experience"],
+            "success_factors": ["Senior level", "Berlin"],
+            "concerns": ["No Kafka experience"],
+        },
+        "recommendation": "skip",
+        "apply_reason": "Great role overall.",
+        "summary": {
+            "summary": "Backend role at Acme.",
+            "resume_fit": "Strong fit.",
+            "note": "Apply early.",
+        },
+        "skills": [
+            {"name": "Python", "category": "Language", "level": 4, "status": "matched", "evidence": "posted"},
+            {"name": "Kafka", "category": "Data", "level": 1, "status": "missing", "evidence": "posted"},
+        ],
+        "insights": ["Mention Kafka coursework", "Ask about salary band"],
+    }
+    payload.update(overrides)
+    return payload
+
+
+# --------------------------------------------------------------------------- #
+# Scoring helpers
+# --------------------------------------------------------------------------- #
+
+
+class TestNormalizeScore100:
+    def test_none_and_empty(self):
+        assert scoring.normalize_score_100(None) is None
+        assert scoring.normalize_score_100("") is None
+
+    def test_string_and_float(self):
+        assert scoring.normalize_score_100("85") == 85
+        assert scoring.normalize_score_100(75.6) == 75
+
+    def test_clamps(self):
+        assert scoring.normalize_score_100(120) == 100
+        assert scoring.normalize_score_100(-5) == 0
+
+    def test_unparseable(self):
+        assert scoring.normalize_score_100("abc") is None
+        assert scoring.normalize_score_100([]) is None
+
+
+class TestCalculateOverallScore:
+    def test_weighted_round(self):
+        assert scoring.calculate_overall_score(80, 70) == round(80 * 0.6 + 70 * 0.4)
+        assert scoring.calculate_overall_score(100, 0) == 60
+
+    def test_missing_component(self):
+        assert scoring.calculate_overall_score(None, 70) is None
+        assert scoring.calculate_overall_score(80, None) is None
+
+
+class TestRecommendationForOverall:
+    def test_buckets(self):
+        assert scoring.recommendation_for_overall(90) == "apply"
+        assert scoring.recommendation_for_overall(80) == "apply"
+        assert scoring.recommendation_for_overall(75) == "consider"
+        assert scoring.recommendation_for_overall(60) == "consider"
+        assert scoring.recommendation_for_overall(50) == "skip"
+
+    def test_none(self):
+        assert scoring.recommendation_for_overall(None) == "skip"
+
+
+class TestCoerceRecommendation:
+    def test_valid(self):
+        assert scoring.coerce_recommendation("APPLY") == "apply"
+        assert scoring.coerce_recommendation(" consider ") == "consider"
+
+    def test_invalid(self):
+        assert scoring.coerce_recommendation("maybe") == "skip"
+        assert scoring.coerce_recommendation(None) == "skip"
+
+
+class TestGradeForOverall:
+    def test_buckets(self):
+        assert scoring.grade_for_overall(95) == "A++"
+        assert scoring.grade_for_overall(85) == "A+"
+        assert scoring.grade_for_overall(72) == "A"
+        assert scoring.grade_for_overall(60) == "B"
+        assert scoring.grade_for_overall(40) == "C"
+        assert scoring.grade_for_overall(10) == "D"
+        assert scoring.grade_for_overall(None) == "P"
+
+
+class TestNormalizePayload:
+    def test_json_string(self):
+        assert scoring.normalize_payload('{"scores": {"fit": 1}}') == {"scores": {"fit": 1}}
+
+    def test_bad_string(self):
+        assert scoring.normalize_payload("not json") == {}
+
+    def test_dict(self):
+        assert scoring.normalize_payload({"a": 1}) == {"a": 1}
+
+    def test_other(self):
+        assert scoring.normalize_payload(None) == {}
+        assert scoring.normalize_payload([1, 2]) == {}
+
+
+class TestBuildAnalysisResult:
+    def test_computes_deterministic_scores_and_recommendation(self):
+        result = scoring.build_analysis_result(_payload())
+
+        assert result["scores"] == {"fit": 85, "success": 70, "overall": 79}
+        assert result["recommendation"] == "consider"
+        assert result["apply_reason"] == "Great role overall."
+        assert result["summary"]["summary"] == "Backend role at Acme."
+        assert result["scores_explanation"]["concerns"] == ["No Kafka experience"]
+        assert result["insights"] == ["Mention Kafka coursework", "Ask about salary band"]
+
+    def test_clamps_llm_scores(self):
+        payload = _payload(scores={"fit": 150, "success": -10})
+        result = scoring.build_analysis_result(payload)
+        assert result["scores"] == {"fit": 100, "success": 0, "overall": 60}
+
+    def test_missing_scores(self):
+        result = scoring.build_analysis_result({"scores": None})
+        assert result["scores"] == {"fit": None, "success": None, "overall": None}
+        assert result["recommendation"] == "skip"
+
+
+class TestNormalizeSkills:
+    def test_filters_and_defaults(self):
+        skills = scoring.normalize_skills(
+            [
+                {"name": "Python", "status": "MATCHED"},
+                {"name": "Kafka"},
+                {"name": ""},
+                "not-a-dict",
+                None,
+            ]
+        )
+        assert len(skills) == 2
+        assert skills[0]["status"] == "matched"
+        assert skills[0]["level"] is None
+        assert skills[1]["status"] == "missing"
+
+    def test_non_list(self):
+        assert scoring.normalize_skills("nope") == []
+
+
+class TestCoerceStatus:
+    def test_valid(self):
+        assert scoring.coerce_status("matched") == "matched"
+        assert scoring.coerce_status("LOW") == "low"
+
+    def test_invalid(self):
+        assert scoring.coerce_status("nope") == "missing"
+        assert scoring.coerce_status(None) == "missing"
+
+
+# --------------------------------------------------------------------------- #
+# Prompt + inputs
+# --------------------------------------------------------------------------- #
+
+
+class TestJobAnalysisPrompt:
+    def test_schema_structure(self):
+        schema = build_job_analysis_output_schema()
+        assert schema["type"] == "object"
+        required = set(schema["required"])
+        assert {"scores", "recommendation", "apply_reason", "summary", "skills", "insights"} <= required
+        assert schema["properties"]["skills"]["items"]["required"] == ["name"]
+        assert set(schema["properties"]["scores"]["required"]) == {"fit", "success"}
+
+    def test_prompt_contains_all_sections(self):
+        prompt = build_job_analysis_prompt("job text", "profile text", "rules text", "resume text")
+        assert "job text" in prompt
+        assert "profile text" in prompt
+        assert "rules text" in prompt
+        assert "resume text" in prompt
+        assert "Respond ONLY with valid JSON" in prompt
+
+    def test_versions(self):
+        assert JOB_ANALYSIS_PROMPT_VERSION == "1.0.0"
+        assert JOB_ANALYSIS_SCHEMA_VERSION == "1.0.0"
+
+
+class TestJobAnalysisInputs:
+    def test_profile_text_empty(self):
+        assert build_profile_text([]) == "(no skills registered)"
+
+    def test_profile_text_with_skills(self):
+        text = build_profile_text(
+            [{"name": "Python", "level": 4, "category": "Language"}, {"name": "Kafka"}]
+        )
+        assert "Total skills: 2" in text
+        assert "- Python (level 4, Language)" in text
+        assert "- Kafka" in text
+
+    def test_resume_text(self):
+        assert build_resume_text(None) == "(no resume available)"
+        assert build_resume_text("hello") == "hello"
+        assert len(build_resume_text("x" * 10000)) == 6000
+
+    def test_scoring_rules(self):
+        assert build_scoring_rules_text([]) == "(no scoring rules set)"
+        text = build_scoring_rules_text(
+            [{"key": "VISA_OK", "value": "must sponsor", "priority": 1, "score_weight": 5}]
+        )
+        assert "#1" in text and "VISA_OK" in text and "weight:5" in text
+
+
+# --------------------------------------------------------------------------- #
+# Nodes
+# --------------------------------------------------------------------------- #
+
+
+class TestLoadContextNode:
+    def test_loads_prepared_content(self):
+        node = LoadContextNode(FakeJobService(_job_dict()))
+        state = node(_state())
+        assert state.processing_context is not None
+        assert "senior backend engineer" in state.processing_context.combined_text
+        assert state.status != ExecutionStatus.FAILED
+
+    def test_missing_job_fails(self):
+        node = LoadContextNode(FakeJobService(None))
+        state = node(_state())
+        assert state.status == ExecutionStatus.FAILED
+        assert any("not found" in e for e in state.errors)
+
+    def test_no_prepared_content_fails(self):
+        node = LoadContextNode(FakeJobService(_job_dict(raw_description=None, description=None)))
+        state = node(_state())
+        assert state.status == ExecutionStatus.FAILED
+        assert any("no prepared content" in e for e in state.errors)
+
+    def test_service_error_fails(self):
+        node = LoadContextNode(FakeJobService(None, error=RuntimeError("db down")))
+        state = node(_state())
+        assert state.status == ExecutionStatus.FAILED
+        assert any("db down" in e for e in state.errors)
+
+
+class TestPrepareProfileNode:
+    def test_gathers_profile_inputs(self):
+        skills = [{"name": "Python", "level": 4, "category": "Language"}]
+        rules = [{"key": "VISA_OK", "value": "must sponsor", "priority": 1, "score_weight": 5}]
+        node = PrepareProfileNode(
+            FakeSkillRepo(skills), FakeResumeRepo(original="Resume text here"), FakeRuleRepo(rules)
+        )
+        state = _state()
+        state.processing_context = type("Ctx", (), {"combined_text": "job text"})()
+        state = node(state)
+
+        assert state.analysis_context["job_text"] == "job text"
+        assert "Python" in state.analysis_context["profile_text"]
+        assert "VISA_OK" in state.analysis_context["scoring_rules"]
+        assert "Resume text here" in state.analysis_context["resume_text"]
+
+    def test_uses_linkedin_fallback(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(), FakeResumeRepo(original=None, linkedin="LinkedIn raw"), FakeRuleRepo()
+        )
+        state = node(_state())
+        assert state.analysis_context["resume_text"] == "LinkedIn raw"
+
+    def test_profile_failure_degrades(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(error=RuntimeError("boom")), FakeResumeRepo(), FakeRuleRepo()
+        )
+        state = node(_state())
+        assert state.analysis_context["profile_text"] == "(no skills registered)"
+        assert any("boom" in e for e in state.errors)
+
+
+class TestAnalyzeNode:
+    def test_calls_llm_and_stores_raw_payload(self):
+        llm = FakeLLM(_payload())
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        state = AnalyzeNode(llm)(state)
+
+        assert len(llm.calls) == 1
+        assert llm.calls[0]["timeout"] == 240
+        assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
+        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.0.0"
+        assert state.status != ExecutionStatus.FAILED
+
+    def test_no_job_text_fails(self):
+        llm = FakeLLM(_payload())
+        state = AnalyzeNode(llm)(_state())
+        assert state.status == ExecutionStatus.FAILED
+        assert llm.calls == []
+
+    def test_llm_error_fails(self):
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        state = AnalyzeNode(FakeLLM(error=RuntimeError("provider down")))(state)
+        assert state.status == ExecutionStatus.FAILED
+        assert any("provider down" in e for e in state.errors)
+
+    def test_unparseable_content_fails(self):
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        state = AnalyzeNode(FakeLLM(content="not a dict"))(state)
+        assert state.status == ExecutionStatus.FAILED
+
+
+class TestExtractSkillsNode:
+    def test_normalizes_skills_onto_context(self):
+        state = _state()
+        state.analysis_context["raw_payload"] = _payload()
+        state = ExtractSkillsNode()(state)
+
+        skills = state.analysis_context["normalized_skills"]
+        assert skills[0]["name"] == "Python"
+        assert skills[0]["status"] == "matched"
+        assert skills[1]["status"] == "missing"
+
+    def test_missing_payload_yields_empty(self):
+        state = ExtractSkillsNode()(_state())
+        assert state.analysis_context["normalized_skills"] == []
+
+
+class TestScoreNode:
+    def test_builds_canonical_result(self):
+        state = _state()
+        state.analysis_context["raw_payload"] = _payload()
+        state = ScoreNode()(state)
+
+        assert state.analysis_result["scores"]["overall"] == 79
+        assert state.analysis_result["recommendation"] == "consider"
+        assert state.analysis_result["fields"]["company"] == "Acme Inc"
+
+    def test_merges_normalized_skills(self):
+        state = _state()
+        state.analysis_context["raw_payload"] = _payload()
+        state = ExtractSkillsNode()(state)
+        state = ScoreNode()(state)
+
+        assert len(state.analysis_result["skills"]) == 2
+        assert state.analysis_result["skills"][0]["name"] == "Python"
+
+
+class TestRecommendNode:
+    def test_derives_recommendation_from_overall(self):
+        state = _state()
+        state.analysis_result = scoring.build_analysis_result(_payload())
+        state = RecommendNode()(state)
+        assert state.analysis_result["recommendation"] == "consider"
+        assert state.analysis_result["apply_reason"] == "Great role overall."
+
+    def test_apply_reason_fallback(self):
+        payload = _payload(apply_reason="", recommendation="apply", scores={"fit": 95, "success": 90})
+        state = _state()
+        state.analysis_result = scoring.build_analysis_result(payload)
+        state = RecommendNode()(state)
+        assert "Overall score 93" in state.analysis_result["apply_reason"]
+        assert state.analysis_result["recommendation"] == "apply"
+
+
+class TestSummarizeNode:
+    def test_fills_summary_fields(self):
+        state = _state()
+        state.analysis_result = scoring.build_analysis_result(_payload())
+        state = SummarizeNode()(state)
+        assert state.analysis_result["summary"]["summary"] == "Backend role at Acme."
+        assert state.analysis_result["summary"]["resume_fit"] == "Strong fit."
+
+
+class TestPersistNode:
+    def test_persists_job_summary_and_analysis(self):
+        job_repo, summary_repo, analysis_repo = FakeJobRepo(), FakeSummaryRepo(), FakeAnalysisRepo()
+        node = PersistNode(job_repo, summary_repo, analysis_repo)
+        state = _state()
+        state.analysis_context["raw_payload"] = _payload()
+        state.analysis_result = scoring.build_analysis_result(_payload())
+
+        state = node(state)
+
+        assert state.persisted is True
+        assert job_repo.updated["fit_score"] == 85
+        assert job_repo.updated["overall_score"] == 79
+        assert job_repo.updated["apply_reason"] == "Great role overall."
+        assert summary_repo.upserted["score"] == "A"
+        assert summary_repo.upserted["summary"] == "Backend role at Acme."
+        assert analysis_repo.upserted["job_id"] == "job-uuid-1"
+        assert analysis_repo.upserted["recommendation"] == "consider"
+        assert json.loads(analysis_repo.upserted["payload"])["scores"]["overall"] == 79
+
+    def test_missing_result_records_error(self):
+        node = PersistNode(FakeJobRepo(), FakeSummaryRepo(), FakeAnalysisRepo())
+        state = node(_state())
+        assert state.persisted is False
+        assert any("No analysis result" in e for e in state.errors)
+
+
+class TestTerminalNodes:
+    def test_analysis_ready(self):
+        state = AnalysisReadyNode()(_state())
+        assert state.status == ExecutionStatus.COMPLETED
+
+    def test_execution_failed(self):
+        state = _state()
+        state.errors.append("boom")
+        state = ExecutionFailedNode()(state)
+        assert state.status == ExecutionStatus.FAILED
+
+
+# --------------------------------------------------------------------------- #
+# Graph end-to-end
+# --------------------------------------------------------------------------- #
+
+
+class TestJobAnalysisGraph:
+    _MISSING = object()
+
+    def _build(self, llm=None, job=_MISSING, job_service_error=None, persist_error=None):
+        if job is self._MISSING:
+            job = _job_dict()
+        job_service = FakeJobService(job, job_service_error)
+
+        class FailingJobRepo(FakeJobRepo):
+            def update_fields(self, job_id, **fields):
+                raise persist_error
+
+        return JobAnalysisGraph(
+            job_service=job_service,
+            skill_repo=FakeSkillRepo([{"name": "Python", "level": 4, "category": "Language"}]),
+            resume_repo=FakeResumeRepo(original="My resume"),
+            rule_repo=FakeRuleRepo([{"key": "VISA_OK", "value": "sponsor", "priority": 1}]),
+            job_repo=FailingJobRepo() if persist_error else FakeJobRepo(),
+            summary_repo=FakeSummaryRepo(),
+            analysis_repo=FakeAnalysisRepo(),
+            llm_service=llm or FakeLLM(_payload()),
+            event_publisher=RecordingEventPublisher(),
+        )
+
+    def test_successful_execution(self):
+        graph = self._build()
+        state = graph.invoke(_state())
+
+        assert state.status == ExecutionStatus.COMPLETED
+        assert state.analysis_result is not None
+        assert state.analysis_result["scores"]["overall"] == 79
+        assert state.analysis_result["recommendation"] == "consider"
+        assert len(state.analysis_result["skills"]) == 2
+        assert state.persisted is True
+
+    def test_failed_analysis_when_llm_raises(self):
+        graph = self._build(llm=FakeLLM(error=RuntimeError("provider down")))
+        state = graph.invoke(_state())
+
+        assert state.status == ExecutionStatus.FAILED
+        assert any("provider down" in e for e in state.errors)
+        assert state.persisted is False
+
+    def test_failed_when_job_not_found(self):
+        graph = self._build(job=None)
+        state = graph.invoke(_state())
+
+        assert state.status == ExecutionStatus.FAILED
+        assert any("not found" in e for e in state.errors)
+
+    def test_persist_failure_fails_execution(self):
+        graph = self._build(persist_error=RuntimeError("constraint violated"))
+        state = graph.invoke(_state())
+
+        assert state.status == ExecutionStatus.FAILED
+        assert state.persisted is False
+        assert any("persist" in e and "constraint violated" in e for e in state.errors)

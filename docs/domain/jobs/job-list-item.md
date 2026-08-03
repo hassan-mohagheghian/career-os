@@ -66,6 +66,13 @@ Scores displayed in the Jobs List
 
 All scores are normalized to 0–100.
 
+Scores are produced by the deterministic Job Analysis scoring rules
+(`processing/application/services/job_analysis_scoring.py`):
+`overall = round(fit * 0.6 + success * 0.4)`, clamped to 0-100. The
+recommendation (`apply` ≥ 80 / `consider` ≥ 60 / else `skip`) and the full
+`analysis` block are only exposed on the job detail endpoint
+(`GET /api/jobs/{job_id}`), not on this list item.
+
 ---
 
 # Processing Execution

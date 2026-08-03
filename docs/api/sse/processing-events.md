@@ -188,6 +188,8 @@ Purpose:
 
 - Remove item from Processing Queue.
 - Update Job state.
+- Frontend refetches the job detail (`['job-detail', jobId]`) so the new
+  scores + analysis block appear live in the Job Details drawer.
 
 Payload:
 
@@ -208,6 +210,8 @@ Purpose:
 
 - Show failed state.
 - Display failure reason.
+- Frontend refetches the job detail (`['job-detail', jobId]`) to clear stale
+  analysis data.
 
 Payload:
 
@@ -263,18 +267,25 @@ Workflow steps represent user-facing processing stages.
 
 They are independent from internal LangGraph nodes.
 
+The combined Job Processing workflow exposes 13 user-facing steps spanning both
+phases: `load_job`, `collect_sources`, `fetch_sources`, `extract_content`,
+`build_context`, `validate_context`, `persist_context`, `analyze`,
+`extract_skills`, `score`, `recommend`, `summarize`, `persist`. Internal nodes
+(`execution_failed`, `context_ready`, `analysis_ready`, `load_context`,
+`prepare_profile`) never emit visible step events.
+
 Example:
 
 Internal:
 
 ```text
-fetch_sources_node
+analyze
 ```
 
 Public:
 
 ```text
-Fetching Sources
+Analyze Job
 ```
 
 ---
@@ -440,7 +451,10 @@ origin (defaults to `http://localhost:5000`).
 Workflow step events are applied directly to the in-memory workflow tree via a
 local merge (`mergeWorkflowStep`), so step/child progress renders instantly
 without a REST round-trip. REST is only re-fetched when needed: on drawer open,
-on `execution.created`, and on lifecycle/queue changes.
+on `execution.created`, and on lifecycle/queue changes. In addition,
+`useProcessingEvents.ts` invalidates the `['job-detail', jobId]` react-query
+query on `execution.completed` and `execution.failed`, so the Job Details
+drawer refetches and shows the persisted scores + analysis block live.
 
 Flow:
 

@@ -73,6 +73,8 @@ class ProcessingExecutionRunner:
                 result = self._run_workflow(execution, job_repo, session)
             except Exception as e:
                 finished_at = datetime.now(UTC)
+                if session is not None:
+                    session.rollback()
                 execution.status = ExecutionStatus.FAILED
                 execution.finished_at = finished_at
                 execution.error_message = str(e)
@@ -91,6 +93,8 @@ class ProcessingExecutionRunner:
                 raise
 
             finished_at = datetime.now(UTC)
+            if session is not None:
+                session.rollback()
             execution.status = ExecutionStatus.COMPLETED
             execution.finished_at = finished_at
             if execution.workflow_progress:
@@ -130,7 +134,10 @@ class ProcessingExecutionRunner:
         """
         if execution.execution_type == ExecutionType.JOB_PROCESSING:
             from processing.domain.workflow.job_processing_state import JobProcessingState
-            from processing.infrastructure.workflow import build_job_context_preparation_graph
+            from processing.infrastructure.workflow import (
+                build_job_analysis_graph,
+                build_job_context_preparation_graph,
+            )
 
             graph_session = session
             owns_session = False
@@ -145,10 +152,13 @@ class ProcessingExecutionRunner:
                     workflow_progress=progress_ops.build_initial_progress(execution.id),
                 )
                 final = graph.invoke(state)
+                if final.status != ExecutionStatus.FAILED:
+                    analysis_graph = build_job_analysis_graph(graph_session)
+                    final = analysis_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
                 if final.status == ExecutionStatus.FAILED:
-                    raise RuntimeError("; ".join(final.errors) or "Job context preparation failed")
+                    raise RuntimeError("; ".join(final.errors) or "Job processing failed")
                 return {"job_id": self._job_id(execution)}
             finally:
                 if owns_session:

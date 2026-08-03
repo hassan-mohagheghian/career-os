@@ -2,8 +2,8 @@
 WorkflowSteps.
 
 LangGraph internals are never exposed to clients. This mapper is the only place
-that knows the node_name → step title mapping for the Job Context Preparation
-workflow.
+that knows the node_name → step title mapping for the combined Job Processing
+workflow (context preparation + analysis).
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from processing.domain.workflow.workflow_step import (
     WorkflowStepStatus,
 )
 
-WORKFLOW_ID = "job_context_preparation"
-WORKFLOW_NAME = "Job Context Preparation"
+WORKFLOW_ID = "job_processing"
+WORKFLOW_NAME = "Job Processing"
 
 # node_name → (step_id, step_title)
 NODE_TO_STEP: dict[str, tuple[str, str]] = {
@@ -28,11 +28,21 @@ NODE_TO_STEP: dict[str, tuple[str, str]] = {
     "extract_content": ("extract_content", "Extract Content"),
     "build_context": ("build_context", "Build Context"),
     "validate_context": ("validate_context", "Validate Context"),
+    "persist_context": ("persist_context", "Save Context"),
     "context_ready": ("context_ready", "Ready For Analysis"),
+    "load_context": ("load_context", "Load Context"),
+    "prepare_profile": ("prepare_profile", "Prepare Profile"),
+    "analyze": ("analyze", "Analyze Job"),
+    "extract_skills": ("extract_skills", "Extract Skills"),
+    "score": ("score", "Score Job"),
+    "recommend": ("recommend", "Recommendation"),
+    "summarize": ("summarize", "Summarize"),
+    "persist": ("persist", "Save Results"),
+    "analysis_ready": ("analysis_ready", "Analysis Ready"),
     "execution_failed": ("execution_failed", "Execution Failed"),
 }
 
-# Ordered user-facing step ids for the context preparation workflow.
+# Ordered user-facing step ids for the combined workflow.
 WORKFLOW_STEP_IDS = [
     "load_job",
     "collect_sources",
@@ -40,10 +50,23 @@ WORKFLOW_STEP_IDS = [
     "extract_content",
     "build_context",
     "validate_context",
+    "persist_context",
+    "analyze",
+    "extract_skills",
+    "score",
+    "recommend",
+    "summarize",
+    "persist",
 ]
 
 # Internal nodes that must never be rendered by the frontend.
-HIDDEN_NODE_IDS = {"execution_failed"}
+HIDDEN_NODE_IDS = {
+    "execution_failed",
+    "context_ready",
+    "analysis_ready",
+    "load_context",
+    "prepare_profile",
+}
 
 
 class WorkflowStepMapper:

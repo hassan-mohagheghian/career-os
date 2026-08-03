@@ -188,7 +188,14 @@ queued
 
 running
 
-6. LangGraph executes workflow
+6. LangGraph executes the workflow (two phases):
+
+- Phase 1 — JobContextPreparationGraph: load_job → collect_sources →
+  fetch_sources → extract_content → build_context → validate_context →
+  persist_context → context_ready | execution_failed (no LLM)
+- Phase 2 — JobAnalysisGraph: load_context → prepare_profile → analyze →
+  extract_skills → score → recommend → summarize → persist →
+  analysis_ready | execution_failed (exactly one LLM call: job.analyze)
 
 7. Job state updates after successful completion
 

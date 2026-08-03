@@ -26,3 +26,16 @@ class JobService:
         if not job:
             raise NotFoundError(f"Job {job_id} not found")
         return job
+
+    def persist_prepared_context(self, job_id: str, combined_text: str) -> None:
+        """Persist the prepared context so it survives the in-memory pipeline.
+
+        The analysis phase reads this text as its durable LLM input. Stored on
+        the job as both raw_description (the raw fetched/extracted text) and
+        description (the user-facing field).
+        """
+        self._repository.update_fields(
+            job_id,
+            raw_description=combined_text,
+            description=combined_text,
+        )

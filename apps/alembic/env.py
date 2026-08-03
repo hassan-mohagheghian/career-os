@@ -35,6 +35,15 @@ target_metadata = Base.metadata
 def include_object(obj, name, type_, reflected, compare_to):
     if type_ == "table":
         schema = getattr(obj, "schema", None)
+        target = os.environ.get("ALEMBIC_TARGET_SCHEMA")
+        if target:
+            # Never drop reflected tables that aren't modeled when scoping a
+            # context migration (avoids destructive autogenerate).
+            if reflected and compare_to is None:
+                return False
+            if schema != target:
+                return False
+            return True
         if schema and context.get_context().get("schema") and schema != context.get_context().get("schema"):
             return False
     return True
@@ -48,6 +57,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -65,6 +75,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
+            include_object=include_object,
             version_table="alembic_version",
         )
         with context.begin_transaction():

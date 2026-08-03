@@ -68,8 +68,8 @@ Job Search Intelligence is a **DDD modular monolith** with a hexagonal backend (
 | companies  | Company profiles, intelligence, visa assessment                |
 | skills     | 5-category taxonomy, aliases, relationships, roadmaps           |
 | rules      | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, ...) |
-| ai         | LLMService, providers, tools, LangGraph graphs, prompt registry |
-| processing | ProcessingExecution, workflow progress, events, queue          |
+| ai         | LLMService, providers, tools, LangGraph graphs                     |
+| processing | ProcessingExecution, workflow progress, events, queue, job analysis graphs |
 | shared     | Shared Kernel used by all contexts                              |
 
 Contexts must not cross-import. Dependencies flow domain → application → infrastructure → presentation.
@@ -80,8 +80,8 @@ Contexts must not cross-import. Dependencies flow domain → application → inf
 
 - **LLMService** — single facade for all AI calls; providers are never called directly.
 - **Provider abstraction** — swap via `AI_PROVIDER` env var (openai, mimo, local, gemini, ...).
-- **LangGraph workflows** — stateful pipelines (JobProcessing, CompanyProcessing, JobContextPreparation).
-- **Prompt Platform** — typed, versioned prompts owned by bounded contexts (`ai/infrastructure/prompts/`).
+- **LangGraph workflows** — stateful pipelines: `JobContextPreparationGraph` (LLM-free prep) → `JobAnalysisGraph` (single combined `job.analyze` call), plus `CompanyProcessing`.
+- **Job Analysis prompt** — the `job.analyze` prompt and its output JSON schema are versioned and self-contained in `processing/application/services/job_analysis_prompt.py`; called via `LLMService.generate_structured`. The obsolete `ai/infrastructure/prompts/` package and unused `jobs/infrastructure/ai/prompts/*.py`/`.md` prompt modules were removed.
 
 ---
 
@@ -93,6 +93,7 @@ API → ProcessingExecution → TaskIQ task → TaskIQ worker → LangGraph work
 
 - TaskIQ owns background execution and retries.
 - LangGraph owns workflow state and node execution.
+- The `ProcessingExecutionRunner` runs both graphs for `JOB_PROCESSING`: context preparation first, then the analysis graph reusing the same state.
 - Progress is exposed to the frontend through SSE events.
 
 ---
@@ -101,6 +102,7 @@ API → ProcessingExecution → TaskIQ task → TaskIQ worker → LangGraph work
 
 - `GET /api/sse/processing-events` streams user-facing execution events.
 - Frontend combines a REST snapshot (`/api/processing/queue`) with the SSE stream for live UI.
+- On `execution.completed` / `execution.failed` the frontend refetches the Job Details so the analysis block appears without a reload.
 
 ---
 
@@ -113,11 +115,13 @@ ProcessingExecution (created)
   ↓
 TaskIQ background task
   ↓
-LangGraph workflow: load job → collect sources → fetch → extract → build context → validate
+Phase 1 (no LLM): load job → collect sources → fetch → extract → build context → validate → persist context
+  ↓
+Phase 2 (one LLM call): load context → prepare profile → analyze (job.analyze) → extract skills → score → recommend → summarize → persist
   ↓
 SSE progress events
   ↓
-Save result + scores
+Save result: jobs projection + summaries + job_analysis
 ```
 
 ---

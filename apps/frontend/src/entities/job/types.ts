@@ -161,6 +161,36 @@ export interface JobLinkItem {
   url: string
 }
 
+export interface JobAnalysisScoresExplanation {
+  fit_factors: string[]
+  success_factors: string[]
+  concerns: string[]
+}
+
+export interface JobAnalysisSummary {
+  summary: string
+  resume_fit: string
+  note: string
+}
+
+export interface JobAnalysisSkill {
+  name: string
+  category: string | null
+  level: number | null
+  status: string | null
+  evidence: string | null
+}
+
+export interface JobAnalysis {
+  recommendation: string | null
+  apply_reason: string | null
+  scores_explanation: JobAnalysisScoresExplanation | null
+  summary: JobAnalysisSummary | null
+  skills: JobAnalysisSkill[]
+  insights: string[]
+  generated_at: string | null
+}
+
 export interface JobDetail {
   id: string
   title: string | null
@@ -175,6 +205,7 @@ export interface JobDetail {
   status: string | null
   scores: Scores
   latest_processing_execution: JobDetailExecution | null
+  analysis: JobAnalysis | null
   description: string | null
   notes: JobNoteItem[]
   links: JobLinkItem[]

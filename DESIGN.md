@@ -133,47 +133,112 @@ Placement is right by default; all variants become full-screen on mobile.
 ### Edit Job Drawer
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│ Edit Job                                      [Close]│
-├──────────────────────────────────────────────────────┤
-│ Title (Optional)                                     │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ Staff Software Engineer                          │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Role (Optional)                                     │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │                                                  │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Company (Optional)                                  │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ Acme GmbH                                        │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Location (Optional)                                 │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ Berlin                                           │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Job Post URL *                                     │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ https://...                                      │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Work Type        Employment Type                   │
-│ ┌─────────────┐  ┌──────────────┐                  │ │
-│ │ On-site    ▾│  │ Full-time   ▾│                  │ │
-│ └─────────────┘  └──────────────┘                  │ │
-│ Visa (Optional)     Salary (Optional)              │
-│ ┌─────────────┐  ┌──────────────┐                  │ │
-│ │ Strong       │  │ €90k - €110k │                  │ │
-│ └─────────────┘  └──────────────┘                  │ │
-│ Description                                        │
-│ ┌──────────────────────────────────────────────────┐ │
-│ │ Work alongside a cross-functional team...       │ │
-│ └──────────────────────────────────────────────────┘ │
-│ Notes (editable, add/remove)                       │
-│ Additional Links (editable, add/remove)            │
-├──────────────────────────────────────────────────────┤
-│                              [Cancel]        [Save]  │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ Edit Job                                                      [Close]│
+├──────────────────────────────────────────────────────────────────────┤
+│ Title (Optional)                                                     │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ Staff Software Engineer                                          │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Role (Optional)                                                     │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │                                                                  │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Company (Optional)                                                  │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ Acme GmbH                                                        │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Location (Optional)                                                 │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ Berlin                                                           │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Job Post URL *                                                     │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ https://...                                                      │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Work Type        Employment Type                                   │
+│ ┌─────────────┐  ┌──────────────┐                                  │ │
+│ │ On-site    ▾│  │ Full-time   ▾│                                  │ │
+│ └─────────────┘  └──────────────┘                                  │ │
+│ Visa (Optional)     Salary (Optional)                              │
+│ ┌─────────────┐  ┌──────────────┐                                  │ │
+│ │ Strong      │  │ €90k - €110k  │                                  │ │
+│ └─────────────┘  └──────────────┘                                  │ │
+│ Description                                                        │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ Work alongside a cross-functional team...                       │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+│ Notes (editable, add/remove)                                       │
+│ Additional Links (editable, add/remove)                            │
+├──────────────────────────────────────────────────────────────────────┤
+│                              [Cancel]                        [Save]  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
+
+### Job Details Drawer
+
+Shows the full record for a row, including the AI Analysis block produced by
+the Job Analysis phase. The Analysis section renders only once the analysis
+phase completes (data is refetched on the `execution.completed` SSE event).
+
+```text
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ Job Details                                                             [Close]│
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Senior Backend Engineer                                                      │
+│ Acme Inc  ·  Berlin, Germany  ·  Hybrid  ·  Full-time                        │
+│ Open job posting ↗                                                           │
+│                                                                              │
+│ ┌───────────┐ ┌───────────┐ ┌───────────┐                                    │
+│ │ Overall   │ │ Fit       │ │ Success   │                                    │
+│ │ 79        │ │ 85        │ │ 70        │                                    │
+│ └───────────┘ └───────────┘ └───────────┘                                    │
+│                                                                              │
+│ ┌─ AI Analysis ────────────────────────────────────────────────────────────┐ │
+│ │ [consider]           2026-08-03 12:00                                    │ │
+│ │ Great role overall. It matches the senior backend profile...             │ │
+│ │ • Mention Kafka coursework                                               │ │
+│ │ • Ask about salary band                                                  │ │
+│ ├─ Scores Explanation ────────────────────────────────────────────────────┤ │
+│ │ WHY IT FITS                                                              │ │
+│ │ • Python backend experience                                              │ │
+│ │ CHANCE OF SUCCESS                                                        │ │
+│ │ • Senior level · Berlin                                                  │ │
+│ │ CONCERNS                                                                 │ │
+│ │ • No Kafka experience (red)                                              │ │
+│ ├─ Summary ────────────────────────────────────────────────────────────────┤ │
+│ │ Backend role at Acme.                                                    │ │
+│ │ Resume fit: Strong fit.  Note: Apply early.                              │ │
+│ ├─ Tagged Skills ─────────────────────────────────────────────────────────┤ │
+│ │ [Python · L4 · Language] [Postgres · L4 · Data]                          │ │
+│ │ [Kafka · L1 · Data] [Docker · L3 · Engineering]                          │ │
+│ └───────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│ ┌─ Details ─────────────────────────────────────────────────────────────────┐ │
+│ │ Role            Senior Backend Engineer                                   │ │
+│ │ Status          done                                                      │ │
+│ │ Salary          90k                                                       │ │
+│ │ Visa            sponsored                                                  │ │
+│ │ Created         2026-07-29 09:00                                          │ │
+│ └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│ ┌─ Processing ──────────────────────────────────────────────────────────────┐ │
+│ │ Execution     exec-1234    Status  completed                              │ │
+│ │ ✓ Load Job          ✓ Analyze Job      ✓ Score Job                        │ │
+│ │ ✓ Fetch Content     ✓ Extract Skills   ✓ Recommendation                   │ │
+│ │ ✓ Extract Content   ✓ Summarize        ✓ Save Results                     │ │
+│ │ ✓ Build Context                                                           │ │
+│ └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│ ┌─ Description ─────────────────────────────────────────────────────────────┐ │
+│ │ We need a senior backend engineer with Python, Postgres and Kafka.        │ │
+│ └────────────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+The `recommendation` badge maps apply → green, consider → blue, skip → gray.
+Tagged skills render as compact badges; `missing`/`low` skills are tinted to
+signal gaps. Full specs live in `docs/ux/features/jobs/`.
 
 ---
 

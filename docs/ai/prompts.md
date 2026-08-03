@@ -12,93 +12,42 @@
 
 ## Organization
 
-```
-ai/infrastructure/prompts/
-├── __init__.py              # Public API exports
-├── base.py                  # PromptType enum, PromptSpec, PromptVersion
-├── template.py              # PromptTemplate wrapper around ChatPromptTemplate
-├── inputs.py                # Typed Pydantic input models
-├── components.py            # Reusable prompt components
-├── registry.py              # PromptRegistry with versioning
-├── observability.py         # PromptLogger
-├── register_all.py          # Bootstrapper to register all prompts
-├── jobs/
-│   ├── __init__.py
-│   ├── extract.py           # job.extract — Job extraction prompt
-│   ├── score.py             # job.score — Job scoring prompt
-│   └── summarize.py         # job.summary — Job summary prompt
-├── companies/
-│   ├── __init__.py
-│   ├── extract.py           # company.extract — Company data extraction
-│   └── analyze.py           # company.analyze — Company intelligence
-├── resume/
-│   ├── __init__.py
-│   ├── tailor.py            # resume.tailor — Resume tailoring
-│   └── cover_letter.py      # resume.cover-letter — Cover letter generation
-├── skills/
-│   ├── __init__.py
-│   ├── extract.py           # skills.extract — Skill extraction
-│   └── roadmap.py           # skills.roadmap — Learning roadmap
-└── insights/
-    ├── __init__.py
-    └── overview.py           # insights.overview — Career insights
-```
+> **Status:** the `ai/infrastructure/prompts/` package (base, template,
+> registry, jobs/, companies/, resume/, skills/, insights/) was **removed**.
+> The `job.analyze` prompt is now self-contained and versioned in
+> `processing/application/services/job_analysis_prompt.py`
+> (`build_job_analysis_prompt`, `build_job_analysis_output_schema`,
+> `JOB_ANALYSIS_PROMPT_VERSION`, `JOB_ANALYSIS_SCHEMA_VERSION`, both "1.0.0").
+> It is executed by the `analyze` node of the JobAnalysisGraph via
+> `LLMService.generate_structured(prompt, schema=…, timeout=240)` — exactly
+> one LLM call per job.
+
+Also removed: `jobs/infrastructure/ai/prompts/tailor.py`, `cover_letter.py`,
+`generate_cover_letter.md`, `tailor_resume.md`. The legacy `.txt` prompt files
+(`job_processing/step2/3/4/8.txt`, `resume/step7_cover_generate.txt`,
+`resume/step_resume_generate.txt`) are **kept** for the legacy Socket.IO
+pipeline.
 
 ## Usage
 
-### Rendering a prompt
+The remaining legacy prompts are plain `.txt` templates consumed directly by
+the legacy Socket.IO workers (no runtime registry). The v2 `job.analyze` prompt
+is a self-contained builder:
 
 ```python
-from ai.infrastructure.prompts import get_prompt
-
-# Simple string rendering
-result = get_prompt("job.extract", content="Senior Python Developer at Google...")
-
-# With typed input model
-from ai.infrastructure.prompts.inputs import JobExtractionInput
-inp = JobExtractionInput(content="Senior Python Developer at Google...")
-result = get_prompt("job.extract", **inp.model_dump())
-```
-
-### Using the registry
-
-```python
-from ai.infrastructure.prompts import get_registry
-
-registry = get_registry()
-prompt = registry.get("job.score")
-spec = prompt.spec
-print(f"Version: {spec.version}, Owner: {spec.owner}")
-
-# Get specific version
-prompt_v1 = registry.get("job.extract", version="1.0.0")
-
-# List prompts
-for spec in registry.all_specs():
-    print(f"{spec.identifier} v{spec.version} [{spec.owner}]")
-```
-
-### Versioning
-
-```python
-registry.create_version(
-    identifier="job.extract",
-    template="New template {content}",
-    version="2.0.0",
-    description="Major revision with improved extraction format",
-)
-```
-
-### Reusable components
-
-```python
-from ai.infrastructure.prompts.components import (
-    tone_instructions,
-    JSON_RULES,
-    FORMATTING_RULES,
+from processing.application.services.job_analysis_prompt import (
+    JOB_ANALYSIS_PROMPT_VERSION,   # "1.0.0"
+    JOB_ANALYSIS_SCHEMA_VERSION,   # "1.0.0"
+    build_job_analysis_prompt,
+    build_job_analysis_output_schema,
 )
 
-# Combine components
-from ai.infrastructure.prompts import build_components
-components = build_components(tone_instructions("technical"), JSON_RULES)
+prompt = build_job_analysis_prompt(job_text, profile_text, scoring_rules, resume_text)
+schema = build_job_analysis_output_schema()
+
+# Executed exactly once per job by the analyze node:
+resp = llm.generate_structured(prompt=prompt, schema=schema, timeout=240)
 ```
+
+The prompt and its output JSON schema are versioned together and live in
+`processing/application/services/job_analysis_prompt.py`.

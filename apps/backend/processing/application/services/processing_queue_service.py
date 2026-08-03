@@ -9,6 +9,7 @@ See docs/api/processing/get-processing-queue.md.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from processing.domain.enums import ExecutionStatus
@@ -51,6 +52,8 @@ class ProcessingQueueService:
             "execution_id": execution.id,
             "job_id": execution.target_id if execution.target_type == "job" else execution.target_id,
             "title": self._job_title(job, execution),
+            "url": job.get("url") if job else None,
+            "links": self._job_links(job) if job else [],
             "status": execution.status.value,
             "current_step": current_step.get("title") or current_step.get("id"),
             "progress": progress.get("progress"),
@@ -59,6 +62,29 @@ class ProcessingQueueService:
             "started_at": execution.started_at.isoformat() if execution.started_at else None,
             "finished_at": execution.finished_at.isoformat() if execution.finished_at else None,
         }
+
+    @staticmethod
+    def _job_links(job: dict[str, Any]) -> list[dict[str, Any]]:
+        """Parse a job's stored ``links`` value into link item dicts.
+
+        Tolerates the formats produced over time: JSON arrays, JSON scalars and
+        plain non-JSON strings (legacy worker). Plain strings are wrapped under
+        ``url`` so they are never silently dropped.
+        """
+        raw = job.get("links")
+        if not raw:
+            return []
+        if isinstance(raw, list):
+            return [{"url": item} if isinstance(item, str) else item for item in raw]
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return [{"url": item} if isinstance(item, str) else item for item in parsed]
+                return [{"url": parsed} if isinstance(parsed, str) else parsed]
+            except (TypeError, ValueError):
+                return [{"url": raw}]
+        return []
 
     def _job(self, execution: ProcessingExecution):
         if self._job_repository is None or execution.target_type != "job":

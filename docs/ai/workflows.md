@@ -194,23 +194,52 @@ Each node:
 
 # Job Processing Workflow
 
-Example:
+A job processing run is executed by **two LangGraph phases** inside a single
+ProcessingExecution (`POST /api/jobs/{id}/process`):
 
-1. Receive Job
+## Phase 1 — JobContextPreparationGraph (no LLM)
 
-2. Fetch external data
+`processing/application/workflows/job_context_preparation/graph.py`
 
-3. Extract information
+```
+START → load_job → collect_sources → fetch_sources → extract_content
+      → build_context → validate_context → persist_context
+      → context_ready | execution_failed → END
+```
 
-4. Analyze company and role
+No LLM calls. `persist_context` writes the combined text to the job row
+(`raw_description` + `description`) via `JobService.persist_prepared_context`
+so the analysis phase has a durable LLM input.
 
-5. Send context to LLM provider
+## Phase 2 — JobAnalysisGraph (exactly one LLM call)
 
-6. Generate score
+`processing/application/workflows/job_analysis/graph.py`
 
-7. Generate career guidance
+```
+START → load_context → prepare_profile → analyze → extract_skills → score
+      → recommend → summarize → persist
+      → analysis_ready | execution_failed → END
+```
 
-8. Persist final result
+Exactly **one LLM call** per job: `analyze` runs the versioned `job.analyze`
+prompt (`processing/application/services/job_analysis_prompt.py`) via
+`LLMService.generate_structured(prompt, schema=…, timeout=240)`. Scoring and
+recommendation are deterministic (`processing/application/services/job_analysis_scoring.py`):
+scores clamped 0-100, `overall = round(fit*0.6 + success*0.4)`,
+`apply` ≥ 80 / `consider` ≥ 60 / else `skip`. `persist` writes the `jobs` row
+projection, the `summaries` row (legacy grade via `grade_for_overall`), and
+the canonical `job_analysis` table (schema `job`).
+
+If Phase 1 ends with `execution_failed`, Phase 2 is skipped.
+
+The runner (`processing/infrastructure/runner/execution_runner.py`) runs
+Phase 1, then — when the result is not `FAILED` — builds and invokes the
+analysis graph with the same `JobProcessingState`.
+
+Both phases share one user-facing workflow (`WORKFLOW_ID="job_processing"`,
+`WORKFLOW_NAME="Job Processing") with 13 steps; internal nodes
+(`load_context`, `prepare_profile`, `execution_failed`, `context_ready`,
+`analysis_ready`) stay hidden from the frontend.
 
 ---
 

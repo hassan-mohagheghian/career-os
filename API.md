@@ -46,6 +46,44 @@ No explicit API versioning. Breaking changes are avoided by maintaining backward
 
 ---
 
+## Job Details + Analysis
+
+`GET /api/jobs/{job_id}` returns the full job record plus the `analysis`
+block produced by the Job Analysis phase:
+
+```json
+{
+  "id": "…",
+  "title": "Senior Backend Engineer",
+  "company_name": "Acme Inc",
+  "scores": { "overall": 79, "fit": 85, "success": 70 },
+  "analysis": {
+    "recommendation": "consider",
+    "apply_reason": "Great role overall.",
+    "scores_explanation": {
+      "fit_factors": ["Python backend experience"],
+      "success_factors": ["Senior level"],
+      "concerns": ["No Kafka experience"]
+    },
+    "summary": { "summary": "…", "resume_fit": "…", "note": "…" },
+    "skills": [{ "name": "Python", "category": "Language", "level": 4, "status": "matched", "evidence": "…" }],
+    "insights": ["…"],
+    "generated_at": "2026-08-03T12:00:00+00:00"
+  },
+  "latest_processing_execution": { "…": "…" },
+  "description": "…"
+}
+```
+
+- `analysis` is `null` until the analysis phase completes for the job.
+- For jobs processed before the analysis phase existed, `analysis` is a
+  backward-compatible block built from the legacy `jobs`/`summaries`
+  projections (no `recommendation`, grade-derived `summary`).
+- The frontend refetches this endpoint on `execution.completed` /
+  `execution.failed` SSE events so results appear live in the Job Details drawer.
+
+---
+
 ## Full Reference
 
 For endpoint-by-endpoint documentation see `docs/api/api-design.md` (conventions) and the per-context docs under `docs/api/`.
