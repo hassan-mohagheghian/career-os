@@ -17,6 +17,7 @@ const JobsPageContent = dynamic(
 
 function JobsPageV2Adapter() {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
+  const [queueReloadKey, setQueueReloadKey] = useState(0)
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
@@ -44,7 +45,9 @@ function JobsPageV2Adapter() {
   }, [items])
 
   const handleProcessV2 = useCallback((id: string) => {
-    processMutation.mutate(id)
+    processMutation.mutate(id, {
+      onSettled: () => setQueueReloadKey(k => k + 1),
+    })
     setQueueDrawerOpen(true)
   }, [processMutation])
 
@@ -75,7 +78,9 @@ function JobsPageV2Adapter() {
   }, [showConfirm, refetch])
 
   const handleRetry = useCallback((id: string) => {
-    processMutation.mutate(id)
+    processMutation.mutate(id, {
+      onSettled: () => setQueueReloadKey(k => k + 1),
+    })
     setQueueDrawerOpen(true)
   }, [processMutation])
 
@@ -126,6 +131,7 @@ function JobsPageV2Adapter() {
         isProcessing={processMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}
         onQueueDrawerOpenChange={setQueueDrawerOpen}
+        queueReloadKey={queueReloadKey}
         addJobDrawerOpen={addJobDrawerOpen}
         onAddJobDrawerOpenChange={setAddJobDrawerOpen}
         detailJobId={detailJobId}

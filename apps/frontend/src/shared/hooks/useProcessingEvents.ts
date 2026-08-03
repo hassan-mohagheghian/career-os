@@ -1,17 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
 import type { JobListItem, ProcessingStatus } from '@/entities/job/types'
 
-const SSE_URL = '/events/processing'
 const JOBS_KEY = 'jobs-v2-infinite'
 
 export function useProcessingEvents() {
   const queryClient = useQueryClient()
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const updateJobInCache = useCallback((jobId: string | null, updater: (job: JobListItem) => JobListItem) => {
     if (!jobId) return
@@ -100,54 +98,9 @@ export function useProcessingEvents() {
     }
   }, [updateJobInCache])
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) return
-
-    const es = new EventSource(SSE_URL)
-    eventSourceRef.current = es
-
-    const eventTypes: SSEEventType[] = [
-      'execution.created',
-      'execution.started',
-      'execution.completed',
-      'execution.failed',
-      'execution.cancelled',
-      'workflow.step.started',
-      'workflow.step.progress',
-      'workflow.step.completed',
-      'workflow.step.failed',
-    ]
-
-    for (const type of eventTypes) {
-      es.addEventListener(type, (e) => {
-        try {
-          const data: SSEEventEnvelope = JSON.parse((e as MessageEvent).data)
-          handleEvent(type, data)
-        } catch {
-          // ignore malformed events
-        }
-      })
-    }
-
-    es.onerror = () => {
-      es.close()
-      eventSourceRef.current = null
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connect()
-      }, 3000)
-    }
-  }, [handleEvent])
-
   useEffect(() => {
-    connect()
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-    }
-  }, [connect])
+    return subscribeProcessingEvents((type, data) => {
+      handleEvent(type, data)
+    })
+  }, [handleEvent])
 }

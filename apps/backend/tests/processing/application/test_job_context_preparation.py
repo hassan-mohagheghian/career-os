@@ -111,6 +111,7 @@ class FakeFetcher:
             success=success,
             content=content,
             error=error,
+            metadata={"degraded": True} if not success and "not installed" in (error or "") else {},
         )
 
 
@@ -285,7 +286,44 @@ class TestCollectSourcesNode:
 
         state = CollectSourcesNode()(state)
         assert state.sources == []
-        assert state.notes == []
+        assert state.notes == ["not json"]
+
+    def test_preserves_plain_string_notes(self):
+        note = "Strong technical fit: Python backend skills, senior level"
+        job = _job_dict(url="https://example.com/job", notes=note, links="[]")
+        state = _initial_state()
+        state.job = JobData.from_job_dict(job)
+
+        state = CollectSourcesNode()(state)
+
+        assert state.notes == [note]
+        assert any(s.type == SourceType.PRIMARY_URL for s in state.sources)
+
+    def test_preserves_plain_string_json_scalar_note(self):
+        job = _job_dict(
+            url="https://example.com/job",
+            notes=json.dumps("Plain scalar note"),
+            links="[]",
+        )
+        state = _initial_state()
+        state.job = JobData.from_job_dict(job)
+
+        state = CollectSourcesNode()(state)
+
+        assert state.notes == ["Plain scalar note"]
+
+    def test_preserves_plain_string_link(self):
+        job = _job_dict(
+            url="https://example.com/job",
+            notes="[]",
+            links="https://example.com/apply",
+        )
+        state = _initial_state()
+        state.job = JobData.from_job_dict(job)
+
+        state = CollectSourcesNode()(state)
+
+        assert "https://example.com/apply" in [s.url for s in state.sources]
 
     def test_no_job_records_error(self):
         state = CollectSourcesNode()(_initial_state())
@@ -510,6 +548,37 @@ class TestJobContextPreparationGraph:
         assert state.processing_context is not None
         assert state.processing_context.combined_text == "[NOTE] Useful note about the role"
 
+    def test_plain_string_note_with_failed_fetch_completes(self):
+        note = "Strong technical fit: Python backend skills, senior level"
+        job = _job_dict(
+            url="https://www.linkedin.com/jobs/view/4418271279",
+            notes=note,
+            links="[]",
+        )
+        graph = _build_graph(
+            job=job,
+            fetcher=FakeFetcher(
+                {
+                    "https://www.linkedin.com/jobs/view/4418271279": (
+                        False,
+                        "",
+                        "Playwright is not installed",
+                    )
+                }
+            ),
+            extractor=FakeExtractor({"https://www.linkedin.com/jobs/view/4418271279": ""}),
+        )
+
+        state = graph.invoke(_initial_state())
+
+        assert state.status == ExecutionStatus.COMPLETED
+        assert state.validation_result is not None and state.validation_result.valid
+        assert state.processing_context is not None
+        assert state.processing_context.notes == [note]
+        assert state.processing_context.combined_text == f"[NOTE] {note}"
+        assert any("Fetch failed" in e for e in state.errors)
+        assert not any("empty notes" in e for e in state.errors)
+
     def test_emits_all_context_events(self):
         publisher = RecordingEventPublisher()
         graph = _build_graph(job=_job_dict(), publisher=publisher)
@@ -623,6 +692,31 @@ class TestCompositeContentFetcher:
         result = composite.fetch(source)
 
         assert result.success is False
+
+    def test_returns_primary_error_over_degraded_fallback(self):
+        first = FakeFetcher({"https://example.com/job": (False, "", "HTTP 403")})
+        second = FakeFetcher(
+            {"https://example.com/job": (False, "", "Playwright is not installed")}
+        )
+        composite = CompositeContentFetcher([first, second])
+
+        source = JobSource(url="https://example.com/job", type=SourceType.PRIMARY_URL)
+        result = composite.fetch(source)
+
+        assert result.success is False
+        assert result.error == "HTTP 403"
+
+    def test_returns_degraded_error_when_only_fallback_attempted(self):
+        first = FakeFetcher(
+            {"https://example.com/job": (False, "", "Playwright is not installed")}
+        )
+        composite = CompositeContentFetcher([first])
+
+        source = JobSource(url="https://example.com/job", type=SourceType.PRIMARY_URL)
+        result = composite.fetch(source)
+
+        assert result.success is False
+        assert "Playwright is not installed" in (result.error or "")
 
 
 class TestCompositeContentExtractor:

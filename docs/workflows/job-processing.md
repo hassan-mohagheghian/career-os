@@ -263,6 +263,10 @@ rejected:
 - **notes / links** — jobs with `notes = None` / `links = None` (or any
   non-string value) are normalized to `"[]"` when mapped into `JobData`
   (`notes_raw` / `links_raw`) rather than raising a `ValidationError`.
+- **Plain-string notes / links** — a stored note or link that is a plain
+  non-JSON string (the legacy worker format) is preserved as a single text
+  note instead of being dropped, so a meaningful note is never silently
+  ignored and reported as "empty notes".
 - **Parse failures** — any error raised while building `JobData` is caught
   by `load_job`, recorded with the `[load_job]` prefix, and the execution
   is marked failed instead of crashing the worker.

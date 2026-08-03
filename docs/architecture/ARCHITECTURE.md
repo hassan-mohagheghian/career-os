@@ -67,19 +67,19 @@
 
 ## Core Entities
 
-| Entity | Table | Purpose |
-|--------|-------|---------|
-| Job | `jobs` | Processed postings with scores (fit_score, success_score, overall_score) |
-| Company | `companies` | Profiles with industry, tech_stack, funding_stage |
-| Company Intelligence | `company_intelligence` | AI analysis per company |
-| Resume | `resumes` | Master, tailored, cover letters, LinkedIn |
-| Rules | `rules` | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
-| Skills | `skills` | Skills with category, confidence, market_relevance, source |
-| Skill Aliases | `skill_aliases` | Merged skill variants (canonical skill_id → alias_name) |
-| Skill Relationships | `skill_relationships` | Related, similar, parent, child, alternative links |
-| Skill Roadmaps | `skill_roadmaps` | Hierarchical learning trees per skill |
-| Skill Roadmap Progress | `skill_roadmap_progress` | User completion tracking |
-| Skill Roadmap Jobs | `skill_roadmap_jobs` | Generation job status |
+| Entity                 | Table                    | Purpose                                                                       |
+| ---------------------- | ------------------------ | ----------------------------------------------------------------------------- |
+| Job                    | `jobs`                   | Processed postings with scores (fit_score, success_score, overall_score)      |
+| Company                | `companies`              | Profiles with industry, tech_stack, funding_stage                             |
+| Company Intelligence   | `company_intelligence`   | AI analysis per company                                                       |
+| Resume                 | `resumes`                | Master, tailored, cover letters, LinkedIn                                     |
+| Rules                  | `rules`                  | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
+| Skills                 | `skills`                 | Skills with category, confidence, market_relevance, source                    |
+| Skill Aliases          | `skill_aliases`          | Merged skill variants (canonical skill_id → alias_name)                       |
+| Skill Relationships    | `skill_relationships`    | Related, similar, parent, child, alternative links                            |
+| Skill Roadmaps         | `skill_roadmaps`         | Hierarchical learning trees per skill                                         |
+| Skill Roadmap Progress | `skill_roadmap_progress` | User completion tracking                                                      |
+| Skill Roadmap Jobs     | `skill_roadmap_jobs`     | Generation job status                                                         |
 
 ```
 jobs ── company ── company_intelligence
@@ -206,6 +206,7 @@ app/
 ```
 
 **Key patterns:**
+
 - **Provider Abstraction**: Swap LLM providers by changing `AI_PROVIDER` env var
 - **LLMService**: Single entry point for all AI calls (Facade Pattern)
 - **Agent Layer**: Thin orchestration over existing services
@@ -215,31 +216,37 @@ app/
 ## Data Flows
 
 ### Job Processing
+
 ```
 URL/Notes/Links → pending_jobs → JobWorker (Template Method) → LLMService → fetch → validate → extract → score → save to jobs
 ```
 
 ### Company Processing
+
 ```
 Notes/Links → pending_companies → CompanyWorker (Template Method) → LLMService → fetch → extract → analyze → save to companies + company_intelligence
 ```
 
 ### Insights Generation
+
 ```
 Click Generate → InsightsService → LLMService → per-section prompts (6 sections) → save insights
 ```
 
 ### Skills Intelligence
+
 ```
 Click Generate → InsightsService → LLMService → skills_intelligence prompt → analyze skills
 ```
 
 ### Skill Roadmap Generation
+
 ```
 Click Generate → SkillRoadmapService → LLMService → prompts → save to skill_roadmaps + skill_roadmap_progress + emit progress
 ```
 
 ### Resume/Cover Generation
+
 ```
 Click Generate → GenerationWorker (Template Method) → LLMService → company context enrichment → prompts → save to resumes
 ```
@@ -261,77 +268,82 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 - **LangGraph workflows**: Composable, stateful processing pipelines for multi-step AI operations
 - **Template Method pattern**: WorkerBase with Worker subclasses (JobWorker, CompanyWorker, GenerationWorker)
 - **LLMService via Provider abstraction**: Swap providers (Mimo, OpenAI, Local, Gemini, ...) via `AI_PROVIDER` env var
-- **DDD/SOLID/TDD**: Follow domain-driven design, SOLID principles, and test-driven development
+- **DDD/OOP/SOLID/TDD**: Follow domain-driven design, OOP, SOLID principles, and test-driven development
 
 ## WebSocket Events
 
-| Event | Room | Purpose |
-|-------|------|---------|
-| `pending:update` | `job_{pid}` | Job step progress |
-| `pending:log` | `job_{pid}` | Job processing logs |
-| `pending:complete` | `job_{pid}` | Job finished |
-| `pending:error` | `job_{pid}` | Job processing error |
-| `pending:progress` | `job_{pid}` | Job progress percentage |
-| `company:update` | `company_{pid}` | Company processing progress |
-| `generation:update` | `generation_{id}` | Resume/cover generation progress |
-| `insights:progress` | insights | Insights generation progress |
-| `skill_roadmap:update` | skills | Per-skill roadmap generation |
-| `queue:status` | — | Queue status changes |
+| Event                  | Room              | Purpose                          |
+| ---------------------- | ----------------- | -------------------------------- |
+| `pending:update`       | `job_{pid}`       | Job step progress                |
+| `pending:log`          | `job_{pid}`       | Job processing logs              |
+| `pending:complete`     | `job_{pid}`       | Job finished                     |
+| `pending:error`        | `job_{pid}`       | Job processing error             |
+| `pending:progress`     | `job_{pid}`       | Job progress percentage          |
+| `company:update`       | `company_{pid}`   | Company processing progress      |
+| `generation:update`    | `generation_{id}` | Resume/cover generation progress |
+| `insights:progress`    | insights          | Insights generation progress     |
+| `skill_roadmap:update` | skills            | Per-skill roadmap generation     |
+| `queue:status`         | —                 | Queue status changes             |
 
 ## API Endpoints
 
 ### Jobs
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/jobs` | GET | Paginated job list |
-| `/api/jobs/:id` | GET/PATCH/DELETE | Job CRUD |
-| `/api/jobs/:id/process` | POST | Process job |
+
+| Endpoint                | Method           | Purpose            |
+| ----------------------- | ---------------- | ------------------ |
+| `/api/jobs`             | GET              | Paginated job list |
+| `/api/jobs/:id`         | GET/PATCH/DELETE | Job CRUD           |
+| `/api/jobs/:id/process` | POST             | Process job        |
 
 ### Companies
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/companies` | GET/POST | Company CRUD |
-| `/api/companies/:id` | GET/DELETE | Company details/delete |
-| `/api/pending-companies` | GET/POST | Company processing queue |
+
+| Endpoint                 | Method     | Purpose                  |
+| ------------------------ | ---------- | ------------------------ |
+| `/api/companies`         | GET/POST   | Company CRUD             |
+| `/api/companies/:id`     | GET/DELETE | Company details/delete   |
+| `/api/pending-companies` | GET/POST   | Company processing queue |
 
 ### Skills
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/tech-stack` | GET/POST | Skills CRUD |
-| `/api/tech-stack/:id` | PUT/DELETE | Update/delete skill |
-| `/api/tech-stack/:id/hide` | PATCH | Soft-delete |
-| `/api/tech-stack/:id/restore` | PATCH | Restore hidden |
-| `/api/tech-stack/:id/rename` | PATCH | Rename skill |
-| `/api/tech-stack/merge` | POST | Merge skills |
-| `/api/tech-stack/hidden` | GET | List hidden skills |
-| `/api/skill-roadmaps` | GET | Roadmap tree |
-| `/api/skill-roadmaps/generate` | POST | AI roadmap generation |
-| `/api/skill-roadmaps/extend` | POST | Extend roadmap |
-| `/api/skill-roadmaps/finegrain` | POST | Fine-grain roadmap |
-| `/api/skill-roadmap-progress/:id` | PUT | Toggle topic completion |
-| `/api/skill-roadmap-progress/all` | GET | All progress summary |
-| `/api/skill-roadmap-progress` | GET | Progress for specific skill |
+
+| Endpoint                          | Method     | Purpose                     |
+| --------------------------------- | ---------- | --------------------------- |
+| `/api/tech-stack`                 | GET/POST   | Skills CRUD                 |
+| `/api/tech-stack/:id`             | PUT/DELETE | Update/delete skill         |
+| `/api/tech-stack/:id/hide`        | PATCH      | Soft-delete                 |
+| `/api/tech-stack/:id/restore`     | PATCH      | Restore hidden              |
+| `/api/tech-stack/:id/rename`      | PATCH      | Rename skill                |
+| `/api/tech-stack/merge`           | POST       | Merge skills                |
+| `/api/tech-stack/hidden`          | GET        | List hidden skills          |
+| `/api/skill-roadmaps`             | GET        | Roadmap tree                |
+| `/api/skill-roadmaps/generate`    | POST       | AI roadmap generation       |
+| `/api/skill-roadmaps/extend`      | POST       | Extend roadmap              |
+| `/api/skill-roadmaps/finegrain`   | POST       | Fine-grain roadmap          |
+| `/api/skill-roadmap-progress/:id` | PUT        | Toggle topic completion     |
+| `/api/skill-roadmap-progress/all` | GET        | All progress summary        |
+| `/api/skill-roadmap-progress`     | GET        | Progress for specific skill |
 
 ### Insights
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/insights` | GET | All insights |
-| `/api/insights/:section` | GET | Section data |
-| `/api/insights/refresh` | POST | Generate all sections |
-| `/api/insights/:section/refresh` | POST | Generate single section |
-| `/api/insights/progress` | GET | Real-time progress |
-| `/api/insights/status` | GET | Section statuses |
-| `/api/insights/skills-intel` | GET | Skills intelligence |
-| `/api/insights/cancel` | POST | Cancel generation |
+
+| Endpoint                         | Method | Purpose                 |
+| -------------------------------- | ------ | ----------------------- |
+| `/api/insights`                  | GET    | All insights            |
+| `/api/insights/:section`         | GET    | Section data            |
+| `/api/insights/refresh`          | POST   | Generate all sections   |
+| `/api/insights/:section/refresh` | POST   | Generate single section |
+| `/api/insights/progress`         | GET    | Real-time progress      |
+| `/api/insights/status`           | GET    | Section statuses        |
+| `/api/insights/skills-intel`     | GET    | Skills intelligence     |
+| `/api/insights/cancel`           | POST   | Cancel generation       |
 
 ### System
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/pending` | GET/POST | Job queue |
-| `/api/pending-companies` | GET/POST | Company processing queue |
-| `/api/rules` | GET/PUT | Scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
-| `/api/generation-history` | GET | Unified generation history (5 source tables) |
-| `/api/health` | GET | Health check |
-| `/api/docs` | GET | Swagger UI |
-| `/api/redoc` | GET | ReDoc |
-| `/api/openapi.json` | GET | OpenAPI 3.0 spec |
+
+| Endpoint                  | Method   | Purpose                                                          |
+| ------------------------- | -------- | ---------------------------------------------------------------- |
+| `/api/pending`            | GET/POST | Job queue                                                        |
+| `/api/pending-companies`  | GET/POST | Company processing queue                                         |
+| `/api/rules`              | GET/PUT  | Scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
+| `/api/generation-history` | GET      | Unified generation history (5 source tables)                     |
+| `/api/health`             | GET      | Health check                                                     |
+| `/api/docs`               | GET      | Swagger UI                                                       |
+| `/api/redoc`              | GET      | ReDoc                                                            |
+| `/api/openapi.json`       | GET      | OpenAPI 3.0 spec                                                 |

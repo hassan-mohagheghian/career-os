@@ -21,7 +21,8 @@ class CompositeContentFetcher(ContentFetcher):
         self._fetchers = fetchers
 
     def fetch(self, source: JobSource) -> FetchedContent:
-        last: FetchedContent | None = None
+        last_real: FetchedContent | None = None
+        last_degraded: FetchedContent | None = None
         for fetcher in self._fetchers:
             try:
                 result = fetcher.fetch(source)
@@ -35,8 +36,11 @@ class CompositeContentFetcher(ContentFetcher):
             if result.success:
                 result.metadata["fetcher"] = fetcher.__class__.__name__
                 return result
-            last = result
-        return last if last is not None else FetchedContent(
+            if result.metadata.get("degraded"):
+                last_degraded = result
+            else:
+                last_real = result
+        return last_real if last_real is not None else last_degraded if last_degraded is not None else FetchedContent(
             source=source,
             url=source.url or "",
             success=False,

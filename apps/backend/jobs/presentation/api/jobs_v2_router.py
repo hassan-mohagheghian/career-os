@@ -32,19 +32,33 @@ from dependencies import get_job_repo, get_processing_execution_repo
 router = APIRouter()
 
 
-def _parse_items(raw: Any) -> list[dict[str, Any]]:
-    """Parse a stored JSON string (notes/links) into a list of items."""
+def _parse_items(raw: Any, plain_key: str = "content") -> list[dict[str, Any]]:
+    """Parse a stored notes/links value into a list of item dicts.
+
+    Tolerates the formats produced over time: JSON arrays (Edit Job API),
+    JSON scalars, and plain non-JSON strings (legacy worker). Plain strings
+    are wrapped under ``plain_key`` so they are never silently dropped.
+    """
     if not raw:
         return []
     if isinstance(raw, list):
-        return raw
+        return _items_to_dicts(raw, plain_key)
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
-            return parsed if isinstance(parsed, list) else [parsed]
+            if isinstance(parsed, list):
+                return _items_to_dicts(parsed, plain_key)
+            return _items_to_dicts([parsed], plain_key)
         except (TypeError, ValueError):
-            return []
+            return [{plain_key: raw}]
     return []
+
+
+def _items_to_dicts(items: list[Any], plain_key: str) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for item in items:
+        result.append({plain_key: item} if isinstance(item, str) else item)
+    return result
 
 
 def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
@@ -203,8 +217,8 @@ def get_job_detail(
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
         description=job_dict.get("description"),
-        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"))],
-        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"))],
+        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
+        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -265,8 +279,8 @@ def update_job(
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
         description=job_dict.get("description"),
-        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"))],
-        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"))],
+        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
+        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )

@@ -67,9 +67,8 @@ function CompaniesPageAdapter() {
         onClearDeepLink={() => {}}
         onRefresh={fetchCompanies}
         onOpenJob={openDrawer}
-        onNavigateToJob={(id: string) => {
+        onNavigateToJob={() => {
           window.location.href = `/jobs`
-          setTimeout(() => openDrawer(id), 200)
         }}
         onOpenCompany={openCompanyDrawer}
         openWorkflow={openWorkflow}
@@ -81,9 +80,7 @@ function CompaniesPageAdapter() {
         onDelete={handleDeleteCompany}
         onReprocess={handleReprocessCompany}
         onOpenJob={(id: string) => openDrawer(id)}
-        onNavigateToJob={(id: string) => {
-          setTimeout(() => openDrawer(id), 100)
-        }}
+        onNavigateToJob={(id: string) => openDrawer(id)}
         onViewAllJobs={() => {
           setCompanyDrawer(null)
           setSearchParam('company', null)

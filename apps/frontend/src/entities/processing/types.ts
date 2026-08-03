@@ -76,6 +76,9 @@ export interface QueueSnapshot {
 
 export interface SSEPayload {
   status: string
+  step?: WorkflowStep
+  updated_at?: string | null
+  message?: string
   [key: string]: any
 }
 

@@ -32,35 +32,23 @@ The event flow:
 
 ```text
 ProcessingExecution
-
         |
-
         v
-
 Background Worker (TaskIQ)
-
         |
-
         v
-
 Workflow Engine (LangGraph)
-
         |
-
         v
-
-Processing Event Mapper
-
+Processing Event Mapper (progress_ops / runner / actions)
         |
-
         v
-
-SSE Stream
-
+Redis pub/sub  (processing:events:{execution_id})
         |
-
         v
-
+SSE Stream  (/events/processing  → psubscribe "processing:events:*")
+        |
+        v
 Frontend State
 ```
 
@@ -68,13 +56,17 @@ The Processing Event Mapper converts internal execution changes into stable user
 
 ---
 
-# Endpoint
+# Endpoints
 
-## Subscribe Processing Events
+## Subscribe Global Processing Events
 
 GET
 
-    /api/sse/processing-events
+    /events/processing
+
+Subscribes to the Redis pub/sub pattern `processing:events:*`. One connection
+receives events for **all** executions and jobs. This is the stream the frontend
+uses.
 
 Response:
 
@@ -87,6 +79,24 @@ The connection remains open until:
 - Client disconnects.
 - Authentication expires.
 - Server shutdown occurs.
+
+## Subscribe Per-Execution Events
+
+GET
+
+    /api/processing/executions/{execution_id}/events
+
+Subscribes to a single execution's channel (`processing:events:{execution_id}`).
+This endpoint exists for narrow use cases; the frontend does **not** use it for
+the Processing Queue drawer.
+
+## Connection Model
+
+Because the global stream matches the `processing:events:*` pattern, a drawer
+listing many executions still needs only **one** SSE connection. Never open one
+per-execution connection per listed item — that multiplies connections linearly
+with the number of rows. The frontend shares a single global EventSource across
+all consumers (see Frontend Synchronization Rules).
 
 ---
 
@@ -145,7 +155,7 @@ Payload:
 
 ```json
 {
-  "status": "queued"
+  "status": "QUEUED"
 }
 ```
 
@@ -163,7 +173,8 @@ Payload:
 
 ```json
 {
-  "status": "processing"
+  "status": "RUNNING",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -182,7 +193,8 @@ Payload:
 
 ```json
 {
-  "status": "completed"
+  "status": "COMPLETED",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -201,11 +213,9 @@ Payload:
 
 ```json
 {
-  "status": "failed",
-  "error": {
-    "code": "FETCH_FAILED",
-    "message": "Unable to fetch source"
-  }
+  "status": "FAILED",
+  "message": "Unable to fetch source",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -219,7 +229,8 @@ Payload:
 
 ```json
 {
-  "status": "cancelled"
+  "status": "CANCELLED",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -240,7 +251,7 @@ Payload:
 
 ```json
 {
-  "execution_id": "execution-123"
+  "status": "FAILED"
 }
 ```
 
@@ -276,6 +287,7 @@ Payload:
 
 ```json
 {
+  "status": "processing",
   "step": {
     "id": "fetch_content",
     "title": "Fetch Content",
@@ -295,6 +307,7 @@ Payload:
 
 ```json
 {
+  "status": "processing",
   "step": {
     "id": "fetch_content",
     "title": "Fetch Content",
@@ -315,6 +328,7 @@ Payload:
 
 ```json
 {
+  "status": "completed",
   "step": {
     "id": "fetch_content",
     "title": "Fetch Content",
@@ -334,6 +348,7 @@ Payload:
 
 ```json
 {
+  "status": "failed",
   "step": {
     "id": "fetch_content",
     "title": "Fetch Content",
@@ -365,10 +380,15 @@ Fetch Content
     Additional Links
 ```
 
+The `step` payload is the full `WorkflowStep` model, so child statuses and
+progress are carried inside the parent step's `children` array — even when a
+child transition does not emit its own event.
+
 Payload:
 
 ```json
 {
+  "status": "processing",
   "step": {
     "id": "fetch_content",
     "children": [
@@ -406,39 +426,40 @@ Continuous updates:
 SSE events
 ```
 
+A single shared `EventSource('${NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/events/processing')`
+(module singleton in `shared/api/processingEvents.ts`) fans events out to every
+consumer, so all components — the Processing Queue drawer and the jobs-list
+status hook — share one connection regardless of how many executions are visible.
+
+The EventSource connects **directly to the backend origin**, not through the
+Next.js rewrite proxy: the Next dev proxy compresses proxied responses
+(`Content-Encoding: gzip`), which buffers the SSE stream so the browser does
+not receive events in real time. Set `NEXT_PUBLIC_API_URL` to the backend
+origin (defaults to `http://localhost:5000`).
+
+Workflow step events are applied directly to the in-memory workflow tree via a
+local merge (`mergeWorkflowStep`), so step/child progress renders instantly
+without a REST round-trip. REST is only re-fetched when needed: on drawer open,
+on `execution.created`, and on lifecycle/queue changes.
+
 Flow:
 
 ```text
 Open Processing Queue
-
         |
-
         v
-
 GET /api/processing/queue
-
         |
-
         v
-
 GET /api/processing/executions/{id}
-
         |
-
         v
-
-Subscribe SSE
-
+Subscribe SSE  (one shared EventSource to the backend origin, e.g. http://localhost:5000/events/processing)
         |
-
         v
-
-Apply events
-
+Apply events  (workflow.step.* → merge tree; execution.* / queue.* → refresh snapshot)
         |
-
         v
-
 Update UI
 ```
 

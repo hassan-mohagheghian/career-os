@@ -30,7 +30,7 @@ Job Search Intelligence is an AI-powered career platform that helps software eng
 8. **All cards must have delete button**
 9. **Default sort**: Newest first (`created_at desc`)
 10. **Save folder paths configurable via .env**
-11. **DDD/SOLID/TDD**: Follow domain-driven design, SOLID principles, and test-driven development
+11. **DDD/OOP/SOLID/TDD**: Follow domain-driven design, OOP, SOLID principles, and test-driven development
 
 ## System Boundaries
 

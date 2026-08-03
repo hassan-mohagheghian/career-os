@@ -68,12 +68,24 @@ class CollectSourcesNode:
                 self._add_url_source(sources, url.strip())
 
     @staticmethod
-    def _parse_json_list(raw: str) -> list:
-        try:
-            parsed = json.loads(raw or "[]")
-            return parsed if isinstance(parsed, list) else []
-        except (ValueError, TypeError):
+    def _parse_json_list(raw: str | None) -> list:
+        """Parse a stored notes/links value into a list of items.
+
+        Tolerates every storage format produced by the system over time:
+
+        - ``None`` or empty string -> empty list
+        - JSON array (the Edit Job API format) -> the parsed list
+        - JSON scalar (``"note"``, a URL string) -> wrapped as a single item
+        - plain non-JSON string (legacy worker format) -> kept as a single
+          item so meaningful text notes are never dropped
+        """
+        if raw is None or str(raw).strip() == "":
             return []
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            return [str(raw).strip()]
+        return parsed if isinstance(parsed, list) else [parsed]
 
     @staticmethod
     def _add_url_source(sources: list[JobSource], url: str) -> None:

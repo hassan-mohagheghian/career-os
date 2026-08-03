@@ -34,6 +34,7 @@ class PlaywrightContentFetcher(ContentFetcher):
                 url=url,
                 success=False,
                 error="Playwright is not installed",
+                metadata={"degraded": True},
             )
 
         try:

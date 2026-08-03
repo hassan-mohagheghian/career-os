@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { CircleNotch, Clock, CheckCircle, XCircle, CaretRight, CaretDown } from '@phosphor-icons/react'
 import { processingApi } from '@/entities/processing/api'
-import type { QueueEntry, QueueSnapshot, WorkflowStep, WorkflowProgress, SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
+import { mergeWorkflowStep } from '@/entities/processing/workflowMerge'
+import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
+import type { QueueEntry, QueueSnapshot, WorkflowStep, WorkflowProgress } from '@/entities/processing/types'
 
 interface ProcessingDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  reloadKey?: number
 }
 
 function stepStatusIcon(status: WorkflowStep['status']) {
@@ -46,14 +49,14 @@ function WorkflowStepItem({ step, depth }: { step: WorkflowStep; depth: number }
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-foreground truncate">{step.title}</p>
             {step.progress !== null && step.progress !== undefined && (
-              <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress * 100)}%</span>
+              <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress)}%</span>
             )}
           </div>
           {step.progress !== null && step.progress !== undefined && (
             <div className="w-full h-1 bg-muted rounded-full mt-1 overflow-hidden">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.round(step.progress * 100)}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, step.progress))}%` }}
               />
             </div>
           )}
@@ -81,14 +84,14 @@ function WorkflowPanel({ workflow, entry }: { workflow: WorkflowProgress | null;
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-foreground">{workflow?.name ?? 'Workflow'}</p>
         {workflow?.progress !== null && workflow?.progress !== undefined && (
-          <span className="text-2xs text-muted-foreground">{Math.round(workflow.progress * 100)}%</span>
+          <span className="text-2xs text-muted-foreground">{Math.round(workflow.progress)}%</span>
         )}
       </div>
       {workflow?.progress !== null && workflow?.progress !== undefined && (
         <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-            style={{ width: `${Math.round(workflow.progress * 100)}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, workflow.progress))}%` }}
           />
         </div>
       )}
@@ -145,9 +148,10 @@ function QueueSection({
   )
 }
 
-export function ProcessingDrawer({ open, onOpenChange }: ProcessingDrawerProps) {
+export function ProcessingDrawer({ open, onOpenChange, reloadKey }: ProcessingDrawerProps) {
   const [snapshot, setSnapshot] = useState<QueueSnapshot>({ processing: [], queued: [], failed: [] })
   const [workflows, setWorkflows] = useState<Record<string, WorkflowProgress | null>>({})
+  const loadedRef = useRef<Set<string>>(new Set())
 
   const loadSnapshot = useCallback(async () => {
     try {
@@ -159,8 +163,10 @@ export function ProcessingDrawer({ open, onOpenChange }: ProcessingDrawerProps) 
   }, [])
 
   const loadWorkflow = useCallback(async (executionId: string) => {
+    if (loadedRef.current.has(executionId)) return
     try {
       const detail = await processingApi.get(executionId)
+      loadedRef.current.add(executionId)
       setWorkflows(prev => ({ ...prev, [executionId]: detail.workflow }))
     } catch {
       // best effort
@@ -170,7 +176,7 @@ export function ProcessingDrawer({ open, onOpenChange }: ProcessingDrawerProps) 
   useEffect(() => {
     if (!open) return
     loadSnapshot()
-  }, [open, loadSnapshot])
+  }, [open, reloadKey, loadSnapshot])
 
   useEffect(() => {
     if (!open) return
@@ -183,40 +189,36 @@ export function ProcessingDrawer({ open, onOpenChange }: ProcessingDrawerProps) 
   useEffect(() => {
     if (!open) return
 
-    const es = new EventSource('/events/processing')
-
-    const eventTypes: SSEEventType[] = [
-      'execution.created',
-      'execution.started',
-      'execution.completed',
-      'execution.failed',
-      'execution.cancelled',
-      'queue.entry.removed',
-      'workflow.step.started',
-      'workflow.step.progress',
-      'workflow.step.completed',
-      'workflow.step.failed',
-    ]
-
-    const handle = (type: SSEEventType) => (e: MessageEvent) => {
-      try {
-        const data: SSEEventEnvelope = JSON.parse(e.data)
-        if (data.execution_id) {
+    return subscribeProcessingEvents((type, data) => {
+      if (
+        type === 'workflow.step.started' ||
+        type === 'workflow.step.progress' ||
+        type === 'workflow.step.completed' ||
+        type === 'workflow.step.failed'
+      ) {
+        const incoming = data.payload.step
+        if (!incoming) return
+        if (loadedRef.current.has(data.execution_id)) {
+          setWorkflows(prev => {
+            const existing = prev[data.execution_id]
+            if (!existing) return prev
+            return { ...prev, [data.execution_id]: mergeWorkflowStep(existing, incoming) }
+          })
+        } else {
           loadWorkflow(data.execution_id)
         }
-        loadSnapshot()
-      } catch {
-        // best effort
+        return
       }
-    }
 
-    for (const type of eventTypes) {
-      es.addEventListener(type, handle(type))
-    }
-
-    return () => {
-      es.close()
-    }
+      if (type === 'queue.entry.removed') {
+        loadedRef.current.delete(data.execution_id)
+        setWorkflows(prev => {
+          const { [data.execution_id]: _removed, ...rest } = prev
+          return rest
+        })
+      }
+      loadSnapshot()
+    })
   }, [open, loadSnapshot, loadWorkflow])
 
   const renderDetail = useCallback((entry: QueueEntry) => {

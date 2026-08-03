@@ -22,14 +22,14 @@ cd apps/frontend && npm run dev               # frontend dev server
 
 ## Tech Stack
 
-| Layer     | Technology                                                       |
-| --------- | ---------------------------------------------------------------- |
-| Backend   | Python 3.14, FastAPI, SQLAlchemy ORM + Alembic, Pydantic v2, structlog |
-| Frontend  | React, Next.js (App Router), TypeScript, shadcn/ui, Tailwind CSS |
-| AI        | LLMService + provider abstraction, LangGraph workflows            |
-| Queue     | TaskIQ + Redis background workers                                 |
-| Realtime  | SSE (`/api/sse/processing-events`)                                |
-| Testing   | pytest (backend), vitest (frontend)                               |
+| Layer    | Technology                                                             |
+| -------- | ---------------------------------------------------------------------- |
+| Backend  | Python 3.14, FastAPI, SQLAlchemy ORM + Alembic, Pydantic v2, structlog |
+| Frontend | React, Next.js (App Router), TypeScript, shadcn/ui, Tailwind CSS       |
+| AI       | LLMService + provider abstraction, LangGraph workflows                 |
+| Queue    | TaskIQ + Redis background workers                                      |
+| Realtime | SSE (`/api/sse/processing-events`)                                     |
+| Testing  | pytest (backend), vitest (frontend)                                    |
 
 ## Repository Layout
 
@@ -64,7 +64,7 @@ app/
 3. All frontend code is TypeScript (`.ts` / `.tsx`) — no JavaScript.
 4. Feature-based frontend: `entities/`, `features/`, `widgets/`, `shared/`.
 5. Backend follows DDD modular monolith + hexagonal architecture.
-6. Follow DDD / SOLID / TDD throughout.
+6. Follow DDD / OOP / SOLID / TDD throughout.
 7. Default sort is newest first (`created_at desc`).
 8. Hard delete for processed jobs: delete the job and related tables.
 9. All cards must have a delete button.
@@ -95,11 +95,11 @@ uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 
 ## Documentation Entry Points
 
-| File          | Purpose                                    |
-| ------------- | ------------------------------------------ |
-| `CONTEXT.md`  | Project context, target users, key rules   |
-| `DOMAIN.md`   | Core entities and business rules           |
-| `ARCHITECTURE.md` | System design overview                 |
-| `API.md`      | API overview                              |
-| `DESIGN.md`   | Product & UX design overview + wireframes  |
-| `docs/`       | Full documentation (ai/, api/, architecture/, domain/, ux/, ...) |
+| File              | Purpose                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `CONTEXT.md`      | Project context, target users, key rules                         |
+| `DOMAIN.md`       | Core entities and business rules                                 |
+| `ARCHITECTURE.md` | System design overview                                           |
+| `API.md`          | API overview                                                     |
+| `DESIGN.md`       | Product & UX design overview + wireframes                        |
+| `docs/`           | Full documentation (ai/, api/, architecture/, domain/, ux/, ...) |

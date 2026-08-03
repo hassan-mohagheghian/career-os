@@ -46,6 +46,7 @@ interface JobsPageProps {
   isProcessing: boolean
   queueDrawerOpen: boolean
   onQueueDrawerOpenChange: (open: boolean) => void
+  queueReloadKey?: number
   addJobDrawerOpen: boolean
   onAddJobDrawerOpenChange: (open: boolean) => void
   detailJobId: string | null
@@ -65,7 +66,7 @@ export function JobsPage({
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
   onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel, isProcessing,
-  queueDrawerOpen, onQueueDrawerOpenChange,
+  queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
   addJobDrawerOpen, onAddJobDrawerOpenChange,
   detailJobId, onDetailJobIdChange,
   editJobId, onEditJobIdChange,
@@ -147,6 +148,7 @@ export function JobsPage({
       <ProcessingDrawer
         open={queueDrawerOpen}
         onOpenChange={onQueueDrawerOpenChange}
+        reloadKey={queueReloadKey}
       />
       <JobDetailDrawer
         jobId={detailJobId}

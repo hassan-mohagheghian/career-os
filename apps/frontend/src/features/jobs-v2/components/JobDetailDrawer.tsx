@@ -32,7 +32,7 @@ function StepItem({ step, depth }: { step: JobDetailWorkflowStep; depth: number 
           {step.error && <p className="text-2xs text-red-500">{step.error.message}</p>}
         </div>
         {step.progress !== null && step.progress !== undefined && (
-          <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress * 100)}%</span>
+          <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress)}%</span>
         )}
       </div>
       {step.children.map(child => (

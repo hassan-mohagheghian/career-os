@@ -12,15 +12,18 @@ The refactoring follows a **test-after** strategy for structural migration:
 ## Test Levels
 
 ### Unit Tests (Domain)
+
 - Test entity creation and methods
 - Test value object equality and behavior
 - Test use case logic with mock repositories
 
 ### Integration Tests (Infrastructure)
+
 - Test SQLAlchemy repository implementations
 - Test database queries against in-memory SQLite
 
 ### API Tests (Presentation)
+
 - Test FastAPI endpoints with TestClient
 - Test request/response schemas
 
