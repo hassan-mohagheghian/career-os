@@ -64,7 +64,7 @@ jobs:
         run: uv run mypy apps/backend --ignore-missing-imports || true
 
       - name: Run backend tests
-        run: uv run pytest apps/backend/tests/ -v --tb=short --junitxml=test-results/pytest.xml --cov=apps.backend --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=html
+        run: uv run pytest apps/backend/tests/ -v --tb=short --junitxml=test-results/pytest.xml --cov=apps.backend --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json --cov-report=html
         env:
           DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
           REDIS_HOST: localhost
@@ -79,14 +79,36 @@ jobs:
           reporter: java-junit
           fail-on-error: 'false'
 
-      - name: Publish backend coverage report
+      - name: Summarize backend coverage
         if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: coverage
-          path: coverage.xml
-          reporter: cobertura
-          fail-on-error: 'false'
+        run: |
+          uv run python - <<'EOF'
+          import json
+          import os
+
+          path = os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null')
+          try:
+              with open('coverage.json') as f:
+                  data = json.load(f)
+          except (FileNotFoundError, json.JSONDecodeError):
+              with open(path, 'a') as f:
+                  f.write('## Backend Coverage\n\nNo coverage report produced.\n')
+              raise SystemExit(0)
+
+          totals = data['totals']
+          pct = totals['percent_covered']
+          stmts = totals['num_statements']
+          covered = totals['covered_lines']
+          missing = totals['missing_lines']
+          branches = totals.get('num_branches', 0)
+          covered_branches = totals.get('covered_branches', 0)
+
+          with open(path, 'a') as f:
+              f.write('## Backend Coverage\n\n')
+              f.write(f'**Total: {pct:.2f}%** — {covered}/{stmts} lines covered, {missing} missing\n')
+              if branches:
+                  f.write(f'Branches: {covered_branches}/{branches}\n')
+          EOF
 
       - name: Upload test and coverage reports
         if: always()
@@ -96,6 +118,7 @@ jobs:
           path: |
             test-results/pytest.xml
             coverage.xml
+            coverage.json
             htmlcov/
           retention-days: 7
 

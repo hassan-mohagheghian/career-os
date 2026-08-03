@@ -61,6 +61,7 @@ exp-file.txt
 .pytest_cache/
 htmlcov/
 coverage.xml
+coverage.json
 test-results/
 
 # Server logs
