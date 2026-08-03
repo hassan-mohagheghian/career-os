@@ -24,7 +24,7 @@ class SQLAlchemyResumeRepository(IResumeRepository):
             "version": m.version,
             "raw_text": m.raw_text,
             "created_at": m.created_at,
-            "job_num": m.job_num,
+            "job_id": m.job_id,
         }
 
     def get_all(self) -> list[dict[str, Any]]:
@@ -42,7 +42,7 @@ class SQLAlchemyResumeRepository(IResumeRepository):
         resume_id = data.get("id", "")
         existing = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
         if existing:
-            for field in ["title", "company", "role", "content", "version", "raw_text", "job_num"]:
+            for field in ["title", "company", "role", "content", "version", "raw_text", "job_id"]:
                 if field in data:
                     setattr(existing, field, data[field])
             self._session.commit()
@@ -81,16 +81,16 @@ class SQLAlchemyResumeRepository(IResumeRepository):
         self._session.commit()
         return count
 
-    def get_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_for_job(self, job_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(
-            ResumeModel.job_num == job_num,
+            ResumeModel.job_id == job_id,
             ~ResumeModel.id.like("cover_%"),
         ).order_by(ResumeModel.created_at.desc()).first()
         return self._to_dict(m) if m else None
 
-    def get_cover_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_cover_for_job(self, job_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(
-            ResumeModel.job_num == job_num,
+            ResumeModel.job_id == job_id,
             ResumeModel.id.like("cover_%"),
         ).order_by(ResumeModel.created_at.desc()).first()
         return self._to_dict(m) if m else None

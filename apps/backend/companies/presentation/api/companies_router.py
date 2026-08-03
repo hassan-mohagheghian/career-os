@@ -56,7 +56,7 @@ def get_company(
     company["intelligence"] = intel
 
     jobs = job_repo.get_jobs_by_company_id(id)
-    company["jobs"] = [{k: j[k] for k in ["num", "company", "role", "location", "match", "score", "fit_score", "success_score", "overall_score"] if k in j} for j in jobs]
+    company["jobs"] = [{k: j[k] for k in ["id", "company", "role", "location", "match", "score", "fit_score", "success_score", "overall_score"] if k in j} for j in jobs]
 
     return company
 

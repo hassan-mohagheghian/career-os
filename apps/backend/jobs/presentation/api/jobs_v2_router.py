@@ -6,7 +6,7 @@ import json
 import math
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from jobs.presentation.api.schemas.jobs_v2 import (
     JobListItemSchema,
@@ -57,7 +57,7 @@ def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
     exec_schema = None
     if status in ("queued", "processing", "running", "completed", "failed", "cancelled"):
         exec_schema = ProcessingExecutionSchema(
-            id=str(job_dict.get("num", "")),
+            id=str(job_dict.get("id", "")),
             status=status,
             started_at=None,
             finished_at=None,
@@ -66,7 +66,6 @@ def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
     visa_raw = job_dict.get("visa")
     return JobListItemSchema(
         id=job_dict.get("id"),
-        num=job_dict.get("num"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         location=job_dict.get("location"),
@@ -187,7 +186,6 @@ def get_job_detail(
     work_type = (job_dict.get("work_type") or "").lower()
     return JobDetailResponseSchema(
         id=job_dict.get("id"),
-        num=job_dict.get("num"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         role=job_dict.get("role"),
@@ -212,6 +210,22 @@ def get_job_detail(
     )
 
 
+@router.delete("/{job_id}", status_code=204)
+def delete_job(
+    job_id: str,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Hard-delete a job by UUID and its related tables and executions."""
+    job_dict = repo.get_by_id(job_id)
+    if not job_dict:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    exec_repo.delete_by_target("job", job_id)
+    if not repo.delete_by_id(job_id):
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return Response(status_code=204)
+
+
 @router.patch("/{job_id}", response_model=JobDetailResponseSchema)
 def update_job(
     job_id: str,
@@ -234,7 +248,6 @@ def update_job(
 
     return JobDetailResponseSchema(
         id=job_dict.get("id"),
-        num=job_dict.get("num"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         role=job_dict.get("role"),

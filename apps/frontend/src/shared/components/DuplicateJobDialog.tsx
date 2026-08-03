@@ -17,7 +17,7 @@ export default function DuplicateJobDialog({ duplicateJob, setDuplicateJob, onRe
           <DialogDescription>How would you like to update this job?</DialogDescription>
         </DialogHeader>
         <Card className="p-3 bg-muted">
-          <div className="text-sm font-bold">#{duplicateJob?.num} {duplicateJob?.company}</div>
+          <div className="text-sm font-bold">{duplicateJob?.id} {duplicateJob?.company}</div>
           <div className="text-xs mt-1 text-muted-foreground">
             Score: <span className="font-bold" style={{ color: ['A','A+','A++'].includes(duplicateJob?.score) ? '#22c55e' : ['B','C'].includes(duplicateJob?.score) ? '#eab308' : '#ef4444' }}>{duplicateJob?.score}</span>
             {' · '}
@@ -25,10 +25,10 @@ export default function DuplicateJobDialog({ duplicateJob, setDuplicateJob, onRe
           </div>
         </Card>
         <DialogFooter className="flex-row gap-2">
-          <Button className="flex-1 gap-1" onClick={() => onRescore(duplicateJob.num)}>
+          <Button className="flex-1 gap-1" onClick={() => onRescore(duplicateJob.id)}>
             <TrendUp className="w-3.5 h-3.5" /> Rescore
           </Button>
-          <Button variant="outline" className="flex-1 gap-1" onClick={() => onReprocess(duplicateJob.num)}>
+          <Button variant="outline" className="flex-1 gap-1" onClick={() => onReprocess(duplicateJob.id)}>
             <Repeat className="w-3.5 h-3.5" /> Reprocess
           </Button>
           <Button variant="ghost" onClick={() => setDuplicateJob(null)}>Cancel</Button>

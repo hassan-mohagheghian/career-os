@@ -26,7 +26,7 @@ class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):
             "version": m.version,
             "raw_text": m.raw_text,
             "created_at": m.created_at,
-            "job_num": m.job_num,
+            "job_id": m.job_id,
         }
 
     def get_all(self) -> list[dict[str, Any]]:
@@ -41,7 +41,7 @@ class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):
         doc_id = data.get("id", "")
         existing = self._session.query(ResumeModel).filter(ResumeModel.id == doc_id).first()
         if existing:
-            for field in ["title", "company", "role", "content", "version", "raw_text", "job_num"]:
+            for field in ["title", "company", "role", "content", "version", "raw_text", "job_id"]:
                 if field in data:
                     setattr(existing, field, data[field])
             self._session.commit()
@@ -61,32 +61,32 @@ class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):
         self._session.commit()
         return True
 
-    def get_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_for_job(self, job_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(
-            ResumeModel.job_num == job_num,
+            ResumeModel.job_id == job_id,
             ~ResumeModel.id.like("cover_%"),
         ).order_by(ResumeModel.created_at.desc()).first()
         return self._to_dict(m) if m else None
 
-    def get_cover_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_cover_for_job(self, job_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(
-            ResumeModel.job_num == job_num,
+            ResumeModel.job_id == job_id,
             ResumeModel.id.like("cover_%"),
         ).order_by(ResumeModel.created_at.desc()).first()
         return self._to_dict(m) if m else None
 
-    def get_active_for_job(self, job_num: int, doc_type: str) -> dict[str, Any] | None:
-        resume_id = f"{doc_type}_{job_num}"
+    def get_active_for_job(self, job_id: str, doc_type: str) -> dict[str, Any] | None:
+        resume_id = f"{doc_type}_{job_id}"
         m = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
         if not m:
             return None
         state = json.loads(m.raw_text) if m.raw_text else {}
         if state.get("status") in ("queued", "processing"):
-            return {"id": job_num, "job_num": job_num, "type": doc_type, "status": state.get("status")}
+            return {"id": job_id, "job_id": job_id, "type": doc_type, "status": state.get("status")}
         return None
 
-    def create_generation(self, job_num: int, doc_type: str) -> dict[str, Any]:
-        resume_id = f"{doc_type}_{job_num}"
+    def create_generation(self, job_id: str, doc_type: str) -> dict[str, Any]:
+        resume_id = f"{doc_type}_{job_id}"
         now = datetime.utcnow().isoformat()
         state = json.dumps({"status": "queued", "created_at": now})
         existing = self._session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
@@ -98,20 +98,20 @@ class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):
         else:
             m = ResumeModel(
                 id=resume_id,
-                title=f"{doc_type} for job #{job_num}",
-                job_num=job_num,
+                title=f"{doc_type} for job {job_id}",
+                job_id=job_id,
                 raw_text=state,
             )
             self._session.add(m)
             self._session.commit()
             self._session.refresh(m)
-        return {"id": job_num, "job_num": job_num, "type": doc_type, "status": "queued"}
+        return {"id": job_id, "job_id": job_id, "type": doc_type, "status": "queued"}
 
     def get_all_active(self) -> list[dict[str, Any]]:
         return []
 
-    def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
+    def get_history_for_job(self, job_id: str) -> list[dict[str, Any]]:
         rows = self._session.query(ResumeModel).filter(
-            ResumeModel.job_num == job_num
+            ResumeModel.job_id == job_id
         ).order_by(ResumeModel.created_at.desc()).all()
         return [self._to_dict(r) for r in rows]

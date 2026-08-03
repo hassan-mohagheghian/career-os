@@ -43,23 +43,23 @@ def create_job(
         links=links_json,
     )
 
-    return CreateJobResponse(id=job["num"], status=job["status"])
+    return CreateJobResponse(id=job["id"], status=job["status"])
 
 
-@router.post("/{num}/generate-resume")
-def generate_resume(num: int, session = Depends(get_session_sync)):
+@router.post("/{job_id}/generate-resume")
+def generate_resume(job_id: str, session = Depends(get_session_sync)):
     """Start background resume generation for a job."""
     repo = SQLAlchemyJobRepository(session)
-    job = repo.get_by_num(num)
+    job = repo.get_by_id(job_id)
     if not job:
-        raise NotFoundError(f"Job {num} not found")
+        raise NotFoundError(f"Job {job_id} not found")
 
     doc_repo = SQLAlchemyTailoredDocumentRepository(session)
-    running = doc_repo.get_active_for_job(num, "resume")
+    running = doc_repo.get_active_for_job(job_id,"resume")
     if running:
         raise BadRequestError("A resume generation is already running for this job")
 
-    gen = doc_repo.create_generation(num, "resume")
+    gen = doc_repo.create_generation(job_id,"resume")
     gen_id = gen["id"]
     session.commit()
 
@@ -72,23 +72,23 @@ def generate_resume(num: int, session = Depends(get_session_sync)):
             get_logger('jobs').error("Generation failed", gen_id=gen_id, error=str(e))
 
     threading.Thread(target=_run, daemon=True).start()
-    return {"gen_id": gen_id, "status": "queued", "job_num": num}
+    return {"gen_id": gen_id, "status": "queued", "job_id": job_id}
 
 
-@router.post("/{num}/generate-cover")
-def generate_cover(num: int, session = Depends(get_session_sync)):
+@router.post("/{job_id}/generate-cover")
+def generate_cover(job_id: str, session = Depends(get_session_sync)):
     """Start background cover letter generation for a job."""
     repo = SQLAlchemyJobRepository(session)
-    job = repo.get_by_num(num)
+    job = repo.get_by_id(job_id)
     if not job:
-        raise NotFoundError(f"Job {num} not found")
+        raise NotFoundError(f"Job {job_id} not found")
 
     doc_repo = SQLAlchemyTailoredDocumentRepository(session)
-    running = doc_repo.get_active_for_job(num, "cover")
+    running = doc_repo.get_active_for_job(job_id,"cover")
     if running:
         raise BadRequestError("A cover letter generation is already running for this job")
 
-    gen = doc_repo.create_generation(num, "cover")
+    gen = doc_repo.create_generation(job_id,"cover")
     gen_id = gen["id"]
     session.commit()
 
@@ -100,4 +100,4 @@ def generate_cover(num: int, session = Depends(get_session_sync)):
             pass
 
     threading.Thread(target=_run, daemon=True).start()
-    return {"gen_id": gen_id, "status": "queued", "job_num": num}
+    return {"gen_id": gen_id, "status": "queued", "job_id": job_id}

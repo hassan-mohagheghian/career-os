@@ -31,40 +31,43 @@ def session(_engine):
 # ── Job Repository ────────────────────────────────────────────────
 
 class TestSAJobRepository:
+    def _job(self, session, **kwargs):
+        from shared.infrastructure.database.models.job_model import JobModel
+        m = JobModel(**kwargs)
+        session.add(m)
+        session.commit()
+        return m
+
     def test_get_by_num(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company="Google"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1", company="Google")
         repo = SQLAlchemyJobRepository(session)
-        result = repo.get_by_num(1)
+        result = repo.get_by_id(job.id)
         assert result is not None
-        assert result["num"] == 1
+        assert result["id"] == job.id
 
     def test_get_by_num_not_found(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_by_num(999) is None
+        assert repo.get_by_id("nonexistent") is None
 
     def test_get_by_num_with_company(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-        from shared.infrastructure.database.models.job_model import JobModel
         from shared.infrastructure.database.models.company_model import CompanyModel
         co = CompanyModel(name="Google")
         session.add(co)
         session.commit()
-        session.add(JobModel(num=1, url="https://ex.com/1", company="Google", company_id=co.id))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1", company="Google", company_id=co.id)
         repo = SQLAlchemyJobRepository(session)
-        result = repo.get_by_num(1)
-        assert result["linked_company"]["name"] == "Google"
+        result = repo.get_by_id(job.id)
+        assert result["company_id"] == co.id
 
     def test_list_jobs(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company="A", deleted=0))
-        session.add(JobModel(num=2, url="https://ex.com/2", company="B", deleted=0))
-        session.commit()
+        self._job(session, url="https://ex.com/1", company="A")
+        self._job(session, url="https://ex.com/2", company="B")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs()
         assert total == 2
@@ -74,8 +77,7 @@ class TestSAJobRepository:
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
         for i in range(5):
-            session.add(JobModel(num=i+1, url=f"https://ex.com/{i}", company=f"C{i}"))
-        session.commit()
+            self._job(session, url=f"https://ex.com/{i}", company=f"C{i}")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(offset=0, limit=2)
         assert total == 5
@@ -84,9 +86,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_companies(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company="Google"))
-        session.add(JobModel(num=2, url="https://ex.com/2", company="Meta"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", company="Google")
+        self._job(session, url="https://ex.com/2", company="Meta")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_companies": "Google"})
         assert total == 1
@@ -94,9 +95,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_cities(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", location="Berlin"))
-        session.add(JobModel(num=2, url="https://ex.com/2", location="Munich"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", location="Berlin")
+        self._job(session, url="https://ex.com/2", location="Munich")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_cities": "Berlin"})
         assert total == 1
@@ -104,9 +104,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_tech(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", stack="Python"))
-        session.add(JobModel(num=2, url="https://ex.com/2", stack="Java"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", stack="Python")
+        self._job(session, url="https://ex.com/2", stack="Java")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_tech": "Python"})
         assert total == 1
@@ -114,9 +113,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_matches(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", match="High"))
-        session.add(JobModel(num=2, url="https://ex.com/2", match="Low"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", match="High")
+        self._job(session, url="https://ex.com/2", match="Low")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_matches": "High"})
         assert total == 1
@@ -124,9 +122,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_work_types(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", work_type="Remote"))
-        session.add(JobModel(num=2, url="https://ex.com/2", work_type="On-site"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", work_type="Remote")
+        self._job(session, url="https://ex.com/2", work_type="On-site")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_work_types": "Remote"})
         assert total == 1
@@ -134,9 +131,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_employment_types(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", employment_type="Full-time"))
-        session.add(JobModel(num=2, url="https://ex.com/2", employment_type="Part-time"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", employment_type="Full-time")
+        self._job(session, url="https://ex.com/2", employment_type="Part-time")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_employment_types": "Full-time"})
         assert total == 1
@@ -144,9 +140,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_response_status(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", response_status="applied"))
-        session.add(JobModel(num=2, url="https://ex.com/2", response_status="pending"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", response_status="applied")
+        self._job(session, url="https://ex.com/2", response_status="pending")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_response_status": "applied"})
         assert total == 1
@@ -154,9 +149,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_applied(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", apply_time="2024-01-01"))
-        session.add(JobModel(num=2, url="https://ex.com/2"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", apply_time="2024-01-01")
+        self._job(session, url="https://ex.com/2")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_applied": "true"})
         assert total == 1
@@ -164,9 +158,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_scores(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", score="A"))
-        session.add(JobModel(num=2, url="https://ex.com/2", score="B"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", score="A")
+        self._job(session, url="https://ex.com/2", score="B")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_scores": "A"})
         assert total == 1
@@ -174,9 +167,8 @@ class TestSAJobRepository:
     def test_list_jobs_sorting(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", overall_score=50))
-        session.add(JobModel(num=2, url="https://ex.com/2", overall_score=90))
-        session.commit()
+        self._job(session, url="https://ex.com/1", overall_score=50)
+        self._job(session, url="https://ex.com/2", overall_score=90)
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(sort_by="overall_score", sort_dir="desc")
         assert jobs[0]["overall_score"] == 90
@@ -184,8 +176,7 @@ class TestSAJobRepository:
     def test_list_jobs_invalid_sort(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(sort_by="invalid_field", sort_dir="invalid")
         assert len(jobs) == 1
@@ -193,9 +184,8 @@ class TestSAJobRepository:
     def test_get_stats(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", match="High", score="A", work_type="Remote"))
-        session.add(JobModel(num=2, url="https://ex.com/2", match="Low", score="B"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", match="High", score="A", work_type="Remote")
+        self._job(session, url="https://ex.com/2", match="Low", score="B")
         repo = SQLAlchemyJobRepository(session)
         stats = repo.get_stats()
         assert stats["total"] == 2
@@ -206,85 +196,65 @@ class TestSAJobRepository:
     def test_update(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        result = repo.update(1, {"notes": "test", "apply_time": "2024-01-01"})
+        result = repo.update_by_id(job.id, {"notes": "test", "apply_time": "2024-01-01"})
         assert result["notes"] == "test"
 
     def test_update_not_found(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         repo = SQLAlchemyJobRepository(session)
-        assert repo.update(999, {"notes": "test"}) is None
+        assert repo.update_by_id("nonexistent", {"notes": "test"}) is None
 
     def test_update_empty(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        result = repo.update(1, {})
+        result = repo.update_by_id(job.id, {})
         assert result is not None
 
     def test_delete(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.delete(1) is True
+        assert repo.delete_by_id(job.id) is True
 
     def test_mark_deleted(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        repo.mark_deleted(1)
-        result = repo.get_by_num(1)
+        repo.mark_deleted(job.id)
+        result = repo.get_by_id(job.id)
         assert result["deleted"] == 1
 
     def test_mark_rescoring(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        repo.mark_rescoring(1, False)
-        result = repo.get_by_num(1)
+        repo.mark_rescoring(job.id, False)
+        result = repo.get_by_id(job.id)
         assert result["rescoring"] == 0
 
     def test_get_all_active(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", deleted=0))
-        session.add(JobModel(num=2, url="https://ex.com/2", deleted=1))
-        session.commit()
+        self._job(session, url="https://ex.com/1")
+        self._job(session, url="https://ex.com/2", deleted=1)
         repo = SQLAlchemyJobRepository(session)
         active = repo.get_all_active()
         assert len(active) == 1
 
-    def test_get_next_num(self, session):
-        from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-        from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=5, url="https://ex.com/1"))
-        session.commit()
-        repo = SQLAlchemyJobRepository(session)
-        assert repo.get_next_num() == 6
-
-    def test_get_next_num_empty(self, session):
-        from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
-        repo = SQLAlchemyJobRepository(session)
-        assert repo.get_next_num() == 1
-
     def test_get_by_url(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
         result = repo.get_by_url("https://ex.com/1")
-        assert result["num"] == 1
+        assert result["id"] == job.id
 
     def test_get_by_url_not_found(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
@@ -294,63 +264,57 @@ class TestSAJobRepository:
     def test_get_num_by_url(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_num_by_url("https://ex.com/1") == 1
+        assert repo.get_id_by_url("https://ex.com/1") == job.id
 
     def test_get_num_by_url_not_found(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_num_by_url("https://nonexistent.com") is None
+        assert repo.get_id_by_url("https://nonexistent.com") is None
 
     def test_upsert_insert(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         repo = SQLAlchemyJobRepository(session)
-        result = repo.upsert({"num": 1, "url": "https://ex.com/1", "company": "A"})
-        assert result["num"] == 1
+        result = repo.upsert({"url": "https://ex.com/1", "company": "A"})
+        assert result["company"] == "A"
 
     def test_upsert_update(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company="A"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1", company="A")
         repo = SQLAlchemyJobRepository(session)
-        result = repo.upsert({"num": 1, "company": "B"})
+        result = repo.upsert({"id": job.id, "company": "B"})
         assert result["company"] == "B"
 
     def test_update_fields(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.update_fields(1, company_id=5) is True
+        assert repo.update_fields(job.id, company_id=5) is True
 
     def test_update_workflow_log(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.update_workflow_log(1, "[\"step1\"]") is True
+        assert repo.update_workflow_log(job.id, "[\"step1\"]") is True
 
     def test_set_deleted_by_url(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.add(JobModel(num=2, url="https://ex.com/1"))
-        session.commit()
+        job1 = self._job(session, url="https://ex.com/1")
+        job2 = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        count = repo.set_deleted_by_url("https://ex.com/1", exclude_num=1)
+        count = repo.set_deleted_by_url("https://ex.com/1", exclude_id=job1.id)
         assert count == 1
 
     def test_delete_all_active(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", deleted=0))
-        session.add(JobModel(num=2, url="https://ex.com/2", deleted=0))
-        session.commit()
+        self._job(session, url="https://ex.com/1")
+        self._job(session, url="https://ex.com/2")
         repo = SQLAlchemyJobRepository(session)
         count = repo.delete_all_active()
         assert count == 2
@@ -358,25 +322,22 @@ class TestSAJobRepository:
     def test_get_company_id(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company_id=5))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1", company_id=5)
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_company_id(1) == 5
+        assert repo.get_company_id(job.id) == 5
 
     def test_get_company_id_none(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1"))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_company_id(1) is None
+        assert repo.get_company_id(job.id) is None
 
     def test_get_dashboard_counts(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", match="High"))
-        session.add(JobModel(num=2, url="https://ex.com/2", match="Low"))
-        session.commit()
+        self._job(session, url="https://ex.com/1", match="High")
+        self._job(session, url="https://ex.com/2", match="Low")
         repo = SQLAlchemyJobRepository(session)
         counts = repo.get_dashboard_counts()
         assert counts["jobs_total"] == 2
@@ -385,8 +346,7 @@ class TestSAJobRepository:
     def test_get_location_data(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", location="Berlin", locations='["Berlin"]'))
-        session.commit()
+        self._job(session, url="https://ex.com/1", location="Berlin", locations='["Berlin"]')
         repo = SQLAlchemyJobRepository(session)
         result = repo.get_location_data()
         assert len(result) == 1
@@ -395,17 +355,15 @@ class TestSAJobRepository:
     def test_get_company_id_by_num(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company_id=3))
-        session.commit()
+        job = self._job(session, url="https://ex.com/1", company_id=3)
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_company_id_by_num(1) == 3
+        assert repo.get_company_id_by_id(job.id) == 3
 
     def test_get_jobs_by_company_id(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        session.add(JobModel(num=1, url="https://ex.com/1", company_id=1))
-        session.add(JobModel(num=2, url="https://ex.com/2", company_id=2))
-        session.commit()
+        self._job(session, url="https://ex.com/1", company_id=1)
+        self._job(session, url="https://ex.com/2", company_id=2)
         repo = SQLAlchemyJobRepository(session)
         result = repo.get_jobs_by_company_id(1)
         assert len(result) == 1
@@ -783,7 +741,7 @@ class TestSACompanyRepository:
         co = CompanyModel(name="Google")
         session.add(co)
         session.commit()
-        session.add(JobModel(num=1, url="https://ex.com/1", company_id=co.id))
+        session.add(JobModel(url="https://ex.com/1", company_id=co.id))
         session.commit()
         repo = SQLAlchemyCompanyRepository(session)
         result = repo.get_all_with_job_counts()
@@ -832,7 +790,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        result = repo.get_by_id(str(pj.num), "pending_jobs")
+        result = repo.get_by_id(str(pj.id), "pending_jobs")
         assert result["url"] == "https://ex.com/1"
 
     def test_get_by_id_companies(self, session):
@@ -889,7 +847,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_status(str(pj.num), "processing", "pending_jobs") is True
+        assert repo.update_status(str(pj.id), "processing", "pending_jobs") is True
 
     def test_count_pending(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -934,7 +892,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_fields(pj.num, table="pending_jobs", status="processing") is True
+        assert repo.update_fields(pj.id, table="pending_jobs", status="processing") is True
 
     def test_update_fields_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -953,7 +911,7 @@ class TestSAPendingRepository:
     def test_update_fields_not_found(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_fields(999, table="pending_jobs") is False
+        assert repo.update_fields("999", table="pending_jobs") is False
 
     def test_update_step(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -962,7 +920,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_step(pj.num, "step_fetch", 1, "pending_jobs") is True
+        assert repo.update_step(pj.id, "step_fetch", 1, "pending_jobs") is True
 
     def test_save_session_id(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -971,7 +929,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.save_session_id(pj.num, "sess123") is True
+        assert repo.save_session_id(pj.id, "sess123") is True
 
     def test_update_workflow_log(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -980,7 +938,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.update_workflow_log(pj.num, "[\"step1\"]") is True
+        assert repo.update_workflow_log(pj.id, "[\"step1\"]") is True
 
     def test_get_max_queue_order(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
@@ -1083,7 +1041,7 @@ class TestSAPendingRepository:
         session.add(pj)
         session.commit()
         repo = SQLAlchemyPendingRepository(session)
-        assert repo.reset_steps(pj.num, 2, "pending_jobs") is True
+        assert repo.reset_steps(pj.id, 2, "pending_jobs") is True
 
     def test_reset_steps_companies(self, session):
         from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository

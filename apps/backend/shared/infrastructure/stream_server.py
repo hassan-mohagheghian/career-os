@@ -69,7 +69,7 @@ def _load_rules(context='job'):
         lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
     return '\n'.join(lines)
 
-def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
+def _update_step(pid, step, val, status=None, company=None, job_id=None, error=None):
     from dependencies import get_session_sync
     from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
     session = get_session_sync()
@@ -80,8 +80,8 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
             fields['status'] = status
         if company:
             fields['company'] = company
-        if job_num:
-            fields['job_num'] = job_num
+        if job_id:
+            fields['job_id'] = job_id
         if error:
             fields['error'] = error
         fields['updated_at'] = datetime.now().isoformat()
@@ -89,31 +89,21 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
     finally:
         session.close()
 
-def _mark(pid, step, company=None, job_num=None):
-    _update_step(pid, step, 1, company=company, job_num=job_num)
+def _mark(pid, step, company=None, job_id=None):
+    _update_step(pid, step, 1, company=company, job_id=job_id)
 
 def _fail(pid, msg, step=None):
     error_msg = f"[{step}] {msg}" if step else msg
     _update_step(pid, 'step_done', 0, status='failed', error=error_msg)
 
-def _get_next_num():
+def _get_existing_id(url):
+    """Check if a job with this URL already exists. Returns its UUID id or None."""
     from dependencies import get_session_sync
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
-        return repo.get_next_num()
-    finally:
-        session.close()
-
-def _get_existing_num(url):
-    """Check if a job with this URL already exists. Returns its num or None."""
-    from dependencies import get_session_sync
-    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyJobRepository(session)
-        return repo.get_num_by_url(url)
+        return repo.get_id_by_url(url)
     finally:
         session.close()
 
@@ -199,7 +189,7 @@ def _insert_job(d):
     try:
         repo = SQLAlchemyJobRepository(session)
         repo.upsert({
-            'num': d['num'],
+            'id': d['id'],
             'company': d['company'],
             'role': d['role'],
             'location': d['location'],
@@ -233,13 +223,13 @@ def _insert_job(d):
     finally:
         session.close()
 
-def _save_job_workflow_log(num, log_json):
+def _save_job_workflow_log(job_id, log_json):
     from dependencies import get_session_sync
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
-        repo.update_workflow_log(num, log_json)
+        repo.update_workflow_log(job_id, log_json)
     finally:
         session.close()
 
@@ -250,7 +240,7 @@ def _insert_summary(d):
     try:
         repo = SQLAlchemySummaryRepository(session)
         repo.upsert({
-            'num': d['num'],
+            'job_id': d['job_id'],
             'company': d['company'],
             'match': d['match'],
             'score': d['score'],
@@ -278,19 +268,19 @@ def _insert_resume(d):
             'version': d.get('version', 1),
             'raw_text': d.get('raw_text'),
             'created_at': d.get('created_at'),
-            'job_num': d.get('job_num'),
+            'job_id': d.get('job_id'),
         })
     finally:
         session.close()
 
-def _mark_old_job_deleted(url, exclude_num=None):
+def _mark_old_job_deleted(url, exclude_id=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
     from dependencies import get_session_sync
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
-        repo.set_deleted_by_url(url, exclude_num=exclude_num)
+        repo.set_deleted_by_url(url, exclude_id=exclude_id)
     finally:
         session.close()
 
@@ -581,34 +571,34 @@ async def process_job_stream(pid):
 
         persistence = metadata.get("persistence", {})
         if persistence.get("success"):
-            job_num = persistence.get("job_num")
+            job_id = persistence.get("job_id")
             company_name = persistence.get("company", "Unknown")
             score = metadata.get("score", "P")
 
             await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'analyze', 'data': f'Score: {score}', 'ts': datetime.now().strftime('%H:%M:%S')})
             await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'read', 'data': f'Parsed: {company_name} | Score: {score}', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-            _mark(pid, 'step_analyze', company=company_name, job_num=job_num)
+            _mark(pid, 'step_analyze', company=company_name, job_id=job_id)
             _mark(pid, 'step_db')
 
             current_step = 'save'
-            await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'db', 'data': f'$ INSERT INTO jobs (num={job_num}, company="{company_name}", score={score})', 'ts': datetime.now().strftime('%H:%M:%S')})
-            _log(pid, 'save', f'Saved to database: #{job_num} {company_name}')
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'input', 'tool': 'db', 'data': f'$ INSERT INTO jobs (id={job_id}, company="{company_name}", score={score})', 'ts': datetime.now().strftime('%H:%M:%S')})
+            _log(pid, 'save', f'Saved to database: #{job_id} {company_name}')
             _update_step(pid, 'step_db', 0, status='processing')
             await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'processing', 'ts': datetime.now().strftime('%H:%M:%S')})
 
-            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': f'Job #{job_num} ({company_name}) saved', 'ts': datetime.now().strftime('%H:%M:%S')})
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': f'Job #{job_id} ({company_name}) saved', 'ts': datetime.now().strftime('%H:%M:%S')})
             _mark(pid, 'step_db')
             await broadcast(pid, {'type': 'step', 'step': 'save', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
 
             if source in ('rescore', 'requeue'):
                 from jobs.infrastructure.workers.worker import _mark_old_job_deleted
-                _mark_old_job_deleted(url, exclude_num=job_num)
+                _mark_old_job_deleted(url, exclude_id=job_id)
                 await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'db', 'data': 'Marked old job as deleted', 'ts': datetime.now().strftime('%H:%M:%S')})
 
             current_step = 'done'
-            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'Job #{job_num} ({company_name}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
-            _log(pid, 'done', f"Complete: {company_name} #{job_num}")
+            await broadcast(pid, {'type': 'tool_output', 'stream': 'output', 'tool': 'done', 'data': f'Job #{job_id} ({company_name}) processed successfully', 'ts': datetime.now().strftime('%H:%M:%S')})
+            _log(pid, 'done', f"Complete: {company_name} #{job_id}")
             _update_step(pid, 'step_done', 0, status='done')
             _mark(pid, 'step_done')
 
@@ -620,11 +610,11 @@ async def process_job_stream(pid):
             finally:
                 sess3.close()
             if _item:
-                _save_job_workflow_log(job_num, _item.get('workflow_log') or '[]')
+                _save_job_workflow_log(job_id, _item.get('workflow_log') or '[]')
 
             await broadcast(pid, {'type': 'step', 'step': 'done', 'status': 'done', 'ts': datetime.now().strftime('%H:%M:%S')})
-            await broadcast(pid, {'type': 'complete', 'pid': pid, 'num': job_num, 'company': company_name, 'ts': datetime.now().strftime('%H:%M:%S')})
-            log.info("Job done", pid=pid, company=company_name, num=job_num)
+            await broadcast(pid, {'type': 'complete', 'pid': pid, 'job_id': job_id, 'company': company_name, 'ts': datetime.now().strftime('%H:%M:%S')})
+            log.info("Job done", pid=pid, company=company_name, job_id=job_id)
         else:
             persist_error = persistence.get("error", "Unknown error")
             raise RuntimeError(f"Persistence failed: {persist_error}")

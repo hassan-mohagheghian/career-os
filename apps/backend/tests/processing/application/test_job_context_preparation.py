@@ -65,7 +65,6 @@ from processing.domain.enums import ExecutionType
 def _job_dict(**overrides) -> dict:
     data = {
         "id": "job-uuid-1",
-        "num": 1,
         "url": "https://example.com/job",
         "company": "Acme Inc",
         "role": "Senior Backend Engineer",
@@ -204,7 +203,6 @@ class TestLoadJobNode:
 
         assert state.job is not None
         assert state.job.id == "job-uuid-1"
-        assert state.job.num == 1
         assert state.job.url == "https://example.com/job"
         assert state.errors == []
 

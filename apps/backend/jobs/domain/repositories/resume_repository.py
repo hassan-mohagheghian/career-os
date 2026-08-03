@@ -43,11 +43,11 @@ class IResumeRepository(ABC):
         ...
 
     @abstractmethod
-    def get_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_for_job(self, job_id: str) -> dict[str, Any] | None:
         """Get the latest resume for a specific job."""
         ...
 
     @abstractmethod
-    def get_cover_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_cover_for_job(self, job_id: str) -> dict[str, Any] | None:
         """Get the latest cover letter for a specific job."""
         ...

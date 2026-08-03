@@ -4,7 +4,7 @@ import '@testing-library/jest-dom'
 import DuplicateJobDialog from './DuplicateJobDialog'
 
 describe('DuplicateJobDialog', () => {
-  const mockJob = { num: 1, company: 'Acme Corp', score: 'A', match: 'High' }
+  const mockJob = { id: 'job-1', company: 'Acme Corp', score: 'A', match: 'High' }
 
   it('returns null when duplicateJob is null', () => {
     const { container } = render(
@@ -22,22 +22,22 @@ describe('DuplicateJobDialog', () => {
     expect(screen.getByText(/How would you like to update this job/)).toBeInTheDocument()
   })
 
-  it('calls onRescore with job.num when Rescore clicked', () => {
+  it('calls onRescore with job.id when Rescore clicked', () => {
     const onRescore = vi.fn()
     render(
       <DuplicateJobDialog duplicateJob={mockJob} setDuplicateJob={vi.fn()} onRescore={onRescore} onReprocess={vi.fn()} />
     )
     fireEvent.click(screen.getByText('Rescore'))
-    expect(onRescore).toHaveBeenCalledWith(1)
+    expect(onRescore).toHaveBeenCalledWith('job-1')
   })
 
-  it('calls onReprocess with job.num when Reprocess clicked', () => {
+  it('calls onReprocess with job.id when Reprocess clicked', () => {
     const onReprocess = vi.fn()
     render(
       <DuplicateJobDialog duplicateJob={mockJob} setDuplicateJob={vi.fn()} onRescore={vi.fn()} onReprocess={onReprocess} />
     )
     fireEvent.click(screen.getByText('Reprocess'))
-    expect(onReprocess).toHaveBeenCalledWith(1)
+    expect(onReprocess).toHaveBeenCalledWith('job-1')
   })
 
   it('calls setDuplicateJob(null) when Cancel clicked', () => {

@@ -28,7 +28,7 @@ class ResumeListResponse(BaseModel):
 
 
 class GenerateCoverRequest(BaseModel):
-    job_num: int
+    job_id: str
     resume_id: str = "original"
     tone: str = "professional"
 
@@ -36,5 +36,4 @@ class GenerateCoverRequest(BaseModel):
 class CoverLetterResponse(BaseModel):
     id: str
     content: str
-    job_num: int
     created_at: str | None = None

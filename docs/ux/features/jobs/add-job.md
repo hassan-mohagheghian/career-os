@@ -27,7 +27,7 @@ Uses:
 
 # Drawer
 
-- Variant: `md`
+- Sheet (right side), width `400px` desktop / `480px` larger screens — same reference layout as Job Details and Edit Job drawers
 - Placement: `right`
 
 ---
@@ -440,15 +440,16 @@ Added to Processing Queue
 
 ## Desktop
 
-- Medium Drawer (`md`)
+- Right Sheet (`400px`)
 
 ## Tablet
 
-- Medium Drawer (`md`)
+- Right Sheet (`400px`)
 
 ## Mobile
 
-- Full-screen Drawer
+- Right Sheet (`480px`)
+- Full-height sheet
 
 ---
 

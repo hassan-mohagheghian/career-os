@@ -65,4 +65,4 @@ def delete_tailored_document(id: str, repo: SQLAlchemyTailoredDocumentRepository
 @router.post("/{id}/generate-cover")
 def generate_cover_letter(id: str, data: dict):
     """Generate a cover letter for a job."""
-    return {"status": "started", "resume_id": id, "job_num": data.get("job_num")}
+    return {"status": "started", "resume_id": id, "job_id": data.get("job_id")}

@@ -18,6 +18,7 @@ interface JobsTableProps {
   onProcessV2: (id: string) => void
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
+  onDelete: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   sort?: string
@@ -52,7 +53,7 @@ const gridStyle = { gridTemplateColumns: COLUMN_GRID_TEMPLATE }
 
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onViewDetails, onEdit, onRetry, onCancel,
+  onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -179,6 +180,7 @@ export function JobsTable({
                   onProcessV2={onProcessV2}
                   onViewDetails={onViewDetails}
                   onEdit={onEdit}
+                  onDelete={onDelete}
                   onRetry={onRetry}
                   onCancel={onCancel}
                 />

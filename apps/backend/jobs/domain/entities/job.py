@@ -24,7 +24,7 @@ class Job(BaseEntity):
 
     def __init__(
         self,
-        num: int,
+        id: str,
         company: str | None = None,
         role: str | None = None,
         location: str | None = None,
@@ -75,8 +75,8 @@ class Job(BaseEntity):
         failure_timestamp: str | None = None,
         session_id: str | None = None,
     ):
-        # Use num as the identity (preserving existing schema)
-        super().__init__(id=num, created_at=created_at, updated_at=updated_at)
+        # Use id as the identity (UUID from new schema)
+        super().__init__(id=id, created_at=created_at, updated_at=updated_at)
         self.company = company
         self.role = role
         self.location = location
@@ -125,11 +125,6 @@ class Job(BaseEntity):
         self.failure_timestamp = failure_timestamp
         self.session_id = session_id
 
-    @property
-    def num(self) -> int:
-        """Job number (primary key)."""
-        return self.id
-
     def is_deleted(self) -> bool:
         return self.deleted == 1
 
@@ -147,7 +142,7 @@ class Job(BaseEntity):
     def to_dict(self) -> dict[str, Any]:
         """Convert entity to dictionary for persistence."""
         return {
-            "num": self.num,
+            "id": self.id,
             "company": self.company,
             "role": self.role,
             "location": self.location,
@@ -203,7 +198,7 @@ class Job(BaseEntity):
     def from_dict(cls, data: dict[str, Any]) -> Job:
         """Create a Job entity from a dictionary (e.g., from DB row)."""
         return cls(
-            num=data["num"],
+            id=data["id"],
             company=data.get("company"),
             role=data.get("role"),
             location=data.get("location"),

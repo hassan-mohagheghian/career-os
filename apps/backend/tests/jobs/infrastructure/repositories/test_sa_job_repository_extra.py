@@ -7,6 +7,8 @@ without exclude, lifecycle counts, pick_queued_item, search_jobs and
 search_jobs_cursor.
 """
 
+import uuid
+
 import pytest
 
 from jobs.infrastructure.models.job_model import JobModel
@@ -19,9 +21,10 @@ def repo(sa_session):
     return SQLAlchemyJobRepository(sa_session)
 
 
-def _add(session, **kwargs):
+def _add(session, id=None, url=None, **kwargs):
     defaults = {
-        "url": f"https://example.com/{kwargs.get('num', 'x')}",
+        "id": id or str(uuid.uuid7()),
+        "url": url or "https://example.com/job",
         "deleted": 0,
     }
     defaults.update(kwargs)
@@ -32,12 +35,12 @@ def _add(session, **kwargs):
     return m
 
 
-# ── get_by_num ───────────────────────────────────────────────────
+# ── get_by_id ────────────────────────────────────────────────────
 
-class TestGetByNum:
+class TestGetById:
     def test_company_id_set_but_no_company(self, sa_session, repo):
-        _add(sa_session, num=1, company="Ghost", company_id=999)
-        result = repo.get_by_num(1)
+        m = _add(sa_session, id="job-1", company="Ghost", company_id=999)
+        result = repo.get_by_id(m.id)
         assert result is not None
         assert "linked_company" not in result
 
@@ -47,86 +50,85 @@ class TestGetByNum:
         sa_session.add(co)
         sa_session.commit()
         sa_session.refresh(co)
-        _add(sa_session, num=2, company="Google", company_id=co.id)
-        result = repo.get_by_num(2)
-        assert result["linked_company"]["name"] == "Google"
-        assert result["linked_company"]["id"] == co.id
+        m = _add(sa_session, id="job-2", company="Google", company_id=co.id)
+        result = repo.get_by_id(m.id)
+        assert result["company_id"] == co.id
 
 
 # ── list_jobs ────────────────────────────────────────────────────
 
 class TestListJobs:
     def test_filter_cities_json_locations(self, sa_session, repo):
-        _add(sa_session, num=1, locations='["Berlin", "Munich"]', location="X")
-        _add(sa_session, num=2, locations="[]", location="Paris")
+        m1 = _add(sa_session, id="job-a", locations='["Berlin", "Munich"]', location="X")
+        _add(sa_session, id="job-b", locations="[]", location="Paris")
         jobs, total = repo.list_jobs(filters={"filter_cities": "Berlin"})
         assert total == 1
-        assert jobs[0]["num"] == 1
+        assert jobs[0]["id"] == m1.id
 
     def test_filter_cities_empty_string_ignored(self, sa_session, repo):
-        _add(sa_session, num=1, location="Berlin")
+        _add(sa_session, id="job-a", location="Berlin")
         jobs, total = repo.list_jobs(filters={"filter_cities": "  "})
         assert total == 1
 
     def test_filter_work_types_json(self, sa_session, repo):
-        _add(sa_session, num=1, work_types='["Hybrid"]', work_type="Remote")
-        _add(sa_session, num=2, work_types="[]", work_type="On-site")
+        m1 = _add(sa_session, id="job-a", work_types='["Hybrid"]', work_type="Remote")
+        _add(sa_session, id="job-b", work_types="[]", work_type="On-site")
         jobs, total = repo.list_jobs(filters={"filter_work_types": "Hybrid"})
         assert total == 1
-        assert jobs[0]["num"] == 1
+        assert jobs[0]["id"] == m1.id
 
     def test_filter_status(self, sa_session, repo):
-        _add(sa_session, num=1, status="imported")
-        _add(sa_session, num=2, status="processing")
+        _add(sa_session, id="job-a", status="imported")
+        m2 = _add(sa_session, id="job-b", status="processing")
         jobs, total = repo.list_jobs(filters={"filter_status": "processing"})
         assert total == 1
-        assert jobs[0]["num"] == 2
+        assert jobs[0]["id"] == m2.id
 
     def test_filter_applied_false_is_noop(self, sa_session, repo):
-        _add(sa_session, num=1)
+        _add(sa_session, id="job-a")
         jobs, total = repo.list_jobs(filters={"filter_applied": "false"})
         assert total == 1
 
-    def test_sort_asc_num(self, sa_session, repo):
-        _add(sa_session, num=2)
-        _add(sa_session, num=1)
-        jobs, total = repo.list_jobs(sort_by="num", sort_dir="asc")
-        assert [j["num"] for j in jobs] == [1, 2]
+    def test_sort_created_at_asc(self, sa_session, repo):
+        m2 = _add(sa_session, id="job-2", created_at="2026-07-27T10:00:02")
+        m1 = _add(sa_session, id="job-1", created_at="2026-07-27T10:00:01")
+        jobs, total = repo.list_jobs(sort_by="created_at", sort_dir="asc")
+        assert [j["id"] for j in jobs] == [m1.id, m2.id]
 
     def test_sort_company_desc(self, sa_session, repo):
-        _add(sa_session, num=1, company="Alpha")
-        _add(sa_session, num=2, company="Beta")
+        _add(sa_session, id="job-a", company="Alpha")
+        _add(sa_session, id="job-b", company="Beta")
         jobs, total = repo.list_jobs(sort_by="company", sort_dir="desc")
         assert jobs[0]["company"] == "Beta"
 
     def test_sort_location_asc(self, sa_session, repo):
-        _add(sa_session, num=1, location="Berlin")
-        _add(sa_session, num=2, location="Amsterdam")
+        _add(sa_session, id="job-a", location="Berlin")
+        _add(sa_session, id="job-b", location="Amsterdam")
         jobs, total = repo.list_jobs(sort_by="location", sort_dir="asc")
         assert jobs[0]["location"] == "Amsterdam"
 
     def test_sort_applicants(self, sa_session, repo):
-        _add(sa_session, num=1, applicants="200")
-        _add(sa_session, num=2, applicants="100")
+        _add(sa_session, id="job-a", applicants="200")
+        _add(sa_session, id="job-b", applicants="100")
         jobs, total = repo.list_jobs(sort_by="applicants", sort_dir="desc")
         assert jobs[0]["applicants"] == "200"
 
     def test_sort_fallback_invalid_column_and_dir(self, sa_session, repo):
-        _add(sa_session, num=1, company="Alpha")
+        _add(sa_session, id="job-a", company="Alpha")
         jobs, total = repo.list_jobs(sort_by="bogus_column", sort_dir="sideways")
         assert total == 1
         assert len(jobs) == 1
 
     def test_no_pagination_returns_all(self, sa_session, repo):
-        _add(sa_session, num=1)
-        _add(sa_session, num=2)
+        _add(sa_session, id="job-a")
+        _add(sa_session, id="job-b")
         jobs, total = repo.list_jobs()
         assert total == 2
         assert len(jobs) == 2
 
     def test_excludes_deleted(self, sa_session, repo):
-        _add(sa_session, num=1, deleted=0)
-        _add(sa_session, num=2, deleted=1)
+        _add(sa_session, id="job-a", deleted=0)
+        _add(sa_session, id="job-b", deleted=1)
         jobs, total = repo.list_jobs()
         assert total == 1
 
@@ -144,33 +146,33 @@ class TestCreateAndById:
     def test_create_job_defaults(self, sa_session, repo):
         result = repo.create_job("https://example.com/def")
         assert result["url"] == "https://example.com/def"
-        row = sa_session.query(JobModel).filter(JobModel.num == result["num"]).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == result["id"]).first()
         assert row.source == "api"
         assert row.notes == "[]"
         assert row.links == "[]"
 
     def test_get_by_id(self, sa_session, repo):
-        m = _add(sa_session, num=1)
+        m = _add(sa_session, id="job-1")
         result = repo.get_by_id(m.id)
-        assert result["num"] == 1
+        assert result["id"] == m.id
 
     def test_get_by_id_not_found(self, repo):
         assert repo.get_by_id("nope") is None
 
     def test_upsert_insert_no_company(self, repo):
-        result = repo.upsert({"num": 1, "url": "https://example.com/u"})
-        assert result["num"] == 1
+        result = repo.upsert({"id": "job-u", "url": "https://example.com/u"})
+        assert result["id"] == "job-u"
 
-    def test_get_next_num_empty(self, repo):
-        assert repo.get_next_num() == 1
+    def test_get_processing_items_empty(self, repo):
+        assert repo.get_processing_items() == []
 
 
 # ── set_deleted_by_url / lifecycle ───────────────────────────────
 
 class TestSetDeletedAndLifecycle:
     def test_set_deleted_by_url_no_exclude(self, sa_session, repo):
-        _add(sa_session, num=1, url="https://same.com")
-        _add(sa_session, num=2, url="https://same.com")
+        _add(sa_session, id="job-a", url="https://same.com")
+        _add(sa_session, id="job-b", url="https://same.com")
         count = repo.set_deleted_by_url("https://same.com")
         assert count == 2
 
@@ -178,130 +180,127 @@ class TestSetDeletedAndLifecycle:
         assert repo.set_deleted_by_url("https://missing.com") == 0
 
     def test_pending_count(self, sa_session, repo):
-        _add(sa_session, num=1, status="pending")
-        _add(sa_session, num=2, status="imported")
+        _add(sa_session, id="job-a", status="pending")
+        _add(sa_session, id="job-b", status="imported")
         assert repo.get_pending_count() == 1
 
     def test_list_by_status(self, sa_session, repo):
-        _add(sa_session, num=1, status="queued")
-        _add(sa_session, num=2, status="processing")
+        m1 = _add(sa_session, id="job-a", status="queued")
+        _add(sa_session, id="job-b", status="processing")
         result = repo.list_by_status("queued")
         assert len(result) == 1
-        assert result[0]["num"] == 1
+        assert result[0]["id"] == m1.id
 
     def test_list_by_status_empty(self, repo):
         assert repo.list_by_status("queued") == []
 
     def test_processing_count(self, sa_session, repo):
-        _add(sa_session, num=1, status="processing")
-        _add(sa_session, num=2, status="queued")
+        _add(sa_session, id="job-a", status="processing")
+        _add(sa_session, id="job-b", status="queued")
         assert repo.get_processing_count() == 1
 
     def test_queued_count(self, sa_session, repo):
-        _add(sa_session, num=1, status="queued")
-        _add(sa_session, num=2, status="pending")
+        _add(sa_session, id="job-a", status="queued")
+        _add(sa_session, id="job-b", status="pending")
         assert repo.get_queued_count() == 1
 
     def test_update_status_with_extra(self, sa_session, repo):
-        _add(sa_session, num=1, status="queued")
-        assert repo.update_status(1, "processing", error="boom") is True
-        row = sa_session.query(JobModel).filter(JobModel.num == 1).first()
+        m = _add(sa_session, id="job-a", status="queued")
+        assert repo.update_status(m.id, "processing", error="boom") is True
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
         assert row.status == "processing"
         assert row.error == "boom"
 
     def test_pick_queued_item(self, sa_session, repo):
-        _add(sa_session, num=1, status="queued", queue_order=2)
-        _add(sa_session, num=2, status="queued", queue_order=1)
+        m1 = _add(sa_session, id="job-a", status="queued", queue_order=2)
+        m2 = _add(sa_session, id="job-b", status="queued", queue_order=1)
         result = repo.pick_queued_item()
-        assert result["num"] == 2
+        assert result["id"] == m2.id
         assert result["status"] == "processing"
 
     def test_pick_queued_item_none(self, repo):
         assert repo.pick_queued_item() is None
 
     def test_get_processing_items(self, sa_session, repo):
-        _add(sa_session, num=1, status="processing")
-        _add(sa_session, num=2, status="queued")
+        m1 = _add(sa_session, id="job-a", status="processing")
+        _add(sa_session, id="job-b", status="queued")
         items = repo.get_processing_items()
         assert len(items) == 1
-        assert items[0]["num"] == 1
-
-    def test_get_processing_items_empty(self, repo):
-        assert repo.get_processing_items() == []
+        assert items[0]["id"] == m1.id
 
 
 # ── search_jobs ──────────────────────────────────────────────────
 
 class TestSearchJobs:
     def test_query_filter(self, sa_session, repo):
-        _add(sa_session, num=1, title="Backend Engineer", company="Alpha")
-        _add(sa_session, num=2, title="Frontend Dev", company="Beta")
+        m1 = _add(sa_session, id="job-a", title="Backend Engineer", company="Alpha")
+        _add(sa_session, id="job-b", title="Frontend Dev", company="Beta")
         rows, total = repo.search_jobs(query="engineer")
         assert total == 1
-        assert rows[0]["num"] == 1
+        assert rows[0]["id"] == m1.id
 
     def test_processing_status(self, sa_session, repo):
-        _add(sa_session, num=1, status="processing")
-        _add(sa_session, num=2, status="queued")
+        _add(sa_session, id="job-a", status="processing")
+        m2 = _add(sa_session, id="job-b", status="queued")
         rows, total = repo.search_jobs(processing_status="queued")
         assert total == 1
-        assert rows[0]["num"] == 2
+        assert rows[0]["id"] == m2.id
 
     def test_company_id(self, sa_session, repo):
-        _add(sa_session, num=1, company_id=7)
-        _add(sa_session, num=2, company_id=8)
+        m1 = _add(sa_session, id="job-a", company_id=7)
+        _add(sa_session, id="job-b", company_id=8)
         rows, total = repo.search_jobs(company_id=7)
         assert total == 1
-        assert rows[0]["num"] == 1
+        assert rows[0]["id"] == m1.id
 
     def test_remote_true(self, sa_session, repo):
-        _add(sa_session, num=1, work_type="Remote")
-        _add(sa_session, num=2, work_type="On-site")
+        _add(sa_session, id="job-a", work_type="Remote")
+        _add(sa_session, id="job-b", work_type="On-site")
         rows, total = repo.search_jobs(remote=True)
         assert total == 1
         assert rows[0]["work_type"] == "Remote"
 
     def test_remote_false(self, sa_session, repo):
-        _add(sa_session, num=1, work_type="Remote")
-        _add(sa_session, num=2, work_type="On-site")
+        _add(sa_session, id="job-a", work_type="Remote")
+        _add(sa_session, id="job-b", work_type="On-site")
         rows, total = repo.search_jobs(remote=False)
         assert total == 1
         assert rows[0]["work_type"] == "On-site"
 
     def test_visa_true(self, sa_session, repo):
-        _add(sa_session, num=1, visa="US")
-        _add(sa_session, num=2, visa="")
+        m1 = _add(sa_session, id="job-a", visa="US")
+        _add(sa_session, id="job-b", visa="")
         rows, total = repo.search_jobs(visa=True)
         assert total == 1
-        assert rows[0]["num"] == 1
+        assert rows[0]["id"] == m1.id
 
     def test_visa_false(self, sa_session, repo):
-        _add(sa_session, num=1, visa="US")
-        _add(sa_session, num=2, visa="")
-        _add(sa_session, num=3, visa=None)
+        _add(sa_session, id="job-a", visa="US")
+        _add(sa_session, id="job-b", visa="")
+        _add(sa_session, id="job-c", visa=None)
         rows, total = repo.search_jobs(visa=False)
         assert total == 2
 
     def test_score_bounds(self, sa_session, repo):
-        _add(sa_session, num=1, overall_score=80, fit_score=70, success_score=60)
-        _add(sa_session, num=2, overall_score=50, fit_score=40, success_score=30)
+        m1 = _add(sa_session, id="job-a", overall_score=80, fit_score=70, success_score=60)
+        _add(sa_session, id="job-b", overall_score=50, fit_score=40, success_score=30)
         rows, total = repo.search_jobs(
             overall_score_min=60, overall_score_max=90,
             fit_score_min=65, fit_score_max=75,
             success_score_min=55, success_score_max=65,
         )
         assert total == 1
-        assert rows[0]["num"] == 1
+        assert rows[0]["id"] == m1.id
 
     def test_sort_and_order(self, sa_session, repo):
-        _add(sa_session, num=1, title="A", overall_score=40)
-        _add(sa_session, num=2, title="B", overall_score=90)
+        _add(sa_session, id="job-a", title="A", overall_score=40)
+        _add(sa_session, id="job-b", title="B", overall_score=90)
         rows, total = repo.search_jobs(sort="overall_score", order="asc")
         assert [r["overall_score"] for r in rows] == [40, 90]
 
     def test_sort_fallback_and_pagination(self, sa_session, repo):
         for i in range(5):
-            _add(sa_session, num=i + 1)
+            _add(sa_session, id=f"job-{i}")
         rows, total = repo.search_jobs(sort="bogus", order="up", page=1, page_size=2)
         assert total == 5
         assert len(rows) == 2
@@ -311,8 +310,8 @@ class TestSearchJobs:
 
 class TestSearchJobsCursor:
     def test_basic_no_more(self, sa_session, repo):
-        _add(sa_session, num=1, title="Alpha", updated_at="2026-07-27T10:00:01")
-        _add(sa_session, num=2, title="Beta", updated_at="2026-07-27T10:00:02")
+        _add(sa_session, id="job-a", title="Alpha", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", title="Beta", updated_at="2026-07-27T10:00:02")
         items, total, next_cursor, has_more = repo.search_jobs_cursor(page_size=10)
         assert total == 2
         assert len(items) == 2
@@ -321,7 +320,7 @@ class TestSearchJobsCursor:
 
     def test_has_more(self, sa_session, repo):
         for i in range(5):
-            _add(sa_session, num=i + 1, updated_at=f"2026-07-27T10:00:{i:02d}")
+            _add(sa_session, id=f"job-{i}", updated_at=f"2026-07-27T10:00:{i:02d}")
         items, total, next_cursor, has_more = repo.search_jobs_cursor(page_size=2, sort="updated_at")
         assert len(items) == 2
         assert has_more is True
@@ -329,7 +328,7 @@ class TestSearchJobsCursor:
 
     def test_cursor_desc(self, sa_session, repo):
         for i in range(5):
-            _add(sa_session, num=i + 1, updated_at=f"2026-07-27T10:00:{i:02d}")
+            _add(sa_session, id=f"job-{i}", updated_at=f"2026-07-27T10:00:{i:02d}")
         _, _, first_cursor, _ = repo.search_jobs_cursor(page_size=2, sort="updated_at", order="desc")
         items, total, _, has_more = repo.search_jobs_cursor(
             page_size=2, sort="updated_at", order="desc", cursor=first_cursor
@@ -340,7 +339,7 @@ class TestSearchJobsCursor:
 
     def test_cursor_asc(self, sa_session, repo):
         for i in range(5):
-            _add(sa_session, num=i + 1, updated_at=f"2026-07-27T10:00:{i:02d}")
+            _add(sa_session, id=f"job-{i}", updated_at=f"2026-07-27T10:00:{i:02d}")
         _, _, first_cursor, _ = repo.search_jobs_cursor(page_size=2, sort="updated_at", order="asc")
         items, total, _, has_more = repo.search_jobs_cursor(
             page_size=2, sort="updated_at", order="asc", cursor=first_cursor
@@ -350,7 +349,7 @@ class TestSearchJobsCursor:
 
     def test_filters_with_cursor(self, sa_session, repo):
         for i in range(3):
-            _add(sa_session, num=i + 1, status="processing", visa="US",
+            _add(sa_session, id=f"job-{i}", status="processing", visa="US",
                  updated_at=f"2026-07-27T10:00:{i:02d}")
         items, total, next_cursor, has_more = repo.search_jobs_cursor(
             page_size=2, processing_status="processing", visa=True,
@@ -362,10 +361,10 @@ class TestSearchJobsCursor:
         assert next_cursor is not None
 
     def test_all_branches(self, sa_session, repo):
-        _add(sa_session, num=1, title="Engineer", company="Alpha", company_id=7,
-             work_type="Remote", visa="US", overall_score=85, fit_score=80,
-             success_score=70, updated_at="2026-07-27T10:00:01")
-        _add(sa_session, num=2, title="Other", company="Beta", company_id=8,
+        m1 = _add(sa_session, id="job-a", title="Engineer", company="Alpha", company_id=7,
+                  work_type="Remote", visa="US", overall_score=85, fit_score=80,
+                  success_score=70, updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", title="Other", company="Beta", company_id=8,
              work_type="On-site", visa="", overall_score=40, fit_score=30,
              success_score=20, updated_at="2026-07-27T10:00:02")
         items, total, _, has_more = repo.search_jobs_cursor(
@@ -377,31 +376,31 @@ class TestSearchJobsCursor:
             sort="title", order="asc",
         )
         assert total == 1
-        assert items[0]["num"] == 1
+        assert items[0]["id"] == m1.id
         assert has_more is False
 
     def test_score_min_only(self, sa_session, repo):
-        _add(sa_session, num=1, overall_score=70, fit_score=80, success_score=70,
-             updated_at="2026-07-27T10:00:01")
-        _add(sa_session, num=2, overall_score=30, fit_score=30, success_score=20,
+        m1 = _add(sa_session, id="job-a", overall_score=70, fit_score=80, success_score=70,
+                  updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", overall_score=30, fit_score=30, success_score=20,
              updated_at="2026-07-27T10:00:02")
         items, total, _, _ = repo.search_jobs_cursor(
             overall_score_min=60, overall_score_max=80,
             fit_score_min=10, success_score_min=10,
         )
         assert total == 1
-        assert items[0]["num"] == 1
+        assert items[0]["id"] == m1.id
 
     def test_visa_false_and_remote_false(self, sa_session, repo):
-        _add(sa_session, num=1, visa="US", work_type="Remote",
+        _add(sa_session, id="job-a", visa="US", work_type="Remote",
              updated_at="2026-07-27T10:00:01")
-        _add(sa_session, num=2, visa="", work_type="On-site",
-             updated_at="2026-07-27T10:00:02")
-        _add(sa_session, num=3, visa=None, work_type="On-site",
-             updated_at="2026-07-27T10:00:03")
+        m2 = _add(sa_session, id="job-b", visa="", work_type="On-site",
+                  updated_at="2026-07-27T10:00:02")
+        m3 = _add(sa_session, id="job-c", visa=None, work_type="On-site",
+                  updated_at="2026-07-27T10:00:03")
         items, total, _, _ = repo.search_jobs_cursor(visa=False, remote=False)
         assert total == 2
-        assert {i["num"] for i in items} == {2, 3}
+        assert {i["id"] for i in items} == {m2.id, m3.id}
 
     def test_empty(self, repo):
         items, total, next_cursor, has_more = repo.search_jobs_cursor()
@@ -414,17 +413,17 @@ class TestSearchJobsCursor:
 # ── not-found branches ───────────────────────────────────────────
 
 class TestNotFoundBranches:
-    def test_get_by_num_not_found(self, repo):
-        assert repo.get_by_num(999) is None
+    def test_get_by_id_not_found(self, repo):
+        assert repo.get_by_id("missing") is None
 
     def test_get_by_url_not_found(self, repo):
         assert repo.get_by_url("https://missing.com") is None
 
-    def test_get_num_by_url_not_found(self, repo):
-        assert repo.get_num_by_url("https://missing.com") is None
+    def test_get_id_by_url_not_found(self, repo):
+        assert repo.get_id_by_url("https://missing.com") is None
 
     def test_get_company_id_not_found(self, repo):
-        assert repo.get_company_id(999) is None
+        assert repo.get_company_id("missing") is None
 
-    def test_get_company_id_by_num_not_found(self, repo):
-        assert repo.get_company_id_by_num(999) is None
+    def test_get_company_id_by_id_not_found(self, repo):
+        assert repo.get_company_id_by_id("missing") is None

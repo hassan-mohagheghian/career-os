@@ -57,4 +57,5 @@ export const jobApi = {
     api.post<{ execution_id: string; status: string }>(`/jobs/${jobId}/process`),
   getDetail: (jobId: string) => api.get<JobDetail>(`/jobs/${jobId}`),
   updateJob: (jobId: string, data: JobEditInput) => api.patch<JobDetail>(`/jobs/${jobId}`, data),
+  deleteJob: (jobId: string) => api.delete<void>(`/jobs/${jobId}`),
 }

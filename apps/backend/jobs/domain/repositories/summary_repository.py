@@ -8,8 +8,8 @@ class ISummaryRepository(ABC):
     """Interface for job summary data access."""
 
     @abstractmethod
-    def get_by_num(self, num: int) -> dict[str, Any] | None:
-        """Get a summary by job number."""
+    def get_by_job_id(self, job_id: str) -> dict[str, Any] | None:
+        """Get a summary by job id."""
         ...
 
     @abstractmethod
@@ -23,8 +23,8 @@ class ISummaryRepository(ABC):
         ...
 
     @abstractmethod
-    def delete_by_num(self, num: int) -> bool:
-        """Delete a summary by job number."""
+    def delete_by_num(self, job_id: str) -> bool:
+        """Delete a summary by job id."""
         ...
 
     @abstractmethod

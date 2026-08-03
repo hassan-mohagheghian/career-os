@@ -1,11 +1,12 @@
 """Tests for PendingJobRepository — SQLAlchemy persistence layer."""
 
+import uuid
+
 import pytest
 from sqlalchemy.orm import Session
-from shared.infrastructure.process.repository import PendingJobRepository, JobRepository
+from shared.infrastructure.process.repository import PendingJobRepository
 from shared.infrastructure.process.models import ItemStatus, JobStatus, WorkflowLogEntry
 from jobs.infrastructure.models.job_model import JobModel
-from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
 
 
 @pytest.fixture
@@ -13,112 +14,71 @@ def pending_repo(sa_session: Session):
     return PendingJobRepository(sa_session)
 
 
-@pytest.fixture
-def job_repo(sa_session: Session):
-    return JobRepository(sa_session)
+def _add(sa_session: Session, **kw) -> JobModel:
+    m = JobModel(id=str(uuid.uuid7()), **kw)
+    sa_session.add(m)
+    sa_session.commit()
+    sa_session.refresh(m)
+    return m
 
 
 class TestPendingJobRepository:
     def test_insert_and_get(self, pending_repo, sa_session: Session):
-        m = JobModel(num=1, url='https://example.com', status='queued')
-        sa_session.add(m)
-        sa_session.commit()
-        sa_session.refresh(m)
+        m = _add(sa_session, url='https://example.com', status='queued')
 
-        item = pending_repo.get(m.num)
+        item = pending_repo.get(m.id)
         assert item is not None
         assert item['url'] == 'https://example.com'
         assert item['status'] == 'queued'
 
     def test_get_nonexistent(self, pending_repo):
-        assert pending_repo.get(999) is None
+        assert pending_repo.get('999') is None
 
     def test_update_status(self, pending_repo, sa_session: Session):
-        m = JobModel(num=1, url='https://example.com', status='queued')
-        sa_session.add(m)
-        sa_session.commit()
-        sa_session.refresh(m)
+        m = _add(sa_session, url='https://example.com', status='queued')
 
-        pending_repo.update_status(m.num, ItemStatus.PROCESSING)
-        item = pending_repo.get(m.num)
+        pending_repo.update_status(m.id, ItemStatus.PROCESSING)
+        item = pending_repo.get(m.id)
         assert item['status'] == 'processing'
 
     def test_update_step(self, pending_repo, sa_session: Session):
-        m = JobModel(num=1, url='https://example.com', status='processing')
-        sa_session.add(m)
-        sa_session.commit()
-        sa_session.refresh(m)
+        m = _add(sa_session, url='https://example.com', status='processing')
 
-        pending_repo.update_step(m.num, 'workflow_log', '[]')
-        item = pending_repo.get(m.num)
+        pending_repo.update_step(m.id, 'workflow_log', '[]')
+        item = pending_repo.get(m.id)
         assert item['workflow_log'] == '[]'
 
     def test_append_log(self, pending_repo, sa_session: Session):
-        m = JobModel(num=1, url='https://example.com', status='processing')
-        sa_session.add(m)
-        sa_session.commit()
-        sa_session.refresh(m)
+        m = _add(sa_session, url='https://example.com', status='processing')
 
         entry = WorkflowLogEntry(step='fetch', msg='Fetched 1000 chars', ts='12:00:00')
-        pending_repo.append_log(m.num, entry)
+        pending_repo.append_log(m.id, entry)
 
-        logs = pending_repo.get_logs(m.num)
+        logs = pending_repo.get_logs(m.id)
         assert len(logs) == 1
         assert logs[0].msg == 'Fetched 1000 chars'
 
     def test_claim_next(self, pending_repo, sa_session: Session):
-        a = JobModel(num=1, url='https://a.com', status='queued', queue_order=1)
-        b = JobModel(num=2, url='https://b.com', status='queued', queue_order=2)
-        sa_session.add_all([a, b])
-        sa_session.commit()
+        a = _add(sa_session, url='https://a.com', status='queued', queue_order=1)
+        b = _add(sa_session, url='https://b.com', status='queued', queue_order=2)
 
         claimed = pending_repo.claim_next()
         assert claimed is not None
         assert claimed['url'] == 'https://a.com'
 
-        item = pending_repo.get(claimed['num'])
+        item = pending_repo.get(claimed['id'])
         assert item['status'] == 'processing'
 
     def test_claim_next_empty(self, pending_repo):
         assert pending_repo.claim_next() is None
 
     def test_count_by_status(self, pending_repo, sa_session: Session):
-        sa_session.add_all([
-            JobModel(num=1, url='https://a.com', status='queued'),
-            JobModel(num=2, url='https://b.com', status='processing'),
-            JobModel(num=3, url='https://c.com', status='processed'),
-        ])
-        sa_session.commit()
+        _add(sa_session, url='https://a.com', status='queued')
+        _add(sa_session, url='https://b.com', status='processing')
+        _add(sa_session, url='https://c.com', status='processed')
 
         counts = pending_repo.count_by_status()
-        assert counts[JobStatus.QUEUED] == 1
-        assert counts[JobStatus.PROCESSING] == 1
-        assert counts[JobStatus.PROCESSED] == 1
-        assert counts[JobStatus.PENDING] == 0
-
-
-class TestJobRepository:
-    def test_get_next_num(self, job_repo, sa_session: Session):
-        assert job_repo.get_next_num() == 1
-
-        m = JobModel(num=5, company='Corp', url='https://x.com')
-        sa_session.add(m)
-        sa_session.commit()
-
-        assert job_repo.get_next_num() == 6
-
-    def test_get_by_url(self, job_repo, sa_session: Session):
-        m = JobModel(num=1, company='Corp', url='https://x.com', score='A', deleted=0)
-        sa_session.add(m)
-        sa_session.commit()
-
-        job = job_repo.get_by_url('https://x.com')
-        assert job is not None
-        assert job['company'] == 'Corp'
-
-    def test_get_by_url_deleted(self, job_repo, sa_session: Session):
-        m = JobModel(num=1, company='Corp', url='https://x.com', score='A', deleted=1)
-        sa_session.add(m)
-        sa_session.commit()
-
-        assert job_repo.get_by_url('https://x.com') is None
+        assert counts[JobStatus.QUEUED.value] == 1
+        assert counts[JobStatus.PROCESSING.value] == 1
+        assert counts[JobStatus.PROCESSED.value] == 1
+        assert counts[JobStatus.PENDING.value] == 0

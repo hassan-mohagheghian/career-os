@@ -50,7 +50,7 @@ apps/backend/
 ├── jobs/                            # JOBS CONTEXT
 │   ├── domain/
 │   │   ├── entities/
-│   │   │   ├── job.py              # Job (aggregate root, PK=num)
+│   │   │   ├── job.py              # Job (aggregate root, PK=id)
 │   │   │   ├── summary.py          # Summary entity
 │   │   │   ├── job_score.py        # JobScore (value object)
 │   │   │   ├── job_location.py     # JobLocation (value object)

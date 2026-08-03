@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import types
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,9 +29,9 @@ def pending_row(pid=1, status='queued', source='cli', company='ACME', url='https
     return row
 
 
-def job_row(num=1, **kw):
+def job_row(job_id='001', **kw):
     row = {
-        'num': num, 'company': 'ACME', 'role': 'Engineer', 'url': f'https://ex.com/job/{num}',
+        'id': job_id, 'company': 'ACME', 'role': 'Engineer', 'url': f'https://ex.com/job/{job_id}',
         'created_at': '2024-01-01', 'deleted': 0,
         'raw_description': 'raw', 'structured_description': '{"fit_score": 5}',
     }
@@ -50,16 +51,6 @@ class TestNormalizeUrl:
 
     def test_no_query_or_slash(self):
         assert cli.normalize_url('https://ex.com/jobs/123') == 'https://ex.com/jobs/123'
-
-
-class TestGetNextNum:
-    def test_returns_repo_value(self):
-        repo = MagicMock()
-        repo.get_next_num.return_value = 7
-        sess = MagicMock()
-        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
-            assert cli.get_next_num() == 7
-        sess.close.assert_called_once()
 
 
 class TestGetPending:
@@ -136,11 +127,12 @@ class TestResetPending:
 
 class TestDeletePending:
     def test_marks_deleted_in_db(self, mock_get_session):
-        job = JobModel(num=1001, url='https://ex.com/job/1', status='queued', deleted=0)
+        job_id = str(uuid.uuid7())
+        job = JobModel(id=job_id, url='https://ex.com/job/1', status='queued', deleted=0)
         mock_get_session.add(job)
         mock_get_session.commit()
-        cli.delete_pending(1001)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 1001).first()
+        cli.delete_pending(job_id)
+        row = mock_get_session.query(JobModel).filter(JobModel.id == job_id).first()
         assert row.deleted == 1
 
 
@@ -185,13 +177,13 @@ class TestAddCommand:
 
     def test_duplicate_in_jobs(self):
         sess_p, sess_j, p, j = self._mocks(
-            active=[{'num': 3, 'url': 'https://ex.com/job/1', 'company': 'ACME'}]
+            active=[{'id': 'job-x', 'url': 'https://ex.com/job/1', 'company': 'ACME'}]
         )
         with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
              patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)):
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1/'])
         assert result.exit_code == 0
-        assert 'Already processed as #3 (ACME)' in result.output
+        assert 'Already processed as #job-x (ACME)' in result.output
 
     def test_add_failure(self):
         sess_p, sess_j, p, j = self._mocks()
@@ -267,7 +259,7 @@ class TestListCommand:
         m.assert_called_once_with(status='queued')
 
     def test_all_includes_done_from_db(self, mock_get_session):
-        job = JobModel(num=2001, url='https://ex.com/done/1', company='DoneCo', role='SDE',
+        job = JobModel(id=str(uuid.uuid7()), url='https://ex.com/done/1', company='DoneCo', role='SDE',
                        status='completed', deleted=0)
         mock_get_session.add(job)
         mock_get_session.commit()
@@ -348,16 +340,16 @@ class TestRescoreCommand:
     def test_job_not_found(self):
         sess = MagicMock()
         repo = MagicMock()
-        repo.get_by_num.return_value = None
+        repo.get_by_id.return_value = None
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             result = runner.invoke(cli.app, ['rescore', '5'])
         assert result.exit_code == 0
-        assert 'Job #5 not found' in result.output
+        assert 'Job 5 not found' in result.output
 
     def test_existing_pending_update_then_process(self):
         sess_j, sess_p = MagicMock(), MagicMock()
         job_repo = MagicMock()
-        job_repo.get_by_num.return_value = {'num': 5, 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
         pend = MagicMock()
         pend.get_by_url.return_value = {'id': 7}
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
@@ -365,7 +357,7 @@ class TestRescoreCommand:
              patch('apps.backend.entrypoints.cli.process_pending_sync') as proc_mock:
             result = runner.invoke(cli.app, ['rescore', '5'])
         assert result.exit_code == 0
-        assert 'Rescoring #5 (ACME)...' in result.output
+        assert 'Rescoring 5 (ACME)...' in result.output
         assert 'Done!' in result.output
         pend.update_fields.assert_called_once()
         assert pend.update_fields.call_args[0][0] == 7
@@ -374,7 +366,7 @@ class TestRescoreCommand:
     def test_no_existing_pending_create_then_process(self):
         sess_j, sess_p = MagicMock(), MagicMock()
         job_repo = MagicMock()
-        job_repo.get_by_num.return_value = {'num': 5, 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
         pend = MagicMock()
         pend.get_by_url.return_value = None
         pend.create.return_value = {'id': 8}
@@ -389,7 +381,7 @@ class TestRescoreCommand:
     def test_process_failure(self):
         sess_j, sess_p = MagicMock(), MagicMock()
         job_repo = MagicMock()
-        job_repo.get_by_num.return_value = {'num': 5, 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
         pend = MagicMock()
         pend.get_by_url.return_value = {'id': 7}
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
@@ -417,8 +409,8 @@ class TestRescoreAllCommand:
         sess_j, sess_p = MagicMock(), MagicMock()
         job_repo = MagicMock()
         job_repo.get_all_active.return_value = [
-            {'num': 1, 'company': 'A', 'url': 'https://ex.com/a'},
-            {'num': 2, 'company': 'B', 'url': 'https://ex.com/b'},
+            {'id': 'a', 'company': 'A', 'url': 'https://ex.com/a'},
+            {'id': 'b', 'company': 'B', 'url': 'https://ex.com/b'},
         ]
         pend = MagicMock()
         pend.get_by_url.side_effect = [{'id': 10}, None]
@@ -524,23 +516,23 @@ class TestGenerateFilesCommand:
         sess = MagicMock()
         repo = MagicMock()
         repo.list_jobs.return_value = ([], 0)
-        repo.get_by_num.return_value = {'num': 5, 'deleted': 1}
+        repo.get_by_id.return_value = {'id': '5', 'deleted': 1}
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '5'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '5'])
         assert result.exit_code == 0
         assert 'No jobs found' in result.output
 
     def test_writes_files(self, tmp_path):
         sess = MagicMock()
         repo = MagicMock()
-        job = job_row(num=1, company='ACME Corp', role='Software/Engineer',
+        job = job_row(job_id='001', company='ACME Corp', role='Software/Engineer',
                       created_at='2024-01-15T10:00:00',
                       raw_description='raw text', structured_description='{"fit_score": 5}')
         repo.list_jobs.return_value = ([job], 1)
-        repo.get_by_num.return_value = job
+        repo.get_by_id.return_value = job
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '1'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '001'])
         assert result.exit_code == 0
         assert '2 files created, 0 skipped' in result.output
         base = '001_ACME_Corp_Software_Engineer_2024-01-15'
@@ -554,54 +546,54 @@ class TestGenerateFilesCommand:
     def test_existing_files_skipped_then_forced(self, tmp_path):
         sess = MagicMock()
         repo = MagicMock()
-        job = job_row(num=2)
+        job = job_row(job_id='002')
         repo.list_jobs.return_value = ([job], 1)
-        repo.get_by_num.return_value = job
+        repo.get_by_id.return_value = job
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            runner.invoke(cli.app, ['generate-files', '--job-num', '2'])
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '2'])
+            runner.invoke(cli.app, ['generate-files', '--job-id', '002'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '002'])
         assert result.exit_code == 0
         assert '0 files created, 2 skipped' in result.output
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '2', '--force'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '002', '--force'])
         assert result.exit_code == 0
         assert '2 files created, 0 skipped' in result.output
 
     def test_missing_descriptions_skipped(self, tmp_path):
         sess = MagicMock()
         repo = MagicMock()
-        job = job_row(num=3, raw_description=None, structured_description=None)
+        job = job_row(job_id='003', raw_description=None, structured_description=None)
         repo.list_jobs.return_value = ([job], 1)
-        repo.get_by_num.return_value = job
+        repo.get_by_id.return_value = job
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '3'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '003'])
         assert result.exit_code == 0
         assert '0 files created, 0 skipped' in result.output
 
     def test_bad_structured_json_skipped(self, tmp_path):
         sess = MagicMock()
         repo = MagicMock()
-        job = job_row(num=4, structured_description='not-json')
+        job = job_row(job_id='004', structured_description='not-json')
         repo.list_jobs.return_value = ([job], 1)
-        repo.get_by_num.return_value = job
+        repo.get_by_id.return_value = job
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '4'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '004'])
         assert result.exit_code == 0
         assert '1 files created, 1 skipped' in result.output
 
     def test_non_string_created_at(self, tmp_path):
         sess = MagicMock()
         repo = MagicMock()
-        job = job_row(num=5, created_at=20240101)
+        job = job_row(job_id='005', created_at=20240101)
         repo.list_jobs.return_value = ([job], 1)
-        repo.get_by_num.return_value = job
+        repo.get_by_id.return_value = job
         with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.EXPORT_DIR', str(tmp_path)):
-            result = runner.invoke(cli.app, ['generate-files', '--job-num', '5'])
+            result = runner.invoke(cli.app, ['generate-files', '--job-id', '005'])
         assert result.exit_code == 0
         assert '2 files created, 0 skipped' in result.output
 
@@ -616,7 +608,7 @@ class TestSyncDbCommand:
         return patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo))
 
     def test_all_complete(self):
-        jobs = [job_row(num=1, raw_description='x', structured_description='{}')]
+        jobs = [job_row(job_id='1', raw_description='x', structured_description='{}')]
         with self._patch(jobs):
             result = runner.invoke(cli.app, ['sync-db'])
         assert result.exit_code == 0
@@ -624,8 +616,8 @@ class TestSyncDbCommand:
 
     def test_missing_rows_dry_run(self):
         jobs = [
-            job_row(num=1, company='A', role='Dev', raw_description=None, structured_description='{}'),
-            job_row(num=2, company='B', role='QA', raw_description='x', structured_description=None),
+            job_row(job_id='1', company='A', role='Dev', raw_description=None, structured_description='{}'),
+            job_row(job_id='2', company='B', role='QA', raw_description='x', structured_description=None),
         ]
         with self._patch(jobs):
             result = runner.invoke(cli.app, ['sync-db'])
@@ -640,8 +632,8 @@ class TestSyncDbCommand:
         fake_worker = types.ModuleType('jobs.infrastructure.workers.worker')
         fake_worker.process_job = MagicMock()
         jobs = [
-            job_row(num=1, company='A', role='Dev', raw_description=None, structured_description='{}'),
-            job_row(num=2, company='B', role='QA', raw_description=None, structured_description='{}'),
+            job_row(job_id='1', company='A', role='Dev', raw_description=None, structured_description='{}'),
+            job_row(job_id='2', company='B', role='QA', raw_description=None, structured_description='{}'),
         ]
         with self._patch(jobs), \
              patch.dict(sys.modules, {'jobs.infrastructure.workers.worker': fake_worker}), \

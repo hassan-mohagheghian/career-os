@@ -10,10 +10,10 @@ class Summary:
     """Job summary value object.
 
     Stores a compact summary of a job for quick display.
-    Uses `num` (job number) as the primary key.
+    Uses `job_id` (job UUID) as the key.
     """
 
-    num: int
+    job_id: str
     company: str | None = None
     match: str | None = None
     score: str | None = None
@@ -26,7 +26,7 @@ class Summary:
     @classmethod
     def from_dict(cls, data: dict) -> Summary:
         return cls(
-            num=data["num"],
+            job_id=data["job_id"],
             company=data.get("company"),
             match=data.get("match"),
             score=data.get("score"),
@@ -39,7 +39,7 @@ class Summary:
 
     def to_dict(self) -> dict:
         return {
-            "num": self.num,
+            "job_id": self.job_id,
             "company": self.company,
             "match": self.match,
             "score": self.score,

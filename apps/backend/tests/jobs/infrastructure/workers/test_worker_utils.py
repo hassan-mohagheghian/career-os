@@ -209,36 +209,20 @@ class TestParsePostedDate:
         assert _parse_posted_date('N/A') is None
 
 
-class TestGetNextNum:
-    def test_empty_table_returns_1(self, sa_session):
-        from jobs.infrastructure.workers.worker import _get_next_num
-        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-            assert _get_next_num() == 1
-
-    def test_existing_jobs(self, sa_session):
-        from jobs.infrastructure.workers.worker import _get_next_num
-        from jobs.infrastructure.models.job_model import JobModel
-        job = JobModel(num=42, company="Test", role="Dev", url="https://example.com")
-        sa_session.add(job)
-        sa_session.commit()
-        with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-            assert _get_next_num() == 43
-
-
-class TestGetExistingNum:
+class TestGetExistingId:
     def test_existing_url(self, sa_session):
-        from jobs.infrastructure.workers.worker import _get_existing_num
+        from jobs.infrastructure.workers.worker import _get_existing_id
         from jobs.infrastructure.models.job_model import JobModel
-        job = JobModel(num=10, company="Test", role="Dev", url="https://example.com")
+        job = JobModel(id="existing-id-123", company="Test", role="Dev", url="https://example.com")
         sa_session.add(job)
         sa_session.commit()
         with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-            assert _get_existing_num('https://example.com') == 10
+            assert _get_existing_id('https://example.com') == "existing-id-123"
 
     def test_new_url(self, sa_session):
-        from jobs.infrastructure.workers.worker import _get_existing_num
+        from jobs.infrastructure.workers.worker import _get_existing_id
         with patch('jobs.infrastructure.workers.worker.get_session_sync', return_value=sa_session):
-            assert _get_existing_num('https://new.com') is None
+            assert _get_existing_id('https://new.com') is None
 
 
 class TestIsPausedOrStopped:

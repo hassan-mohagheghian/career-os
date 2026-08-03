@@ -45,9 +45,9 @@ def _company(sa_session, **kwargs):
 class TestUpdateStatus:
     def test_update_status_with_extra_fields(self, sa_session, repo):
         j = _job(sa_session, status="queued")
-        assert repo.update_status(str(j.num), "processing", table="pending_jobs",
-                                 error="x", session_id="s1") is True
-        row = sa_session.query(JobModel).filter(JobModel.num == j.num).first()
+        assert repo.update_status(j.id, "processing", table="pending_jobs",
+                                  error="x", session_id="s1") is True
+        row = sa_session.query(JobModel).filter(JobModel.id == j.id).first()
         assert row.status == "processing"
         assert row.error == "x"
         assert row.session_id == "s1"
@@ -81,7 +81,7 @@ class TestCreate:
         assert result["url"] == "https://example.com/new"
         assert json.loads(result["notes"]) == [{"a": 1}]
         assert result["status"] == "created"
-        row = sa_session.query(JobModel).filter(JobModel.num == result["num"]).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == result["id"]).first()
         assert json.loads(row.links) == ["https://l.com"]
         assert row.company == "Acme"
 
@@ -211,12 +211,12 @@ class TestStreamAndDelete:
         assert repo.get_by_url_pending("https://missing.com") is None
 
     def test_delete_job_not_found(self, repo):
-        assert repo.delete(999, "pending_jobs") is False
+        assert repo.delete("999", "pending_jobs") is False
 
     def test_delete_job_found(self, sa_session, repo):
         j = _job(sa_session)
-        assert repo.delete(j.num, "pending_jobs") is True
-        row = sa_session.query(JobModel).filter(JobModel.num == j.num).first()
+        assert repo.delete(j.id, "pending_jobs") is True
+        row = sa_session.query(JobModel).filter(JobModel.id == j.id).first()
         assert row.deleted == 1
 
     def test_delete_company_found(self, sa_session, repo):

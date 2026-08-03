@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.6.0] — 2026-08-02
+
+### Changed
+
+- **Jobs re-keyed to UUID `id` — legacy numeric `num` column removed** (full removal + Alembic migration `job_002_remove_job_num`):
+  - `JobModel` no longer has a `num` column; the `id` (UUID v7) column is now the sole primary key.
+  - Related tables re-keyed to the job UUID: `summaries` (`job_id`, autoincrement `id` PK replaces `num`), `resumes` (`job_id` replaces `job_num`).
+  - Repos renamed accordingly: `get_by_num`→`get_by_id`, `get_num_by_url`→`get_id_by_url`, `get_company_id_by_num`→`get_company_id_by_id`, summary `get_by_num`→`get_by_job_id`; `get_next_num`/`delete(num)` removed in favor of `delete_by_id`.
+  - Worker/stream-server helpers flow the job UUID (`job_id`) instead of a numeric `num`.
+  - API v2 job list/detail responses no longer include `num`; frontend migrated to `id` everywhere (job types, resume generation endpoints, company-linked job lists, sort fields).
+
+## [2.5.0] — 2026-08-02
+
+### Added
+
+- **Delete Job feature** — permanent hard deletion of a Job and all its related data via **`DELETE /api/jobs/{job_id}`**:
+  - Backend: `delete_by_id()` on the Job repository (removes the Job row, supporting summary/resume rows), `delete_by_target()` on the processing-execution repository (purges executions for the target), and a `DELETE` endpoint returning `204`.
+  - Frontend: `jobApi.deleteJob`, an icon-only **Delete** row action (trash icon) threaded through `JobRow`/`JobsTable`/`JobsPage`, and a destructive confirmation dialog before deleting.
+- **Backend tests** — `test_jobs_v2_delete_api.py` (delete + executions purged, 404 for unknown id, other jobs preserved).
+- **Frontend tests** — Delete action renders and fires `onDelete` in `JobActions.test.tsx`.
+- **Docs** — `docs/ux/features/jobs/delete-job.md`, `docs/ux/flows/jobs/delete-job.md`, `docs/api/jobs/delete-job.md`; `job-row.md` Actions updated; `docs/ux/README.md` updated.
+
 ## [2.4.0] — 2026-08-02
 
 ### Added

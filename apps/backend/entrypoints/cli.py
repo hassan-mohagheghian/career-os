@@ -62,13 +62,6 @@ def _get_rule_repo():
     session = get_session_sync()
     return session, SQLAlchemyRuleRepository(session)
 
-def get_next_num():
-    session, repo = _get_job_repo()
-    try:
-        return repo.get_next_num()
-    finally:
-        session.close()
-
 def get_pending(status=None):
     session, repo = _get_pending_repo()
     try:
@@ -108,7 +101,7 @@ def delete_pending(pid):
     from jobs.infrastructure.models.job_model import JobModel
     session, repo = _get_pending_repo()
     try:
-        session.query(JobModel).filter(JobModel.num == pid).update({"deleted": 1})
+        session.query(JobModel).filter(JobModel.id == pid).update({"deleted": 1})
         session.commit()
     finally:
         session.close()
@@ -150,7 +143,7 @@ def add(url: str = typer.Argument(..., help="LinkedIn job URL to add"),
         active_jobs = job_repo.get_all_active()
         for j in active_jobs:
             if normalize_url(j['url']) == normalized:
-                console.print(f"[yellow]Already processed as #{j['num']} ({j['company']})[/yellow]")
+                console.print(f"[yellow]Already processed as #{j['id']} ({j['company']})[/yellow]")
                 return
     finally:
         session_j.close()
@@ -264,17 +257,17 @@ def remove(pid: int = typer.Argument(..., help="Job ID to remove")):
     console.print(f"[green]Removed ID:{pid}[/green]")
 
 @app.command()
-def rescore(num: int = typer.Argument(..., help="Job number to rescore")):
+def rescore(job_id: str = typer.Argument(..., help="Job id to rescore")):
     """Re-score a processed job by re-analyzing it."""
     session_j, job_repo = _get_job_repo()
     try:
-        job = job_repo.get_by_num(num)
+        job = job_repo.get_by_id(job_id)
     finally:
         session_j.close()
     if not job:
-        console.print(f"[red]Job #{num} not found[/red]")
+        console.print(f"[red]Job {job_id} not found[/red]")
         return
-    console.print(f"[cyan]Rescoring #{num} ({job['company']})...[/cyan]")
+    console.print(f"[cyan]Rescoring {job_id} ({job['company']})...[/cyan]")
 
     session_p, pending_repo = _get_pending_repo()
     try:
@@ -310,7 +303,7 @@ def rescore_all():
         return
     console.print(f"[cyan]Rescoring {len(jobs)} jobs...[/cyan]")
     for j in jobs:
-        console.print(f"  [#{j['num']}] {j['company']}...", end=" ")
+        console.print(f"  [#{j['id']}] {j['company']}...", end=" ")
 
         session_p, pending_repo = _get_pending_repo()
         try:
@@ -427,18 +420,16 @@ _load_env()
 EXPORT_DIR = os.path.abspath(os.environ.get('EXPORT_DIR', os.path.join(PROJECT_ROOT, 'export')))
 
 @app.command()
-def generate_files(job_num: int = typer.Option(None, help="Generate files for a specific job number (all jobs if omitted)"),
+def generate_files(job_id: str = typer.Option(None, help="Generate files for a specific job id (all jobs if omitted)"),
                    force: bool = typer.Option(False, help="Overwrite existing files")):
     """Generate raw and structured files for processed jobs."""
     session, job_repo = _get_job_repo()
     try:
-        if job_num:
-            rows, _ = job_repo.list_jobs(offset=0, limit=1, sort_by='num', sort_dir='asc',
-                                          filters={})
-            job = job_repo.get_by_num(job_num)
+        if job_id:
+            job = job_repo.get_by_id(job_id)
             rows = [job] if job and job.get('deleted', 0) == 0 else []
         else:
-            rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='num', sort_dir='asc')
+            rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='created_at', sort_dir='asc')
     finally:
         session.close()
 
@@ -454,7 +445,7 @@ def generate_files(job_num: int = typer.Option(None, help="Generate files for a 
     created = 0
     skipped = 0
     for j in rows:
-        num = j['num']
+        num = j['id'][:8]
         co = (j.get('company') or 'Unknown').replace(' ', '_').replace('/', '_')
         ro = (j.get('role') or 'Unknown').replace(' ', '_').replace('/', '_')
         date_str = ''
@@ -463,7 +454,7 @@ def generate_files(job_num: int = typer.Option(None, help="Generate files for a 
                 date_str = j['created_at'][:10]
             except:
                 pass
-        base = f"{num:03d}_{co}_{ro}_{date_str}"
+        base = f"{num}_{co}_{ro}_{date_str}"
 
         # Raw file
         raw_path = os.path.join(raw_dir, f"{base}.md")
@@ -497,7 +488,7 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
     """Check jobs with missing raw_description or structured_description."""
     session, job_repo = _get_job_repo()
     try:
-        rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='num', sort_dir='asc')
+        rows, _ = job_repo.list_jobs(offset=0, limit=99999, sort_by='created_at', sort_dir='asc')
     finally:
         session.close()
 
@@ -515,11 +506,11 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
 
     console.print(f"[yellow]Found {len(missing_raw)} jobs missing raw_description[/yellow]")
     for j in missing_raw:
-        console.print(f"  #{j['num']} {j['company']} — {j['role']}")
+        console.print(f"  #{j['id']} {j['company']} — {j['role']}")
 
     console.print(f"[yellow]Found {len(missing_struct)} jobs missing structured_description[/yellow]")
     for j in missing_struct:
-        console.print(f"  #{j['num']} {j['company']} — {j['role']}")
+        console.print(f"  #{j['id']} {j['company']} — {j['role']}")
 
     if not fix:
         console.print("\n[dim]Dry run — use --fix to update[/dim]")
@@ -528,7 +519,7 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
     console.print("\n[bold]Re-processing missing jobs...[/bold]")
     from jobs.infrastructure.workers.worker import process_job
     for j in missing_raw + missing_struct:
-        num = j['num']
+        num = j['id']
         console.print(f"  Re-processing #{num} {j['company']}...")
         # Create a temp pending entry and process it
         pid = add_pending('', source='sync', company=j['company'])

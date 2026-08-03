@@ -153,7 +153,6 @@ Returns the updated `JobDetail`.
 ```json
 {
   "id": "8f5b1c2e-...",
-  "num": 12,
   "title": "The Software Engineer",
   "company_name": "Acme GmbH",
   "role": "Senior Backend Engineer",

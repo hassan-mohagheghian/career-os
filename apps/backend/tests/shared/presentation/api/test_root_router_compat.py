@@ -67,11 +67,11 @@ def _seed_roadmap(sa_session, skill_name, completed=0, title="Basics"):
 
 
 def test_summaries_compat(client, sa_session):
-    sa_session.add(SummaryModel(num=901, company="SummaryCo", score="A"))
+    sa_session.add(SummaryModel(job_id="job-901", company="SummaryCo", score="A"))
     sa_session.commit()
     resp = client.get("/api/summaries")
     assert resp.status_code == 200
-    assert any(r["num"] == 901 and r["company"] == "SummaryCo" for r in resp.json())
+    assert any(r["job_id"] == "job-901" and r["company"] == "SummaryCo" for r in resp.json())
 
 
 def test_linkedin_compat(client, sa_session):
@@ -207,20 +207,20 @@ def test_delete_skill_relationship_compat(client, sa_session):
 
 
 def test_link_job_to_company_with_company_id(client, sa_session):
-    sa_session.add(JobModel(num=501, url="https://example.com/link1", company="Co"))
+    sa_session.add(JobModel(id="job-501", url="https://example.com/link1", company="Co"))
     sa_session.commit()
     co_id = _seed_company(sa_session, name="LinkedCo")
-    resp = client.post("/api/jobs/501/link-company", json={"company_id": co_id})
+    resp = client.post("/api/jobs/job-501/link-company", json={"company_id": co_id})
     assert resp.status_code == 200
     assert resp.json() == {"status": "linked"}
-    job = sa_session.query(JobModel).filter(JobModel.num == 501).first()
+    job = sa_session.query(JobModel).filter(JobModel.id == "job-501").first()
     assert job.company_id == co_id
 
 
 def test_link_job_to_company_without_company_id(client, sa_session):
-    sa_session.add(JobModel(num=502, url="https://example.com/link2", company="Co"))
+    sa_session.add(JobModel(id="job-502", url="https://example.com/link2", company="Co"))
     sa_session.commit()
-    resp = client.post("/api/jobs/502/link-company", json={"company_id": None})
+    resp = client.post("/api/jobs/job-502/link-company", json={"company_id": None})
     assert resp.status_code == 200
     assert resp.json() == {"status": "linked"}
 

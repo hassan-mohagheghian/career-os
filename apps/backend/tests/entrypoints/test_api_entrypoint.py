@@ -62,7 +62,7 @@ class TestRecoverTasks:
     def test_stuck_jobs_and_companies(self):
         session = MagicMock()
         job_repo = MagicMock()
-        job_repo.get_processing_items.return_value = [{'num': 1}]
+        job_repo.get_processing_items.return_value = [{'id': 'job-1'}]
         company_repo = MagicMock()
         company_repo.get_processing_items.return_value = [{'id': 2}]
         with (

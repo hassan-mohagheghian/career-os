@@ -103,7 +103,7 @@ def _recover_tasks():
                 log.info("fastapi.recovery_stuck_jobs", count=len(stuck_jobs))
                 for job in stuck_jobs:
                     job_repo.update_fields(
-                        job['num'], status='pending', error='Interrupted by server restart',
+                        job['id'], status='pending', error='Interrupted by server restart',
                         failure_reason='Server restart', failure_timestamp=now,
                         updated_at=now,
                     )

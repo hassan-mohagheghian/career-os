@@ -14,7 +14,6 @@ vi.mock('@/entities/job/api', () => ({
 
 const sampleDetail = {
   id: 'job-1',
-  num: 1,
   title: 'Staff Engineer',
   company_name: 'Acme GmbH',
   role: 'Staff',

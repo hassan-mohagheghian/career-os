@@ -106,7 +106,7 @@ class JobWorker(WorkerBase):
         self._log(pid, 'fetch', f'Processing {url[:60] if url else "notes/links"}...')
 
         context = {
-            "pid": str(pid),
+            "job_id": str(pid),
             "url": url,
             "notes": notes,
             "links": links,
@@ -152,10 +152,10 @@ class JobWorker(WorkerBase):
         metadata = result.get("metadata", {})
         persistence = metadata.get("persistence", {})
         if persistence.get("success"):
-            job_num = persistence.get("job_num")
+            job_id = persistence.get("job_id")
             company = persistence.get("company", "")
-            self._log(pid, 'save', f'Saved job #{job_num} to DB')
-            return {'num': job_num, 'company': company}
+            self._log(pid, 'save', f'Saved job {job_id} to DB')
+            return {'id': job_id, 'company': company}
 
         self._log(pid, 'error', 'Persistence did not complete successfully')
         raise RuntimeError("Job processing failed to persist results")

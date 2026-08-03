@@ -63,15 +63,16 @@ class TestMappers:
     def test_job_model_to_dict(self):
         from shared.infrastructure.database.mappers import job_model_to_dict
         from jobs.infrastructure.models.job_model import JobModel
-        model = JobModel(num=1, url='https://example.com', status='pending')
+        model = JobModel(id='job-1', url='https://example.com', status='pending')
         d = job_model_to_dict(model)
         assert d['url'] == 'https://example.com'
-        assert d['num'] == 1
+        assert d['id'] == 'job-1'
 
     def test_dict_to_job_model(self):
         from shared.infrastructure.database.mappers import dict_to_job_model
-        model = dict_to_job_model({'num': 1, 'url': 'https://ex.com', 'status': 'pending'})
+        model = dict_to_job_model({'id': 'job-1', 'url': 'https://ex.com', 'status': 'pending'})
         assert model.url == 'https://ex.com'
+        assert model.id == 'job-1'
 
     def test_company_model_to_dict(self):
         from shared.infrastructure.database.mappers import company_model_to_dict

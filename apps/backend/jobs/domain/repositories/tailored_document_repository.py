@@ -28,26 +28,26 @@ class ITailoredDocumentRepository(ABC):
         ...
 
     @abstractmethod
-    def get_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_for_job(self, job_id: str) -> dict[str, Any] | None:
         """Get the latest tailored resume for a specific job."""
         ...
 
     @abstractmethod
-    def get_cover_for_job(self, job_num: int) -> dict[str, Any] | None:
+    def get_cover_for_job(self, job_id: str) -> dict[str, Any] | None:
         """Get the latest cover letter for a specific job."""
         ...
 
     @abstractmethod
-    def get_active_for_job(self, job_num: int, doc_type: str) -> dict[str, Any] | None:
+    def get_active_for_job(self, job_id: str, doc_type: str) -> dict[str, Any] | None:
         """Get an active (in-progress) generation for a job."""
         ...
 
     @abstractmethod
-    def create_generation(self, job_num: int, doc_type: str) -> dict[str, Any]:
+    def create_generation(self, job_id: str, doc_type: str) -> dict[str, Any]:
         """Create a new generation record for a job."""
         ...
 
     @abstractmethod
-    def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
+    def get_history_for_job(self, job_id: str) -> list[dict[str, Any]]:
         """Get generation history for a specific job."""
         ...

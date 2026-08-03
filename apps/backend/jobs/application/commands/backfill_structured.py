@@ -93,12 +93,12 @@ def main():
             JobModel.deleted == 0,
             JobModel.raw_description.isnot(None),
             JobModel.structured_description.is_(None)
-        ).order_by(JobModel.num).all()
+        ).order_by(JobModel.created_at).all()
         log.info("Found jobs needing structured extraction", count=len(rows))
         success, failed = 0, 0
         for i, job in enumerate(rows):
-            log.info("Extracting structured description", num=job.num, company=job.company)
-            structured_json = extract_structured(job.raw_description, job.num)
+            log.info("Extracting structured description", job_id=job.id, company=job.company)
+            structured_json = extract_structured(job.raw_description, job.id)
             if structured_json:
                 job.structured_description = structured_json
                 session.commit()

@@ -125,18 +125,18 @@ async def process_company_task(company_id: str) -> None:
         raise
 
 
-async def generate_resume_task(job_num: int, resume_id: str = "original") -> None:
+async def generate_resume_task(job_id: str, resume_id: str = "original") -> None:
     """Background task for generating a resume."""
     from jobs.infrastructure.workers.generation_worker import process_generation
     from shared.infrastructure.process.logging_config import get_logger
 
     log = get_logger("background.resume")
-    log.info("resume.background_start", job_num=job_num)
+    log.info("resume.background_start", job_id=job_id)
 
     try:
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, process_generation, job_num)
-        log.info("resume.background_complete", job_num=job_num)
+        await loop.run_in_executor(None, process_generation, job_id)
+        log.info("resume.background_complete", job_id=job_id)
     except Exception as e:
-        log.error("resume.background_failed", job_num=job_num, error=str(e))
+        log.error("resume.background_failed", job_id=job_id, error=str(e))
         raise

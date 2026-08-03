@@ -7,6 +7,7 @@ Tests cover: WorkerBase subclassing, pipeline execution, status transitions.
 import sys
 import os
 import json
+import uuid
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime
@@ -96,14 +97,14 @@ class TestWorkerBase:
 
     def _insert_pending_job(self, sa_session, url='https://example.com', status='processing'):
         m = JobModel(
-            num=1, url=url, status=status, source='cli',
+            id=str(uuid.uuid7()), url=url, status=status, source='cli',
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat(),
         )
         sa_session.add(m)
         sa_session.commit()
         sa_session.refresh(m)
-        return m.num
+        return m.id
 
     def test_successful_pipeline(self, sa_session):
         worker = self._make_worker(sa_session)
@@ -111,7 +112,7 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'completed'
 
     def test_failed_pipeline(self, sa_session):
@@ -123,7 +124,7 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert row.error is not None
 
@@ -133,7 +134,7 @@ class TestWorkerBase:
 
         worker.process(pid)
 
-        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) >= 2
         assert logs[0]['msg'] == 'Fetched content'
@@ -142,7 +143,7 @@ class TestWorkerBase:
     def test_missing_item_returns_early(self, sa_session):
         worker = self._make_worker(sa_session)
         # Process non-existent item - should not raise
-        worker.process(99999)
+        worker.process('99999')
 
     def test_cancelled_item_stops(self, sa_session):
         from shared.infrastructure.process.repository import PendingJobRepository
@@ -168,7 +169,7 @@ class TestWorkerBase:
 
         worker._reset_steps(pid)
 
-        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.workflow_log == '[]'
 
     def test_mark_step_broadcasts(self, sa_session):
@@ -189,7 +190,7 @@ class TestWorkerBase:
 
         worker._log(pid, 'test', 'Test message')
 
-        row = sa_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = sa_session.query(JobModel).filter(JobModel.id == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) == 1
         assert logs[0]['step'] == 'test'

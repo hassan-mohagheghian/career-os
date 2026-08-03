@@ -105,28 +105,35 @@ The Actions column contains context-sensitive actions. All actions are
 An **Edit** action is always available, allowing the user to update the Job's
 core data (see `features/jobs/edit-job.md`).
 
+A **Delete** action is always available, allowing the user to permanently remove
+the Job and all its processing data (see `features/jobs/delete-job.md`).
+
 Created
 
 - Process (icon)
 - Details (icon)
 - Edit (icon)
+- Delete (icon)
 
 Running
 
 - View Progress (icon)
 - Edit (icon)
+- Delete (icon)
 
 Completed
 
 - View Results (icon)
 - Reprocess (icon)
 - Edit (icon)
+- Delete (icon)
 
 Failed
 
 - Retry (icon)
 - Details (icon)
 - Edit (icon)
+- Delete (icon)
 
 ---
 

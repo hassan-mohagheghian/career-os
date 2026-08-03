@@ -130,12 +130,12 @@ class DatabaseTool(BaseTool):
     def _get_job(self, session: Session, params: dict) -> list[dict[str, Any]]:
         from jobs.infrastructure.models.job_model import JobModel
 
-        num = params.get("num")
-        if not num:
-            return [{"error": "num parameter is required"}]
+        job_id = params.get("job_id")
+        if not job_id:
+            return [{"error": "job_id parameter is required"}]
 
         row = session.execute(
-            select(JobModel).where(JobModel.num == num)
+            select(JobModel).where(JobModel.id == job_id)
         ).scalars().first()
         if not row:
             return []
@@ -320,8 +320,8 @@ class DatabaseTool(BaseTool):
         from shared.infrastructure.database.models.misc_models import ResumeModel
 
         query = select(ResumeModel)
-        if "job_num" in params:
-            query = query.where(ResumeModel.job_num == params["job_num"])
+        if "job_id" in params:
+            query = query.where(ResumeModel.job_id == params["job_id"])
         if "limit" in params:
             query = query.limit(params["limit"])
         else:
@@ -333,7 +333,7 @@ class DatabaseTool(BaseTool):
             "title": row.title,
             "company": row.company,
             "role": row.role,
-            "job_num": row.job_num,
+            "job_id": row.job_id,
             "version": row.version,
         } for row in rows]
 
@@ -354,7 +354,7 @@ class DatabaseTool(BaseTool):
             "title": row.title,
             "company": row.company,
             "role": row.role,
-            "job_num": row.job_num,
+            "job_id": row.job_id,
             "version": row.version,
         }]
 
@@ -369,11 +369,10 @@ class DatabaseTool(BaseTool):
 
         rows = session.execute(query).scalars().all()
         return [{
-            "id": row.num,
+            "id": row.id,
             "url": row.url,
             "company": row.company,
             "status": row.status,
-            "job_num": row.num,
         } for row in rows]
 
     def _list_pending_companies(self, session: Session, params: dict) -> list[dict[str, Any]]:
@@ -437,7 +436,7 @@ class DatabaseTool(BaseTool):
 
     def _job_to_dict(self, job: Any) -> dict[str, Any]:
         return {
-            "num": job.num,
+            "id": job.id,
             "company": job.company,
             "title": job.title,
             "location": job.location,

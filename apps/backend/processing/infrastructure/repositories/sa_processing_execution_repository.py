@@ -101,6 +101,12 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         ).order_by(ProcessingExecutionModel.created_at.desc()).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
+    def delete_by_target(self, target_type: str, target_id: str) -> int:
+        return self._session.query(ProcessingExecutionModel).filter(
+            ProcessingExecutionModel.target_type == target_type,
+            ProcessingExecutionModel.target_id == target_id,
+        ).delete(synchronize_session=False)
+
     def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
         models = self._session.query(ProcessingExecutionModel).order_by(
             ProcessingExecutionModel.created_at.desc()

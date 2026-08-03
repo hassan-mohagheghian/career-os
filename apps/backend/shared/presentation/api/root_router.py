@@ -189,14 +189,14 @@ def delete_skill_relationship_compat(id: int):
 
 # ── Job-Company link ─────────────────────────────────────────────
 
-@api_router.post("/jobs/{num}/link-company")
-def link_job_to_company(num: int, data: dict):
+@api_router.post("/jobs/{job_id}/link-company")
+def link_job_to_company(job_id: str, data: dict):
     session = get_session_sync()
     try:
         repo = SQLAlchemyJobRepository(session)
         company_id = data.get("company_id")
         if company_id:
-            repo.update_fields(num, company_id=company_id)
+            repo.update_fields(job_id, company_id=company_id)
             session.commit()
         return {"status": "linked"}
     finally:

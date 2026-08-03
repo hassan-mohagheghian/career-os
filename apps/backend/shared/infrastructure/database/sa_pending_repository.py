@@ -37,7 +37,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
     def get_by_id(self, item_id: str, table: str = "pending_jobs") -> dict[str, Any] | None:
         if table == "pending_jobs":
-            model = self._session.query(JobModel).filter(JobModel.num == int(item_id)).first()
+            model = self._session.query(JobModel).filter(JobModel.id == item_id).first()
             return job_model_to_dict(model) if model else None
         elif table == "pending_companies":
             model = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
@@ -61,9 +61,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(self._session)
-            num = job_repo.get_next_num()
             model = JobModel(
-                num=num,
                 url=url,
                 source=data.get("source", "api"),
                 company=data.get("company", ""),
@@ -91,7 +89,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
 
     def update_status(self, item_id: str, status: str, table: str = "pending_jobs", **fields) -> bool:
         if table == "pending_jobs":
-            m = self._session.query(JobModel).filter(JobModel.num == int(item_id)).first()
+            m = self._session.query(JobModel).filter(JobModel.id == item_id).first()
         elif table == "pending_companies":
             m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
         else:
@@ -121,11 +119,11 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         m = self._session.query(JobModel).filter(JobModel.url == url).first()
         return job_model_to_dict(m) if m else None
 
-    def update_fields(self, item_id: int, table: str = "pending_jobs", **fields) -> bool:
+    def update_fields(self, item_id: str, table: str = "pending_jobs", **fields) -> bool:
         if table == "pending_jobs":
-            m = self._session.query(JobModel).filter(JobModel.num == item_id).first()
+            m = self._session.query(JobModel).filter(JobModel.id == item_id).first()
         elif table == "pending_companies":
-            m = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
+            m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
         else:
             return False
         if not m:
@@ -245,7 +243,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
                 JobModel.status == "queued"
             ).order_by(
                 JobModel.queue_order.asc(),
-                JobModel.num.asc()
+                JobModel.id.asc()
             ).first()
             if model:
                 model.status = "processing"
@@ -270,7 +268,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
             rows = self._session.query(JobModel).filter(
                 JobModel.deleted == 0,
                 JobModel.status == "queued"
-            ).order_by(JobModel.queue_order.asc(), JobModel.num.asc()).all()
+            ).order_by(JobModel.queue_order.asc(), JobModel.id.asc()).all()
             return [job_model_to_dict(r) for r in rows]
         elif table == "pending_companies":
             rows = self._session.query(CompanyModel).filter(
@@ -290,7 +288,7 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         if not keep_status:
             updates["status"] = "created"
         if table == "pending_jobs":
-            self._session.query(JobModel).filter(JobModel.num == item_id).update(updates)
+            self._session.query(JobModel).filter(JobModel.id == item_id).update(updates)
         elif table == "pending_companies":
             self._session.query(CompanyModel).filter(CompanyModel.id == item_id).update(updates)
         self._session.commit()
@@ -310,24 +308,21 @@ class SQLAlchemyPendingRepository(IPendingRepository):
         return job_model_to_dict(m) if m else None
 
     def create_pending_job(self, url: str, source: str, company: str, status: str = "created") -> dict[str, Any]:
-        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-        job_repo = SQLAlchemyJobRepository(self._session)
-        num = job_repo.get_next_num()
-        model = JobModel(num=num, url=url, source=source, company=company, status=status)
+        model = JobModel(url=url, source=source, company=company, status=status)
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
         return job_model_to_dict(model)
 
-    def delete(self, item_id: int, table: str = "pending_jobs") -> bool:
+    def delete(self, item_id: str, table: str = "pending_jobs") -> bool:
         if table == "pending_jobs":
-            m = self._session.query(JobModel).filter(JobModel.num == item_id).first()
+            m = self._session.query(JobModel).filter(JobModel.id == item_id).first()
             if m:
                 m.deleted = 1
                 self._session.commit()
                 return True
         elif table == "pending_companies":
-            m = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
+            m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
             if m:
                 self._session.delete(m)
                 self._session.commit()

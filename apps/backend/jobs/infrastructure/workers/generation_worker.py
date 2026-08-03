@@ -54,7 +54,7 @@ def _log_event(gen_id, step, msg):
     ))
 
 
-def _load_company_context(job_num):
+def _load_company_context(job_id):
     """Load company intelligence for enrichment when job is linked to a company."""
     session = get_session_sync()
     try:
@@ -63,7 +63,7 @@ def _load_company_context(job_num):
         job_repo = SQLAlchemyJobRepository(session)
         intel_repo = SQLAlchemyCompanyIntelligenceRepository(session)
 
-        company_id = job_repo.get_company_id_by_num(job_num)
+        company_id = job_repo.get_company_id_by_id(job_id)
         if not company_id:
             return None
 
@@ -103,11 +103,11 @@ def process_generation(gen_id):
     if not gen:
         return
 
-    job_num = gen['job_num']
+    job_id = gen['job_id']
     gen_type = gen['type']
 
     _update_step(gen_id, 'step_prepare', 1, status='processing')
-    _log_event(gen_id, 'prepare', f'Loading job #{job_num} data')
+    _log_event(gen_id, 'prepare', f'Loading job {job_id} data')
 
     try:
         session = get_session_sync()
@@ -117,9 +117,9 @@ def process_generation(gen_id):
             job_repo = SQLAlchemyJobRepository(session)
             resume_repo = SQLAlchemyResumeRepository(session)
 
-            job = job_repo.get_by_num(job_num)
+            job = job_repo.get_by_id(job_id)
             if not job:
-                raise RuntimeError(f"Job #{job_num} not found")
+                raise RuntimeError(f"Job {job_id} not found")
 
             resume_text = resume_repo.get_latest_original_raw_text()
             if not resume_text:
@@ -135,7 +135,7 @@ def process_generation(gen_id):
         _log_event(gen_id, 'prepare', f'Job: {job.get("company")} — {job.get("role")}')
 
         _update_step(gen_id, 'step_context', 1, status='processing')
-        company_context = _load_company_context(job_num)
+        company_context = _load_company_context(job_id)
 
         if company_context:
             _log_event(gen_id, 'context', 'Company intelligence loaded — will enrich prompt')
@@ -209,7 +209,7 @@ def process_generation(gen_id):
         if not content:
             raise RuntimeError(f"LLM returned empty {gen_type} content")
 
-        resume_id = f'{gen_type}_{job_num}'
+        resume_id = f'{gen_type}_{job_id}'
         session = get_session_sync()
         try:
             from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
@@ -222,7 +222,7 @@ def process_generation(gen_id):
                 'content': content,
                 'version': 1,
                 'raw_text': '',
-                'job_num': job_num,
+                'job_id': job_id,
             })
         finally:
             session.close()
@@ -230,7 +230,7 @@ def process_generation(gen_id):
         _update_step(gen_id, 'step_save', 1)
 
         _update_step(gen_id, 'step_done', 1, status='done')
-        _log_event(gen_id, 'done', f'{gen_type.title()} generated for #{job_num}')
+        _log_event(gen_id, 'done', f'{gen_type.title()} generated for {job_id}')
 
         session = get_session_sync()
         try:
@@ -239,7 +239,7 @@ def process_generation(gen_id):
             pending_repo.update_fields(gen_id,
                 result=json.dumps({'id': resume_id, 'content': content, 'title': title}),
                 status='done',
-                session_id=session_id or f'{gen_type}_{job_num}',
+                session_id=session_id or f'{gen_type}_{job_id}',
             )
         finally:
             session.close()
@@ -248,7 +248,7 @@ def process_generation(gen_id):
             table='pending_generations', pid=gen_id,
             result={
                 'id': resume_id, 'content': content, 'title': title,
-                'type': gen_type, 'job_num': job_num, 'session_id': session_id or f'{gen_type}_{job_num}',
+                'type': gen_type, 'job_id': job_id, 'session_id': session_id or f'{gen_type}_{job_id}',
             },
         ))
 

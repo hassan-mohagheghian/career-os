@@ -67,7 +67,7 @@ class GenerationHistoryRepository:
                 rows = repo.get_all_for_stream("pending_jobs")[:200]
                 for r in rows:
                     items.append(GenerationHistoryItem(
-                        id=r.get('num') or r.get('id'),
+                        id=r.get('id'),
                         source='job-processing',
                         title=r.get('company') or 'Job',
                         status=r.get('status', 'unknown'),
@@ -138,11 +138,11 @@ class GenerationHistoryRepository:
 
     # ── Context-filtered queries for local history ────────────────────
 
-    def get_for_job(self, job_num: int, limit: int = 50) -> Dict[str, any]:
+    def get_for_job(self, job_id: str, limit: int = 50) -> Dict[str, any]:
         """Get generation history for a specific job (resume + cover + processing)."""
         all_items: List[GenerationHistoryItem] = []
-        all_items.extend(self._query_pending_generations_for_job(job_num))
-        all_items.extend(self._query_pending_jobs_for_job(job_num))
+        all_items.extend(self._query_pending_generations_for_job(job_id))
+        all_items.extend(self._query_pending_jobs_for_job(job_id))
         all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
         return {'items': all_items[:limit], 'total': len(all_items)}
 
@@ -163,7 +163,7 @@ class GenerationHistoryRepository:
     def get_active_count(
         self,
         context: str,
-        job_num: Optional[int] = None,
+        job_id: Optional[str] = None,
         company_id: Optional[int] = None,
         skill_name: Optional[str] = None,
     ) -> int:
@@ -172,13 +172,11 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                if context == 'job' and job_num is not None:
-                    repo_pending = SQLAlchemyPendingRepository(session)
-                    # Count pending jobs with job_num in processing/queued status
+                if context == 'job' and job_id is not None:
                     from jobs.infrastructure.models.job_model import JobModel
                     count += session.query(JobModel).filter(
                         JobModel.deleted == 0,
-                        JobModel.num == job_num,
+                        JobModel.id == job_id,
                         JobModel.status.in_(["processing", "queued"]),
                     ).count()
                 elif context == 'company' and company_id is not None:
@@ -200,10 +198,10 @@ class GenerationHistoryRepository:
             pass
         return count
 
-    def _query_pending_generations_for_job(self, job_num: int) -> List[GenerationHistoryItem]:
+    def _query_pending_generations_for_job(self, job_id: str) -> List[GenerationHistoryItem]:
         return []
 
-    def _query_pending_jobs_for_job(self, job_num: int) -> List[GenerationHistoryItem]:
+    def _query_pending_jobs_for_job(self, job_id: str) -> List[GenerationHistoryItem]:
         items = []
         try:
             session = self._session()
@@ -211,13 +209,13 @@ class GenerationHistoryRepository:
                 from jobs.infrastructure.models.job_model import JobModel
                 rows = session.query(JobModel).filter(
                     JobModel.deleted == 0,
-                    JobModel.num == job_num,
+                    JobModel.id == job_id,
                 ).order_by(JobModel.created_at.desc()).all()
                 from shared.infrastructure.database.mappers import job_model_to_dict
                 for m in rows:
                     d = job_model_to_dict(m)
                     items.append(GenerationHistoryItem(
-                        id=d['num'],
+                        id=d['id'],
                         source='job-processing',
                         title=d.get('company') or 'Job Processing',
                         status=d.get('status', 'unknown'),

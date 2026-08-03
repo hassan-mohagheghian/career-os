@@ -50,7 +50,7 @@ class JobProcessingState(BaseState):
     job_requirements: str
     job_benefits: str
     job_url: str
-    job_num: int
+    job_id: str
     fit_score: Optional[float]
     success_score: Optional[float]
     overall_score: Optional[float]

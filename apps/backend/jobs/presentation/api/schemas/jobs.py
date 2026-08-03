@@ -98,6 +98,6 @@ class CreateJobRequest(BaseModel):
 
 
 class CreateJobResponse(BaseModel):
-    id: int
+    id: str
     status: str = "imported"
     message: str = "Job created successfully."

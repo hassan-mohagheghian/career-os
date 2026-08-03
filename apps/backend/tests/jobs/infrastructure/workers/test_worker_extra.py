@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import uuid
 from datetime import datetime, timedelta
 from types import ModuleType
 from unittest.mock import patch, MagicMock
@@ -12,9 +13,9 @@ from jobs.infrastructure.models.job_model import JobModel
 from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel, RuleModel
 
 
-def _seed_job(sa_session, num=1, url='https://example.com/job', **kw):
+def _seed_job(sa_session, id=None, url='https://example.com/job', **kw):
     data = dict(
-        num=num, company='Acme', role='Engineer', location='Berlin',
+        id=id or str(uuid.uuid7()), company='Acme', role='Engineer', location='Berlin',
         match='High', score='A', url=url, status='processing',
         raw_description='Engineer role responsibilities requirements python',
         rescoring=0,
@@ -24,12 +25,12 @@ def _seed_job(sa_session, num=1, url='https://example.com/job', **kw):
     sa_session.add(m)
     sa_session.commit()
     sa_session.refresh(m)
-    return m.num
+    return m.id
 
 
 def _full_job_dict(num=100):
     return {
-        'num': num, 'company': 'Acme', 'role': 'Engineer', 'location': 'Munich, Germany',
+        'id': f'job-{num}', 'company': 'Acme', 'role': 'Engineer', 'location': 'Munich, Germany',
         'match': 'High', 'score': 'A', 'salary': '120k', 'stack': 'Python, Go',
         'visa': 'Yes', 'applicants': '10', 'posted': '2 weeks ago',
         'industry': 'Tech', 'domain': 'job', 'notes': 'note', 'action': 'Apply Now',
@@ -75,8 +76,8 @@ class TestUpdateStep:
         from jobs.infrastructure.workers.worker import _update_step
         broadcaster = MagicMock()
         with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
-            _update_step(pid, 'step_fetch', 1, status='processing', company='Acme', job_num=5, error=None)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+            _update_step(pid, 'step_fetch', 1, status='processing', company='Acme', job_id='job-5', error=None)
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'processing'
         assert row.company == 'Acme'
         broadcaster.step_update.assert_called_once()
@@ -91,7 +92,7 @@ class TestUpdateStep:
         from jobs.infrastructure.workers.worker import _update_step
         broadcaster = MagicMock()
         with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
-            _update_step(99999, 'step_fetch', 1, error='oops')
+            _update_step('99999', 'step_fetch', 1, error='oops')
         broadcaster.step_update.assert_called_once()
         evt = broadcaster.step_update.call_args[0][0]
         assert evt.extra == {'error': 'oops'}
@@ -104,7 +105,7 @@ class TestSaveSessionId:
         broadcaster = MagicMock()
         with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
             _save_session_id(pid, 'sess_abc')
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert row.session_id == 'sess_abc'
         broadcaster.step_update.assert_called_once()
 
@@ -120,7 +121,7 @@ class TestInsertJob:
         d = _full_job_dict()
         d['employment_type'] = et
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
         assert row.employment_type == expected
 
     def test_work_types_from_string(self, mock_get_session_worker):
@@ -128,7 +129,7 @@ class TestInsertJob:
         d = _full_job_dict()
         d['work_types'] = json.dumps(['Remote', 'On-site'])
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
         assert json.loads(row.work_types) == ['Remote', 'On-site']
 
     def test_work_types_invalid_string_falls_back(self, mock_get_session_worker):
@@ -137,7 +138,7 @@ class TestInsertJob:
         d['work_types'] = 'not-json{{'
         d['work_type'] = ''
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
         assert json.loads(row.work_types) == ['On-site']
 
     def test_work_types_from_single_work_type(self, mock_get_session_worker):
@@ -146,7 +147,7 @@ class TestInsertJob:
         d['work_types'] = []
         d['work_type'] = 'hybrid'
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
         assert json.loads(row.work_types) == ['Hybrid']
 
     def test_locations_as_string(self, mock_get_session_worker):
@@ -154,18 +155,18 @@ class TestInsertJob:
         d = _full_job_dict()
         d['locations'] = 'Berlin'
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == d['num']).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
         assert json.loads(row.locations) == ['Munich']
 
     def test_upsert_existing(self, mock_get_session_worker):
         from jobs.infrastructure.workers.worker import _insert_job
-        pid = _seed_job(mock_get_session_worker, num=50)
+        pid = _seed_job(mock_get_session_worker, id='job-50')
         d = _full_job_dict(num=50)
         d['company'] = 'Updated'
         _insert_job(d)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 50).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == 'job-50').first()
         assert row.company == 'Updated'
-        assert row.num == pid
+        assert row.id == pid
 
 
 class TestParseDates:
@@ -223,39 +224,39 @@ class TestDbHelpers:
         from jobs.infrastructure.workers.worker import _mark
         with patch('jobs.infrastructure.workers.worker._update_step') as mock_update, \
              patch('jobs.infrastructure.workers.worker.broadcaster'):
-            _mark(pid, 'step_fetch', company='Acme', job_num=3)
-        mock_update.assert_called_once_with(pid, 'step_fetch', 1, company='Acme', job_num=3)
+            _mark(pid, 'step_fetch', company='Acme', job_id='job-3')
+        mock_update.assert_called_once_with(pid, 'step_fetch', 1, company='Acme', job_id='job-3')
 
     def test_get_item(self, mock_get_session_worker):
         pid = _seed_job(mock_get_session_worker, status='queued')
         from jobs.infrastructure.workers.worker import _get_item
         item = _get_item(pid)
-        assert item['num'] == pid
+        assert item['id'] == pid
         assert item['status'] == 'queued'
 
     def test_get_item_missing(self, mock_get_session_worker):
         from jobs.infrastructure.workers.worker import _get_item
-        assert _get_item(99999) is None
+        assert _get_item('99999') is None
 
     def test_save_workflow_log(self, mock_get_session_worker):
         pid = _seed_job(mock_get_session_worker)
         from jobs.infrastructure.workers.worker import _save_job_workflow_log
         _save_job_workflow_log(pid, json.dumps([{'step': 'a', 'msg': 'b'}]))
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert json.loads(row.workflow_log)[0]['step'] == 'a'
 
     def test_insert_summary(self, mock_get_session_worker):
         from jobs.infrastructure.workers.worker import _insert_summary
-        _insert_summary({'num': 7, 'company': 'Acme', 'match': 'High', 'score': 'A',
+        _insert_summary({'job_id': 'job-7', 'company': 'Acme', 'match': 'High', 'score': 'A',
                          'summary': 'sum', 'stack': 'py', 'resumeFit': 'rf', 'note': 'n', 'url': 'u'})
-        row = mock_get_session_worker.query(SummaryModel).filter(SummaryModel.num == 7).first()
+        row = mock_get_session_worker.query(SummaryModel).filter(SummaryModel.job_id == 'job-7').first()
         assert row.company == 'Acme'
         assert row.summary == 'sum'
 
     def test_insert_resume(self, mock_get_session_worker):
         from jobs.infrastructure.workers.worker import _insert_resume
         _insert_resume({'id': 'rescore_7', 'title': 'T', 'company': 'Acme', 'role': 'R',
-                        'job_num': 7, 'content': '<p>x</p>'})
+                        'job_id': 'job-7', 'content': '<p>x</p>'})
         row = mock_get_session_worker.query(ResumeModel).filter(ResumeModel.id == 'rescore_7').first()
         assert row.content == '<p>x</p>'
 
@@ -271,12 +272,12 @@ class TestDbHelpers:
             _check_result_file(str(tmp_path / 'nope.json'))
 
     def test_mark_old_job_deleted(self, mock_get_session_worker):
-        _seed_job(mock_get_session_worker, num=1, url='https://dup.com')
-        _seed_job(mock_get_session_worker, num=2, url='https://dup.com')
+        id1 = _seed_job(mock_get_session_worker, id='dup-1', url='https://dup.com')
+        id2 = _seed_job(mock_get_session_worker, id='dup-2', url='https://dup.com')
         from jobs.infrastructure.workers.worker import _mark_old_job_deleted
-        _mark_old_job_deleted('https://dup.com', exclude_num=2)
-        row1 = mock_get_session_worker.query(JobModel).filter(JobModel.num == 1).first()
-        row2 = mock_get_session_worker.query(JobModel).filter(JobModel.num == 2).first()
+        _mark_old_job_deleted('https://dup.com', exclude_id=id2)
+        row1 = mock_get_session_worker.query(JobModel).filter(JobModel.id == id1).first()
+        row2 = mock_get_session_worker.query(JobModel).filter(JobModel.id == id2).first()
         assert row1.deleted == 1
         assert row2.deleted == 0
 
@@ -322,7 +323,7 @@ class TestFailAndLog:
         broadcaster = MagicMock()
         with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
             _fail(pid, 'Network timeout', step='fetch')
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert '[Fetching job page]' in row.error
         broadcaster.error.assert_called_once()
@@ -332,7 +333,7 @@ class TestFailAndLog:
         from jobs.infrastructure.workers.worker import _fail
         with patch('jobs.infrastructure.workers.worker.broadcaster'):
             _fail(pid, 'Generic error')
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert row.error == 'Generic error'
 
     def test_fail_unknown_step(self, mock_get_session_worker):
@@ -340,7 +341,7 @@ class TestFailAndLog:
         from jobs.infrastructure.workers.worker import _fail
         with patch('jobs.infrastructure.workers.worker.broadcaster'):
             _fail(pid, 'msg', step='mystery')
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         assert '[mystery] msg' in row.error
 
     def test_log_appends(self, mock_get_session_worker):
@@ -349,7 +350,7 @@ class TestFailAndLog:
         broadcaster = MagicMock()
         with patch('jobs.infrastructure.workers.worker.broadcaster', broadcaster):
             _log(pid, 'fetch', 'Fetching page...')
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session_worker.query(JobModel).filter(JobModel.id == pid).first()
         logs = json.loads(row.workflow_log)
         assert logs[-1]['msg'] == 'Fetching page...'
         broadcaster.log.assert_called_once()
@@ -651,168 +652,3 @@ class TestProcessJob:
             mock_qm.side_effect = RuntimeError('no queue')
             process_job(123)
         MockJobWorker.return_value.process.assert_called_once_with(123)
-
-
-class TestRescoreOnly:
-    def test_rescore_job_not_found(self, mock_get_session_worker):
-        from jobs.infrastructure.workers.worker import rescore_only
-        with patch('jobs.infrastructure.workers.worker.log') as mock_log:
-            rescore_only(9999)
-        mock_log.warning.assert_called_once()
-
-    def test_rescore_no_raw_desc(self, mock_get_session_worker):
-        _seed_job(mock_get_session_worker, num=60, raw_description=None)
-        from jobs.infrastructure.workers.worker import rescore_only
-        with patch('jobs.infrastructure.workers.worker.log') as mock_log:
-            rescore_only(60)
-        mock_log.warning.assert_called_once()
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 60).first()
-        assert row.rescoring == 0
-
-    def test_rescore_success(self, mock_get_session_worker, tmp_path):
-        pid = _seed_job(mock_get_session_worker, num=61,
-                          raw_description='Senior Python engineer backend responsibilities requirements')
-        from jobs.infrastructure.workers.worker import rescore_only
-        analyzed = {
-            'company': 'NewCo', 'role': 'Staff', 'location': 'Berlin',
-            'locations': ['Munich'], 'match': 'High', 'score': 'A',
-            'success': 'A+', 'fit_score': '85', 'success_score': '70',
-            'salary': '150k', 'stack': 'Go', 'visa': 'Yes', 'applicants': '5',
-            'posted': '1 week ago', 'posted_at': None, 'adv_at': None,
-            'apply_reason': 'good', 'industry': 'AI', 'domain': 'web',
-            'notes': 'n', 'action': 'Apply', 'employment_type': 'full',
-            'work_types': ['Remote'], 'workflow_log': '[]',
-        }
-        def _fake_stream(cmd, cwd=None, env=None, timeout=None, pid=None, **kw):
-            return 0, [], 'sess', {'result': {'job': analyzed, 'summary': {'summary': 's', 'resumeFit': 'rf', 'note': 'n'}, 'resume_html': '<h1>'}}
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value='rules'), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='prompt'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output', side_effect=_fake_stream), \
-             patch('jobs.infrastructure.workers.worker._insert_job') as mock_insert_job, \
-             patch('jobs.infrastructure.workers.worker._insert_summary') as mock_insert_summary, \
-             patch('jobs.infrastructure.workers.worker._insert_resume') as mock_insert_resume:
-            rescore_only(61)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 61).first()
-        assert row.rescoring == 0
-        mock_insert_job.assert_called_once()
-        mock_insert_summary.assert_called_once()
-        mock_insert_resume.assert_called_once()
-        job_data = mock_insert_job.call_args[0][0]
-        assert job_data['fit_score'] == 85
-        assert job_data['overall_score'] == 79
-
-    def test_rescore_with_original_resume(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=62, raw_description='backend python developer role')
-        mock_get_session_worker.add(ResumeModel(id='original_1', title='orig', version=1, raw_text='My master resume'))
-        mock_get_session_worker.commit()
-        from jobs.infrastructure.workers.worker import rescore_only
-        analyzed = {'company': 'C', 'role': 'R', 'location': '', 'locations': [],
-                    'match': 'Medium', 'score': 'B', 'success': 'B', 'salary': 'x',
-                    'stack': '', 'visa': '', 'applicants': '', 'posted': '',
-                    'apply_reason': '', 'industry': '', 'domain': '', 'notes': '',
-                    'action': '', 'employment_type': 'Full-time', 'work_types': []}
-
-        def _fake_stream(cmd, cwd=None, env=None, timeout=None, pid=None, **kw):
-            return 0, [], 's', {'result': {'job': analyzed, 'summary': {}, 'resume_html': ''}}
-
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output', side_effect=_fake_stream), \
-             patch('jobs.infrastructure.workers.worker._insert_job'), \
-             patch('jobs.infrastructure.workers.worker._insert_summary'), \
-             patch('jobs.infrastructure.workers.worker._insert_resume'):
-            rescore_only(62)
-        assert os.path.exists(os.path.join(str(tmp_path), 'rescore_resume_62.txt'))
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 62).first()
-        assert row.rescoring == 0
-
-    def test_rescore_provider_error_clears_flag(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=63, raw_description='backend python developer role')
-        from jobs.infrastructure.workers.worker import rescore_only
-        output_lines = [
-            '{"type": "text", "part": {"text": "provider reported failure"}}',
-            'this is not valid json {{',
-        ]
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output',
-                   return_value=(1, output_lines, None, {})):
-            rescore_only(63)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 63).first()
-        assert row.rescoring == 0
-
-    def test_rescore_result_file_loaded(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=64, raw_description='backend python developer role')
-        from jobs.infrastructure.workers.worker import rescore_only
-        analyzed = {'company': 'FileCo', 'role': 'R', 'location': '', 'locations': [],
-                    'match': 'Medium', 'score': 'B', 'success': 'B', 'salary': 'x',
-                    'stack': '', 'visa': '', 'applicants': '', 'posted': '',
-                    'apply_reason': '', 'industry': '', 'domain': '', 'notes': '',
-                    'action': '', 'employment_type': 'Full-time', 'work_types': []}
-
-        def _create_result_file(result_path):
-            with open(result_path, 'w') as f:
-                json.dump({'job': analyzed, 'summary': {}, 'resume_html': ''}, f)
-
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._check_result_file', side_effect=_create_result_file), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output',
-                   return_value=(0, [], None, {})), \
-             patch('jobs.infrastructure.workers.worker._insert_job') as mock_insert_job, \
-             patch('jobs.infrastructure.workers.worker._insert_summary'), \
-             patch('jobs.infrastructure.workers.worker._insert_resume'), \
-             patch('jobs.infrastructure.workers.worker.os.remove', side_effect=OSError('gone')):
-            rescore_only(64)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 64).first()
-        assert row.rescoring == 0
-        mock_insert_job.assert_called_once()
-        assert mock_insert_job.call_args[0][0]['company'] == 'FileCo'
-
-    def test_rescore_missing_result_file(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=66, raw_description='backend python developer role')
-        from jobs.infrastructure.workers.worker import rescore_only
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output',
-                   return_value=(0, [], None, {})):
-            rescore_only(66)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 66).first()
-        assert row.rescoring == 0
-
-    def test_rescore_cleanup_oserror_swallowed(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=67, raw_description='backend python developer role')
-        from jobs.infrastructure.workers.worker import rescore_only
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output',
-                   return_value=(1, ['{"type": "text", "part": {"text": "fail"}}'], None, {})), \
-             patch('jobs.infrastructure.workers.worker.os.remove', side_effect=OSError('gone')):
-            rescore_only(67)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 67).first()
-        assert row.rescoring == 0
-
-    def test_rescore_exception_clears_flag(self, mock_get_session_worker, tmp_path):
-        _seed_job(mock_get_session_worker, num=65, raw_description='backend python developer role')
-        from jobs.infrastructure.workers.worker import rescore_only
-        with patch('jobs.infrastructure.workers.worker.TMP_DIR', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker.PROJECT_ROOT', str(tmp_path)), \
-             patch('jobs.infrastructure.workers.worker._load_rules', return_value=''), \
-             patch('jobs.infrastructure.workers.worker.load_prompt', return_value='p'), \
-             patch('jobs.infrastructure.workers.worker._stream_provider_output',
-                   side_effect=RuntimeError('provider down')):
-            rescore_only(65)
-        row = mock_get_session_worker.query(JobModel).filter(JobModel.num == 65).first()
-        assert row.rescoring == 0

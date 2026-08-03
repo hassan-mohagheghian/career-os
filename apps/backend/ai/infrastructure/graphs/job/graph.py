@@ -521,9 +521,14 @@ def build_job_processing_graph() -> GraphBuilder:
                 summary_repo = SQLAlchemySummaryRepository(session)
                 resume_repo = SQLAlchemyResumeRepository(session)
 
-                temp_num = job_repo.get_next_num()
-                existing_num = job_repo.get_num_by_url(url) if url else None
-                job_num = existing_num or temp_num
+                job_id = state["context"].get("job_id")
+                if not job_id and url:
+                    job_id = job_repo.get_id_by_url(url)
+                if not job_id:
+                    job_id = job_repo.create_job(
+                        url or "",
+                        title=structured.get("title") or extraction.get("title") or "Unknown",
+                    ).get("id")
 
                 company = structured.get("company") or extraction.get("company") or "Unknown"
                 title = structured.get("title") or extraction.get("title") or "Unknown"
@@ -534,7 +539,7 @@ def build_job_processing_graph() -> GraphBuilder:
                 overall_score = state["metadata"].get("overall_score")
 
                 job_data = {
-                    "num": job_num,
+                    "id": job_id,
                     "company": company,
                     "role": title,
                     "location": structured.get("location", "Not specified"),
@@ -563,7 +568,7 @@ def build_job_processing_graph() -> GraphBuilder:
                 job_repo.upsert(job_data)
 
                 summary_data = {
-                    "num": job_num,
+                    "job_id": job_id,
                     "company": company,
                     "match": match,
                     "score": score,
@@ -580,10 +585,10 @@ def build_job_processing_graph() -> GraphBuilder:
 
             state["metadata"]["persistence"] = {
                 "success": True,
-                "job_num": job_num,
+                "job_id": job_id,
                 "company": company,
             }
-            state["context"]["job_num"] = job_num
+            state["context"]["job_id"] = job_id
 
         except Exception as e:
             state["errors"].append(f"Persistence failed: {e}")

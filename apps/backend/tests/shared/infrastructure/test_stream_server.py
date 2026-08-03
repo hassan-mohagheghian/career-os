@@ -5,6 +5,7 @@ import json
 import sys
 import os
 import types
+import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,21 +21,22 @@ from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendi
 from jobs.infrastructure.models.job_model import JobModel
 
 
-def _insert_pending(session, num=100, url='https://ex.com/p', status='created', source='cli', workflow_log='[]'):
-    m = JobModel(num=num, url=url, status=status, source=source,
+def _insert_pending(session, url='https://ex.com/p', status='created', source='cli', workflow_log='[]'):
+    job_id = str(uuid.uuid7())
+    m = JobModel(id=job_id, url=url, status=status, source=source,
                  notes='[]', links='[]', workflow_log=workflow_log)
     session.add(m)
     session.commit()
-    return num
+    return job_id
 
 
-def _job_dict(num, **overrides):
+def _job_dict(job_id, **overrides):
     d = {
-        'num': num, 'company': 'Acme', 'role': 'Engineer', 'location': 'Berlin',
+        'id': job_id, 'company': 'Acme', 'role': 'Engineer', 'location': 'Berlin',
         'match': 'High', 'score': 'A', 'salary': '100k', 'stack': 'Python',
         'visa': 'Yes', 'applicants': '10', 'posted': '3 days ago',
         'industry': 'Tech', 'domain': 'web', 'notes': 'note', 'action': 'Apply Now',
-        'url': f'https://ex.com/{num}',
+        'url': f'https://ex.com/{job_id}',
     }
     d.update(overrides)
     return d
@@ -321,19 +323,19 @@ class TestLogHelpers:
     def test_log_appends(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
         stream_server._log(pid, 'step1', 'hello')
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) == 1
         assert logs[0]['step'] == 'step1'
         assert logs[0]['msg'] == 'hello'
 
     def test_log_missing_pid(self, mock_get_session):
-        stream_server._log(99999, 'step', 'msg')
+        stream_server._log('99999', 'step', 'msg')
 
     def test_log_appends_existing_log(self, mock_get_session):
         pid = _insert_pending(mock_get_session, workflow_log='[{"step": "old", "msg": "prev"}]')
         stream_server._log(pid, 'new', 'hello')
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         logs = json.loads(row.workflow_log or '[]')
         assert len(logs) == 2
         assert logs[0]['step'] == 'old'
@@ -343,8 +345,8 @@ class TestLogHelpers:
 class TestUpdateStep:
     def test_update_step_all_fields(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
-        stream_server._update_step(pid, 'step_fetch', 0, status='processing', company='Acme', job_num=5, error='none')
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        stream_server._update_step(pid, 'step_fetch', 0, status='processing', company='Acme', job_id='job-1', error='none')
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'processing'
         assert row.company == 'Acme'
         assert row.error == 'none'
@@ -353,26 +355,26 @@ class TestUpdateStep:
     def test_update_step_minimal(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
         stream_server._update_step(pid, 'step_fetch', 0)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.updated_at is not None
 
     def test_mark(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
-        stream_server._mark(pid, 'step_fetch', company='Acme', job_num=3)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        stream_server._mark(pid, 'step_fetch', company='Acme', job_id='job-1')
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.company == 'Acme'
 
     def test_fail_with_step(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
         stream_server._fail(pid, 'boom', step='fetch')
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert row.error == '[fetch] boom'
 
     def test_fail_without_step(self, mock_get_session):
         pid = _insert_pending(mock_get_session)
         stream_server._fail(pid, 'boom')
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert row.error == 'boom'
 
@@ -402,24 +404,16 @@ class TestLoadRules:
         assert stream_server._load_rules('job') == 'No scoring rules set.'
 
 
-class TestJobNumbers:
-    def test_get_next_num(self, mock_get_session):
+class TestJobIds:
+    def test_get_existing_id(self, mock_get_session):
         session = mock_get_session
-        session.add(JobModel(num=7, url='https://ex.com/7'))
+        job_id = str(uuid.uuid7())
+        session.add(JobModel(id=job_id, url='https://ex.com/3'))
         session.commit()
-        assert stream_server._get_next_num() == 8
+        assert stream_server._get_existing_id('https://ex.com/3') == job_id
 
-    def test_get_next_num_empty(self, mock_get_session):
-        assert stream_server._get_next_num() == 1
-
-    def test_get_existing_num(self, mock_get_session):
-        session = mock_get_session
-        session.add(JobModel(num=3, url='https://ex.com/3'))
-        session.commit()
-        assert stream_server._get_existing_num('https://ex.com/3') == 3
-
-    def test_get_existing_num_none(self, mock_get_session):
-        assert stream_server._get_existing_num('https://missing.com') is None
+    def test_get_existing_id_none(self, mock_get_session):
+        assert stream_server._get_existing_id('https://missing.com') is None
 
 
 class TestInsertJob:
@@ -434,64 +428,64 @@ class TestInsertJob:
         ('random', 'Full-time'),
     ])
     def test_employment_types(self, mock_get_session, input_et, expected):
-        stream_server._insert_job(_job_dict(num=8000, employment_type=input_et))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8000).first()
+        stream_server._insert_job(_job_dict('8000', employment_type=input_et))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8000').first()
         assert row is not None
         assert row.employment_type == expected
 
     def test_work_types_string(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8101, work_types='["Remote", "Hybrid"]'))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8101).first()
+        stream_server._insert_job(_job_dict('8101', work_types='["Remote", "Hybrid"]'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8101').first()
         assert json.loads(row.work_types) == ['Remote', 'Hybrid']
         assert row.work_type == 'Remote'
 
     def test_work_types_invalid_json(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8102, work_types='not-json'))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8102).first()
+        stream_server._insert_job(_job_dict('8102', work_types='not-json'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8102').first()
         assert json.loads(row.work_types) == ['On-site']
         assert row.work_type == 'On-site'
 
     def test_work_type_fallback(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8103, work_types=[], work_type='Hybrid'))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8103).first()
+        stream_server._insert_job(_job_dict('8103', work_types=[], work_type='Hybrid'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8103').first()
         assert json.loads(row.work_types) == ['Hybrid']
         assert row.work_type == 'Hybrid'
 
     def test_empty_locations_string(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8201, locations=''))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8201).first()
+        stream_server._insert_job(_job_dict('8201', locations=''))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8201').first()
         assert json.loads(row.locations) == ['Berlin']
 
     def test_adv_at_explicit(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8202, adv_at='2024-01-01T00:00:00'))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8202).first()
+        stream_server._insert_job(_job_dict('8202', adv_at='2024-01-01T00:00:00'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8202').first()
         assert row.adv_at == '2024-01-01T00:00:00'
 
     def test_adv_at_from_posted(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8203, posted='2 days ago'))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8203).first()
+        stream_server._insert_job(_job_dict('8203', posted='2 days ago'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8203').first()
         now = datetime.now()
         parsed = datetime.fromisoformat(row.adv_at)
         assert abs((now - parsed).total_seconds() - 2 * 86400) < 120
 
     def test_see_at_default(self, mock_get_session):
-        stream_server._insert_job(_job_dict(num=8204))
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8204).first()
+        stream_server._insert_job(_job_dict('8204'))
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8204').first()
         assert row.see_at is not None
 
     def test_locations_string_branch(self, mock_get_session):
-        d = _job_dict(num=8301)
+        d = _job_dict('8301')
         d['locations'] = 'London'
         with patch.object(stream_server, '_normalize_job_data', return_value=d):
             stream_server._insert_job(d)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8301).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8301').first()
         assert json.loads(row.locations) == ['London']
 
     def test_work_types_fallback_onsite(self, mock_get_session):
-        d = _job_dict(num=8302, work_types=[], work_type='')
+        d = _job_dict('8302', work_types=[], work_type='')
         with patch.object(stream_server, '_normalize_job_data', return_value=d):
             stream_server._insert_job(d)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == 8302).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == '8302').first()
         assert json.loads(row.work_types) == ['On-site']
         assert row.work_type == 'On-site'
 
@@ -499,11 +493,11 @@ class TestInsertJob:
 class TestInsertSummaryResume:
     def test_insert_summary(self, mock_get_session):
         stream_server._insert_summary({
-            'num': 9001, 'company': 'Acme', 'match': 'High', 'score': 'A',
+            'job_id': '9001', 'company': 'Acme', 'match': 'High', 'score': 'A',
             'summary': 's', 'stack': 'py', 'resumeFit': 'fit', 'note': 'n',
             'url': 'https://ex.com/9001',
         })
-        row = mock_get_session.query(SummaryModel).filter(SummaryModel.num == 9001).first()
+        row = mock_get_session.query(SummaryModel).filter(SummaryModel.job_id == '9001').first()
         assert row is not None
         assert row.company == 'Acme'
 
@@ -511,7 +505,7 @@ class TestInsertSummaryResume:
         stream_server._insert_resume({
             'id': 'test_resume_1', 'title': 'T', 'company': 'Acme', 'role': 'Eng',
             'content': 'c', 'version': 1, 'raw_text': 'r', 'created_at': '2024-01-01',
-            'job_num': 9001,
+            'job_id': '9001',
         })
         row = mock_get_session.query(ResumeModel).filter(ResumeModel.id == 'test_resume_1').first()
         assert row is not None
@@ -521,20 +515,23 @@ class TestInsertSummaryResume:
 class TestSaveWorkflowLog:
     def test_save_job_workflow_log(self, mock_get_session):
         session = mock_get_session
-        session.add(JobModel(num=9501, url='https://ex.com/9501'))
+        job_id = str(uuid.uuid7())
+        session.add(JobModel(id=job_id, url='https://ex.com/9501'))
         session.commit()
-        stream_server._save_job_workflow_log(9501, '["a"]')
-        row = session.query(JobModel).filter(JobModel.num == 9501).first()
+        stream_server._save_job_workflow_log(job_id, '["a"]')
+        row = session.query(JobModel).filter(JobModel.id == job_id).first()
         assert row.workflow_log == '["a"]'
 
     def test_mark_old_job_deleted(self, mock_get_session):
         session = mock_get_session
-        session.add(JobModel(num=9601, url='https://ex.com/dup'))
-        session.add(JobModel(num=9602, url='https://ex.com/dup'))
+        id1 = str(uuid.uuid7())
+        id2 = str(uuid.uuid7())
+        session.add(JobModel(id=id1, url='https://ex.com/dup'))
+        session.add(JobModel(id=id2, url='https://ex.com/dup'))
         session.commit()
-        stream_server._mark_old_job_deleted('https://ex.com/dup', exclude_num=9601)
-        assert session.query(JobModel).filter(JobModel.num == 9602).first().deleted == 1
-        assert session.query(JobModel).filter(JobModel.num == 9601).first().deleted == 0
+        stream_server._mark_old_job_deleted('https://ex.com/dup', exclude_id=id1)
+        assert session.query(JobModel).filter(JobModel.id == id2).first().deleted == 1
+        assert session.query(JobModel).filter(JobModel.id == id1).first().deleted == 0
 
 
 # ── stream_provider ───────────────────────────────────────────────
@@ -577,7 +574,7 @@ class TestStreamProvider:
         assert rc == 0
         assert result == {'result': 'ok'}
         assert llm.seen_session == 'sess-123'
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert 'hello world' in (row.workflow_log or '')
 
     @pytest.mark.asyncio
@@ -645,7 +642,7 @@ class TestProcessJobStream:
                 'extract_raw': {'success': True},
                 'fetch': {'length': 120},
                 'extraction': {'company': 'Acme', 'title': 'Engineer'},
-                'persistence': {'success': True, 'job_num': 42, 'company': 'Acme'},
+                'persistence': {'success': True, 'job_id': 'job-42', 'company': 'Acme'},
                 'score': 'A',
             },
         }
@@ -671,7 +668,7 @@ class TestProcessJobStream:
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
         mock_save.assert_called_once()
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'done'
 
     @pytest.mark.asyncio
@@ -685,7 +682,7 @@ class TestProcessJobStream:
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'done'
 
     @pytest.mark.asyncio
@@ -699,7 +696,7 @@ class TestProcessJobStream:
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
-        mock_mark.assert_called_once_with('https://ex.com/oldjob', exclude_num=42)
+        mock_mark.assert_called_once_with('https://ex.com/oldjob', exclude_id='job-42')
 
     @pytest.mark.asyncio
     async def test_success_requeue(self, mock_get_session, clear_state):
@@ -727,7 +724,7 @@ class TestProcessJobStream:
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'done'
 
     @pytest.mark.asyncio
@@ -740,7 +737,7 @@ class TestProcessJobStream:
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert 'Persistence failed: boom' in (row.error or '')
 
@@ -754,14 +751,14 @@ class TestProcessJobStream:
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
         await asyncio.sleep(0.05)
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert 'Unknown error' in (row.error or '')
 
     @pytest.mark.asyncio
     async def test_item_not_found(self, mock_get_session, clear_state):
         with patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
-            result = await stream_server.process_job_stream(99999)
+            result = await stream_server.process_job_stream('99999')
         assert result is None
 
 
@@ -781,9 +778,9 @@ class TestHandler:
 
     @pytest.mark.asyncio
     async def test_watch_no_row(self, mock_get_session, clear_state):
-        ws = FakeWS([json.dumps({'action': 'watch', 'pid': 987654})])
+        ws = FakeWS([json.dumps({'action': 'watch', 'pid': '987654'})])
         await stream_server.handler(ws)
-        assert 987654 in stream_server.clients
+        assert '987654' in stream_server.clients
         assert ws.sent == []
 
     @pytest.mark.asyncio
@@ -803,7 +800,7 @@ class TestHandler:
         ws = FakeWS([json.dumps({'action': 'stop', 'pid': pid})])
         await stream_server.handler(ws)
         proc.terminate.assert_called_once()
-        row = mock_get_session.query(JobModel).filter(JobModel.num == pid).first()
+        row = mock_get_session.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'failed'
         assert 'Terminated by user' in (row.error or '')
 
@@ -815,7 +812,7 @@ class TestHandler:
 
     @pytest.mark.asyncio
     async def test_connection_closed_removes_ws(self, mock_get_session, clear_state):
-        pid = 555
+        pid = '555'
         exc = websockets.ConnectionClosed(
             frames.Close(1000, 'bye'), frames.Close(1000, 'bye'), rcvd_then_sent=True
         )

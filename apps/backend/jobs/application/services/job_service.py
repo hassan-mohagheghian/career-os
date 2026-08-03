@@ -18,9 +18,7 @@ class JobService:
         self._repository = repository
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
-        """Load a job by its UUID or numeric identifier."""
-        if job_id.isdigit():
-            return self._repository.get_by_num(int(job_id))
+        """Load a job by its UUID."""
         return self._repository.get_by_id(job_id)
 
     def get_job_or_raise(self, job_id: str) -> dict[str, Any]:

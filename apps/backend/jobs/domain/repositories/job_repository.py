@@ -8,11 +8,6 @@ class IJobRepository(ABC):
     """Interface for job data access."""
 
     @abstractmethod
-    def get_by_num(self, num: int) -> dict[str, Any] | None:
-        """Get a job by its number."""
-        ...
-
-    @abstractmethod
     def get_by_id(self, uuid: str) -> dict[str, Any] | None:
         """Get a job by its UUID."""
         ...
@@ -35,27 +30,22 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
-    def update(self, num: int, data: dict[str, Any]) -> dict[str, Any] | None:
-        """Update a job. Returns updated job or None."""
-        ...
-
-    @abstractmethod
     def update_by_id(self, uuid: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """Partially update a job's core data by UUID. Returns updated job or None."""
         ...
 
     @abstractmethod
-    def delete(self, num: int) -> bool:
-        """Delete a job and related data. Returns True if deleted."""
+    def delete_by_id(self, uuid: str) -> bool:
+        """Hard-delete a job by UUID and related tables. Returns True if deleted."""
         ...
 
     @abstractmethod
-    def mark_deleted(self, num: int) -> None:
+    def mark_deleted(self, job_id: str) -> None:
         """Soft-delete a job."""
         ...
 
     @abstractmethod
-    def mark_rescoring(self, num: int, rescoring: bool = True) -> None:
+    def mark_rescoring(self, job_id: str, rescoring: bool = True) -> None:
         """Set or clear the rescoring flag."""
         ...
 
@@ -80,7 +70,7 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
-    def update_status(self, num: int, status: str, **extra: Any) -> bool:
+    def update_status(self, job_id: str, status: str, **extra: Any) -> bool:
         """Update job status and optional extra fields."""
         ...
 
@@ -105,7 +95,7 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
-    def update_fields(self, num: int, **fields: Any) -> bool:
+    def update_fields(self, job_id: str, **fields: Any) -> bool:
         """Update arbitrary fields on a job."""
         ...
 

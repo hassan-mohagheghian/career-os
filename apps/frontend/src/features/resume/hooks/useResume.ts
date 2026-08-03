@@ -49,9 +49,9 @@ export function useResume() {
       .catch(() => {})
   }, [])
 
-  const generateResume = useCallback(async (num: number) => {
+  const generateResume = useCallback(async (jobId: string) => {
     try {
-      const res = await fetch(`${API}/jobs/${num}/generate-resume`, { method: 'POST' })
+      const res = await fetch(`${API}/jobs/${jobId}/generate-resume`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message || data.error || 'Failed'); return }
       setActiveGens(prev => ({
@@ -63,9 +63,9 @@ export function useResume() {
     }
   }, [])
 
-  const generateCover = useCallback(async (num: number) => {
+  const generateCover = useCallback(async (jobId: string) => {
     try {
-      const res = await fetch(`${API}/jobs/${num}/generate-cover`, { method: 'POST' })
+      const res = await fetch(`${API}/jobs/${jobId}/generate-cover`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error?.message || data.error || 'Failed'); return }
       setActiveGens(prev => ({

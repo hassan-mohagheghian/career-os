@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class JobData(BaseModel):
-    num: int | None = None
     id: str | None = None
     url: str | None = None
     company: str | None = None
@@ -39,7 +38,6 @@ class JobData(BaseModel):
     @classmethod
     def from_job_dict(cls, data: dict[str, Any]) -> "JobData":
         return cls(
-            num=data.get("num"),
             id=data.get("id"),
             url=data.get("url"),
             company=data.get("company"),
@@ -58,6 +56,6 @@ class JobData(BaseModel):
     @staticmethod
     def _reserved() -> set[str]:
         return {
-            "num", "id", "url", "company", "role", "title", "location",
+            "id", "url", "company", "role", "title", "location",
             "description", "raw_description", "status", "source", "notes", "links",
         }

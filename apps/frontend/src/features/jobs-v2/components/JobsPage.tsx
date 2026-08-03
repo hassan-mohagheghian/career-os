@@ -40,6 +40,7 @@ interface JobsPageProps {
   onProcessV2: (id: string) => void
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
+  onDelete: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   isProcessing: boolean
@@ -63,7 +64,7 @@ export function JobsPage({
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onEdit, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel, isProcessing,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addJobDrawerOpen, onAddJobDrawerOpenChange,
   detailJobId, onDetailJobIdChange,
@@ -136,6 +137,7 @@ export function JobsPage({
         onProcessV2={onProcessV2}
         onViewDetails={onViewDetails}
         onEdit={onEdit}
+        onDelete={onDelete}
         onRetry={onRetry}
         onCancel={onCancel}
         sort={sort}

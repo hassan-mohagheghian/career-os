@@ -4,8 +4,8 @@ import '@testing-library/jest-dom'
 import CompanyJobsTab from './CompanyJobsTab'
 
 const mockJobs = [
-  { num: 1, role: 'Senior Engineer', score: 'A', location: 'Berlin' },
-  { num: 2, role: 'Junior Developer', score: 'B', location: 'Munich' },
+  { id: 'job-1', role: 'Senior Engineer', score: 'A', location: 'Berlin' },
+  { id: 'job-2', role: 'Junior Developer', score: 'B', location: 'Munich' },
 ]
 
 describe('CompanyJobsTab', () => {
@@ -52,6 +52,6 @@ describe('CompanyJobsTab', () => {
       expect(screen.getByText('Senior Engineer')).toBeInTheDocument()
     })
     fireEvent.click(screen.getByText('Senior Engineer'))
-    expect(onOpenJob).toHaveBeenCalledWith(1)
+    expect(onOpenJob).toHaveBeenCalledWith('job-1')
   })
 })

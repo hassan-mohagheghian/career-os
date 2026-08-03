@@ -10,7 +10,7 @@ from typing import Any
 class JobProcessingResult:
     """Result of job processing through the AI workflow graph."""
     success: bool = False
-    job_num: int | None = None
+    job_id: str | None = None
     company: str | None = None
     title: str | None = None
     score: str | None = None
@@ -26,7 +26,7 @@ class JobProcessingResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
-            "job_num": self.job_num,
+            "job_id": self.job_id,
             "company": self.company,
             "title": self.title,
             "score": self.score,

@@ -41,7 +41,7 @@ def fetch_url(url, retries=2):
 def main():
     session, engine = get_session()
     try:
-        rows = session.query(JobModel).filter(JobModel.deleted == 0, JobModel.raw_description.is_(None)).order_by(JobModel.num).all()
+        rows = session.query(JobModel).filter(JobModel.deleted == 0, JobModel.raw_description.is_(None)).order_by(JobModel.created_at).all()
         log.info("Found jobs without raw descriptions", count=len(rows))
         fetched, failed = 0, 0
         for i, job in enumerate(rows):

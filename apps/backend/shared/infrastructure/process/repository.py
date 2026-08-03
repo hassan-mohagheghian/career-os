@@ -30,14 +30,14 @@ class PendingJobRepository(IPendingRepository):
     def __init__(self, session: Session):
         self._session = session
 
-    def get(self, pid: int) -> Optional[dict]:
-        row = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def get(self, pid: str) -> Optional[dict]:
+        row = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not row:
             return None
         return self._to_dict(row)
 
-    def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
-        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def update_status(self, pid: str, status: str | ItemStatus, **fields) -> None:
+        m = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not m:
             return
         m.status = status.value if isinstance(status, ItemStatus) else status
@@ -47,8 +47,8 @@ class PendingJobRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def update_fields(self, pid: int, table: str = "pending_jobs", **fields) -> None:
-        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def update_fields(self, pid: str, table: str = "pending_jobs", **fields) -> None:
+        m = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not m:
             return
         m.updated_at = datetime.now().isoformat()
@@ -57,8 +57,8 @@ class PendingJobRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def update_step(self, pid: int, step: str, val: int, **fields) -> None:
-        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def update_step(self, pid: str, step: str, val: int, **fields) -> None:
+        m = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not m:
             return
         if hasattr(m, step):
@@ -69,8 +69,8 @@ class PendingJobRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def append_log(self, pid: int, entry: WorkflowLogEntry) -> None:
-        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def append_log(self, pid: str, entry: WorkflowLogEntry) -> None:
+        m = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not m:
             return
         logs = json.loads(m.workflow_log or '[]')
@@ -78,8 +78,8 @@ class PendingJobRepository(IPendingRepository):
         m.workflow_log = json.dumps(logs)
         self._session.commit()
 
-    def get_logs(self, pid: int) -> List[WorkflowLogEntry]:
-        m = self._session.query(JobModel).filter(JobModel.num == pid).first()
+    def get_logs(self, pid: str) -> List[WorkflowLogEntry]:
+        m = self._session.query(JobModel).filter(JobModel.id == pid).first()
         if not m:
             return []
         logs = json.loads(m.workflow_log or '[]')
@@ -89,7 +89,7 @@ class PendingJobRepository(IPendingRepository):
         m = self._session.query(JobModel).filter(
             JobModel.deleted == 0,
             JobModel.status == 'queued'
-        ).order_by(JobModel.queue_order.asc(), JobModel.num.asc()).first()
+        ).order_by(JobModel.queue_order.asc(), JobModel.id.asc()).first()
         if not m:
             return None
         m.status = 'processing'
@@ -129,8 +129,7 @@ class PendingJobRepository(IPendingRepository):
     @staticmethod
     def _to_dict(m: JobModel) -> dict:
         return {
-            'id': m.num,
-            'num': m.num,
+            'id': m.id,
             'url': m.url or '',
             'source': m.source or 'web',
             'status': m.status,
@@ -143,7 +142,7 @@ class PendingJobRepository(IPendingRepository):
             'current_node': m.current_node,
             'retry_count': m.retry_count,
             'company': m.company or '',
-            'job_num': m.num,
+            'job_id': m.id,
             'failure_details': m.failure_reason,
             'created_at': m.created_at.isoformat() if isinstance(m.created_at, datetime) else m.created_at,
             'updated_at': m.updated_at.isoformat() if isinstance(m.updated_at, datetime) else m.updated_at,
@@ -283,10 +282,6 @@ class JobRepository(IJobRepository):
     def __init__(self, session: Session):
         self._session = session
 
-    def get_next_num(self) -> int:
-        max_num = self._session.query(func.max(JobModel.num)).scalar()
-        return (max_num or 0) + 1
-
     def get_by_url(self, url: str) -> Optional[dict]:
         m = self._session.query(JobModel).filter(
             JobModel.url == url, JobModel.deleted == 0
@@ -294,20 +289,21 @@ class JobRepository(IJobRepository):
         if not m:
             return None
         return {
-            'num': m.num, 'company': m.company, 'url': m.url,
+            'id': m.id, 'company': m.company, 'url': m.url,
             'score': m.score, 'match': m.match,
         }
 
-    def insert(self, job_data: dict) -> int:
+    def insert(self, job_data: dict) -> str:
         now = datetime.now().isoformat()
-        existing = self._session.query(JobModel).filter(JobModel.num == job_data['num']).first()
+        job_id = job_data['id']
+        existing = self._session.query(JobModel).filter(JobModel.id == job_id).first()
         if existing:
             for k, v in job_data.items():
                 if hasattr(existing, k):
                     setattr(existing, k, v)
         else:
             m = JobModel(
-                num=job_data['num'],
+                id=job_id,
                 company=job_data.get('company'),
                 role=job_data.get('role'),
                 location=job_data.get('location'),
@@ -352,10 +348,10 @@ class JobRepository(IJobRepository):
             )
             self._session.add(m)
         self._session.commit()
-        return job_data['num']
+        return job_id
 
     def insert_summary(self, d: dict) -> None:
-        existing = self._session.query(SummaryModel).filter(SummaryModel.num == d['num']).first()
+        existing = self._session.query(SummaryModel).filter(SummaryModel.job_id == d['job_id']).first()
         if existing:
             existing.company = d.get('company')
             existing.match = d.get('match')
@@ -367,7 +363,7 @@ class JobRepository(IJobRepository):
             existing.url = d.get('url')
         else:
             m = SummaryModel(
-                num=d['num'], company=d.get('company'), match=d.get('match'),
+                job_id=d['job_id'], company=d.get('company'), match=d.get('match'),
                 score=d.get('score'), summary=d.get('summary'), stack=d.get('stack'),
                 resume_fit=d.get('resumeFit'), note=d.get('note'), url=d.get('url'),
             )
@@ -384,19 +380,19 @@ class JobRepository(IJobRepository):
             existing.version = d.get('version', 1)
             existing.raw_text = d.get('raw_text')
             existing.created_at = d.get('created_at')
-            existing.job_num = d.get('job_num')
+            existing.job_id = d.get('job_id')
         else:
             m = ResumeModel(
                 id=d['id'], title=d.get('title'), company=d.get('company'),
                 role=d.get('role'), content=d.get('content'),
                 version=d.get('version', 1), raw_text=d.get('raw_text'),
-                created_at=d.get('created_at'), job_num=d.get('job_num'),
+                created_at=d.get('created_at'), job_id=d.get('job_id'),
             )
             self._session.add(m)
         self._session.commit()
 
-    def save_workflow_log(self, num: int, log_json: str) -> None:
-        m = self._session.query(JobModel).filter(JobModel.num == num).first()
+    def save_workflow_log(self, job_id: str, log_json: str) -> None:
+        m = self._session.query(JobModel).filter(JobModel.id == job_id).first()
         if m:
             m.workflow_log = log_json
             self._session.commit()

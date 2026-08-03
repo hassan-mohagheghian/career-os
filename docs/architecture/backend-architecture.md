@@ -188,7 +188,7 @@ class ExternalServiceError(AppError):
     "error": {
         "code": "NOT_FOUND",
         "message": "Job not found",
-        "details": {"job_num": 123}
+        "details": {"job_id": "8f5b1c2e-…"}
     }
 }
 ```
@@ -257,9 +257,9 @@ Job processing uses the `JobWorker` class which compiles and invokes the job gra
 
 ```python
 # Background task dispatch
-@router.post("/jobs/{num}/process")
-async def process_job(num: int, background_tasks: BackgroundTasks):
-    background_tasks.add_task(process_job_task, num)
+@router.post("/jobs/{job_id}/process")
+async def process_job(job_id: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_job_task, job_id)
     return {"status": "queued"}
 
 # Long-running with progress

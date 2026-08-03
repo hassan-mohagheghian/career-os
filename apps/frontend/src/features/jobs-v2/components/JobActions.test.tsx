@@ -10,6 +10,7 @@ function renderActions(props: Partial<Parameters<typeof JobActions>[0]> = {}) {
     onProcessV2: vi.fn(),
     onViewDetails: vi.fn(),
     onEdit: vi.fn(),
+    onDelete: vi.fn(),
     onRetry: vi.fn(),
     onCancel: vi.fn(),
   }
@@ -24,7 +25,7 @@ function renderActions(props: Partial<Parameters<typeof JobActions>[0]> = {}) {
 describe('JobActions', () => {
   it('never renders text labels for actions', () => {
     renderActions()
-    const banned = ['Process V2', 'Details', 'View Progress', 'View Results', 'Reprocess', 'Retry', 'Cancel', 'Edit', 'Process']
+    const banned = ['Process V2', 'Details', 'View Progress', 'View Results', 'Reprocess', 'Retry', 'Cancel', 'Edit', 'Delete', 'Process']
     for (const label of banned) {
       expect(screen.queryByText(label)).not.toBeInTheDocument()
     }
@@ -42,6 +43,15 @@ describe('JobActions', () => {
     renderActions({ onEdit })
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(onEdit).toHaveBeenCalled()
+  })
+
+  it('renders Delete button and calls onDelete', () => {
+    const onDelete = vi.fn()
+    renderActions({ onDelete })
+    const del = screen.getByRole('button', { name: 'Delete' })
+    expect(del).toBeInTheDocument()
+    fireEvent.click(del)
+    expect(onDelete).toHaveBeenCalled()
   })
 
   it('renders View Progress and Edit for running', () => {

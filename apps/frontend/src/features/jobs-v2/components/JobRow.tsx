@@ -11,13 +11,14 @@ interface JobRowProps {
   onProcessV2: (id: string) => void
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
+  onDelete: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   onOpenCompany?: (id: string) => void
 }
 
 export function JobRow({
-  job, onProcessV2, onViewDetails, onEdit, onRetry, onCancel,
+  job, onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
@@ -82,6 +83,7 @@ export function JobRow({
           onProcessV2={() => onProcessV2(job.id)}
           onViewDetails={() => onViewDetails(job.id)}
           onEdit={() => onEdit(job.id)}
+          onDelete={() => onDelete(job.id)}
           onRetry={() => onRetry?.(job.id)}
           onCancel={() => onCancel?.(job.id)}
         />

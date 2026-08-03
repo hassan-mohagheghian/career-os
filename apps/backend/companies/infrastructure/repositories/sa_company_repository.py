@@ -145,7 +145,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         from jobs.infrastructure.models.job_model import JobModel
         rows = self._session.query(
             CompanyModel,
-            func.count(JobModel.num).label("job_count"),
+            func.count(JobModel.id).label("job_count"),
         ).outerjoin(
             JobModel, (JobModel.company_id == CompanyModel.id) & (JobModel.deleted == 0)
         ).group_by(CompanyModel.id).order_by(CompanyModel.name).all()

@@ -13,7 +13,8 @@ class SummaryModel(Base):
     __tablename__ = "summaries"
     __table_args__ = {"schema": "job"}
 
-    num: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     match: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     score: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -36,7 +37,7 @@ class ResumeModel(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
-    job_num: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
 
 
 class SkillRoadmapModel(Base):

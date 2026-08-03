@@ -6,6 +6,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
 import { processingApi } from '@/entities/processing/api'
+import { jobApi } from '@/entities/job/api'
+import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
 
 const JobsPageContent = dynamic(
@@ -18,6 +20,7 @@ function JobsPageV2Adapter() {
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
+  const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
@@ -52,6 +55,24 @@ function JobsPageV2Adapter() {
   const handleEdit = useCallback((id: string) => {
     setEditJobId(id)
   }, [])
+
+  const handleDelete = useCallback(async (id: string) => {
+    const ok = await showConfirm(
+      'Delete Job',
+      'Permanently delete this job and all its processing data?',
+      'Delete',
+    )
+    if (!ok) return
+    try {
+      await jobApi.deleteJob(id)
+      toast.success('Job deleted')
+      setDetailJobId((current) => (current === id ? null : current))
+      setEditJobId((current) => (current === id ? null : current))
+      refetch()
+    } catch {
+      toast.error('Failed to delete job')
+    }
+  }, [showConfirm, refetch])
 
   const handleRetry = useCallback((id: string) => {
     processMutation.mutate(id)
@@ -99,6 +120,7 @@ function JobsPageV2Adapter() {
         onProcessV2={handleProcessV2}
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
+        onDelete={handleDelete}
         onRetry={handleRetry}
         onCancel={handleCancel}
         isProcessing={processMutation.isPending}
@@ -112,6 +134,7 @@ function JobsPageV2Adapter() {
         onEditJobIdChange={setEditJobId}
         processingCount={processingCount}
       />
+      <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
     </div>
   )
 }

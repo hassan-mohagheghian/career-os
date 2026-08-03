@@ -78,9 +78,9 @@ async def list_jobs(
 ```python
 from fastapi import Path
 
-@router.get("/jobs/{num}")
+@router.get("/jobs/{job_id}")
 async def get_job(
-    num: int = Path(..., description="Job number", ge=1),
+    job_id: str = Path(..., description="Job UUID id"),
 ):
     ...
 ```
@@ -109,7 +109,7 @@ class PaginatedResponse(BaseModel):
 
 ```python
 class JobResponse(BaseModel):
-    num: int
+    id: str
     url: str
     title: str
     company: str
@@ -190,7 +190,7 @@ class ErrorDetail(BaseModel):
     "error": {
         "code": "NOT_FOUND",
         "message": "Job not found",
-        "details": {"job_num": 123}
+        "details": {"job_id": "8f5b1c2e-…"}
     }
 }
 ```
@@ -247,12 +247,11 @@ async def app_error_handler(request: Request, exc: AppError):
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
 | `/api/jobs` | GET | — | `JobListResponse` | List jobs (paginated) |
-| `/api/jobs/{num}` | GET | — | `JobResponse` | Get job by number |
+| `/api/jobs/{id}` | GET | — | `JobResponse` | Get job by id |
 | `/api/jobs` | POST | `JobCreate` | `JobResponse` | Create new job |
-| `/api/jobs/{num}` | PUT | `JobUpdate` | `JobResponse` | Update job |
-| `/api/jobs/{num}` | DELETE | — | `{"success": true}` | Delete job |
-| `/api/jobs/{num}/requeue` | POST | — | `{"success": true}` | Re-queue for processing |
-| `/api/jobs/{num}/rescore` | POST | — | `JobResponse` | Rescore existing job |
+| `/api/jobs/{id}` | PATCH | `JobUpdate` | `JobDetailResponseSchema` | Update job |
+| `/api/jobs/{id}` | DELETE | — | `204` | Delete job |
+| `/api/jobs/{id}/process` | POST | — | `{"execution_id": "...", "status": "queued"}` | Process job |
 
 ### Companies
 
@@ -404,7 +403,7 @@ event: pending:update
 data: {"id": "abc-123", "step": "fetch", "status": "processing"}
 
 event: pending:complete
-data: {"id": "abc-123", "num": 456}
+data: {"id": "abc-123", "job_id": "8f5b1c2e-…"}
 ```
 
 ## Authentication

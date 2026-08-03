@@ -17,24 +17,11 @@ class SQLAlchemyJobRepository(IJobRepository):
     def __init__(self, session: Session):
         self._session = session
 
-    def get_by_num(self, num: int) -> dict[str, Any] | None:
-        model = self._session.query(JobModel).filter(JobModel.num == num).first()
-        if not model:
+    def get_by_id(self, uuid: str) -> dict[str, Any] | None:
+        m = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        if not m:
             return None
-        result = job_model_to_dict(model)
-        if model.company_id:
-            from companies.infrastructure.models.company_model import CompanyModel
-            company = self._session.query(CompanyModel).filter(CompanyModel.id == model.company_id).first()
-            if company:
-                result["linked_company"] = {
-                    "id": company.id,
-                    "name": company.name,
-                    "industry": company.industry,
-                    "city": company.city,
-                    "country": company.country,
-                    "logo_url": company.logo_url,
-                }
-        return result
+        return job_model_to_dict(m)
 
     def list_jobs(
         self,
@@ -114,7 +101,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         # Build ORDER BY
         allowed_sorts = {
             "created_at", "overall_score", "fit_score", "success_score", "score",
-            "score_success", "score_combined", "num", "company", "location",
+            "score_success", "score_combined", "company", "location",
             "posted_at", "applicants", "adv_at", "see_at", "apply_time", "response_time",
         }
         if sort_by not in allowed_sorts:
@@ -135,14 +122,14 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [job_model_to_dict(r) for r in rows], total
 
     def get_stats(self) -> dict[str, int]:
-        total = self._session.query(func.count(JobModel.num)).filter(JobModel.deleted == 0).scalar()
-        high_match = self._session.query(func.count(JobModel.num)).filter(
+        total = self._session.query(func.count(JobModel.id)).filter(JobModel.deleted == 0).scalar()
+        high_match = self._session.query(func.count(JobModel.id)).filter(
             JobModel.deleted == 0, JobModel.match == "High"
         ).scalar()
-        apply_now = self._session.query(func.count(JobModel.num)).filter(
+        apply_now = self._session.query(func.count(JobModel.id)).filter(
             JobModel.deleted == 0, JobModel.score.in_(["A", "A+", "A++"])
         ).scalar()
-        remote = self._session.query(func.count(JobModel.num)).filter(
+        remote = self._session.query(func.count(JobModel.id)).filter(
             JobModel.deleted == 0, JobModel.work_type == "Remote"
         ).scalar()
 
@@ -153,37 +140,34 @@ class SQLAlchemyJobRepository(IJobRepository):
             "remote": remote or 0,
         }
 
-    def update(self, num: int, data: dict[str, Any]) -> dict[str, Any] | None:
-        allowed_fields = {"apply_time", "response_time", "response_status", "notes"}
-        updates = {k: v for k, v in data.items() if k in allowed_fields}
-        if not updates:
-            return self.get_by_num(num)
+    def delete_by_id(self, uuid: str) -> bool:
+        """Hard-delete a job by UUID and its related tables.
 
-        self._session.query(JobModel).filter(JobModel.num == num).update(updates)
-        self._session.commit()
-        return self.get_by_num(num)
-
-    def delete(self, num: int) -> bool:
+        Deletes the job row plus related records that reference it (summaries,
+        resumes, tailored documents). Processing executions are handled by the
+        caller via the processing execution repository.
+        """
         from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
-        self._session.query(JobModel).filter(JobModel.num == num).delete()
-        self._session.query(SummaryModel).filter(SummaryModel.num == num).delete()
-        self._session.query(ResumeModel).filter(
-            ResumeModel.id.in_([f"pending_{num}", f"rescore_{num}"])
-        ).delete(synchronize_session=False)
+        model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        if not model:
+            return False
+        self._session.query(JobModel).filter(JobModel.id == uuid).delete()
+        self._session.query(SummaryModel).filter(SummaryModel.job_id == uuid).delete(synchronize_session=False)
+        self._session.query(ResumeModel).filter(ResumeModel.job_id == uuid).delete(synchronize_session=False)
         self._session.commit()
         return True
 
-    def mark_deleted(self, num: int) -> None:
-        self._session.query(JobModel).filter(JobModel.num == num).update({"deleted": 1})
+    def mark_deleted(self, job_id: str) -> None:
+        self._session.query(JobModel).filter(JobModel.id == job_id).update({"deleted": 1})
         self._session.commit()
 
-    def mark_rescoring(self, num: int, rescoring: bool = True) -> None:
-        self._session.query(JobModel).filter(JobModel.num == num).update({"rescoring": int(rescoring)})
+    def mark_rescoring(self, job_id: str, rescoring: bool = True) -> None:
+        self._session.query(JobModel).filter(JobModel.id == job_id).update({"rescoring": int(rescoring)})
         self._session.commit()
 
     def get_all_active(self) -> list[dict[str, Any]]:
         rows = self._session.query(JobModel).filter(JobModel.deleted == 0).all()
-        return [{"num": r.num, "url": r.url, "company": r.company} for r in rows]
+        return [{"id": r.id, "url": r.url, "company": r.company} for r in rows]
 
     # ── Extended methods for services ───────────────────────────────
 
@@ -222,14 +206,8 @@ class SQLAlchemyJobRepository(IJobRepository):
             self._session.refresh(model)
         return job_model_to_dict(model)
 
-    def get_next_num(self) -> int:
-        result = self._session.query(func.max(JobModel.num)).scalar()
-        return (result or 0) + 1
-
     def create_job(self, url: str, title: str | None = None, notes: str = "[]", links: str = "[]", source: str = "api") -> dict[str, Any]:
-        num = self.get_next_num()
         model = JobModel(
-            num=num,
             url=url,
             title=title,
             links=links,
@@ -242,26 +220,22 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.refresh(model)
         return job_model_to_dict(model)
 
-    def get_by_id(self, uuid: str) -> dict[str, Any] | None:
-        m = self._session.query(JobModel).filter(JobModel.id == uuid).first()
-        if not m:
-            return None
-        return job_model_to_dict(m)
-
     def get_by_url(self, url: str) -> dict[str, Any] | None:
         m = self._session.query(JobModel).filter(JobModel.url == url).first()
         return job_model_to_dict(m) if m else None
 
-    def get_num_by_url(self, url: str) -> int | None:
-        m = self._session.query(JobModel.num).filter(JobModel.url == url).first()
+    def get_id_by_url(self, url: str) -> str | None:
+        m = self._session.query(JobModel.id).filter(JobModel.url == url).first()
         return m[0] if m else None
 
     def upsert(self, data: dict[str, Any]) -> dict[str, Any]:
-        num = data.get("num")
-        existing = self._session.query(JobModel).filter(JobModel.num == num).first() if num else None
+        job_id = data.get("id") or data.get("url")
+        existing = self._session.query(JobModel).filter(
+            or_(JobModel.id == job_id, JobModel.url == job_id)
+        ).first() if job_id else None
         if existing:
             for k, v in data.items():
-                if hasattr(existing, k) and k != "num":
+                if hasattr(existing, k) and k != "id":
                     setattr(existing, k, v)
             self._session.commit()
             self._session.refresh(existing)
@@ -272,20 +246,20 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.refresh(m)
         return job_model_to_dict(m)
 
-    def update_fields(self, num: int, **fields) -> bool:
-        self._session.query(JobModel).filter(JobModel.num == num).update(fields)
+    def update_fields(self, job_id: str, **fields) -> bool:
+        self._session.query(JobModel).filter(JobModel.id == job_id).update(fields)
         self._session.commit()
         return True
 
-    def update_workflow_log(self, num: int, log_json: str) -> bool:
-        self._session.query(JobModel).filter(JobModel.num == num).update({"workflow_log": log_json})
+    def update_workflow_log(self, job_id: str, log_json: str) -> bool:
+        self._session.query(JobModel).filter(JobModel.id == job_id).update({"workflow_log": log_json})
         self._session.commit()
         return True
 
-    def set_deleted_by_url(self, url: str, exclude_num: int | None = None) -> int:
+    def set_deleted_by_url(self, url: str, exclude_id: str | None = None) -> int:
         q = self._session.query(JobModel).filter(JobModel.url == url)
-        if exclude_num is not None:
-            q = q.filter(JobModel.num != exclude_num)
+        if exclude_id is not None:
+            q = q.filter(JobModel.id != exclude_id)
         count = q.update({"deleted": 1})
         self._session.commit()
         return count
@@ -295,8 +269,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.commit()
         return count
 
-    def get_company_id(self, num: int) -> int | None:
-        m = self._session.query(JobModel.company_id).filter(JobModel.num == num).first()
+    def get_company_id(self, job_id: str) -> int | None:
+        m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()
         return m[0] if m else None
 
     # ── Lifecycle methods ───────────────────────────────────────────
@@ -328,9 +302,9 @@ class SQLAlchemyJobRepository(IJobRepository):
             JobModel.status == 'queued',
         ).count()
 
-    def update_status(self, num: int, status: str, **extra: Any) -> bool:
+    def update_status(self, job_id: str, status: str, **extra: Any) -> bool:
         fields = {'status': status, **extra}
-        self._session.query(JobModel).filter(JobModel.num == num).update(fields)
+        self._session.query(JobModel).filter(JobModel.id == job_id).update(fields)
         self._session.commit()
         return True
 
@@ -340,7 +314,7 @@ class SQLAlchemyJobRepository(IJobRepository):
             JobModel.status == 'queued',
         ).order_by(
             JobModel.queue_order.asc(),
-            JobModel.num.asc(),
+            JobModel.created_at.asc(),
         ).first()
         if model:
             model.status = 'processing'
@@ -357,8 +331,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [job_model_to_dict(r) for r in rows]
 
     def get_dashboard_counts(self) -> dict[str, int]:
-        total = self._session.query(func.count(JobModel.num)).filter(JobModel.deleted == 0).scalar() or 0
-        high = self._session.query(func.count(JobModel.num)).filter(
+        total = self._session.query(func.count(JobModel.id)).filter(JobModel.deleted == 0).scalar() or 0
+        high = self._session.query(func.count(JobModel.id)).filter(
             JobModel.deleted == 0, JobModel.match == "High"
         ).scalar() or 0
         return {"jobs_total": total, "jobs_high_match": high}
@@ -369,8 +343,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         ).all()
         return [{"location": r[0], "locations": r[1]} for r in rows]
 
-    def get_company_id_by_num(self, num: int) -> int | None:
-        m = self._session.query(JobModel.company_id).filter(JobModel.num == num).first()
+    def get_company_id_by_id(self, job_id: str) -> int | None:
+        m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()
         return m[0] if m else None
 
     def get_jobs_by_company_id(self, company_id: int) -> list[dict[str, Any]]:

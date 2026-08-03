@@ -25,20 +25,20 @@ export default function CompanyJobsTab({ companyId, companyName, onOpenJob, onNa
         <div className="text-center py-6 text-xs text-muted-foreground">No jobs linked to this company yet.</div>
       )}
       {jobs.map(j => (
-        <div key={j.num} className="flex items-center gap-1 p-2 rounded border border-border/50 hover:bg-muted/50 transition group">
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenJob?.(j.num)}>
+        <div key={j.id} className="flex items-center gap-1 p-2 rounded border border-border/50 hover:bg-muted/50 transition group">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenJob?.(j.id)}>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold">#{j.num}</span>
+              <span className="text-xs font-bold">{j.id}</span>
               <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled'}</span>
               {j.score && <Badge variant="secondary" className="text-2xs">{j.score}</Badge>}
             </div>
             {j.location && <div className="text-2xs text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
           </div>
           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition">
-            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onOpenJob?.(j.num)} title="Open job drawer">
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onOpenJob?.(j.id)} title="Open job drawer">
               <ArrowSquareOut className="w-3 h-3" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onNavigateToJob?.(j.num)} title="Go to Jobs page">
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onNavigateToJob?.(j.id)} title="Go to Jobs page">
               <ArrowRight className="w-3 h-3" />
             </Button>
           </div>

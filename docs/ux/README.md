@@ -42,6 +42,7 @@ docs/ux/
 │       ├── job-row.md         Job row columns and scores
 │       ├── add-job.md         Add Job drawer
 │       ├── edit-job.md        Edit Job drawer
+│       ├── delete-job.md      Delete Job
 │       ├── processing-queue.md
 │       └── workflow-progress.md
 └── flows/
@@ -49,6 +50,7 @@ docs/ux/
         ├── browse-jobs.md     Browse, search, filter, sort
         ├── create-job.md      Create job (import only)
         ├── edit-job.md        Edit a job's core data
+        ├── delete-job.md      Delete a job
         ├── process-job.md     Start processing
         ├── process-job-live.md
         ├── processing-queue.md
@@ -62,6 +64,7 @@ The current product focus is the **Jobs** workspace:
 - Browse jobs with infinite scrolling (`docs/ux/features/jobs/page.md`).
 - Import jobs via the Add Job drawer (`docs/ux/features/jobs/add-job.md`).
 - Edit job core data (`docs/ux/features/jobs/edit-job.md`).
+- Delete a job and all its processing data (`docs/ux/features/jobs/delete-job.md`).
 - Monitor AI processing through the Processing Queue (`docs/ux/features/jobs/processing-queue.md`, `docs/ux/flows/jobs/processing-queue.md`).
 - Watch live workflow progress (`docs/ux/flows/jobs/process-job-live.md`).
 

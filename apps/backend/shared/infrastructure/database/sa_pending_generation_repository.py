@@ -18,24 +18,24 @@ class SQLAlchemyPendingGenerationRepository(_Base):
         warnings.warn("pending_generations is deprecated, use jobs tailored document context instead", DeprecationWarning, stacklevel=2)
         super().__init__(*args, **kwargs)
 
-    def get_by_id(self, gen_id: int) -> dict[str, Any] | None:
-        m = self._session.query(ResumeModel).filter(ResumeModel.job_num == gen_id).order_by(ResumeModel.created_at.desc()).first()
+    def get_by_id(self, gen_id: str) -> dict[str, Any] | None:
+        m = self._session.query(ResumeModel).filter(ResumeModel.job_id == gen_id).order_by(ResumeModel.created_at.desc()).first()
         if not m:
             return None
         gen_type = "resume" if m.id and m.id.startswith("resume_") else "cover" if m.id and m.id.startswith("cover_") else "unknown"
         state = json.loads(m.raw_text) if m.raw_text else {}
         return {
             "id": gen_id,
-            "job_num": gen_id,
+            "job_id": gen_id,
             "type": gen_type,
             "status": state.get("status", "queued"),
         }
 
-    def create(self, job_num: int, gen_type: str, status: str = "queued") -> dict[str, Any]:
-        return self.create_generation(job_num, gen_type)
+    def create(self, job_id: str, gen_type: str, status: str = "queued") -> dict[str, Any]:
+        return self.create_generation(job_id, gen_type)
 
-    def update_fields(self, gen_id: int, **fields) -> bool:
-        m = self._session.query(ResumeModel).filter(ResumeModel.job_num == gen_id).order_by(ResumeModel.created_at.desc()).first()
+    def update_fields(self, gen_id: str, **fields) -> bool:
+        m = self._session.query(ResumeModel).filter(ResumeModel.job_id == gen_id).order_by(ResumeModel.created_at.desc()).first()
         if not m:
             return False
         state = json.loads(m.raw_text) if m.raw_text else {}

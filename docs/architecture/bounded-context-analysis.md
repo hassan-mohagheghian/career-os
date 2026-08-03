@@ -14,8 +14,8 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 **Responsibility:** Job posting lifecycle — fetching, parsing, scoring, storing, and querying job listings.
 
 **Entities:**
-- `Job` (aggregate root) — `jobs` table, PK: `num` (int)
-- `Summary` — `summaries` table, PK: `num` (FK to jobs.num)
+- `Job` (aggregate root) — `jobs` table, PK: `id` (UUID v7)
+- `Summary` — `summaries` table, PK: `id` (FK to jobs via `job_id`)
 
 **Value Objects:**
 - `JobScore` (fit_score, success_score, overall_score, letter grade)
@@ -226,7 +226,7 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 |--------|--------|-------------|------|
 | Jobs | Companies | `company_id` FK | Partner |
 | Jobs | Skills | `stack` field references skills | Consumer |
-| Jobs | Resume | `job_num` links resumes | Partner |
+| Jobs | Resume | `job_id` links resumes | Partner |
 | Companies | Skills | Tech stack references | Consumer |
 | Career | Jobs | Reads job data for insights | Consumer |
 | Career | Companies | Reads company data | Consumer |

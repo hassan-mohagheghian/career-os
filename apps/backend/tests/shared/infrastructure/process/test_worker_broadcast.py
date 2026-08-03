@@ -1,6 +1,7 @@
 """Tests for worker broadcasting — real-time SocketIO events during processing."""
 
 import pytest
+import uuid
 from unittest.mock import patch, MagicMock, AsyncMock
 from sqlalchemy.orm import sessionmaker
 from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
@@ -25,11 +26,11 @@ _counter = 0
 def _insert_pending_job(session, url, status):
     global _counter
     _counter += 1
-    m = JobModel(num=_counter, url=url, source='cli', status=status)
+    m = JobModel(id=str(uuid.uuid7()), url=url, source='cli', status=status)
     session.add(m)
     session.commit()
     session.refresh(m)
-    return m.num
+    return m.id
 
 
 def _insert_pending_company(session, input_text, status):
@@ -103,7 +104,7 @@ class TestWorkerBroadcasting:
              patch('jobs.infrastructure.workers.worker.broadcaster', mock_broadcaster):
             from jobs.infrastructure.workers.worker import _save_session_id
             _save_session_id(pid, 'sess_abc123')
-            row = sa_test_db.query(JobModel).filter(JobModel.num == pid).first()
+            row = sa_test_db.query(JobModel).filter(JobModel.id == pid).first()
             assert row.session_id == 'sess_abc123'
             mock_broadcaster.step_update.assert_called_once()
             event = mock_broadcaster.step_update.call_args[0][0]

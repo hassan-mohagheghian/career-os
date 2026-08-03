@@ -17,7 +17,7 @@ class SQLAlchemySummaryRepository(ISummaryRepository):
 
     def _to_dict(self, m: SummaryModel) -> dict[str, Any]:
         return {
-            "num": m.num,
+            "job_id": m.job_id,
             "company": m.company,
             "match": m.match,
             "score": m.score,
@@ -28,8 +28,8 @@ class SQLAlchemySummaryRepository(ISummaryRepository):
             "url": m.url,
         }
 
-    def get_by_num(self, num: int) -> dict[str, Any] | None:
-        m = self._session.query(SummaryModel).filter(SummaryModel.num == num).first()
+    def get_by_job_id(self, job_id: str) -> dict[str, Any] | None:
+        m = self._session.query(SummaryModel).filter(SummaryModel.job_id == job_id).first()
         return self._to_dict(m) if m else None
 
     def get_all(self) -> list[dict[str, Any]]:
@@ -47,8 +47,8 @@ class SQLAlchemySummaryRepository(ISummaryRepository):
         return [self._to_dict(r) for r in rows]
 
     def upsert(self, data: dict[str, Any]) -> dict[str, Any]:
-        num = data.get("num")
-        existing = self._session.query(SummaryModel).filter(SummaryModel.num == num).first()
+        job_id = data.get("job_id")
+        existing = self._session.query(SummaryModel).filter(SummaryModel.job_id == job_id).first()
         if existing:
             for field in ["company", "match", "score", "summary", "stack", "resumeFit", "note", "url"]:
                 if field in data:
@@ -62,8 +62,8 @@ class SQLAlchemySummaryRepository(ISummaryRepository):
         self._session.refresh(m)
         return self._to_dict(m)
 
-    def delete_by_num(self, num: int) -> bool:
-        m = self._session.query(SummaryModel).filter(SummaryModel.num == num).first()
+    def delete_by_num(self, job_id: str) -> bool:
+        m = self._session.query(SummaryModel).filter(SummaryModel.job_id == job_id).first()
         if not m:
             return False
         self._session.delete(m)

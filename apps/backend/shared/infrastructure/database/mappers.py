@@ -27,7 +27,6 @@ def _to_str(value: Any) -> Any:
 def job_model_to_dict(model: JobModel) -> dict[str, Any]:
     """Convert a JobModel to a domain dictionary."""
     return {
-        "num": model.num,
         "id": model.id,
         "company": model.company,
         "role": model.role,
@@ -206,5 +205,5 @@ def resume_model_to_dict(model: ResumeModel) -> dict[str, Any]:
         "version": model.version,
         "raw_text": model.raw_text,
         "created_at": _to_str(model.created_at),
-        "job_num": model.job_num,
+        "job_id": model.job_id,
     }

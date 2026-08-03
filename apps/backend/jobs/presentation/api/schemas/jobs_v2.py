@@ -76,7 +76,6 @@ class ProcessingExecutionSchema(BaseModel):
 
 class JobListItemSchema(BaseModel):
     id: str
-    num: int
     title: str | None = None
     company_name: str | None = Field(default=None, validation_alias="company")
     location: str | None = None
@@ -144,7 +143,6 @@ class JobDetailExecutionSchema(BaseModel):
 
 class JobDetailResponseSchema(BaseModel):
     id: str
-    num: int
     title: str | None = None
     company_name: str | None = Field(default=None, validation_alias="company")
     role: str | None = None

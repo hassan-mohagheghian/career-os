@@ -276,7 +276,6 @@ Selecting a row opens the Job Details Drawer.
 | Column     | Description                                         |
 | ---------- | --------------------------------------------------- |
 | Select     | Multi-selection checkbox for future bulk operations |
-| #          | Legacy numeric identifier (`num`)                   |
 | Job        | Job title and employment type                       |
 | Company    | Company logo and company name                       |
 | Location   | City, country or Remote                             |

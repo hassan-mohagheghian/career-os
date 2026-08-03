@@ -284,9 +284,8 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/api/jobs` | GET | Paginated job list |
-| `/api/jobs/:num` | GET/PUT/DELETE | Job CRUD |
-| `/api/jobs/:num/requeue` | POST | Re-queue for processing |
-| `/api/jobs/:num/rescore` | POST | Rescore existing job |
+| `/api/jobs/:id` | GET/PATCH/DELETE | Job CRUD |
+| `/api/jobs/:id/process` | POST | Process job |
 
 ### Companies
 | Endpoint | Method | Purpose |

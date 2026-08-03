@@ -58,16 +58,16 @@ class IJobRepository(abc.ABC):
     """Repository for processed job results."""
 
     @abc.abstractmethod
-    def get_next_num(self) -> int:
-        """Get the next available job number."""
-
-    @abc.abstractmethod
     def get_by_url(self, url: str) -> Optional[dict]:
         """Find a job by URL."""
 
     @abc.abstractmethod
-    def insert(self, job_data: dict) -> int:
-        """Insert or replace a job. Returns the job num."""
+    def get_id_by_url(self, url: str) -> Optional[str]:
+        """Find a job's UUID id by URL."""
+
+    @abc.abstractmethod
+    def insert(self, job_data: dict) -> str:
+        """Insert or replace a job. Returns the job UUID id."""
 
     @abc.abstractmethod
     def insert_summary(self, summary_data: dict) -> None:
@@ -78,7 +78,7 @@ class IJobRepository(abc.ABC):
         """Insert or replace a resume."""
 
     @abc.abstractmethod
-    def save_workflow_log(self, num: int, log_json: str) -> None:
+    def save_workflow_log(self, job_id: str, log_json: str) -> None:
         """Save workflow log to the jobs table."""
 
 

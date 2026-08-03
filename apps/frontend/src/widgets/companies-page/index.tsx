@@ -25,8 +25,8 @@ function CompaniesPageAdapter() {
     openWorkflow, closeWorkflow,
   } = useWorkflow()
 
-  const openDrawer = useCallback(async (num: number) => {
-    window.dispatchEvent(new CustomEvent('openJob', { detail: num }))
+  const openDrawer = useCallback(async (id: string) => {
+    window.dispatchEvent(new CustomEvent('openJob', { detail: id }))
   }, [])
 
   const openCompanyDrawer = useCallback(async (id: string) => {
@@ -67,9 +67,9 @@ function CompaniesPageAdapter() {
         onClearDeepLink={() => {}}
         onRefresh={fetchCompanies}
         onOpenJob={openDrawer}
-        onNavigateToJob={(num: number) => {
+        onNavigateToJob={(id: string) => {
           window.location.href = `/jobs`
-          setTimeout(() => openDrawer(num), 200)
+          setTimeout(() => openDrawer(id), 200)
         }}
         onOpenCompany={openCompanyDrawer}
         openWorkflow={openWorkflow}
@@ -80,9 +80,9 @@ function CompaniesPageAdapter() {
         onClose={() => { setCompanyDrawer(null); setSearchParam('company', null) }}
         onDelete={handleDeleteCompany}
         onReprocess={handleReprocessCompany}
-        onOpenJob={(num: number) => openDrawer(num)}
-        onNavigateToJob={(num: number) => {
-          setTimeout(() => openDrawer(num), 100)
+        onOpenJob={(id: string) => openDrawer(id)}
+        onNavigateToJob={(id: string) => {
+          setTimeout(() => openDrawer(id), 100)
         }}
         onViewAllJobs={() => {
           setCompanyDrawer(null)

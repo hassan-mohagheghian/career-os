@@ -20,6 +20,11 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
+    def delete_by_target(self, target_type: str, target_id: str) -> int:
+        """Delete all executions for a target. Returns number deleted."""
+        ...
+
+    @abstractmethod
     def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
         ...
 

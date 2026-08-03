@@ -51,7 +51,7 @@ class TestGenerationHistoryRepository:
 
     def test_reads_pending_jobs(self, repo, sa_session):
         m = JobModel(
-            num=1, url='https://example.com/job1',
+            url='https://example.com/job1',
             source='web', company='Acme', status='done',
             workflow_log='[]', queue_order=0,
             session_id='sess_1',
@@ -113,7 +113,7 @@ class TestGenerationHistoryRepository:
 
     def test_error_captured(self, repo, sa_session):
         m = JobModel(
-            num=1, url='url1', source='web', status='failed',
+            url='url1', source='web', status='failed',
             error='Connection timeout',
             workflow_log='[]', queue_order=0,
             created_at='2026-07-27T10:00:00',

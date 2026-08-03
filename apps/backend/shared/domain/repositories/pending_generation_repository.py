@@ -12,7 +12,7 @@ class IPendingGenerationRepository(ABC):
         """Get a pending generation by ID."""
 
     @abstractmethod
-    def create(self, job_num: int, gen_type: str, status: str = "queued") -> dict[str, Any]:
+    def create(self, job_id: str, gen_type: str, status: str = "queued") -> dict[str, Any]:
         """Create a new pending generation."""
 
     @abstractmethod
@@ -20,7 +20,7 @@ class IPendingGenerationRepository(ABC):
         """Update fields on a pending generation."""
 
     @abstractmethod
-    def get_active_for_job(self, job_num: int, gen_type: str) -> dict[str, Any] | None:
+    def get_active_for_job(self, job_id: str, gen_type: str) -> dict[str, Any] | None:
         """Get an active (queued/processing) generation for a job."""
 
     @abstractmethod
@@ -32,9 +32,9 @@ class IPendingGenerationRepository(ABC):
         """Get all generations (including completed/failed)."""
 
     @abstractmethod
-    def get_history_for_job(self, job_num: int) -> list[dict[str, Any]]:
+    def get_history_for_job(self, job_id: str) -> list[dict[str, Any]]:
         """Get generation history for a specific job."""
 
     @abstractmethod
-    def get_active_count(self, job_num: int) -> int:
+    def get_active_count(self, job_id: str) -> int:
         """Count active generations for a job."""

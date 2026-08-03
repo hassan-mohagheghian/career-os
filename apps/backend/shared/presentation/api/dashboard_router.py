@@ -55,7 +55,7 @@ def get_generation_history(limit: int = 50, offset: int = 0):
 @router.get("/local-history")
 def get_local_history(
     context: str = Query(..., description="Context: job, company, skill"),
-    job_num: int | None = Query(None),
+    job_id: str | None = Query(None),
     company_id: int | None = Query(None),
     skill_name: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -66,8 +66,8 @@ def get_local_history(
     session = get_session_sync()
     try:
         repo = GenerationHistoryRepository(session)
-        if context == 'job' and job_num is not None:
-            result = repo.get_for_job(job_num, limit)
+        if context == 'job' and job_id is not None:
+            result = repo.get_for_job(job_id, limit)
         elif context == 'company' and company_id is not None:
             result = repo.get_for_company(company_id, limit)
         elif context == 'skill' and skill_name is not None:
@@ -86,7 +86,7 @@ def get_local_history(
 @router.get("/local-history/active")
 def get_local_active_count(
     context: str = Query(...),
-    job_num: int | None = Query(None),
+    job_id: str | None = Query(None),
     company_id: int | None = Query(None),
     skill_name: str | None = Query(None),
 ):
@@ -98,7 +98,7 @@ def get_local_active_count(
         repo = GenerationHistoryRepository(session)
         count = repo.get_active_count(
             context,
-            job_num=job_num,
+            job_id=job_id,
             company_id=company_id,
             skill_name=skill_name,
         )

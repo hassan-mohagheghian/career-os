@@ -1,5 +1,4 @@
 export interface Job {
-  num: number
   company: string
   role: string
   location: string
@@ -42,7 +41,7 @@ export interface JobsResponse {
   agg: JobAgg
 }
 
-export type SortField = 'created_at' | 'overall_score' | 'fit_score' | 'success_score' | 'num' | 'company' | 'location' | 'applicants' | 'posted_at' | 'apply_time' | 'response_time'
+export type SortField = 'created_at' | 'overall_score' | 'fit_score' | 'success_score' | 'company' | 'location' | 'applicants' | 'posted_at' | 'apply_time' | 'response_time'
 
 export interface Scores {
   overall: number | null
@@ -61,7 +60,6 @@ export type ProcessingStatus = 'created' | 'queued' | 'starting' | 'running' | '
 
 export interface JobListItem {
   id: string
-  num: number
   title: string
   company_name: string
   location: string
@@ -165,7 +163,6 @@ export interface JobLinkItem {
 
 export interface JobDetail {
   id: string
-  num: number
   title: string | null
   company_name: string | null
   role: string | null

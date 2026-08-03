@@ -1,4 +1,6 @@
-import { Drawer, DrawerHeader, DrawerContent } from '@/shared/components/Drawer'
+'use client'
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import AddJobForm from '@/features/jobs/components/AddJobForm'
 import type { CreateJobRequest } from '@/features/jobs/hooks/useCreateJob'
 
@@ -18,16 +20,20 @@ export default function AddJobDrawer({
   error,
 }: AddJobDrawerProps) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} variant="lg">
-      <DrawerHeader title="Import Job" onClose={() => onOpenChange(false)} />
-      <DrawerContent>
-        <AddJobForm
-          onSubmit={(data) => onSubmit(data)}
-          onCancel={() => onOpenChange(false)}
-          submitting={submitting}
-          error={error || undefined}
-        />
-      </DrawerContent>
-    </Drawer>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0 flex flex-col h-full">
+        <SheetHeader className="shrink-0 flex flex-row items-center justify-between px-4 py-3 border-b border-border/40">
+          <SheetTitle className="text-sm font-semibold">Import Job</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 min-h-0">
+          <AddJobForm
+            onSubmit={(data) => onSubmit(data)}
+            onCancel={() => onOpenChange(false)}
+            submitting={submitting}
+            error={error || undefined}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -23,7 +23,7 @@ def process_job(
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
-    job = job_repo.get_by_id(jobId) if not str(jobId).isdigit() else job_repo.get_by_num(int(jobId))
+    job = job_repo.get_by_id(jobId)
     if not job:
         raise NotFoundError(f"Job {jobId} not found")
 

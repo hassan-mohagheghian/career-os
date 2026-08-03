@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from datetime import datetime
 
 from sqlalchemy import create_engine, func
@@ -27,8 +28,8 @@ def get_session():
     return Session(), engine
 
 
-def update_step(session, job_num, step, value, status=None, company=None, job_num_field=None, error=None):
-    m = session.query(JobModel).filter(JobModel.num == job_num).first()
+def update_step(session, job_id, step, value, status=None, company=None, error=None):
+    m = session.query(JobModel).filter(JobModel.id == job_id).first()
     if not m:
         return
     if hasattr(m, step):
@@ -48,17 +49,18 @@ def get_pending(session):
         JobModel.deleted == 0,
         ~JobModel.status.in_(['completed', 'failed'])
     ).order_by(JobModel.created_at.asc()).all()
-    return [{'id': r.num, 'url': r.url or '', 'source': r.source or '', 'status': r.status} for r in rows]
+    return [{'id': r.id, 'url': r.url or '', 'source': r.source or '', 'status': r.status} for r in rows]
 
 
 def add_job(session, data):
-    m = session.query(JobModel).filter(JobModel.num == data['num']).first()
+    job_id = data.get('id')
+    m = session.query(JobModel).filter(JobModel.id == job_id).first() if job_id else None
     if m:
         for k, v in data.items():
             if hasattr(m, k):
                 setattr(m, k, v)
     else:
-        m = JobModel(num=data['num'], company=data.get('company'), role=data.get('role'),
+        m = JobModel(id=job_id or str(uuid.uuid7()), company=data.get('company'), role=data.get('role'),
                      location=data.get('location'), match=data.get('match'), score=data.get('score'),
                      salary=data.get('salary'), stack=data.get('stack'), visa=data.get('visa'),
                      url=data.get('url'))
@@ -67,19 +69,14 @@ def add_job(session, data):
 
 
 def add_summary(session, data):
-    m = session.query(SummaryModel).filter(SummaryModel.num == data['num']).first()
+    m = session.query(SummaryModel).filter(SummaryModel.job_id == data['job_id']).first()
     if m:
         m.company = data.get('company')
         m.summary = data.get('summary')
     else:
-        m = SummaryModel(num=data['num'], company=data.get('company'), summary=data.get('summary'))
+        m = SummaryModel(job_id=data['job_id'], company=data.get('company'), summary=data.get('summary'))
         session.add(m)
     session.commit()
-
-
-def get_next_job_num(session):
-    max_num = session.query(func.max(JobModel.num)).scalar()
-    return (max_num or 0) + 1
 
 
 if __name__ == '__main__':

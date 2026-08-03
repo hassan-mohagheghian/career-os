@@ -25,7 +25,6 @@ def test_list_jobs_empty(client):
 def test_create_and_get_job(client, test_db):
     """Test creating and retrieving a job via ORM insert."""
     job = JobModel(
-        num=1,
         url="https://example.com/job/1",
         title="Software Engineer",
         company="Tech Corp",
@@ -46,7 +45,7 @@ def test_create_and_get_job(client, test_db):
     data = response.json()
     assert data["pagination"]["total_items"] == 1
     item = data["items"][0]
-    assert item["num"] == 1
+    assert item["id"] == job.id
     assert item["title"] == "Software Engineer"
     assert item["company_name"] == "Tech Corp"
 
@@ -80,7 +79,6 @@ def test_list_companies_empty(client):
 def test_get_job_detail(client, test_db):
     """Test fetching a single job via the V2 detail endpoint."""
     job = JobModel(
-        num=42,
         url="https://example.com/job/42",
         title="Backend Engineer",
         company="Example Co",
@@ -99,7 +97,7 @@ def test_get_job_detail(client, test_db):
     response = client.get(f"/api/jobs/{job.id}")
     assert response.status_code == 200
     data = response.json()
-    assert data["num"] == 42
+    assert data["id"] == job.id
     assert data["title"] == "Backend Engineer"
     assert data["company_name"] == "Example Co"
     assert data["location"] == "London"

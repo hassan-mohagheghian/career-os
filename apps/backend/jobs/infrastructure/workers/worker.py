@@ -91,7 +91,7 @@ _load_env()
 
 # --- DB helpers ---
 
-def _update_step(pid, step, val, status=None, company=None, job_num=None, error=None):
+def _update_step(pid, step, val, status=None, company=None, job_id=None, error=None):
     session = get_session_sync()
     try:
         from shared.infrastructure.process.repository import PendingJobRepository
@@ -101,8 +101,8 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
             fields['status'] = status
         if company:
             fields['company'] = company
-        if job_num:
-            fields['job_num'] = job_num
+        if job_id:
+            fields['job_id'] = job_id
         if error:
             fields['error'] = error
         pending_repo.update_fields(pid, **fields)
@@ -113,8 +113,8 @@ def _update_step(pid, step, val, status=None, company=None, job_num=None, error=
         extra['status'] = status
     if company:
         extra['company'] = company
-    if job_num:
-        extra['job_num'] = job_num
+    if job_id:
+        extra['job_id'] = job_id
     if error:
         extra['error'] = error
     broadcaster.step_update(StatusUpdate(
@@ -136,22 +136,13 @@ def _save_session_id(pid, session_id):
         extra={'session_id': session_id},
     ))
 
-def _get_next_num():
+def _get_existing_id(url):
+    """Check if a job with this URL already exists. Returns its uuid id or None."""
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
-        return job_repo.get_next_num()
-    finally:
-        session.close()
-
-def _get_existing_num(url):
-    """Check if a job with this URL already exists. Returns its num or None."""
-    session = get_session_sync()
-    try:
-        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-        job_repo = SQLAlchemyJobRepository(session)
-        return job_repo.get_num_by_url(url)
+        return job_repo.get_id_by_url(url)
     finally:
         session.close()
 
@@ -204,7 +195,7 @@ def _insert_job(d):
         normalized_wt = ['On-site']
 
     job_data = {
-        'num': d['num'],
+        'id': d['id'],
         'company': d['company'],
         'role': d['role'],
         'location': d['location'],
@@ -320,13 +311,13 @@ def _parse_adv_at(posted_text):
         pass
     return now.isoformat()
 
-def _save_job_workflow_log(num, log_json):
+def _save_job_workflow_log(job_id, log_json):
     """Save workflow log to the jobs table."""
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
-        job_repo.update_workflow_log(num, log_json)
+        job_repo.update_workflow_log(job_id, log_json)
     finally:
         session.close()
 
@@ -358,8 +349,8 @@ def _check_result_file(result_path):
             f"(TMP_DIR={tmp_dir} exists={dir_exists} writable={dir_writable})"
         )
 
-def _mark(pid, step, company=None, job_num=None):
-    _update_step(pid, step, 1, company=company, job_num=job_num)
+def _mark(pid, step, company=None, job_id=None):
+    _update_step(pid, step, 1, company=company, job_id=job_id)
 
 def _get_item(pid):
     """Re-read the job from DB to check for status changes (pause/stop)."""
@@ -378,19 +369,19 @@ def _is_paused_or_stopped(pid):
         return True  # Item deleted, stop
     return item['status'] not in ('processing',)
 
-def rescore_only(num):
+def rescore(job_id):
     """Re-score an existing job without the full pipeline.
     Reads the raw description, runs AI analysis, and updates the job."""
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
-        j = job_repo.get_by_num(num)
+        j = job_repo.get_by_id(job_id)
     finally:
         session.close()
 
     if not j:
-        log.warning("worker.rescore_not_found", num=num)
+        log.warning("worker.rescore_not_found", job_id=job_id)
         return
 
     url = j['url']
@@ -401,23 +392,23 @@ def rescore_only(num):
             with open(raw_path) as f:
                 raw_desc = f.read()
     if not raw_desc:
-        log.warning("worker.rescore_no_raw", num=num)
+        log.warning("worker.rescore_no_raw", job_id=job_id)
         session = get_session_sync()
         try:
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
-            job_repo.update_fields(num, rescoring=0)
+            job_repo.update_fields(job_id, rescoring=0)
         finally:
             session.close()
         return
 
-    job_file = os.path.join(TMP_DIR, f'rescore_{num}.txt')
+    job_file = os.path.join(TMP_DIR, f'rescore_{job_id}.txt')
     try:
         with open(job_file, 'w') as f:
             f.write(raw_desc)
 
         rules = _load_rules()
-        resume_file = os.path.join(TMP_DIR, f'rescore_resume_{num}.txt')
+        resume_file = os.path.join(TMP_DIR, f'rescore_resume_{job_id}.txt')
         session = get_session_sync()
         try:
             from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
@@ -433,10 +424,10 @@ def rescore_only(num):
             resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
 
         # Use a unique pid per rescore run to avoid file conflicts
-        rescore_pid = f'rescore_{num}_{int(datetime.now().timestamp()*1000)}'
+        rescore_pid = f'rescore_{job_id}_{int(datetime.now().timestamp()*1000)}'
         prompt = load_prompt('job_processing/step8_score',
             url=url, job_file=job_file, resume_file=resume_path,
-            tmp_dir=TMP_DIR, pid=rescore_pid, next_num=num, rules=rules)
+            tmp_dir=TMP_DIR, pid=rescore_pid, next_num=job_id, rules=rules)
 
         returncode, output_lines, _, captured_result = _stream_provider_output(
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
@@ -481,7 +472,7 @@ def rescore_only(num):
 
         # Update the existing job with new scores
         job_data = {
-            'num': num,
+            'id': job_id,
             'company': analyzed_data.get('company', j['company']),
             'role': analyzed_data.get('role', j['role']),
             'location': analyzed_data.get('location', j.get('location', 'Not specified')),
@@ -516,7 +507,7 @@ def rescore_only(num):
 
         _insert_job(job_data)
         _insert_summary({
-            'num': num, 'company': job_data['company'],
+            'job_id': job_id, 'company': job_data['company'],
             'match': job_data['match'], 'score': job_data['score'],
             'summary': data.get('summary', {}).get('summary', ''),
             'stack': job_data['stack'],
@@ -526,10 +517,10 @@ def rescore_only(num):
         })
 
         resume_data = {
-            'id': f"rescore_{num}",
+            'id': f"rescore_{job_id}",
             'title': f"{job_data['company']} (Score {job_data['score']})",
             'company': job_data['company'], 'role': job_data['role'],
-            'job_num': num,
+            'job_id': job_id,
             'content': data.get('resume_html', ''),
         }
         _insert_resume(resume_data)
@@ -539,20 +530,20 @@ def rescore_only(num):
         try:
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
-            job_repo.update_fields(num, rescoring=0)
+            job_repo.update_fields(job_id, rescoring=0)
         finally:
             session.close()
 
-        log.info("worker.rescore_done", num=num, company=job_data['company'], score=job_data['score'])
+        log.info("worker.rescore_done", job_id=job_id, company=job_data['company'], score=job_data['score'])
 
     except Exception as e:
-        log.error("worker.rescore_failed", num=num, error=str(e))
+        log.error("worker.rescore_failed", job_id=job_id, error=str(e))
         # Clear rescoring flag on failure
         session = get_session_sync()
         try:
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             job_repo = SQLAlchemyJobRepository(session)
-            job_repo.update_fields(num, rescoring=0)
+            job_repo.update_fields(job_id, rescoring=0)
         finally:
             session.close()
     finally:
@@ -657,13 +648,13 @@ def _extract_all(raw_text, pid, session_id=None):
     except (json.JSONDecodeError, TypeError):
         return None
 
-def _mark_old_job_deleted(url, exclude_num=None):
+def _mark_old_job_deleted(url, exclude_id=None):
     """Mark old job with same URL as deleted when rescore/requeue creates a new one."""
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         job_repo = SQLAlchemyJobRepository(session)
-        job_repo.set_deleted_by_url(url, exclude_num)
+        job_repo.set_deleted_by_url(url, exclude_id)
     finally:
         session.close()
 

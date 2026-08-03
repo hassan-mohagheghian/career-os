@@ -58,17 +58,17 @@ from apps.backend.domain.value_objects.score import Score
 
 def test_job_creation():
     job = Job(
-        num=1,
+        id="8f5b1c2e-…",
         url="https://example.com/job",
         title="Software Engineer",
         company="Tech Corp",
     )
-    assert job.num == 1
+    assert job.id == "8f5b1c2e-…"
     assert job.url == "https://example.com/job"
 
 def test_job_score_calculation():
     job = Job(
-        num=1,
+        id="8f5b1c2e-…",
         url="https://example.com/job",
         fit_score=8.0,
         success_score=7.0,
@@ -77,7 +77,7 @@ def test_job_score_calculation():
 
 def test_job_validation():
     with pytest.raises(ValidationError):
-        Job(num=1, url="", title="Test")  # Empty URL
+        Job(id="8f5b1c2e-…", url="", title="Test")  # Empty URL
 ```
 
 #### Service Tests
@@ -101,7 +101,7 @@ async def test_list_jobs(service):
 @pytest.mark.asyncio
 async def test_get_job_not_found(service):
     with pytest.raises(NotFoundError):
-        await service.get_by_num(999)
+        await service.get_by_id("missing-id")
 ```
 
 #### Repository Tests
@@ -118,15 +118,15 @@ async def test_create_job(test_db):
         "url": "https://example.com/job",
         "title": "Software Engineer",
     })
-    assert job.num is not None
+    assert job.id is not None
 
 @pytest.mark.asyncio
-async def test_get_job_by_num(test_db):
+async def test_get_job_by_id(test_db):
     repo = JobRepository(test_db)
     # Create job first
     job = await repo.create({"url": "https://example.com/job"})
     # Retrieve it
-    retrieved = await repo.get_by_num(job.num)
+    retrieved = await repo.get_by_id(job.id)
     assert retrieved.url == job.url
 ```
 
@@ -168,12 +168,12 @@ async def test_get_job(client: AsyncClient):
         "/api/jobs",
         json={"url": "https://example.com/job"},
     )
-    job_num = create_response.json()["num"]
+    job_id = create_response.json()["id"]
     
     # Get job
-    response = await client.get(f"/api/jobs/{job_num}")
+    response = await client.get(f"/api/jobs/{job_id}")
     assert response.status_code == 200
-    assert response.json()["num"] == job_num
+    assert response.json()["id"] == job_id
 
 @pytest.mark.asyncio
 async def test_update_job(client: AsyncClient):
@@ -182,11 +182,11 @@ async def test_update_job(client: AsyncClient):
         "/api/jobs",
         json={"url": "https://example.com/job"},
     )
-    job_num = create_response.json()["num"]
+    job_id = create_response.json()["id"]
     
     # Update job
-    response = await client.put(
-        f"/api/jobs/{job_num}",
+    response = await client.patch(
+        f"/api/jobs/{job_id}",
         json={"title": "Updated Title"},
     )
     assert response.status_code == 200
@@ -199,14 +199,14 @@ async def test_delete_job(client: AsyncClient):
         "/api/jobs",
         json={"url": "https://example.com/job"},
     )
-    job_num = create_response.json()["num"]
+    job_id = create_response.json()["id"]
     
     # Delete job
-    response = await client.delete(f"/api/jobs/{job_num}")
-    assert response.status_code == 200
+    response = await client.delete(f"/api/jobs/{job_id}")
+    assert response.status_code == 204
     
     # Verify deleted
-    get_response = await client.get(f"/api/jobs/{job_num}")
+    get_response = await client.get(f"/api/jobs/{job_id}")
     assert get_response.status_code == 404
 ```
 

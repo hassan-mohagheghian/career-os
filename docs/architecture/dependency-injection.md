@@ -124,12 +124,12 @@ Router
 # 4. Calls route handler
 # 5. Cleans up (closes connections, etc.)
 
-@router.get("/jobs/{num}")
+@router.get("/jobs/{job_id}")
 async def get_job(
-    num: int,
+    job_id: str,
     service: JobService = Depends(get_job_service),  # Resolved here
 ):
-    return await service.get_by_num(num)
+    return await service.get_by_id(job_id)
     # Dependencies cleaned up after response
 ```
 
@@ -190,8 +190,8 @@ class MockJobRepository(IJobRepository):
     def __init__(self):
         self.jobs = []
     
-    async def get_by_num(self, num: int):
-        return next((j for j in self.jobs if j.num == num), None)
+    async def get_by_id(self, job_id: str):
+        return next((j for j in self.jobs if j.id == job_id), None)
     
     async def list_all(self):
         return self.jobs

@@ -1,6 +1,7 @@
 """Tests for SQLAlchemyPendingRepository — atomic claim, reset_steps with keep_status."""
 
 import pytest
+import uuid
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.database.sqlalchemy_config import Base
@@ -21,15 +22,13 @@ def db(_engine):
     connection.close()
 
 
-_counter = 0
+
 def _insert_job(session, url='https://example.com', status='queued', queue_order=0):
-    global _counter
-    _counter += 1
-    m = JobModel(num=_counter, url=url, status=status, source='cli', queue_order=queue_order)
+    m = JobModel(id=str(uuid.uuid7()), url=url, status=status, source='cli', queue_order=queue_order)
     session.add(m)
     session.commit()
     session.refresh(m)
-    return m.num
+    return m.id
 
 
 def _insert_company(session, text='TestCorp', status='queued'):
@@ -50,7 +49,7 @@ class TestPickQueuedItem:
 
         result = repo.pick_queued_item('pending_jobs')
         assert result is not None
-        assert result['num'] == id1
+        assert result['id'] == id1
         assert result['status'] == 'processing'
 
     def test_skips_non_queued_jobs(self, db):
@@ -60,7 +59,7 @@ class TestPickQueuedItem:
 
         result = repo.pick_queued_item('pending_jobs')
         assert result is not None
-        assert result['num'] == id2
+        assert result['id'] == id2
 
     def test_returns_none_when_no_queued(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -80,7 +79,7 @@ class TestPickQueuedItem:
         id_low = _insert_job(db, 'https://b.com', 'queued', queue_order=1)
 
         result = repo.pick_queued_item('pending_jobs')
-        assert result['num'] == id_low
+        assert result['id'] == id_low
 
     def test_commits_status_change(self, db):
         repo = SQLAlchemyPendingRepository(db)
@@ -88,7 +87,7 @@ class TestPickQueuedItem:
 
         repo.pick_queued_item('pending_jobs')
 
-        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        row = db.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'processing'
 
     def test_pick_company(self, db):
@@ -124,13 +123,13 @@ class TestResetSteps:
     def test_reset_steps_sets_queued_by_default(self, db):
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(JobModel).filter(JobModel.num == pid).first()
+        job = db.query(JobModel).filter(JobModel.id == pid).first()
         job.error = 'some error'
         db.commit()
 
         repo.reset_steps(pid, version=2, table='pending_jobs')
 
-        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        row = db.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'created'
         assert row.error is None
 
@@ -138,12 +137,12 @@ class TestResetSteps:
         """keep_status=True should reset steps but NOT change status."""
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(JobModel).filter(JobModel.num == pid).first()
+        job = db.query(JobModel).filter(JobModel.id == pid).first()
         db.commit()
 
         repo.reset_steps(pid, version=3, table='pending_jobs', keep_status=True)
 
-        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        row = db.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'starting'
 
     def test_reset_steps_company(self, db):
@@ -171,13 +170,13 @@ class TestResetSteps:
     def test_reset_steps_clears_workflow_log(self, db):
         repo = SQLAlchemyPendingRepository(db)
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(JobModel).filter(JobModel.num == pid).first()
+        job = db.query(JobModel).filter(JobModel.id == pid).first()
         job.workflow_log = '[{"step": "fetch"}]'
         db.commit()
 
         repo.reset_steps(pid, version=1, table='pending_jobs')
 
-        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        row = db.query(JobModel).filter(JobModel.id == pid).first()
         assert row.workflow_log == '[]'
 
 
@@ -189,12 +188,12 @@ class TestResetStepsKeepStatusInQueue:
         from unittest.mock import patch
 
         pid = _insert_job(db, 'https://a.com', 'starting')
-        job = db.query(JobModel).filter(JobModel.num == pid).first()
+        job = db.query(JobModel).filter(JobModel.id == pid).first()
         db.commit()
 
         with patch('shared.infrastructure.database.session.get_session_sync', return_value=db):
             mgr = JobQueueManager(concurrency=1)
             mgr.reset_item(pid)
 
-        row = db.query(JobModel).filter(JobModel.num == pid).first()
+        row = db.query(JobModel).filter(JobModel.id == pid).first()
         assert row.status == 'pending'

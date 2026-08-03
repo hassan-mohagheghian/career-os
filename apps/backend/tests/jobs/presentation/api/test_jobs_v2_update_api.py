@@ -2,12 +2,11 @@
 import json
 
 from jobs.infrastructure.models.job_model import JobModel
-from sqlalchemy import func
 
 
 def _create_job(test_db, **kwargs) -> JobModel:
     defaults = dict(
-        num=None,
+        id=None,
         url="https://example.com/job",
         title="Software Engineer",
         role="SWE",
@@ -26,9 +25,9 @@ def _create_job(test_db, **kwargs) -> JobModel:
         rescoring=0,
     )
     defaults.update(kwargs)
-    if defaults["num"] is None:
-        max_num = test_db.query(func.max(JobModel.num)).scalar() or 0
-        defaults["num"] = max_num + 1
+    if defaults["id"] is None:
+        import uuid
+        defaults["id"] = str(uuid.uuid7())
     job = JobModel(**defaults)
     test_db.add(job)
     test_db.commit()
