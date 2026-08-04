@@ -176,6 +176,10 @@ ascending
 descending
 ```
 
+NULL handling: every sort follows a **NULLS LAST** policy. Rows where the
+sort column has no value (for example a job that has not been scored yet)
+sort after all valued rows, in both ascending and descending order.
+
 ---
 
 # Pagination

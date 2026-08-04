@@ -68,17 +68,18 @@ running
 completed
 failed
 cancelled
+none
 ```
 
 A job matches only when its **latest** execution (by `created_at`) has the given
 status. Jobs with no execution are never returned by this filter, regardless of
 the legacy `jobs.status` value.
 
----
+The special value `none` returns the inverse: only jobs that have **no**
+processing execution at all (never queued). It is exclusive with the other
+values.
 
-### Processing Status
-
-The `processing_status` filter above is the only status filter. The legacy
+The `processing_status` filter is the only status filter. The legacy
 `jobs.status` values (`imported`, `processed`, `archived`) are not part of the
 list model and cannot be filtered on here.
 
@@ -95,8 +96,12 @@ company_id
 ### Location
 
 ```text
-location
+location=Berlin
 ```
+
+Case-insensitive substring match against the job's `location` value. A job
+matches when its location contains the given text anywhere in the string (e.g.
+`location=berlin` matches `Berlin, Germany`). Empty value is ignored.
 
 ---
 
@@ -144,7 +149,28 @@ success_score
 company
 
 title
+
+status
 ```
+
+The `status` sort orders rows by the same execution status each row displays —
+the **latest** execution's status — so the sort never disagrees with the row.
+Statuses are grouped alphabetically and a job that has never been processed
+(no execution) always sorts **last**, in both `asc` and `desc` order. Cursor
+pagination for `status` uses a composite cursor (`<rank>:<job_id>`) so pages
+stay consistent and never skip or duplicate rows.
+
+Every sort follows a **NULLS LAST** policy: rows where the sort column is
+`NULL` (for example a job that has not been scored yet) always sort **after**
+rows with a value, in both `asc` and `desc` order. The policy applies to every
+sortable column, not just `status`.
+
+All other sorts behave as before, except that the keyset cursor is now a
+composite `<value>|<job_id>` (the `status` cursor is `<rank>:<job_id>`). The
+composite form is required so that cursor pagination can walk the NULL tail
+(NULL rows sort last and are reached only after every valued row) without
+skipping or duplicating rows. A legacy single-value cursor (no `|`) is still
+accepted for a transition period.
 
 Order
 

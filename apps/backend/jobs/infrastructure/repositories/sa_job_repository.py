@@ -3,12 +3,16 @@
 from typing import Any
 from datetime import datetime, UTC
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_, case, cast
 from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.job_repository import IJobRepository
 from jobs.infrastructure.models.job_model import JobModel
 from shared.infrastructure.database.mappers import job_model_to_dict
+
+# Keyset-cursor sentinel encoding a NULL sort value. NULLs always sort last,
+# so the cursor must distinguish a NULL boundary row from a non-NULL one.
+NULL_CURSOR = "__null__"
 
 
 class SQLAlchemyJobRepository(IJobRepository):
@@ -113,9 +117,9 @@ class SQLAlchemyJobRepository(IJobRepository):
 
         sort_column = getattr(JobModel, sort_by, JobModel.created_at)
         if sort_dir == "desc":
-            query = query.order_by(sort_column.desc())
+            query = query.order_by(sort_column.desc().nulls_last())
         else:
-            query = query.order_by(sort_column.asc())
+            query = query.order_by(sort_column.asc().nulls_last())
 
         if offset is not None and limit is not None:
             query = query.offset(offset).limit(limit)
@@ -436,9 +440,9 @@ class SQLAlchemyJobRepository(IJobRepository):
         }
         sort_column = sort_map.get(sort, JobModel.updated_at)
         if order == "asc":
-            q = q.order_by(sort_column.asc())
+            q = q.order_by(sort_column.asc().nulls_last())
         else:
-            q = q.order_by(sort_column.desc())
+            q = q.order_by(sort_column.desc().nulls_last())
 
         offset = (page - 1) * page_size
         q = q.offset(offset).limit(page_size)
@@ -455,7 +459,10 @@ class SQLAlchemyJobRepository(IJobRepository):
         sort: str = "updated_at",
         order: str = "desc",
         job_ids: list[str] | None = None,
+        exclude_job_ids: list[str] | None = None,
+        status_lookup: dict[str, str] | None = None,
         company_id: int | None = None,
+        location: str | None = None,
         remote: bool | None = None,
         visa: bool | None = None,
         overall_score_min: int | None = None,
@@ -481,8 +488,14 @@ class SQLAlchemyJobRepository(IJobRepository):
         if job_ids is not None:
             q = q.filter(JobModel.id.in_(job_ids))
 
+        if exclude_job_ids:
+            q = q.filter(~JobModel.id.in_(exclude_job_ids))
+
         if company_id is not None:
             q = q.filter(JobModel.company_id == company_id)
+
+        if location:
+            q = q.filter(JobModel.location.ilike(f"%{location}%"))
 
         if remote is not None:
             if remote:
@@ -525,14 +538,87 @@ class SQLAlchemyJobRepository(IJobRepository):
         }
         sort_column = sort_map.get(sort, JobModel.updated_at)
 
-        if cursor:
-            cursor_op = sort_column < cursor if order == "desc" else sort_column > cursor
-            q = q.filter(cursor_op)
-
-        if order == "asc":
-            q = q.order_by(sort_column.asc())
+        # Status sort orders by the same execution status each row displays
+        # (the latest execution), grouping rows by status. Unprocessed rows
+        # (no execution, absent from ``status_lookup``) always sort last, in
+        # both directions — achieved with a direction-aware sentinel for the
+        # COALESCE (unprocessed rank = max in asc, = -1 in desc).
+        status_mode = sort == "status" and status_lookup is not None
+        if status_mode:
+            statuses = sorted(set(status_lookup.values()))
+            rank_of = {status: i for i, status in enumerate(statuses)}
+            grouped: dict[str, list[str]] = {}
+            for job_id, status in status_lookup.items():
+                grouped.setdefault(status, []).append(job_id)
+            status_rank = case(
+                *[
+                    (JobModel.id.in_(ids), rank_of[status])
+                    for status, ids in grouped.items()
+                ]
+            )
+            sentinel = len(statuses) if order == "asc" else -1
+            rank_expr = func.coalesce(status_rank, sentinel)
         else:
-            q = q.order_by(sort_column.desc())
+            rank_expr = None
+
+        if cursor:
+            if status_mode:
+                try:
+                    cur_rank, cur_id = cursor.split(":", 1)
+                    cur_rank = int(cur_rank)
+                except (ValueError, TypeError):
+                    cur_rank = cur_id = None
+                if cur_rank is not None:
+                    if order == "desc":
+                        q = q.filter(
+                            or_(
+                                rank_expr < cur_rank,
+                                and_(rank_expr == cur_rank, JobModel.id < cur_id),
+                            )
+                        )
+                    else:
+                        q = q.filter(
+                            or_(
+                                rank_expr > cur_rank,
+                                and_(rank_expr == cur_rank, JobModel.id > cur_id),
+                            )
+                        )
+            else:
+                # NULLS LAST is the policy for every sort, so keyset
+                # pagination must be NULL-aware. Cursor format: ``value|id``
+                # (a legacy single-value cursor without ``|`` is tolerated).
+                # While the boundary row is non-NULL the next page is every
+                # row strictly below it plus all NULL rows (they sort last);
+                # once the boundary row is NULL, remaining pages walk the
+                # NULL tail by id alone.
+                cur_value, cur_id = cursor, None
+                if "|" in cursor:
+                    cur_value, cur_id = cursor.rsplit("|", 1)
+                if cur_value == NULL_CURSOR and cur_id is not None:
+                    if order == "desc":
+                        q = q.filter(and_(sort_column.is_(None), JobModel.id < cur_id))
+                    else:
+                        q = q.filter(and_(sort_column.is_(None), JobModel.id > cur_id))
+                else:
+                    cur = cast(cur_value, sort_column.type)
+                    cmp = sort_column < cur if order == "desc" else sort_column > cur
+                    if cur_id is not None:
+                        tiebreak = JobModel.id < cur_id if order == "desc" else JobModel.id > cur_id
+                        q = q.filter(
+                            or_(cmp, and_(sort_column == cur, tiebreak), sort_column.is_(None))
+                        )
+                    else:
+                        q = q.filter(or_(cmp, sort_column.is_(None)))
+
+        if status_mode:
+            if order == "asc":
+                q = q.order_by(rank_expr.asc(), JobModel.id.asc())
+            else:
+                q = q.order_by(rank_expr.desc(), JobModel.id.desc())
+        elif order == "asc":
+            q = q.order_by(sort_column.asc().nulls_last(), JobModel.id.asc())
+        else:
+            q = q.order_by(sort_column.desc().nulls_last(), JobModel.id.desc())
 
         q = q.limit(page_size + 1)
         if cursor is None and page and page > 1:
@@ -541,6 +627,21 @@ class SQLAlchemyJobRepository(IJobRepository):
         rows = q.all()
         has_more = len(rows) > page_size
         items = [job_model_to_dict(r) for r in rows[:page_size]]
-        next_cursor = str(getattr(rows[page_size - 1], sort, rows[page_size - 1].updated_at)) if len(rows) >= page_size else None
+        if len(rows) >= page_size:
+            boundary = rows[page_size - 1]
+            if status_mode:
+                boundary_status = status_lookup.get(boundary.id)
+                boundary_rank = (
+                    sentinel
+                    if boundary_status is None
+                    else rank_of.get(boundary_status, sentinel)
+                )
+                next_cursor = f"{boundary_rank}:{boundary.id}"
+            else:
+                boundary_value = getattr(boundary, sort, boundary.updated_at)
+                value = NULL_CURSOR if boundary_value is None else str(boundary_value)
+                next_cursor = f"{value}|{boundary.id}"
+        else:
+            next_cursor = None
 
         return items, total, next_cursor, has_more

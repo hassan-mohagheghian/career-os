@@ -58,6 +58,8 @@ export interface ProcessingExecution {
 
 export type ProcessingStatus = 'created' | 'queued' | 'starting' | 'running' | 'completed' | 'failed' | 'cancelled'
 
+export type ProcessingStatusFilter = ProcessingStatus | 'none' | ''
+
 export interface JobListItem {
   id: string
   title: string
@@ -82,8 +84,7 @@ export interface JobSearchQuery {
   cursor?: string
   query?: string
   company_id?: number
-  processing_status?: ProcessingStatus
-  job_status?: string
+  processing_status?: ProcessingStatus | 'none'
   location?: string
   remote?: boolean
   visa?: boolean

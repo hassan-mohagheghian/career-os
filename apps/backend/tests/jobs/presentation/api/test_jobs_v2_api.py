@@ -143,6 +143,38 @@ class TestJobListV2API:
         data = resp.json()
         assert data["items"][0]["scores"]["overall"] == 99
 
+    def test_sort_score_nulls_last(self, client, test_db):
+        _create_job(test_db, id=1, title="High", overall_score=99)
+        _create_job(test_db, id=2, title="Null", overall_score=None)
+        _create_job(test_db, id=3, title="Low", overall_score=40)
+
+        resp = client.get("/api/jobs/list?sort=overall_score&order=desc")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["High", "Low", "Null"]
+
+        resp = client.get("/api/jobs/list?sort=overall_score&order=asc")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Low", "High", "Null"]
+
+    def test_sort_score_cursor_reaches_null_tail(self, client, test_db):
+        for i in range(4):
+            _create_job(test_db, id=i + 1, title=f"Scored-{i}", overall_score=90 - i)
+        _create_job(test_db, id=5, title="Unscored-A", overall_score=None)
+        _create_job(test_db, id=6, title="Unscored-B", overall_score=None)
+
+        resp = client.get("/api/jobs/list?sort=overall_score&order=desc&page_size=3")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Scored-0", "Scored-1", "Scored-2"]
+        next_cursor = data["cursor_pagination"]["next_cursor"]
+        assert next_cursor is not None
+
+        resp2 = client.get(
+            f"/api/jobs/list?sort=overall_score&order=desc&page_size=3&cursor={next_cursor}"
+        )
+        data2 = resp2.json()
+        assert [i["title"] for i in data2["items"]] == ["Scored-3", "Unscored-B", "Unscored-A"]
+        assert data2["cursor_pagination"]["has_more"] is False
+
     def test_filter_by_processing_status(self, client, test_db):
         queued_job = _create_job(test_db, id=1, title="Queued")
         completed_job = _create_job(test_db, id=2, title="Completed")
@@ -173,6 +205,63 @@ class TestJobListV2API:
         data = resp.json()
         assert len(data["items"]) == 0
 
+    def test_filter_processing_status_none(self, client, test_db):
+        processed = _create_job(test_db, id=1, title="Processed")
+        _create_job(test_db, id=2, title="Fresh")
+        _create_execution(test_db, processed.id, status="completed")
+
+        resp = client.get("/api/jobs/list?processing_status=none")
+        data = resp.json()
+
+        assert data["pagination"]["total_items"] == 1
+        assert [i["title"] for i in data["items"]] == ["Fresh"]
+        assert data["items"][0]["latest_processing_execution"] is None
+
+    def test_filter_processing_status_none_empty(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Processed")
+        _create_execution(test_db, job.id, status="completed")
+
+        resp = client.get("/api/jobs/list?processing_status=none")
+        data = resp.json()
+
+        assert data["pagination"]["total_items"] == 0
+        assert data["items"] == []
+
+    def test_sort_status_uses_latest_execution_unprocessed_last(self, client, test_db):
+        job_a = _create_job(test_db, id=1, title="Done")
+        _create_job(test_db, id=2, title="Fresh")
+        job_c = _create_job(test_db, id=3, title="Queued")
+        _create_execution(test_db, job_a.id, status="completed", execution_id="a-1")
+        _create_execution(test_db, job_c.id, status="queued", execution_id="c-1")
+
+        resp = client.get("/api/jobs/list?sort=status&order=asc")
+        data = resp.json()
+
+        assert [i["title"] for i in data["items"]] == ["Done", "Queued", "Fresh"]
+
+        resp = client.get("/api/jobs/list?sort=status&order=desc")
+        data = resp.json()
+
+        assert [i["title"] for i in data["items"]] == ["Queued", "Done", "Fresh"]
+
+    def test_sort_status_cursor_paginates(self, client, test_db):
+        job_a = _create_job(test_db, id=1, title="Done")
+        _create_job(test_db, id=2, title="Fresh")
+        _create_execution(test_db, job_a.id, status="completed", execution_id="a-1")
+
+        resp = client.get("/api/jobs/list?sort=status&order=desc&page_size=1")
+        data = resp.json()
+        assert len(data["items"]) == 1
+        next_cursor = data["cursor_pagination"]["next_cursor"]
+        assert next_cursor is not None
+
+        resp2 = client.get(
+            f"/api/jobs/list?sort=status&order=desc&page_size=1&cursor={next_cursor}"
+        )
+        data2 = resp2.json()
+        assert data2["cursor_pagination"]["has_more"] is False
+        assert data2["items"][0]["title"] == "Fresh"
+
     def test_filter_by_remote(self, client, test_db):
         _create_job(test_db, id=1, title="Remote", work_types='["Remote"]')
         _create_job(test_db, id=2, title="Onsite", work_types='["On-site"]')
@@ -195,6 +284,24 @@ class TestJobListV2API:
         data = resp.json()
         assert len(data["items"]) == 1
         assert data["items"][0]["visa_sponsorship"] is True
+
+    def test_filter_by_location(self, client, test_db):
+        _create_job(test_db, id=1, title="Berlin Job", location="Berlin, Germany")
+        _create_job(test_db, id=2, title="Amsterdam Job", location="Amsterdam, Netherlands")
+
+        resp = client.get("/api/jobs/list?location=germany")
+        data = resp.json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["location"] == "Berlin, Germany"
+
+        resp = client.get("/api/jobs/list?location=Berlin")
+        data = resp.json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["title"] == "Berlin Job"
+
+        resp = client.get("/api/jobs/list?location=Madrid")
+        data = resp.json()
+        assert data["pagination"]["total_items"] == 0
 
     def test_filter_by_score_range(self, client, test_db):
         _create_job(test_db, id=1, title="Low", overall_score=30)

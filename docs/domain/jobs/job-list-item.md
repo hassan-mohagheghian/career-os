@@ -109,6 +109,11 @@ The status comes from the job's **latest** `processing_execution` row
 is filtered by processing status, only the latest execution per job is
 considered.
 
+The special filter value `none` matches jobs that have **no** processing
+execution at all. When the list is sorted by `status`, rows are grouped by this
+same latest-execution status and jobs with no execution always sort last, in
+both ascending and descending order.
+
 ---
 
 # Row Actions

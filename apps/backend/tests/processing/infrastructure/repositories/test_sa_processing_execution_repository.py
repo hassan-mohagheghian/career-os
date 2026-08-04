@@ -3,6 +3,9 @@
 Covers:
 - latest_by_target_ids: batch latest-execution lookup for the jobs list.
 - target_ids_with_status: ids whose latest execution has a given status.
+- latest_statuses: latest status per target (drives the status sort).
+- target_ids: distinct targets that have at least one execution (drives the
+  "not processed" filter).
 
 A dedicated ``target_type`` is used so tests stay isolated from executions
 created by other test files in the same (session-scoped) database.
@@ -96,3 +99,57 @@ class TestTargetIdsWithStatus:
         sa_session.commit()
 
         assert _repo(sa_session).target_ids_with_status(TARGET_TYPE, "completed") == {"job-a"}
+
+
+class TestLatestStatuses:
+    def test_returns_latest_status_per_target(self, sa_session):
+        _add_execution(sa_session, "job-a", status="failed", execution_id="a-1")
+        _add_execution(sa_session, "job-a", status="completed", execution_id="a-2")
+        _add_execution(sa_session, "job-b", status="queued", execution_id="b-1")
+
+        statuses = _repo(sa_session).latest_statuses(TARGET_TYPE)
+
+        assert statuses == {"job-a": "completed", "job-b": "queued"}
+
+    def test_ignores_other_target_types(self, sa_session):
+        _add_execution(sa_session, "job-a", status="completed", execution_id="a-1")
+        other = ProcessingExecutionModel(
+            id=str(uuid.uuid7()),
+            execution_type="company_processing",
+            status="completed",
+            target_type="other_type",
+            target_id="job-a",
+        )
+        sa_session.add(other)
+        sa_session.commit()
+
+        assert _repo(sa_session).latest_statuses(TARGET_TYPE) == {"job-a": "completed"}
+
+    def test_empty(self, sa_session):
+        assert _repo(sa_session).latest_statuses(TARGET_TYPE) == {}
+
+
+class TestTargetIds:
+    def test_returns_distinct_targets(self, sa_session):
+        _add_execution(sa_session, "job-a", status="completed", execution_id="a-1")
+        _add_execution(sa_session, "job-a", status="failed", execution_id="a-2")
+        _add_execution(sa_session, "job-b", status="queued", execution_id="b-1")
+
+        assert _repo(sa_session).target_ids(TARGET_TYPE) == {"job-a", "job-b"}
+
+    def test_ignores_other_target_types(self, sa_session):
+        _add_execution(sa_session, "job-a", status="completed", execution_id="a-1")
+        other = ProcessingExecutionModel(
+            id=str(uuid.uuid7()),
+            execution_type="company_processing",
+            status="completed",
+            target_type="other_type",
+            target_id="job-a",
+        )
+        sa_session.add(other)
+        sa_session.commit()
+
+        assert _repo(sa_session).target_ids(TARGET_TYPE) == {"job-a"}
+
+    def test_empty(self, sa_session):
+        assert _repo(sa_session).target_ids(TARGET_TYPE) == set()

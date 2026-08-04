@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import type { JobListItem, ProcessingStatus } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatusFilter } from '@/entities/job/types'
 import { Button } from '@/shared/ui/button'
 import { JobsHeader } from './JobsHeader'
 import { JobsToolbar } from './JobsToolbar'
@@ -29,8 +29,10 @@ interface JobsPageProps {
   sort: string
   onSortChange: (value: string) => void
   order: 'asc' | 'desc'
-  filterProcessingStatus: ProcessingStatus | ''
-  onFilterProcessingStatusChange: (value: ProcessingStatus | '') => void
+  filterProcessingStatus: ProcessingStatusFilter
+  onFilterProcessingStatusChange: (value: ProcessingStatusFilter) => void
+  filterLocation: string
+  onFilterLocationChange: (value: string) => void
   filterRemote: boolean | ''
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
@@ -62,6 +64,7 @@ export function JobsPage({
   query, onQueryChange,
   sort, onSortChange, order,
   filterProcessingStatus, onFilterProcessingStatusChange,
+  filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
@@ -120,6 +123,8 @@ export function JobsPage({
         onQueryChange={onQueryChange}
         filterProcessingStatus={filterProcessingStatus}
         onFilterProcessingStatusChange={onFilterProcessingStatusChange}
+        filterLocation={filterLocation}
+        onFilterLocationChange={onFilterLocationChange}
         filterRemote={filterRemote}
         onFilterRemoteChange={onFilterRemoteChange}
         filterVisa={filterVisa}

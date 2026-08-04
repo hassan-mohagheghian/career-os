@@ -1116,6 +1116,7 @@ Search preserves
 Supported filters
 
 - Processing Status
+- Location
 - Overall Score
 - Company
 - Country
@@ -1125,6 +1126,43 @@ Supported filters
 - Processing State
 
 Filters are applied server-side.
+
+## Processing Status Filter
+
+The status filter lives in the toolbar and groups jobs by their **latest**
+processing execution status:
+
+```text
+All
+Created
+Queued
+Running
+Completed
+Failed
+Not processed
+```
+
+`Not processed` selects jobs that have **no** processing execution at all —
+jobs that were imported but never queued. Selecting it counts as an active
+filter and is cleared by the toolbar's Clear action alongside the others.
+
+---
+
+# Location Filter
+
+A compact input in the toolbar filters jobs by location.
+
+Typing matches the job's location case-insensitively (substring match) — e.g.
+`berlin` matches `Berlin, Germany`.
+
+```text
+Berlin, Germany
+Amsterdam, Netherlands
+Hamburg, Germany
+```
+
+An active location shows a ✕ clear button and counts as an active filter,
+cleared by the toolbar's Clear action alongside the others.
 
 ---
 
@@ -1139,8 +1177,17 @@ Supported sort fields
 - Success Score
 - Company Name
 - Job Title
+- Status
 
 Sorting is always performed by the backend.
+
+Every sort follows a NULLS LAST policy: jobs where the sort column is empty
+(for example a job that has not been scored yet) always sort last, in both
+ascending and descending order.
+
+The Status sort orders rows by the same status each row displays (the latest
+processing execution). Jobs that were never processed always sort last, in both
+ascending and descending order.
 
 ---
 

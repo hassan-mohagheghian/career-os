@@ -17,7 +17,10 @@ class ListJobsV2Request:
     sort: str = "updated_at"
     order: str = "desc"
     job_ids: list[str] | None = None
+    exclude_job_ids: list[str] | None = None
+    status_lookup: dict[str, str] | None = None
     company_id: int | None = None
+    location: str | None = None
     remote: bool | None = None
     visa: bool | None = None
     overall_score_min: int | None = None
@@ -51,7 +54,10 @@ class ListJobsV2UseCase:
             sort=request.sort,
             order=request.order,
             job_ids=request.job_ids,
+            exclude_job_ids=request.exclude_job_ids,
+            status_lookup=request.status_lookup,
             company_id=request.company_id,
+            location=request.location,
             remote=request.remote,
             visa=request.visa,
             overall_score_min=request.overall_score_min,

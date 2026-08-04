@@ -134,6 +134,10 @@ Users may sort by:
 
 Sorting affects only the current query.
 
+Rows with no value for the sort column (for example an unscored job when
+sorting by Overall Score) always sort last, in both ascending and descending
+order.
+
 ---
 
 # Opening Job Details

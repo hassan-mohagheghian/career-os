@@ -32,6 +32,20 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
+    def latest_statuses(self, target_type: str) -> dict[str, str]:
+        """Return ``{target_id: latest_status}`` for every target of the type.
+
+        Used by the jobs list to sort rows by the same execution status that
+        is displayed in each row.
+        """
+        ...
+
+    @abstractmethod
+    def target_ids(self, target_type: str) -> set[str]:
+        """Return distinct target ids that have at least one execution."""
+        ...
+
+    @abstractmethod
     def delete_by_target(self, target_type: str, target_id: str) -> int:
         """Delete all executions for a target. Returns number deleted."""
         ...

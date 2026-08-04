@@ -13,6 +13,7 @@ import pytest
 
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
+from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
 
@@ -33,6 +34,22 @@ def _add(session, id=None, url=None, **kwargs):
     session.commit()
     session.refresh(m)
     return m
+
+
+def _add_execution(session, job_id: str, status: str, created_at: str):
+    model = ProcessingExecutionModel(
+        id=str(uuid.uuid7()),
+        execution_type="job_processing",
+        status=status,
+        target_type="job",
+        target_id=job_id,
+        created_at=created_at,
+        started_at=created_at,
+        finished_at=None,
+    )
+    session.add(model)
+    session.commit()
+    return model
 
 
 # ── get_by_id ────────────────────────────────────────────────────
@@ -112,6 +129,27 @@ class TestListJobs:
         _add(sa_session, id="job-b", applicants="100")
         jobs, total = repo.list_jobs(sort_by="applicants", sort_dir="desc")
         assert jobs[0]["applicants"] == "200"
+
+    def test_sort_score_desc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-null")
+        _add(sa_session, id="job-b", overall_score=40)
+        jobs, total = repo.list_jobs(sort_by="overall_score", sort_dir="desc")
+        assert [j["overall_score"] for j in jobs] == [90, 40, None]
+
+    def test_sort_score_asc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-null")
+        _add(sa_session, id="job-b", overall_score=40)
+        jobs, total = repo.list_jobs(sort_by="overall_score", sort_dir="asc")
+        assert [j["overall_score"] for j in jobs] == [40, 90, None]
+
+    def test_sort_company_desc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", company="Alpha")
+        _add(sa_session, id="job-null")
+        jobs, total = repo.list_jobs(sort_by="company", sort_dir="desc")
+        assert jobs[0]["company"] == "Alpha"
+        assert jobs[-1]["company"] is None
 
     def test_sort_fallback_invalid_column_and_dir(self, sa_session, repo):
         _add(sa_session, id="job-a", company="Alpha")
@@ -298,6 +336,20 @@ class TestSearchJobs:
         rows, total = repo.search_jobs(sort="overall_score", order="asc")
         assert [r["overall_score"] for r in rows] == [40, 90]
 
+    def test_sort_score_desc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", title="A", overall_score=90)
+        _add(sa_session, id="job-null", title="N")
+        _add(sa_session, id="job-b", title="B", overall_score=40)
+        rows, total = repo.search_jobs(sort="overall_score", order="desc")
+        assert [r["overall_score"] for r in rows] == [90, 40, None]
+
+    def test_sort_score_asc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", title="A", overall_score=90)
+        _add(sa_session, id="job-null", title="N")
+        _add(sa_session, id="job-b", title="B", overall_score=40)
+        rows, total = repo.search_jobs(sort="overall_score", order="asc")
+        assert [r["overall_score"] for r in rows] == [40, 90, None]
+
     def test_sort_fallback_and_pagination(self, sa_session, repo):
         for i in range(5):
             _add(sa_session, id=f"job-{i}")
@@ -334,7 +386,8 @@ class TestSearchJobsCursor:
             page_size=2, sort="updated_at", order="desc", cursor=first_cursor
         )
         assert len(items) == 2
-        assert all(i["updated_at"] < first_cursor for i in items)
+        boundary = first_cursor.rsplit("|", 1)[0]
+        assert all(i["updated_at"] < boundary for i in items)
         assert has_more is True
 
     def test_cursor_asc(self, sa_session, repo):
@@ -345,7 +398,56 @@ class TestSearchJobsCursor:
             page_size=2, sort="updated_at", order="asc", cursor=first_cursor
         )
         assert len(items) == 2
-        assert all(i["updated_at"] > first_cursor for i in items)
+        boundary = first_cursor.rsplit("|", 1)[0]
+        assert all(i["updated_at"] > boundary for i in items)
+
+    def test_cursor_score_desc_nulls_last_reaches_null_tail(self, sa_session, repo):
+        _add(sa_session, id="job-1", overall_score=90)
+        _add(sa_session, id="job-2", overall_score=40)
+        _add(sa_session, id="job-null-a")
+        _add(sa_session, id="job-null-b")
+        _add(sa_session, id="job-null-c")
+
+        items, total, cursor, has_more = repo.search_jobs_cursor(
+            page_size=2, sort="overall_score", order="desc"
+        )
+        assert total == 5
+        assert [i["overall_score"] for i in items] == [90, 40]
+        assert has_more is True
+
+        items, total, cursor2, has_more = repo.search_jobs_cursor(
+            page_size=2, sort="overall_score", order="desc", cursor=cursor
+        )
+        assert [i["overall_score"] for i in items] == [None, None]
+        assert has_more is True
+
+        items, total, cursor3, has_more = repo.search_jobs_cursor(
+            page_size=2, sort="overall_score", order="desc", cursor=cursor2
+        )
+        assert [i["overall_score"] for i in items] == [None]
+        assert has_more is False
+        assert cursor3 is None
+
+    def test_cursor_score_asc_nulls_last(self, sa_session, repo):
+        _add(sa_session, id="job-1", overall_score=90)
+        _add(sa_session, id="job-2", overall_score=40)
+        _add(sa_session, id="job-null-a")
+        _add(sa_session, id="job-null-b")
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="overall_score", order="asc"
+        )
+        assert total == 4
+        assert [i["overall_score"] for i in items] == [40, 90, None, None]
+
+    def test_cursor_tie_values_tiebroken_by_id_desc(self, sa_session, repo):
+        _add(sa_session, id="job-1", overall_score=50)
+        _add(sa_session, id="job-2", overall_score=50)
+        _add(sa_session, id="job-3", overall_score=50)
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="overall_score", order="desc"
+        )
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-3", "job-2", "job-1"]
 
     def test_filters_with_cursor(self, sa_session, repo):
         ids = [f"job-{i}" for i in range(3)]
@@ -422,6 +524,154 @@ class TestSearchJobsCursor:
         assert total == 0
         assert next_cursor is None
         assert has_more is False
+
+
+class TestSearchJobsCursorLocation:
+    def test_matches_substring_case_insensitive(self, sa_session, repo):
+        _add(sa_session, id="job-berlin", location="Berlin, Germany")
+        _add(sa_session, id="job-amsterdam", location="Amsterdam, Netherlands")
+        _add(sa_session, id="job-hamburg", location="Hamburg, Germany")
+
+        items, total, _, _ = repo.search_jobs_cursor(location="germany")
+
+        assert total == 2
+        assert {i["id"] for i in items} == {"job-berlin", "job-hamburg"}
+
+    def test_empty_location_is_noop(self, sa_session, repo):
+        _add(sa_session, id="job-berlin", location="Berlin")
+        _add(sa_session, id="job-amsterdam", location="Amsterdam")
+
+        items, total, _, _ = repo.search_jobs_cursor(location="")
+
+        assert total == 2
+
+    def test_no_match(self, sa_session, repo):
+        _add(sa_session, id="job-berlin", location="Berlin")
+
+        items, total, _, _ = repo.search_jobs_cursor(location="Madrid")
+
+        assert total == 0
+        assert items == []
+
+    def test_combines_with_other_filters(self, sa_session, repo):
+        _add(sa_session, id="job-a", location="Berlin", work_types='["Remote"]')
+        _add(sa_session, id="job-b", location="Berlin", work_types='["On-site"]')
+        _add(sa_session, id="job-c", location="Amsterdam", work_types='["Remote"]')
+
+        items, total, _, _ = repo.search_jobs_cursor(location="berlin", remote=True)
+
+        assert total == 1
+        assert items[0]["id"] == "job-a"
+
+
+class TestSearchJobsCursorStatusSort:
+    def _jobs_and_executions(self, sa_session):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        _add(sa_session, id="job-c", updated_at="2026-07-27T10:00:03")
+        _add_execution(sa_session, "job-a", "failed", "2026-07-27T10:00:10")
+        _add_execution(sa_session, "job-a", "completed", "2026-07-27T10:00:11")
+        _add_execution(sa_session, "job-b", "queued", "2026-07-27T10:00:12")
+        return {"job-a": "completed", "job-b": "queued"}
+
+    def test_sorts_by_latest_execution_status_unprocessed_last(self, sa_session, repo):
+        status_lookup = self._jobs_and_executions(sa_session)
+
+        items, total, _, _ = repo.search_jobs_cursor(
+            sort="status", order="asc", status_lookup=status_lookup
+        )
+
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-a", "job-b", "job-c"]
+
+    def test_desc_reverses_statuses_but_unprocessed_still_last(self, sa_session, repo):
+        status_lookup = self._jobs_and_executions(sa_session)
+
+        items, total, _, _ = repo.search_jobs_cursor(
+            sort="status", order="desc", status_lookup=status_lookup
+        )
+
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-b", "job-a", "job-c"]
+
+    def test_groups_same_status_and_ties_by_id(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        _add_execution(sa_session, "job-a", "completed", "2026-07-27T10:00:10")
+        _add_execution(sa_session, "job-b", "completed", "2026-07-27T10:00:11")
+
+        items, total, _, _ = repo.search_jobs_cursor(
+            sort="status", order="asc",
+            status_lookup={"job-a": "completed", "job-b": "completed"},
+        )
+
+        assert total == 2
+        assert [i["id"] for i in items] == ["job-a", "job-b"]
+
+    def test_cursor_pagination_no_skip_no_dupe(self, sa_session, repo):
+        status_lookup = self._jobs_and_executions(sa_session)
+
+        _, _, first_cursor, _ = repo.search_jobs_cursor(
+            page_size=1, sort="status", order="desc", status_lookup=status_lookup
+        )
+        page2, _, second_cursor, _ = repo.search_jobs_cursor(
+            page_size=1, sort="status", order="desc", cursor=first_cursor,
+            status_lookup=status_lookup,
+        )
+        page3, _, _, has_more = repo.search_jobs_cursor(
+            page_size=1, sort="status", order="desc", cursor=second_cursor,
+            status_lookup=status_lookup,
+        )
+
+        ids = [p[0]["id"] for p in (page2, page3)]
+        assert ids == ["job-a", "job-c"]
+        assert has_more is False
+
+    def test_unprocessed_jobs_reachable_across_cursor(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        _add_execution(sa_session, "job-a", "completed", "2026-07-27T10:00:10")
+
+        status_lookup = {"job-a": "completed"}
+        _, _, first_cursor, _ = repo.search_jobs_cursor(
+            page_size=1, sort="status", order="desc", status_lookup=status_lookup
+        )
+        page2, total, _, has_more = repo.search_jobs_cursor(
+            page_size=1, sort="status", order="desc", cursor=first_cursor,
+            status_lookup=status_lookup,
+        )
+
+        assert total == 2
+        assert [i["id"] for i in page2] == ["job-b"]
+        assert has_more is False
+
+
+class TestSearchJobsCursorExclude:
+    def test_exclude_job_ids(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        m2 = _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        _add(sa_session, id="job-c", updated_at="2026-07-27T10:00:03")
+
+        items, total, _, _ = repo.search_jobs_cursor(exclude_job_ids=[m2.id])
+
+        assert total == 2
+        assert {i["id"] for i in items} == {"job-a", "job-c"}
+
+    def test_exclude_empty_list_is_noop(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+
+        items, total, _, _ = repo.search_jobs_cursor(exclude_job_ids=[])
+
+        assert total == 2
+
+    def test_exclude_all(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+
+        items, total, _, _ = repo.search_jobs_cursor(exclude_job_ids=["job-a"])
+
+        assert total == 0
+        assert items == []
 
 
 # ── not-found branches ───────────────────────────────────────────

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { jobApi } from '@/entities/job/api'
-import type { JobListItem, ProcessingStatus, InfiniteJobSearchResult } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatus, ProcessingStatusFilter, InfiniteJobSearchResult } from '@/entities/job/types'
 
 const PAGE_SIZE = 30
 const JOBS_KEY = 'jobs-v2-infinite'
@@ -13,7 +13,7 @@ export function useJobsInfiniteQuery() {
   const [query, setQuery] = useState('')
   const [sortState, setSortState] = useState<{ sort: string; order: 'asc' | 'desc' }>({ sort: 'updated_at', order: 'desc' })
   const { sort, order } = sortState
-  const [filterProcessingStatus, setFilterProcessingStatus] = useState<ProcessingStatus | ''>('')
+  const [filterProcessingStatus, setFilterProcessingStatus] = useState<ProcessingStatusFilter>('')
   const [filterLocation, setFilterLocation] = useState('')
   const [filterRemote, setFilterRemote] = useState<boolean | ''>('')
   const [filterVisa, setFilterVisa] = useState<boolean | ''>('')
@@ -45,7 +45,8 @@ export function useJobsInfiniteQuery() {
       query: filterKey.query || undefined,
       sort: filterKey.sort,
       order: filterKey.order as 'asc' | 'desc',
-      processing_status: filterKey.processing_status as ProcessingStatus | undefined,
+      processing_status: filterKey.processing_status as ProcessingStatus | 'none' | undefined,
+      location: filterKey.location as string | undefined,
       remote: filterKey.remote as boolean | undefined,
       visa: filterKey.visa as boolean | undefined,
     }),
@@ -176,7 +177,7 @@ export function useJobsInfiniteQuery() {
     hasNextPage: !!hasNextPage,
     fetchNextPage,
     filterProcessingStatus,
-    setFilterProcessingStatus: useCallback((v: ProcessingStatus | '') => { setFilterProcessingStatus(v) }, []),
+    setFilterProcessingStatus: useCallback((v: ProcessingStatusFilter) => { setFilterProcessingStatus(v) }, []),
     filterLocation,
     setFilterLocation: useCallback((v: string) => { setFilterLocation(v) }, []),
     filterRemote,

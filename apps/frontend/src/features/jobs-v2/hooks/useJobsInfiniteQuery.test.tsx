@@ -106,3 +106,126 @@ describe('useJobsInfiniteQuery.deleteMutation', () => {
     expect(pages[0].total_items).toBe(3)
   })
 })
+
+describe('useJobsInfiniteQuery.filterProcessingStatus', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends processing_status=none when the Not processed filter is selected', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterProcessingStatus('none')
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ processing_status: 'none' })
+      )
+    })
+  })
+
+  it('counts the Not processed filter as an active filter', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterProcessingStatus('none')
+    })
+
+    expect(result.current.activeFilterCount).toBe(1)
+  })
+
+  it('clears the Not processed filter alongside the others', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterProcessingStatus('none')
+      result.current.setFilterRemote(true)
+    })
+    expect(result.current.activeFilterCount).toBe(2)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+  })
+})
+
+describe('useJobsInfiniteQuery.filterLocation', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends the location filter to the API', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterLocation('Berlin')
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ location: 'Berlin' })
+      )
+    })
+  })
+
+  it('omits the location param when the filter is empty', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
+    expect(lastCall.location).toBeUndefined()
+  })
+
+  it('counts the location filter as an active filter and clears it', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterLocation('Amsterdam')
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+    expect(result.current.filterLocation).toBe('')
+  })
+})

@@ -3,15 +3,26 @@
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import type { ProcessingStatus } from '@/entities/job/types'
+import type { ProcessingStatusFilter } from '@/entities/job/types'
 import { cn } from '@/shared/lib/utils'
-import { MagnifyingGlass, Funnel } from '@phosphor-icons/react'
+import { MagnifyingGlass, MapPin, Funnel } from '@phosphor-icons/react'
+
+const STATUS_FILTER_LABELS: Record<string, string> = {
+  created: 'Created',
+  queued: 'Queued',
+  running: 'Running',
+  completed: 'Completed',
+  failed: 'Failed',
+  none: 'Not processed',
+}
 
 interface JobsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
-  filterProcessingStatus: ProcessingStatus | ''
-  onFilterProcessingStatusChange: (value: ProcessingStatus | '') => void
+  filterProcessingStatus: ProcessingStatusFilter
+  onFilterProcessingStatusChange: (value: ProcessingStatusFilter) => void
+  filterLocation: string
+  onFilterLocationChange: (value: string) => void
   filterRemote: boolean | ''
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
@@ -23,6 +34,7 @@ interface JobsToolbarProps {
 export function JobsToolbar({
   query, onQueryChange,
   filterProcessingStatus, onFilterProcessingStatusChange,
+  filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   activeFilterCount, onClearFilters,
@@ -48,10 +60,10 @@ export function JobsToolbar({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatus | '')}>
+          <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatusFilter)}>
             <SelectTrigger className="h-7 w-auto text-2xs gap-1">
               <Funnel className="w-3 h-3" />
-              <span>{filterProcessingStatus || 'Status'}</span>
+              <span>{filterProcessingStatus ? STATUS_FILTER_LABELS[filterProcessingStatus] ?? filterProcessingStatus : 'Status'}</span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All</SelectItem>
@@ -60,8 +72,28 @@ export function JobsToolbar({
               <SelectItem value="running">Running</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="none">Not processed</SelectItem>
             </SelectContent>
           </Select>
+          <div className="relative w-36">
+            <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <Input
+              value={filterLocation}
+              onChange={e => onFilterLocationChange(e.target.value)}
+              placeholder="Location..."
+              aria-label="Filter by location"
+              className={cn('pl-6 h-7 text-2xs', filterLocation && 'border-emerald-500/30')}
+            />
+            {filterLocation && (
+              <button
+                onClick={() => onFilterLocationChange('')}
+                aria-label="Clear location filter"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <Select value={filterRemote !== '' ? String(filterRemote) : ''} onValueChange={(v) => onFilterRemoteChange(v === '' ? '' : v === 'true')}>
             <SelectTrigger className="h-7 w-auto text-2xs gap-1">
               <span>{filterRemote !== '' ? (filterRemote ? 'Remote' : 'On-site') : 'Remote'}</span>

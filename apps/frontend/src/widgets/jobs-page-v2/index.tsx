@@ -28,6 +28,7 @@ function JobsPageV2Adapter() {
     query, setQuery,
     sort, order, handleHeaderSort,
     filterProcessingStatus, setFilterProcessingStatus,
+    filterLocation, setFilterLocation,
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
     activeFilterCount, clearFilters,
@@ -117,6 +118,8 @@ function JobsPageV2Adapter() {
         order={order}
         filterProcessingStatus={filterProcessingStatus}
         onFilterProcessingStatusChange={setFilterProcessingStatus}
+        filterLocation={filterLocation}
+        onFilterLocationChange={setFilterLocation}
         filterRemote={filterRemote}
         onFilterRemoteChange={setFilterRemote}
         filterVisa={filterVisa}

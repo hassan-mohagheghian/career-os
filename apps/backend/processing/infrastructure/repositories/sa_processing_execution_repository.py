@@ -134,6 +134,18 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
     def target_ids_with_status(self, target_type: str, status: str) -> set[str]:
         """Return target ids whose latest execution has the given status.
 
+        Delegates to :meth:`latest_statuses` so "latest" keeps a single
+        definition across the repository.
+        """
+        return {
+            target_id
+            for target_id, target_status in self.latest_statuses(target_type).items()
+            if target_status == status
+        }
+
+    def latest_statuses(self, target_type: str) -> dict[str, str]:
+        """Return ``{target_id: latest_status}`` for every target of the type.
+
         Uses a window function (ROW_NUMBER over ``created_at desc`` partitioned
         by ``target_id``) so only the most recent execution per target counts.
         ``id desc`` breaks ties between executions sharing the same timestamp.
@@ -155,8 +167,18 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
             .subquery()
         )
         rows = (
-            self._session.query(ranked.c.target_id)
-            .filter(ranked.c.rn == 1, ranked.c.status == status)
+            self._session.query(ranked.c.target_id, ranked.c.status)
+            .filter(ranked.c.rn == 1)
+            .all()
+        )
+        return {row.target_id: row.status for row in rows}
+
+    def target_ids(self, target_type: str) -> set[str]:
+        """Return distinct target ids that have at least one execution."""
+        rows = (
+            self._session.query(ProcessingExecutionModel.target_id)
+            .filter(ProcessingExecutionModel.target_type == target_type)
+            .distinct()
             .all()
         )
         return {row[0] for row in rows}

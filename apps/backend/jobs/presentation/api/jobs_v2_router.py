@@ -132,6 +132,7 @@ def list_jobs_v2(
     order: str = Query("desc"),
     processing_status: str | None = Query(None),
     company_id: int | None = Query(None),
+    location: str | None = Query(None),
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),
     overall_score_min: int | None = Query(None),
@@ -144,12 +145,19 @@ def list_jobs_v2(
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
     job_ids: list[str] | None = None
-    if processing_status:
+    exclude_job_ids: list[str] | None = None
+    if processing_status == "none":
+        exclude_job_ids = sorted(exec_repo.target_ids("job"))
+    elif processing_status:
         job_ids = sorted(exec_repo.target_ids_with_status("job", processing_status))
+    status_lookup = exec_repo.latest_statuses("job") if sort == "status" else None
     request = ListJobsV2Request(
         page=page, page_size=page_size, cursor=cursor, query=query, sort=sort, order=order,
         job_ids=job_ids,
+        exclude_job_ids=exclude_job_ids,
+        status_lookup=status_lookup,
         company_id=company_id,
+        location=location,
         remote=remote, visa=visa,
         overall_score_min=overall_score_min, overall_score_max=overall_score_max,
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
