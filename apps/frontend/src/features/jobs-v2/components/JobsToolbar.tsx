@@ -1,10 +1,9 @@
 'use client'
 
-import { Input } from '@/shared/ui/input'
+import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import type { ProcessingStatusFilter } from '@/entities/job/types'
-import { cn } from '@/shared/lib/utils'
 import { MagnifyingGlass, MapPin, Funnel } from '@phosphor-icons/react'
 
 const STATUS_FILTER_LABELS: Record<string, string> = {
@@ -43,21 +42,18 @@ export function JobsToolbar({
     <div className="px-3 py-2 border-b border-border/40">
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
-          <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input
+          <DebouncedInput
             value={query}
-            onChange={e => onQueryChange(e.target.value)}
+            onValueChange={onQueryChange}
             placeholder="Search by title, company, or keyword..."
-            className={cn('pl-8 h-7 text-xs', query && 'border-emerald-500/30')}
+            icon={<MagnifyingGlass className="w-3.5 h-3.5 text-muted-foreground" />}
+            clearable
+            clearLabel="Clear search"
+            activeClassName="border-emerald-500/30"
+            wrapperClassName="w-full"
+            inputClassName="pl-8 h-7 text-xs"
+            aria-label="Search jobs"
           />
-          {query && (
-            <button
-              onClick={() => onQueryChange('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          )}
         </div>
         <div className="flex items-center gap-1.5">
           <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatusFilter)}>
@@ -76,23 +72,18 @@ export function JobsToolbar({
             </SelectContent>
           </Select>
           <div className="relative w-36">
-            <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <Input
+            <DebouncedInput
               value={filterLocation}
-              onChange={e => onFilterLocationChange(e.target.value)}
+              onValueChange={onFilterLocationChange}
               placeholder="Location..."
+              icon={<MapPin className="w-3 h-3 text-muted-foreground" />}
+              clearable
+              clearLabel="Clear location filter"
+              activeClassName="border-emerald-500/30"
+              wrapperClassName="w-full"
+              inputClassName="pl-6 h-7 text-2xs"
               aria-label="Filter by location"
-              className={cn('pl-6 h-7 text-2xs', filterLocation && 'border-emerald-500/30')}
             />
-            {filterLocation && (
-              <button
-                onClick={() => onFilterLocationChange('')}
-                aria-label="Clear location filter"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </button>
-            )}
           </div>
           <Select value={filterRemote !== '' ? String(filterRemote) : ''} onValueChange={(v) => onFilterRemoteChange(v === '' ? '' : v === 'true')}>
             <SelectTrigger className="h-7 w-auto text-2xs gap-1">

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { JobsToolbar } from './JobsToolbar'
 
@@ -23,16 +23,30 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
 }
 
 describe('JobsToolbar location filter', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('renders a location input', () => {
     renderToolbar()
     expect(screen.getByLabelText('Filter by location')).toBeInTheDocument()
   })
 
-  it('reports typed locations', () => {
+  it('debounces typed locations before reporting them', () => {
     const onFilterLocationChange = vi.fn()
     renderToolbar({ onFilterLocationChange })
 
     fireEvent.change(screen.getByLabelText('Filter by location'), { target: { value: 'Berlin' } })
+
+    expect(onFilterLocationChange).not.toHaveBeenCalled()
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
 
     expect(onFilterLocationChange).toHaveBeenCalledWith('Berlin')
   })

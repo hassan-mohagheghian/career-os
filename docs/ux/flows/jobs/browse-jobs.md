@@ -93,7 +93,9 @@ Users can type inside the search box.
 
 The frontend should:
 
-- debounce input
+- debounce input (**300ms**, via `DebouncedInput` — see
+  `docs/ux/design-system/input.md`; the input updates visually on every
+  keystroke but the server request fires only after typing pauses)
 - preserve filters
 - preserve sorting
 - reload page 1

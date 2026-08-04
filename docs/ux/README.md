@@ -27,6 +27,7 @@ docs/ux/
 ├── README.md                  ← this index
 ├── design-system/
 │   ├── drawer.md              Drawer (variants, placement, anatomy)
+│   ├── input.md               DebouncedInput (text search / filter inputs)
 │   └── README.md
 ├── features/
 │   ├── ai/

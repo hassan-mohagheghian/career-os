@@ -1099,7 +1099,11 @@ Changes
 
 Search is incremental.
 
-Typing updates the result set after a debounce delay.
+Typing updates the result set after a **300ms debounce delay** — the toolbar
+uses the shared `DebouncedInput` primitive (see
+`docs/ux/design-system/input.md`). The input reflects keystrokes immediately,
+but the server request fires only once typing pauses. Clearing the search is
+immediate and cancels any pending request.
 
 Supported fields
 
@@ -1166,8 +1170,9 @@ Amsterdam, Netherlands
 Hamburg, Germany
 ```
 
-An active location shows a ✕ clear button and counts as an active filter,
-cleared by the toolbar's Clear action alongside the others.
+The input is debounced (**300ms**, via `DebouncedInput`) so requests fire only
+after typing pauses. An active location shows a ✕ clear button and counts as an
+active filter, cleared by the toolbar's Clear action alongside the others.
 
 ---
 
