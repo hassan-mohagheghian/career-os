@@ -2,6 +2,7 @@
 
 - GET  /api/processing/executions                → list executions
 - GET  /api/processing/executions/{id}           → get one execution (with workflow progress)
+- POST /api/processing/executions/{id}/start     → start a queued execution
 - POST /api/processing/executions/{id}/cancel    → cancel a queued/running execution
 - POST /api/processing/executions/{id}/retry     → retry a failed execution
 - GET  /api/processing/queue                     → Processing Queue snapshot
@@ -65,6 +66,14 @@ def get_execution(
     if not execution:
         raise NotFoundError(f"ProcessingExecution {execution_id} not found")
     return _execution_detail(execution)
+
+
+@router.post("/executions/{execution_id}/start")
+def start_execution(
+    execution_id: str,
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    return ExecutionActionService(exec_repo).start(execution_id)
 
 
 @router.post("/executions/{execution_id}/cancel")

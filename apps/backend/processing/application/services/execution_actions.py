@@ -1,13 +1,15 @@
-"""Execution action services — cancel / retry / remove queue entry.
+"""Execution action services — start / cancel / retry / remove queue entry.
 
 Each action enforces the ProcessingExecution state machine and publishes the
 corresponding user-facing event:
 
+- start   → execution.created (re-dispatches a queued execution)
 - cancel  → execution.cancelled
 - retry   → execution.created (via dispatch)
 - remove  → queue.entry.removed (or execution.cancelled for queued entries)
 
-See docs/api/processing/cancel-processing.md,
+See docs/api/processing/start-processing.md,
+docs/api/processing/cancel-processing.md,
 docs/api/processing/retry-processing.md,
 docs/api/processing/remove-processing-queue-entry.md.
 """
@@ -31,6 +33,40 @@ from shared.infrastructure.events import processing_events
 class ExecutionActionService:
     def __init__(self, repository: IProcessingExecutionRepository):
         self._repository = repository
+
+    def start(self, execution_id: str) -> dict[str, Any]:
+        """Re-dispatch a queued execution so a worker picks it up.
+
+        The execution is already in the queue, so this nudges TaskIQ to run it
+        immediately. Allowed for queued / starting executions only.
+        """
+        execution = self._repository.get_by_id(execution_id)
+        if not execution:
+            raise NotFoundError(f"ProcessingExecution {execution_id} not found")
+        if execution.status not in (
+            ExecutionStatus.QUEUED,
+            ExecutionStatus.STARTING,
+        ):
+            raise ConflictError(
+                f"Execution {execution_id} cannot be started (status={execution.status.value})"
+            )
+
+        from shared.infrastructure.taskiq.client import enqueue_execution_sync
+
+        enqueue_execution_sync(execution_id)
+        processing_events.publish_sync(
+            processing_events.EXECUTION_STARTED,
+            execution.id,
+            self._job_id(execution),
+            execution.status.value,
+            updated_at=datetime.now(UTC).isoformat(),
+        )
+        return {
+            "execution_id": execution.id,
+            "job_id": self._job_id(execution),
+            "status": execution.status.value,
+            "started": True,
+        }
 
     def cancel(self, execution_id: str) -> dict[str, Any]:
         execution = self._repository.get_by_id(execution_id)
@@ -107,11 +143,17 @@ class ExecutionActionService:
                 updated_at=cancelled_at.isoformat(),
             )
         elif execution.status == ExecutionStatus.FAILED:
+            cancelled_at = datetime.now(UTC)
+            execution.status = ExecutionStatus.CANCELLED
+            execution.finished_at = cancelled_at
+            if execution.workflow_progress:
+                execution.workflow_progress["status"] = "cancelled"
+            self._repository.save(execution)
             processing_events.publish_sync(
                 processing_events.QUEUE_ENTRY_REMOVED,
                 execution.id,
                 self._job_id(execution),
-                execution.status.value,
+                ExecutionStatus.CANCELLED.value,
             )
         else:
             raise ConflictError(

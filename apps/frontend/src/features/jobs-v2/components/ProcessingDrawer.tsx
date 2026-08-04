@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
-import { CircleNotch, Clock, CheckCircle, XCircle, CaretRight, CaretDown } from '@phosphor-icons/react'
+import { CircleNotch, Clock, CheckCircle, XCircle, CaretRight, CaretDown, Play, X, Repeat, Trash } from '@phosphor-icons/react'
 import LinkDisplay from '@/shared/components/LinkDisplay'
+import { Button } from '@/shared/ui/button'
+import { toast } from 'sonner'
 import { processingApi } from '@/entities/processing/api'
 import { mergeWorkflowStep } from '@/entities/processing/workflowMerge'
 import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
@@ -130,11 +132,13 @@ function QueueSection({
   items,
   color,
   renderDetail,
+  renderActions,
 }: {
   title: string
   items: QueueEntry[]
   color: string
   renderDetail: (entry: QueueEntry) => React.ReactNode
+  renderActions?: (entry: QueueEntry) => React.ReactNode
 }) {
   return (
     <div>
@@ -155,6 +159,9 @@ function QueueSection({
                   </p>
                   <EntryLinks entry={entry} />
                 </div>
+                {renderActions && (
+                  <div className="shrink-0 flex items-center gap-1 pt-0.5">{renderActions(entry)}</div>
+                )}
               </div>
               {renderDetail(entry)}
             </div>
@@ -242,17 +249,71 @@ export function ProcessingDrawer({ open, onOpenChange, reloadKey }: ProcessingDr
     return <WorkflowPanel workflow={workflows[entry.execution_id] ?? null} entry={entry} />
   }, [workflows])
 
+  const runAction = useCallback(async (label: string, action: () => Promise<unknown>) => {
+    try {
+      await action()
+      toast.success(label)
+      loadSnapshot()
+    } catch {
+      toast.error(label)
+    }
+  }, [loadSnapshot])
+
+  const handleStart = useCallback((entry: QueueEntry) => {
+    return runAction('Started execution', () => processingApi.start(entry.execution_id))
+  }, [runAction])
+
+  const handleCancel = useCallback((entry: QueueEntry) => {
+    return runAction('Cancelled execution', () => processingApi.cancel(entry.execution_id))
+  }, [runAction])
+
+  const handleRetry = useCallback((entry: QueueEntry) => {
+    return runAction('Retrying execution', () => processingApi.retry(entry.execution_id))
+  }, [runAction])
+
+  const handleRemove = useCallback((entry: QueueEntry) => {
+    return runAction('Removed queue entry', () => processingApi.removeQueueEntry(entry.execution_id))
+  }, [runAction])
+
+  const processingActions = useCallback((entry: QueueEntry) => (
+    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-yellow-500 hover:bg-yellow-500/10" onClick={() => handleCancel(entry)} title="Cancel">
+      <X className="w-3 h-3" />
+    </Button>
+  ), [handleCancel])
+
+  const queuedActions = useCallback((entry: QueueEntry) => (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-emerald-500 hover:bg-emerald-500/10" onClick={() => handleStart(entry)} title="Start">
+        <Play className="w-3 h-3" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-destructive hover:bg-destructive/10" onClick={() => handleRemove(entry)} title="Remove">
+        <Trash className="w-3 h-3" />
+      </Button>
+    </div>
+  ), [handleStart, handleRemove])
+
+  const failedActions = useCallback((entry: QueueEntry) => (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-blue-500 hover:bg-blue-500/10" onClick={() => handleRetry(entry)} title="Retry">
+        <Repeat className="w-3 h-3" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-destructive hover:bg-destructive/10" onClick={() => handleRemove(entry)} title="Remove">
+        <Trash className="w-3 h-3" />
+      </Button>
+    </div>
+  ), [handleRetry, handleRemove])
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0 flex flex-col">
+      <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Processing Queue</SheetTitle>
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0 min-w-0">
           <div className="py-2 space-y-4 min-w-0">
-            <QueueSection title="Running" items={snapshot.processing} color="text-emerald-500" renderDetail={renderDetail} />
-            <QueueSection title="Waiting" items={snapshot.queued} color="text-blue-500" renderDetail={renderDetail} />
-            <QueueSection title="Failed" items={snapshot.failed} color="text-red-500" renderDetail={renderDetail} />
+            <QueueSection title="Running" items={snapshot.processing} color="text-emerald-500" renderDetail={renderDetail} renderActions={processingActions} />
+            <QueueSection title="Waiting" items={snapshot.queued} color="text-blue-500" renderDetail={renderDetail} renderActions={queuedActions} />
+            <QueueSection title="Failed" items={snapshot.failed} color="text-red-500" renderDetail={renderDetail} renderActions={failedActions} />
           </div>
         </ScrollArea>
       </SheetContent>

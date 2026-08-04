@@ -165,10 +165,19 @@ After:
 Execution result:
 
 - Queue entry removed.
+- Failed execution cancelled (so it no longer appears in the queue view).
 - Failed execution history remains.
 - Job remains available.
 
-The failed ProcessingExecution status does not change.
+State transition:
+
+    failed
+
+        |
+
+        v
+
+    cancelled
 
 ---
 

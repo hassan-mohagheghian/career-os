@@ -16,7 +16,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Processing          | `/api/jobs/{job_id}/process`                | Start a Processing Execution          |
 | Processing Queue    | `/api/processing/queue`                     | Snapshot of active executions         |
 | Execution Detail    | `/api/processing/executions/{execution_id}` | Execution status + workflow progress  |
-| Execution Actions   | `/api/processing/executions/{id}/...`       | Cancel, retry, remove queue entry     |
+| Execution Actions   | `/api/processing/executions/{id}/...`       | Start, cancel, retry, remove queue entry |
 | Companies           | `/api/companies`                            | Company intelligence CRUD             |
 | Skills              | `/api/tech-stack`                           | Skill management + aliases + merge    |
 | Skill Roadmaps      | `/api/skill-roadmaps`                       | AI learning roadmaps + progress       |
