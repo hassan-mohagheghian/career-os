@@ -67,7 +67,7 @@ jobs:
         run: uv run mypy apps/backend --ignore-missing-imports || true
 
       - name: Run backend tests
-        run: uv run pytest apps/backend/tests/ -v --tb=short --junitxml=test-results/pytest.xml --cov=apps.backend --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json --cov-report=html
+        run: uv run pytest apps/backend/tests/ -v --tb=short --junitxml=test-results/pytest.xml --cov=apps/backend --cov-report=term-missing --cov-report=xml:coverage.xml --cov-report=json:coverage.json --cov-report=html
         env:
           DATABASE_URL: postgresql+psycopg://jobsearch:jobsearch@localhost:5432/jobsearch
           REDIS_HOST: localhost
