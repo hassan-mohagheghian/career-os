@@ -95,7 +95,7 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
-    def update_fields(self, job_id: str, **fields: Any) -> bool:
+    def update_fields(self, item_id: str, **fields: Any) -> bool:
         """Update arbitrary fields on a job."""
         ...
 

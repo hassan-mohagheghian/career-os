@@ -35,27 +35,25 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif event_type == "cancel_job":
                 job_id = data.get("id")
-                table = data.get("table", "pending_jobs")
                 if job_id:
                     from dependencies import get_session_sync
                     session = get_session_sync()
                     try:
-                        from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
-                        repo = SQLAlchemyPendingJobRepository(session)
-                        repo.update_status(str(job_id), "cancelled", table)
+                        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+                        repo = SQLAlchemyJobRepository(session)
+                        repo.update_status(str(job_id), "cancelled")
                     finally:
                         session.close()
 
             elif event_type == "reset_job":
                 job_id = data.get("id")
-                table = data.get("table", "pending_jobs")
                 if job_id:
                     from dependencies import get_session_sync
                     session = get_session_sync()
                     try:
-                        from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
-                        repo = SQLAlchemyPendingJobRepository(session)
-                        repo.reset_steps(int(job_id), version=2)
+                        from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+                        repo = SQLAlchemyJobRepository(session)
+                        repo.reset_steps(str(job_id))
                     finally:
                         session.close()
 

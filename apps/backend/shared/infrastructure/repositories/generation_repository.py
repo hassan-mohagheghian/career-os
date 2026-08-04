@@ -12,7 +12,7 @@ from typing import Optional, List, Dict
 from shared.domain.models.generation_models import GenerationHistoryItem
 from dependencies import get_session_sync
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
 from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 
@@ -64,7 +64,7 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                repo = SQLAlchemyPendingJobRepository(session)
+                repo = SQLAlchemyJobRepository(session)
                 rows = repo.get_all_for_stream()[:200]
                 for r in rows:
                     items.append(GenerationHistoryItem(

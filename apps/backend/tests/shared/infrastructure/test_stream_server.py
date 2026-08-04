@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from shared.infrastructure import stream_server
 from rules.infrastructure.models.rule_model import RuleModel
 from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
-from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from jobs.infrastructure.models.job_model import JobModel
 
 
@@ -623,7 +623,7 @@ class TestProcessJobStream:
     async def test_success(self, mock_get_session, clear_state):
         pid = _insert_pending(mock_get_session)
         graph_patch, state_patch = self._patch_graph(self._result())
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item()), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item()), \
                 graph_patch, state_patch, \
                 patch('jobs.infrastructure.workers.worker._save_job_workflow_log') as mock_save, \
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
@@ -638,7 +638,7 @@ class TestProcessJobStream:
         pid = _insert_pending(mock_get_session)
         result = self._result(errors=['e1', 'e2', 'e3', 'e4'])
         graph_patch, state_patch = self._patch_graph(result)
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item()), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item()), \
                 graph_patch, state_patch, \
                 patch('jobs.infrastructure.workers.worker._save_job_workflow_log'), \
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
@@ -651,7 +651,7 @@ class TestProcessJobStream:
     async def test_success_rescore(self, mock_get_session, clear_state):
         pid = _insert_pending(mock_get_session)
         graph_patch, state_patch = self._patch_graph(self._result())
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item(source='rescore', url='https://ex.com/oldjob')), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item(source='rescore', url='https://ex.com/oldjob')), \
                 graph_patch, state_patch, \
                 patch('jobs.infrastructure.workers.worker._save_job_workflow_log'), \
                 patch('jobs.infrastructure.workers.worker._mark_old_job_deleted') as mock_mark, \
@@ -664,7 +664,7 @@ class TestProcessJobStream:
     async def test_success_requeue(self, mock_get_session, clear_state):
         pid = _insert_pending(mock_get_session)
         graph_patch, state_patch = self._patch_graph(self._result())
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item(source='requeue')), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item(source='requeue')), \
                 graph_patch, state_patch, \
                 patch('jobs.infrastructure.workers.worker._save_job_workflow_log'), \
                 patch('jobs.infrastructure.workers.worker._mark_old_job_deleted') as mock_mark, \
@@ -680,7 +680,7 @@ class TestProcessJobStream:
         mock_get_session.commit()
         pid = _insert_pending(mock_get_session)
         graph_patch, state_patch = self._patch_graph(self._result())
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item()), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item()), \
                 graph_patch, state_patch, \
                 patch('jobs.infrastructure.workers.worker._save_job_workflow_log'), \
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
@@ -694,7 +694,7 @@ class TestProcessJobStream:
         pid = _insert_pending(mock_get_session)
         result = self._result(metadata={'extraction': {}, 'persistence': {'success': False, 'error': 'boom'}})
         graph_patch, state_patch = self._patch_graph(result)
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item()), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item()), \
                 graph_patch, state_patch, \
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)
@@ -708,7 +708,7 @@ class TestProcessJobStream:
         pid = _insert_pending(mock_get_session)
         result = self._result(metadata={'extraction': {}, 'persistence': {'success': False}})
         graph_patch, state_patch = self._patch_graph(result)
-        with patch.object(SQLAlchemyPendingJobRepository, 'get_by_id', return_value=self._item()), \
+        with patch.object(SQLAlchemyJobRepository, 'get_by_id', return_value=self._item()), \
                 graph_patch, state_patch, \
                 patch.object(stream_server.asyncio, 'get_event_loop', return_value=_FakeLoop()):
             await stream_server.process_job_stream(pid)

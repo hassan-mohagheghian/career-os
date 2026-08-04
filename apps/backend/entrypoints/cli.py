@@ -50,12 +50,6 @@ def _get_job_repo():
     session = get_session_sync()
     return session, SQLAlchemyJobRepository(session)
 
-def _get_pending_repo():
-    from dependencies import get_session_sync
-    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
-    session = get_session_sync()
-    return session, SQLAlchemyPendingJobRepository(session)
-
 def _get_rule_repo():
     from dependencies import get_session_sync
     from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
@@ -63,7 +57,7 @@ def _get_rule_repo():
     return session, SQLAlchemyRuleRepository(session)
 
 def get_pending(status=None):
-    session, repo = _get_pending_repo()
+    session, repo = _get_job_repo()
     try:
         rows = repo.list_pending()
         if status:
@@ -76,12 +70,12 @@ def get_pending(status=None):
         session.close()
 
 def add_pending(url, source='cli', company=''):
-    session, repo = _get_pending_repo()
+    session, repo = _get_job_repo()
     try:
         existing = repo.get_by_url(url)
         if existing:
             return None
-        result = repo.create({'url': url, 'source': source, 'company': company})
+        result = repo.create_pending_job(url, source, company)
         return result['id']
     except Exception:
         return None
@@ -89,20 +83,17 @@ def add_pending(url, source='cli', company=''):
         session.close()
 
 def reset_pending(pid):
-    session, repo = _get_pending_repo()
+    session, repo = _get_job_repo()
     try:
         repo.update_fields(pid, status='queued', error=None,
-            step_fetch=0, step_analyze=0, step_db=0, step_done=0,
             workflow_log='[]', updated_at=datetime.now().isoformat())
     finally:
         session.close()
 
 def delete_pending(pid):
-    from jobs.infrastructure.models.job_model import JobModel
-    session, repo = _get_pending_repo()
+    session, repo = _get_job_repo()
     try:
-        session.query(JobModel).filter(JobModel.id == pid).update({"deleted": 1})
-        session.commit()
+        repo.mark_deleted(pid)
     finally:
         session.close()
 
@@ -126,27 +117,21 @@ def add(url: str = typer.Argument(..., help="LinkedIn job URL to add"),
     """Add a new job URL to the queue."""
     normalized = normalize_url(url)
 
-    # Check pending_jobs for duplicate (normalized URL)
-    session_p, pending_repo = _get_pending_repo()
+    # Check pending_jobs and processed jobs for duplicate (normalized URL)
+    session, repo = _get_job_repo()
     try:
-        existing_pending = pending_repo.list_pending()
+        existing_pending = repo.list_pending()
         for r in existing_pending:
             if normalize_url(r['url']) == normalized:
                 console.print(f"[yellow]Already in queue (ID:{r['id']}, status:{r['status']})[/yellow]")
                 return
-    finally:
-        session_p.close()
-
-    # Check jobs table for duplicate (normalized URL)
-    session_j, job_repo = _get_job_repo()
-    try:
-        active_jobs = job_repo.get_all_active()
+        active_jobs = repo.get_all_active()
         for j in active_jobs:
             if normalize_url(j['url']) == normalized:
                 console.print(f"[yellow]Already processed as #{j['id']} ({j['company']})[/yellow]")
                 return
     finally:
-        session_j.close()
+        session.close()
 
     pid = add_pending(url, source='cli')
     if not pid:
@@ -169,7 +154,7 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
     if all_jobs:
         rows = get_pending(status=None)
         # Include done too
-        session, _repo = _get_pending_repo()
+        session, _repo = _get_job_repo()
         try:
             from jobs.infrastructure.models.job_model import JobModel
             done_rows = session.query(JobModel).filter(
@@ -259,30 +244,25 @@ def remove(pid: int = typer.Argument(..., help="Job ID to remove")):
 @app.command()
 def rescore(job_id: str = typer.Argument(..., help="Job id to rescore")):
     """Re-score a processed job by re-analyzing it."""
-    session_j, job_repo = _get_job_repo()
+    session, repo = _get_job_repo()
     try:
-        job = job_repo.get_by_id(job_id)
-    finally:
-        session_j.close()
-    if not job:
-        console.print(f"[red]Job {job_id} not found[/red]")
-        return
-    console.print(f"[cyan]Rescoring {job_id} ({job['company']})...[/cyan]")
+        job = repo.get_by_id(job_id)
+        if not job:
+            console.print(f"[red]Job {job_id} not found[/red]")
+            return
+        console.print(f"[cyan]Rescoring {job_id} ({job['company']})...[/cyan]")
 
-    session_p, pending_repo = _get_pending_repo()
-    try:
-        existing = pending_repo.get_by_url(job['url'])
+        existing = repo.get_by_url(job['url'])
         if existing:
             pid = existing['id']
-            pending_repo.update_fields(pid, status='queued', error=None, source='rescore',
+            repo.update_fields(pid, status='queued', error=None, source='rescore',
                 company=job.get('company', ''),
-                step_fetch=0, step_analyze=0, step_db=0, step_done=0,
                 workflow_log='[]', updated_at=datetime.now().isoformat())
         else:
-            result = pending_repo.create({'url': job['url'], 'source': 'rescore', 'company': job.get('company', '')})
+            result = repo.create_pending_job(job['url'], 'rescore', job.get('company', ''))
             pid = result['id']
     finally:
-        session_p.close()
+        session.close()
 
     try:
         process_pending_sync(pid)
@@ -293,11 +273,11 @@ def rescore(job_id: str = typer.Argument(..., help="Job id to rescore")):
 @app.command()
 def rescore_all():
     """Re-score all processed jobs."""
-    session_j, job_repo = _get_job_repo()
+    session, repo = _get_job_repo()
     try:
-        jobs = job_repo.get_all_active()
+        jobs = repo.get_all_active()
     finally:
-        session_j.close()
+        session.close()
     if not jobs:
         console.print("[dim]No processed jobs[/dim]")
         return
@@ -305,17 +285,16 @@ def rescore_all():
     for j in jobs:
         console.print(f"  [#{j['id']}] {j['company']}...", end=" ")
 
-        session_p, pending_repo = _get_pending_repo()
+        session_p, pending_repo = _get_job_repo()
         try:
             existing = pending_repo.get_by_url(j['url'])
             if existing:
                 pid = existing['id']
                 pending_repo.update_fields(pid, status='queued', error=None, source='rescore',
                     company=j.get('company', ''),
-                    step_fetch=0, step_analyze=0, step_db=0, step_done=0,
                     workflow_log='[]', updated_at=datetime.now().isoformat())
             else:
-                result = pending_repo.create({'url': j['url'], 'source': 'rescore', 'company': j.get('company', '')})
+                result = pending_repo.create_pending_job(j['url'], 'rescore', j.get('company', ''))
                 pid = result['id']
         finally:
             session_p.close()

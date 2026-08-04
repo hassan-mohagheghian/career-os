@@ -166,11 +166,15 @@ class SQLAlchemyJobRepository(IJobRepository):
         return True
 
     def mark_deleted(self, job_id: str) -> None:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update({"deleted": 1})
+        self._session.query(JobModel).filter(JobModel.id == job_id).update(
+            {"deleted": 1, "updated_at": datetime.now(UTC).isoformat()}
+        )
         self._session.commit()
 
     def mark_rescoring(self, job_id: str, rescoring: bool = True) -> None:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update({"rescoring": int(rescoring)})
+        self._session.query(JobModel).filter(JobModel.id == job_id).update(
+            {"rescoring": int(rescoring), "updated_at": datetime.now(UTC).isoformat()}
+        )
         self._session.commit()
 
     def get_all_active(self) -> list[dict[str, Any]]:
@@ -242,6 +246,7 @@ class SQLAlchemyJobRepository(IJobRepository):
             or_(JobModel.id == job_id, JobModel.url == job_id)
         ).first() if job_id else None
         if existing:
+            existing.updated_at = datetime.now(UTC).isoformat()
             for k, v in data.items():
                 if hasattr(existing, k) and k != "id":
                     setattr(existing, k, v)
@@ -254,14 +259,17 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.refresh(m)
         return job_model_to_dict(m)
 
-    def update_fields(self, job_id: str, **fields) -> bool:
+    def update_fields(self, item_id: str, **fields) -> bool:
         fields.setdefault("updated_at", datetime.now(UTC).isoformat())
-        self._session.query(JobModel).filter(JobModel.id == job_id).update(fields)
+        valid_fields = {k: v for k, v in fields.items() if hasattr(JobModel, k)}
+        self._session.query(JobModel).filter(JobModel.id == item_id).update(valid_fields)
         self._session.commit()
         return True
 
     def update_workflow_log(self, job_id: str, log_json: str) -> bool:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update({"workflow_log": log_json})
+        self._session.query(JobModel).filter(JobModel.id == job_id).update(
+            {"workflow_log": log_json, "updated_at": datetime.now(UTC).isoformat()}
+        )
         self._session.commit()
         return True
 
@@ -269,7 +277,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         q = self._session.query(JobModel).filter(JobModel.url == url)
         if exclude_id is not None:
             q = q.filter(JobModel.id != exclude_id)
-        count = q.update({"deleted": 1})
+        count = q.update({"deleted": 1, "updated_at": datetime.now(UTC).isoformat()})
         self._session.commit()
         return count
 
@@ -277,6 +285,84 @@ class SQLAlchemyJobRepository(IJobRepository):
         count = self._session.query(JobModel).filter(JobModel.deleted == 0).delete(synchronize_session=False)
         self._session.commit()
         return count
+
+    # ── Queue management methods (consolidated from pending repo) ──
+
+    EXCLUDED_STATUSES = {"processed"}
+
+    def list_pending(self) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            ~JobModel.status.in_(self.EXCLUDED_STATUSES)
+        ).order_by(JobModel.created_at.desc()).all()
+        return [job_model_to_dict(r) for r in rows]
+
+    def count_pending(self) -> int:
+        return self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            ~JobModel.status.in_(self.EXCLUDED_STATUSES)
+        ).count()
+
+    def get_max_queue_order(self) -> int:
+        result = self._session.query(func.max(JobModel.queue_order)).scalar()
+        return result or 0
+
+    def mark_processing_as_waiting(self) -> int:
+        count = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status.in_(self.ACTIVE_STATUSES)
+        ).update({"status": "pending", "updated_at": datetime.now(UTC).isoformat()})
+        self._session.commit()
+        return count
+
+    def reset_processing_orphans(self) -> int:
+        count = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status.in_(self.ACTIVE_STATUSES)
+        ).update({"status": "created", "updated_at": datetime.now(UTC).isoformat()})
+        self._session.commit()
+        return count
+
+    def get_queued_items(self) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel).filter(
+            JobModel.deleted == 0,
+            JobModel.status == "queued"
+        ).order_by(JobModel.queue_order.asc(), JobModel.id.asc()).all()
+        return [job_model_to_dict(r) for r in rows]
+
+    def reset_steps(self, item_id: str) -> bool:
+        updates = {
+            "error": None,
+            "workflow_log": "[]",
+            "current_node": None,
+            "retry_count": 0,
+            "failure_reason": None,
+            "status": "created",
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+        self._session.query(JobModel).filter(JobModel.id == item_id).update(updates)
+        self._session.commit()
+        return True
+
+    def get_all_for_stream(self) -> list[dict[str, Any]]:
+        rows = self._session.query(JobModel).order_by(JobModel.created_at.desc()).all()
+        return [job_model_to_dict(r) for r in rows]
+
+    def create_pending_job(self, url: str, source: str, company: str, status: str = "created") -> dict[str, Any]:
+        model = JobModel(url=url, source=source, company=company, status=status)
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return job_model_to_dict(model)
+
+    def soft_delete(self, item_id: str) -> bool:
+        m = self._session.query(JobModel).filter(JobModel.id == item_id).first()
+        if m:
+            m.deleted = 1
+            m.updated_at = datetime.now(UTC).isoformat()
+            self._session.commit()
+            return True
+        return False
 
     def get_company_id(self, job_id: str) -> int | None:
         m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()

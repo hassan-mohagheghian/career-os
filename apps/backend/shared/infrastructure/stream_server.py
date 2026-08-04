@@ -31,10 +31,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 
 def _log(pid, step, msg):
     from dependencies import get_session_sync
-    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
-        repo = SQLAlchemyPendingJobRepository(session)
+        repo = SQLAlchemyJobRepository(session)
         item = repo.get_by_id(pid)
         logs = json.loads(item['workflow_log'] or '[]') if item else []
         logs.append({'step': step, 'msg': msg, 'ts': datetime.now().strftime('%H:%M:%S')})
@@ -71,10 +71,10 @@ def _load_rules(context='job'):
 
 def _update_step(pid, step, val, status=None, company=None, job_id=None, error=None):
     from dependencies import get_session_sync
-    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     session = get_session_sync()
     try:
-        repo = SQLAlchemyPendingJobRepository(session)
+        repo = SQLAlchemyJobRepository(session)
         fields = {step: val}
         if status:
             fields['status'] = status
@@ -459,11 +459,11 @@ async def stream_provider(pid, prompt):
 async def process_job_stream(pid):
     """Full pipeline with streaming output using LangGraph state management (no file I/O)."""
     from dependencies import get_session_sync
-    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+    from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 
     session = get_session_sync()
     try:
-        pending_repo = SQLAlchemyPendingJobRepository(session)
+        pending_repo = SQLAlchemyJobRepository(session)
         item = pending_repo.get_by_id(pid)
     finally:
         session.close()
@@ -563,7 +563,7 @@ async def process_job_stream(pid):
         if company or title:
             sess2 = _gss()
             try:
-                from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository as _SPR
+                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository as _SPR
                 _SPR(sess2).update_fields(pid, company=company or title[:40])
             finally:
                 sess2.close()
@@ -609,7 +609,7 @@ async def process_job_stream(pid):
             from jobs.infrastructure.workers.worker import _save_job_workflow_log
             sess3 = _gss()
             try:
-                from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository as _SPR3
+                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository as _SPR3
                 _item = _SPR3(sess3).get_by_id(pid)
             finally:
                 sess3.close()
@@ -646,10 +646,10 @@ async def handler(websocket):
                 clients[pid].add(websocket)
                 # Send current state
                 from dependencies import get_session_sync
-                from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+                from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
                 session = get_session_sync()
                 try:
-                    pending_repo = SQLAlchemyPendingJobRepository(session)
+                    pending_repo = SQLAlchemyJobRepository(session)
                     row = pending_repo.get_by_id(pid)
                 finally:
                     session.close()

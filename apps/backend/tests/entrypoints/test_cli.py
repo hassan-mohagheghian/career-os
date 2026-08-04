@@ -58,7 +58,7 @@ class TestGetPending:
         sess = MagicMock()
         repo = MagicMock()
         repo.list_pending.return_value = rows
-        patch_target = patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess, repo))
+        patch_target = patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo))
         return patch_target, sess
 
     def test_filters_done_and_sorts(self):
@@ -93,24 +93,24 @@ class TestAddPending:
         sess = MagicMock()
         repo = MagicMock()
         repo.get_by_url.return_value = {'id': 1}
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess, repo)):
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             assert cli.add_pending('https://ex.com/x') is None
 
     def test_create_returns_id(self):
         sess = MagicMock()
         repo = MagicMock()
         repo.get_by_url.return_value = None
-        repo.create.return_value = {'id': 42}
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess, repo)):
+        repo.create_pending_job.return_value = {'id': 42}
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             assert cli.add_pending('https://ex.com/x', source='cli', company='ACME') == 42
-        repo.create.assert_called_once()
+        repo.create_pending_job.assert_called_once()
 
     def test_create_raises_returns_none(self):
         sess = MagicMock()
         repo = MagicMock()
         repo.get_by_url.return_value = None
-        repo.create.side_effect = RuntimeError('boom')
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess, repo)):
+        repo.create_pending_job.side_effect = RuntimeError('boom')
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             assert cli.add_pending('https://ex.com/x') is None
 
 
@@ -118,7 +118,7 @@ class TestResetPending:
     def test_calls_update_fields(self):
         sess = MagicMock()
         repo = MagicMock()
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess, repo)):
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             cli.reset_pending(9)
         repo.update_fields.assert_called_once()
         assert repo.update_fields.call_args[0][0] == 9
@@ -158,46 +158,41 @@ class TestEnqueuePending:
 
 class TestAddCommand:
     def _mocks(self, pending=(), active=()):
-        sess_p, sess_j = MagicMock(), MagicMock()
-        pending_repo = MagicMock()
-        pending_repo.list_pending.return_value = list(pending)
-        job_repo = MagicMock()
-        job_repo.get_all_active.return_value = list(active)
-        return sess_p, sess_j, pending_repo, job_repo
+        sess = MagicMock()
+        repo = MagicMock()
+        repo.list_pending.return_value = list(pending)
+        repo.get_all_active.return_value = list(active)
+        return sess, repo
 
     def test_duplicate_in_pending(self):
-        sess_p, sess_j, p, j = self._mocks(
+        sess, repo = self._mocks(
             pending=[pending_row(pid=5, url='https://ex.com/job/1', status='queued')]
         )
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)):
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1?x=1'])
         assert result.exit_code == 0
         assert 'Already in queue (ID:5' in result.output
 
     def test_duplicate_in_jobs(self):
-        sess_p, sess_j, p, j = self._mocks(
+        sess, repo = self._mocks(
             active=[{'id': 'job-x', 'url': 'https://ex.com/job/1', 'company': 'ACME'}]
         )
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)):
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)):
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1/'])
         assert result.exit_code == 0
         assert 'Already processed as #job-x (ACME)' in result.output
 
     def test_add_failure(self):
-        sess_p, sess_j, p, j = self._mocks()
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)), \
+        sess, repo = self._mocks()
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.add_pending', return_value=None):
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1'])
         assert result.exit_code == 0
         assert 'Failed to add job' in result.output
 
     def test_add_success_and_process(self):
-        sess_p, sess_j, p, j = self._mocks()
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)), \
+        sess, repo = self._mocks()
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.add_pending', return_value=42) as add_mock, \
              patch('apps.backend.entrypoints.cli.process_pending_sync') as proc_mock:
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1'])
@@ -208,9 +203,8 @@ class TestAddCommand:
         proc_mock.assert_called_once_with(42)
 
     def test_add_process_failure(self):
-        sess_p, sess_j, p, j = self._mocks()
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)), \
+        sess, repo = self._mocks()
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.add_pending', return_value=42), \
              patch('apps.backend.entrypoints.cli.process_pending_sync',
                    side_effect=RuntimeError('boom')):
@@ -219,9 +213,8 @@ class TestAddCommand:
         assert 'Failed: boom' in result.output
 
     def test_add_no_process_skips_processing(self):
-        sess_p, sess_j, p, j = self._mocks()
-        with patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, p)), \
-             patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, j)), \
+        sess, repo = self._mocks()
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.add_pending', return_value=42), \
              patch('apps.backend.entrypoints.cli.process_pending_sync') as proc_mock:
             result = runner.invoke(cli.app, ['add', 'https://ex.com/job/1', '--no-process'])
@@ -347,45 +340,39 @@ class TestRescoreCommand:
         assert 'Job 5 not found' in result.output
 
     def test_existing_pending_update_then_process(self):
-        sess_j, sess_p = MagicMock(), MagicMock()
-        job_repo = MagicMock()
-        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
-        pend = MagicMock()
-        pend.get_by_url.return_value = {'id': 7}
-        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
-             patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, pend)), \
+        sess = MagicMock()
+        repo = MagicMock()
+        repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        repo.get_by_url.return_value = {'id': 7}
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.process_pending_sync') as proc_mock:
             result = runner.invoke(cli.app, ['rescore', '5'])
         assert result.exit_code == 0
         assert 'Rescoring 5 (ACME)...' in result.output
         assert 'Done!' in result.output
-        pend.update_fields.assert_called_once()
-        assert pend.update_fields.call_args[0][0] == 7
+        repo.update_fields.assert_called_once()
+        assert repo.update_fields.call_args[0][0] == 7
         proc_mock.assert_called_once_with(7)
 
     def test_no_existing_pending_create_then_process(self):
-        sess_j, sess_p = MagicMock(), MagicMock()
-        job_repo = MagicMock()
-        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
-        pend = MagicMock()
-        pend.get_by_url.return_value = None
-        pend.create.return_value = {'id': 8}
-        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
-             patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, pend)), \
+        sess = MagicMock()
+        repo = MagicMock()
+        repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        repo.get_by_url.return_value = None
+        repo.create_pending_job.return_value = {'id': 8}
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.process_pending_sync') as proc_mock:
             result = runner.invoke(cli.app, ['rescore', '5'])
         assert result.exit_code == 0
-        pend.create.assert_called_once()
+        repo.create_pending_job.assert_called_once()
         proc_mock.assert_called_once_with(8)
 
     def test_process_failure(self):
-        sess_j, sess_p = MagicMock(), MagicMock()
-        job_repo = MagicMock()
-        job_repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
-        pend = MagicMock()
-        pend.get_by_url.return_value = {'id': 7}
-        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
-             patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, pend)), \
+        sess = MagicMock()
+        repo = MagicMock()
+        repo.get_by_id.return_value = {'id': 'job-5', 'company': 'ACME', 'url': 'https://ex.com/job/5'}
+        repo.get_by_url.return_value = {'id': 7}
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.process_pending_sync',
                    side_effect=RuntimeError('boom')):
             result = runner.invoke(cli.app, ['rescore', '5'])
@@ -406,17 +393,16 @@ class TestRescoreAllCommand:
         assert 'No processed jobs' in result.output
 
     def test_mixed_branches(self):
-        sess_j, sess_p = MagicMock(), MagicMock()
-        job_repo = MagicMock()
-        job_repo.get_all_active.return_value = [
+        sess = MagicMock()
+        repo = MagicMock()
+        repo.get_all_active.return_value = [
             {'id': 'a', 'company': 'A', 'url': 'https://ex.com/a'},
             {'id': 'b', 'company': 'B', 'url': 'https://ex.com/b'},
         ]
-        pend = MagicMock()
-        pend.get_by_url.side_effect = [{'id': 10}, None]
-        pend.create.return_value = {'id': 11}
-        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess_j, job_repo)), \
-             patch('apps.backend.entrypoints.cli._get_pending_repo', return_value=(sess_p, pend)), \
+        # First call returns existing, second call returns None
+        repo.get_by_url.side_effect = [{'id': 10}, None]
+        repo.create_pending_job.return_value = {'id': 11}
+        with patch('apps.backend.entrypoints.cli._get_job_repo', return_value=(sess, repo)), \
              patch('apps.backend.entrypoints.cli.process_pending_sync',
                    side_effect=[None, RuntimeError('x')]):
             result = runner.invoke(cli.app, ['rescore-all'])
@@ -424,8 +410,8 @@ class TestRescoreAllCommand:
         assert 'Rescoring 2 jobs...' in result.output
         assert 'done' in result.output
         assert 'failed: x' in result.output
-        assert pend.update_fields.call_count == 1
-        pend.create.assert_called_once()
+        assert repo.update_fields.call_count == 1
+        repo.create_pending_job.assert_called_once()
 
 
 # ── status ────────────────────────────────────────────────────────

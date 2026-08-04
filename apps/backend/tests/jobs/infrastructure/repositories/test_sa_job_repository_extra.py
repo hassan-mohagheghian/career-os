@@ -294,6 +294,40 @@ class TestUpdatedAtAutoBump:
         row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
         assert row.updated_at != "2026-07-27T10:00:00"
 
+    def test_mark_deleted_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:00")
+        repo.mark_deleted(m.id)
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+        assert row.deleted == 1
+
+    def test_mark_rescoring_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:00")
+        repo.mark_rescoring(m.id, True)
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+        assert row.rescoring == 1
+
+    def test_update_workflow_log_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:00")
+        repo.update_workflow_log(m.id, "[]")
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+
+    def test_upsert_update_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", url="https://example.com/a", updated_at="2026-07-27T10:00:00")
+        repo.upsert({"id": "job-a", "company": "Acme"})
+        row = sa_session.query(JobModel).filter(JobModel.id == "job-a").first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+        assert row.company == "Acme"
+
+    def test_set_deleted_by_url_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", url="https://same.com", updated_at="2026-07-27T10:00:00")
+        repo.set_deleted_by_url("https://same.com")
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+        assert row.deleted == 1
+
 
 # ── search_jobs ──────────────────────────────────────────────────
 

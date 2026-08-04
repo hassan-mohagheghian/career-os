@@ -125,7 +125,6 @@ def client(sa_session):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
-    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
     from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
@@ -158,7 +157,7 @@ def client(sa_session):
     app.dependency_overrides[get_job_repo] = lambda: SQLAlchemyJobRepository(sa_session)
     app.dependency_overrides[get_skill_repo] = lambda: SQLAlchemySkillRepository(sa_session)
     app.dependency_overrides[get_company_repo] = lambda: SQLAlchemyCompanyRepository(sa_session)
-    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyPendingJobRepository(sa_session)
+    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyJobRepository(sa_session)
     app.dependency_overrides[get_rule_repo] = lambda: SQLAlchemyRuleRepository(sa_session)
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
     app.dependency_overrides[get_resume_repo] = lambda: SQLAlchemyResumeRepository(sa_session)
