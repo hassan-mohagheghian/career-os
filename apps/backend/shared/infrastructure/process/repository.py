@@ -19,7 +19,7 @@ from .models import ItemStatus, WorkflowLogEntry
 
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
-from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
+from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
 
 
 # ── Pending Jobs Repository (backed by JobModel) ─────────────────

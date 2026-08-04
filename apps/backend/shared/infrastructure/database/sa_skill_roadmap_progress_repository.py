@@ -1,3 +1,0 @@
-from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-
-__all__ = ["SQLAlchemySkillRoadmapProgressRepository"]

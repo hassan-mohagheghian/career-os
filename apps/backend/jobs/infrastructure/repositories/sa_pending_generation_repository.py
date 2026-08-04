@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository as _Base
-from shared.infrastructure.database.models.misc_models import ResumeModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 class SQLAlchemyPendingGenerationRepository(_Base):

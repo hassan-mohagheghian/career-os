@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from skills.infrastructure.models.skill_model import SkillModel
-from shared.infrastructure.database.mappers import skill_model_to_dict
+from skills.infrastructure.mappers import skill_model_to_dict
 from ..runtime.state import BaseState, create_initial_state
 from ..runtime.executor import AgentExecutor
 from ...providers.base import LLMProvider

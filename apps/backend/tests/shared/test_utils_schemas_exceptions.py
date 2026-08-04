@@ -61,7 +61,7 @@ class TestAppError:
 
 class TestMappers:
     def test_job_model_to_dict(self):
-        from shared.infrastructure.database.mappers import job_model_to_dict
+        from jobs.infrastructure.mappers import job_model_to_dict
         from jobs.infrastructure.models.job_model import JobModel
         model = JobModel(id='job-1', url='https://example.com', status='pending')
         d = job_model_to_dict(model)
@@ -69,19 +69,19 @@ class TestMappers:
         assert d['id'] == 'job-1'
 
     def test_dict_to_job_model(self):
-        from shared.infrastructure.database.mappers import dict_to_job_model
+        from jobs.infrastructure.mappers import dict_to_job_model
         model = dict_to_job_model({'id': 'job-1', 'url': 'https://ex.com', 'status': 'pending'})
         assert model.url == 'https://ex.com'
         assert model.id == 'job-1'
 
     def test_company_model_to_dict(self):
-        from shared.infrastructure.database.mappers import company_model_to_dict
+        from companies.infrastructure.mappers import company_model_to_dict
         from companies.infrastructure.models.company_model import CompanyModel
         model = CompanyModel(name='TestCorp', status='done')
         d = company_model_to_dict(model)
         assert d['name'] == 'TestCorp'
 
     def test_dict_to_company_model(self):
-        from shared.infrastructure.database.mappers import dict_to_company_model
+        from companies.infrastructure.mappers import dict_to_company_model
         model = dict_to_company_model({'name': 'TestCorp', 'status': 'done'})
         assert model.name == 'TestCorp'

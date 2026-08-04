@@ -7,7 +7,7 @@ from skills.infrastructure.models.skill_model import (
     SkillModel,
     SkillRelationshipModel,
 )
-from shared.infrastructure.database.models.misc_models import (
+from skills.infrastructure.models.skill_roadmap_models import (
     SkillRoadmapModel,
     SkillRoadmapJobModel,
     SkillRoadmapProgressModel,

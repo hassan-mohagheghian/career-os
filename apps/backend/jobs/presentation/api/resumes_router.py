@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from dependencies import get_resume_repo, get_resume_service, get_pending_generation_repo
 from jobs.application.services.resume_service import ResumeService
 from jobs.infrastructure import SQLAlchemyResumeRepository
-from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
 from shared.application.exceptions import NotFoundError
 
 router = APIRouter()

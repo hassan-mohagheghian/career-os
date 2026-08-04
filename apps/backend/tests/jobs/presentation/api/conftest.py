@@ -18,7 +18,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base, ensure_schema
 import jobs.infrastructure.models.job_model
 import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
-import shared.infrastructure.database.models.misc_models
+import jobs.infrastructure.models.misc_models
 import processing.infrastructure.models.processing_execution_model
 
 
@@ -82,13 +82,13 @@ def _build_app(sa_session):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
     from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
@@ -108,7 +108,7 @@ def _build_app(sa_session):
     app.dependency_overrides[get_job_repo] = lambda: SQLAlchemyJobRepository(sa_session)
     app.dependency_overrides[get_skill_repo] = lambda: SQLAlchemySkillRepository(sa_session)
     app.dependency_overrides[get_company_repo] = lambda: SQLAlchemyCompanyRepository(sa_session)
-    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyPendingRepository(sa_session)
+    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyPendingJobRepository(sa_session)
     app.dependency_overrides[get_rule_repo] = lambda: SQLAlchemyRuleRepository(sa_session)
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
     app.dependency_overrides[get_resume_repo] = lambda: SQLAlchemyResumeRepository(sa_session)

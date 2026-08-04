@@ -174,7 +174,7 @@ def _save_roadmap_items(skill_name: str, items: list[dict], version: int):
         sort_order_to_id = {it["sort_order"]: it["id"] for it in all_items}
 
         # Fix parent_ids using the sort_order references
-        from shared.infrastructure.database.models.misc_models import SkillRoadmapModel
+        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel
         for item in flat:
             parent_so = item.get("_parent_sort_order")
             if parent_so is not None and parent_so in sort_order_to_id:

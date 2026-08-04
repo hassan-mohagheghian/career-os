@@ -1,3 +1,0 @@
-from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository as SQLAlchemyResumeRepository
-
-__all__ = ["SQLAlchemyResumeRepository"]

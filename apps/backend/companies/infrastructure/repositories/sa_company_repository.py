@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from companies.domain.repositories.company_repository import ICompanyRepository
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
-from shared.infrastructure.database.mappers import company_model_to_dict, company_intelligence_model_to_dict
+from companies.infrastructure.mappers import company_model_to_dict, company_intelligence_model_to_dict
 
 
 class SQLAlchemyCompanyRepository(ICompanyRepository):

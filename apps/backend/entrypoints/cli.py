@@ -52,9 +52,9 @@ def _get_job_repo():
 
 def _get_pending_repo():
     from dependencies import get_session_sync
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
     session = get_session_sync()
-    return session, SQLAlchemyPendingRepository(session)
+    return session, SQLAlchemyPendingJobRepository(session)
 
 def _get_rule_repo():
     from dependencies import get_session_sync
@@ -176,7 +176,7 @@ def list_jobs(status: str = typer.Option(None, "--status", "-s", help="Filter: q
                 JobModel.deleted == 0,
                 JobModel.status == 'completed'
             ).order_by(JobModel.created_at.desc()).limit(10).all()
-            from shared.infrastructure.database.mappers import job_model_to_dict
+            from jobs.infrastructure.mappers import job_model_to_dict
             done = [job_model_to_dict(r) for r in done_rows]
             rows = done + rows
         finally:
@@ -562,7 +562,7 @@ def cleanup(
 
     if reset_roadmaps:
         console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
-        from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
+        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
         from dependencies import get_session_sync
         session = get_session_sync()
         try:

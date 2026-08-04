@@ -6,7 +6,7 @@ from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.summary_repository import ISummaryRepository
-from shared.infrastructure.database.models.misc_models import SummaryModel
+from jobs.infrastructure.models.misc_models import SummaryModel
 
 
 class SQLAlchemySummaryRepository(ISummaryRepository):

@@ -10,7 +10,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from jobs.infrastructure.models.job_model import JobModel
-from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel, RuleModel
+from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+from rules.infrastructure.models.rule_model import RuleModel
 
 
 def _seed_job(sa_session, id=None, url='https://example.com/job', **kw):

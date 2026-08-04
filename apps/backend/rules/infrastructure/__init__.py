@@ -3,7 +3,7 @@
 
 def __getattr__(name: str):
     _exports = {
-        "RuleModel": ("shared.infrastructure.database.models.misc_models", "RuleModel"),
+        "RuleModel": ("rules.infrastructure.models.rule_model", "RuleModel"),
         "SQLAlchemyRuleRepository": ("rules.infrastructure.repositories.sa_rule_repository", "SQLAlchemyRuleRepository"),
     }
     if name in _exports:

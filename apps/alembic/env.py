@@ -21,7 +21,17 @@ sys.path.insert(0, os.path.abspath(_server_dir))
 from shared.infrastructure.config.app_config import DATABASE_URL
 from shared.infrastructure.database.sqlalchemy_config import Base
 
-from shared.infrastructure.database import models  # noqa: F401
+# Import every context's model package so all tables register with Base.metadata
+# (Alembic autogenerate discovers models via Base.metadata).
+import jobs.infrastructure.models.job_model  # noqa: F401
+import jobs.infrastructure.models.job_analysis_model  # noqa: F401
+import jobs.infrastructure.models.misc_models  # noqa: F401
+import skills.infrastructure.models.skill_model  # noqa: F401
+import skills.infrastructure.models.skill_roadmap_models  # noqa: F401
+import companies.infrastructure.models.company_model  # noqa: F401
+import rules.infrastructure.models.rule_model  # noqa: F401
+import ai.infrastructure.models.llm_configuration_model  # noqa: F401
+import processing.infrastructure.models.processing_execution_model  # noqa: F401
 
 config = context.config
 config.set_main_option('sqlalchemy.url', DATABASE_URL)

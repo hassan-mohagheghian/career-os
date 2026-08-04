@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from skills.infrastructure.models.skill_model import SkillModel
-from shared.infrastructure.database.mappers import skill_model_to_dict
+from skills.infrastructure.mappers import skill_model_to_dict
 from .base import BaseTool, ToolResult
 
 

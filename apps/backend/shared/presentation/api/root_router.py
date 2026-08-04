@@ -211,17 +211,17 @@ def reprocess_company(id: int, session: Session = Depends(get_session_sync)):
 
 @api_router.get("/pending-companies")
 def list_pending_companies(session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-    repo = SQLAlchemyPendingRepository(session)
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
+    repo = SQLAlchemyPendingCompanyRepository(session)
     return repo.list_pending("pending_companies")
 
 
 @api_router.post("/pending-companies")
 def create_pending_company(data: dict, session: Session = Depends(get_session_sync)):
     import json
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
 
     notes = data.get("notes", [])
     links = data.get("links", [])
@@ -250,9 +250,9 @@ def create_pending_company(data: dict, session: Session = Depends(get_session_sy
 
 @api_router.post("/pending-companies/queue-all")
 def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     items = repo.list_pending("pending_companies")
     for item in items:
         enqueue_company_sync(item['id'])
@@ -261,9 +261,9 @@ def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
 
 @api_router.get("/pending-companies/{item_id}")
 def get_pending_company(item_id: str, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     result = repo.get_by_id(str(item_id), "pending_companies")
     if result is None:
         return JSONResponse(status_code=404, content={"error": "Not found"})
@@ -272,9 +272,9 @@ def get_pending_company(item_id: str, session: Session = Depends(get_session_syn
 
 @api_router.delete("/pending-companies/{item_id}")
 def delete_pending_company(item_id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     ok = repo.delete(item_id, "pending_companies")
     if not ok:
         return JSONResponse(status_code=404, content={"error": "Not found"})
@@ -284,9 +284,9 @@ def delete_pending_company(item_id: int, session: Session = Depends(get_session_
 @api_router.post("/pending-companies/{item_id}/notes")
 def add_pending_company_notes(item_id: str, data: dict = None, session: Session = Depends(get_session_sync)):
     import json
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     item = repo.get_by_id(str(item_id), "pending_companies")
     if not item:
         return JSONResponse(status_code=404, content={"error": "Not found"})
@@ -300,9 +300,9 @@ def add_pending_company_notes(item_id: str, data: dict = None, session: Session 
 @api_router.post("/pending-companies/{item_id}/links")
 def add_pending_company_links(item_id: str, data: dict = None, session: Session = Depends(get_session_sync)):
     import json
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     item = repo.get_by_id(str(item_id), "pending_companies")
     if not item:
         return JSONResponse(status_code=404, content={"error": "Not found"})
@@ -313,9 +313,9 @@ def add_pending_company_links(item_id: str, data: dict = None, session: Session 
 
 @api_router.post("/pending-companies/{item_id}/process")
 def process_pending_company(item_id: int, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
     from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingRepository(session)
+    repo = SQLAlchemyPendingCompanyRepository(session)
     repo.update_fields(item_id, table="pending_companies", status="queued")
     enqueue_company_sync(item_id)
     return {"status": "queued"}
@@ -326,6 +326,6 @@ def process_pending_company(item_id: int, session: Session = Depends(get_session
 @api_router.get("/resumes/active-generations")
 def active_generations_compat(session: Session = Depends(get_session_sync)):
     from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
-    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     repo = SQLAlchemyPendingGenerationRepository(session)
     return repo.get_all_active()

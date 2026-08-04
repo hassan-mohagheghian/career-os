@@ -1,6 +1,6 @@
 """Tests for /api/resumes and /api/linkedin upload/list/delete flows."""
 
-from shared.infrastructure.database.models.misc_models import ResumeModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 class TestResumeUpload:

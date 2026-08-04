@@ -9,7 +9,7 @@ from sqlalchemy.types import Numeric
 
 from skills.domain.repositories.skill_repository import ISkillRepository
 from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
-from shared.infrastructure.database.mappers import skill_model_to_dict
+from skills.infrastructure.mappers import skill_model_to_dict
 
 
 class SQLAlchemySkillRepository(ISkillRepository):
@@ -122,7 +122,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         model.name = new_name
 
         # Update references in other tables
-        from shared.infrastructure.database.models.misc_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
+        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
         self._session.query(SkillRoadmapModel).filter(SkillRoadmapModel.skill_name == old_name).update({"skill_name": new_name})
         self._session.query(SkillRoadmapProgressModel).filter(SkillRoadmapProgressModel.skill_name == old_name).update({"skill_name": new_name})
         self._session.query(SkillRoadmapJobModel).filter(SkillRoadmapJobModel.skill_name == old_name).update({"skill_name": new_name})
@@ -142,7 +142,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         target_name = target.name
         merged = []
 
-        from shared.infrastructure.database.models.misc_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
+        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
 
         for sid in source_ids:
             source = self._session.query(SkillModel).filter(SkillModel.id == sid).first()

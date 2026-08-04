@@ -18,7 +18,7 @@ def build_resume_generation_graph() -> GraphBuilder:
     def load_resume(state: BaseState) -> BaseState:
         try:
             from shared.infrastructure.database.session import get_session_sync
-            from shared.infrastructure.database.models.misc_models import ResumeModel
+            from jobs.infrastructure.models.misc_models import ResumeModel
 
             session = get_session_sync()
             model = session.query(ResumeModel).filter(

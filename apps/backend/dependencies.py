@@ -122,10 +122,10 @@ def get_processing_execution_repo(session: Session = Depends(get_session)):
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
 def get_pending_repo(session: Session = Depends(get_session)):
-    from jobs.infrastructure import SQLAlchemyJobRepository
-    return SQLAlchemyJobRepository(session)
+    from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+    return SQLAlchemyPendingJobRepository(session)
 
 
 def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     return SQLAlchemyPendingGenerationRepository(session)

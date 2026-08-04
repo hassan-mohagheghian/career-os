@@ -5,20 +5,20 @@ import json
 from fastapi import APIRouter, Depends
 
 from dependencies import get_pending_repo
-from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
 from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 
 
 @router.get("")
-def list_pending_companies(repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def list_pending_companies(repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """List pending companies (pending, queued, processing, failed)."""
     return repo.list_pending("pending_companies")
 
 
 @router.post("")
-def create_pending_company(data: dict, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def create_pending_company(data: dict, repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """Create a pending company and enqueue for processing."""
     notes = data.get("notes", [])
     links = data.get("links", [])
@@ -49,7 +49,7 @@ def create_pending_company(data: dict, repo: SQLAlchemyPendingRepository = Depen
 
 
 @router.get("/{id}")
-def get_pending_company(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def get_pending_company(id: str, repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """Get a pending company."""
     item = repo.get_by_id(id, "pending_companies")
     if not item:
@@ -58,14 +58,14 @@ def get_pending_company(id: str, repo: SQLAlchemyPendingRepository = Depends(get
 
 
 @router.delete("/{id}")
-def delete_pending_company(id: str, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def delete_pending_company(id: str, repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """Delete a pending company."""
     repo.delete(int(id), "pending_companies")
     return {"status": "deleted", "id": id}
 
 
 @router.post("/{id}/notes")
-def add_company_notes(id: str, data: dict, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def add_company_notes(id: str, data: dict, repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """Add notes to a pending company."""
     existing = repo.get_by_id(id, "pending_companies")
     if not existing:
@@ -80,7 +80,7 @@ def add_company_notes(id: str, data: dict, repo: SQLAlchemyPendingRepository = D
 
 
 @router.post("/{id}/links")
-def add_company_links(id: str, data: dict, repo: SQLAlchemyPendingRepository = Depends(get_pending_repo)):
+def add_company_links(id: str, data: dict, repo: SQLAlchemyPendingCompanyRepository = Depends(get_pending_repo)):
     """Add links to a pending company."""
     existing = repo.get_by_id(id, "pending_companies")
     if not existing:

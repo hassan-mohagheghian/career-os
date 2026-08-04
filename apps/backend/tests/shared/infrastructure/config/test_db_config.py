@@ -9,7 +9,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 import shared.infrastructure.config.db as db_module
-from shared.infrastructure.database.models.misc_models import RuleModel, ResumeModel
+from rules.infrastructure.models.rule_model import RuleModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 # ── _text_to_html (pure) ──────────────────────────────────────────

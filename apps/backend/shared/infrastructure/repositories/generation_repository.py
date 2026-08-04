@@ -12,7 +12,8 @@ from typing import Optional, List, Dict
 from shared.domain.models.generation_models import GenerationHistoryItem
 from dependencies import get_session_sync
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
+from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
 from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 
 
@@ -63,8 +64,8 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                repo = SQLAlchemyPendingRepository(session)
-                rows = repo.get_all_for_stream("pending_jobs")[:200]
+                repo = SQLAlchemyPendingJobRepository(session)
+                rows = repo.get_all_for_stream()[:200]
                 for r in rows:
                     items.append(GenerationHistoryItem(
                         id=r.get('id'),
@@ -87,8 +88,8 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                repo = SQLAlchemyPendingRepository(session)
-                rows = repo.get_all_for_stream("pending_companies")[:200]
+                repo = SQLAlchemyPendingCompanyRepository(session)
+                rows = repo.get_all_for_stream()[:200]
                 for r in rows:
                     items.append(GenerationHistoryItem(
                         id=r['id'],
@@ -186,7 +187,7 @@ class GenerationHistoryRepository:
                         CompanyModel.status.in_(["processing", "queued"]),
                     ).count()
                 elif context == 'skill' and skill_name is not None:
-                    from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
+                    from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
                     count = session.query(SkillRoadmapJobModel).filter(
                         SkillRoadmapJobModel.skill_name.ilike(skill_name),
                         SkillRoadmapJobModel.status.in_(["queued", "running"]),
@@ -211,7 +212,7 @@ class GenerationHistoryRepository:
                     JobModel.deleted == 0,
                     JobModel.id == job_id,
                 ).order_by(JobModel.created_at.desc()).all()
-                from shared.infrastructure.database.mappers import job_model_to_dict
+                from jobs.infrastructure.mappers import job_model_to_dict
                 for m in rows:
                     d = job_model_to_dict(m)
                     items.append(GenerationHistoryItem(
@@ -239,7 +240,7 @@ class GenerationHistoryRepository:
                 rows = session.query(CompanyModel).filter(
                     CompanyModel.id == company_id,
                 ).order_by(CompanyModel.created_at.desc()).all()
-                from shared.infrastructure.database.mappers import company_model_to_dict
+                from companies.infrastructure.mappers import company_model_to_dict
                 for m in rows:
                     d = company_model_to_dict(m)
                     items.append(GenerationHistoryItem(

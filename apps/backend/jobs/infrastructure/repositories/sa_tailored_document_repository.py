@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.tailored_document_repository import ITailoredDocumentRepository
-from shared.infrastructure.database.models.misc_models import ResumeModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 class SQLAlchemyTailoredDocumentRepository(ITailoredDocumentRepository):

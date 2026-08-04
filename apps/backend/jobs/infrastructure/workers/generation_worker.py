@@ -24,7 +24,7 @@ def _update_step(gen_id, step, val, status=None, error=None):
     """Update a generation step and emit WebSocket progress."""
     session = get_session_sync()
     try:
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
         repo = SQLAlchemyPendingGenerationRepository(session)
         fields = {step: val}
         if status:
@@ -94,7 +94,7 @@ def process_generation(gen_id):
     """
     session = get_session_sync()
     try:
-        from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+        from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
         pending_repo = SQLAlchemyPendingGenerationRepository(session)
         gen = pending_repo.get_by_id(gen_id)
     finally:
@@ -234,7 +234,7 @@ def process_generation(gen_id):
 
         session = get_session_sync()
         try:
-            from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
+            from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
             pending_repo = SQLAlchemyPendingGenerationRepository(session)
             pending_repo.update_fields(gen_id,
                 result=json.dumps({'id': resume_id, 'content': content, 'title': title}),

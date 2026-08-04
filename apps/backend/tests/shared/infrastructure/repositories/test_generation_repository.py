@@ -17,7 +17,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 
-from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
+from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
 
 from shared.domain.models.generation_models import GenerationHistoryItem
 from shared.infrastructure.repositories.generation_repository import GenerationHistoryRepository

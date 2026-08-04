@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.resume_repository import IResumeRepository
-from shared.infrastructure.database.models.misc_models import ResumeModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 class SQLAlchemyResumeRepository(IResumeRepository):

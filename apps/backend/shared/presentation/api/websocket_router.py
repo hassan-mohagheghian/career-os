@@ -40,8 +40,8 @@ async def websocket_endpoint(ws: WebSocket):
                     from dependencies import get_session_sync
                     session = get_session_sync()
                     try:
-                        from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-                        repo = SQLAlchemyPendingRepository(session)
+                        from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+                        repo = SQLAlchemyPendingJobRepository(session)
                         repo.update_status(str(job_id), "cancelled", table)
                     finally:
                         session.close()
@@ -53,8 +53,8 @@ async def websocket_endpoint(ws: WebSocket):
                     from dependencies import get_session_sync
                     session = get_session_sync()
                     try:
-                        from shared.infrastructure.database.sa_pending_repository import SQLAlchemyPendingRepository
-                        repo = SQLAlchemyPendingRepository(session)
+                        from jobs.infrastructure.repositories.sa_pending_job_repository import SQLAlchemyPendingJobRepository
+                        repo = SQLAlchemyPendingJobRepository(session)
                         repo.reset_steps(int(job_id), version=2)
                     finally:
                         session.close()

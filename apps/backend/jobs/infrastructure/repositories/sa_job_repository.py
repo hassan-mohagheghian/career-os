@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.job_repository import IJobRepository
 from jobs.infrastructure.models.job_model import JobModel
-from shared.infrastructure.database.mappers import job_model_to_dict
+from jobs.infrastructure.mappers import job_model_to_dict
 
 # Keyset-cursor sentinel encoding a NULL sort value. NULLs always sort last,
 # so the cursor must distinguish a NULL boundary row from a non-NULL one.
@@ -153,7 +153,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         resumes, tailored documents). Processing executions are handled by the
         caller via the processing execution repository.
         """
-        from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
+        from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
         from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
         model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
         if not model:

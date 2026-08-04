@@ -5,10 +5,7 @@ This module provides:
 - Engine creation for PostgreSQL
 - Session factory for request-scoped sessions
 - Schema initialization for PostgreSQL (per bounded context)
-- FastAPI dependency injection for database sessions
 """
-
-from typing import Generator
 
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -51,24 +48,6 @@ SessionLocal = sessionmaker(
     class_=Session,
     expire_on_commit=False,
 )
-
-
-def get_session() -> Generator[Session, None, None]:
-    """FastAPI dependency that yields a database session."""
-    session = SessionLocal()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
-def get_session_sync() -> Session:
-    """Get a synchronous database session (for non-async contexts)."""
-    return SessionLocal()
 
 
 def ensure_schemas():

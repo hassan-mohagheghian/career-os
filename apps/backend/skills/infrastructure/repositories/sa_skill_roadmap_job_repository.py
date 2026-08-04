@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from skills.domain.repositories.skill_roadmap_job_repository import ISkillRoadmapJobRepository
-from shared.infrastructure.database.models.misc_models import SkillRoadmapJobModel
+from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
 
 
 class SQLAlchemySkillRoadmapJobRepository(ISkillRoadmapJobRepository):

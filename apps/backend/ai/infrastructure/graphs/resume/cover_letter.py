@@ -30,7 +30,7 @@ def build_cover_letter_graph() -> GraphBuilder:
         """
         try:
             from shared.infrastructure.database.session import get_session_sync
-            from shared.infrastructure.database.models.misc_models import ResumeModel
+            from jobs.infrastructure.models.misc_models import ResumeModel
 
             session = get_session_sync()
             model = session.query(ResumeModel).filter(

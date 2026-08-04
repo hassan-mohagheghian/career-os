@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from skills.domain.repositories.skill_roadmap_progress_repository import ISkillRoadmapProgressRepository
-from shared.infrastructure.database.models.misc_models import SkillRoadmapProgressModel, SkillRoadmapModel
+from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapProgressModel, SkillRoadmapModel
 
 
 class SQLAlchemySkillRoadmapProgressRepository(ISkillRoadmapProgressRepository):

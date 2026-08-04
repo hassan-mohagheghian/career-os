@@ -35,16 +35,17 @@ def init_db():
     ensure_schemas()
     # Import all models to register them with Base.metadata
     import jobs.infrastructure.models.job_model
+    import jobs.infrastructure.models.misc_models
     import skills.infrastructure.models.skill_model
+    import skills.infrastructure.models.skill_roadmap_models
     import companies.infrastructure.models.company_model
-
-    import shared.infrastructure.database.models.misc_models
+    import rules.infrastructure.models.rule_model
 
     Base.metadata.create_all(bind=engine)
 
     # Seed initial rules if table is empty
     from shared.infrastructure.database.sqlalchemy_config import SessionLocal
-    from shared.infrastructure.database.models.misc_models import RuleModel
+    from rules.infrastructure.models.rule_model import RuleModel
     session = SessionLocal()
     try:
         count = session.query(RuleModel).count()
@@ -56,7 +57,7 @@ def init_db():
 
 def _seed_initial_rules(session):
     """Seed the initial scoring rules into the rules table."""
-    from shared.infrastructure.database.models.misc_models import RuleModel
+    from rules.infrastructure.models.rule_model import RuleModel
 
     rules = [
         # Shared rules
@@ -124,7 +125,7 @@ def migrate_resume_files_to_db():
     import glob as globmod
     project_root = os.path.join(os.path.dirname(__file__), "..", "..")
     from shared.infrastructure.database.sqlalchemy_config import SessionLocal
-    from shared.infrastructure.database.models.misc_models import ResumeModel
+    from jobs.infrastructure.models.misc_models import ResumeModel
 
     session = SessionLocal()
     try:

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from shared.infrastructure.database.models.misc_models import ResumeModel
+from jobs.infrastructure.models.misc_models import ResumeModel
 from ai.infrastructure.tools.base import BaseTool, ToolResult
 
 

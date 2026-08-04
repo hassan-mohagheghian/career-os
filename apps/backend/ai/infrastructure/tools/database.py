@@ -317,7 +317,7 @@ class DatabaseTool(BaseTool):
         } for row in rows]
 
     def _list_resumes(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.models.misc_models import ResumeModel
+        from jobs.infrastructure.models.misc_models import ResumeModel
 
         query = select(ResumeModel)
         if "job_id" in params:
@@ -338,7 +338,7 @@ class DatabaseTool(BaseTool):
         } for row in rows]
 
     def _get_resume(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.models.misc_models import ResumeModel
+        from jobs.infrastructure.models.misc_models import ResumeModel
 
         resume_id = params.get("resume_id")
         if not resume_id:
@@ -393,7 +393,7 @@ class DatabaseTool(BaseTool):
         } for row in rows]
 
     def _get_rules(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from shared.infrastructure.database.models.misc_models import RuleModel
+        from rules.infrastructure.models.rule_model import RuleModel
 
         query = select(RuleModel).where(RuleModel.enabled == 1)
         if "category" in params:

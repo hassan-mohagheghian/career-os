@@ -15,9 +15,8 @@ import pytest
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillRelationshipModel
-from shared.infrastructure.database.models.misc_models import (
-    SummaryModel,
-    ResumeModel,
+from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+from skills.infrastructure.models.skill_roadmap_models import (
     SkillRoadmapModel,
     SkillRoadmapProgressModel,
     SkillRoadmapJobModel,

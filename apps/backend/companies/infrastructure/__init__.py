@@ -9,8 +9,8 @@ def __getattr__(name: str):
         "SQLAlchemyCompanyRepository": ("companies.infrastructure.repositories.sa_company_repository", "SQLAlchemyCompanyRepository"),
         "SQLAlchemyCompanyIntelligenceRepository": ("companies.infrastructure.repositories.sa_company_intelligence_repository", "SQLAlchemyCompanyIntelligenceRepository"),
         "SQLAlchemyCompanyLinkRepository": ("companies.infrastructure.repositories.sa_company_link_repository", "SQLAlchemyCompanyLinkRepository"),
-        "company_model_to_dict": ("shared.infrastructure.database.mappers", "company_model_to_dict"),
-        "company_intelligence_model_to_dict": ("shared.infrastructure.database.mappers", "company_intelligence_model_to_dict"),
+        "company_model_to_dict": ("companies.infrastructure.mappers", "company_model_to_dict"),
+        "company_intelligence_model_to_dict": ("companies.infrastructure.mappers", "company_intelligence_model_to_dict"),
     }
     if name in _exports:
         module_path, attr = _exports[name]

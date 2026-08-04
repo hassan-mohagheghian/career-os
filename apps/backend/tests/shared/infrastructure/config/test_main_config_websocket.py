@@ -241,7 +241,7 @@ class TestSASkillRepositoryExtended:
     def test_merge_with_roadmap_references(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
         from skills.infrastructure.models.skill_model import SkillModel
-        from shared.infrastructure.database.models.misc_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
+        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
         sa_session.add(SkillModel(name="Python"))
         sa_session.add(SkillModel(name="Python3"))
         sa_session.commit()
@@ -269,7 +269,7 @@ class TestSARuleExtended:
 
     def test_bulk_update_multiple(self, sa_session):
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
-        from shared.infrastructure.database.models.misc_models import RuleModel
+        from rules.infrastructure.models.rule_model import RuleModel
         p1 = RuleModel(category="fit", key="a", value="1")
         p2 = RuleModel(category="fit", key="b", value="2")
         sa_session.add_all([p1, p2])

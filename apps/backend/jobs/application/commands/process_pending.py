@@ -17,9 +17,9 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 
 log = get_logger('jobs.commands.process_pending')
 import jobs.infrastructure.models.job_model
-import shared.infrastructure.database.models.misc_models
+import jobs.infrastructure.models.misc_models
 from jobs.infrastructure.models.job_model import JobModel
-from shared.infrastructure.database.models.misc_models import SummaryModel, ResumeModel
+from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
 
 
 def get_session():

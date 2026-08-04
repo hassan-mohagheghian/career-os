@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from rules.domain.repositories.rule_repository import IRuleRepository
-from shared.infrastructure.database.models.misc_models import RuleModel
+from rules.infrastructure.models.rule_model import RuleModel
 
 
 class SQLAlchemyRuleRepository(IRuleRepository):

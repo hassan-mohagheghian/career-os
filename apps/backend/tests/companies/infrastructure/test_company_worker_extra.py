@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
-from shared.infrastructure.database.models.misc_models import RuleModel
+from rules.infrastructure.models.rule_model import RuleModel
 
 
 def _insert_company(session, name='Acme', status='processing', **kw):
