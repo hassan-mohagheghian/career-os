@@ -10,6 +10,7 @@ vi.mock('@/entities/job/api', () => ({
   jobApi: {
     searchInfinite: vi.fn(),
     deleteJob: vi.fn(),
+    setFavorite: vi.fn(),
   },
 }))
 
@@ -24,6 +25,8 @@ function makeJob(id: string): JobListItem {
     job_status: 'imported',
     latest_processing_execution: null,
     scores: { overall: null, fit: null, success: null },
+    recommendation: null,
+    favorite: false,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
   }
@@ -227,5 +230,187 @@ describe('useJobsInfiniteQuery.filterLocation', () => {
     })
     expect(result.current.activeFilterCount).toBe(0)
     expect(result.current.filterLocation).toBe('')
+  })
+})
+
+describe('useJobsInfiniteQuery.filterFavorite', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends favorite=true when the favorites filter is enabled', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterFavorite(true)
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ favorite: true })
+      )
+    })
+  })
+
+  it('omits the favorite param when the filter is off', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
+    expect(lastCall.favorite).toBeUndefined()
+  })
+
+  it('counts the favorites filter as an active filter and clears it', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterFavorite(true)
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+    expect(result.current.filterFavorite).toBe(false)
+  })
+})
+
+describe('useJobsInfiniteQuery.filterRecommendation', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends the recommendation filter to the API', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterRecommendation('apply')
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ recommendation: 'apply' })
+      )
+    })
+  })
+
+  it('omits the recommendation param when the filter is empty', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
+    expect(lastCall.recommendation).toBeUndefined()
+  })
+
+  it('counts the recommendation filter as an active filter and clears it', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterRecommendation('skip')
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+    expect(result.current.filterRecommendation).toBe('')
+  })
+})
+
+describe('useJobsInfiniteQuery.favoriteMutation', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('optimistically toggles the favorite flag before the request resolves', async () => {
+    let resolveFavorite!: (v: { favorite: boolean }) => void
+    vi.mocked(jobApi.setFavorite).mockImplementation(
+      () => new Promise((resolve) => { resolveFavorite = resolve })
+    )
+
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1)
+    })
+
+    act(() => {
+      result.current.favoriteMutation.mutate({ jobId: 'job-1', favorite: true })
+    })
+
+    await waitFor(() => {
+      const cached = qc.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: ['jobs-v2-infinite'] })
+      const pages = cached[0]?.[1]?.pages ?? []
+      expect(pages[0].items[0].favorite).toBe(true)
+    })
+
+    act(() => { resolveFavorite({ favorite: true }) })
+    await waitFor(() => {
+      expect(result.current.favoriteMutation.isSuccess).toBe(true)
+    })
+  })
+
+  it('restores the previous favorite state when the request fails', async () => {
+    vi.mocked(jobApi.setFavorite).mockRejectedValue(new Error('boom'))
+
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1)
+    })
+
+    await act(async () => {
+      result.current.favoriteMutation.mutate({ jobId: 'job-1', favorite: true })
+    })
+
+    await waitFor(() => {
+      expect(result.current.favoriteMutation.isError).toBe(true)
+    })
+
+    const cached = qc.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: ['jobs-v2-infinite'] })
+    const pages = cached[0]?.[1]?.pages ?? []
+    expect(pages[0].items[0].favorite).toBe(false)
   })
 })

@@ -3,6 +3,8 @@ import type { ProcessingStatus as PStatus } from '@/entities/job/types'
 import { ScoreBadge } from './ScoreBadge'
 import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
+import { FavoriteButton } from './FavoriteButton'
+import { RecommendationBadge } from './RecommendationBadge'
 import DateTime from '@/shared/components/DateTime'
 import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
 
@@ -12,13 +14,14 @@ interface JobRowProps {
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onToggleFavorite: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   onOpenCompany?: (id: string) => void
 }
 
 export function JobRow({
-  job, onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel,
+  job, onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
@@ -28,6 +31,9 @@ export function JobRow({
       style={{ gridTemplateColumns: COLUMN_GRID_TEMPLATE }}
       onClick={() => onViewDetails(job.id)}
     >
+      <div className="py-2 px-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+        <FavoriteButton favorite={job.favorite} onToggle={() => onToggleFavorite(job.id)} />
+      </div>
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-medium text-foreground truncate">
@@ -63,6 +69,9 @@ export function JobRow({
           <ScoreBadge label="F" value={job.scores?.fit ?? null} />
           <ScoreBadge label="S" value={job.scores?.success ?? null} />
         </div>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <RecommendationBadge recommendation={job.recommendation} />
       </div>
       <div className="py-2 px-3 flex items-center">
         <ProcessingStatus status={processingStatus} />

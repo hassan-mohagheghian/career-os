@@ -3,8 +3,9 @@
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import type { ProcessingStatusFilter } from '@/entities/job/types'
-import { MagnifyingGlass, MapPin, Funnel } from '@phosphor-icons/react'
+import type { ProcessingStatusFilter, RecommendationFilter } from '@/entities/job/types'
+import { MagnifyingGlass, MapPin, Funnel, Star } from '@phosphor-icons/react'
+import { cn } from '@/shared/lib/utils'
 
 const STATUS_FILTER_LABELS: Record<string, string> = {
   created: 'Created',
@@ -13,6 +14,12 @@ const STATUS_FILTER_LABELS: Record<string, string> = {
   completed: 'Completed',
   failed: 'Failed',
   none: 'Not processed',
+}
+
+const RECOMMENDATION_LABELS: Record<string, string> = {
+  apply: 'Apply',
+  consider: 'Consider',
+  skip: 'Skip',
 }
 
 interface JobsToolbarProps {
@@ -26,6 +33,10 @@ interface JobsToolbarProps {
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
   onFilterVisaChange: (value: boolean | '') => void
+  filterFavorite: boolean
+  onFilterFavoriteChange: (value: boolean) => void
+  filterRecommendation: RecommendationFilter
+  onFilterRecommendationChange: (value: RecommendationFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
 }
@@ -36,6 +47,8 @@ export function JobsToolbar({
   filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
+  filterFavorite, onFilterFavoriteChange,
+  filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
 }: JobsToolbarProps) {
   return (
@@ -105,6 +118,29 @@ export function JobsToolbar({
               <SelectItem value="false">No Visa</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterRecommendation} onValueChange={(v) => onFilterRecommendationChange(v as RecommendationFilter)}>
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+              <span>{filterRecommendation ? RECOMMENDATION_LABELS[filterRecommendation] ?? filterRecommendation : 'Recommendation'}</span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="apply">Apply</SelectItem>
+              <SelectItem value="consider">Consider</SelectItem>
+              <SelectItem value="skip">Skip</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn('h-7 w-auto gap-1 text-2xs', filterFavorite && 'text-yellow-500')}
+            onClick={() => onFilterFavoriteChange(!filterFavorite)}
+            aria-label="Show favorites only"
+            aria-pressed={filterFavorite}
+            title={filterFavorite ? 'Showing favorites only' : 'Show favorites only'}
+          >
+            <Star className="w-3 h-3" weight={filterFavorite ? 'fill' : 'regular'} />
+            Favorites
+          </Button>
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" className="h-7 text-2xs text-emerald-500" onClick={onClearFilters}>
               Clear

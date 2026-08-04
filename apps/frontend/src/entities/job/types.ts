@@ -60,6 +60,8 @@ export type ProcessingStatus = 'created' | 'queued' | 'starting' | 'running' | '
 
 export type ProcessingStatusFilter = ProcessingStatus | 'none' | ''
 
+export type RecommendationFilter = 'apply' | 'consider' | 'skip' | ''
+
 export interface JobListItem {
   id: string
   title: string
@@ -70,6 +72,8 @@ export interface JobListItem {
   job_status: string
   latest_processing_execution: ProcessingExecution | null
   scores: Scores
+  recommendation: string | null
+  favorite: boolean
   updated_at: string | null
   created_at: string
 }
@@ -94,6 +98,8 @@ export interface JobSearchQuery {
   fit_score_max?: number
   success_score_min?: number
   success_score_max?: number
+  favorite?: boolean
+  recommendation?: RecommendationFilter
   sort?: string
   order?: 'asc' | 'desc'
 }

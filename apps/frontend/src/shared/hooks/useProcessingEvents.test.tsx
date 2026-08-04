@@ -30,6 +30,8 @@ function makeJob(id: string): JobListItem {
     job_status: 'queued',
     latest_processing_execution: { id: 'exec-1', status: 'queued', started_at: null, finished_at: null },
     scores: { overall: null, fit: null, success: null },
+    recommendation: null,
+    favorite: false,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
   }

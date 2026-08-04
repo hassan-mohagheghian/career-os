@@ -19,6 +19,7 @@ export const jobApi = {
     if (query.fit_score_max !== undefined) params.set('fit_score_max', String(query.fit_score_max))
     if (query.success_score_min !== undefined) params.set('success_score_min', String(query.success_score_min))
     if (query.success_score_max !== undefined) params.set('success_score_max', String(query.success_score_max))
+    if (query.recommendation) params.set('recommendation', query.recommendation)
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
     return api.get<JobSearchResult>(`/jobs/list?${params.toString()}`)
@@ -39,6 +40,8 @@ export const jobApi = {
     if (query.fit_score_max !== undefined) params.set('fit_score_max', String(query.fit_score_max))
     if (query.success_score_min !== undefined) params.set('success_score_min', String(query.success_score_min))
     if (query.success_score_max !== undefined) params.set('success_score_max', String(query.success_score_max))
+    if (query.favorite !== undefined) params.set('favorite', String(query.favorite))
+    if (query.recommendation) params.set('recommendation', query.recommendation)
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
     return api.get<JobSearchResult>(`/jobs/list?${params.toString()}`).then(res => {
@@ -53,6 +56,8 @@ export const jobApi = {
   },
   processJob: (jobId: string) =>
     api.post<{ execution_id: string; status: string }>(`/jobs/${jobId}/process`),
+  setFavorite: (jobId: string, favorite: boolean) =>
+    api.put<{ favorite: boolean }>(`/jobs/${jobId}/favorite`, { favorite }),
   getDetail: (jobId: string) => api.get<JobDetail>(`/jobs/${jobId}`),
   updateJob: (jobId: string, data: JobEditInput) => api.patch<JobDetail>(`/jobs/${jobId}`, data),
   deleteJob: (jobId: string) => api.delete<void>(`/jobs/${jobId}`),

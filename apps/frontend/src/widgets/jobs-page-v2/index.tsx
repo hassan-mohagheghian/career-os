@@ -31,9 +31,12 @@ function JobsPageV2Adapter() {
     filterLocation, setFilterLocation,
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
+    filterFavorite, setFilterFavorite,
+    filterRecommendation, setFilterRecommendation,
     activeFilterCount, clearFilters,
     processMutation,
     deleteMutation,
+    favoriteMutation,
   } = useJobsInfiniteQuery()
 
   useProcessingEvents()
@@ -98,6 +101,12 @@ function JobsPageV2Adapter() {
       .catch(() => toast.error('Failed to cancel processing'))
   }, [items, refetch])
 
+  const handleToggleFavorite = useCallback((id: string) => {
+    const job = items.find(j => j.id === id)
+    if (!job) return
+    favoriteMutation.mutate({ jobId: id, favorite: !job.favorite })
+  }, [items, favoriteMutation])
+
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
       <JobsPageContent
@@ -124,12 +133,17 @@ function JobsPageV2Adapter() {
         onFilterRemoteChange={setFilterRemote}
         filterVisa={filterVisa}
         onFilterVisaChange={setFilterVisa}
+        filterFavorite={filterFavorite}
+        onFilterFavoriteChange={setFilterFavorite}
+        filterRecommendation={filterRecommendation}
+        onFilterRecommendationChange={setFilterRecommendation}
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onToggleFavorite={handleToggleFavorite}
         onRetry={handleRetry}
         onCancel={handleCancel}
         isProcessing={processMutation.isPending}

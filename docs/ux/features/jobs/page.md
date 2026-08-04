@@ -62,12 +62,12 @@ Jobs Page
 │ Sort ▼                                         Filters ▼                                   Refresh          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                              │
-│ # │ Job │ Company │ Location │ Overall │ Fit │ Success │ Processing │ Updated │ Actions                    │
+│ # │ Job │ Company │ Location │ Overall │ Fit │ Success │ Rec │ Processing │ Updated │ Actions          │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ Ready │ 2m │ ...                     │
-│ 2 │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ Running │ now │ ...                   │
-│ 3 │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ Failed │ 5m │ ...                    │
+│ 1 │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ ★ Apply │ Ready │ 2m │ ...          │
+│ 2 │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ ☆ Apply │ Running │ now │ ...        │
+│ 3 │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ — Skip │ Failed │ 5m │ ...          │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
@@ -125,12 +125,18 @@ Responsibilities
 
 Controls
 
-| Control | Description                          |
-| ------- | ------------------------------------ |
-| Search  | Search by title, company or keyword. |
-| Sort    | Sort current result set.             |
-| Filters | Opens filter panel.                  |
-| Refresh | Reload current query.                |
+| Control        | Description                              |
+| -------------- | ---------------------------------------- |
+| Search         | Search by title, company or keyword.     |
+| Status         | Filter by latest processing status.      |
+| Location       | Filter by location (substring).          |
+| Remote         | Filter by remote / on-site.              |
+| Visa           | Filter by visa sponsorship.              |
+| Favorites      | Toggle favorites-only view.              |
+| Recommendation | Filter by apply / consider / skip.       |
+| Sort           | Sort current result set.                 |
+| Clear          | Clears all active filters.               |
+| Refresh        | Reload current query.                    |
 
 Changing filters never reloads the entire page.
 
@@ -275,18 +281,20 @@ Selecting a row opens the Job Details Drawer.
 
 # Row Columns
 
-| Column     | Description                                         |
-| ---------- | --------------------------------------------------- |
-| Select     | Multi-selection checkbox for future bulk operations |
-| Job        | Job title and employment type                       |
-| Company    | Company logo and company name                       |
-| Location   | City, country or Remote                             |
-| Overall    | Overall AI Score                                    |
-| Fit        | Fit Score                                           |
-| Success    | Success Score                                       |
-| Processing | Current Processing Execution state                  |
-| Updated    | Relative update time                                |
-| Actions    | Row actions                                         |
+| Column         | Description                                         |
+| -------------- | --------------------------------------------------- |
+| Select         | Multi-selection checkbox for future bulk operations |
+| Favorite       | Star toggle for bookmarked jobs                     |
+| Job            | Job title and employment type                       |
+| Company        | Company logo and company name                       |
+| Location       | City, country or Remote                             |
+| Overall        | Overall AI Score                                    |
+| Fit            | Fit Score                                           |
+| Success        | Success Score                                       |
+| Recommendation | Apply / Consider / Skip badge                       |
+| Processing     | Current Processing Execution state                  |
+| Updated        | Relative update time                                |
+| Actions        | Row actions                                         |
 
 ---
 
@@ -363,6 +371,46 @@ or
 ```text
 Remote
 ```
+
+---
+
+## Favorite
+
+Displays a star toggle for the job's favorite flag.
+
+```text
+★   favorited
+
+☆   not favorited
+```
+
+The toggle is optimistic and does not reload the list. Activating the Favorites
+filter in the toolbar shows only favorited jobs.
+
+---
+
+## Recommendation
+
+Displays the analysis recommendation as a compact badge.
+
+```text
+Apply
+Consider
+Skip
+```
+
+Color and meaning
+
+| Badge     | Meaning   | Color   |
+| --------- | --------- | ------- |
+| Apply     | Overall ≥ 80 | Emerald |
+| Consider  | Overall ≥ 60 | Amber   |
+| Skip      | Otherwise    | Gray    |
+
+Jobs without a completed analysis show an em dash (`—`).
+
+The column is display-only (no sort). Filtering by recommendation happens
+through the toolbar's Recommendation filter.
 
 ---
 
@@ -1124,6 +1172,8 @@ Search preserves
 
 Supported filters
 
+- Favorites
+- Recommendation
 - Processing Status
 - Location
 - Overall Score
@@ -1135,6 +1185,35 @@ Supported filters
 - Processing State
 
 Filters are applied server-side.
+
+## Favorites Filter
+
+A star toggle in the toolbar restricts the list to favorited jobs.
+
+```text
+☆ All Jobs
+★ Favorites only
+```
+
+When active it counts as an active filter and is cleared by the toolbar's
+Clear action alongside the others. Favoriting or unfavoriting a job while the
+filter is active refetches the list so rows update immediately.
+
+## Recommendation Filter
+
+A dropdown in the toolbar restricts the list to jobs whose analysis produced
+the selected recommendation.
+
+```text
+All
+Apply
+Consider
+Skip
+```
+
+Jobs without a completed analysis never match. When active it counts as an
+active filter and is cleared by the toolbar's Clear action alongside the
+others.
 
 ## Processing Status Filter
 
@@ -1411,6 +1490,7 @@ Only visible rows are mounted.
 | Element        | Icon              |
 | -------------- | ----------------- |
 | Import Job     | Plus              |
+| Favorite       | Star              |
 | Queue          | Workflow          |
 | Search         | Search            |
 | Filters        | SlidersHorizontal |

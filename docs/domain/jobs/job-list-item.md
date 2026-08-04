@@ -38,6 +38,8 @@ JobListItem
 - location
 - remote
 - visa_sponsorship
+- favorite
+- recommendation
 - processing_status
 - latest_processing_execution
 - scores
@@ -68,10 +70,36 @@ All scores are normalized to 0–100.
 
 Scores are produced by the deterministic Job Analysis scoring rules
 (`processing/application/services/job_analysis_scoring.py`):
-`overall = round(fit * 0.6 + success * 0.4)`, clamped to 0-100. The
-recommendation (`apply` ≥ 80 / `consider` ≥ 60 / else `skip`) and the full
-`analysis` block are only exposed on the job detail endpoint
-(`GET /api/jobs/{job_id}`), not on this list item.
+`overall = round(fit * 0.6 + success * 0.4)`, clamped to 0-100.
+
+---
+
+# Favorite
+
+A boolean flag (`favorite`, default `false`) marking the job as bookmarked by
+the user.
+
+It is independent of the analysis pipeline and is toggled exclusively through
+`PUT /api/jobs/{job_id}/favorite`. The Jobs List can be filtered to show only
+favorited jobs (`GET /api/jobs/list?favorite=true`).
+
+---
+
+# Recommendation
+
+The analysis recommendation (`apply` / `consider` / `skip`), derived
+deterministically from the overall score: `apply` ≥ 80 / `consider` ≥ 60 /
+else `skip`.
+
+Exposed as a single read-only field on the list item (batch-loaded per page,
+not N+1). Jobs without a completed analysis have `recommendation = null` and
+render no badge in the row. The full `analysis` block (with `apply_reason`,
+`scores_explanation`, etc.) is still only exposed on the job detail endpoint
+(`GET /api/jobs/{job_id}`).
+
+The Jobs List can additionally be filtered by recommendation
+(`GET /api/jobs/list?recommendation=apply`); jobs without an analysis row never
+match that filter.
 
 ---
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import type { JobListItem, ProcessingStatusFilter } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatusFilter, RecommendationFilter } from '@/entities/job/types'
 import { Button } from '@/shared/ui/button'
 import { JobsHeader } from './JobsHeader'
 import { JobsToolbar } from './JobsToolbar'
@@ -37,12 +37,17 @@ interface JobsPageProps {
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
   onFilterVisaChange: (value: boolean | '') => void
+  filterFavorite: boolean
+  onFilterFavoriteChange: (value: boolean) => void
+  filterRecommendation: RecommendationFilter
+  onFilterRecommendationChange: (value: RecommendationFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
   onProcessV2: (id: string) => void
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onToggleFavorite: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   isProcessing: boolean
@@ -68,8 +73,10 @@ export function JobsPage({
   filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
+  filterFavorite, onFilterFavoriteChange,
+  filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel, isProcessing,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
   addJobDrawerOpen, onAddJobDrawerOpenChange, onJobQueued,
   detailJobId, onDetailJobIdChange,
@@ -134,6 +141,10 @@ export function JobsPage({
         onFilterRemoteChange={onFilterRemoteChange}
         filterVisa={filterVisa}
         onFilterVisaChange={onFilterVisaChange}
+        filterFavorite={filterFavorite}
+        onFilterFavoriteChange={onFilterFavoriteChange}
+        filterRecommendation={filterRecommendation}
+        onFilterRecommendationChange={onFilterRecommendationChange}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
       />
@@ -149,6 +160,7 @@ export function JobsPage({
         onViewDetails={onViewDetails}
         onEdit={onEdit}
         onDelete={onDelete}
+        onToggleFavorite={onToggleFavorite}
         onRetry={onRetry}
         onCancel={onCancel}
         sort={sort}

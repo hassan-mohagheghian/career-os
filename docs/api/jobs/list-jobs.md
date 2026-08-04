@@ -121,6 +121,28 @@ visa=true
 
 ---
 
+### Favorite
+
+```text
+favorite=true
+```
+
+Filters to jobs the user has favorited. Omitted (or `false`) returns all jobs.
+
+---
+
+### Recommendation
+
+```text
+recommendation=apply
+```
+
+Filters to jobs whose analysis produced the given recommendation (`apply`,
+`consider`, or `skip`). Jobs without a completed analysis never match. Omitted
+returns all jobs.
+
+---
+
 ### Score Range
 
 ```text
@@ -197,6 +219,10 @@ desc
 
       "job_status": "completed",
 
+      "favorite": false,
+
+      "recommendation": "apply",
+
       "latest_processing_execution": {
         "id": "...",
         "status": "completed",
@@ -237,12 +263,16 @@ Excluded data includes:
 - Raw HTML
 - Parsed HTML
 - Prompt history
-- Recommendations
+- Full analysis block (`apply_reason`, `scores_explanation`, `skills`, ...)
 - Processing logs
 - Timeline
 - LLM output
 
 Those are loaded by dedicated endpoints.
+
+The only analysis-derived value exposed on the list is the lightweight
+`recommendation` field (`apply` / `consider` / `skip`), batch-loaded per page
+(no N+1). Jobs without a completed analysis return `recommendation = null`.
 
 The job detail endpoint (`GET /api/jobs/{job_id}`) is the one that returns the
 full analysis block, not this list:
@@ -273,6 +303,39 @@ full analysis block, not this list:
 
 For jobs processed before the analysis phase existed, the block is built from
 the legacy `jobs`/`summaries` projections (no recommendation).
+
+---
+
+# Favorite Job
+
+Toggles the user's favorite flag on a job. This is the **only** way the flag is
+managed — it is not part of the edit-job payload.
+
+## Endpoint
+
+PUT /api/jobs/{job_id}/favorite
+
+## Request Body
+
+```json
+{
+  "favorite": true
+}
+```
+
+## Response
+
+200
+
+```json
+{
+  "favorite": true
+}
+```
+
+404
+
+Job not found.
 
 ---
 

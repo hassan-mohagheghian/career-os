@@ -26,6 +26,7 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     UpdateJobRequest,
     JobNoteItem,
     JobLinkItem,
+    FavoriteJobRequest,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -34,7 +35,6 @@ from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySum
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.domain.enums import ExecutionStatus
 from dependencies import get_job_repo, get_processing_execution_repo, get_job_analysis_repo, get_summary_repo
-
 router = APIRouter()
 
 
@@ -89,7 +89,7 @@ def _items_to_dicts(items: list[Any], plain_key: str) -> list[dict[str, Any]]:
     return result
 
 
-def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any] | None = None) -> JobListItemSchema:
+def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any] | None = None, recommendation: str | None = None) -> JobListItemSchema:
     scores = ScoresSchema(
         overall=job_dict.get("overall_score"),
         fit=job_dict.get("fit_score"),
@@ -117,6 +117,8 @@ def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any]
         job_status=job_status,
         latest_processing_execution=exec_schema,
         scores=scores,
+        recommendation=recommendation,
+        favorite=bool(job_dict.get("favorite")),
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -135,6 +137,8 @@ def list_jobs_v2(
     location: str | None = Query(None),
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),
+    favorite: bool | None = Query(None),
+    recommendation: str | None = Query(None, pattern="^(apply|consider|skip)$"),
     overall_score_min: int | None = Query(None),
     overall_score_max: int | None = Query(None),
     fit_score_min: int | None = Query(None),
@@ -143,6 +147,7 @@ def list_jobs_v2(
     success_score_max: int | None = Query(None),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    analysis_repo: SQLAlchemyJobAnalysisRepository = Depends(get_job_analysis_repo),
 ):
     job_ids: list[str] | None = None
     exclude_job_ids: list[str] | None = None
@@ -162,12 +167,15 @@ def list_jobs_v2(
         overall_score_min=overall_score_min, overall_score_max=overall_score_max,
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
         success_score_min=success_score_min, success_score_max=success_score_max,
+        favorite=favorite,
+        recommendation=recommendation,
     )
     use_case = ListJobsV2UseCase(repo)
     result = use_case.execute(request)
     page_job_ids = [j.get("id") for j in result.items if j.get("id")]
     latest_executions = exec_repo.latest_by_target_ids("job", page_job_ids)
-    items = [_v2_job_to_schema(j, latest_executions.get(j.get("id"))) for j in result.items]
+    recommendations = analysis_repo.recommendations_by_job_ids(page_job_ids)
+    items = [_v2_job_to_schema(j, latest_executions.get(j.get("id")), recommendations.get(j.get("id"))) for j in result.items]
     total_pages = max(1, math.ceil(result.total / page_size)) if result.total else 1
     return JobListResponseSchema(
         items=items,
@@ -385,3 +393,15 @@ def update_job(
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
+
+
+@router.put("/{job_id}/favorite")
+def set_job_favorite(
+    job_id: str,
+    body: FavoriteJobRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """Set or clear the favorite flag on a job."""
+    if not repo.set_favorite(job_id, body.favorite):
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return {"favorite": body.favorite}

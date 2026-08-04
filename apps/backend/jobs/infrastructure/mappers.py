@@ -60,6 +60,7 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "response_time": model.response_time,
         "response_status": model.response_status,
         "rescoring": model.rescoring,
+        "favorite": model.favorite,
         "status": model.status,
         "queue_order": model.queue_order,
         "current_node": model.current_node,

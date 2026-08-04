@@ -55,6 +55,7 @@ class JobModel(Base):
     response_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     response_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     rescoring: Mapped[int] = mapped_column(Integer, default=0)
+    favorite: Mapped[int] = mapped_column(Integer, default=0)
     links: Mapped[str] = mapped_column(Text, default="[]")
     source: Mapped[Optional[str]] = mapped_column(String, default="web")
     status: Mapped[str] = mapped_column(String, default="imported")

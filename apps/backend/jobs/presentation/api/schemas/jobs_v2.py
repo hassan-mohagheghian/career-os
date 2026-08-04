@@ -97,10 +97,18 @@ class JobListItemSchema(BaseModel):
     job_status: str | None = Field(default=None, validation_alias="status")
     latest_processing_execution: ProcessingExecutionSchema | None = None
     scores: ScoresSchema | None = None
+    recommendation: str | None = None
+    favorite: bool = False
     updated_at: str | None = None
     created_at: str | None = None
 
     model_config = {"populate_by_name": True, "from_attributes": True}
+
+
+class FavoriteJobRequest(BaseModel):
+    """Schema for setting/clearing the favorite flag on a job."""
+
+    favorite: bool
 
 
 class PaginationSchema(BaseModel):

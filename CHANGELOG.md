@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.9.0] — 2026-08-05
+
+### Added
+
+- **Job favorites** — each job carries a user-managed `favorite` flag. Rows in
+  the V2 jobs list gain a dedicated star column (first column, pinned) that
+  toggles the flag optimistically via the new `PUT /api/jobs/{job_id}/favorite`
+  endpoint. The toolbar gains a star toggle filter (`GET /api/jobs/list?favorite=true`)
+  that shows only favorited jobs. The flag is managed exclusively by its own
+  endpoint and is not part of the Edit Job payload.
+  - Migration `job_003_add_job_favorite` adds `favorite` (Integer, NOT NULL,
+    `server_default '0'`) to `job.jobs`; `JobModel`, the `Job` entity and
+    `job_model_to_dict` carry it; `SQLAlchemyJobRepository.search_jobs_cursor`
+    gained a `favorite` filter and a new `set_favorite` method.
+
+- **Recommendation tags** — the analysis recommendation (`apply` / `consider` /
+  `skip`) is now shown as a colored badge in a dedicated Recommendation column
+  (after Scores) on each V2 list row. It is batch-loaded per page
+  (`recommendations_by_job_ids`, no N+1) and is `null` for jobs without a
+  completed analysis. The list item now exposes the lightweight
+  `recommendation` field while the full `analysis` block stays on the detail
+  endpoint.
+
+- **Recommendation filter** — the toolbar gains a Recommendation select
+  (All / Apply / Consider / Skip) backed by
+  `GET /api/jobs/list?recommendation=apply|consider|skip`. Jobs without an
+  analysis row never match; invalid values return 422. It composes with the
+  other filters (e.g. `favorite=true`).
+
+### Changed
+
+- `docs/api/jobs/list-jobs.md`, `docs/domain/jobs/job-list-item.md`,
+  `docs/ux/features/jobs/page.md`, `docs/ux/features/jobs/job-row.md`,
+  `docs/ux/features/jobs/favorite-job.md` (new), `API.md`, and `DOMAIN.md`
+  document the favorite flag, the recommendation field/column, and both
+  filters.
+- `implementation-history/068_feature_job_favorites_and_recommendation_tags.md`
+  records the full plan (favorites + recommendation tags + recommendation
+  filter).
+
+### Tests
+
+- Backend: `tests/jobs/presentation/api/test_jobs_v2_api.py` gained
+  `TestJobFavoritesV2API` (default false, favorite filter, toggle persists,
+  404), `TestJobRecommendationV2API` (field present, populated from analysis,
+  null without analysis) and `TestJobRecommendationFilterV2API` (per-value
+  filter, excludes jobs without analysis, combines with favorite, 422).
+- Frontend: `JobsToolbar.test.tsx` (favorite + recommendation filter
+  controls), `useJobsInfiniteQuery.test.tsx` (favorite filter/mutation,
+  recommendation filter flows into the query and clear), plus new
+  `FavoriteButton.test.tsx`, `RecommendationBadge.test.tsx` and `JobRow.test.tsx`.
+
 ## [2.8.0] — 2026-08-04
 
 ### Changed

@@ -2,6 +2,7 @@
 
 import pytest
 from jobs.infrastructure.models.job_model import JobModel
+from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
 
 
@@ -51,6 +52,13 @@ def _create_execution(test_db, job_id: str, status: str = "completed", execution
         started_at=created_at,
         finished_at=created_at,
     )
+    test_db.add(model)
+    test_db.commit()
+    return model
+
+
+def _create_analysis(test_db, job_id: str, recommendation: str):
+    model = JobAnalysisModel(job_id=job_id, recommendation=recommendation, payload=None)
     test_db.add(model)
     test_db.commit()
     return model
@@ -414,3 +422,115 @@ class TestJobListV2API:
         resp = client.get("/api/jobs/list?company_id=999")
         data = resp.json()
         assert len(data["items"]) == 0
+
+
+class TestJobFavoritesV2API:
+    def test_list_item_carries_favorite_default_false(self, client, test_db):
+        _create_job(test_db, id=1, title="Engineer")
+
+        resp = client.get("/api/jobs/list")
+        data = resp.json()
+        assert data["items"][0]["favorite"] is False
+
+    def test_filter_by_favorite(self, client, test_db):
+        _create_job(test_db, id=1, title="Starred", favorite=1)
+        _create_job(test_db, id=2, title="Plain")
+
+        resp = client.get("/api/jobs/list?favorite=true")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Starred"]
+
+        resp = client.get("/api/jobs/list?favorite=false")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Plain"]
+
+        resp = client.get("/api/jobs/list")
+        data = resp.json()
+        assert len(data["items"]) == 2
+
+    def test_set_favorite_persists_and_toggles(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Starred")
+
+        resp = client.put(f"/api/jobs/{job.id}/favorite", json={"favorite": True})
+        assert resp.status_code == 200
+        assert resp.json() == {"favorite": True}
+
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["favorite"] is True
+        assert [i["title"] for i in client.get("/api/jobs/list?favorite=true").json()["items"]] == ["Starred"]
+
+        resp = client.put(f"/api/jobs/{job.id}/favorite", json={"favorite": False})
+        assert resp.status_code == 200
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["favorite"] is False
+
+    def test_set_favorite_missing_job_returns_404(self, client, test_db):
+        resp = client.put("/api/jobs/does-not-exist/favorite", json={"favorite": True})
+        assert resp.status_code == 404
+
+
+class TestJobRecommendationV2API:
+    def test_list_item_carries_recommendation_field(self, client, test_db):
+        _create_job(test_db, id=1, title="Engineer")
+
+        resp = client.get("/api/jobs/list")
+        data = resp.json()
+        assert data["items"][0]["recommendation"] is None
+
+    def test_recommendation_populated_from_analysis(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer")
+        _create_analysis(test_db, job.id, recommendation="apply")
+
+        resp = client.get("/api/jobs/list")
+        data = resp.json()
+        assert data["items"][0]["recommendation"] == "apply"
+
+    def test_recommendation_null_without_analysis(self, client, test_db):
+        _create_job(test_db, id=1, title="Engineer", overall_score=90)
+
+        resp = client.get("/api/jobs/list")
+        data = resp.json()
+        assert data["items"][0]["recommendation"] is None
+
+
+class TestJobRecommendationFilterV2API:
+    def test_filter_by_recommendation(self, client, test_db):
+        apply_job = _create_job(test_db, id=1, title="Apply Job")
+        consider_job = _create_job(test_db, id=2, title="Consider Job")
+        skip_job = _create_job(test_db, id=3, title="Skip Job")
+        _create_analysis(test_db, apply_job.id, recommendation="apply")
+        _create_analysis(test_db, consider_job.id, recommendation="consider")
+        _create_analysis(test_db, skip_job.id, recommendation="skip")
+
+        resp = client.get("/api/jobs/list?recommendation=apply")
+        assert resp.status_code == 200
+        assert [i["title"] for i in resp.json()["items"]] == ["Apply Job"]
+
+        resp = client.get("/api/jobs/list?recommendation=consider")
+        assert [i["title"] for i in resp.json()["items"]] == ["Consider Job"]
+
+        resp = client.get("/api/jobs/list?recommendation=skip")
+        assert [i["title"] for i in resp.json()["items"]] == ["Skip Job"]
+
+    def test_recommendation_filter_excludes_jobs_without_analysis(self, client, test_db):
+        apply_job = _create_job(test_db, id=1, title="Apply Job")
+        _create_job(test_db, id=2, title="No Analysis", overall_score=95)
+        _create_analysis(test_db, apply_job.id, recommendation="apply")
+
+        resp = client.get("/api/jobs/list?recommendation=apply")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Apply Job"]
+
+    def test_recommendation_filter_combines_with_favorite(self, client, test_db):
+        apply_job = _create_job(test_db, id=1, title="Starred Apply", favorite=1)
+        plain_job = _create_job(test_db, id=2, title="Plain Apply")
+        _create_analysis(test_db, apply_job.id, recommendation="apply")
+        _create_analysis(test_db, plain_job.id, recommendation="apply")
+
+        resp = client.get("/api/jobs/list?recommendation=apply&favorite=true")
+        data = resp.json()
+        assert [i["title"] for i in data["items"]] == ["Starred Apply"]
+
+    def test_invalid_recommendation_returns_422(self, client, test_db):
+        resp = client.get("/api/jobs/list?recommendation=bogus")
+        assert resp.status_code == 422

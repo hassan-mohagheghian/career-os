@@ -19,6 +19,7 @@ interface JobsTableProps {
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onToggleFavorite: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   sort?: string
@@ -39,10 +40,12 @@ interface ColumnDef {
 }
 
 const COLUMN_DEFS: ColumnDef[] = [
+  { label: 'Fav' },
   { label: 'Title', field: 'title' },
   { label: 'Company', field: 'company' },
   { label: 'Location' },
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
+  { label: 'Rec' },
   { label: 'Status', field: 'status' },
   { label: 'Updated', field: 'updated_at' },
   { label: 'Created', field: 'created_at' },
@@ -53,7 +56,7 @@ const gridStyle = { gridTemplateColumns: COLUMN_GRID_TEMPLATE }
 
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel,
+  onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -181,6 +184,7 @@ export function JobsTable({
                   onViewDetails={onViewDetails}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onToggleFavorite={() => onToggleFavorite(job.id)}
                   onRetry={onRetry}
                   onCancel={onCancel}
                 />

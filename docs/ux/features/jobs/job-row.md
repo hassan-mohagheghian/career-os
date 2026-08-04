@@ -13,6 +13,8 @@ The Jobs page is built from repeated Job Rows.
 Desktop
 
 ```
+Favorite
+
 Title
 
 Company
@@ -24,6 +26,8 @@ Overall
 Fit
 
 Success
+
+Recommendation
 
 Processing
 
@@ -42,6 +46,7 @@ Cards are intentionally not used.
 
 Each row displays:
 
+- Favorite
 - Job Title
 - Company
 - Location
@@ -50,11 +55,42 @@ Each row displays:
 - Overall Score
 - Fit Score
 - Success Score
+- Recommendation
 - Processing Status
 - Last Updated
 - Actions
 
 ---
+
+# Favorite
+
+A leading star button toggling the job's favorite flag (see
+`features/jobs/favorite-job.md`).
+
+- Empty star: not favorited.
+- Filled star: favorited.
+
+The toggle is optimistic — the star updates immediately and is rolled back on
+failure. The button is a separate interactive element and does not trigger row
+selection.
+
+---
+
+# Recommendation
+
+A compact badge showing the analysis recommendation derived from the Overall
+Score:
+
+| Recommendation | Meaning            | Color   |
+| -------------- | ------------------ | ------- |
+| Apply          | Overall ≥ 80       | Emerald |
+| Consider       | Overall ≥ 60       | Amber   |
+| Skip           | Otherwise          | Gray    |
+
+Jobs without a completed analysis show an em dash (`—`) instead of a badge.
+
+The badge is display-only: it is not clickable and does not open the Job
+Details drawer.
 
 # Score Presentation
 

@@ -63,6 +63,7 @@ class Job(BaseEntity):
         response_time: str | None = None,
         response_status: str | None = None,
         rescoring: int = 0,
+        favorite: int = 0,
         status: str = "imported",
         queue_order: int = 0,
         current_node: str | None = None,
@@ -112,6 +113,7 @@ class Job(BaseEntity):
         self.response_time = response_time
         self.response_status = response_status
         self.rescoring = rescoring
+        self.favorite = favorite
         self.status = status
         self.queue_order = queue_order
         self.current_node = current_node
@@ -179,6 +181,7 @@ class Job(BaseEntity):
             "response_time": self.response_time,
             "response_status": self.response_status,
             "rescoring": self.rescoring,
+            "favorite": self.favorite,
             "status": self.status,
             "queue_order": self.queue_order,
             "current_node": self.current_node,
@@ -234,6 +237,7 @@ class Job(BaseEntity):
             response_time=data.get("response_time"),
             response_status=data.get("response_status"),
             rescoring=data.get("rescoring", 0),
+            favorite=data.get("favorite", 0),
             status=data.get("status", "imported"),
             queue_order=data.get("queue_order", 0),
             current_node=data.get("current_node"),

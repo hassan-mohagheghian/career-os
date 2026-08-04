@@ -118,10 +118,17 @@ class IJobRepository(ABC):
         fit_score_max: int | None = None,
         success_score_min: int | None = None,
         success_score_max: int | None = None,
+        favorite: bool | None = None,
+        recommendation: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
         """Search jobs with cursor-based pagination. Returns (items, total, next_cursor, has_more).
 
         When `cursor` is None, `page` is applied as an offset ((page-1) * page_size)
         so page-based navigation works as advertised by the API.
         """
+        ...
+
+    @abstractmethod
+    def set_favorite(self, job_id: str, favorite: bool) -> bool:
+        """Set or clear the favorite flag on a job. Returns True if the job exists."""
         ...

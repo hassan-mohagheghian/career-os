@@ -15,6 +15,10 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onFilterRemoteChange: vi.fn(),
     filterVisa: '',
     onFilterVisaChange: vi.fn(),
+    filterFavorite: false,
+    onFilterFavoriteChange: vi.fn(),
+    filterRecommendation: '',
+    onFilterRecommendationChange: vi.fn(),
     activeFilterCount: 0,
     onClearFilters: vi.fn(),
     ...overrides,
@@ -58,5 +62,52 @@ describe('JobsToolbar location filter', () => {
     fireEvent.click(screen.getByLabelText('Clear location filter'))
 
     expect(onFilterLocationChange).toHaveBeenCalledWith('')
+  })
+})
+
+describe('JobsToolbar favorite filter', () => {
+  it('renders the favorites toggle', () => {
+    renderToolbar()
+    expect(screen.getByLabelText('Show favorites only')).toBeInTheDocument()
+  })
+
+  it('toggles the favorite filter on click', () => {
+    const onFilterFavoriteChange = vi.fn()
+    renderToolbar({ onFilterFavoriteChange })
+
+    fireEvent.click(screen.getByLabelText('Show favorites only'))
+
+    expect(onFilterFavoriteChange).toHaveBeenCalledWith(true)
+  })
+
+  it('toggles the favorite filter off when active', () => {
+    const onFilterFavoriteChange = vi.fn()
+    renderToolbar({ filterFavorite: true, onFilterFavoriteChange })
+
+    fireEvent.click(screen.getByLabelText('Show favorites only'))
+
+    expect(onFilterFavoriteChange).toHaveBeenCalledWith(false)
+  })
+})
+
+describe('JobsToolbar recommendation filter', () => {
+  it('renders a recommendation select', () => {
+    renderToolbar()
+    expect(screen.getByText('Recommendation')).toBeInTheDocument()
+  })
+
+  it('reports the selected recommendation', () => {
+    const onFilterRecommendationChange = vi.fn()
+    renderToolbar({ onFilterRecommendationChange })
+
+    fireEvent.click(screen.getByText('Recommendation'))
+    fireEvent.click(screen.getByText('Apply'))
+
+    expect(onFilterRecommendationChange).toHaveBeenCalledWith('apply')
+  })
+
+  it('shows the selected recommendation label when active', () => {
+    renderToolbar({ filterRecommendation: 'consider' })
+    expect(screen.getByText('Consider')).toBeInTheDocument()
   })
 })

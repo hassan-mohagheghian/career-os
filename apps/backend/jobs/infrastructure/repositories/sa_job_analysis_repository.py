@@ -60,3 +60,12 @@ class SQLAlchemyJobAnalysisRepository(IJobAnalysisRepository):
         self._session.delete(m)
         self._session.commit()
         return True
+
+    def recommendations_by_job_ids(self, job_ids: list[str]) -> dict[str, str]:
+        if not job_ids:
+            return {}
+        rows = self._session.query(JobAnalysisModel.job_id, JobAnalysisModel.recommendation).filter(
+            JobAnalysisModel.job_id.in_(job_ids),
+            JobAnalysisModel.recommendation.isnot(None),
+        ).all()
+        return {job_id: recommendation for job_id, recommendation in rows}

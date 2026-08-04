@@ -4,9 +4,10 @@
 
 ### Job
 - **What**: A job posting discovered from LinkedIn, job boards, or manual submission
-- **Key fields**: `num` (unique ID), `company`, `role`, `location`, `stack`, `visa`, `overall_score`
+- **Key fields**: `num` (unique ID), `company`, `role`, `location`, `stack`, `visa`, `overall_score`, `favorite`
 - **Scoring**: `fit_score` (0-100) + `success_score` (0-100) = `overall_score` (weighted 0.6/0.4)
 - **States**: pending → queued → processing → done/failed
+- **Favorite**: a user-managed bookmark flag (`favorite` integer, 0/1) to mark jobs worth pursuing; it is independent of the analysis pipeline and is toggled only through `PUT /api/jobs/{job_id}/favorite`
 
 ### JobAnalysis
 - **What**: Canonical AI analysis of a single job, produced by the v2 processing pipeline's single combined `job.analyze` LLM call
