@@ -1,10 +1,9 @@
 """Resume/cover letter generation endpoints."""
 
-import uuid
-
 from fastapi import APIRouter, Depends
 
-from dependencies import get_resume_repo, get_pending_generation_repo
+from dependencies import get_resume_repo, get_resume_service, get_pending_generation_repo
+from jobs.application.services.resume_service import ResumeService
 from jobs.infrastructure import SQLAlchemyResumeRepository
 from shared.infrastructure.database.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
 from shared.application.exceptions import NotFoundError
@@ -34,14 +33,10 @@ def get_resume(id: str, repo: SQLAlchemyResumeRepository = Depends(get_resume_re
 
 
 @router.post("")
-def create_resume(data: dict, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
-    """Create a new resume."""
-    resume_id = f"resume_{uuid.uuid4().hex[:8]}"
-    return repo.upsert({
-        "id": resume_id,
-        "title": data.get("title", "Original"),
-        "content": data.get("content", ""),
-    })
+def create_resume(data: dict, service: ResumeService = Depends(get_resume_service)):
+    """Save a new master resume as the next original_N version."""
+    raw_text = data.get("raw_text") or data.get("content") or ""
+    return service.upload_resume(raw_text, title=data.get("title"))
 
 
 @router.put("/{id}")
@@ -60,7 +55,9 @@ def update_resume(id: str, data: dict, repo: SQLAlchemyResumeRepository = Depend
 @router.delete("/{id}")
 def delete_resume(id: str, repo: SQLAlchemyResumeRepository = Depends(get_resume_repo)):
     """Delete a resume."""
-    repo.delete_by_id(id)
+    deleted = repo.delete_by_id(id)
+    if not deleted:
+        raise NotFoundError(f"Resume {id} not found")
     return {"status": "deleted", "id": id}
 
 

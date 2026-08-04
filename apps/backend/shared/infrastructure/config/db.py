@@ -9,6 +9,7 @@ import os
 
 from dotenv import load_dotenv
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.utils import text_to_html
 load_dotenv()
 
 log = get_logger('db')
@@ -135,7 +136,7 @@ def migrate_resume_files_to_db():
                 with open(master_path) as f:
                     raw_text = f.read().strip()
                 if raw_text:
-                    content_html = _text_to_html(raw_text)
+                    content_html = text_to_html(raw_text)
                     from datetime import datetime
                     session.add(ResumeModel(
                         id="original_1", title="Resume v1", company="", role="",
@@ -174,7 +175,7 @@ def migrate_resume_files_to_db():
                 existing = session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
                 if not existing:
                     from datetime import datetime
-                    content_html = _text_to_html(raw_text)
+                    content_html = text_to_html(raw_text)
                     session.add(ResumeModel(
                         id=resume_id, title=f"{company} (File Import)",
                         company=company, role=role, content=content_html,
@@ -202,22 +203,12 @@ def migrate_resume_files_to_db():
 
 
 def _text_to_html(text):
-    """Convert plain text resume to simple HTML."""
-    import re
-    lines = text.strip().split('\n')
-    html_parts = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            html_parts.append('<br/>')
-            continue
-        if re.match(r'^[A-Z][A-Z\s]{3,}$', line) or line in ('Summary', 'Experience', 'Education', 'Skills', 'Projects', 'Certifications', 'Languages'):
-            html_parts.append(f'<h3 style="margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ddd;padding-bottom:2px;">{line}</h3>')
-        elif line.startswith('•') or line.startswith('-'):
-            html_parts.append(f'<li style="margin:2px 0;font-size:11px;">{line.lstrip("•- ")}</li>')
-        else:
-            html_parts.append(f'<p style="margin:3px 0;font-size:11px;">{line}</p>')
-    return '\n'.join(html_parts)
+    """Convert plain text resume to simple HTML (shared helper).
+
+    Delegates to shared.infrastructure.utils.text_to_html.
+    """
+    from shared.infrastructure.utils import text_to_html as _shared_text_to_html
+    return _shared_text_to_html(text)
 
 
 if __name__ == "__main__":

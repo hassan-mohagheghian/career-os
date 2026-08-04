@@ -71,15 +71,20 @@ class SQLAlchemyResumeRepository(IResumeRepository):
     def get_latest_linkedin_raw_text(self) -> str | None:
         m = self._session.query(ResumeModel).filter(
             ResumeModel.id.like("linkedin_%")
-        ).order_by(ResumeModel.created_at.desc()).first()
+        ).order_by(ResumeModel.version.desc()).first()
         return m.raw_text if m else None
 
-    def delete_non_original(self) -> int:
-        count = self._session.query(ResumeModel).filter(
-            ResumeModel.id != "original"
-        ).delete(synchronize_session=False)
-        self._session.commit()
-        return count
+    def list_linkedin(self) -> list[dict[str, Any]]:
+        rows = self._session.query(ResumeModel).filter(
+            ResumeModel.id.like("linkedin_%")
+        ).order_by(ResumeModel.version.desc()).all()
+        return [self._to_dict(r) for r in rows]
+
+    def get_next_version(self, prefix: str) -> int:
+        row = self._session.query(ResumeModel).filter(
+            ResumeModel.id.like(f"{prefix}_%")
+        ).order_by(ResumeModel.version.desc()).first()
+        return (row.version + 1) if row and row.version else 1
 
     def get_for_job(self, job_id: str) -> dict[str, Any] | None:
         m = self._session.query(ResumeModel).filter(

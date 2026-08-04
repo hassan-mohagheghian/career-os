@@ -36,6 +36,26 @@ def mask_pii(text):
     return masked
 
 
+def text_to_html(text):
+    """Convert plain text resume to simple HTML."""
+    lines = text.strip().split('\n') if text else ''.split('\n')
+    html_parts = []
+    headings = ('Summary', 'Experience', 'Education', 'Skills', 'Projects', 'Certifications', 'Languages')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            html_parts.append('<br/>')
+            continue
+        escaped = html.escape(line)
+        if re.match(r'^[A-Z][A-Z\s]{3,}$', line) or line in headings:
+            html_parts.append(f'<h3 style="margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ddd;padding-bottom:2px;">{escaped}</h3>')
+        elif line.startswith('•') or line.startswith('-'):
+            html_parts.append(f'<li style="margin:2px 0;font-size:11px;">{line.lstrip("•- ")}</li>')
+        else:
+            html_parts.append(f'<p style="margin:3px 0;font-size:11px;">{escaped}</p>')
+    return '\n'.join(html_parts)
+
+
 def repair_llm_json(text: str) -> dict | None:
     """Parse JSON from LLM response, repairing common issues like unquoted strings."""
     if not text:
@@ -82,24 +102,3 @@ def repair_llm_json(text: str) -> dict | None:
     except Exception:
         pass
     return None
-
-
-def text_to_html(text):
-    """Convert plain text resume to simple HTML."""
-    lines = text.split('\n')
-    html_lines = []
-    for line in lines:
-        line = line.strip()
-        if not line:
-            html_lines.append('<br>')
-            continue
-        escaped = html.escape(line)
-        if line.isupper() or line in ('Summary', 'Professional Experience', 'Skills', 'Education', 'Languages'):
-            html_lines.append(f'<h3 style="margin:0.5em 0 0.2em;color:#e6edf3;font-size:14px;border-bottom:1px solid #30363d;padding-bottom:2px">{escaped}</h3>')
-        elif line.startswith('●') or line.startswith('•') or line.startswith('-'):
-            html_lines.append(f'<div style="margin:2px 0;padding-left:1em">{escaped}</div>')
-        elif '|' in line and ('Engineer' in line or 'Developer' in line):
-            html_lines.append(f'<div style="font-weight:600;color:#c9d1d9;margin:4px 0 2px">{escaped}</div>')
-        else:
-            html_lines.append(f'<div style="margin:2px 0">{escaped}</div>')
-    return '\n'.join(html_lines)

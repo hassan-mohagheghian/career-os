@@ -88,6 +88,11 @@ def get_resume_repo(session: Session = Depends(get_session)):
     return SQLAlchemyResumeRepository(session)
 
 
+def get_resume_service(repo: Session = Depends(get_resume_repo)):
+    from jobs.application.services.resume_service import ResumeService
+    return ResumeService(repo)
+
+
 def get_summary_repo(session: Session = Depends(get_session)):
     from jobs.infrastructure import SQLAlchemyJobRepository
     # Summary uses the same repository as jobs during migration

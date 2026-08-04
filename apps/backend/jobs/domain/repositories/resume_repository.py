@@ -34,12 +34,17 @@ class IResumeRepository(ABC):
 
     @abstractmethod
     def get_latest_linkedin_raw_text(self) -> str | None:
-        """Get the latest LinkedIn resume raw text."""
+        """Get the latest LinkedIn raw text."""
         ...
 
     @abstractmethod
-    def delete_non_original(self) -> int:
-        """Delete all resumes except original. Returns count deleted."""
+    def list_linkedin(self) -> list[dict[str, Any]]:
+        """Get all LinkedIn profile rows, newest version first."""
+        ...
+
+    @abstractmethod
+    def get_next_version(self, prefix: str) -> int:
+        """Return the next version number for rows whose id starts with prefix."""
         ...
 
     @abstractmethod
