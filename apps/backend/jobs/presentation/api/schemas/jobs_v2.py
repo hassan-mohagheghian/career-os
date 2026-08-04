@@ -39,8 +39,8 @@ class UpdateJobRequest(BaseModel):
     company: str | None = None
     location: str | None = None
     url: str | None = None
-    work_type: str | None = None
-    employment_type: str | None = None
+    work_types: list[str] | None = None
+    employment_types: list[str] | None = None
     visa: str | None = None
     salary: str | None = None
     description: str | None = None
@@ -65,6 +65,19 @@ class UpdateJobRequest(BaseModel):
             if not str(item.url).startswith(("http://", "https://")):
                 raise ValueError("each link url must start with http:// or https://")
         return v
+
+    @field_validator("work_types", "employment_types", mode="before")
+    @classmethod
+    def coerce_string_list(cls, v: Any) -> list[str] | None:
+        if v is None:
+            return v
+        if isinstance(v, str):
+            items = [x.strip() for x in v.split(",") if x.strip()]
+        elif isinstance(v, list):
+            items = [str(x).strip() for x in v if str(x).strip()]
+        else:
+            raise ValueError("must be a list of strings")
+        return items or None
 
 
 class ProcessingExecutionSchema(BaseModel):
@@ -177,8 +190,8 @@ class JobDetailResponseSchema(BaseModel):
     company_name: str | None = Field(default=None, validation_alias="company")
     role: str | None = None
     location: str | None = None
-    work_type: str | None = None
-    employment_type: str | None = None
+    work_types: list[str] | None = None
+    employment_types: list[str] | None = None
     salary: str | None = None
     visa: str | None = None
     url: str | None = None

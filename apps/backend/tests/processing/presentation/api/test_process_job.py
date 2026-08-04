@@ -12,12 +12,11 @@ def test_process_job_returns_202(client, sa_session):
         title="Software Engineer",
         company="Tech Corp",
         location="Berlin",
-        work_type="Remote",
         deleted=0,
         workflow_log="[]",
         locations='["Berlin"]',
         work_types='["Remote"]',
-        employment_type="Full-time",
+        employment_types='["Full-time"]',
         rescoring=0,
     )
     sa_session.add(job)

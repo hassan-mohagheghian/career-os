@@ -41,12 +41,11 @@ class Job(BaseEntity):
         notes: str | None = None,
         action: str | None = None,
         url: str | None = None,
-        work_type: str = "On-site",
         workflow_log: str = "[]",
         locations: str = "[]",
         deleted: int = 0,
-        employment_type: str = "Full-time",
         work_types: str = "[]",
+        employment_types: str = '["Full-time"]',
         raw_description: str | None = None,
         structured_description: str | None = None,
         adv_at: str | None = None,
@@ -93,12 +92,11 @@ class Job(BaseEntity):
         self.notes = notes
         self.action = action
         self.url = url
-        self.work_type = work_type
         self.workflow_log = workflow_log
         self.locations = locations
         self.deleted = deleted
-        self.employment_type = employment_type
         self.work_types = work_types
+        self.employment_types = employment_types
         self.raw_description = raw_description
         self.structured_description = structured_description
         self.adv_at = adv_at
@@ -159,12 +157,11 @@ class Job(BaseEntity):
             "notes": self.notes,
             "action": self.action,
             "url": self.url,
-            "work_type": self.work_type,
             "workflow_log": self.workflow_log,
             "locations": self.locations,
             "deleted": self.deleted,
-            "employment_type": self.employment_type,
             "work_types": self.work_types,
+            "employment_types": self.employment_types,
             "raw_description": self.raw_description,
             "structured_description": self.structured_description,
             "adv_at": self.adv_at,
@@ -215,12 +212,11 @@ class Job(BaseEntity):
             notes=data.get("notes"),
             action=data.get("action"),
             url=data.get("url"),
-            work_type=data.get("work_type", "On-site"),
             workflow_log=data.get("workflow_log", "[]"),
             locations=data.get("locations", "[]"),
             deleted=data.get("deleted", 0),
-            employment_type=data.get("employment_type", "Full-time"),
             work_types=data.get("work_types", "[]"),
+            employment_types=data.get("employment_types", '["Full-time"]'),
             raw_description=data.get("raw_description"),
             structured_description=data.get("structured_description"),
             adv_at=data.get("adv_at"),

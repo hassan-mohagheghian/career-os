@@ -9,8 +9,8 @@ export interface Job {
   success_score: number | null
   stack: string
   visa: string
-  work_type: string
-  employment_type: string
+  work_types: string[]
+  employment_types: string[]
   posted_at: string | null
   created_at: string
   applicants: string | null
@@ -197,8 +197,8 @@ export interface JobDetail {
   company_name: string | null
   role: string | null
   location: string | null
-  work_type: string | null
-  employment_type: string | null
+  work_types: string[] | null
+  employment_types: string[] | null
   salary: string | null
   visa: string | null
   url: string | null
@@ -219,8 +219,8 @@ export interface JobEditInput {
   company?: string | null
   location?: string | null
   url?: string | null
-  work_type?: string | null
-  employment_type?: string | null
+  work_types?: string[] | null
+  employment_types?: string[] | null
   visa?: string | null
   salary?: string | null
   description?: string | null

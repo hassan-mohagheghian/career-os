@@ -122,8 +122,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_work_types(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        self._job(session, url="https://ex.com/1", work_type="Remote")
-        self._job(session, url="https://ex.com/2", work_type="On-site")
+        self._job(session, url="https://ex.com/1", work_types='["Remote"]')
+        self._job(session, url="https://ex.com/2", work_types='["On-site"]')
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_work_types": "Remote"})
         assert total == 1
@@ -131,8 +131,8 @@ class TestSAJobRepository:
     def test_list_jobs_filter_employment_types(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        self._job(session, url="https://ex.com/1", employment_type="Full-time")
-        self._job(session, url="https://ex.com/2", employment_type="Part-time")
+        self._job(session, url="https://ex.com/1", employment_types='["Full-time"]')
+        self._job(session, url="https://ex.com/2", employment_types='["Part-time"]')
         repo = SQLAlchemyJobRepository(session)
         jobs, total = repo.list_jobs(filters={"filter_employment_types": "Full-time"})
         assert total == 1
@@ -184,7 +184,7 @@ class TestSAJobRepository:
     def test_get_stats(self, session):
         from shared.infrastructure.database.sa_job_repository import SQLAlchemyJobRepository
         from shared.infrastructure.database.models.job_model import JobModel
-        self._job(session, url="https://ex.com/1", match="High", score="A", work_type="Remote")
+        self._job(session, url="https://ex.com/1", match="High", score="A", work_types='["Remote"]')
         self._job(session, url="https://ex.com/2", match="Low", score="B")
         repo = SQLAlchemyJobRepository(session)
         stats = repo.get_stats()

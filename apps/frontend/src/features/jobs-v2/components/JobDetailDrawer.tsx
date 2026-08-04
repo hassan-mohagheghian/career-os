@@ -184,8 +184,8 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         <p className="text-sm text-muted-foreground">{detail.company_name || 'Unknown'}</p>
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
           {detail.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{detail.location}</span>}
-          {detail.work_type && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{detail.work_type}</span>}
-          {detail.employment_type && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{detail.employment_type}</span>}
+          {detail.work_types && detail.work_types.length > 0 && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{detail.work_types.join(', ')}</span>}
+          {detail.employment_types && detail.employment_types.length > 0 && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{detail.employment_types.join(', ')}</span>}
         </div>
         {detail.url && (
           <a
@@ -282,7 +282,7 @@ export function JobDetailDrawer({ jobId, onOpenChange }: JobDetailDrawerProps) {
 
   return (
     <Sheet open={!!jobId} onOpenChange={(open) => { if (!open) onOpenChange(null) }}>
-      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0 flex flex-col">
+      <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Job Details</SheetTitle>
         </SheetHeader>

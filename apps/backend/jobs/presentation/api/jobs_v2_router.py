@@ -38,6 +38,28 @@ from dependencies import get_job_repo, get_processing_execution_repo, get_job_an
 router = APIRouter()
 
 
+def _parse_string_list(raw: Any) -> list[str]:
+    """Parse a stored JSON-array column (work_types / employment_types) into a list.
+
+    Tolerates the formats produced over time: JSON arrays, JSON scalars, and
+    plain non-JSON strings (legacy corrupt rows). Filters out values that are
+    not strings.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            return [raw.strip()] if raw.strip() else []
+        if isinstance(parsed, list):
+            return [str(x).strip() for x in parsed if str(x).strip()]
+        return [str(parsed).strip()] if str(parsed).strip() else []
+    return []
+
+
 def _parse_items(raw: Any, plain_key: str = "content") -> list[dict[str, Any]]:
     """Parse a stored notes/links value into a list of item dicts.
 
@@ -82,14 +104,14 @@ def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
             started_at=None,
             finished_at=None,
         )
-    work_type = (job_dict.get("work_type") or "").lower()
+    work_types = [w.lower() for w in _parse_string_list(job_dict.get("work_types"))]
     visa_raw = job_dict.get("visa")
     return JobListItemSchema(
         id=job_dict.get("id"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         location=job_dict.get("location"),
-        remote=work_type == "remote",
+        remote="remote" in work_types,
         visa_sponsorship=bool(visa_raw and str(visa_raw).strip()),
         job_status=status,
         latest_processing_execution=exec_schema,
@@ -257,15 +279,14 @@ def get_job_detail(
     analysis = analysis_repo.get_by_job_id(job_id)
     summary = summary_repo.get_by_job_id(job_id)
 
-    work_type = (job_dict.get("work_type") or "").lower()
     return JobDetailResponseSchema(
         id=job_dict.get("id"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         role=job_dict.get("role"),
         location=job_dict.get("location"),
-        work_type=job_dict.get("work_type"),
-        employment_type=job_dict.get("employment_type"),
+        work_types=_parse_string_list(job_dict.get("work_types")),
+        employment_types=_parse_string_list(job_dict.get("employment_types")),
         salary=job_dict.get("salary"),
         visa=job_dict.get("visa"),
         url=job_dict.get("url"),
@@ -314,6 +335,9 @@ def update_job(
         data["notes"] = json.dumps(data["notes"], ensure_ascii=False)
     if "links" in data and data["links"] is not None:
         data["links"] = json.dumps(data["links"], ensure_ascii=False)
+    for key in ("work_types", "employment_types"):
+        if key in data and data[key] is not None:
+            data[key] = json.dumps(data[key], ensure_ascii=False)
     job_dict = repo.update_by_id(job_id, data)
     if not job_dict:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -327,8 +351,8 @@ def update_job(
         company_name=job_dict.get("company"),
         role=job_dict.get("role"),
         location=job_dict.get("location"),
-        work_type=job_dict.get("work_type"),
-        employment_type=job_dict.get("employment_type"),
+        work_types=_parse_string_list(job_dict.get("work_types")),
+        employment_types=_parse_string_list(job_dict.get("employment_types")),
         salary=job_dict.get("salary"),
         visa=job_dict.get("visa"),
         url=job_dict.get("url"),

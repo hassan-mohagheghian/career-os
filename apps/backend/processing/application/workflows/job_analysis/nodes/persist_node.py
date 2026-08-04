@@ -55,25 +55,31 @@ class PersistNode:
     def _persist_job(self, job_id: str, result: dict[str, Any]) -> None:
         fields = result.get("fields") or {}
         scores = result.get("scores") or {}
-        self._jobs.update_fields(
-            job_id,
-            title=fields.get("title"),
-            company=fields.get("company"),
-            role=fields.get("role"),
-            location=fields.get("location"),
-            salary=fields.get("salary"),
-            stack=fields.get("stack"),
-            visa=fields.get("visa"),
-            employment_type=fields.get("employment_type"),
-            work_types=json.dumps(fields.get("work_types") or [], ensure_ascii=False),
-            industry=fields.get("industry"),
-            domain=fields.get("domain"),
-            description=fields.get("description"),
-            apply_reason=result.get("apply_reason"),
-            fit_score=scores.get("fit"),
-            success_score=scores.get("success"),
-            overall_score=scores.get("overall"),
-        )
+        updates: dict[str, Any] = {}
+        for key in (
+            "title", "company", "role", "location", "salary", "stack",
+            "visa", "industry", "domain", "description",
+        ):
+            value = fields.get(key)
+            if value:
+                updates[key] = value
+        work_types = fields.get("work_types") or []
+        if work_types:
+            updates["work_types"] = json.dumps(work_types, ensure_ascii=False)
+        employment_types = fields.get("employment_types") or []
+        if employment_types:
+            updates["employment_types"] = json.dumps(employment_types, ensure_ascii=False)
+        if result.get("apply_reason"):
+            updates["apply_reason"] = result["apply_reason"]
+        for key, score in (
+            ("fit_score", scores.get("fit")),
+            ("success_score", scores.get("success")),
+            ("overall_score", scores.get("overall")),
+        ):
+            if score is not None:
+                updates[key] = score
+        if updates:
+            self._jobs.update_fields(job_id, **updates)
 
     def _persist_summary(self, job_id: str, result: dict[str, Any]) -> None:
         fields = result.get("fields") or {}

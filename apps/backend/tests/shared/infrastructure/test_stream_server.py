@@ -210,41 +210,6 @@ class TestNormalizeJobData:
         stream_server._normalize_job_data(d)
         assert d['locations'] == ['Not specified']
 
-    def test_work_type_remote(self):
-        d = {'location': '', 'work_type': 'Remote'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'Remote'
-
-    def test_work_type_work_from_anywhere(self):
-        d = {'location': '', 'work_type': 'Work From Anywhere'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'Remote'
-
-    def test_work_type_hybrid(self):
-        d = {'location': '', 'work_type': 'Hybrid'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'Hybrid'
-
-    def test_work_type_flexible(self):
-        d = {'location': '', 'work_type': 'Flexible'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'Hybrid'
-
-    def test_work_type_onsite(self):
-        d = {'location': '', 'work_type': 'On-site'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'On-site'
-
-    def test_work_type_office(self):
-        d = {'location': '', 'work_type': 'office'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'On-site'
-
-    def test_work_type_default(self):
-        d = {'location': '', 'work_type': 'xyz'}
-        stream_server._normalize_job_data(d)
-        assert d['work_type'] == 'On-site'
-
 
 # ── fetch_url ─────────────────────────────────────────────────────
 
@@ -431,25 +396,22 @@ class TestInsertJob:
         stream_server._insert_job(_job_dict('8000', employment_type=input_et))
         row = mock_get_session.query(JobModel).filter(JobModel.id == '8000').first()
         assert row is not None
-        assert row.employment_type == expected
+        assert json.loads(row.employment_types) == [expected]
 
     def test_work_types_string(self, mock_get_session):
         stream_server._insert_job(_job_dict('8101', work_types='["Remote", "Hybrid"]'))
         row = mock_get_session.query(JobModel).filter(JobModel.id == '8101').first()
         assert json.loads(row.work_types) == ['Remote', 'Hybrid']
-        assert row.work_type == 'Remote'
 
     def test_work_types_invalid_json(self, mock_get_session):
         stream_server._insert_job(_job_dict('8102', work_types='not-json'))
         row = mock_get_session.query(JobModel).filter(JobModel.id == '8102').first()
         assert json.loads(row.work_types) == ['On-site']
-        assert row.work_type == 'On-site'
 
     def test_work_type_fallback(self, mock_get_session):
         stream_server._insert_job(_job_dict('8103', work_types=[], work_type='Hybrid'))
         row = mock_get_session.query(JobModel).filter(JobModel.id == '8103').first()
         assert json.loads(row.work_types) == ['Hybrid']
-        assert row.work_type == 'Hybrid'
 
     def test_empty_locations_string(self, mock_get_session):
         stream_server._insert_job(_job_dict('8201', locations=''))
@@ -487,7 +449,6 @@ class TestInsertJob:
             stream_server._insert_job(d)
         row = mock_get_session.query(JobModel).filter(JobModel.id == '8302').first()
         assert json.loads(row.work_types) == ['On-site']
-        assert row.work_type == 'On-site'
 
 
 class TestInsertSummaryResume:

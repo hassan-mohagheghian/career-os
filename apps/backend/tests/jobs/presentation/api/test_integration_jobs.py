@@ -29,12 +29,11 @@ def test_create_and_get_job(client, test_db):
         title="Software Engineer",
         company="Tech Corp",
         location="Berlin",
-        work_type="Remote",
         deleted=0,
         workflow_log="[]",
         locations='["Berlin"]',
         work_types='["Remote"]',
-        employment_type="Full-time",
+        employment_types='["Full-time"]',
         rescoring=0,
     )
     test_db.add(job)
@@ -83,12 +82,11 @@ def test_get_job_detail(client, test_db):
         title="Backend Engineer",
         company="Example Co",
         location="London",
-        work_type="On-site",
         deleted=0,
         workflow_log="[]",
         locations='["London"]',
         work_types='["On-site"]',
-        employment_type="Full-time",
+        employment_types='["Full-time"]',
         rescoring=0,
     )
     test_db.add(job)

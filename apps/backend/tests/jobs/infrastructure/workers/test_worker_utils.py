@@ -107,34 +107,19 @@ class TestCalculateOverallScore:
 class TestNormalizeJobData:
     def test_known_city_extraction(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Munich, Bavaria, Germany', 'work_type': 'Remote'}
+        d = {'location': 'Munich, Bavaria, Germany'}
         result = _normalize_job_data(d)
         assert result['location'] == 'Munich'
-        assert result['work_type'] == 'Remote'
 
     def test_unknown_city_kept(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Springfield, USA', 'work_type': 'On-site'}
+        d = {'location': 'Springfield, USA'}
         result = _normalize_job_data(d)
         assert 'Springfield' in result['location']
 
-    def test_work_type_normalization(self):
-        from jobs.infrastructure.workers.worker import _normalize_job_data
-        for input_wt, expected in [
-            ('remote', 'Remote'),
-            ('Remote Work', 'Remote'),
-            ('hybrid', 'Hybrid'),
-            ('flexible', 'Hybrid'),
-            ('on-site', 'On-site'),
-            ('office', 'On-site'),
-        ]:
-            d = {'location': 'Berlin', 'work_type': input_wt}
-            result = _normalize_job_data(d)
-            assert result['work_type'] == expected, f"'{input_wt}' should be '{expected}'"
-
     def test_locations_array_normalized(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Berlin', 'locations': ['Munich', 'Hamburg'], 'work_type': 'Hybrid'}
+        d = {'location': 'Berlin', 'locations': ['Munich', 'Hamburg']}
         result = _normalize_job_data(d)
         assert 'Berlin' in result['locations']
         assert 'Munich' in result['locations']
@@ -142,7 +127,7 @@ class TestNormalizeJobData:
 
     def test_empty_location(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': '', 'work_type': 'On-site'}
+        d = {'location': ''}
         result = _normalize_job_data(d)
         assert isinstance(result['locations'], list)
 

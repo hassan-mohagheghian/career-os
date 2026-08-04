@@ -33,8 +33,8 @@ class JobResponse(BaseModel):
     overall_score: float | None = None
     score: str | None = None
     match: str | None = None
-    work_type: str | None = None
-    employment_type: str | None = None
+    work_types: list[str] | None = None
+    employment_types: list[str] | None = None
     status: str | None = None
     deleted: int = 0
     created_at: str | None = None

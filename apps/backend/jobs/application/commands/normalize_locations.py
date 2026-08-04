@@ -77,7 +77,6 @@ def normalize_locations():
         for job in rows:
             location = job.location or ''
             existing_locations = job.locations or '[]'
-            work_type = job.work_type or 'On-site'
             notes = job.notes or ''
             try:
                 locs = json.loads(existing_locations) if isinstance(existing_locations, str) else existing_locations
@@ -89,9 +88,14 @@ def normalize_locations():
                 if city not in all_locations:
                     all_locations.append(city)
             detected_type = detect_work_type(location, notes)
-            if all_locations != locs or detected_type != work_type:
+            work_types = json.loads(job.work_types or '[]') if isinstance(job.work_types, str) else (job.work_types or [])
+            if detected_type not in work_types:
+                work_types.append(detected_type)
+            if all_locations != locs:
                 job.locations = json.dumps(all_locations)
-                job.work_type = detected_type
+                updated += 1
+            if detected_type not in work_types:
+                job.work_types = json.dumps(work_types)
                 updated += 1
         session.commit()
         log.info("Normalized locations", updated=updated)

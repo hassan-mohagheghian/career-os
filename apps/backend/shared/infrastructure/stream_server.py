@@ -147,20 +147,34 @@ def _insert_job(d):
     if isinstance(locations, str):
         locations = [locations] if locations else []
 
-    employment_type = d.get('employment_type', 'Full-time')
-    et_lower = (employment_type or '').lower()
-    if 'full' in et_lower:
-        employment_type = 'Full-time'
-    elif 'part' in et_lower:
-        employment_type = 'Part-time'
-    elif 'contract' in et_lower or 'freelance' in et_lower:
-        employment_type = 'Contract'
-    elif 'intern' in et_lower:
-        employment_type = 'Internship'
-    elif 'temp' in et_lower:
-        employment_type = 'Temporary'
-    else:
-        employment_type = 'Full-time'
+    employment_types = d.get('employment_types', [])
+    if isinstance(employment_types, str):
+        try:
+            employment_types = json.loads(employment_types)
+        except:
+            employment_types = []
+    if not employment_types and d.get('employment_type'):
+        employment_types = [d['employment_type']]
+    normalized_et = []
+    for et in employment_types:
+        et_lower = (et or '').lower()
+        if 'full' in et_lower:
+            if 'Full-time' not in normalized_et:
+                normalized_et.append('Full-time')
+        elif 'part' in et_lower:
+            if 'Part-time' not in normalized_et:
+                normalized_et.append('Part-time')
+        elif 'contract' in et_lower or 'freelance' in et_lower:
+            if 'Contract' not in normalized_et:
+                normalized_et.append('Contract')
+        elif 'intern' in et_lower:
+            if 'Internship' not in normalized_et:
+                normalized_et.append('Internship')
+        elif 'temp' in et_lower:
+            if 'Temporary' not in normalized_et:
+                normalized_et.append('Temporary')
+    if not normalized_et:
+        normalized_et = ['Full-time']
 
     work_types = d.get('work_types', [])
     if isinstance(work_types, str):
@@ -205,13 +219,12 @@ def _insert_job(d):
             'notes': d['notes'],
             'action': d['action'],
             'url': d['url'],
-            'work_type': normalized_wt[0] if normalized_wt else 'On-site',
             'workflow_log': d.get('workflow_log', '[]'),
             'created_at': d.get('created_at', now),
             'locations': json.dumps(locations),
             'deleted': 0,
-            'employment_type': employment_type,
             'work_types': json.dumps(normalized_wt),
+            'employment_types': json.dumps(normalized_et),
             'raw_description': d.get('raw_description'),
             'structured_description': d.get('structured_description'),
             'rescoring': d.get('rescoring', 0),
@@ -285,7 +298,7 @@ def _mark_old_job_deleted(url, exclude_id=None):
         session.close()
 
 def _normalize_job_data(d):
-    """Normalize job location and work_type fields."""
+    """Normalize job location and work_types fields."""
     import re
 
     CITIES = {
@@ -340,15 +353,6 @@ def _normalize_job_data(d):
                     normalized.append(loc.strip())
 
     d['locations'] = normalized if normalized else [d.get('location', 'Not specified')]
-
-    work_type = d.get('work_type', 'On-site')
-    wt_lower = (work_type or '').lower()
-    if 'remote' in wt_lower or 'work from anywhere' in wt_lower:
-        d['work_type'] = 'Remote'
-    elif 'hybrid' in wt_lower or 'flexible' in wt_lower:
-        d['work_type'] = 'Hybrid'
-    else:
-        d['work_type'] = 'On-site'
 
     return d
 

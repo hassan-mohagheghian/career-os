@@ -59,13 +59,15 @@ class SQLAlchemyJobRepository(IJobRepository):
                     wt_conditions = []
                     for wt in wtypes:
                         wt_conditions.append(JobModel.work_types.contains(f'"{wt}"'))
-                        wt_conditions.append(JobModel.work_type == wt)
                     query = query.filter(or_(*wt_conditions))
 
             if filters.get("filter_employment_types"):
                 etypes = [e.strip() for e in filters["filter_employment_types"].split(",") if e.strip()]
                 if etypes:
-                    query = query.filter(JobModel.employment_type.in_(etypes))
+                    et_conditions = []
+                    for et in etypes:
+                        et_conditions.append(JobModel.employment_types.contains(f'"{et}"'))
+                    query = query.filter(or_(*et_conditions))
 
             if filters.get("filter_tech"):
                 like_param = f'%{filters["filter_tech"]}%'
@@ -130,7 +132,7 @@ class SQLAlchemyJobRepository(IJobRepository):
             JobModel.deleted == 0, JobModel.score.in_(["A", "A+", "A++"])
         ).scalar()
         remote = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0, JobModel.work_type == "Remote"
+            JobModel.deleted == 0, JobModel.work_types.contains('"Remote"')
         ).scalar()
 
         return {
@@ -180,8 +182,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         "company",
         "location",
         "url",
-        "work_type",
-        "employment_type",
+        "work_types",
+        "employment_types",
         "visa",
         "salary",
         "description",
@@ -394,8 +396,10 @@ class SQLAlchemyJobRepository(IJobRepository):
             q = q.filter(JobModel.company_id == company_id)
 
         if remote is not None:
-            work_type_filter = "Remote" if remote else "On-site"
-            q = q.filter(JobModel.work_type == work_type_filter)
+            if remote:
+                q = q.filter(JobModel.work_types.contains('"Remote"'))
+            else:
+                q = q.filter(~JobModel.work_types.contains('"Remote"'))
 
         if visa is not None:
             if visa:
@@ -481,8 +485,10 @@ class SQLAlchemyJobRepository(IJobRepository):
             q = q.filter(JobModel.company_id == company_id)
 
         if remote is not None:
-            work_type_filter = "Remote" if remote else "On-site"
-            q = q.filter(JobModel.work_type == work_type_filter)
+            if remote:
+                q = q.filter(JobModel.work_types.contains('"Remote"'))
+            else:
+                q = q.filter(~JobModel.work_types.contains('"Remote"'))
 
         if visa is not None:
             if visa:

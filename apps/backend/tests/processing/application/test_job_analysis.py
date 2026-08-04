@@ -178,7 +178,7 @@ def _payload(**overrides) -> dict:
         "salary": "90k",
         "stack": "Python, Postgres",
         "visa": "sponsored",
-        "employment_type": "full-time",
+        "employment_types": ["full-time"],
         "work_types": ["hybrid"],
         "industry": "fintech",
         "domain": "payments",
@@ -575,6 +575,44 @@ class TestPersistNode:
         state = node(_state())
         assert state.persisted is False
         assert any("No analysis result" in e for e in state.errors)
+
+    def test_null_fields_not_written(self):
+        job_repo, summary_repo, analysis_repo = FakeJobRepo(), FakeSummaryRepo(), FakeAnalysisRepo()
+        node = PersistNode(job_repo, summary_repo, analysis_repo)
+        payload = _payload(
+            title=None, company=None, role=None, location=None, salary=None,
+            visa=None, employment_type=None, work_types=[],
+        )
+        state = _state()
+        state.analysis_context["raw_payload"] = payload
+        state.analysis_result = scoring.build_analysis_result(payload)
+
+        state = node(state)
+
+        assert state.persisted is True
+        for key in ("title", "company", "role", "location", "salary", "visa", "employment_type", "work_types"):
+            assert key not in job_repo.updated, f"{key} should not be written when null"
+        assert job_repo.updated["fit_score"] == 85
+        assert job_repo.updated["overall_score"] == 79
+        assert job_repo.updated["apply_reason"] == "Great role overall."
+
+    def test_empty_result_skips_job_update(self):
+        class NeverCalledRepo(FakeJobRepo):
+            def update_fields(self, job_id, **fields):
+                raise AssertionError("update_fields should not be called")
+
+        node = PersistNode(NeverCalledRepo(), FakeSummaryRepo(), FakeAnalysisRepo())
+        payload = _payload(
+            title=None, company=None, role=None, location=None, salary=None, stack=None,
+            visa=None, employment_types=None, industry=None, domain=None, description=None,
+            work_types=[], apply_reason="", scores=None,
+        )
+        state = _state()
+        state.analysis_context["raw_payload"] = payload
+        state.analysis_result = scoring.build_analysis_result(payload)
+
+        state = node(state)
+        assert state.persisted is True
 
 
 class TestTerminalNodes:

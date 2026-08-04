@@ -57,8 +57,8 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
   const [company, setCompany] = useState('')
   const [location, setLocation] = useState('')
   const [url, setUrl] = useState('')
-  const [workType, setWorkType] = useState('')
-  const [employmentType, setEmploymentType] = useState('')
+  const [workTypes, setWorkTypes] = useState<string[]>([])
+  const [employmentTypes, setEmploymentTypes] = useState<string[]>([])
   const [visa, setVisa] = useState('')
   const [salary, setSalary] = useState('')
   const [description, setDescription] = useState('')
@@ -84,8 +84,8 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
         setCompany(d.company_name ?? '')
         setLocation(d.location ?? '')
         setUrl(d.url ?? '')
-        setWorkType(d.work_type ?? '')
-        setEmploymentType(d.employment_type ?? '')
+        setWorkTypes(d.work_types ?? [])
+        setEmploymentTypes(d.employment_types ?? [])
         setVisa(d.visa ?? '')
         setSalary(d.salary ?? '')
         setDescription(d.description ?? '')
@@ -115,8 +115,8 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
       company: company.trim() || null,
       location: location.trim() || null,
       url: url.trim(),
-      work_type: workType || null,
-      employment_type: employmentType || null,
+      work_types: workTypes.length > 0 ? workTypes : null,
+      employment_types: employmentTypes.length > 0 ? employmentTypes : null,
       visa: visa.trim() || null,
       salary: salary.trim() || null,
       description: description.trim() || null,
@@ -137,7 +137,7 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onOpenChange(null) }}>
-      <SheetContent side="right" className="w-[400px] sm:w-[480px] p-0 flex flex-col h-full">
+      <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col h-full">
         <SheetHeader className="shrink-0 flex flex-row items-center justify-between px-4 py-3 border-b border-border/40">
           <SheetTitle className="text-sm font-semibold flex items-center gap-1.5">
             <Pencil className="w-3.5 h-3.5" /> Edit Job
@@ -177,7 +177,7 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Work Type">
-                  <Select value={workType || undefined} onValueChange={setWorkType}>
+                  <Select value={workTypes[0] || undefined} onValueChange={(v) => setWorkTypes([v])}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {WORK_TYPES.map((t) => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
@@ -185,7 +185,7 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
                   </Select>
                 </Field>
                 <Field label="Employment Type">
-                  <Select value={employmentType || undefined} onValueChange={setEmploymentType}>
+                  <Select value={employmentTypes[0] || undefined} onValueChange={(v) => setEmploymentTypes([v])}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {EMPLOYMENT_TYPES.map((t) => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}

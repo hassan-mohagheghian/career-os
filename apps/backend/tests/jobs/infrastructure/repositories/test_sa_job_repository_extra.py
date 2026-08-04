@@ -71,8 +71,8 @@ class TestListJobs:
         assert total == 1
 
     def test_filter_work_types_json(self, sa_session, repo):
-        m1 = _add(sa_session, id="job-a", work_types='["Hybrid"]', work_type="Remote")
-        _add(sa_session, id="job-b", work_types="[]", work_type="On-site")
+        m1 = _add(sa_session, id="job-a", work_types='["Hybrid"]')
+        _add(sa_session, id="job-b", work_types="[]")
         jobs, total = repo.list_jobs(filters={"filter_work_types": "Hybrid"})
         assert total == 1
         assert jobs[0]["id"] == m1.id
@@ -254,18 +254,18 @@ class TestSearchJobs:
         assert rows[0]["id"] == m1.id
 
     def test_remote_true(self, sa_session, repo):
-        _add(sa_session, id="job-a", work_type="Remote")
-        _add(sa_session, id="job-b", work_type="On-site")
+        _add(sa_session, id="job-a", work_types='["Remote"]')
+        _add(sa_session, id="job-b", work_types='["On-site"]')
         rows, total = repo.search_jobs(remote=True)
         assert total == 1
-        assert rows[0]["work_type"] == "Remote"
+        assert rows[0]["work_types"] == '["Remote"]'
 
     def test_remote_false(self, sa_session, repo):
-        _add(sa_session, id="job-a", work_type="Remote")
-        _add(sa_session, id="job-b", work_type="On-site")
+        _add(sa_session, id="job-a", work_types='["Remote"]')
+        _add(sa_session, id="job-b", work_types='["On-site"]')
         rows, total = repo.search_jobs(remote=False)
         assert total == 1
-        assert rows[0]["work_type"] == "On-site"
+        assert rows[0]["work_types"] == '["On-site"]'
 
     def test_visa_true(self, sa_session, repo):
         m1 = _add(sa_session, id="job-a", visa="US")
@@ -362,10 +362,10 @@ class TestSearchJobsCursor:
 
     def test_all_branches(self, sa_session, repo):
         m1 = _add(sa_session, id="job-a", title="Engineer", company="Alpha", company_id=7,
-                  work_type="Remote", visa="US", overall_score=85, fit_score=80,
+                  work_types='["Remote"]', visa="US", overall_score=85, fit_score=80,
                   success_score=70, updated_at="2026-07-27T10:00:01")
         _add(sa_session, id="job-b", title="Other", company="Beta", company_id=8,
-             work_type="On-site", visa="", overall_score=40, fit_score=30,
+             work_types='["On-site"]', visa="", overall_score=40, fit_score=30,
              success_score=20, updated_at="2026-07-27T10:00:02")
         items, total, _, has_more = repo.search_jobs_cursor(
             query="engineer", processing_status="imported", company_id=7,
@@ -392,11 +392,11 @@ class TestSearchJobsCursor:
         assert items[0]["id"] == m1.id
 
     def test_visa_false_and_remote_false(self, sa_session, repo):
-        _add(sa_session, id="job-a", visa="US", work_type="Remote",
+        _add(sa_session, id="job-a", visa="US", work_types='["Remote"]',
              updated_at="2026-07-27T10:00:01")
-        m2 = _add(sa_session, id="job-b", visa="", work_type="On-site",
+        m2 = _add(sa_session, id="job-b", visa="", work_types='["On-site"]',
                   updated_at="2026-07-27T10:00:02")
-        m3 = _add(sa_session, id="job-c", visa=None, work_type="On-site",
+        m3 = _add(sa_session, id="job-c", visa=None, work_types='["On-site"]',
                   updated_at="2026-07-27T10:00:03")
         items, total, _, _ = repo.search_jobs_cursor(visa=False, remote=False)
         assert total == 2

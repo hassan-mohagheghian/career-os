@@ -11,14 +11,13 @@ def _create_job(test_db, **kwargs) -> JobModel:
         title="Software Engineer",
         company="Tech Corp",
         location="Berlin",
-        work_type="Remote",
+        work_types='["Remote"]',
         visa="Yes",
         status="imported",
         deleted=0,
         workflow_log="[]",
         locations="[]",
-        work_types="[]",
-        employment_type="Full-time",
+        employment_types='["Full-time"]',
         rescoring=0,
         overall_score=85,
         fit_score=80,
@@ -132,8 +131,8 @@ class TestJobListV2API:
         assert data["items"][0]["title"] == "Queued"
 
     def test_filter_by_remote(self, client, test_db):
-        _create_job(test_db, id=1, title="Remote", work_type="Remote")
-        _create_job(test_db, id=2, title="Onsite", work_type="On-site")
+        _create_job(test_db, id=1, title="Remote", work_types='["Remote"]')
+        _create_job(test_db, id=2, title="Onsite", work_types='["On-site"]')
 
         resp = client.get("/api/jobs/list?remote=true")
         data = resp.json()
@@ -166,7 +165,7 @@ class TestJobListV2API:
     def test_response_shape(self, client, test_db):
         _create_job(
             test_db, id=1, title="Engineer", company="Corp", location="Berlin",
-            work_type="Remote", visa="Yes", overall_score=85, fit_score=80,
+            work_types='["Remote"]', visa="Yes", overall_score=85, fit_score=80,
             success_score=90, status="completed",
         )
 

@@ -12,8 +12,8 @@ def _create_job(test_db, **kwargs) -> JobModel:
         role="SWE",
         company="Tech Corp",
         location="Berlin",
-        work_type="Remote",
-        employment_type="Full-time",
+        work_types='["Remote"]',
+        employment_types='["Full-time"]',
         visa="Yes",
         salary="90-110",
         description="original description",
@@ -21,7 +21,6 @@ def _create_job(test_db, **kwargs) -> JobModel:
         deleted=0,
         workflow_log="[]",
         locations="[]",
-        work_types="[]",
         rescoring=0,
     )
     defaults.update(kwargs)

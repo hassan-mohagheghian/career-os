@@ -120,9 +120,10 @@ class TestInsertJob:
         from jobs.infrastructure.workers.worker import _insert_job
         d = _full_job_dict()
         d['employment_type'] = et
+        d['employment_types'] = []
         _insert_job(d)
         row = mock_get_session_worker.query(JobModel).filter(JobModel.id == d['id']).first()
-        assert row.employment_type == expected
+        assert json.loads(row.employment_types) == [expected]
 
     def test_work_types_from_string(self, mock_get_session_worker):
         from jobs.infrastructure.workers.worker import _insert_job
@@ -285,33 +286,27 @@ class TestDbHelpers:
 class TestNormalizeJobDataExtra:
     def test_location_with_parentheses(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Munich (Germany)', 'work_type': 'Remote'}
+        d = {'location': 'Munich (Germany)'}
         result = _normalize_job_data(d)
         assert result['location'] == 'Munich'
 
     def test_unknown_city_in_locations_array_kept(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Berlin', 'locations': ['Springfield', 'Berlin'], 'work_type': 'On-site'}
+        d = {'location': 'Berlin', 'locations': ['Springfield', 'Berlin']}
         result = _normalize_job_data(d)
         assert 'Springfield' in result['locations']
         assert 'Berlin' in result['locations']
 
     def test_locations_string_invalid_json(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Berlin', 'locations': 'not json {{', 'work_type': 'On-site'}
+        d = {'location': 'Berlin', 'locations': 'not json {{'}
         result = _normalize_job_data(d)
         assert isinstance(result['locations'], list)
         assert 'Berlin' in result['locations']
 
-    def test_unknown_work_type_defaults_onsite(self):
-        from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': 'Berlin', 'work_type': 'weird'}
-        result = _normalize_job_data(d)
-        assert result['work_type'] == 'On-site'
-
     def test_empty_entry_in_locations_array(self):
         from jobs.infrastructure.workers.worker import _normalize_job_data
-        d = {'location': '', 'locations': ['', 'Berlin'], 'work_type': 'On-site'}
+        d = {'location': '', 'locations': ['', 'Berlin']}
         result = _normalize_job_data(d)
         assert result['locations'] == ['Berlin']
 
