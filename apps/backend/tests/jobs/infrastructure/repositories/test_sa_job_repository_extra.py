@@ -348,17 +348,31 @@ class TestSearchJobsCursor:
         assert all(i["updated_at"] > first_cursor for i in items)
 
     def test_filters_with_cursor(self, sa_session, repo):
+        ids = [f"job-{i}" for i in range(3)]
         for i in range(3):
-            _add(sa_session, id=f"job-{i}", status="processing", visa="US",
+            _add(sa_session, id=ids[i], status="processing", visa="US",
                  updated_at=f"2026-07-27T10:00:{i:02d}")
         items, total, next_cursor, has_more = repo.search_jobs_cursor(
-            page_size=2, processing_status="processing", visa=True,
+            page_size=2, job_ids=ids, visa=True,
             sort="updated_at", order="asc",
         )
         assert total == 3
         assert len(items) == 2
         assert has_more is True
-        assert next_cursor is not None
+
+    def test_job_ids_filter(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        items, total, _, _ = repo.search_jobs_cursor(job_ids=[m1.id])
+        assert total == 1
+        assert items[0]["id"] == m1.id
+
+    def test_job_ids_empty_excludes_everything(self, sa_session, repo):
+        _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:01")
+        _add(sa_session, id="job-b", updated_at="2026-07-27T10:00:02")
+        items, total, _, _ = repo.search_jobs_cursor(job_ids=[])
+        assert total == 0
+        assert items == []
 
     def test_all_branches(self, sa_session, repo):
         m1 = _add(sa_session, id="job-a", title="Engineer", company="Alpha", company_id=7,
@@ -368,7 +382,7 @@ class TestSearchJobsCursor:
              work_types='["On-site"]', visa="", overall_score=40, fit_score=30,
              success_score=20, updated_at="2026-07-27T10:00:02")
         items, total, _, has_more = repo.search_jobs_cursor(
-            query="engineer", processing_status="imported", company_id=7,
+            query="engineer", job_ids=[m1.id], company_id=7,
             remote=True, visa=True,
             overall_score_min=80, overall_score_max=90,
             fit_score_min=70, fit_score_max=90,

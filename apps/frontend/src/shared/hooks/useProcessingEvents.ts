@@ -77,6 +77,7 @@ export function useProcessingEvents() {
           updated_at: data.payload.updated_at || job.updated_at,
         }))
         queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
+        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
         break
 
       case 'execution.failed':
@@ -87,6 +88,7 @@ export function useProcessingEvents() {
             : { id: data.execution_id, status: 'failed', started_at: null, finished_at: data.payload.updated_at || null },
         }))
         queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
+        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
         break
 
       case 'execution.cancelled':
@@ -96,9 +98,10 @@ export function useProcessingEvents() {
             ? { ...job.latest_processing_execution, status: 'cancelled', finished_at: data.payload.updated_at || null }
             : { id: data.execution_id, status: 'cancelled', started_at: null, finished_at: data.payload.updated_at || null },
         }))
+        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
         break
     }
-  }, [updateJobInCache])
+  }, [updateJobInCache, queryClient])
 
   useEffect(() => {
     return subscribeProcessingEvents((type, data) => {

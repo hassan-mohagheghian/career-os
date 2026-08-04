@@ -82,13 +82,15 @@ Displayed as a colored badge.
 
 Possible values
 
-- Created
 - Queued
 - Starting
 - Running
 - Completed
 - Failed
 - Cancelled
+
+A job that has never been processed shows no processing badge (the list item
+carries `latest_processing_execution = null`).
 
 Running executions additionally display:
 
@@ -108,7 +110,7 @@ core data (see `features/jobs/edit-job.md`).
 A **Delete** action is always available, allowing the user to permanently remove
 the Job and all its processing data (see `features/jobs/delete-job.md`).
 
-Created
+No processing (never processed)
 
 - Process (icon)
 - Details (icon)
@@ -160,6 +162,10 @@ Rows update automatically using SSE.
 The page must not reload.
 
 Only the affected row should rerender.
+
+When an execution reaches a terminal state, the list is refetched in the
+background so the row shows the persisted pipeline output (extracted title,
+final status) and stays correct across a reload.
 
 ---
 

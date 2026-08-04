@@ -20,6 +20,18 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
+    def latest_by_target_ids(
+        self, target_type: str, target_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Return the most recent execution per target id (batch, no N+1)."""
+        ...
+
+    @abstractmethod
+    def target_ids_with_status(self, target_type: str, status: str) -> set[str]:
+        """Return target ids whose latest execution has the given status."""
+        ...
+
+    @abstractmethod
     def delete_by_target(self, target_type: str, target_id: str) -> int:
         """Delete all executions for a target. Returns number deleted."""
         ...

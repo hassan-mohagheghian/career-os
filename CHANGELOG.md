@@ -1,5 +1,54 @@
 # Changelog
 
+## [2.8.0] — 2026-08-04
+
+### Changed
+
+- **Job list is now driven by `processing_executions`, not legacy status** —
+  `GET /api/jobs/list` no longer reads `jobs.status`. Each row carries a
+  projection of the job's **latest** execution (id, status, started/finished
+  timestamps); `job_status` is that execution's status (`null` when the job has
+  never been processed). The `processing_status` filter matches only jobs whose
+  latest execution (by `created_at`) has the given status, and the legacy
+  `JobListItem` payload keeps working through the cursor-based
+  `search_jobs_cursor` which now filters by `job_ids` instead of
+  `processing_status`.
+  - `SQLAlchemyProcessingExecutionRepository` gained `latest_by_target_ids`
+    (batch latest lookup, no N+1) and `target_ids_with_status` (single window
+    query over `created_at desc` per target).
+  - The persist node now bumps `updated_at` whenever it writes analysis fields
+    or scores, so a completed execution surfaces at the top of the default
+    (updated_at desc) sort.
+
+- **Completed/failed/cancelled executions refresh the job list** —
+  `useProcessingEvents` now invalidates the `jobs-v2-infinite` queries when an
+  execution reaches a terminal state, so the row is refetched and shows the
+  persisted pipeline output (extracted title/company, scores, final status)
+  across reloads. Non-terminal events still update the row in place only.
+
+### Added
+
+- **Backend tests** — `tests/processing/infrastructure/repositories/test_sa_processing_execution_repository.py`
+  (latest-per-target batch + latest-only status filter), updated
+  `tests/jobs/presentation/api/test_jobs_v2_api.py` (real execution projection,
+  latest-only filtering, null status without execution, completed-job listing),
+  and `tests/jobs/infrastructure/repositories/test_sa_job_repository_extra.py`
+  (job_ids filter semantics incl. empty list → no rows).
+- **Frontend test** — `src/shared/hooks/useProcessingEvents.test.tsx` asserts
+  terminal execution events invalidate the jobs list query while non-terminal
+  events do not.
+
+### Docs
+
+- `docs/api/jobs/list-jobs.md`, `docs/domain/jobs/job-list-item.md`,
+  `docs/domain/processing/processing-execution.md`,
+  `docs/ux/features/jobs/page.md`, `docs/ux/features/jobs/job-row.md`, and
+  `docs/ux/flows/jobs/process-job-live.md` updated to document that the list is
+  execution-driven (latest execution projection, latest-only status filter, no
+  legacy `jobs.status` fallback) and that terminal events trigger a list
+  refetch.
+
+
 ## [2.7.0] — 2026-08-04
 
 ### Fixed

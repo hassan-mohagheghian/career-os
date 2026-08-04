@@ -243,13 +243,15 @@ The Refresh button reloads the current query.
 
 ## Automatic Refresh
 
-Only the affected row is updated when:
+Live SSE updates mutate the affected row in place (status, timestamps,
+scores) without re-rendering the whole table.
 
-- Processing status changes.
-- Scores become available.
-- Job metadata changes.
-
-The entire table must never be re-rendered because of a single processing update.
+When an execution reaches a **terminal state** (completed / failed /
+cancelled), the list query is also invalidated and refetched in the
+background. This guarantees the row reflects what is actually persisted by
+the pipeline — e.g. the job title extracted during analysis and the final
+execution status — even across a reload. Non-terminal events update the row
+in place only.
 
 # Job Row
 

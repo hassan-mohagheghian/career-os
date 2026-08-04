@@ -79,6 +79,7 @@ class PersistNode:
             if score is not None:
                 updates[key] = score
         if updates:
+            updates["updated_at"] = datetime.now(UTC)
             self._jobs.update_fields(job_id, **updates)
 
     def _persist_summary(self, job_id: str, result: dict[str, Any]) -> None:

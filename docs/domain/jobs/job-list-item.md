@@ -88,19 +88,26 @@ Fields:
 
 Execution details are retrieved separately.
 
+A job that has never been processed has `latest_processing_execution = null`
+and `job_status = null` — there is no fallback to the legacy `jobs.status`.
+
 ---
 
 # Processing Status
 
 Supported values
 
-- Created
 - Queued
 - Starting
 - Running
 - Completed
 - Failed
 - Cancelled
+
+The status comes from the job's **latest** `processing_execution` row
+(`created_at` desc), not from the legacy `jobs.status` column. When the list
+is filtered by processing status, only the latest execution per job is
+considered.
 
 ---
 
@@ -110,10 +117,9 @@ The Job List determines available actions from the Processing Status.
 
 Examples
 
-Created
+No execution (never processed)
 
-- Process V2
-- Legacy Process
+- Process
 - View Details
 
 Running

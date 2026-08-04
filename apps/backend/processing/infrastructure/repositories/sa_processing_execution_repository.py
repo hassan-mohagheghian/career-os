@@ -4,6 +4,7 @@ import json
 from typing import Any
 from datetime import datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from processing.domain.entities.processing_execution import ProcessingExecution
@@ -100,6 +101,65 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
             ProcessingExecutionModel.target_id == target_id,
         ).order_by(ProcessingExecutionModel.created_at.desc()).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
+
+    def latest_by_target_ids(
+        self, target_type: str, target_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Return the most recent execution per target id (batch, no N+1).
+
+        Returns ``{target_id: execution_dict}`` for targets that have at least
+        one execution. Used by the jobs list projection so each row carries the
+        real persisted execution (status, id, timestamps).
+        """
+        if not target_ids:
+            return {}
+        models = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.target_type == target_type,
+                ProcessingExecutionModel.target_id.in_(target_ids),
+            )
+            .order_by(
+                ProcessingExecutionModel.target_id.asc(),
+                ProcessingExecutionModel.created_at.desc(),
+                ProcessingExecutionModel.id.desc(),
+            )
+            .all()
+        )
+        latest: dict[str, dict[str, Any]] = {}
+        for model in models:
+            latest.setdefault(model.target_id, model_to_dict(model))
+        return latest
+
+    def target_ids_with_status(self, target_type: str, status: str) -> set[str]:
+        """Return target ids whose latest execution has the given status.
+
+        Uses a window function (ROW_NUMBER over ``created_at desc`` partitioned
+        by ``target_id``) so only the most recent execution per target counts.
+        ``id desc`` breaks ties between executions sharing the same timestamp.
+        """
+        row_number = func.row_number().over(
+            partition_by=ProcessingExecutionModel.target_id,
+            order_by=(
+                ProcessingExecutionModel.created_at.desc(),
+                ProcessingExecutionModel.id.desc(),
+            ),
+        )
+        ranked = (
+            select(
+                ProcessingExecutionModel.target_id.label("target_id"),
+                ProcessingExecutionModel.status.label("status"),
+                row_number.label("rn"),
+            )
+            .where(ProcessingExecutionModel.target_type == target_type)
+            .subquery()
+        )
+        rows = (
+            self._session.query(ranked.c.target_id)
+            .filter(ranked.c.rn == 1, ranked.c.status == status)
+            .all()
+        )
+        return {row[0] for row in rows}
 
     def delete_by_target(self, target_type: str, target_id: str) -> int:
         return self._session.query(ProcessingExecutionModel).filter(

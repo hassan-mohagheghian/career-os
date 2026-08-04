@@ -16,7 +16,7 @@ class ListJobsV2Request:
     query: str | None = None
     sort: str = "updated_at"
     order: str = "desc"
-    processing_status: str | None = None
+    job_ids: list[str] | None = None
     company_id: int | None = None
     remote: bool | None = None
     visa: bool | None = None
@@ -50,7 +50,7 @@ class ListJobsV2UseCase:
             query=request.query,
             sort=request.sort,
             order=request.order,
-            processing_status=request.processing_status,
+            job_ids=request.job_ids,
             company_id=request.company_id,
             remote=request.remote,
             visa=request.visa,

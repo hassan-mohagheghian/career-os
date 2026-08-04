@@ -454,7 +454,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         query: str | None = None,
         sort: str = "updated_at",
         order: str = "desc",
-        processing_status: str | None = None,
+        job_ids: list[str] | None = None,
         company_id: int | None = None,
         remote: bool | None = None,
         visa: bool | None = None,
@@ -478,8 +478,8 @@ class SQLAlchemyJobRepository(IJobRepository):
                 )
             )
 
-        if processing_status:
-            q = q.filter(JobModel.status == processing_status)
+        if job_ids is not None:
+            q = q.filter(JobModel.id.in_(job_ids))
 
         if company_id is not None:
             q = q.filter(JobModel.company_id == company_id)

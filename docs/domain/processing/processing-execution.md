@@ -303,6 +303,24 @@ Each execution represents one processing attempt.
 
 ---
 
+# Source of Truth for the Job List
+
+ProcessingExecution is the **source of truth** for the processing state shown
+in the Jobs list (`GET /api/jobs/list`):
+
+- Each list row carries a projection of the job's **latest** execution
+  (id, status, started_at, finished_at) and `job_status = latest.status`.
+- The `processing_status` list filter matches only jobs whose latest execution
+  (by `created_at`) has the given status.
+- Jobs without an execution show `latest_processing_execution = null` and
+  `job_status = null`; the legacy `jobs.status` column is not used by the list.
+
+The projection is produced without N+1 queries: the repository batch-loads the
+latest execution per target id and resolves status filters with a single window
+query (`ROW_NUMBER() OVER (PARTITION BY target_id ORDER BY created_at DESC)`).
+
+---
+
 # API Exposure
 
 Clients access execution information through APIs.

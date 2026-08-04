@@ -8,9 +8,14 @@ This endpoint is optimized for browsing, searching, filtering and sorting.
 
 The endpoint is read-only.
 
-It never returns ProcessingExecution data.
+Each row carries a small projection of the job's **latest processing execution**
+(id, status, started/finished timestamps). Live, step-by-step progress is
+retrieved separately through SSE.
 
-Live execution information is retrieved separately through SSE.
+A job that has never been processed has `latest_processing_execution` set to
+`null` and `job_status` set to `null`. Processing status comes exclusively from
+`processing_executions` — the legacy `jobs.status` column is not used by this
+endpoint.
 
 ---
 
@@ -57,7 +62,6 @@ Search should be case-insensitive.
 ```text
 processing_status=
 
-created
 queued
 starting
 running
@@ -66,17 +70,17 @@ failed
 cancelled
 ```
 
+A job matches only when its **latest** execution (by `created_at`) has the given
+status. Jobs with no execution are never returned by this filter, regardless of
+the legacy `jobs.status` value.
+
 ---
 
-### Job Status
+### Processing Status
 
-```text
-job_status=
-
-imported
-processed
-archived
-```
+The `processing_status` filter above is the only status filter. The legacy
+`jobs.status` values (`imported`, `processed`, `archived`) are not part of the
+list model and cannot be filtered on here.
 
 ---
 
@@ -165,7 +169,7 @@ desc
       "remote": true,
       "visa_sponsorship": false,
 
-      "job_status": "processed",
+      "job_status": "completed",
 
       "latest_processing_execution": {
         "id": "...",

@@ -89,21 +89,22 @@ def _items_to_dicts(items: list[Any], plain_key: str) -> list[dict[str, Any]]:
     return result
 
 
-def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
+def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any] | None = None) -> JobListItemSchema:
     scores = ScoresSchema(
         overall=job_dict.get("overall_score"),
         fit=job_dict.get("fit_score"),
         success=job_dict.get("success_score"),
     )
-    status = job_dict.get("status", "imported")
     exec_schema = None
-    if status in ("queued", "processing", "running", "completed", "failed", "cancelled"):
+    job_status = None
+    if latest_execution:
         exec_schema = ProcessingExecutionSchema(
-            id=str(job_dict.get("id", "")),
-            status=status,
-            started_at=None,
-            finished_at=None,
+            id=str(latest_execution.get("id") or job_dict.get("id")),
+            status=latest_execution.get("status"),
+            started_at=latest_execution.get("started_at"),
+            finished_at=latest_execution.get("finished_at"),
         )
+        job_status = latest_execution.get("status")
     work_types = [w.lower() for w in _parse_string_list(job_dict.get("work_types"))]
     visa_raw = job_dict.get("visa")
     return JobListItemSchema(
@@ -113,7 +114,7 @@ def _v2_job_to_schema(job_dict: dict[str, Any]) -> JobListItemSchema:
         location=job_dict.get("location"),
         remote="remote" in work_types,
         visa_sponsorship=bool(visa_raw and str(visa_raw).strip()),
-        job_status=status,
+        job_status=job_status,
         latest_processing_execution=exec_schema,
         scores=scores,
         updated_at=job_dict.get("updated_at"),
@@ -140,10 +141,15 @@ def list_jobs_v2(
     success_score_min: int | None = Query(None),
     success_score_max: int | None = Query(None),
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
+    job_ids: list[str] | None = None
+    if processing_status:
+        job_ids = sorted(exec_repo.target_ids_with_status("job", processing_status))
     request = ListJobsV2Request(
         page=page, page_size=page_size, cursor=cursor, query=query, sort=sort, order=order,
-        processing_status=processing_status, company_id=company_id,
+        job_ids=job_ids,
+        company_id=company_id,
         remote=remote, visa=visa,
         overall_score_min=overall_score_min, overall_score_max=overall_score_max,
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
@@ -151,7 +157,9 @@ def list_jobs_v2(
     )
     use_case = ListJobsV2UseCase(repo)
     result = use_case.execute(request)
-    items = [_v2_job_to_schema(j) for j in result.items]
+    page_job_ids = [j.get("id") for j in result.items if j.get("id")]
+    latest_executions = exec_repo.latest_by_target_ids("job", page_job_ids)
+    items = [_v2_job_to_schema(j, latest_executions.get(j.get("id"))) for j in result.items]
     total_pages = max(1, math.ceil(result.total / page_size)) if result.total else 1
     return JobListResponseSchema(
         items=items,

@@ -10,6 +10,7 @@ Covers:
 """
 
 import json
+from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -699,6 +700,7 @@ class TestPersistNode:
         assert job_repo.updated["fit_score"] == 85
         assert job_repo.updated["overall_score"] == 79
         assert job_repo.updated["apply_reason"] == "Great role overall."
+        assert isinstance(job_repo.updated["updated_at"], datetime)
         assert summary_repo.upserted["score"] == "A"
         assert summary_repo.upserted["summary"] == "Backend role at Acme."
         assert analysis_repo.upserted["job_id"] == "job-uuid-1"

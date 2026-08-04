@@ -428,11 +428,17 @@ Job List:
 
 Senior Backend Engineer
 
-Processed
+Completed
 
 The Job remains in the Jobs list.
 
 The Queue entry is temporary.
+
+On the terminal `execution.completed` event the frontend invalidates the Jobs
+list query, so the row is refetched and shows the **persisted** pipeline output
+— the title/company extracted during analysis, the scores, and the `completed`
+status from the finished execution. The row therefore stays correct even after
+a page reload.
 
 ---
 
