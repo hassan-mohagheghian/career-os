@@ -6,6 +6,7 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon } from '@phosphor-icons/react'
 import { jobApi } from '@/entities/job/api'
 import type { JobDetail, JobDetailWorkflowStep } from '@/entities/job/types'
+import DateTime from '@/shared/components/DateTime'
 
 interface JobDetailDrawerProps {
   jobId: string | null
@@ -83,7 +84,7 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
           </Badge>
           {analysis.generated_at && (
             <span className="text-2xs text-muted-foreground">
-              {new Date(analysis.generated_at).toLocaleString()}
+              <DateTime value={analysis.generated_at} />
             </span>
           )}
         </div>
@@ -220,7 +221,7 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         <DetailRow label="Status" value={detail.status} />
         <DetailRow label="Salary" value={detail.salary} />
         <DetailRow label="Visa" value={detail.visa} />
-        <DetailRow label="Created" value={detail.created_at ? new Date(detail.created_at).toLocaleString() : null} />
+        <DetailRow label="Created" value={<DateTime value={detail.created_at} />} />
       </div>
 
       <div className="rounded-lg border border-border/40 bg-muted/10 p-3">

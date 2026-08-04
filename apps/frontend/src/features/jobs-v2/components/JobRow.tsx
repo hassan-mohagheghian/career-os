@@ -3,7 +3,7 @@ import type { ProcessingStatus as PStatus } from '@/entities/job/types'
 import { ScoreBadge } from './ScoreBadge'
 import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
-import { formatTimeAgo } from '@/shared/lib/formatTimeAgo'
+import DateTime from '@/shared/components/DateTime'
 import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
 
 interface JobRowProps {
@@ -68,14 +68,10 @@ export function JobRow({
         <ProcessingStatus status={processingStatus} />
       </div>
       <div className="py-2 px-3 flex items-center">
-        <span className="text-2xs text-muted-foreground whitespace-nowrap">
-          {job.updated_at ? formatTimeAgo(job.updated_at) : '—'}
-        </span>
+        <DateTime value={job.updated_at} format="relative" className="text-2xs text-muted-foreground" />
       </div>
       <div className="py-2 px-3 flex items-center">
-        <span className="text-2xs text-muted-foreground whitespace-nowrap">
-          {job.created_at ? formatTimeAgo(job.created_at) : '—'}
-        </span>
+        <DateTime value={job.created_at} format="relative" className="text-2xs text-muted-foreground" />
       </div>
       <div className="py-2 px-3 flex items-center justify-end" onClick={e => e.stopPropagation()}>
         <JobActions

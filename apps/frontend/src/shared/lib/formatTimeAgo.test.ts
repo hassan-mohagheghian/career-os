@@ -46,4 +46,10 @@ describe('formatTimeAgo', () => {
     const ts = new Date(Date.now()).toISOString()
     expect(formatTimeAgo(ts)).toBe('just now')
   })
+
+  it('treats a naive UTC timestamp (no offset) as UTC, not local', () => {
+    // The backend serializes UTC without a timezone marker. It must be read as
+    // UTC or the relative diff is shifted by the local offset.
+    expect(formatTimeAgo('2026-07-27T11:00:00')).toBe('1h ago')
+  })
 })

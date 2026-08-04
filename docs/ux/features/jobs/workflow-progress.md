@@ -529,7 +529,7 @@ refetched live when the execution completes/fails (SSE invalidates the
 │ Senior Backend Engineer                        [ Apply ]      │
 │ GetYourGuide · Berlin · visa-sponsored                        │
 ├──────────────────────────────────────────────────────────────┤
-│ AI Analysis                          generated 2 min ago      │
+│ AI Analysis                    generated Jul 30, 2026, 4:32 PM │
 │                                                              │
 │  Recommendation: Apply ✓                                     │
 │  Because the role matches your Go + Postgres stack and the   │

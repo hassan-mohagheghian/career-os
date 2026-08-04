@@ -557,11 +557,16 @@ Just now
 Yesterday
 ```
 
-Hover shows the absolute timestamp.
+Hover shows the absolute timestamp, converted to the browser's **local** time.
 
 ```text
-2026-07-30 14:32 UTC
+Jul 30, 2026, 4:32 PM (your local time)
 ```
+
+The backend stores and serializes datetimes in UTC without a timezone marker;
+the shared `DateTime` component interprets them as UTC and renders them in the
+user's local timezone, so the displayed value always matches the current local
+clock.
 
 ---
 
