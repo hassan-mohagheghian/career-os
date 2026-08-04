@@ -10,6 +10,8 @@ AI-powered career platform for software engineers — job discovery, company ana
 
 Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + background workers (TaskIQ + Redis).
 
+Both apps run in **reload mode**: backend via uvicorn `--reload`, frontend via `next dev`. Code changes reload automatically; **test files are excluded** — editing `apps/backend/tests/` or frontend `*.test.*` files does not restart the apps. The backend's graceful shutdown is bounded to 5s so a long-lived SSE stream (e.g. the open Processing Queue drawer) can't block a reload. Pass `-b/--background` to also start the background worker + scheduler.
+
 ## Tech Stack
 
 | Layer | Technology |

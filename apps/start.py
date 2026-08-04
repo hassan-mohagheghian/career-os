@@ -253,6 +253,18 @@ def dev(
     _ok("All processes stopped.")
 
 
+def _uvicorn_args(port: int) -> list[str]:
+    """Build the uvicorn dev-server args with code reload that ignores test files."""
+    return [
+        "-m", "uvicorn", "apps.backend.entrypoints.api:app",
+        "--host", "0.0.0.0", "--port", str(port), "--reload",
+        "--reload-exclude", str(SERVER_DIR / "tests"),
+        "--reload-exclude", "test_*.py",
+        "--reload-exclude", "*_test.py",
+        "--timeout-graceful-shutdown", "5",
+    ]
+
+
 def _start_backend(port: int):
     _log("Starting backend server...")
     python = _python_path()
@@ -260,13 +272,9 @@ def _start_backend(port: int):
 
     _run_migrations()
 
-    port_str = str(port)
     env = os.environ.copy()
     proc = subprocess.Popen(
-        [
-            python, "-m", "uvicorn", "apps.backend.entrypoints.api:app",
-            "--host", "0.0.0.0", "--port", port_str, "--reload",
-        ],
+        [python, *_uvicorn_args(port)],
         cwd=str(REPO_ROOT),
         env=env,
     )
@@ -342,13 +350,9 @@ def backend(
 
     _run_migrations()
 
-    port_str = str(port_val)
     env = os.environ.copy()
     proc = subprocess.Popen(
-        [
-            python, "-m", "uvicorn", "apps.backend.entrypoints.api:app",
-            "--host", "0.0.0.0", "--port", port_str, "--reload",
-        ],
+        [python, *_uvicorn_args(port_val)],
         cwd=str(REPO_ROOT),
         env=env,
     )
