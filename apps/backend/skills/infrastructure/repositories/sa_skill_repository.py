@@ -28,7 +28,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         query = self._session.query(SkillModel).filter(SkillModel.hidden == 0)
         if category:
             query = query.filter(SkillModel.category == category)
-        query = query.order_by(SkillModel.level.desc())
+        query = query.order_by(SkillModel.level.desc().nulls_last())
         rows = query.all()
         result = []
         for row in rows:
