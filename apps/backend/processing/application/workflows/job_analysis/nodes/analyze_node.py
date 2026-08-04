@@ -91,6 +91,7 @@ class AnalyzeNode:
         profile_text = state.analysis_context.get("profile_text") or ""
         scoring_rules = state.analysis_context.get("scoring_rules") or ""
         resume_text = state.analysis_context.get("resume_text") or ""
+        profile_documents = state.analysis_context.get("profile_documents") or ""
 
         if not job_text:
             state.errors.append(f"[{NODE_ID}] No job text to analyze for {state.job_id}")
@@ -98,7 +99,7 @@ class AnalyzeNode:
             progress_ops.complete_step(self._events, state, NODE_ID)
             return state
 
-        prompt = build_job_analysis_prompt(job_text, profile_text, scoring_rules, resume_text)
+        prompt = build_job_analysis_prompt(job_text, profile_text, scoring_rules, resume_text, profile_documents)
         schema = build_job_analysis_output_schema()
         llm = self._llm or get_llm_service()
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-JOB_ANALYSIS_PROMPT_VERSION = "1.0.0"
+JOB_ANALYSIS_PROMPT_VERSION = "1.1.0"
 JOB_ANALYSIS_SCHEMA_VERSION = "1.0.0"
 
 
@@ -83,8 +83,14 @@ def build_job_analysis_prompt(
     user_profile_text: str,
     scoring_rules: str,
     resume_text: str,
+    profile_documents: str = "",
 ) -> str:
-    """Build the single combined analysis prompt for a job."""
+    """Build the single combined analysis prompt for a job.
+
+    profile_documents carries the latest resume and LinkedIn profile as labeled
+    extra context. The resume is the authoritative source for skills and
+    seniority; LinkedIn supplements it (e.g. current company, title, tenure).
+    """
     schema = json.dumps(build_job_analysis_output_schema(), indent=2)
     return f"""You are a senior career advisor for a software engineer seeking a visa-sponsored role in Europe (Germany, Netherlands).
 
@@ -93,18 +99,18 @@ Analyze the job posting below and the user's profile, then produce a complete st
 JOB POSTING TEXT:
 {job_text}
 
-USER PROFILE (skills and resume):
+USER PROFILE (skills):
 {user_profile_text}
 
-RESUME TEXT (latest):
-{resume_text}
+USER PROFILE DOCUMENTS (latest resume and LinkedIn profile):
+{profile_documents or resume_text}
 
 SCORING RULES TO APPLY:
 {scoring_rules}
 
 Your analysis must:
 1. Extract the job fields (title, company, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
-2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain).
+2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain). Base this primarily on the RESUME text; use the LinkedIn profile as supplementary evidence (current title, company, tenure, notable achievements).
 3. Score success (0-100): the user's probability of getting an offer (seniority match, level, salary, competition).
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).
 5. Recommend apply / consider / skip based on the scores, and write a short apply_reason justifying it.

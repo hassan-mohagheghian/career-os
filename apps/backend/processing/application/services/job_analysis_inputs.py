@@ -29,6 +29,26 @@ def build_resume_text(resume_raw: str | None) -> str:
     return resume_raw[:6000]
 
 
+MAX_PROFILE_DOC_CHARS = 6000
+
+
+def build_profile_documents_text(resume_raw: str | None, linkedin_raw: str | None) -> str:
+    """Format the latest resume and LinkedIn profile as labeled prompt sections.
+
+    Each source is truncated independently so a very long document cannot crowd
+    out the other. The resume section is listed first because it is the
+    authoritative source for skills and seniority.
+    """
+    sections = []
+    if resume_raw:
+        sections.append(f"RESUME TEXT (latest):\n{resume_raw[:MAX_PROFILE_DOC_CHARS]}")
+    if linkedin_raw:
+        sections.append(f"LINKEDIN PROFILE TEXT (latest):\n{linkedin_raw[:MAX_PROFILE_DOC_CHARS]}")
+    if not sections:
+        return "(no resume or LinkedIn profile available)"
+    return "\n\n".join(sections)
+
+
 def build_scoring_rules_text(rules: list[dict[str, Any]]) -> str:
     """Format enabled scoring rules (SHARED + JOB scopes) for the prompt."""
     if not rules:
