@@ -49,6 +49,7 @@ docs/ux/
     └── jobs/
         ├── browse-jobs.md     Browse, search, filter, sort
         ├── create-job.md      Create job (import only)
+        ├── queue-job.md       Create job + immediately queue (instant workflow)
         ├── edit-job.md        Edit a job's core data
         ├── delete-job.md      Delete a job
         ├── process-job.md     Start processing

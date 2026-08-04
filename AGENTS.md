@@ -113,14 +113,31 @@ uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 ./start test all --coverage
 ```
 
-## Before Making Changes
+## Development Workflow
 
-1. Read the relevant documentation under `docs/` (context, domain, architecture, API, UX).
-2. Understand the affected module and its neighbors.
-3. Preserve architecture boundaries (contexts must not cross-import).
-4. Implement with minimal, focused changes.
-5. Add or update tests for any changed behavior.
-6. Verify the relevant test suite passes.
+Investigate → Update tests/docs → Code → Refine. Code, tests, and docs must never drift.
+
+1. **Investigate (before coding)**
+   - Read the relevant docs under `docs/` and the repo-root guides (`CONTEXT.md`, `DOMAIN.md`,
+     `ARCHITECTURE.md`, `API.md`) for the affected module.
+   - Read the existing tests for the module to learn conventions and expected behavior.
+   - Understand the affected module and its neighbors; preserve architecture boundaries
+     (contexts must not cross-import).
+2. **Update tests + docs (before coding)**
+   - Write or update the test(s) that describe the new behavior first (TDD red phase).
+   - Update the affected docs (API, domain, architecture, UX) to reflect the planned
+     behavior before implementing it.
+3. **Code**
+   - Implement the minimal, focused change to make the tests pass (TDD green phase).
+   - Keep tests and docs in sync as you code — no drift between code, tests, and docs.
+4. **Refine (after coding)**
+   - Run the relevant test suite and fix failures.
+   - Refactor for clarity, then run the checks for the changed layer:
+     - Backend: `uv run pytest apps/backend/tests/ -v`
+     - Frontend: `cd apps/frontend && npx vitest run` plus `npm run lint` and `npm run typecheck`
+   - Re-read your change against the tests and docs and tighten anything inaccurate.
+
+Rule: a change must not alter behavior without the corresponding test and doc updates.
 
 ## Documentation Entry Points
 
