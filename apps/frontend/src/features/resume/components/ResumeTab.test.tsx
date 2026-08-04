@@ -97,4 +97,35 @@ describe('ResumeTab', () => {
     render(<ResumeTab {...defaultProps} resumes={resumes} />)
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
+
+  it('deletes resume by id', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ status: 'deleted' }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const onRefresh = vi.fn()
+    const resumes = [
+      { id: 'original_2', version: 2, created_at: '2026-07-20T10:00:00Z', content: '<p>Resume</p>' },
+    ]
+    render(<ResumeTab {...defaultProps} resumes={resumes} onRefreshResumes={onRefresh} />)
+    await user.click(screen.getByTitle('Delete'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/resumes/original_2', { method: 'DELETE' })
+    expect(onRefresh).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('deletes linkedin profile by id', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ status: 'deleted' }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const onRefresh = vi.fn()
+    const profiles = [
+      { id: 'linkedin_3', version: 3, created_at: '2026-07-20T10:00:00Z', content: '<p>Profile</p>' },
+    ]
+    render(<ResumeTab {...defaultProps} linkedinProfiles={profiles} onRefreshLinkedin={onRefresh} />)
+    await user.click(screen.getByRole('tab', { name: /LinkedIn Profile/ }))
+    await user.click(screen.getByTitle('Delete'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/linkedin/linkedin_3', { method: 'DELETE' })
+    expect(onRefresh).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
 })
