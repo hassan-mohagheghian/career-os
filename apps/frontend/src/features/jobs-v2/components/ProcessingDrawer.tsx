@@ -175,7 +175,9 @@ function QueueSection({
 export function ProcessingDrawer({ open, onOpenChange, reloadKey }: ProcessingDrawerProps) {
   const [snapshot, setSnapshot] = useState<QueueSnapshot>({ processing: [], queued: [], failed: [] })
   const [workflows, setWorkflows] = useState<Record<string, WorkflowProgress | null>>({})
+  const workflowsRef = useRef<Record<string, WorkflowProgress | null>>({})
   const loadedRef = useRef<Set<string>>(new Set())
+  const inFlightRef = useRef<Set<string>>(new Set())
 
   const loadSnapshot = useCallback(async () => {
     try {
@@ -186,16 +188,38 @@ export function ProcessingDrawer({ open, onOpenChange, reloadKey }: ProcessingDr
     }
   }, [])
 
+  const setWorkflow = useCallback((executionId: string, workflow: WorkflowProgress) => {
+    workflowsRef.current[executionId] = workflow
+    setWorkflows({ ...workflowsRef.current })
+  }, [])
+
+  const clearWorkflow = useCallback((executionId: string) => {
+    delete workflowsRef.current[executionId]
+    setWorkflows({ ...workflowsRef.current })
+  }, [])
+
   const loadWorkflow = useCallback(async (executionId: string) => {
-    if (loadedRef.current.has(executionId)) return
+    if (workflowsRef.current[executionId]) return
+    if (loadedRef.current.has(executionId) || inFlightRef.current.has(executionId)) return
+    inFlightRef.current.add(executionId)
     try {
       const detail = await processingApi.get(executionId)
       loadedRef.current.add(executionId)
-      setWorkflows(prev => ({ ...prev, [executionId]: detail.workflow }))
+      if (detail.workflow) {
+        setWorkflow(executionId, detail.workflow)
+      }
     } catch {
-      // best effort
+      loadedRef.current.add(executionId)
+    } finally {
+      inFlightRef.current.delete(executionId)
     }
-  }, [])
+  }, [setWorkflow])
+
+  const ensureWorkflow = useCallback((executionId: string) => {
+    if (workflowsRef.current[executionId]) return
+    loadedRef.current.delete(executionId)
+    loadWorkflow(executionId)
+  }, [loadWorkflow])
 
   useEffect(() => {
     if (!open) return
@@ -222,28 +246,33 @@ export function ProcessingDrawer({ open, onOpenChange, reloadKey }: ProcessingDr
       ) {
         const incoming = data.payload.step
         if (!incoming) return
-        if (loadedRef.current.has(data.execution_id)) {
-          setWorkflows(prev => {
-            const existing = prev[data.execution_id]
-            if (!existing) return prev
-            return { ...prev, [data.execution_id]: mergeWorkflowStep(existing, incoming) }
-          })
-        } else {
-          loadWorkflow(data.execution_id)
+        const existing = workflowsRef.current[data.execution_id]
+        if (!existing) {
+          // No workflow yet — the execution started after the drawer's initial
+          // fetch returned null. Bootstrap from the server now that the runner
+          // has persisted the workflow progress.
+          ensureWorkflow(data.execution_id)
+          return
         }
+        setWorkflow(data.execution_id, mergeWorkflowStep(existing, incoming))
         return
       }
 
       if (type === 'queue.entry.removed') {
         loadedRef.current.delete(data.execution_id)
-        setWorkflows(prev => {
-          const { [data.execution_id]: _removed, ...rest } = prev
-          return rest
-        })
+        clearWorkflow(data.execution_id)
+        loadSnapshot()
+        return
+      }
+
+      if (type === 'execution.started' || type === 'execution.completed' || type === 'execution.failed' || type === 'execution.cancelled') {
+        if (!workflowsRef.current[data.execution_id]) {
+          ensureWorkflow(data.execution_id)
+        }
       }
       loadSnapshot()
     })
-  }, [open, loadSnapshot, loadWorkflow])
+  }, [open, loadSnapshot, loadWorkflow, ensureWorkflow, setWorkflow, clearWorkflow])
 
   const renderDetail = useCallback((entry: QueueEntry) => {
     return <WorkflowPanel workflow={workflows[entry.execution_id] ?? null} entry={entry} />

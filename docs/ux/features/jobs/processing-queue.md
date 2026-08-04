@@ -606,6 +606,20 @@ The Processing Queue updates automatically when:
 
 Manual refresh is not required.
 
+## Drawer Workflow Bootstrap
+
+The drawer fetches each execution's workflow when it opens. If the execution is
+still queued, the initial fetch may return no workflow yet — the backend only
+persists workflow progress once the runner starts. The drawer then bootstraps
+workflow state from the first live event:
+
+- On `execution.started` (or another lifecycle event), or the first
+  `workflow.step.*` event, the drawer refetches that execution's workflow once
+  and renders the steps.
+- Subsequent step events merge into the loaded workflow without refetching.
+- The overall progress bar is recomputed client-side from the displayed steps
+  so it advances during a run.
+
 ---
 
 # Actions

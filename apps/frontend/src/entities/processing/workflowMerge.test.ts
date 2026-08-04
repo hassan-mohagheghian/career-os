@@ -97,4 +97,30 @@ describe('mergeWorkflowStep', () => {
     expect(merged.current_step?.status).toBe('processing')
     expect(merged.current_step?.node_id).toBe('load_job')
   })
+
+  it('recomputes the overall progress from displayable steps', () => {
+    const workflow = buildWorkflow()
+    const incoming = step({ status: 'completed', progress: 100 })
+    const merged = mergeWorkflowStep(workflow, incoming)
+
+    expect(merged.progress).toBe(50)
+  })
+
+  it('advances overall progress with partial step progress', () => {
+    const workflow = buildWorkflow()
+    const incoming = step({ status: 'processing', progress: 42.5 })
+    const merged = mergeWorkflowStep(workflow, incoming)
+
+    expect(merged.progress).toBe(21.3)
+  })
+
+  it('counts failed and skipped steps as complete', () => {
+    const workflow = buildWorkflow()
+    const failed = mergeWorkflowStep(workflow, step({ status: 'failed', progress: 0 }))
+    expect(failed.progress).toBe(50)
+
+    const skipped = buildWorkflow()
+    const mergedSkipped = mergeWorkflowStep(skipped, step({ status: 'skipped', progress: 0 }))
+    expect(mergedSkipped.progress).toBe(50)
+  })
 })

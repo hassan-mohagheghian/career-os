@@ -236,6 +236,22 @@ The frontend should:
 - Recover from missing events.
 - Replace state from snapshot when needed.
 
+## Workflow Bootstrap
+
+The Processing Drawer fetches each execution's workflow once when it opens. If
+the execution is still queued, that fetch can return no workflow (the backend
+only persists `workflow_progress` once the runner starts). The drawer handles
+this by bootstrapping workflow state from the first live event:
+
+- On `execution.started` / `execution.completed` / `execution.failed` /
+  `execution.cancelled`, or the first `workflow.step.*` event for an execution
+  with no cached workflow, the drawer refetches that execution's workflow a
+  single time and renders the steps.
+- Step events that arrive for an execution that already has a workflow are
+  merged locally without refetching.
+- The refetch is one-shot: once a workflow is loaded it is never replaced by a
+  stale REST snapshot, so live SSE-merged progress is never clobbered.
+
 ---
 
 # Event Recovery
