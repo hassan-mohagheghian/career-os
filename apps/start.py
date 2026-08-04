@@ -424,23 +424,24 @@ test_app = typer.Typer(help="Run tests")
 app.add_typer(test_app, name="test", no_args_is_help=True)
 
 
-def _run_backend_tests() -> bool:
-    config = _python_path()
+def _run_backend_tests(coverage: bool = False) -> bool:
+    python = _python_path()
     _log("Running backend tests...")
-    result = subprocess.run(
-        [config, "-m", "pytest", "backend/tests", "-v", "--tb=short"],
-        cwd=str(REPO_ROOT / "apps"),
-    )
+    cmd = [python, "-m", "pytest", "apps/backend/tests", "-v", "--tb=short"]
+    if coverage:
+        cmd += ["--cov=apps/backend", "--cov-report=term-missing"]
+    result = subprocess.run(cmd, cwd=str(REPO_ROOT))
     if result.returncode == 0:
         return True
     _err("Backend tests failed.")
     return False
 
 
-def _run_frontend_tests() -> bool:
+def _run_frontend_tests(coverage: bool = False) -> bool:
     _log("Running frontend tests...")
+    script = "test:coverage" if coverage else "test"
     result = subprocess.run(
-        ["npm", "run", "test"],
+        ["npm", "run", script],
         cwd=str(CLIENT_DIR),
     )
     if result.returncode == 0:
@@ -450,12 +451,16 @@ def _run_frontend_tests() -> bool:
 
 
 @test_app.command()
-def all():
+def all(
+    coverage: bool = typer.Option(
+        False, "--coverage", "-c", help="Run tests with a coverage report"
+    ),
+):
     """Run backend + frontend tests"""
     ok = True
-    if not _run_backend_tests():
+    if not _run_backend_tests(coverage):
         ok = False
-    if not _run_frontend_tests():
+    if not _run_frontend_tests(coverage):
         ok = False
     if ok:
         _ok("All tests passed.")
@@ -464,18 +469,26 @@ def all():
 
 
 @test_app.command()
-def backend():
+def backend(
+    coverage: bool = typer.Option(
+        False, "--coverage", "-c", help="Run tests with a coverage report"
+    ),
+):
     """Run backend tests only"""
-    if _run_backend_tests():
+    if _run_backend_tests(coverage):
         _ok("Backend tests passed.")
     else:
         raise typer.Exit(code=1)
 
 
 @test_app.command()
-def frontend():
+def frontend(
+    coverage: bool = typer.Option(
+        False, "--coverage", "-c", help="Run tests with a coverage report"
+    ),
+):
     """Run frontend tests only"""
-    if _run_frontend_tests():
+    if _run_frontend_tests(coverage):
         _ok("Frontend tests passed.")
     else:
         raise typer.Exit(code=1)

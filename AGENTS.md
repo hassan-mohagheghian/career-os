@@ -106,6 +106,11 @@ cd apps/frontend && npx vitest run
 
 # All
 uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
+
+# With coverage (via the dev CLI)
+./start test backend --coverage
+./start test frontend --coverage
+./start test all --coverage
 ```
 
 ## Before Making Changes

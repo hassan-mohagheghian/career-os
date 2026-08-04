@@ -168,6 +168,8 @@ uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 ./start test backend
 ./start test frontend
 ./start test all
+./start test backend --coverage   # with coverage report
+./start test frontend --coverage
 ```
 
 ## Documentation

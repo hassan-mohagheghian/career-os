@@ -63,6 +63,7 @@ htmlcov/
 coverage.xml
 coverage.json
 test-results/
+apps/frontend/coverage/
 
 # Server logs
 apps/backend/logs/
