@@ -80,4 +80,3 @@ apps/backend/logs/
 # Generated schema
 sql_roadmap.json
 .aider*
-todo-prompts/

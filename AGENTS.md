@@ -53,7 +53,7 @@ app/
 │       ├── widgets/           # Page adapters, drawers
 │       └── shared/            # API client, UI kit, hooks
 ├── alembic/                   # Database migrations
-├── todo-prompts/              # Engineering task prompts for TODO generation (gitignored)
+├── implementation-history/    # Per-task implementation history (investigate → plan → implement)
 └── docs/                      # Full documentation
 ```
 
@@ -115,7 +115,7 @@ uv run pytest apps/backend/tests/ -v && cd apps/frontend && npx vitest run
 
 ## Development Workflow
 
-Investigate → Update tests/docs → Code → Refine. Code, tests, and docs must never drift.
+Investigate → Write implementation prompt → Update tests/docs → Code → Refine. Code, tests, and docs must never drift.
 
 1. **Investigate (before coding)**
    - Read the relevant docs under `docs/` and the repo-root guides (`CONTEXT.md`, `DOMAIN.md`,
@@ -123,14 +123,24 @@ Investigate → Update tests/docs → Code → Refine. Code, tests, and docs mus
    - Read the existing tests for the module to learn conventions and expected behavior.
    - Understand the affected module and its neighbors; preserve architecture boundaries
      (contexts must not cross-import).
-2. **Update tests + docs (before coding)**
+2. **Write the implementation prompt (mandatory, before coding)**
+   - After completing investigation and planning, create a new file in `implementation-history/`:
+     `NNN_scope_title.md` (e.g. `062_feature_foo_bar.md`).
+   - `NNN` is the next sequential number (highest existing + 1), 3-digit padded.
+   - `scope` is one of `feature`, `refactor`, `fix`, `chore`, `docs`, `ux`.
+   - Add a `# Prompt NNN - <Title>` header and record the objective, current state,
+     implementation steps, testing requirements and constraints (match the style of
+     `implementation-history/061_processing_drawer_action_buttons.md`).
+   - This step is **non-negotiable**: every implementation must leave this history trace
+     behind before any code is written, and the file must be committed with the change.
+3. **Update tests + docs (before coding)**
    - Write or update the test(s) that describe the new behavior first (TDD red phase).
    - Update the affected docs (API, domain, architecture, UX) to reflect the planned
      behavior before implementing it.
-3. **Code**
+4. **Code**
    - Implement the minimal, focused change to make the tests pass (TDD green phase).
    - Keep tests and docs in sync as you code — no drift between code, tests, and docs.
-4. **Refine (after coding)**
+5. **Refine (after coding)**
    - Run the relevant test suite and fix failures.
    - Refactor for clarity, then run the checks for the changed layer:
      - Backend: `uv run pytest apps/backend/tests/ -v`
