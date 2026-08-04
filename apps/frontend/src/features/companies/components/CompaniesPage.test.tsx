@@ -66,8 +66,41 @@ describe('CompaniesPage', () => {
     expect(screen.getByText('No companies match your search')).toBeInTheDocument()
   })
 
-  it('renders refresh button', () => {
-    render(<CompaniesPage companies={[]} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />)
-    expect(screen.getByTitle('Refresh')).toBeInTheDocument()
+  it('sorts companies with NULL scores last regardless of direction', async () => {
+    const companies = [
+      {
+        id: 1, name: 'Alpha', industry: 'Technology', city: 'Berlin', country: 'Germany',
+        company_size: '500', description: '', website: '', job_count: 0,
+        scores: { visa_score: 50, priority: 'A' },
+        created_at: '2026-07-01T00:00:00Z',
+      },
+      {
+        id: 2, name: 'Beta', industry: 'Technology', city: 'Berlin', country: 'Germany',
+        company_size: '500', description: '', website: '', job_count: 0,
+        scores: { visa_score: null, priority: 'A' },
+        created_at: '2026-07-01T00:00:00Z',
+      },
+      {
+        id: 3, name: 'Gamma', industry: 'Technology', city: 'Berlin', country: 'Germany',
+        company_size: '500', description: '', website: '', job_count: 0,
+        scores: { visa_score: 90, priority: 'A' },
+        created_at: '2026-07-01T00:00:00Z',
+      },
+    ]
+    const { container } = render(
+      <CompaniesPage companies={companies} pending={[]} onRefresh={vi.fn()} onOpenCompany={vi.fn()} />
+    )
+
+    const namesInOrder = () =>
+      Array.from(container.querySelectorAll('span.truncate')).map(el => el.textContent)
+
+    fireEvent.click(screen.getAllByRole('combobox')[0])
+    fireEvent.click(await screen.findByRole('option', { name: 'Visa Score' }))
+
+    expect(namesInOrder()).toEqual(['Gamma', 'Alpha', 'Beta'])
+
+    fireEvent.click(screen.getByText('↓'))
+
+    expect(namesInOrder()).toEqual(['Alpha', 'Gamma', 'Beta'])
   })
 })

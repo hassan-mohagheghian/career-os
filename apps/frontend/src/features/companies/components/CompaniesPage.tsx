@@ -144,22 +144,24 @@ export default function CompaniesPage({ companies, deepLinkId, onClearDeepLink, 
       r = r.filter(c => c.industry === filterIndustry)
     }
     r.sort((a, b) => {
-      let aVal, bVal
-      if (sortBy === 'name') {
-        aVal = (a.name || '').toLowerCase(); bVal = (b.name || '').toLowerCase()
-        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+      const rawValue = (c) => {
+        if (sortBy === 'name') return c.name ? c.name.toLowerCase() : null
+        if (sortBy === 'priority') return PRIORITY_RANK[c.scores?.priority] ?? null
+        if (sortBy === 'visa_score') return c.scores?.visa_score ?? null
+        if (sortBy === 'tech_match') return c.scores?.tech_match ?? null
+        if (sortBy === 'career_score') return c.scores?.career_score ?? null
+        return c.created_at ? new Date(c.created_at).getTime() : null
       }
-      if (sortBy === 'priority') {
-        aVal = PRIORITY_RANK[a.scores?.priority] || 0; bVal = PRIORITY_RANK[b.scores?.priority] || 0
-      } else if (sortBy === 'visa_score') {
-        aVal = a.scores?.visa_score || 0; bVal = b.scores?.visa_score || 0
-      } else if (sortBy === 'tech_match') {
-        aVal = a.scores?.tech_match || 0; bVal = b.scores?.tech_match || 0
-      } else if (sortBy === 'career_score') {
-        aVal = a.scores?.career_score || 0; bVal = b.scores?.career_score || 0
-      } else {
-        aVal = a.created_at ? new Date(a.created_at).getTime() : 0
-        bVal = b.created_at ? new Date(b.created_at).getTime() : 0
+      const aVal = rawValue(a)
+      const bVal = rawValue(b)
+      const aNull = aVal == null
+      const bNull = bVal == null
+      if (aNull || bNull) {
+        if (aNull && bNull) return 0
+        return aNull ? 1 : -1
+      }
+      if (typeof aVal === 'string') {
+        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       }
       return sortDir === 'desc' ? bVal - aVal : aVal - bVal
     })
