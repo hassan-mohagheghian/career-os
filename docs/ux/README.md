@@ -46,6 +46,8 @@ docs/ux/
 │       ├── delete-job.md      Delete Job
 │       ├── processing-queue.md
 │       └── workflow-progress.md
+│   └── resume/
+│       └── page.md            Resume / Profile page (master resume + LinkedIn)
 └── flows/
     └── jobs/
         ├── browse-jobs.md     Browse, search, filter, sort

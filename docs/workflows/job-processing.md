@@ -261,8 +261,12 @@ the frontend.
 
 ## prepare_profile
 
-Builds the user profile inputs (skills, resume, scoring rules) used by the
-analysis prompt. Internal node — not exposed to the frontend.
+Builds the user profile inputs (skills, latest resume, latest LinkedIn,
+scoring rules) used by the analysis prompt. The latest resume (`original_*`)
+and latest LinkedIn profile (`linkedin_*`) — each the highest `version` row —
+are passed as labeled profile-documents sections into the prompt; the resume is
+authoritative for skills/seniority and LinkedIn supplements it. Internal node —
+not exposed to the frontend.
 
 ---
 

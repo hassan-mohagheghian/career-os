@@ -34,6 +34,10 @@
 - **What**: Generated resume or cover letter
 - **Types**: `original`, `original_1`, `linkedin_*`, `resume_*`, `cover_*`
 - **Storage**: Content in `resumes.content`, raw text in `resumes.raw_text`
+- **Master resume**: uploaded via `POST /api/resumes`, stored as `original_N` with version `N` auto-incremented
+- **LinkedIn profile**: uploaded via `POST /api/linkedin`, stored as `linkedin_N` with version auto-incremented
+- **PII**: `raw_text` is PII-masked (name line, phone, email, LinkedIn/GitHub URLs) at save time
+- **Latest**: the row with the highest `version` for the `original_*` / `linkedin_*` prefix
 
 ### Generation
 - **What**: A resume or cover letter generation request
@@ -73,8 +77,8 @@ over two LangGraph phases:
 3. `context_ready` / `execution_failed`
 
 **Phase 2 — Job Analysis (one LLM call)**
-1. `load_context` (read prepared content) → `prepare_profile` (skills, resume, scoring rules)
-2. `analyze`: single `job.analyze` call via `LLMService.generate_structured` (only provider entry point)
+1. `load_context` (read prepared content) → `prepare_profile` (skills, latest resume + LinkedIn, scoring rules)
+2. `analyze`: single `job.analyze` call via `LLMService.generate_structured` (only provider entry point); the prompt carries the latest resume and LinkedIn as labeled profile-documents sections — the resume is authoritative for skills/seniority, LinkedIn supplements it
 3. `extract_skills` (normalize + tag matched/missing/low) → `score` (deterministic overall/recommendation) → `recommend` → `summarize`
 4. `persist`: update the jobs row projection + summaries row (legacy grade) + `job_analysis` row
 5. `analysis_ready` / `execution_failed`

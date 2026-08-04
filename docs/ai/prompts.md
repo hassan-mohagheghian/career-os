@@ -17,7 +17,8 @@
 > The `job.analyze` prompt is now self-contained and versioned in
 > `processing/application/services/job_analysis_prompt.py`
 > (`build_job_analysis_prompt`, `build_job_analysis_output_schema`,
-> `JOB_ANALYSIS_PROMPT_VERSION`, `JOB_ANALYSIS_SCHEMA_VERSION`, both "1.0.0").
+> `JOB_ANALYSIS_PROMPT_VERSION`, `JOB_ANALYSIS_SCHEMA_VERSION` — prompt "1.1.0",
+> schema "1.0.0").
 > It is executed by the `analyze` node of the JobAnalysisGraph via
 > `LLMService.generate_structured(prompt, schema=…, timeout=240)` — exactly
 > one LLM call per job.
@@ -36,18 +37,45 @@ is a self-contained builder:
 
 ```python
 from processing.application.services.job_analysis_prompt import (
-    JOB_ANALYSIS_PROMPT_VERSION,   # "1.0.0"
+    JOB_ANALYSIS_PROMPT_VERSION,   # "1.1.0"
     JOB_ANALYSIS_SCHEMA_VERSION,   # "1.0.0"
     build_job_analysis_prompt,
     build_job_analysis_output_schema,
 )
 
-prompt = build_job_analysis_prompt(job_text, profile_text, scoring_rules, resume_text)
+prompt = build_job_analysis_prompt(
+    job_text,
+    profile_text,
+    scoring_rules,
+    resume_text,
+    profile_documents,  # latest resume + LinkedIn, labeled sections
+)
 schema = build_job_analysis_output_schema()
 
 # Executed exactly once per job by the analyze node:
 resp = llm.generate_structured(prompt=prompt, schema=schema, timeout=240)
 ```
+
+### Profile documents (since v1.1.0)
+
+The `prepare_profile` node fetches the latest resume (`original_*`) and the
+latest LinkedIn profile (`linkedin_*`) separately and passes them into the
+prompt as labeled sections:
+
+```
+RESUME TEXT (latest):
+…
+LINKEDIN PROFILE TEXT (latest):
+…
+```
+
+The resume is the **authoritative** source for skills and seniority; LinkedIn
+is supplementary (current title, company, tenure, achievements). Each source is
+truncated independently to a 6000-character budget so neither can crowd out the
+other. If neither document exists the builder falls back to the resume-only
+section. Builders live in
+`processing/application/services/job_analysis_inputs.py`
+(`build_profile_documents_text`).
 
 The prompt and its output JSON schema are versioned together and live in
 `processing/application/services/job_analysis_prompt.py`.

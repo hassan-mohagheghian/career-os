@@ -22,6 +22,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Skill Roadmaps      | `/api/skill-roadmaps`                       | AI learning roadmaps + progress       |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
 | Resumes             | `/api/resumes`                              | Resume / cover letter generation      |
+| LinkedIn Profiles   | `/api/linkedin`                             | Versioned LinkedIn profile upload/list/delete |
 | Rules               | `/api/rules`                                | Scoring rules configuration           |
 | SSE                | `/api/sse/processing-events`                | Real-time processing event stream     |
 | System              | `/api/generation-history`, `/api/health`    | History + health check                |
@@ -81,6 +82,46 @@ block produced by the Job Analysis phase:
   projections (no `recommendation`, grade-derived `summary`).
 - The frontend refetches this endpoint on `execution.completed` /
   `execution.failed` SSE events so results appear live in the Job Details drawer.
+
+---
+
+## Profile Documents (Resume + LinkedIn)
+
+Both the latest resume and the latest LinkedIn profile are fed into job
+analysis as labeled extra context. The resume is authoritative for skills and
+seniority; LinkedIn supplements it. "Latest" is the highest `version`.
+
+### `POST /api/resumes` — upload a master resume
+
+Request: `{ "raw_text": "…", "title": "Optional" }` (a legacy `content` key is
+also accepted).
+
+Response `200`: `{ "status": "saved", "version": 1, "id": "original_1" }`.
+
+PII (name line, phone, email, LinkedIn/GitHub URLs) is masked before saving;
+the row stores the masked `raw_text` plus an HTML `content` preview.
+
+### `DELETE /api/resumes/{id}` — delete a resume
+
+Response `200`: `{ "status": "deleted", "id": "original_1" }`, or `404` when the
+id is unknown.
+
+### `GET /api/linkedin` — list LinkedIn profiles
+
+Returns all `linkedin_*` rows, newest version first.
+
+### `POST /api/linkedin` — upload a LinkedIn profile
+
+Request: `{ "raw_text": "…" }`. Response `200`:
+`{ "status": "saved", "version": 1, "id": "linkedin_1" }`.
+
+### `GET /api/linkedin/{id}` — get a LinkedIn profile
+
+Returns the row, or `404` when unknown.
+
+### `DELETE /api/linkedin/{id}` — delete a LinkedIn profile
+
+Response `200`: `{ "status": "deleted", "id": "linkedin_1" }`, or `404`.
 
 ---
 
