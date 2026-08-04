@@ -267,6 +267,34 @@ class TestSetDeletedAndLifecycle:
         assert items[0]["id"] == m1.id
 
 
+# ── updated_at auto-bump ─────────────────────────────────────────
+
+class TestUpdatedAtAutoBump:
+    def test_update_fields_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:00")
+        repo.update_fields(m.id, company="Acme")
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+
+    def test_update_fields_honours_explicit_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", updated_at="2026-07-27T10:00:00")
+        repo.update_fields(m.id, company="Acme", updated_at="2026-07-28T10:00:00")
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at == "2026-07-28T10:00:00"
+
+    def test_update_status_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", status="queued", updated_at="2026-07-27T10:00:00")
+        repo.update_status(m.id, "processing")
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+
+    def test_pick_queued_item_bumps_updated_at(self, sa_session, repo):
+        m = _add(sa_session, id="job-a", status="queued", updated_at="2026-07-27T10:00:00")
+        repo.pick_queued_item()
+        row = sa_session.query(JobModel).filter(JobModel.id == m.id).first()
+        assert row.updated_at != "2026-07-27T10:00:00"
+
+
 # ── search_jobs ──────────────────────────────────────────────────
 
 class TestSearchJobs:

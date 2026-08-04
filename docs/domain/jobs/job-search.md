@@ -168,6 +168,14 @@ Supported sorting fields:
 - Fit Score
 - Success Score
 
+### Updated Time
+
+`updated_at` reflects the last time the job changed, including processing
+writes. The jobs repository (`sa_job_repository.py`) auto-stamps `updated_at`
+on every `update_fields` / `update_status` mutation and on the queued →
+processing transition, so a freshly processed job sorts to the top of the
+"Updated Time" ordering.
+
 Sorting direction:
 
 ```text

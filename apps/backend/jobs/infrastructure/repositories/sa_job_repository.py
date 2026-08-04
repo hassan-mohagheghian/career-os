@@ -255,6 +255,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         return job_model_to_dict(m)
 
     def update_fields(self, job_id: str, **fields) -> bool:
+        fields.setdefault("updated_at", datetime.now(UTC).isoformat())
         self._session.query(JobModel).filter(JobModel.id == job_id).update(fields)
         self._session.commit()
         return True
@@ -311,6 +312,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         ).count()
 
     def update_status(self, job_id: str, status: str, **extra: Any) -> bool:
+        extra.setdefault("updated_at", datetime.now(UTC).isoformat())
         fields = {'status': status, **extra}
         self._session.query(JobModel).filter(JobModel.id == job_id).update(fields)
         self._session.commit()
@@ -326,6 +328,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         ).first()
         if model:
             model.status = 'processing'
+            model.updated_at = datetime.now(UTC).isoformat()
             self._session.commit()
             self._session.refresh(model)
             return job_model_to_dict(model)
