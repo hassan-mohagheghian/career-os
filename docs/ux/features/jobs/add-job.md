@@ -336,6 +336,8 @@ A loading indicator is displayed.
 - Job appears in the Jobs list.
 - Status = **Queued**
 - Job is added to the Processing Queue.
+- The Processing Queue drawer opens so the live workflow progress is visible immediately (instant processing workflow).
+- The job's status transitions Queued → Running → Completed/Failed as the LangGraph job-processing workflow executes, streamed over SSE.
 
 ---
 
@@ -432,6 +434,18 @@ Status = Queued
 ↓
 
 Added to Processing Queue
+
+↓
+
+Processing Queue drawer opens
+
+↓
+
+Instant workflow runs (fetch → extract → analyze → score → persist)
+
+↓
+
+Live progress streamed over SSE
 ```
 
 ---

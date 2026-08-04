@@ -138,6 +138,7 @@ function JobsPageV2Adapter() {
         queueReloadKey={queueReloadKey}
         addJobDrawerOpen={addJobDrawerOpen}
         onAddJobDrawerOpenChange={setAddJobDrawerOpen}
+        onJobQueued={() => setQueueReloadKey(k => k + 1)}
         detailJobId={detailJobId}
         onDetailJobIdChange={setDetailJobId}
         editJobId={editJobId}

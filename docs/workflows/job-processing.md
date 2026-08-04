@@ -507,14 +507,37 @@ current implementation (paths + line numbers).
 - Add-job form: `apps/frontend/src/features/jobs/components/AddJobForm.tsx`
   `handleSubmit` (line 67) → `useCreateJob().createJob` →
   `POST /api/jobs` (`apps/frontend/src/features/jobs/hooks/useCreateJob.ts`
-  line 36). This creates the job record only.
-- Start processing: `apps/frontend/src/widgets/jobs-page-v2/index.tsx`
+  line 36).
+  - **Create Job** (queue not set): creates the job record only (status
+    `imported`).
+  - **Create & Queue** (`queue: true`): the same `POST /api/jobs` call, but the
+    backend also creates a `JOB_PROCESSING` ProcessingExecution and dispatches
+    it — the job immediately follows the instant processing workflow below.
+    `JobsPage.handleCreateJob`
+    (`apps/frontend/src/features/jobs-v2/components/JobsPage.tsx` line 77)
+    opens the Processing Queue drawer and bumps the queue reload key
+    (`onJobQueued`) so the new execution shows up right away.
+- Start processing (existing jobs): `apps/frontend/src/widgets/jobs-page-v2/index.tsx`
   `handleProcessV2` (line 42) calls `processMutation.mutate(id)` then opens
   the Processing Drawer. The mutation uses `jobApi.processJob`
   (`apps/frontend/src/entities/job/api.ts` line 56) → `POST /api/jobs/{jobId}/process`.
 - Live progress is consumed globally by `useProcessingEvents()`
   (`apps/frontend/src/widgets/jobs-page-v2/index.tsx` line 33), hook in
   `apps/frontend/src/shared/hooks/useProcessingEvents.ts` (SSE_URL = `/events/processing`, line 8).
+
+## 1a. API route — create + queue in one request
+
+`apps/backend/jobs/presentation/api/jobs_router.py` — `create_job`
+(`POST /api/jobs`):
+
+1. Resolves a duplicate URL (409 `JobAlreadyExistsError`).
+2. Creates the job (status `imported`).
+3. When `body.queue` is true, `_queue_job_for_processing(job["id"], exec_repo)`
+   runs the same instant workflow as the process endpoint:
+   `CreateProcessingExecutionUseCase(...).execute(...)` (creates the
+   `JOB_PROCESSING` execution) then
+   `DispatchProcessingExecutionService(exec_repo).dispatch(execution_id)`.
+4. Returns `status: "queued"` and the `execution_id` in the response.
 
 ## 2. API route — receive the process request
 

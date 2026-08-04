@@ -95,9 +95,11 @@ class CreateJobRequest(BaseModel):
     job_title: str | None = Field(None, description="Optional job title")
     links: list[CreateJobLinkItem] = Field(default_factory=list)
     notes: list[CreateJobNoteItem] = Field(default_factory=list)
+    queue: bool = Field(False, description="Create and immediately queue for processing")
 
 
 class CreateJobResponse(BaseModel):
     id: str
     status: str = "imported"
     message: str = "Job created successfully."
+    execution_id: str | None = Field(None, description="Processing execution id when queued")

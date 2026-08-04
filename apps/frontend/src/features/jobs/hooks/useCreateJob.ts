@@ -17,12 +17,14 @@ export interface CreateJobRequest {
   job_title?: string
   links?: CreateJobLinkItem[]
   notes?: CreateJobNoteItem[]
+  queue?: boolean
 }
 
 export interface CreateJobResponse {
-  id: number
+  id: string
   status: string
   message: string
+  execution_id?: string | null
 }
 
 export function useCreateJob() {

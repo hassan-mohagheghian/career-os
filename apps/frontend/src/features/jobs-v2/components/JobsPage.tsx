@@ -10,7 +10,7 @@ import { ProcessingDrawer } from './ProcessingDrawer'
 import { JobDetailDrawer } from './JobDetailDrawer'
 import { JobEditDrawer } from './JobEditDrawer'
 import AddJobDrawer from '@/features/jobs/components/AddJobDrawer'
-import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
+import { useCreateJob, type CreateJobRequest } from '@/features/jobs/hooks/useCreateJob'
 import { toast } from 'sonner'
 
 interface JobsPageProps {
@@ -51,6 +51,7 @@ interface JobsPageProps {
   queueReloadKey?: number
   addJobDrawerOpen: boolean
   onAddJobDrawerOpenChange: (open: boolean) => void
+  onJobQueued?: () => void
   detailJobId: string | null
   onDetailJobIdChange: (id: string | null) => void
   editJobId: string | null
@@ -70,21 +71,25 @@ export function JobsPage({
   activeFilterCount, onClearFilters,
   onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel, isProcessing,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
-  addJobDrawerOpen, onAddJobDrawerOpenChange,
+  addJobDrawerOpen, onAddJobDrawerOpenChange, onJobQueued,
   detailJobId, onDetailJobIdChange,
   editJobId, onEditJobIdChange,
   processingCount,
 }: JobsPageProps) {
   const { createJob, submitting, error: createError, clearError } = useCreateJob()
 
-  const handleCreateJob = useCallback(async (data: any) => {
+  const handleCreateJob = useCallback(async (data: CreateJobRequest) => {
     const result = await createJob(data)
     if (result) {
-      toast.success('Job created successfully')
+      toast.success(data.queue ? 'Job created and queued' : 'Job created successfully')
       onAddJobDrawerOpenChange(false)
       onRefetch()
+      if (data.queue) {
+        onJobQueued?.()
+        onQueueDrawerOpenChange(true)
+      }
     }
-  }, [createJob, onAddJobDrawerOpenChange, onRefetch])
+  }, [createJob, onAddJobDrawerOpenChange, onRefetch, onJobQueued, onQueueDrawerOpenChange])
 
   if (isError) {
     return (
