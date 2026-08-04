@@ -270,7 +270,20 @@ analysis prompt. Internal node — not exposed to the frontend.
 
 Runs the single combined LLM call: the versioned `job.analyze` prompt via
 `LLMService.generate_structured(prompt, schema=…, timeout=240)`. Exactly one
-LLM call per job.
+LLM call per job (plus one retry on a parse/schema failure).
+
+Strict schema validation:
+
+- The response is validated against `JobAnalysisOutput`
+  (`processing/application/services/job_analysis_validation.py`) before it is
+  accepted. All required fields must be present and correctly typed (`scores`
+  with `fit`/`success`, `recommendation`, `apply_reason`, `summary`, `skills`,
+  `insights`).
+- On a JSON parse failure or a `ValidationError`, the call is retried once with
+  a shorter-output directive.
+- If the retry also fails validation, the step fails with the clean message
+  "The AI returned an analysis that does not match the required format." and
+  nothing is persisted — only schema-valid output ever reaches the database.
 
 Output:
 

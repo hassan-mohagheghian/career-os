@@ -12,6 +12,7 @@ Covers:
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from processing.application.services.job_analysis_inputs import (
     build_profile_text,
@@ -24,6 +25,7 @@ from processing.application.services.job_analysis_prompt import (
     build_job_analysis_output_schema,
     build_job_analysis_prompt,
 )
+from processing.application.services.job_analysis_validation import JobAnalysisOutput
 from processing.application.services import job_analysis_scoring as scoring
 from processing.application.workflows import progress_ops
 from processing.application.workflows.job_analysis import JobAnalysisGraph
@@ -392,6 +394,62 @@ class TestJobAnalysisInputs:
 
 
 # --------------------------------------------------------------------------- #
+# Validation
+# --------------------------------------------------------------------------- #
+
+
+class TestJobAnalysisValidation:
+    def test_valid_payload_passes(self):
+        validated = JobAnalysisOutput.model_validate(_payload())
+        assert validated.scores.fit == 85
+        assert validated.scores.success == 70
+        assert validated.recommendation == "skip"
+        assert validated.skills[0].name == "Python"
+
+    def test_required_fields_enforced(self):
+        for field in ("scores", "recommendation", "apply_reason", "summary", "skills", "insights"):
+            payload = _payload()
+            del payload[field]
+            with pytest.raises(ValidationError):
+                JobAnalysisOutput.model_validate(payload)
+
+    def test_invalid_recommendation_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate(_payload(recommendation="maybe"))
+
+    def test_invalid_skill_status_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate(
+                _payload(skills=[{"name": "Python", "status": "expert"}])
+            )
+
+    def test_scores_clamped(self):
+        validated = JobAnalysisOutput.model_validate(_payload(scores={"fit": 150, "success": -5}))
+        assert validated.scores.fit == 100
+        assert validated.scores.success == 0
+
+    def test_scores_missing_component_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate(_payload(scores={"fit": 85}))
+
+    def test_work_types_string_coerced(self):
+        validated = JobAnalysisOutput.model_validate(_payload(work_types="hybrid, remote"))
+        assert validated.work_types == ["hybrid", "remote"]
+
+    def test_null_skills_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate(_payload(skills=None))
+
+    def test_skill_without_name_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate(_payload(skills=[{"status": "matched"}]))
+
+    def test_non_dict_payload_rejected(self):
+        with pytest.raises(ValidationError):
+            JobAnalysisOutput.model_validate([1, 2, 3])
+
+
+# --------------------------------------------------------------------------- #
 # Nodes
 # --------------------------------------------------------------------------- #
 
@@ -486,6 +544,83 @@ class TestAnalyzeNode:
         state.analysis_context["job_text"] = "job text"
         state = AnalyzeNode(FakeLLM(content="not a dict"))(state)
         assert state.status == ExecutionStatus.FAILED
+
+    def test_retries_once_on_json_parse_failure_then_succeeds(self):
+        class FlakyLLM(FakeLLM):
+            def __init__(self):
+                super().__init__(content=_payload())
+                self._fail_first = True
+
+            def generate_structured(self, prompt, schema=None, timeout=None):
+                if self._fail_first:
+                    self._fail_first = False
+                    self.calls.append({"prompt": prompt, "schema": schema, "timeout": timeout})
+                    raise RuntimeError("Failed to parse opencode JSON output\nRaw output: {truncated")
+                return super().generate_structured(prompt, schema=schema, timeout=timeout)
+
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        llm = FlakyLLM()
+        state = AnalyzeNode(llm)(state)
+
+        assert len(llm.calls) == 2
+        assert state.status != ExecutionStatus.FAILED
+        assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
+        assert "SHORTER, COMPLETE JSON" in llm.calls[1]["prompt"]
+
+    def test_no_retry_when_generic_error(self):
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        llm = FakeLLM(error=RuntimeError("provider down"))
+        AnalyzeNode(llm)(state)
+        assert len(llm.calls) == 1
+
+    def test_schema_invalid_output_fails_with_clean_message(self):
+        invalid = _payload()
+        del invalid["skills"]
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        state = AnalyzeNode(FakeLLM(content=json.dumps(invalid)))(state)
+
+        assert state.status == ExecutionStatus.FAILED
+        assert "raw_payload" not in state.analysis_context
+        assert any("does not match the required format" in e for e in state.errors)
+        assert any("skills" in e for e in state.errors)
+
+    def test_schema_invalid_once_then_valid_retries(self):
+        class SchemaFixLLM(FakeLLM):
+            def __init__(self):
+                super().__init__(content=_payload())
+                self._fix_next = True
+
+            def generate_structured(self, prompt, schema=None, timeout=None):
+                self.calls.append({"prompt": prompt, "schema": schema, "timeout": timeout})
+                if self._fix_next:
+                    self._fix_next = False
+                    return type("Resp", (), {"content": json.dumps(_payload(recommendation="maybe"))})
+                return type("Resp", (), {"content": json.dumps(_payload())})
+
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        llm = SchemaFixLLM()
+        state = AnalyzeNode(llm)(state)
+
+        assert len(llm.calls) == 2
+        assert state.status != ExecutionStatus.FAILED
+        assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
+        assert "SHORTER, COMPLETE JSON" in llm.calls[1]["prompt"]
+
+    def test_schema_invalid_twice_fails(self):
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        invalid = _payload()
+        invalid["recommendation"] = "maybe"
+        llm = FakeLLM(content=json.dumps(invalid))
+        state = AnalyzeNode(llm)(state)
+
+        assert len(llm.calls) == 2
+        assert state.status == ExecutionStatus.FAILED
+        assert any("does not match the required format" in e for e in state.errors)
 
 
 class TestExtractSkillsNode:

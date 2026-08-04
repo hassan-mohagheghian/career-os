@@ -103,14 +103,22 @@ SCORING RULES TO APPLY:
 {scoring_rules}
 
 Your analysis must:
-1. Extract the job fields (title, company, role, location, salary, stack, visa, employment_type, work_types, industry, domain, description). Use null when a field is absent.
+1. Extract the job fields (title, company, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
 2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain).
 3. Score success (0-100): the user's probability of getting an offer (seniority match, level, salary, competition).
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).
 5. Recommend apply / consider / skip based on the scores, and write a short apply_reason justifying it.
 6. Summarize the job, the user's fit, and add a practical note.
-7. List the skills the job requires and tag each as "matched" (user already has it), "missing" (user lacks it), or "low" (user has it but below the required level). Include the user's level (1-5), the category, and brief evidence from the posting.
-8. Add 2-4 short insights (what to highlight in the application, salary/visa notes, etc.).
+ 7. List the skills the job requires and tag each as "matched" (user already has it), "missing" (user lacks it), or "low" (user has it but below the required level). Include the user's level (1-5), the category, and brief evidence from the posting.
+ 8. Add 2-4 short insights (what to highlight in the application, salary/visa notes, etc.).
+
+OUTPUT SIZE LIMITS (critical — keep the response short so it is never truncated):
+ 1. description: a concise 1-2 sentence overview, at most 120 words. Do NOT copy the full posting.
+ 2. skills: list at most 12 skills.
+ 3. insights: 2-3 items only.
+ 4. scores_explanation: at most 3 items per list (fit_factors, success_factors, concerns).
+ 5. apply_reason and each summary field (summary, resume_fit, note): at most 40 words each.
+ 6. The JSON must be complete and valid — every string and bracket closed. Never truncate the output.
 
 Respond ONLY with valid JSON matching exactly this schema:
 
