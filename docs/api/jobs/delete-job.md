@@ -55,7 +55,10 @@ Content-Type: application/json
 204 No Content
 ```
 
-No response body is returned.
+No response body is returned. Because the body is empty, the frontend HTTP
+client resolves the request as `undefined` and **must not** try to parse a JSON
+body (parsing an empty body raises a `SyntaxError`). This contract applies to
+every `204` endpoint in the API.
 
 ---
 
@@ -91,7 +94,7 @@ When the request succeeds:
 - The canonical `job_analysis` row (schema `job`) for the Job is deleted.
 - Related summary and resume rows (if any) are deleted.
 - All processing executions targeting the Job are deleted.
-- The job list cache is invalidated so the deleted Job disappears from the UI.
+- The frontend cache is updated so the deleted Job disappears from the UI.
 
 Deletion does not raise an error if there are no related rows to remove.
 
@@ -99,12 +102,28 @@ Deletion does not raise an error if there are no related rows to remove.
 
 # Frontend Behavior
 
+The Delete Job action follows an **optimistic update** pattern so the Job
+disappears from the list immediately after confirmation:
+
 1. User clicks the Delete (trash) action on a Job Row.
 2. A destructive confirmation dialog is shown: *"Permanently delete this job
    and all its processing data?"*.
-3. On confirmation, `DELETE /api/jobs/{job_id}` is called.
-4. On success a toast is shown, any open details/edit drawer for the Job is
-   closed, and the Job list is refreshed.
+3. On confirmation, the Job is removed from the React Query cache right away
+   (`useJobsInfiniteQuery.deleteMutation`):
+   - The Job is filtered out of every loaded page.
+   - `total_items` is decremented on each page.
+   - The previous cache state is snapshotted for rollback.
+4. `DELETE /api/jobs/{job_id}` is sent. The response is `204 No Content`.
+5. On success a toast is shown and any open details/edit drawer for the Job is
+   closed.
+6. The `jobs-v2-infinite` queries are invalidated, re-fetching the pages from
+   the server so pagination/cursors stay consistent.
+7. On failure the snapshot is restored (the Job reappears) and an error toast
+   is shown.
+
+The `204` empty-body response is handled by the shared HTTP client
+(`apps/frontend/src/shared/api/http-client.ts`), which resolves empty success
+responses to `undefined` instead of parsing a JSON body.
 
 ---
 

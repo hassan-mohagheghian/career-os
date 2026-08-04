@@ -51,6 +51,14 @@ PID_BG_FILE = REPO_ROOT / ".background.pid"
 PID_SCHED_FILE = REPO_ROOT / ".scheduler.pid"
 
 
+def read_version() -> str:
+    """Read the repo version from the VERSION file at the repository root."""
+    version_file = REPO_ROOT / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "0.0.0"
+
+
 def _load_port_from_env(key: str, default: int) -> int:
     env_file = REPO_ROOT / ".env"
     if env_file.exists():
@@ -746,7 +754,7 @@ def logs():
 def version():
     """Show version information"""
     _header("Job Search Developer CLI")
-    console.print("  Version: 0.1.0")
+    console.print(f"  Version: {read_version()}")
     console.print("  Binary:  start")
     console.print()
 

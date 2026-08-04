@@ -60,6 +60,9 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check apps/backend || true
 
+      - name: Check version consistency
+        run: ./scripts/check-version.sh
+
       - name: Type check with mypy
         run: uv run mypy apps/backend --ignore-missing-imports || true
 

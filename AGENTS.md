@@ -70,6 +70,30 @@ app/
 9. All cards must have a delete button.
 10. Do not add API routes in `entrypoints/api.py` — use per-context routers.
 11. Do not use `print()` — use `structlog`.
+12. Never change the version in only one place — keep all version references in sync (see `## Versioning` below).
+
+## Versioning
+
+The repo uses a **single SemVer number** (`MAJOR.MINOR.PATCH`). The `VERSION` file at the repo root is the machine source of truth; `CHANGELOG.md` is the human-facing release log.
+
+Every release keeps these five locations identical:
+
+- `VERSION` (source of truth)
+- `CHANGELOG.md` — the **latest** `## [x.y.z]` header (bump = add a new entry at the top)
+- `pyproject.toml` (`version`)
+- `apps/frontend/package.json` (`version`)
+- git tag `vX.Y.Z` (tagged on the release commit)
+
+The backend reads the version from `VERSION` at runtime — FastAPI (`apps/backend/entrypoints/api.py`) and the CLI banner (`apps/start.py`) are synced automatically. `pyproject.toml` and `package.json` are static copies checked by script.
+
+**To release:**
+
+1. Bump SemVer based on the change: breaking → `MAJOR`, feature → `MINOR`, fix → `PATCH`.
+2. Update `VERSION`, add the matching `## [X.Y.Z]` entry to the top of `CHANGELOG.md`, and update `pyproject.toml` + `apps/frontend/package.json`.
+3. Run `./scripts/check-version.sh` — it must pass (exits non-zero on any mismatch).
+4. Commit as `chore(release): vX.Y.Z`, then `git tag vX.Y.Z` and push the tag.
+
+CI runs `./scripts/check-version.sh` on every push/PR, so a version touched in only one place fails the build.
 
 ## Testing
 

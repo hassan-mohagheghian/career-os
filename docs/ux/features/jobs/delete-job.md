@@ -84,17 +84,21 @@ The confirmation dialog is open, waiting for the user.
 
 ## Deleting
 
-While `DELETE /api/jobs/{job_id}` is in flight the request is awaited before
-showing any result.
+Once the user confirms, the Job is removed from the list **immediately**
+(optimistic update) before the request finishes. `DELETE /api/jobs/{job_id}` is
+sent to the server in the background.
 
 ## Success
 
+- The Job disappears from the list right away (optimistic cache update).
 - A success toast is shown (*"Job deleted"*).
 - Any open Details or Edit drawer for that Job is closed.
-- The Job list is refreshed and the deleted Job disappears.
+- The `jobs-v2-infinite` queries are invalidated so pagination and totals are
+  re-synced with the server.
 
 ## Error
 
+- The deleted Job is restored to the list (optimistic update rolled back).
 - An error toast is shown (*"Failed to delete job"*).
 - The Job remains in the list.
 
@@ -119,11 +123,11 @@ Confirm Delete            (or Cancel -> abort)
 
 ↓
 
-DELETE /api/jobs/{job_id}
+Job removed from list (optimistic update)
 
 ↓
 
-Job removed from list
+DELETE /api/jobs/{job_id}
 
 ↓
 

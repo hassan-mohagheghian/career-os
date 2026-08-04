@@ -26,6 +26,16 @@ from fastapi.staticfiles import StaticFiles
 from shared.infrastructure.config.app_config import STATIC_FOLDER
 from shared.infrastructure.process.logging_config import setup_logging, get_logger
 
+
+def _read_version() -> str:
+    """Read the repo version from the VERSION file at the repository root."""
+    version_file = os.path.join(os.path.dirname(os.path.dirname(_server_dir)), "VERSION")
+    try:
+        with open(version_file) as f:
+            return f.read().strip()
+    except OSError:
+        return "0.0.0"
+
 # ── Logging ────────────────────────────────────────────────────────
 
 _log_dir = os.path.join(_server_dir, 'logs')
@@ -130,7 +140,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Job Search Intelligence API",
         description="AI-powered career intelligence platform",
-        version="1.0.0",
+        version=_read_version(),
         lifespan=lifespan,
         docs_url="/api/docs",
         redoc_url="/api/redoc",

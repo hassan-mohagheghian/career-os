@@ -30,22 +30,31 @@ If the user cancels, nothing happens and the Job stays.
 
 ### 4. Delete on the Server
 
-On confirm, the frontend calls:
+On confirm, the Job is removed from the list immediately via an **optimistic
+cache update** and the frontend calls:
 
 ```http
 DELETE /api/jobs/{job_id}
 ```
 
 The server hard-deletes the Job and all related rows. Success returns
-`204 No Content`.
+`204 No Content` (empty body, handled by the shared HTTP client without JSON
+parsing).
 
-### 5. Refresh
+### 5. Resolve
 
 On success:
 
+- The deleted Job stays gone from the list.
 - A toast confirms the deletion.
 - Any open drawer for that Job closes.
-- The Jobs list is refreshed; the Job is gone.
+- The `jobs-v2-infinite` queries are invalidated, re-fetching pages from the
+  server so pagination and totals stay correct.
+
+On failure:
+
+- The optimistic update is rolled back; the Job reappears in the list.
+- An error toast is shown.
 
 ---
 
@@ -54,9 +63,9 @@ On success:
 | Outcome  | Behavior                                                      |
 | -------- | ------------------------------------------------------------- |
 | Cancel   | Dialog closes, Job stays.                                     |
-| Success  | `204`, Job removed from the list, success toast.              |
-| Not found| `404`, error toast, Job stays if still present.               |
-| Failure  | Error toast, Job stays.                                      |
+| Success  | `204`, Job removed immediately (optimistic), success toast.   |
+| Not found| `404`, rollback + error toast, Job stays if still present.    |
+| Failure  | Rollback + error toast, Job stays.                           |
 
 ---
 

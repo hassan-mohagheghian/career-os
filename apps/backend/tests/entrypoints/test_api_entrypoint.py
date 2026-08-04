@@ -7,6 +7,7 @@ module does in production.
 import os
 import sys
 import subprocess as _subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -90,6 +91,12 @@ class TestRecoverTasks:
 # ── create_app ────────────────────────────────────────────────────
 
 class TestCreateApp:
+    def test_version_matches_version_file(self):
+        version_file = Path(__file__).resolve().parents[4] / 'VERSION'
+        expected = version_file.read_text().strip()
+        app = api.create_app()
+        assert app.version == expected
+
     def test_returns_fastapi_with_health_route(self):
         app = api.create_app()
         assert app.title == 'Job Search Intelligence API'

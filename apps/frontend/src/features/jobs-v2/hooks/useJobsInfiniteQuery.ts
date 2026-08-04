@@ -126,6 +126,39 @@ export function useJobsInfiniteQuery() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (jobId: string) => jobApi.deleteJob(jobId),
+    onMutate: async (jobId) => {
+      await queryClient.cancelQueries({ queryKey: [JOBS_KEY] })
+      const previousData = queryClient.getQueriesData<{ pages: { items: JobListItem[]; total_items?: number }[] }>({ queryKey: [JOBS_KEY] })
+      queryClient.setQueriesData<{ pages: { items: JobListItem[]; total_items?: number }[] }>(
+        { queryKey: [JOBS_KEY] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              total_items: page.total_items !== undefined ? Math.max(0, page.total_items - 1) : page.total_items,
+              items: page.items.filter((item) => item.id !== jobId),
+            })),
+          }
+        }
+      )
+      return { previousData }
+    },
+    onError: (_err, _jobId, context) => {
+      if (context?.previousData) {
+        for (const [key, data] of context.previousData) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+    },
+  })
+
   return {
     items,
     total,
@@ -153,5 +186,6 @@ export function useJobsInfiniteQuery() {
     activeFilterCount,
     clearFilters,
     processMutation,
+    deleteMutation,
   }
 }

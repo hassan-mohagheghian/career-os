@@ -6,7 +6,6 @@ import { useState, useCallback, useMemo } from 'react'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
 import { processingApi } from '@/entities/processing/api'
-import { jobApi } from '@/entities/job/api'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
 
@@ -33,6 +32,7 @@ function JobsPageV2Adapter() {
     filterVisa, setFilterVisa,
     activeFilterCount, clearFilters,
     processMutation,
+    deleteMutation,
   } = useJobsInfiniteQuery()
 
   useProcessingEvents()
@@ -66,16 +66,17 @@ function JobsPageV2Adapter() {
       'Delete',
     )
     if (!ok) return
-    try {
-      await jobApi.deleteJob(id)
-      toast.success('Job deleted')
-      setDetailJobId((current) => (current === id ? null : current))
-      setEditJobId((current) => (current === id ? null : current))
-      refetch()
-    } catch {
-      toast.error('Failed to delete job')
-    }
-  }, [showConfirm, refetch])
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('Job deleted')
+        setDetailJobId((current) => (current === id ? null : current))
+        setEditJobId((current) => (current === id ? null : current))
+      },
+      onError: () => {
+        toast.error('Failed to delete job')
+      },
+    })
+  }, [showConfirm, deleteMutation])
 
   const handleRetry = useCallback((id: string) => {
     processMutation.mutate(id, {

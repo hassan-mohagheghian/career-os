@@ -1,6 +1,41 @@
 # Changelog
 
-## [2.6.0] — 2026-08-02
+## [2.7.0] — 2026-08-04
+
+### Fixed
+
+- **Deleted jobs now disappear from the job list** — the shared HTTP client
+  (`apps/frontend/src/shared/api/http-client.ts`) resolved every successful
+  response body with `res.json()`, which threw a `SyntaxError` on the empty
+  body of `DELETE /api/jobs/{job_id}` (`204 No Content`). The delete call
+  always failed client-side, so the Job stayed visible until a manual reload
+  even though the server had deleted it. The client now resolves `204`
+  responses to `undefined` without parsing.
+
+### Changed
+
+- **Delete Job is now an optimistic update** — `useJobsInfiniteQuery` exposes
+  a `deleteMutation` that removes the Job from every loaded page and decrements
+  `total_items` immediately after confirmation, snapshots the previous cache
+  for rollback on error, and invalidates the `jobs-v2-infinite` queries on
+  settle so pagination/cursors stay consistent. The page widget
+  (`widgets/jobs-page-v2`) now drives the destructive confirm dialog through
+  this mutation instead of calling `jobApi.deleteJob` + `refetch`.
+
+### Added
+
+- **Frontend tests** — `shared/api/http-client.test.ts` (204 handling,
+  JSON parsing, error mapping) and `features/jobs-v2/hooks/useJobsInfiniteQuery.test.tsx`
+  (optimistic removal + rollback for the delete mutation).
+
+### Docs
+
+- `docs/api/jobs/delete-job.md`, `docs/ux/features/jobs/delete-job.md`,
+  `docs/ux/flows/jobs/delete-job.md` updated to document the `204` empty-body
+  contract and the optimistic delete flow.
+- `docs/agents/delete-job-visuals.md` added — a note for an agent to create
+  diagrams, charts, and wireframes for the delete flow in `docs/` as needed.
+
 
 ### Changed
 
