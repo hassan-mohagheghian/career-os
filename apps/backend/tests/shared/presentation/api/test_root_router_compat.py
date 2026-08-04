@@ -85,7 +85,7 @@ def test_linkedin_compat(client, sa_session):
     sa_session.commit()
     resp = client.get("/api/linkedin")
     assert resp.status_code == 200
-    assert {r["id"] for r in resp.json()} == {"original", "linkedin_1"}
+    assert {r["id"] for r in resp.json()} == {"linkedin_1"}
 
 
 def test_tech_stack_compat(client, sa_session):

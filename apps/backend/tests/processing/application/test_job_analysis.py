@@ -16,6 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from processing.application.services.job_analysis_inputs import (
+    build_profile_documents_text,
     build_profile_text,
     build_resume_text,
     build_scoring_rules_text,
@@ -357,15 +358,19 @@ class TestJobAnalysisPrompt:
         assert set(schema["properties"]["scores"]["required"]) == {"fit", "success"}
 
     def test_prompt_contains_all_sections(self):
-        prompt = build_job_analysis_prompt("job text", "profile text", "rules text", "resume text")
+        prompt = build_job_analysis_prompt("job text", "profile text", "rules text", "resume text", "documents text")
         assert "job text" in prompt
         assert "profile text" in prompt
         assert "rules text" in prompt
-        assert "resume text" in prompt
+        assert "documents text" in prompt
         assert "Respond ONLY with valid JSON" in prompt
 
+    def test_prompt_falls_back_to_resume_text_when_no_documents(self):
+        prompt = build_job_analysis_prompt("job text", "profile text", "rules text", "resume text")
+        assert "resume text" in prompt
+
     def test_versions(self):
-        assert JOB_ANALYSIS_PROMPT_VERSION == "1.0.0"
+        assert JOB_ANALYSIS_PROMPT_VERSION == "1.1.0"
         assert JOB_ANALYSIS_SCHEMA_VERSION == "1.0.0"
 
 
@@ -385,6 +390,27 @@ class TestJobAnalysisInputs:
         assert build_resume_text(None) == "(no resume available)"
         assert build_resume_text("hello") == "hello"
         assert len(build_resume_text("x" * 10000)) == 6000
+
+    def test_profile_documents_text_empty(self):
+        assert build_profile_documents_text(None, None) == "(no resume or LinkedIn profile available)"
+
+    def test_profile_documents_text_resume_only(self):
+        text = build_profile_documents_text("Resume raw", None)
+        assert "RESUME TEXT (latest):" in text
+        assert "Resume raw" in text
+        assert "LINKEDIN" not in text
+
+    def test_profile_documents_text_both_sources(self):
+        text = build_profile_documents_text("Resume raw", "LinkedIn raw")
+        assert "RESUME TEXT (latest):\nResume raw" in text
+        assert "LINKEDIN PROFILE TEXT (latest):\nLinkedIn raw" in text
+
+    def test_profile_documents_text_truncates_each_source(self):
+        text = build_profile_documents_text("R" * 10000, "L" * 10000)
+        assert "R" * 6000 in text
+        assert "R" * 6001 not in text
+        assert "L" * 6000 in text
+        assert "L" * 6001 not in text
 
     def test_scoring_rules(self):
         assert build_scoring_rules_text([]) == "(no scoring rules set)"
@@ -487,7 +513,9 @@ class TestPrepareProfileNode:
         skills = [{"name": "Python", "level": 4, "category": "Language"}]
         rules = [{"key": "VISA_OK", "value": "must sponsor", "priority": 1, "score_weight": 5}]
         node = PrepareProfileNode(
-            FakeSkillRepo(skills), FakeResumeRepo(original="Resume text here"), FakeRuleRepo(rules)
+            FakeSkillRepo(skills),
+            FakeResumeRepo(original="Resume text here", linkedin="LinkedIn raw here"),
+            FakeRuleRepo(rules),
         )
         state = _state()
         state.processing_context = type("Ctx", (), {"combined_text": "job text"})()
@@ -497,13 +525,25 @@ class TestPrepareProfileNode:
         assert "Python" in state.analysis_context["profile_text"]
         assert "VISA_OK" in state.analysis_context["scoring_rules"]
         assert "Resume text here" in state.analysis_context["resume_text"]
+        assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
+        assert "LinkedIn raw here" in state.analysis_context["profile_documents"]
 
-    def test_uses_linkedin_fallback(self):
+    def test_keeps_linkedin_as_separate_supplement(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(), FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"), FakeRuleRepo()
+        )
+        state = node(_state())
+        assert state.analysis_context["resume_text"] == "Resume raw"
+        assert "Resume raw" in state.analysis_context["profile_documents"]
+        assert "LinkedIn raw" in state.analysis_context["profile_documents"]
+
+    def test_linkedin_only_yields_empty_resume_text(self):
         node = PrepareProfileNode(
             FakeSkillRepo(), FakeResumeRepo(original=None, linkedin="LinkedIn raw"), FakeRuleRepo()
         )
         state = node(_state())
-        assert state.analysis_context["resume_text"] == "LinkedIn raw"
+        assert state.analysis_context["resume_text"] == "(no resume available)"
+        assert "LinkedIn raw" in state.analysis_context["profile_documents"]
 
     def test_profile_failure_degrades(self):
         node = PrepareProfileNode(
@@ -524,7 +564,7 @@ class TestAnalyzeNode:
         assert len(llm.calls) == 1
         assert llm.calls[0]["timeout"] == 240
         assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
-        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.0.0"
+        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.1.0"
         assert state.status != ExecutionStatus.FAILED
 
     def test_no_job_text_fails(self):
