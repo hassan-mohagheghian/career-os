@@ -297,6 +297,12 @@ Scheduled execution:
 
 cleanup_old_executions()
 
+> Note: no periodic scheduler is active for now. Dev sessions run briefly and
+> the main usage is job processing, so `periodic_job_cleanup` was removed. If a
+> scheduled maintenance task is needed later, re-introduce it with a worker that
+> registers the task (the task module must be part of the worker's
+> `TASK_MODULES`, otherwise the worker reports "task not found").
+
 # Deployment Model
 
 Production services:
