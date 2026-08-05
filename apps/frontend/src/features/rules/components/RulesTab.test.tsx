@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import RulesTab from './RulesTab'
 
@@ -20,6 +20,26 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 vi.mock('@dnd-kit/utilities', () => ({
   CSS: { Transform: { toString: () => '' } },
+}))
+
+vi.mock('@/shared/components/Drawer', () => ({
+  Drawer: ({ open, children }: any) => (open ? <div data-testid="rule-drawer">{children}</div> : null),
+  DrawerHeader: ({ title, onClose }: any) => (
+    <div>
+      <div>{title}</div>
+      <button onClick={onClose} aria-label="Close">x</button>
+    </div>
+  ),
+  DrawerContent: ({ children }: any) => <div>{children}</div>,
+  DrawerFooter: ({ children }: any) => <div>{children}</div>,
+}))
+
+vi.mock('@/shared/ui/select', () => ({
+  Select: ({ children }: any) => <div>{children}</div>,
+  SelectTrigger: ({ children }: any) => <div>{children}</div>,
+  SelectValue: () => <span />,
+  SelectContent: ({ children }: any) => <div>{children}</div>,
+  SelectItem: ({ children }: any) => <div>{children}</div>,
 }))
 
 const mockRules = {
@@ -109,5 +129,45 @@ describe('RulesTab', () => {
   it('renders description', () => {
     render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
     expect(screen.getByText('Prefers remote')).toBeInTheDocument()
+  })
+
+  it('opens the Add Rule drawer from the bottom when clicking Add rule', () => {
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getAllByText('Add rule')[0])
+    expect(screen.getByText('Add Rule')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('e.g. remote_work')).toBeInTheDocument()
+  })
+
+  it('closes the drawer on close', () => {
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getAllByText('Add rule')[0])
+    expect(screen.getByText('Add Rule')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(screen.queryByText('Add Rule')).not.toBeInTheDocument()
+  })
+
+  it('adds a rule and refreshes when saving from the drawer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = fetchMock as any
+    const onUpdate = vi.fn()
+    render(<RulesTab rules={mockRules} onUpdate={onUpdate} />)
+
+    fireEvent.click(screen.getAllByText('Add rule')[0])
+    fireEvent.change(screen.getByPlaceholderText('e.g. remote_work'), { target: { value: 'new_rule' } })
+    fireEvent.change(screen.getByPlaceholderText('How the rule matches candidates / companies'), { target: { value: 'Some value' } })
+    fireEvent.click(screen.getByText('Save'))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(fetchMock).toHaveBeenCalledWith('/api/rules', expect.objectContaining({ method: 'POST' }))
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled())
+    expect(screen.queryByText('Add Rule')).not.toBeInTheDocument()
+  })
+
+  it('opens the Edit Rule drawer prefilled with the rule', () => {
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getAllByTitle('Edit')[0])
+    expect(screen.getByText('Edit Rule')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('visa_sponsorship')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Must sponsor visa')).toBeInTheDocument()
   })
 })

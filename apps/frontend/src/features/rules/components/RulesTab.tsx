@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { PencilSimple, Trash, Check, X, Plus, ArrowUp, ArrowDown, Target, DotsSixVertical, Users, Buildings, Briefcase, Handshake } from '@phosphor-icons/react'
+import { PencilSimple, Trash, Plus, ArrowUp, ArrowDown, Target, DotsSixVertical, Users, Buildings, Briefcase, Handshake } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
-import { Input } from '@/shared/ui/input'
 import { Switch } from '@/shared/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
-import { Textarea } from '@/shared/ui/textarea'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import RuleFormDrawer from './RuleFormDrawer'
 
 const API = '/api'
 
@@ -41,44 +39,7 @@ function ScopeBadge({ scope }) {
   return <Badge variant="outline" className={cn("text-3xs px-0.5 h-2.5 shrink-0", config.color)}>{config.label}</Badge>
 }
 
-function RuleForm({ initial, onSave, onCancel }) {
-  const [f, setF] = useState(initial || { category: 'fit', scope: 'JOB', key: '', value: '', description: '', priority: 50, score_weight: 50 })
-  return (
-    <div className="p-3 rounded-lg border border-dashed bg-muted/30 space-y-2">
-      <div className="grid grid-cols-4 gap-2">
-        <Select value={f.scope} onValueChange={(v) => setF({ ...f, scope: v })}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="SHARED">Shared (ALL)</SelectItem>
-            <SelectItem value="JOB">Job</SelectItem>
-            <SelectItem value="COMPANY_PRODUCT">Product Company</SelectItem>
-            <SelectItem value="COMPANY_RECRUITING">Recruiting</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="fit">Fit score</SelectItem>
-            <SelectItem value="success">Success score</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input value={f.key} onChange={e => setF({ ...f, key: e.target.value })} placeholder="Key name" className="h-7 text-xs" />
-        <div className="flex items-center gap-1">
-          <span className="text-2xs text-muted-foreground shrink-0">W:</span>
-          <Input type="number" min="0" max="100" value={f.score_weight} onChange={e => setF({ ...f, score_weight: parseInt(e.target.value) || 0 })} className="h-7 text-xs flex-1" />
-        </div>
-      </div>
-      <Textarea value={f.value} onChange={e => setF({ ...f, value: e.target.value })} placeholder="Value / rule" className="text-xs min-h-[48px]" />
-      <Input value={f.description} onChange={e => setF({ ...f, description: e.target.value })} placeholder="How this affects scoring (optional)" className="h-7 text-xs" />
-      <div className="flex gap-1">
-        <Button size="sm" className="h-6 text-2xs bg-green-500 hover:bg-green-600 gap-0.5" onClick={() => { if (f.key && f.value) onSave(f) }}><Check className="w-2.5 h-2.5" /> Save</Button>
-        <Button size="sm" variant="ghost" className="h-6 text-2xs gap-0.5" onClick={onCancel}><X className="w-2.5 h-2.5" /> Cancel</Button>
-      </div>
-    </div>
-  )
-}
-
-function SortableRule({ pref, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority }) {
+function SortableRule({ pref, onOpenEdit, onToggle, onDelete, onPriority }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pref.id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -89,40 +50,34 @@ function SortableRule({ pref, editing, onEdit, onSave, onCancel, onToggle, onDel
 
   return (
     <div ref={setNodeRef} style={style} className={cn("rounded-lg transition hover:bg-muted/50 group", !pref.enabled && "opacity-40", isDragging && "ring-2 ring-primary/30 shadow-lg")}>
-      {editing === pref.id ? (
-        <div className="p-1">
-          <RuleForm initial={pref} onSave={(form) => onSave(pref.id, form)} onCancel={onCancel} />
+      <div className="flex items-start gap-1.5 p-1.5">
+        <div {...attributes} {...listeners} className="shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition">
+          <DotsSixVertical className="w-3 h-3" />
         </div>
-      ) : (
-        <div className="flex items-start gap-1.5 p-1.5">
-          <div {...attributes} {...listeners} className="shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition">
-            <DotsSixVertical className="w-3 h-3" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-xs font-semibold truncate">{pref.key}</span>
-              <Badge variant="outline" className="text-3xs px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
-              <ScopeBadge scope={pref.scope} />
-              <PriorityBadge p={pref.priority} />
-              <span className="text-2xs text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
-              <div className="flex items-center gap-0.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition">
-                <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75" title="Enable/Disable" />
-                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
-                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, -5, pref.priority)} title="Priority -5"><ArrowDown className="w-2 h-2" /></Button>
-                <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onEdit(pref.id)} title="Edit"><PencilSimple className="w-2 h-2" /></Button>
-                <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onClick={() => onDelete(pref.id)} title="Delete"><Trash className="w-2 h-2" /></Button>
-              </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs font-semibold truncate">{pref.key}</span>
+            <Badge variant="outline" className="text-3xs px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
+            <ScopeBadge scope={pref.scope} />
+            <PriorityBadge p={pref.priority} />
+            <span className="text-2xs text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
+            <div className="flex items-center gap-0.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition">
+              <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75" title="Enable/Disable" />
+              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
+              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, -5, pref.priority)} title="Priority -5"><ArrowDown className="w-2 h-2" /></Button>
+              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onOpenEdit(pref)} title="Edit"><PencilSimple className="w-2 h-2" /></Button>
+              <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onClick={() => onDelete(pref.id)} title="Delete"><Trash className="w-2 h-2" /></Button>
             </div>
-            <div className="text-2xs text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
-            {pref.description && <div className="text-2xs text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
           </div>
+          <div className="text-2xs text-muted-foreground mt-0.5 ml-4">{pref.value}</div>
+          {pref.description && <div className="text-2xs text-muted-foreground/60 mt-0.5 ml-4 italic">{pref.description}</div>}
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
-function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle, onDelete, onPriority, onAdd, onReorder, showAdd, setShowAdd }) {
+function RuleColumn({ scope, prefs, onOpenAdd, onOpenEdit, onToggle, onDelete, onPriority, onReorder }) {
   const meta = SCOPE_CONFIG[scope]
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const ids = prefs.map(p => p.id)
@@ -145,17 +100,14 @@ function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle,
       </div>
       <div className={cn("rounded-b-lg border p-2 space-y-0.5 max-h-[600px] overflow-y-auto", meta.headerBorder)}>
         <div className="text-2xs text-muted-foreground mb-1">{meta.desc}</div>
-        <Button variant="ghost" size="sm" className="h-6 text-2xs gap-0.5 text-muted-foreground w-full justify-start" onClick={() => setShowAdd(showAdd ? null : scope)}>
+        <Button variant="ghost" size="sm" className="h-6 text-2xs gap-0.5 text-muted-foreground w-full justify-start" onClick={() => onOpenAdd(scope)}>
           <Plus className="w-2.5 h-2.5" /> Add rule
         </Button>
-        {showAdd === scope && (
-          <RuleForm initial={{ category: 'fit', scope: scope, key: '', value: '', description: '', priority: 50, score_weight: 50 }} onSave={(form) => { onAdd(form); setShowAdd(null) }} onCancel={() => setShowAdd(null)} />
-        )}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             {prefs.map((pref) => (
-              <SortableRule key={pref.id} pref={pref} editing={editing}
-                onEdit={onEdit} onSave={onSave} onCancel={onCancel}
+              <SortableRule key={pref.id} pref={pref}
+                onOpenEdit={onOpenEdit}
                 onToggle={onToggle} onDelete={onDelete} onPriority={onPriority} />
             ))}
           </SortableContext>
@@ -166,8 +118,7 @@ function RuleColumn({ scope, prefs, editing, onEdit, onSave, onCancel, onToggle,
 }
 
 export default function RulesTab({ rules, onUpdate }) {
-  const [editing, setEditing] = useState(null)
-  const [showAdd, setShowAdd] = useState(null)
+  const [form, setForm] = useState<{ open: boolean; id: string | null; initial: any }>({ open: false, id: null, initial: null })
   const [filter, setFilter] = useState('all')
 
   const api = async (method, path, body) => {
@@ -175,11 +126,25 @@ export default function RulesTab({ rules, onUpdate }) {
     onUpdate()
   }
 
-  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight, scope: form.scope }); setEditing(null) }
+  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight, scope: form.scope }) }
   const handleToggle = async (id, enabled) => api('PUT', `/rules/${id}`, { enabled: enabled ? 1 : 0 })
   const handleDelete = async (id) => api('DELETE', `/rules/${id}`)
   const handleAdd = async (form) => { await api('POST', '/rules', { rules: [{ ...form, rule_type: form.scope === 'SHARED' ? 'shared' : form.scope === 'JOB' ? 'job' : form.scope === 'COMPANY_PRODUCT' ? 'company' : 'recruiter' }] }) }
   const handlePriority = async (id, delta, current) => api('PUT', `/rules/${id}`, { priority: Math.max(0, Math.min(100, current + delta)) })
+
+  const openAdd = (scope) => {
+    setForm({ open: true, id: null, initial: { category: 'fit', scope: scope, key: '', value: '', description: '', priority: 50, score_weight: 50 } })
+  }
+
+  const openEdit = (rule) => {
+    setForm({ open: true, id: rule.id, initial: { category: rule.category, scope: rule.scope, key: rule.key, value: rule.value, description: rule.description, priority: rule.priority, score_weight: rule.score_weight } })
+  }
+
+  const handleFormSave = async (values) => {
+    if (form.id) await handleSave(form.id, values)
+    else await handleAdd(values)
+    setForm((f) => ({ ...f, open: false }))
+  }
 
   const handleReorder = async (scope, reordered) => {
     const total = reordered.length
@@ -243,11 +208,20 @@ export default function RulesTab({ rules, onUpdate }) {
       {/* Rule columns */}
       <div className={cn("gap-3", filteredScopes.length <= 3 ? "grid grid-cols-3" : filteredScopes.length <= 4 ? "grid grid-cols-4" : "grid grid-cols-3")}>
         {filteredScopes.map(scope => (
-          <RuleColumn key={scope} scope={scope} prefs={scopeGroups[scope] || []} editing={editing} showAdd={showAdd} setShowAdd={setShowAdd}
-            onEdit={setEditing} onSave={handleSave} onCancel={() => setEditing(null)}
-            onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onAdd={handleAdd} onReorder={handleReorder} />
+          <RuleColumn key={scope} scope={scope} prefs={scopeGroups[scope] || []}
+            onOpenAdd={openAdd} onOpenEdit={openEdit}
+            onToggle={handleToggle} onDelete={handleDelete} onPriority={handlePriority} onReorder={handleReorder} />
         ))}
       </div>
+
+      <RuleFormDrawer
+        key={form.id || 'new'}
+        open={form.open}
+        onOpenChange={(open) => setForm((f) => ({ ...f, open }))}
+        title={form.id ? 'Edit Rule' : 'Add Rule'}
+        initial={form.initial}
+        onSave={handleFormSave}
+      />
     </div>
   )
 }
