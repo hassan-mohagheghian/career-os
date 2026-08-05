@@ -90,6 +90,20 @@ This creates a new migration file in the appropriate version directory based on 
 alembic upgrade head
 ```
 
+### Merge divergent migration heads
+
+If `alembic upgrade head` fails with
+`Multiple head revisions are present for given argument 'head'`, two migration
+lines diverged from a common ancestor (e.g. two feature migrations were created
+from the same base). Re-join them into a single head with a merge migration:
+
+```bash
+alembic merge -m "merge <desc-a> and <desc-b> heads" <head_a> <head_b>
+```
+
+Then commit the generated merge file. Verify with `alembic heads` (must show a
+single head) before running `alembic upgrade head`.
+
 ### Rollback one migration
 
 ```bash
