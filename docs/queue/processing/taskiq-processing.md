@@ -295,13 +295,30 @@ process_job_execution_task(execution_id)
 
 Scheduled execution:
 
-cleanup_old_executions()
+periodic_db_backup
 
-> Note: no periodic scheduler is active for now. Dev sessions run briefly and
-> the main usage is job processing, so `periodic_job_cleanup` was removed. If a
-> scheduled maintenance task is needed later, re-introduce it with a worker that
-> registers the task (the task module must be part of the worker's
-> `TASK_MODULES`, otherwise the worker reports "task not found").
+## Dev DB Backup Scheduler
+
+During development (`./start -b` or `./start background`) a TaskIQ scheduler
+runs `periodic_db_backup`, which:
+
+- Dumps the main PostgreSQL database with `pg_dump` (run inside the
+  `job-search-postgres-1` container via `docker exec`).
+- Runs every `DB_BACKUP_INTERVAL_MINUTES` minutes (default 10).
+- Keeps only the `DB_BACKUP_KEEP_COUNT` most recent dumps (default 3) and
+  deletes older ones.
+
+Configuration lives in `.env`:
+
+- `DB_BACKUP_INTERVAL_MINUTES` (default 10)
+- `DB_BACKUP_KEEP_COUNT` (default 3)
+- `DB_BACKUP_DIR` (default `<repo>/backups`)
+- `DB_BACKUP_CONTAINER` (default `job-search-postgres-1`)
+
+Backups are written to `DB_BACKUP_DIR` as `jobsearch_YYYYMMDD_HHMMSS.dump` and
+are gitignored. The task is registered in `shared.infrastructure.taskiq.tasks`
+(the worker's `TASK_MODULES`), so the worker can execute it — the "task not
+found" warning does not occur.
 
 # Deployment Model
 

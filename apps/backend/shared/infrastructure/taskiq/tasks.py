@@ -11,12 +11,15 @@ Each task mirrors the previous ARQ task it replaces:
 - process_generation_task→ replaces ARQ ``process_generation``
 - process_execution_task → drives the ProcessingExecution lifecycle through
   the TaskIQ worker → LangGraph workflow flow.
+- periodic_db_backup     → scheduled PostgreSQL backup during dev (see
+  ``DB_BACKUP_INTERVAL_MINUTES`` / ``DB_BACKUP_KEEP_COUNT`` in .env).
 """
 
 from __future__ import annotations
 
 import asyncio
 
+from shared.infrastructure.config.app_config import DB_BACKUP_INTERVAL_MINUTES
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.taskiq.config import (
     broker,
@@ -25,6 +28,27 @@ from shared.infrastructure.taskiq.config import (
 )
 
 log = get_logger("taskiq.tasks")
+
+
+@broker.task(
+    schedule=[{"interval": int(DB_BACKUP_INTERVAL_MINUTES * 60)}],
+)
+async def periodic_db_backup() -> dict:
+    """Backup the main database and prune old backups.
+
+    Runs on a fixed interval (see ``DB_BACKUP_INTERVAL_MINUTES`` in .env) and
+    keeps only the ``DB_BACKUP_KEEP_COUNT`` most recent dumps.
+    """
+    log.info("taskiq.task.db_backup.start")
+    try:
+        from shared.infrastructure.database.backup_service import run_db_backup
+
+        result = await asyncio.to_thread(run_db_backup)
+        log.info("taskiq.task.db_backup.complete", **result)
+        return {"status": "completed", **result}
+    except Exception as e:
+        log.error("taskiq.task.db_backup.failed", error=str(e))
+        raise
 
 
 @broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)

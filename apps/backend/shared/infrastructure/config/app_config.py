@@ -26,3 +26,10 @@ PROJECT_ROOT = _PROJECT_ROOT
 STATIC_FOLDER = os.path.join(_SERVER_DIR, '..', 'frontend', 'dist')
 
 AI_PROVIDER = os.environ.get('AI_PROVIDER', 'mimo')
+
+# Dev DB backup scheduler
+DB_BACKUP_INTERVAL_MINUTES = int(os.environ.get('DB_BACKUP_INTERVAL_MINUTES', '10'))
+DB_BACKUP_KEEP_COUNT = int(os.environ.get('DB_BACKUP_KEEP_COUNT', '3'))
+_DB_BACKUP_DIR = os.environ.get('DB_BACKUP_DIR', os.path.join(_PROJECT_ROOT, 'backups'))
+DB_BACKUP_DIR = os.path.abspath(_DB_BACKUP_DIR) if os.path.isabs(_DB_BACKUP_DIR) else os.path.join(_PROJECT_ROOT, _DB_BACKUP_DIR)
+DB_BACKUP_CONTAINER = os.environ.get('DB_BACKUP_CONTAINER', 'job-search-postgres-1')

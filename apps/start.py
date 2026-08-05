@@ -48,6 +48,7 @@ VENV_DIR = REPO_ROOT / ".venv"
 PID_FILE = REPO_ROOT / ".server.pid"
 CLIENT_PID_FILE = REPO_ROOT / ".client.pid"
 PID_BG_FILE = REPO_ROOT / ".background.pid"
+PID_SCHED_FILE = REPO_ROOT / ".scheduler.pid"
 
 
 def read_version() -> str:
@@ -207,7 +208,7 @@ def dev(
         None, "--frontend-port", help="Frontend port"
     ),
     with_background: bool = typer.Option(
-        False, "--background", "-b", help="Also start the background worker"
+        False, "--background", "-b", help="Also start the background worker + scheduler"
     ),
 ):
     """Start backend + frontend"""
@@ -232,13 +233,13 @@ def dev(
     console.print(f"  Backend:  http://localhost:{port_be}")
     console.print(f"  Frontend: http://localhost:{port_fe}")
     if with_background:
-        console.print("  Background: worker running")
+        console.print("  Background: worker + scheduler running")
     console.print()
     console.print("  Press Ctrl+C to stop all services")
     console.print()
 
     try:
-        signal.signal(signal.SIGINT, lambda s, f: (_stop_service("backend", PID_FILE), _stop_service("frontend", CLIENT_PID_FILE), _stop_service("background", PID_BG_FILE), _kill_by_pattern("mimo run"), _ok("All processes stopped."), sys.exit(0)))
+        signal.signal(signal.SIGINT, lambda s, f: (_stop_service("backend", PID_FILE), _stop_service("frontend", CLIENT_PID_FILE), _stop_service("background", PID_BG_FILE), _stop_service("scheduler", PID_SCHED_FILE), _kill_by_pattern("mimo run"), _ok("All processes stopped."), sys.exit(0)))
         signal.pause()
     except KeyboardInterrupt:
         pass
@@ -247,6 +248,7 @@ def dev(
     _stop_service("frontend", CLIENT_PID_FILE)
     if with_background:
         _stop_service("background", PID_BG_FILE)
+        _stop_service("scheduler", PID_SCHED_FILE)
     _kill_by_pattern("mimo run")
     _ok("All processes stopped.")
 
@@ -312,6 +314,25 @@ def _start_background():
     )
     _save_pid(PID_BG_FILE, proc.pid)
     _ok(f"Background worker started (PID: {proc.pid})")
+    _start_scheduler(env)
+
+
+def _start_scheduler(env: dict = None):
+    _log("Starting background scheduler...")
+    python = _python_path()
+    if env is None:
+        env = _background_env()
+    proc = subprocess.Popen(
+        [
+            python, "-m", "taskiq", "scheduler",
+            "apps.backend.entrypoints.scheduler:create_scheduler",
+            "shared.infrastructure.taskiq.tasks",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+    )
+    _save_pid(PID_SCHED_FILE, proc.pid)
+    _ok(f"Background scheduler started (PID: {proc.pid})")
 
 
 @app.command()
@@ -379,7 +400,7 @@ def frontend(
 
 @app.command()
 def background():
-    """Start only the background worker"""
+    """Start only the background worker + scheduler"""
     _log("Starting background worker...")
     python = _python_path()
     env = _background_env()
@@ -390,6 +411,7 @@ def background():
     )
     _save_pid(PID_BG_FILE, proc.pid)
     _ok(f"Background worker started (PID: {proc.pid})")
+    _start_scheduler(env)
 
     try:
         signal.pause()
@@ -398,6 +420,7 @@ def background():
 
     _log("Shutting down background worker...")
     _stop_service("background", PID_BG_FILE)
+    _stop_service("scheduler", PID_SCHED_FILE)
     _ok("Background worker stopped.")
 
 
@@ -760,6 +783,7 @@ def stop():
     _stop_service("backend", PID_FILE)
     _stop_service("frontend", CLIENT_PID_FILE)
     _stop_service("background", PID_BG_FILE)
+    _stop_service("scheduler", PID_SCHED_FILE)
     _kill_by_pattern("mimo run")
     _ok("All processes stopped.")
 
@@ -788,6 +812,12 @@ def status():
         _ok(f"Background: Running (PID: {background_pid})")
     else:
         _warn("Background: Not running")
+
+    scheduler_pid = _read_pid(PID_SCHED_FILE)
+    if scheduler_pid is not None and _is_process_alive(scheduler_pid):
+        _ok(f"Scheduler:  Running (PID: {scheduler_pid})")
+    else:
+        _warn("Scheduler:  Not running")
 
     mimo = subprocess.run(
         ["pgrep", "-f", "mimo run"], capture_output=True, text=True
