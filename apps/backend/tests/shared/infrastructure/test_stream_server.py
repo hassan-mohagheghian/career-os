@@ -349,9 +349,9 @@ class TestLoadRules:
     def test_load_rules_job(self, mock_get_session):
         session = mock_get_session
         session.add(RuleModel(category='fit', scope='JOB', key='python_backend_core',
-                              value='Python required', priority=100, score_weight=80, enabled=1))
+                              value='Python required', priority=100, enabled=1))
         session.add(RuleModel(category='success', scope='SHARED', key='visa',
-                              value='Visa ok', priority=90, score_weight=0, enabled=1))
+                              value='Visa ok', priority=90, enabled=1))
         session.commit()
         text = stream_server._load_rules('job')
         assert 'FIT' in text
@@ -361,7 +361,7 @@ class TestLoadRules:
     def test_load_rules_company(self, mock_get_session):
         session = mock_get_session
         session.add(RuleModel(category='fit', scope='COMPANY_PRODUCT', key='company_quality',
-                              value='x', priority=100, score_weight=50, enabled=1))
+                              value='x', priority=100, enabled=1))
         session.commit()
         text = stream_server._load_rules('company')
         assert 'company_quality' in text
@@ -676,7 +676,7 @@ class TestProcessJobStream:
     @pytest.mark.asyncio
     async def test_success_with_rules(self, mock_get_session, clear_state):
         mock_get_session.add(RuleModel(category='fit', scope='JOB', key='python_backend_core',
-                                       value='Python required', priority=100, score_weight=80, enabled=1))
+                                       value='Python required', priority=100, enabled=1))
         mock_get_session.commit()
         pid = _insert_pending(mock_get_session)
         graph_patch, state_patch = self._patch_graph(self._result())

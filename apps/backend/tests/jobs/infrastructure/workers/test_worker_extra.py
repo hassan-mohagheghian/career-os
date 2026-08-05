@@ -360,9 +360,9 @@ class TestLoadRules:
     def test_with_rules(self, mock_get_session_worker):
         sa_session = mock_get_session_worker
         sa_session.add(RuleModel(category='fit', rule_type='job', scope='JOB', key='python',
-                                 value='Strong', priority=10, score_weight=0))
+                                 value='Strong', priority=10))
         sa_session.add(RuleModel(category='company', rule_type='job', scope='SHARED', key='scale',
-                                 value='Large', priority=20, score_weight=30))
+                                 value='Large', priority=20))
         sa_session.commit()
         from jobs.infrastructure.workers.worker import _load_rules
         result = _load_rules('job')

@@ -39,7 +39,7 @@ function ScopeBadge({ scope }) {
   return <Badge variant="outline" className={cn("text-3xs px-0.5 h-2.5 shrink-0", config.color)}>{config.label}</Badge>
 }
 
-function SortableRule({ pref, onOpenEdit, onToggle, onDelete, onPriority }) {
+function SortableRule({ pref, onOpenEdit, onToggle, onDelete, onMoveUp, onMoveDown }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pref.id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -60,11 +60,11 @@ function SortableRule({ pref, onOpenEdit, onToggle, onDelete, onPriority }) {
             <Badge variant="outline" className="text-3xs px-0.5 h-2.5 shrink-0">{pref.category}</Badge>
             <ScopeBadge scope={pref.scope} />
             <PriorityBadge p={pref.priority} />
-            <span className="text-2xs text-muted-foreground">w:{pref.score_weight || pref.priority}</span>
+            <span className="text-2xs text-muted-foreground">w:{pref.priority}</span>
             <div className="flex items-center gap-0.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition">
               <Switch checked={!!pref.enabled} onCheckedChange={(c) => onToggle(pref.id, c)} className="scale-75" title="Enable/Disable" />
-              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, 5, pref.priority)} title="Priority +5"><ArrowUp className="w-2 h-2" /></Button>
-              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onPriority(pref.id, -5, pref.priority)} title="Priority -5"><ArrowDown className="w-2 h-2" /></Button>
+              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onMoveUp(pref.id)} title="Move up"><ArrowUp className="w-2 h-2" /></Button>
+              <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onMoveDown(pref.id)} title="Move down"><ArrowDown className="w-2 h-2" /></Button>
               <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => onOpenEdit(pref)} title="Edit"><PencilSimple className="w-2 h-2" /></Button>
               <Button variant="ghost" size="icon" className="h-4 w-4 text-destructive hover:text-destructive" onClick={() => onDelete(pref.id)} title="Delete"><Trash className="w-2 h-2" /></Button>
             </div>
@@ -81,6 +81,18 @@ function RuleColumn({ scope, prefs, onOpenAdd, onOpenEdit, onToggle, onDelete, o
   const meta = SCOPE_CONFIG[scope]
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const ids = prefs.map(p => p.id)
+
+  const handleMoveUp = (id) => {
+    const idx = prefs.findIndex(p => p.id === id)
+    if (idx <= 0) return
+    onPriority(id, Math.min(prefs[idx - 1].priority + 1, 100))
+  }
+
+  const handleMoveDown = (id) => {
+    const idx = prefs.findIndex(p => p.id === id)
+    if (idx === -1 || idx >= prefs.length - 1) return
+    onPriority(id, Math.max(prefs[idx + 1].priority - 1, 0))
+  }
 
   const handleDragEnd = (event) => {
     const { active, over } = event
@@ -108,7 +120,7 @@ function RuleColumn({ scope, prefs, onOpenAdd, onOpenEdit, onToggle, onDelete, o
             {prefs.map((pref) => (
               <SortableRule key={pref.id} pref={pref}
                 onOpenEdit={onOpenEdit}
-                onToggle={onToggle} onDelete={onDelete} onPriority={onPriority} />
+                onToggle={onToggle} onDelete={onDelete} onMoveUp={handleMoveUp} onMoveDown={handleMoveDown} />
             ))}
           </SortableContext>
         </DndContext>
@@ -126,18 +138,18 @@ export default function RulesTab({ rules, onUpdate }) {
     onUpdate()
   }
 
-  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, score_weight: form.score_weight, scope: form.scope }) }
+  const handleSave = async (id, form) => { await api('PUT', `/rules/${id}`, { value: form.value, description: form.description, scope: form.scope, priority: form.priority }) }
   const handleToggle = async (id, enabled) => api('PUT', `/rules/${id}`, { enabled: enabled ? 1 : 0 })
   const handleDelete = async (id) => api('DELETE', `/rules/${id}`)
   const handleAdd = async (form) => { await api('POST', '/rules', { rules: [{ ...form, rule_type: form.scope === 'SHARED' ? 'shared' : form.scope === 'JOB' ? 'job' : form.scope === 'COMPANY_PRODUCT' ? 'company' : 'recruiter' }] }) }
-  const handlePriority = async (id, delta, current) => api('PUT', `/rules/${id}`, { priority: Math.max(0, Math.min(100, current + delta)) })
+  const handlePriority = async (id, priority) => api('PUT', `/rules/${id}`, { priority })
 
   const openAdd = (scope) => {
-    setForm({ open: true, id: null, initial: { category: 'fit', scope: scope, key: '', value: '', description: '', priority: 50, score_weight: 50 } })
+    setForm({ open: true, id: null, initial: { category: 'fit', scope: scope, key: '', value: '', description: '', priority: 50 } })
   }
 
   const openEdit = (rule) => {
-    setForm({ open: true, id: rule.id, initial: { category: rule.category, scope: rule.scope, key: rule.key, value: rule.value, description: rule.description, priority: rule.priority, score_weight: rule.score_weight } })
+    setForm({ open: true, id: rule.id, initial: { category: rule.category, scope: rule.scope, key: rule.key, value: rule.value, description: rule.description, priority: rule.priority } })
   }
 
   const handleFormSave = async (values) => {

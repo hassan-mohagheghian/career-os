@@ -353,8 +353,21 @@ async def app_error_handler(request: Request, exc: AppError):
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/rules` | GET | — | `RulesResponse` | Get scoring rules |
-| `/api/rules` | PUT | `RulesUpdate` | `RulesResponse` | Update rules |
+| `/api/rules` | GET | — | `RulesResponse` | Get scoring rules grouped by scope |
+| `/api/rules` | PUT | `RulesUpdate` | `RulesResponse` | Bulk update rules (reordering) |
+| `/api/rules` | POST | `{ rules: [...] }` | `RulesResponse` | Create rule(s) |
+| `/api/rules/{id}` | PUT | `RuleUpdate` | `RulesResponse` | Update a single rule |
+| `/api/rules/{id}` | DELETE | — | `RulesResponse` | Delete a rule |
+
+Each rule has a single `priority` (0–100) used for list order, the severity
+badge, and the LLM weight. Payload fields: `id`, `category`, `rule_type`,
+`scope`, `key`, `value`, `description`, `priority`, `enabled`, `updated_at`.
+
+- `PUT /api/rules/{id}` accepts any subset of `value`, `description`, `priority`,
+  `enabled`, `scope`, `category`, `key`.
+- `POST /api/rules` accepts `{ "rules": [ { scope, category, key, value, priority?, ... } ] }`.
+- Reordering: the UI writes new `priority` values via `PUT /api/rules/{id}` (move
+  up/down) or the bulk `PUT /api/rules` (drag-and-drop).
 
 ### WebSocket
 

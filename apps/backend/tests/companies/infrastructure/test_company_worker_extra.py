@@ -104,7 +104,7 @@ class TestLoadRules:
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
         sa_session = mock_get_session_company_worker
         sa_session.add(RuleModel(category='culture', rule_type='company', scope='COMPANY_PRODUCT',
-                                 key='perks', value='Strong', priority=5, score_weight=40))
+                                 key='perks', value='Strong', priority=5))
         sa_session.commit()
         with patch('companies.infrastructure.workers.company_worker.SQLAlchemyRuleRepository', SQLAlchemyRuleRepository, create=True):
             result = _load_rules(context='company', company_type='UNKNOWN')
@@ -115,7 +115,7 @@ class TestLoadRules:
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
         sa_session = mock_get_session_company_worker
         sa_session.add(RuleModel(category='recruit', rule_type='company', scope='COMPANY_RECRUITING',
-                                 key='headhunt', value='Yes', priority=1, score_weight=10))
+                                 key='headhunt', value='Yes', priority=1))
         sa_session.commit()
         with patch('companies.infrastructure.workers.company_worker.SQLAlchemyRuleRepository', SQLAlchemyRuleRepository, create=True):
             result = _load_rules(context='company', company_type='RECRUITING_AGENCY')
@@ -126,7 +126,7 @@ class TestLoadRules:
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
         sa_session = mock_get_session_company_worker
         sa_session.add(RuleModel(category='fit', rule_type='job', scope='JOB',
-                                 key='python', value='High', priority=10, score_weight=30))
+                                 key='python', value='High', priority=10))
         sa_session.commit()
         with patch('companies.infrastructure.workers.company_worker.SQLAlchemyRuleRepository', SQLAlchemyRuleRepository, create=True):
             result = _load_rules(context='job')
@@ -138,19 +138,19 @@ class TestLoadRules:
         with patch('companies.infrastructure.workers.company_worker.SQLAlchemyRuleRepository', SQLAlchemyRuleRepository, create=True):
             assert _load_rules(context='company', company_type='PRODUCT_COMPANY') == 'No scoring rules set.'
 
-    def test_rules_use_score_weight(self, mock_get_session_company_worker):
+    def test_rules_use_priority_as_weight(self, mock_get_session_company_worker):
         from companies.infrastructure.workers.company_worker import _load_rules
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
         sa_session = mock_get_session_company_worker
         sa_session.add(RuleModel(category='cat', rule_type='company', scope='COMPANY_RECRUITING',
-                                 key='k1', value='v1', priority=5, score_weight=0))
+                                 key='k1', value='v1', priority=5))
         sa_session.add(RuleModel(category='cat', rule_type='company', scope='COMPANY_RECRUITING',
-                                 key='k2', value='v2', priority=3, score_weight=20))
+                                 key='k2', value='v2', priority=3))
         sa_session.commit()
         with patch('companies.infrastructure.workers.company_worker.SQLAlchemyRuleRepository', SQLAlchemyRuleRepository, create=True):
             result = _load_rules(context='company', company_type='STAFFING_COMPANY')
-        assert 'weight:20' in result
         assert 'weight:5' in result
+        assert 'weight:3' in result
 
 
 class TestAnalyzeCompany:

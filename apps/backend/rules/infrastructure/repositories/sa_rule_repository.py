@@ -24,7 +24,6 @@ class SQLAlchemyRuleRepository(IRuleRepository):
             "value": m.value,
             "description": m.description,
             "priority": m.priority,
-            "score_weight": m.score_weight,
             "enabled": m.enabled,
             "updated_at": m.updated_at,
         }
@@ -53,7 +52,6 @@ class SQLAlchemyRuleRepository(IRuleRepository):
             value=data.get("value", ""),
             description=data.get("description", ""),
             priority=data.get("priority", 50),
-            score_weight=data.get("score_weight", 50),
             enabled=data.get("enabled", 1),
         )
         self._session.add(m)
@@ -65,7 +63,7 @@ class SQLAlchemyRuleRepository(IRuleRepository):
         m = self._session.query(RuleModel).filter(RuleModel.id == rule_id).first()
         if not m:
             return None
-        for field in ["value", "description", "score_weight", "priority", "enabled", "scope", "category", "key"]:
+        for field in ["value", "description", "priority", "enabled", "scope", "category", "key"]:
             if field in data:
                 setattr(m, field, data[field])
         self._session.commit()
@@ -88,7 +86,7 @@ class SQLAlchemyRuleRepository(IRuleRepository):
             m = self._session.query(RuleModel).filter(RuleModel.id == item["id"]).first()
             if not m:
                 continue
-            for field in ["value", "score_weight", "enabled", "priority", "scope"]:
+            for field in ["value", "enabled", "priority", "scope"]:
                 if field in item:
                     setattr(m, field, item[field])
             count += 1

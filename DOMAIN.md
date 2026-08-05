@@ -54,6 +54,14 @@
 - **COMPANY_RECRUITING rules**: Recruiting agency scoring
 - **Formula**: `overall_score = fit_score × 0.6 + success_score × 0.4`
 
+### Scoring Rules
+- Each rule has a single `priority` (0–100) that drives **list order**
+  (descending), the **severity badge** (≥90 Critical, ≥75 High, ≥50 Med, else
+  Low) and the **LLM weight** (`w:{priority}`) injected into scoring prompts.
+- Rules are scoped: `SHARED`, `JOB`, `COMPANY_PRODUCT`, `COMPANY_RECRUITING`.
+- Reordering writes `priority = neighbor ± 1` (move up/down, clamped 0–100) or
+  redistributes the column on drag-and-drop.
+
 ### Visa Assessment
 - **BEST**: Confirmed sponsorship, English-first, international team
 - **Strong**: Likely sponsorship, international presence

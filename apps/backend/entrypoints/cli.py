@@ -356,7 +356,7 @@ def rules():
             current_cat = r['category']
             console.print(f"\n[bold cyan]{current_cat.upper()}[/bold cyan]")
         status = "[green]ON[/green]" if r['enabled'] else "[red]OFF[/red]"
-        weight = r.get('score_weight') or r['priority']
+        weight = r['priority']
         console.print(f"  {status} {r['key']} (w:{weight}) = {r['value']}")
         if r['description']:
             console.print(f"    [dim]{r['description']}[/dim]")
@@ -366,8 +366,7 @@ def add_rule(category: str = typer.Argument(..., help="Category: fit or success"
              key: str = typer.Argument(..., help="Rule key"),
              value: str = typer.Argument(..., help="Rule value"),
              rule_type: str = typer.Option("job", help="Rule type: shared, job, or company"),
-             description: str = typer.Option("", help="Description"),
-             score_weight: int = typer.Option(0, help="Score weight (0 = use priority)")):
+             description: str = typer.Option("", help="Description")):
     """Add a new scoring rule."""
     session, repo = _get_rule_repo()
     try:
@@ -377,9 +376,8 @@ def add_rule(category: str = typer.Argument(..., help="Category: fit or success"
             'key': key,
             'value': value,
             'description': description,
-            'score_weight': score_weight,
         })
-        console.print(f"[green]Added: {rule_type}/{category}/{key} = {value} (weight: {score_weight})[/green]")
+        console.print(f"[green]Added: {rule_type}/{category}/{key} = {value}[/green]")
     except Exception as e:
         console.print(f"[red]Failed: {e}[/red]")
     finally:

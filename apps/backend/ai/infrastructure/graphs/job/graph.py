@@ -95,7 +95,7 @@ def build_job_processing_graph() -> GraphBuilder:
                         if cat != current_cat:
                             current_cat = cat
                             lines.append(f"\n\xad\u2015 {cat.upper()} {'\u2500' * (35 - len(cat))}")
-                        weight = r.get("score_weight") or r["priority"]
+                        weight = r["priority"]
                         lines.append(f"  #{r['priority']:>3}  {r['key']} (weight:{weight}): {r['value']}")
                     rules = "\n".join(lines)
                 else:

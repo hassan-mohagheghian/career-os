@@ -415,9 +415,9 @@ class TestJobAnalysisInputs:
     def test_scoring_rules(self):
         assert build_scoring_rules_text([]) == "(no scoring rules set)"
         text = build_scoring_rules_text(
-            [{"key": "VISA_OK", "value": "must sponsor", "priority": 1, "score_weight": 5}]
+            [{"key": "VISA_OK", "value": "must sponsor", "priority": 5}]
         )
-        assert "#1" in text and "VISA_OK" in text and "weight:5" in text
+        assert "#5" in text and "VISA_OK" in text and "weight:5" in text
 
 
 # --------------------------------------------------------------------------- #
@@ -511,7 +511,7 @@ class TestLoadContextNode:
 class TestPrepareProfileNode:
     def test_gathers_profile_inputs(self):
         skills = [{"name": "Python", "level": 4, "category": "Language"}]
-        rules = [{"key": "VISA_OK", "value": "must sponsor", "priority": 1, "score_weight": 5}]
+        rules = [{"key": "VISA_OK", "value": "must sponsor", "priority": 1}]
         node = PrepareProfileNode(
             FakeSkillRepo(skills),
             FakeResumeRepo(original="Resume text here", linkedin="LinkedIn raw here"),

@@ -242,6 +242,61 @@ signal gaps. Full specs live in `docs/ux/features/jobs/`.
 
 ---
 
+### Rules Page
+
+Each rule has a single `priority` (0–100) that drives list order, the severity
+badge, and the LLM weight (`w:{n}`). Rules are grouped into scope columns.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Scoring Rules                                    (e.g. 17/20 active)          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [All] [Shared] [Jobs] [Product Company] [Recruiting]                         │
+├──────────────┬──────────────┬───────────────┬───────────────┬───────────────┤
+│ SHARED Rules │  JOB Rules   │ Product Co... │ Recruiting... │               │
+│ (4/4)        │  (7/7)       │   (5/5)       │   (4/4)       │               │
+│ + Add rule   │ + Add rule   │ + Add rule    │ + Add rule    │               │
+│ ⠿ key_name   │ ⠿ key_name   │ ⠿ key_name    │ ⠿ key_name    │               │
+│  fit[Shared] │  fit[Job]    │  fit[Prod]    │  fit[Recr]    │               │
+│  [Critical]  │  [High]      │  [Critical]   │  [Critical]   │               │
+│  w:100 ⦿[↑][↓]│  w:85 ⦿[↑][↓]│  w:100 ⦿[↑][↓]│  w:100 ⦿[↑][↓]│               │
+│  value text  │  value text  │  value text   │  value text   │               │
+└──────────────┴──────────────┴───────────────┴───────────────┴───────────────┘
+```
+
+Priority badge legend: ≥90 Critical, ≥75 High, ≥50 Med, else Low. Move up/down
+sets the rule to `neighbor ± 1` (clamped 0–100); drag redistributes the column.
+
+### Add / Edit Rule Drawer
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Add Rule / Edit Rule                                          [Close] (✕) │
+├───────────────────────────────────────────────────────────────────────────┤
+│  Scope ▼              Category ▼                                          │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ Job ▾           │  │ Fit score ▾     │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│  Key name *          Priority (0-100)                                     │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ e.g. remote_work│  │ 50              │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│  Value / rule *                                                           │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ How the rule matches candidates / companies                         │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│  How this affects scoring (optional)                                      │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ Optional description                                               │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                            [Cancel] [Save]│
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+Full specs: `docs/ux/features/rules/`.
+
+---
+
 ## UX Documentation
 
 Full UX specs live under `docs/ux/` and are split into:

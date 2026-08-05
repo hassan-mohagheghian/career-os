@@ -93,7 +93,7 @@ class TestInitDb:
 
     def test_init_db_skips_seed_when_rules_exist(self, sa_session):
         sa_session.add(RuleModel(category='fit', scope='JOB', key='existing',
-                                 value='x', priority=1, score_weight=1, enabled=1))
+                                 value='x', priority=1, enabled=1))
         sa_session.commit()
         fake_base = MagicMock()
         with patch('shared.infrastructure.database.sqlalchemy_config.ensure_schemas'), \

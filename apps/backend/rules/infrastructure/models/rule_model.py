@@ -21,6 +21,5 @@ class RuleModel(Base):
     value: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
-    score_weight: Mapped[int] = mapped_column(Integer, default=0)
     enabled: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)

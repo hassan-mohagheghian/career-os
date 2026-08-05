@@ -55,6 +55,6 @@ def build_scoring_rules_text(rules: list[dict[str, Any]]) -> str:
         return "(no scoring rules set)"
     lines = []
     for r in rules:
-        weight = r.get("score_weight") or r.get("priority") or 0
+        weight = r["priority"]
         lines.append(f"  #{r.get('priority')}  {r.get('key')} (weight:{weight}): {r.get('value')}")
     return "\n".join(lines)

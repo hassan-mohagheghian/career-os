@@ -44,11 +44,11 @@ vi.mock('@/shared/ui/select', () => ({
 
 const mockRules = {
   JOB: [
-    { id: 'r1', key: 'remote_work', value: 'Remote work preferred', category: 'fit', scope: 'JOB', priority: 80, score_weight: 75, enabled: 1, description: 'Prefers remote' },
-    { id: 'r2', key: 'salary_min', value: 'Min 80k', category: 'success', scope: 'JOB', priority: 60, score_weight: 50, enabled: 1 },
+    { id: 'r1', key: 'remote_work', value: 'Remote work preferred', category: 'fit', scope: 'JOB', priority: 80, enabled: 1, description: 'Prefers remote' },
+    { id: 'r2', key: 'salary_min', value: 'Min 80k', category: 'success', scope: 'JOB', priority: 60, enabled: 1 },
   ],
   SHARED: [
-    { id: 'r3', key: 'visa_sponsorship', value: 'Must sponsor visa', category: 'fit', scope: 'SHARED', priority: 90, score_weight: 90, enabled: 1 },
+    { id: 'r3', key: 'visa_sponsorship', value: 'Must sponsor visa', category: 'fit', scope: 'SHARED', priority: 90, enabled: 1 },
   ],
 }
 
@@ -169,5 +169,62 @@ describe('RulesTab', () => {
     expect(screen.getByText('Edit Rule')).toBeInTheDocument()
     expect(screen.getByDisplayValue('visa_sponsorship')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Must sponsor visa')).toBeInTheDocument()
+  })
+
+  it('shows priority as the weight label', () => {
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    expect(screen.getAllByText('w:80').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('w:90').length).toBeGreaterThan(0)
+  })
+
+  it('moves a rule up by setting priority to preceding priority + 1', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = fetchMock as any
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    // DOM order: SHARED (r3), then JOB (r1, r2); move up the last rule
+    fireEvent.click(screen.getAllByTitle('Move up')[2])
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(fetchMock).toHaveBeenCalledWith('/api/rules/r2', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ priority: 81 }),
+    }))
+  })
+
+  it('moves a rule down by setting priority to following priority - 1', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = fetchMock as any
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    // DOM order: SHARED (r3), then JOB (r1, r2); move down r1
+    fireEvent.click(screen.getAllByTitle('Move down')[1])
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(fetchMock).toHaveBeenCalledWith('/api/rules/r1', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ priority: 59 }),
+    }))
+  })
+
+  it('edits priority from the drawer and saves it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = fetchMock as any
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getAllByTitle('Edit')[1])
+    expect(screen.getByText('Edit Rule')).toBeInTheDocument()
+    const priorityInput = screen.getByDisplayValue('80')
+    fireEvent.change(priorityInput, { target: { value: '90' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(fetchMock).toHaveBeenCalledWith('/api/rules/r1', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ value: 'Remote work preferred', description: 'Prefers remote', scope: 'JOB', priority: 90 }),
+    }))
+  })
+
+  it('does not move a lone rule in its scope column', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = fetchMock as any
+    render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
+    fireEvent.click(screen.getAllByTitle('Move up')[0])
+    fireEvent.click(screen.getAllByTitle('Move down')[0])
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

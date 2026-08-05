@@ -48,17 +48,22 @@ docs/ux/
 │       └── workflow-progress.md
 │   └── resume/
 │       └── page.md            Resume / Profile page (master resume + LinkedIn)
+│   └── rules/
+│       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
+│       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
 └── flows/
-    └── jobs/
-        ├── browse-jobs.md     Browse, search, filter, sort
-        ├── create-job.md      Create job (import only)
-        ├── queue-job.md       Create job + immediately queue (instant workflow)
-        ├── edit-job.md        Edit a job's core data
-        ├── delete-job.md      Delete a job
-        ├── process-job.md     Start processing
-        ├── process-job-live.md
-        ├── processing-queue.md
-        └── ...
+    ├── jobs/
+    │   ├── browse-jobs.md     Browse, search, filter, sort
+    │   ├── create-job.md      Create job (import only)
+    │   ├── queue-job.md       Create job + immediately queue (instant workflow)
+    │   ├── edit-job.md        Edit a job's core data
+    │   ├── delete-job.md      Delete a job
+    │   ├── process-job.md     Start processing
+    │   ├── process-job-live.md
+    │   ├── processing-queue.md
+    │   └── ...
+    └── rules/
+        └── reorder-rules.md   Move up/down + drag reorder, priority math, clamping
 ```
 
 ## Current Focus

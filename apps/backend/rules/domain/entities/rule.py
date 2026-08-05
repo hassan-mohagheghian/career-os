@@ -21,7 +21,6 @@ class Rule(BaseEntity):
         value: str = "",
         description: str | None = None,
         priority: int = 0,
-        score_weight: int = 0,
         enabled: int = 1,
         updated_at: datetime | None = None,
     ):
@@ -33,7 +32,6 @@ class Rule(BaseEntity):
         self.value = value
         self.description = description
         self.priority = priority
-        self.score_weight = score_weight
         self.enabled = enabled
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,7 +44,6 @@ class Rule(BaseEntity):
             "value": self.value,
             "description": self.description,
             "priority": self.priority,
-            "score_weight": self.score_weight,
             "enabled": self.enabled,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -62,7 +59,6 @@ class Rule(BaseEntity):
             value=data.get("value", ""),
             description=data.get("description"),
             priority=data.get("priority", 0),
-            score_weight=data.get("score_weight", 0),
             enabled=data.get("enabled", 1),
             updated_at=data.get("updated_at"),
         )

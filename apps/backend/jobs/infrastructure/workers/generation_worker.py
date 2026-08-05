@@ -179,7 +179,7 @@ def process_generation(gen_id):
             rules_text = ''
             if rule_rows:
                 rules_text = '\n'.join([
-                    f"- {r['key']} (weight:{r.get('score_weight') or r['priority']}): {r['value']}"
+                    f"- {r['key']} (weight:{r["priority"]}): {r['value']}"
                     for r in rule_rows
                 ])
 

@@ -442,11 +442,11 @@ class TestRulesCommand:
     def test_with_rules_grouped(self):
         rows = [
             {'rule_type': 'job', 'category': 'fit', 'enabled': 1, 'key': 'k1',
-             'value': 'v1', 'description': 'desc1', 'priority': 1, 'score_weight': 5},
+             'value': 'v1', 'description': 'desc1', 'priority': 1},
             {'rule_type': 'job', 'category': 'success', 'enabled': 0, 'key': 'k2',
-             'value': 'v2', 'description': None, 'priority': 2, 'score_weight': None},
+             'value': 'v2', 'description': None, 'priority': 2},
             {'rule_type': 'company', 'category': 'fit', 'enabled': 1, 'key': 'k3',
-             'value': 'v3', 'description': 'd3', 'priority': 3, 'score_weight': 0},
+             'value': 'v3', 'description': 'd3', 'priority': 3},
         ]
         sess = MagicMock()
         repo = MagicMock()
@@ -458,7 +458,7 @@ class TestRulesCommand:
         assert 'COMPANY RULES' in result.output
         assert 'FIT' in result.output
         assert 'SUCCESS' in result.output
-        assert 'k1 (w:5)' in result.output
+        assert 'k1 (w:1)' in result.output
         assert 'k2 (w:2)' in result.output
         assert 'desc1' in result.output
 

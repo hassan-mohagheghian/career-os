@@ -14,7 +14,6 @@ interface RuleFormValues {
   value: string
   description: string
   priority: number
-  score_weight: number
 }
 
 interface RuleFormDrawerProps {
@@ -32,7 +31,6 @@ const DEFAULT_RULE: RuleFormValues = {
   value: '',
   description: '',
   priority: 50,
-  score_weight: 50,
 }
 
 export default function RuleFormDrawer({ open, onOpenChange, title, initial, onSave }: RuleFormDrawerProps) {
@@ -71,8 +69,8 @@ export default function RuleFormDrawer({ open, onOpenChange, title, initial, onS
               <Input value={f.key} onChange={e => setF({ ...f, key: e.target.value })} placeholder="e.g. remote_work" className="h-8 text-xs" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Weight (0-100)</Label>
-              <Input type="number" min="0" max="100" value={f.score_weight} onChange={e => setF({ ...f, score_weight: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
+              <Label className="text-xs">Priority (0-100)</Label>
+              <Input type="number" min="0" max="100" value={f.priority} onChange={e => setF({ ...f, priority: parseInt(e.target.value) || 0 })} className="h-8 text-xs" />
             </div>
           </div>
           <div className="space-y-1.5">

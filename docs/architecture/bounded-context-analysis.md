@@ -93,7 +93,7 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 - `Rule` (scoring rule) — `rules` table, PK: `id`
 
 **Value Objects:**
-- `ScoringRule` (category, rule_type, scope, key, value, priority, score_weight)
+- `ScoringRule` (category, rule_type, scope, key, value, priority, enabled)
 
 **Domain Services:**
 - Rule-based scoring evaluation

@@ -409,7 +409,7 @@ class DatabaseTool(BaseTool):
             "scope": row.scope,
             "key": row.key,
             "value": row.value,
-            "score_weight": row.score_weight,
+            "priority": row.priority,
         } for row in rows]
 
     def _search_jobs(self, session: Session, params: dict) -> list[dict[str, Any]]:
