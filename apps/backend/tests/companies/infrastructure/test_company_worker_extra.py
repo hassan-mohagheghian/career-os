@@ -42,13 +42,13 @@ class TestCompanyHelpers:
     def test_save_session_id_missing_row(self, mock_get_session_company_worker):
         from companies.infrastructure.workers.company_worker import _save_session_id
         with patch('companies.infrastructure.workers.company_worker.broadcaster'):
-            _save_session_id(99999, 'sess_1')
+            _save_session_id('00000000-0000-0000-0000-000000000000', 'sess_1')
 
     def test_log_missing_row_still_broadcasts(self, mock_get_session_company_worker):
         from companies.infrastructure.workers.company_worker import _log
         broadcaster = MagicMock()
         with patch('companies.infrastructure.workers.company_worker.broadcaster', broadcaster):
-            _log(99999, 'fetch', 'msg')
+            _log('00000000-0000-0000-0000-000000000000', 'fetch', 'msg')
         broadcaster.log.assert_called_once()
 
 
@@ -208,8 +208,8 @@ class TestSaveCompany:
                         'headquarters_full': '', 'countries_of_operation': [],
                         'funding_stage': '', 'funding_amount': '', 'products': [],
                         'tech_stack': {}, 'work_environment': {}, 'extra': {}}
-        result = _save_company(company_data, {'scores': {}}, None, pending_company_id=99999)
-        assert isinstance(result, int)
+        result = _save_company(company_data, {'scores': {}}, None, pending_company_id='00000000-0000-0000-0000-000000000000')
+        assert isinstance(result, str)
         row = mock_get_session_company_worker.query(CompanyModel).filter(CompanyModel.id == result).first()
         assert row.name == 'FreshCo'
         intel_row = mock_get_session_company_worker.query(CompanyIntelligenceModel).filter(
@@ -225,7 +225,7 @@ class TestSaveCompany:
                         'funding_stage': '', 'funding_amount': '', 'products': [],
                         'tech_stack': {}, 'work_environment': {}, 'extra': {}}
         result = _save_company(company_data, {'scores': {'x': 1}}, '')
-        assert isinstance(result, int)
+        assert isinstance(result, str)
         row = mock_get_session_company_worker.query(CompanyModel).filter(CompanyModel.id == result).first()
         assert row.name == 'NoIdCo'
 

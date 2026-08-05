@@ -1,30 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { MapPin, Spinner, ArrowSquareOut, ArrowRight, ArrowSquareRight } from '@phosphor-icons/react'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 
-export default function CompanyJobsTab({ companyId, companyName, onOpenJob, onNavigateToJob, onViewAllJobs }) {
-  const [jobs, setJobs] = useState([])
-  const [loading, setLoading] = useState(true)
+export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOpenJob, onNavigateToJob, onViewAllJobs }: {
+  companyId?: string
+  companyName?: string
+  jobs?: any[]
+  onOpenJob?: (id: string) => void
+  onNavigateToJob?: (id: string) => void
+  onViewAllJobs?: (name: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const shownJobs = expanded ? jobs : jobs.slice(0, 5)
 
-  useEffect(() => {
-    fetch(`/api/companies/${companyId}/jobs`)
-      .then(r => r.json())
-      .then(data => { setJobs(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [companyId])
-
-  if (loading) return <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground"><Spinner className="w-3 h-3 animate-spin" /> Loading jobs...</div>
+  if (jobs.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-muted-foreground">0 linked jobs</span>
+        </div>
+        <div className="text-center py-6 text-xs text-muted-foreground">No jobs linked to this company yet.</div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground">{jobs.length} linked job{jobs.length !== 1 ? 's' : ''}</span>
       </div>
-      {jobs.length === 0 && (
-        <div className="text-center py-6 text-xs text-muted-foreground">No jobs linked to this company yet.</div>
-      )}
-      {jobs.map(j => (
+      {shownJobs.map(j => (
         <div key={j.id} className="flex items-center gap-1 p-2 rounded border border-border/50 hover:bg-muted/50 transition group">
           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenJob?.(j.id)}>
             <div className="flex items-center gap-2">
@@ -44,6 +50,11 @@ export default function CompanyJobsTab({ companyId, companyName, onOpenJob, onNa
           </div>
         </div>
       ))}
+      {jobs.length > 5 && (
+        <Button variant="ghost" size="sm" className="w-full h-6 text-2xs" onClick={() => setExpanded(e => !e)}>
+          {expanded ? 'Show fewer' : `Show all ${jobs.length} jobs`}
+        </Button>
+      )}
     </div>
   )
 }

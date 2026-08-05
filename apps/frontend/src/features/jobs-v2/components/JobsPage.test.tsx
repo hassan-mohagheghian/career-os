@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { JobsPage } from './JobsPage'
-import type { CreateJobRequest } from '@/features/jobs/hooks/useCreateJob'
+import type { CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
 
-vi.mock('@/features/jobs/components/AddJobDrawer', () => ({
-  default: ({ open, onSubmit }: { open: boolean; onSubmit: (data: CreateJobRequest) => void }) =>
+vi.mock('@/shared/components/CreateEntityDrawer', () => ({
+  default: ({ open, onSubmit }: { open: boolean; onSubmit: (data: CreateEntityFormData) => void }) =>
     open ? (
       <div>
-        <button onClick={() => onSubmit({ job_post_url: 'https://example.com/job', queue: true })}>
+        <button onClick={() => onSubmit({ mode: 'job', job_post_url: 'https://example.com/job', links: [], notes: [], queue: true })}>
           submit-and-queue
         </button>
-        <button onClick={() => onSubmit({ job_post_url: 'https://example.com/job', queue: false })}>
+        <button onClick={() => onSubmit({ mode: 'job', job_post_url: 'https://example.com/job', links: [], notes: [], queue: false })}>
           submit-only
         </button>
       </div>

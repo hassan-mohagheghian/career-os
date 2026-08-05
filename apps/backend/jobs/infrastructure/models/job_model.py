@@ -46,7 +46,7 @@ class JobModel(Base):
     fit_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     success_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     overall_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    company_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    company_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow, onupdate=datetime.utcnow)
     title: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -14,7 +14,7 @@ class CompanyIntelligence(BaseEntity):
     def __init__(
         self,
         id: int | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         overview: str | None = None,
         culture_analysis: str | None = None,
         international_analysis: str | None = None,

@@ -251,7 +251,7 @@ class ProcessHandle:
 class StatusUpdate:
     """Domain event: a pipeline step changed status."""
     table: str
-    pid: int
+    pid: str
     step: str
     val: int
     status: Optional[str] = None
@@ -264,7 +264,7 @@ class StatusUpdate:
 class LogEntry:
     """Domain event: a workflow log was appended."""
     table: str
-    pid: int
+    pid: str
     step: str
     msg: str
     ts: str = field(default_factory=lambda: datetime.now().strftime('%H:%M:%S'))
@@ -274,7 +274,7 @@ class LogEntry:
 class ProcessingComplete:
     """Domain event: processing finished successfully."""
     table: str
-    pid: int
+    pid: str
     result: Dict[str, Any]
     ts: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -283,7 +283,7 @@ class ProcessingComplete:
 class ProcessingError:
     """Domain event: processing failed."""
     table: str
-    pid: int
+    pid: str
     msg: str
     step: Optional[str] = None
     ts: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -341,7 +341,7 @@ class WorkflowNodeCompleted:
 class WorkflowProgress:
     """Emitted periodically to report workflow progress."""
     table: str
-    pid: int
+    pid: str
     current_node: str
     progress_pct: float
     message: str

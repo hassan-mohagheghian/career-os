@@ -8,16 +8,16 @@ class ICompanyIntelligenceRepository(ABC):
     """Interface for company intelligence data access."""
 
     @abstractmethod
-    def get_by_company_id(self, company_id: int) -> dict[str, Any] | None:
+    def get_by_company_id(self, company_id: str) -> dict[str, Any] | None:
         """Get intelligence data for a company."""
         ...
 
     @abstractmethod
-    def upsert(self, company_id: int, data: dict[str, Any]) -> dict[str, Any]:
+    def upsert(self, company_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """Insert or update company intelligence."""
         ...
 
     @abstractmethod
-    def delete_by_company_id(self, company_id: int) -> bool:
+    def delete_by_company_id(self, company_id: str) -> bool:
         """Delete intelligence for a company."""
         ...

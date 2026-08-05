@@ -26,7 +26,7 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
             "created_at": m.created_at,
         }
 
-    def get_by_company_id(self, company_id: int) -> list[dict[str, Any]]:
+    def get_by_company_id(self, company_id: str) -> list[dict[str, Any]]:
         rows = self._session.query(CompanyLinkModel).filter(
             CompanyLinkModel.company_id == company_id
         ).all()
@@ -36,7 +36,7 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
         m = self._session.query(CompanyLinkModel).filter(CompanyLinkModel.id == link_id).first()
         return self._to_dict(m) if m else None
 
-    def create(self, company_id: int, url: str, title: str = "", description: str = "") -> dict[str, Any]:
+    def create(self, company_id: str, url: str, title: str = "", description: str = "") -> dict[str, Any]:
         m = CompanyLinkModel(
             company_id=company_id,
             url=url,
@@ -49,7 +49,7 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
         self._session.refresh(m)
         return self._to_dict(m)
 
-    def delete(self, link_id: int, company_id: int) -> bool:
+    def delete(self, link_id: int, company_id: str) -> bool:
         m = self._session.query(CompanyLinkModel).filter(
             CompanyLinkModel.id == link_id,
             CompanyLinkModel.company_id == company_id,
@@ -60,7 +60,7 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
         self._session.commit()
         return True
 
-    def reset_statuses(self, company_id: int) -> int:
+    def reset_statuses(self, company_id: str) -> int:
         count = self._session.query(CompanyLinkModel).filter(
             CompanyLinkModel.company_id == company_id
         ).update({"status": "pending", "extracted_content": ""})

@@ -15,7 +15,7 @@ export interface Job {
   created_at: string
   applicants: string | null
   locations: string | null
-  linked_company: number | null
+  linked_company: string | null
   status: string
   current_node: string | null
   progress_pct: number
@@ -87,7 +87,7 @@ export interface JobSearchQuery {
   page_size?: number
   cursor?: string
   query?: string
-  company_id?: number
+  company_id?: string
   processing_status?: ProcessingStatus | 'none'
   location?: string
   remote?: boolean

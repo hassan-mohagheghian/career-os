@@ -358,7 +358,7 @@ class CompanyWorker(WorkerBase):
     def pipeline_steps(self) -> list:
         return []
 
-    def _reset_steps(self, pid: int) -> None:
+    def _reset_steps(self, pid: str) -> None:
         self._pending_repo.update_status(pid, 'processing', workflow_log='[]')
 
     def _get_graph(self):
@@ -367,7 +367,7 @@ class CompanyWorker(WorkerBase):
             self._graph = builder.compile()
         return self._graph
 
-    def _update_node_status(self, pid: int, node_name: str) -> None:
+    def _update_node_status(self, pid: str, node_name: str) -> None:
         status = NODE_TO_STATUS.get(node_name)
         step = NODE_TO_STEP.get(node_name)
         if status:
@@ -378,7 +378,7 @@ class CompanyWorker(WorkerBase):
         if step:
             self._log(pid, step.value, f'Starting: {step.label}')
 
-    def _execute_pipeline(self, pid: int, item: dict) -> Dict[str, Any]:
+    def _execute_pipeline(self, pid: str, item: dict) -> Dict[str, Any]:
         notes_raw = item.get('notes', '[]')
         try:
             notes = json.loads(notes_raw) if isinstance(notes_raw, str) else notes_raw

@@ -324,9 +324,9 @@ class TestSAJobRepository:
     def test_get_company_id(self, session):
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         from jobs.infrastructure.models.job_model import JobModel
-        job = self._job(session, url="https://ex.com/1", company_id=5)
+        job = self._job(session, url="https://ex.com/1", company_id="00000000-0000-0000-0000-000000000005")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_company_id(job.id) == 5
+        assert repo.get_company_id(job.id) == "00000000-0000-0000-0000-000000000005"
 
     def test_get_company_id_none(self, session):
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -357,17 +357,17 @@ class TestSAJobRepository:
     def test_get_company_id_by_num(self, session):
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         from jobs.infrastructure.models.job_model import JobModel
-        job = self._job(session, url="https://ex.com/1", company_id=3)
+        job = self._job(session, url="https://ex.com/1", company_id="00000000-0000-0000-0000-000000000003")
         repo = SQLAlchemyJobRepository(session)
-        assert repo.get_company_id_by_id(job.id) == 3
+        assert repo.get_company_id_by_id(job.id) == "00000000-0000-0000-0000-000000000003"
 
     def test_get_jobs_by_company_id(self, session):
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
         from jobs.infrastructure.models.job_model import JobModel
-        self._job(session, url="https://ex.com/1", company_id=1)
-        self._job(session, url="https://ex.com/2", company_id=2)
+        self._job(session, url="https://ex.com/1", company_id="00000000-0000-0000-0000-000000000001")
+        self._job(session, url="https://ex.com/2", company_id="00000000-0000-0000-0000-000000000002")
         repo = SQLAlchemyJobRepository(session)
-        result = repo.get_jobs_by_company_id(1)
+        result = repo.get_jobs_by_company_id("00000000-0000-0000-0000-000000000001")
         assert len(result) == 1
 
 
@@ -672,7 +672,7 @@ class TestSACompanyRepository:
     def test_get_by_id_not_found(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
         repo = SQLAlchemyCompanyRepository(session)
-        assert repo.get_by_id(999) is None
+        assert repo.get_by_id("00000000-0000-0000-0000-000000000000") is None
 
     def test_create(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
@@ -693,7 +693,7 @@ class TestSACompanyRepository:
     def test_update_not_found(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
         repo = SQLAlchemyCompanyRepository(session)
-        assert repo.update(999, {"name": "X"}) is None
+        assert repo.update("00000000-0000-0000-0000-000000000000", {"name": "X"}) is None
 
     def test_delete(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
@@ -719,7 +719,7 @@ class TestSACompanyRepository:
     def test_get_intelligence_not_found(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
         repo = SQLAlchemyCompanyRepository(session)
-        assert repo.get_intelligence(999) is None
+        assert repo.get_intelligence("00000000-0000-0000-0000-000000000000") is None
 
     def test_insert(self, session):
         from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository

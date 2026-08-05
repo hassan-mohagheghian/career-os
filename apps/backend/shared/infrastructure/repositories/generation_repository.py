@@ -147,7 +147,7 @@ class GenerationHistoryRepository:
         all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
         return {'items': all_items[:limit], 'total': len(all_items)}
 
-    def get_for_company(self, company_id: int, limit: int = 50) -> Dict[str, any]:
+    def get_for_company(self, company_id: str, limit: int = 50) -> Dict[str, any]:
         """Get generation history for a specific company."""
         all_items: List[GenerationHistoryItem] = []
         all_items.extend(self._query_pending_companies_for_company(company_id))
@@ -165,7 +165,7 @@ class GenerationHistoryRepository:
         self,
         context: str,
         job_id: Optional[str] = None,
-        company_id: Optional[int] = None,
+        company_id: Optional[str] = None,
         skill_name: Optional[str] = None,
     ) -> int:
         """Count currently running/queued items for a context."""
@@ -231,7 +231,7 @@ class GenerationHistoryRepository:
             pass
         return items
 
-    def _query_pending_companies_for_company(self, company_id: int) -> List[GenerationHistoryItem]:
+    def _query_pending_companies_for_company(self, company_id: str) -> List[GenerationHistoryItem]:
         items = []
         try:
             session = self._session()

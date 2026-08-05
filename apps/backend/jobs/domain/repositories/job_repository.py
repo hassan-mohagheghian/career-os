@@ -109,7 +109,7 @@ class IJobRepository(ABC):
         sort: str = "updated_at",
         order: str = "desc",
         processing_status: str | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         remote: bool | None = None,
         visa: bool | None = None,
         overall_score_min: int | None = None,

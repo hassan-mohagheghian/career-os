@@ -183,8 +183,8 @@ class ProcessingExecutionRunner:
         raise RuntimeError(f"Unsupported execution type: {execution.execution_type}")
 
     @staticmethod
-    def _resolve_company_id(execution) -> int:
+    def _resolve_company_id(execution) -> str:
         target_id = execution.target_id
-        if target_id.isdigit():
-            return int(target_id)
+        if target_id and len(target_id) <= 36:
+            return str(target_id)
         raise ValueError(f"Invalid company id: {target_id}")

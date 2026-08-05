@@ -38,10 +38,17 @@ docs/ux/
 │   │   ├── enable-llm-configuration.md
 │   │   ├── disable-llm-configuration.md
 │   │   └── delete-llm-configuration.md
+│   ├── companies/
+│   │   ├── page.md            Companies page (list, toolbar, infinite scroll, drawers)
+│   │   ├── company-row.md     Company row columns, grades, scores, status, actions
+│   │   ├── company-detail.md  Company Detail drawer (tabs, scores, single-payload data)
+│   │   ├── add-company.md     Add Company drawer (shared Create Entity, company mode)
+│   │   ├── edit-company.md    Edit Company drawer
+│   │   └── company-queue.md   Company Queue drawer (legacy processing monitor)
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, infinite scroll)
 │       ├── job-row.md         Job row columns and scores
-│       ├── add-job.md         Add Job drawer
+│       ├── add-job.md         Add Job drawer (shared Create Entity, job mode)
 │       ├── edit-job.md        Edit Job drawer
 │       ├── delete-job.md      Delete Job
 │       ├── processing-queue.md
@@ -52,6 +59,8 @@ docs/ux/
 │       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
 └── flows/
+    ├── companies/
+    │   └── browse-companies.md  Browse, search, filter, sort, open details
     ├── jobs/
     │   ├── browse-jobs.md     Browse, search, filter, sort
     │   ├── create-job.md      Create job (import only)

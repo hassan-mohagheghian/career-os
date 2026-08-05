@@ -145,7 +145,7 @@ class TestPendingCompanyRepository:
         assert item["id"] == c.id
         assert item["company_id"] == c.id
         assert item["input_text"] == "[]"
-        assert repo.get(999) is None
+        assert repo.get("00000000-0000-0000-0000-000000000000") is None
 
     def test_update_status_enum(self, sa_session):
         c = _company(sa_session)
@@ -156,7 +156,7 @@ class TestPendingCompanyRepository:
 
     def test_update_status_string_not_found(self, sa_session):
         repo = PendingCompanyRepository(sa_session)
-        repo.update_status(999, "failed")
+        repo.update_status("00000000-0000-0000-0000-000000000000", "failed")
 
     def test_update_status_with_extra_fields(self, sa_session):
         c = _company(sa_session)
@@ -176,7 +176,7 @@ class TestPendingCompanyRepository:
 
     def test_update_fields_not_found(self, sa_session):
         repo = PendingCompanyRepository(sa_session)
-        repo.update_fields(999, error="x")
+        repo.update_fields("00000000-0000-0000-0000-000000000000", error="x")
 
     def test_update_step(self, sa_session):
         c = _company(sa_session)
@@ -187,7 +187,7 @@ class TestPendingCompanyRepository:
 
     def test_update_step_not_found(self, sa_session):
         repo = PendingCompanyRepository(sa_session)
-        repo.update_step(999, "progress_pct", 33)
+        repo.update_step("00000000-0000-0000-0000-000000000000", "progress_pct", 33)
 
     def test_update_step_with_extra_fields(self, sa_session):
         c = _company(sa_session)
@@ -207,13 +207,13 @@ class TestPendingCompanyRepository:
 
     def test_append_log_not_found(self, sa_session):
         repo = PendingCompanyRepository(sa_session)
-        repo.append_log(999, WorkflowLogEntry(step="s", msg="m"))
+        repo.append_log("00000000-0000-0000-0000-000000000000", WorkflowLogEntry(step="s", msg="m"))
 
     def test_get_logs_empty_and_not_found(self, sa_session):
         c = _company(sa_session)
         repo = PendingCompanyRepository(sa_session)
         assert repo.get_logs(c.id) == []
-        assert repo.get_logs(999) == []
+        assert repo.get_logs("00000000-0000-0000-0000-000000000000") == []
 
     def test_claim_next(self, sa_session):
         c = _company(sa_session, status="queued")

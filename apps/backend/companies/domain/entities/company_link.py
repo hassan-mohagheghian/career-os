@@ -14,7 +14,7 @@ class CompanyLink(BaseEntity):
     def __init__(
         self,
         id: int | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         url: str | None = None,
         title: str | None = None,
         description: str | None = None,

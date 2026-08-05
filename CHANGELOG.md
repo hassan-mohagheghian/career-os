@@ -1,5 +1,68 @@
 # Changelog
 
+## [3.1.0] — 2026-08-05
+
+### Added
+
+- **All-in-one Company detail API** — `GET /api/companies/list/{id}` returns
+  every company field plus processing status, notes, links, intelligence,
+  scores, linked jobs and `job_count` in a single payload (mirrors the Jobs v2
+  detail). The Company detail drawer now fetches once; the Original Notes and
+  Jobs tabs read from that payload instead of making separate `/links` and
+  `/jobs` calls, and the Processing History panel was removed from the drawer.
+
+### Changed
+
+- **Companies now use UUID v7 identifiers** — `company.companies.id` is a
+  `varchar(36)` UUID v7 primary key, and `company_id` on `company_intelligence`,
+  `company_links` and `job.jobs` are strings (in-place Alembic data migration
+  `company_002_add_uuid_v7`). Every company API route, repository, worker and
+  processing event now takes/returns string ids; the frontend company and job
+  entity types follow suit (`?company=` deep-links no longer coerce to numbers).
+
+## [3.0.0] — 2026-08-05
+
+### Added
+
+- **Companies V2 workspace** — the Companies page is rebuilt to parity with the
+  modern Jobs V2 UX: a virtualized, cursor-paginated, infinitely loading company
+  table backed by the new `GET /api/companies/list` endpoint (search, industry
+  filter, name/date/score sorting with NULLS LAST). Sheet-based drawers replace
+  the legacy component stack:
+  - **Company Detail drawer** — overall grade + Fit/Success/Overall score
+    cards, processing history (`/api/local-history?context=company`), and tabs
+    for Original Notes, Intelligence (product vs. recruiter variants), Scores,
+    and linked Jobs.
+  - **Add Company drawer** — free-text notes and links are posted to
+    `POST /api/pending-companies` (source `web`) to seed the legacy processing
+    pipeline; success opens the Company Queue drawer.
+  - **Edit Company drawer** — edits core fields via `PUT /api/companies/{id}`
+    and invalidates the list and detail queries.
+  - **Company Queue drawer** — monitors the legacy `pending_companies`
+    pipeline (created/pending/queued/processing/failed+cancelled sections)
+    by polling `GET /api/pending-companies` every 5s with Process/Delete
+    actions.
+  - The row grade badge reuses the shared A++…D tokens; scores render as
+    compact F/S/O badges with the shared score colors; fractional score values
+    (e.g. `38.5`) are now accepted by `CompanyScoresSchema`
+    (`overall`/`fit`/`success` are `float`, not `int`).
+
+### Changed
+
+- The Companies page supports `?company={id}` deep-linking; opening a drawer
+  sets the parameter and closing it clears it.
+- Dead legacy companies UI was removed: `CompaniesPage`, `CompanyDrawer`,
+  `CompanyCard`, `CompanyProcessingItem`, `ScoreBar`, the seven
+  `Company{Status}Card` components, and `useCompanies` (the hook directory and
+  its shared export). `CompanyJobsTab`/`CompanyNotesTab` were kept and are now
+  imported by the new detail drawer.
+- `docs/ux/features/companies/{page,company-row,company-detail,add-company,edit-company,company-queue}.md`,
+  `docs/ux/flows/companies/browse-companies.md`, and
+  `docs/api/companies/list-companies.md` document the new workspace; the
+  `docs/ux/README.md` index and `DESIGN.md` wireframes were updated.
+- `implementation-history/074_feature_companies_v2_parity.md` records the full
+  plan and outcome.
+
 ## [2.9.0] — 2026-08-05
 
 ### Added

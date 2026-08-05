@@ -35,7 +35,7 @@ async def _enqueue(task, *args, **kwargs) -> str | None:
         await broker.shutdown()
 
 
-async def enqueue_company(company_id: int) -> str | None:
+async def enqueue_company(company_id: str) -> str | None:
     """Dispatch a company processing task."""
     return await _enqueue(process_company_task, company_id)
 
@@ -50,7 +50,7 @@ async def enqueue_execution(execution_id: str) -> str | None:
     return await _enqueue(process_execution_task, execution_id)
 
 
-def enqueue_company_sync(company_id: int) -> str | None:
+def enqueue_company_sync(company_id: str) -> str | None:
     return asyncio.run(enqueue_company(company_id))
 
 

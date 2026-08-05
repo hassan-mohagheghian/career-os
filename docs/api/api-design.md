@@ -257,7 +257,8 @@ async def app_error_handler(request: Request, exc: AppError):
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/companies` | GET | — | `CompanyListResponse` | List companies |
+| `/api/companies/list` | GET | — | `CompanyListResponse` | Paginated list (search/sort/filter) |
+| `/api/companies/list/{id}` | GET | — | `CompanyDetailResponse` | Get company + notes, links, intelligence, scores, jobs (single payload) |
 | `/api/companies/{id}` | GET | — | `CompanyResponse` | Get company |
 | `/api/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company |
 | `/api/companies/{id}` | PUT | `CompanyUpdate` | `CompanyResponse` | Update company |
@@ -265,6 +266,9 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/companies/{id}/intelligence` | GET | — | `CompanyIntelligenceResponse` | Get intelligence |
 | `/api/companies/{id}/notes` | POST | `NoteCreate` | `NoteResponse` | Add note |
 | `/api/companies/{id}/links` | POST | `LinkCreate` | `LinkResponse` | Add link |
+
+> `{id}` values for companies are **UUID v7 strings** (migration
+> `company_002_add_uuid_v7`); all company endpoints accept/take string ids.
 
 ### Pending (Job Queue)
 

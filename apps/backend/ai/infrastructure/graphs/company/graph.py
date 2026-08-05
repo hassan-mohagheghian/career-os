@@ -251,7 +251,6 @@ def build_company_processing_graph() -> GraphBuilder:
             from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
             from companies.infrastructure.models.company_model import CompanyModel
 
-            pid = int(state["context"].get("pid", 0))
             now = datetime.now().isoformat()
 
             fields = {

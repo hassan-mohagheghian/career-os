@@ -51,7 +51,7 @@ class TestCompanyIsPausedOrStopped:
     def test_item_deleted(self, sa_session):
         from companies.infrastructure.workers.company_worker import _is_paused_or_stopped
         with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
-            assert _is_paused_or_stopped(999) is True
+            assert _is_paused_or_stopped('00000000-0000-0000-0000-000000000000') is True
 
     def test_processing(self, sa_session):
         pid = _insert_company(sa_session, 'TestCorp', 'processing')

@@ -75,7 +75,7 @@ class CompanyProcessingState(BaseState):
     extraction_data: dict[str, Any]
     intelligence_data: dict[str, Any]
     scores: dict[str, Any]
-    company_id: Optional[int]
+    company_id: Optional[str]
 
 
 class SkillRoadmapState(BaseState):

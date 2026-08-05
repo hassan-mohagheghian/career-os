@@ -157,13 +157,13 @@ class PendingCompanyRepository(IPendingRepository):
     def __init__(self, session: Session):
         self._session = session
 
-    def get(self, pid: int) -> Optional[dict]:
+    def get(self, pid: str) -> Optional[dict]:
         row = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not row:
             return None
         return self._to_dict(row)
 
-    def update_status(self, pid: int, status: str | ItemStatus, **fields) -> None:
+    def update_status(self, pid: str, status: str | ItemStatus, **fields) -> None:
         m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
@@ -174,7 +174,7 @@ class PendingCompanyRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def update_fields(self, pid: int, table: str = "pending_companies", **fields) -> None:
+    def update_fields(self, pid: str, table: str = "pending_companies", **fields) -> None:
         m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
@@ -184,7 +184,7 @@ class PendingCompanyRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def update_step(self, pid: int, step: str, val: int, **fields) -> None:
+    def update_step(self, pid: str, step: str, val: int, **fields) -> None:
         m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
@@ -196,7 +196,7 @@ class PendingCompanyRepository(IPendingRepository):
                 setattr(m, k, v)
         self._session.commit()
 
-    def append_log(self, pid: int, entry: WorkflowLogEntry) -> None:
+    def append_log(self, pid: str, entry: WorkflowLogEntry) -> None:
         m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return
@@ -205,7 +205,7 @@ class PendingCompanyRepository(IPendingRepository):
         m.workflow_log = json.dumps(logs)
         self._session.commit()
 
-    def get_logs(self, pid: int) -> List[WorkflowLogEntry]:
+    def get_logs(self, pid: str) -> List[WorkflowLogEntry]:
         m = self._session.query(CompanyModel).filter(CompanyModel.id == pid).first()
         if not m:
             return []

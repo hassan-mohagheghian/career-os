@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Note, Plus, PencilSimple, Trash, Link, Check, X, ArrowSquareOut, Spinner } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
@@ -24,17 +24,16 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
   const [linkDesc, setLinkDesc] = useState('')
   const [editingLinkId, setEditingLinkId] = useState(null)
 
-  const fetchLinks = async () => {
+  // Links come from the company detail payload (single API call), no separate fetch.
+  // Notes CRUD
+  const refreshNotes = async () => {
     try {
-      const res = await fetch(`/api/companies/${company.id}/links`)
+      const res = await fetch(`/api/companies/${company.id}/notes`)
       const data = await res.json()
-      setLinks(data)
-    } catch {}
+      setNotes(Array.isArray(data) ? data.map(n => ({ id: n.id, content: String(n.title || '').replace(/^note:/, '') })) : [])
+    } catch { setNotes([]) }
   }
 
-  useEffect(() => { fetchLinks() }, [company.id])
-
-  // Notes CRUD
   const addNote = async () => {
     if (!noteInput.trim()) return
     setSaving(true)
@@ -45,9 +44,9 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
         body: JSON.stringify({ type: 'text', content: noteInput.trim() })
       })
       const data = await res.json()
-      setNotes(data)
       onUpdate?.(data)
       setNoteInput('')
+      await refreshNotes()
     } finally { setSaving(false) }
   }
 
@@ -61,10 +60,10 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
         body: JSON.stringify({ content: editNoteContent.trim() })
       })
       const data = await res.json()
-      setNotes(data)
       onUpdate?.(data)
       setEditingNoteId(null)
       setEditNoteContent('')
+      await refreshNotes()
     } finally { setSaving(false) }
   }
 
@@ -73,8 +72,8 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
     try {
       const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, { method: 'DELETE' })
       const data = await res.json()
-      setNotes(data)
       onUpdate?.(data)
+      await refreshNotes()
     } finally { setSaving(false) }
   }
 

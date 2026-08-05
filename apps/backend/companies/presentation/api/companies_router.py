@@ -33,7 +33,7 @@ def list_companies(
 
 @router.get("/{id}")
 def get_company(
-    id: int,
+    id: str,
     repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
     intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
@@ -68,7 +68,7 @@ def create_company(data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_c
 
 
 @router.put("/{id}")
-def update_company(id: int, data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
+def update_company(id: str, data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
     """Update a company."""
     company = repo.update(id, data)
     if not company:
@@ -77,14 +77,14 @@ def update_company(id: int, data: dict, repo: SQLAlchemyCompanyRepository = Depe
 
 
 @router.delete("/{id}")
-def delete_company(id: int, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
+def delete_company(id: str, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
     """Delete a company."""
     repo.delete(id)
     return {"status": "deleted", "id": id}
 
 
 @router.get("/{id}/intelligence")
-def get_company_intelligence(id: int, repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo)):
+def get_company_intelligence(id: str, repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo)):
     """Get company intelligence."""
     intel = repo.get_by_company_id(id)
     if not intel:
@@ -101,32 +101,32 @@ def get_company_intelligence(id: int, repo: SQLAlchemyCompanyIntelligenceReposit
 
 
 @router.get("/{id}/jobs")
-def get_company_jobs(id: int, job_repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
+def get_company_jobs(id: str, job_repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
     """Get jobs linked to this company."""
     return job_repo.get_jobs_by_company_id(id)
 
 
 @router.get("/{id}/links")
-def get_company_links(id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def get_company_links(id: str, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Get all links for a company."""
     return repo.get_by_company_id(id)
 
 
 @router.post("/{id}/links")
-def add_company_link(id: int, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def add_company_link(id: str, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Add a link to a company."""
     return repo.create(id, data.get("url", ""), data.get("title", ""), data.get("description", ""))
 
 
 @router.delete("/{id}/links/{link_id}")
-def delete_company_link(id: int, link_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def delete_company_link(id: str, link_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Delete a company link."""
     repo.delete(link_id, id)
     return {"status": "deleted"}
 
 
 @router.post("/{id}/notes")
-def add_note(id: int, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def add_note(id: str, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Add a note to a company."""
     content = data.get("content", "")
     repo.create(id, "", f"note:{content}")
@@ -134,14 +134,14 @@ def add_note(id: int, data: dict, repo: SQLAlchemyCompanyLinkRepository = Depend
 
 
 @router.get("/{id}/notes")
-def get_company_notes(id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def get_company_notes(id: str, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Get all notes for a company."""
     links = repo.get_by_company_id(id)
     return [l for l in links if l.get("title", "").startswith("note:")]
 
 
 @router.delete("/{id}/notes/{note_id}")
-def delete_company_note(id: int, note_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
+def delete_company_note(id: str, note_id: int, repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo)):
     """Delete a company note."""
     repo.delete(note_id, id)
     return {"status": "deleted"}

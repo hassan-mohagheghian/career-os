@@ -31,7 +31,7 @@ class CompanyWorker(WorkerBase):
     def pipeline_steps(self) -> list:
         return [step.value for step in CompanyPipelineStep]
 
-    def _execute_pipeline(self, pid: int, item: dict) -> Dict[str, Any]:
+    def _execute_pipeline(self, pid: str, item: dict) -> Dict[str, Any]:
         """Execute the company processing pipeline."""
 
         # Step 1: Fetch
@@ -71,7 +71,7 @@ class CompanyWorker(WorkerBase):
 
         return result
 
-    def _step_fetch(self, pid: int, item: dict) -> Optional[str]:
+    def _step_fetch(self, pid: str, item: dict) -> Optional[str]:
         """Fetch company content from URLs and notes."""
         self._log(pid, 'fetch', 'Processing sources...')
 
@@ -107,20 +107,20 @@ class CompanyWorker(WorkerBase):
             raise RuntimeError("No content to process")
         return raw_content[:8000]
 
-    def _step_extract(self, pid: int, raw_content: str) -> Optional[dict]:
+    def _step_extract(self, pid: str, raw_content: str) -> Optional[dict]:
         """Extract structured company data via LLM."""
         self._log(pid, 'extract', 'Extracting company information...')
         from companies.infrastructure.workers.company_worker import _extract_company_info
         return _extract_company_info(raw_content, 'multi_note', pid)
 
-    def _step_analyze(self, pid: int, company_data: dict) -> Optional[dict]:
+    def _step_analyze(self, pid: str, company_data: dict) -> Optional[dict]:
         """Generate intelligence analysis via LLM."""
         company_type = company_data.get('company_type', 'UNKNOWN')
         self._log(pid, 'analyze', f'Analyzing company ({company_type})...')
         from companies.infrastructure.workers.company_worker import _analyze_company
         return _analyze_company(company_data, 0, company_type=company_type)
 
-    def _step_save(self, pid: int, company_data: dict,
+    def _step_save(self, pid: str, company_data: dict,
                    intelligence: dict, raw_content: str) -> Optional[dict]:
         """Save company and intelligence to DB."""
         self._log(pid, 'save', 'Saving to database...')

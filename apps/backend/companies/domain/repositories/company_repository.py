@@ -13,7 +13,7 @@ class ICompanyRepository(ABC):
         ...
 
     @abstractmethod
-    def get_by_id(self, company_id: int) -> dict[str, Any] | None:
+    def get_by_id(self, company_id: str) -> dict[str, Any] | None:
         """Get a company by ID."""
         ...
 
@@ -23,17 +23,17 @@ class ICompanyRepository(ABC):
         ...
 
     @abstractmethod
-    def update(self, company_id: int, data: dict[str, Any]) -> dict[str, Any] | None:
+    def update(self, company_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """Update a company."""
         ...
 
     @abstractmethod
-    def delete(self, company_id: int) -> bool:
+    def delete(self, company_id: str) -> bool:
         """Delete a company."""
         ...
 
     @abstractmethod
-    def get_intelligence(self, company_id: int) -> dict[str, Any] | None:
+    def get_intelligence(self, company_id: str) -> dict[str, Any] | None:
         """Get company intelligence data."""
         ...
 
@@ -53,7 +53,7 @@ class ICompanyRepository(ABC):
         ...
 
     @abstractmethod
-    def update_status(self, company_id: int, status: str, **extra: Any) -> bool:
+    def update_status(self, company_id: str, status: str, **extra: Any) -> bool:
         """Update company status and optional extra fields."""
         ...
 
@@ -68,6 +68,6 @@ class ICompanyRepository(ABC):
         ...
 
     @abstractmethod
-    def update_fields(self, company_id: int, **fields: Any) -> bool:
+    def update_fields(self, company_id: str, **fields: Any) -> bool:
         """Update arbitrary fields on a company."""
         ...

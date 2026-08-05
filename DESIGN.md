@@ -107,11 +107,11 @@ Placement is right by default; all variants become full-screen on mobile.
 └─────────────────────────────────────────────┘
 ```
 
-### Add Job Drawer
+### Add Job Drawer (Create Entity — job mode)
 
 ```text
 ┌─────────────────────────────────────────────┐
-│ Add Job                              [Close]│
+│ Import Job                          [Close] │
 ├─────────────────────────────────────────────┤
 │ Job Post URL *                              │
 │ ┌─────────────────────────────────────────┐ │
@@ -126,7 +126,7 @@ Placement is right by default; all variants become full-screen on mobile.
 │ Notes                                [+Add] │
 │ No notes                                    │
 ├─────────────────────────────────────────────┤
-│                     [Cancel] [Create] [Queue]│
+│                    [Cancel] [Add] [Add & Queue]│
 └─────────────────────────────────────────────┘
 ```
 
@@ -294,6 +294,98 @@ sets the rule to `neighbor ± 1` (clamped 0–100); drag redistributes the colum
 ```
 
 Full specs: `docs/ux/features/rules/`.
+
+---
+
+### Companies Page
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ Companies (128)                       Loaded 25 of 128      Queue (3)       + Add Company│
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ Search ............................................                    [Industry ▾] [Clear]│
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ Grade │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Actions │
+│───────┼──────┼──────────┼──────────┼──────┼──────┼─────────┼─────────┼─────────┼─────────│
+│  A+   │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ F 85 S 90 O 88 │ Processed │ 2m │ ⋯ │
+│  B    │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ F 60 S 55 O 58 │ Completed │ 5m │ ⋯ │
+│  —    │ Nova │ Health   │ —        │ —    │ 0    │ F — S — O — │ Pending    │ 1h │ ⋯ │
+│                                                                                          │
+│                                       Loading more companies...                           │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Add Company Drawer (Create Entity — company mode)
+
+```text
+┌──────────────────────────────────────────────┐
+│ + Add Company                          Close │
+├──────────────────────────────────────────────┤
+│ Primary Link *                               │
+│ ┌──────────────────────────────────────────┐ │
+│ │ https://acme.example                    │ │
+│ └──────────────────────────────────────────┘ │
+│ [Website]  [LinkedIn]                        │
+│ Company Name (Optional)                      │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Acme GmbH                               │ │
+│ └──────────────────────────────────────────┘ │
+│ Additional Links                     [+Add]  │
+│   • https://acme.example · careers          │
+│ Notes                                 [+Add] │
+│   • Berlin product company                  │
+├──────────────────────────────────────────────┤
+│                [      Add      ] [Add&Process]│
+└──────────────────────────────────────────────┘
+```
+
+### Company Detail Drawer
+
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ Company Details                                          Close │
+├────────────────────────────────────────────────────────────────┤
+│ [A+]  Fit 85 · Success 90 · Overall 88                         │
+│ ◉ Acme GmbH                                                    │
+│ Software Development                                           │
+│ Berlin, Germany · 51-200 · Product Company                      │
+│ 12 jobs                                                        │
+│                     [View All Jobs] [Website] [Reprocess] [Del]│
+│ [Original Notes] [Intelligence] [Scores] [Jobs (12)]           │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ <tab content>                                             │ │
+│ └────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Company Queue Drawer
+
+```text
+┌──────────────────────────────────────────────┐
+│ Company Queue (7)                      Close │
+├──────────────────────────────────────────────┤
+│ Created (1)                                  │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Acme GmbH                                │ │
+│ │ created · ▶ Process · 🗑 Delete          │ │
+│ └──────────────────────────────────────────┘ │
+│ Processing (2)                               │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Beta GmbH                                │ │
+│ │ processing · 🗑 Delete                   │ │
+│ └──────────────────────────────────────────┘ │
+│ Failed / Cancelled (1)                       │
+│ ┌──────────────────────────────────────────┐ │
+│ │ Nova                                     │ │
+│ │ failed: timeout · ▶ Process · 🗑 Delete  │ │
+│ └──────────────────────────────────────────┘ │
+└──────────────────────────────────────────────┘
+```
+
+The Companies workspace is parity with the Jobs v2 UX (virtualized table,
+infinite scroll, Sheet drawers). Company processing remains the legacy
+`pending_companies` pipeline, monitored via the polling-based Company Queue
+drawer. Full specs live in `docs/ux/features/companies/`.
 
 ---
 

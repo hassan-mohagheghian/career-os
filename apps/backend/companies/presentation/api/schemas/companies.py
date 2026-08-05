@@ -26,7 +26,7 @@ class CompanyUpdate(BaseModel):
 
 class CompanyResponse(BaseModel):
     """Schema for company response."""
-    id: int
+    id: str
     name: str
     industry: str | None = None
     city: str | None = None
@@ -44,7 +44,7 @@ class CompanyListResponse(BaseModel):
 
 
 class CompanyIntelligenceResponse(BaseModel):
-    company_id: int
+    company_id: str
     overview: str | None = None
     culture: str | None = None
     tech_stack: list[str] = []
@@ -58,7 +58,7 @@ class NoteCreate(BaseModel):
 
 class NoteResponse(BaseModel):
     id: int
-    company_id: int
+    company_id: str
     content: str
     created_at: str | None = None
 
@@ -70,7 +70,7 @@ class LinkCreate(BaseModel):
 
 class LinkResponse(BaseModel):
     id: int
-    company_id: int
+    company_id: str
     url: str
     label: str | None = None
     created_at: str | None = None

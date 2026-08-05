@@ -31,13 +31,13 @@ class SQLAlchemyCompanyIntelligenceRepository(ICompanyIntelligenceRepository):
             "generated_at": m.generated_at,
         }
 
-    def get_by_company_id(self, company_id: int) -> dict[str, Any] | None:
+    def get_by_company_id(self, company_id: str) -> dict[str, Any] | None:
         m = self._session.query(CompanyIntelligenceModel).filter(
             CompanyIntelligenceModel.company_id == company_id
         ).first()
         return self._to_dict(m) if m else None
 
-    def upsert(self, company_id: int, data: dict[str, Any]) -> dict[str, Any]:
+    def upsert(self, company_id: str, data: dict[str, Any]) -> dict[str, Any]:
         existing = self._session.query(CompanyIntelligenceModel).filter(
             CompanyIntelligenceModel.company_id == company_id
         ).first()
@@ -56,7 +56,7 @@ class SQLAlchemyCompanyIntelligenceRepository(ICompanyIntelligenceRepository):
         self._session.refresh(m)
         return self._to_dict(m)
 
-    def delete_by_company_id(self, company_id: int) -> bool:
+    def delete_by_company_id(self, company_id: str) -> bool:
         m = self._session.query(CompanyIntelligenceModel).filter(
             CompanyIntelligenceModel.company_id == company_id
         ).first()

@@ -680,7 +680,7 @@ wheels = [
 
 [[package]]
 name = "job-search"
-version = "2.9.0"
+version = "3.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },

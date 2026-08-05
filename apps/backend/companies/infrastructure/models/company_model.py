@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
+import uuid
 
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,7 +16,7 @@ class CompanyModel(Base):
     __tablename__ = "companies"
     __table_args__ = {"schema": "company"}
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid7()))
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     website: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     domain: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -70,7 +71,7 @@ class CompanyIntelligenceModel(Base):
     __table_args__ = {"schema": "company"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("company.companies.id"), nullable=False)
+    company_id: Mapped[str] = mapped_column(String(36), ForeignKey("company.companies.id"), nullable=False)
     overview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     culture_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     international_analysis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -94,7 +95,7 @@ class CompanyLinkModel(Base):
     __table_args__ = {"schema": "company"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    company_id: Mapped[int] = mapped_column(Integer, ForeignKey("company.companies.id"), nullable=False)
+    company_id: Mapped[str] = mapped_column(String(36), ForeignKey("company.companies.id"), nullable=False)
     url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

@@ -282,6 +282,34 @@ def test_create_pending_company_with_input_text(client, sa_session):
     mock_enq.assert_called_once()
 
 
+def test_create_pending_company_persists_name(client, sa_session):
+    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+        resp = client.post(
+            "/api/pending-companies",
+            json={
+                "name": "Acme GmbH",
+                "notes": [{"content": "Berlin product company"}],
+                "links": [{"url": "https://acme.example", "title": "Website"}],
+            },
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "Acme GmbH"
+    mock_enq.assert_called_once()
+    assert mock_enq.call_args.args[0] == data["id"]
+
+
+def test_create_pending_company_without_queue(client, sa_session):
+    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+        resp = client.post(
+            "/api/pending-companies",
+            json={"input_text": "https://acme.example", "notes": [], "links": [], "queue": False},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "created"
+    mock_enq.assert_not_called()
+
+
 def test_create_pending_company_empty_body(client, sa_session):
     with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
         resp = client.post("/api/pending-companies", json={})

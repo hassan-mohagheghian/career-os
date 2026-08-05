@@ -365,7 +365,7 @@ class SQLAlchemyJobRepository(IJobRepository):
             return True
         return False
 
-    def get_company_id(self, job_id: str) -> int | None:
+    def get_company_id(self, job_id: str) -> str | None:
         m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()
         return m[0] if m else None
 
@@ -441,11 +441,11 @@ class SQLAlchemyJobRepository(IJobRepository):
         ).all()
         return [{"location": r[0], "locations": r[1]} for r in rows]
 
-    def get_company_id_by_id(self, job_id: str) -> int | None:
+    def get_company_id_by_id(self, job_id: str) -> str | None:
         m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()
         return m[0] if m else None
 
-    def get_jobs_by_company_id(self, company_id: int) -> list[dict[str, Any]]:
+    def get_jobs_by_company_id(self, company_id: str) -> list[dict[str, Any]]:
         rows = self._session.query(JobModel).filter(
             JobModel.company_id == company_id,
             JobModel.deleted == 0,
@@ -460,7 +460,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         sort: str = "updated_at",
         order: str = "desc",
         processing_status: str | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         remote: bool | None = None,
         visa: bool | None = None,
         overall_score_min: int | None = None,
@@ -551,7 +551,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         job_ids: list[str] | None = None,
         exclude_job_ids: list[str] | None = None,
         status_lookup: dict[str, str] | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         location: str | None = None,
         remote: bool | None = None,
         visa: bool | None = None,

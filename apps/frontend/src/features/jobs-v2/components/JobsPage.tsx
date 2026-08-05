@@ -9,8 +9,8 @@ import { JobsTable } from './JobsTable'
 import { ProcessingDrawer } from './ProcessingDrawer'
 import { JobDetailDrawer } from './JobDetailDrawer'
 import { JobEditDrawer } from './JobEditDrawer'
-import AddJobDrawer from '@/features/jobs/components/AddJobDrawer'
-import { useCreateJob, type CreateJobRequest } from '@/features/jobs/hooks/useCreateJob'
+import CreateEntityDrawer, { type CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
+import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
 import { toast } from 'sonner'
 
 interface JobsPageProps {
@@ -85,8 +85,14 @@ export function JobsPage({
 }: JobsPageProps) {
   const { createJob, submitting, error: createError, clearError } = useCreateJob()
 
-  const handleCreateJob = useCallback(async (data: CreateJobRequest) => {
-    const result = await createJob(data)
+  const handleCreateJob = useCallback(async (data: CreateEntityFormData) => {
+    const result = await createJob({
+      job_post_url: data.job_post_url ?? '',
+      job_title: data.job_title,
+      links: data.links,
+      notes: data.notes.map((n) => ({ title: n.title || '', content: n.content })),
+      queue: data.queue,
+    })
     if (result) {
       toast.success(data.queue ? 'Job created and queued' : 'Job created successfully')
       onAddJobDrawerOpenChange(false)
@@ -180,7 +186,8 @@ export function JobsPage({
         jobId={editJobId}
         onOpenChange={onEditJobIdChange}
       />
-      <AddJobDrawer
+      <CreateEntityDrawer
+        mode="job"
         open={addJobDrawerOpen}
         onOpenChange={(open) => { onAddJobDrawerOpenChange(open); if (!open) clearError() }}
         onSubmit={handleCreateJob}

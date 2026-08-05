@@ -112,11 +112,18 @@ class TestStreamAndDelete:
         assert sa_session.query(CompanyModel).filter(CompanyModel.id == c.id).first() is None
 
     def test_delete_company_not_found(self, repo):
-        assert repo.delete(999, "pending_companies") is False
+        assert repo.delete("00000000-0000-0000-0000-000000000000", "pending_companies") is False
 
     def test_create_pending_company(self, repo):
         result = repo.create_pending_company("SomeCo", "url", "web", "created", "[]")
         assert result["status"] == "created"
+
+    def test_create_pending_company_persists_name(self, sa_session, repo):
+        result = repo.create_pending_company("SomeCo", "url", "web", "created", "[]", name="Acme GmbH")
+        assert result["name"] == "Acme GmbH"
+        row = sa_session.query(CompanyModel).filter(CompanyModel.id == result["id"]).first()
+        assert row.input_text == "SomeCo"
+        assert row.input_type == "url"
 
     def test_update_step_company(self, sa_session, repo):
         c = _company(sa_session)

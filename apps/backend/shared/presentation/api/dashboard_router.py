@@ -56,7 +56,7 @@ def get_generation_history(limit: int = 50, offset: int = 0):
 def get_local_history(
     context: str = Query(..., description="Context: job, company, skill"),
     job_id: str | None = Query(None),
-    company_id: int | None = Query(None),
+    company_id: str | None = Query(None),
     skill_name: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
 ):
@@ -87,7 +87,7 @@ def get_local_history(
 def get_local_active_count(
     context: str = Query(...),
     job_id: str | None = Query(None),
-    company_id: int | None = Query(None),
+    company_id: str | None = Query(None),
     skill_name: str | None = Query(None),
 ):
     """Get count of currently running/queued items for a context."""

@@ -1,35 +1,163 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+'use client'
+
+import { useState, useMemo, useCallback } from 'react'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { companyApi } from './api'
+import type {
+  CompanyDetail,
+  CompanyEditInput,
+  InfiniteCompanySearchResult,
+  PendingCompany,
+} from './types'
 
-const COMPANIES_KEY = 'companies'
+const PAGE_SIZE = 25
+const COMPANIES_KEY = 'companies-v2-infinite'
+const COMPANY_DETAIL_KEY = 'company-detail'
+const PENDING_KEY = 'companies-pending'
 
-export function useCompaniesQuery() {
-  return useQuery({
-    queryKey: [COMPANIES_KEY],
-    queryFn: () => companyApi.list(),
+export function useCompaniesInfiniteQuery() {
+  const queryClient = useQueryClient()
+  const [query, setQuery] = useState('')
+  const [sortState, setSortState] = useState<{ sort: string; order: 'asc' | 'desc' }>({
+    sort: 'created_at',
+    order: 'desc',
   })
+  const { sort, order } = sortState
+  const [filterIndustry, setFilterIndustry] = useState('')
+
+  const filterKey = useMemo(
+    () => ({
+      query,
+      sort,
+      order,
+      industry: filterIndustry || undefined,
+    }),
+    [query, sort, order, filterIndustry]
+  )
+
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<InfiniteCompanySearchResult>({
+    queryKey: [COMPANIES_KEY, filterKey],
+    queryFn: ({ pageParam }) =>
+      companyApi.listInfinite({
+        page_size: PAGE_SIZE,
+        cursor: pageParam as string | undefined,
+        query: filterKey.query || undefined,
+        industry: filterKey.industry,
+        sort: filterKey.sort,
+        order: filterKey.order as 'asc' | 'desc',
+      }),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.next_cursor : undefined),
+  })
+
+  const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
+  const total = data?.pages[0]?.total_items ?? 0
+  const loadedCount = items.length
+
+  const activeFilterCount = [query, filterIndustry].filter(Boolean).length
+
+  const clearFilters = useCallback(() => {
+    setQuery('')
+    setFilterIndustry('')
+  }, [])
+
+  const handleHeaderSort = useCallback((field: string) => {
+    setSortState((prev) => {
+      if (prev.sort === field) {
+        return { sort: field, order: prev.order === 'desc' ? 'asc' : 'desc' }
+      }
+      return { sort: field, order: 'desc' }
+    })
+  }, [])
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => companyApi.delete(id),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] }),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CompanyEditInput }) => companyApi.update(id, data),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+      queryClient.invalidateQueries({ queryKey: [COMPANY_DETAIL_KEY] })
+    },
+  })
+
+  const reprocessMutation = useMutation({
+    mutationFn: (id: string) => companyApi.reprocess(id),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+      queryClient.invalidateQueries({ queryKey: [COMPANY_DETAIL_KEY] })
+    },
+  })
+
+  return {
+    items,
+    total,
+    loadedCount,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage: !!hasNextPage,
+    fetchNextPage,
+    isError,
+    error,
+    refetch,
+    query,
+    setQuery: useCallback((v: string) => setQuery(v), []),
+    sort,
+    order,
+    handleHeaderSort,
+    filterIndustry,
+    setFilterIndustry: useCallback((v: string) => setFilterIndustry(v), []),
+    activeFilterCount,
+    clearFilters,
+    deleteMutation,
+    updateMutation,
+    reprocessMutation,
+  }
 }
 
-export function useCompanyQuery(id: number | string) {
-  return useQuery({
-    queryKey: [COMPANIES_KEY, id],
-    queryFn: () => companyApi.get(id),
+export function useCompanyQuery(id: number | string | null) {
+  return useQuery<CompanyDetail>({
+    queryKey: [COMPANY_DETAIL_KEY, id],
+    queryFn: () => companyApi.get(id as string),
     enabled: !!id,
   })
 }
 
-export function useDeleteCompanyMutation() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) => companyApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [COMPANIES_KEY] }),
+export function usePendingCompaniesQuery() {
+  return useQuery<PendingCompany[]>({
+    queryKey: [PENDING_KEY],
+    queryFn: () => companyApi.pendingList(),
+    refetchInterval: 5000,
   })
 }
 
-export function useReprocessCompanyMutation() {
-  const qc = useQueryClient()
+export function usePendingProcessMutation() {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => companyApi.reprocess(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [COMPANIES_KEY] }),
+    mutationFn: (id: number | string) => companyApi.pendingProcess(id),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [PENDING_KEY] })
+    },
+  })
+}
+
+export function usePendingDeleteMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number | string) => companyApi.pendingDelete(id),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [PENDING_KEY] })
+    },
   })
 }

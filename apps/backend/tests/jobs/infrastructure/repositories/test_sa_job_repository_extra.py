@@ -56,7 +56,7 @@ def _add_execution(session, job_id: str, status: str, created_at: str):
 
 class TestGetById:
     def test_company_id_set_but_no_company(self, sa_session, repo):
-        m = _add(sa_session, id="job-1", company="Ghost", company_id=999)
+        m = _add(sa_session, id="job-1", company="Ghost", company_id="00000000-0000-0000-0000-000000000099")
         result = repo.get_by_id(m.id)
         assert result is not None
         assert "linked_company" not in result
@@ -347,9 +347,9 @@ class TestSearchJobs:
         assert rows[0]["id"] == m2.id
 
     def test_company_id(self, sa_session, repo):
-        m1 = _add(sa_session, id="job-a", company_id=7)
-        _add(sa_session, id="job-b", company_id=8)
-        rows, total = repo.search_jobs(company_id=7)
+        m1 = _add(sa_session, id="job-a", company_id="00000000-0000-0000-0000-000000000007")
+        _add(sa_session, id="job-b", company_id="00000000-0000-0000-0000-000000000008")
+        rows, total = repo.search_jobs(company_id="00000000-0000-0000-0000-000000000007")
         assert total == 1
         assert rows[0]["id"] == m1.id
 
@@ -539,14 +539,14 @@ class TestSearchJobsCursor:
         assert items == []
 
     def test_all_branches(self, sa_session, repo):
-        m1 = _add(sa_session, id="job-a", title="Engineer", company="Alpha", company_id=7,
+        m1 = _add(sa_session, id="job-a", title="Engineer", company="Alpha", company_id="00000000-0000-0000-0000-000000000007",
                   work_types='["Remote"]', visa="US", overall_score=85, fit_score=80,
                   success_score=70, updated_at="2026-07-27T10:00:01")
-        _add(sa_session, id="job-b", title="Other", company="Beta", company_id=8,
+        _add(sa_session, id="job-b", title="Other", company="Beta", company_id="00000000-0000-0000-0000-000000000008",
              work_types='["On-site"]', visa="", overall_score=40, fit_score=30,
              success_score=20, updated_at="2026-07-27T10:00:02")
         items, total, _, has_more = repo.search_jobs_cursor(
-            query="engineer", job_ids=[m1.id], company_id=7,
+            query="engineer", job_ids=[m1.id], company_id="00000000-0000-0000-0000-000000000007",
             remote=True, visa=True,
             overall_score_min=80, overall_score_max=90,
             fit_score_min=70, fit_score_max=90,

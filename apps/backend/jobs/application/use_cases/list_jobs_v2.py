@@ -19,7 +19,7 @@ class ListJobsV2Request:
     job_ids: list[str] | None = None
     exclude_job_ids: list[str] | None = None
     status_lookup: dict[str, str] | None = None
-    company_id: int | None = None
+    company_id: str | None = None
     location: str | None = None
     remote: bool | None = None
     visa: bool | None = None

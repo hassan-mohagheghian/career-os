@@ -52,7 +52,7 @@ async def periodic_db_backup() -> dict:
 
 
 @broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
-async def process_company_task(company_id: int) -> dict:
+async def process_company_task(company_id: str) -> dict:
     """Process a pending company through its processing pipeline."""
     log.info("taskiq.task.company.start", company_id=company_id)
     try:

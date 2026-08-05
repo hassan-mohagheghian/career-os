@@ -8,7 +8,7 @@ class ICompanyLinkRepository(ABC):
     """Interface for company link data access."""
 
     @abstractmethod
-    def get_by_company_id(self, company_id: int) -> list[dict[str, Any]]:
+    def get_by_company_id(self, company_id: str) -> list[dict[str, Any]]:
         """Get all links for a company."""
         ...
 
@@ -18,17 +18,17 @@ class ICompanyLinkRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, company_id: int, url: str, title: str = "", description: str = "") -> dict[str, Any]:
+    def create(self, company_id: str, url: str, title: str = "", description: str = "") -> dict[str, Any]:
         """Create a new link."""
         ...
 
     @abstractmethod
-    def delete(self, link_id: int, company_id: int) -> bool:
+    def delete(self, link_id: int, company_id: str) -> bool:
         """Delete a link."""
         ...
 
     @abstractmethod
-    def reset_statuses(self, company_id: int) -> int:
+    def reset_statuses(self, company_id: str) -> int:
         """Reset all link statuses for a company. Returns count reset."""
         ...
 

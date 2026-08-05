@@ -64,7 +64,7 @@ class WorkerBase(abc.ABC):
         """Ordered list of pipeline step column names."""
 
     @abc.abstractmethod
-    def _execute_pipeline(self, pid: int, item: dict) -> Dict[str, Any]:
+    def _execute_pipeline(self, pid: str, item: dict) -> Dict[str, Any]:
         """Execute the processing pipeline. Returns result dict."""
 
     def _terminal_status(self, status: str) -> str:
@@ -77,7 +77,7 @@ class WorkerBase(abc.ABC):
         }
         return legacy_map.get(status, status)
 
-    def process(self, pid: int) -> None:
+    def process(self, pid: str) -> None:
         """Run the full pipeline for a pending item.
 
         This is the Template Method — subclasses should NOT override this.
@@ -128,7 +128,7 @@ class WorkerBase(abc.ABC):
 
     ACTIVE_STATUSES = {'processing'}
 
-    def _reset_steps(self, pid: int) -> None:
+    def _reset_steps(self, pid: str) -> None:
         """Reset all pipeline steps to 0."""
         updates = {step: 0 for step in self.pipeline_steps}
         updates['workflow_log'] = '[]'
@@ -136,21 +136,21 @@ class WorkerBase(abc.ABC):
         status = self._terminal_status(current['status']) if current else 'created'
         self._pending_repo.update_status(pid, status, **updates)
 
-    def _is_cancelled(self, pid: int) -> bool:
+    def _is_cancelled(self, pid: str) -> bool:
         """Check if processing should stop (pause/stop/restart)."""
         item = self._pending_repo.get(pid)
         if not item:
             return True
         return item['status'] not in self.ACTIVE_STATUSES
 
-    def _mark_step(self, pid: int, step: str, val: int = 1, **extra) -> None:
+    def _mark_step(self, pid: str, step: str, val: int = 1, **extra) -> None:
         """Mark a pipeline step as done and broadcast."""
         self._pending_repo.update_step(pid, step, val, **extra)
         self._broadcaster.step_update(StatusUpdate(
             table=self.table, pid=pid, step=step, val=val, extra=extra or None,
         ))
 
-    def _log(self, pid: int, step: str, msg: str) -> None:
+    def _log(self, pid: str, step: str, msg: str) -> None:
         """Append a workflow log entry and broadcast."""
         entry = WorkflowLogEntry(step=step, msg=msg)
         self._pending_repo.append_log(pid, entry)
@@ -158,7 +158,7 @@ class WorkerBase(abc.ABC):
             table=self.table, pid=pid, step=step, msg=msg,
         ))
 
-    def _progress(self, pid: int, status: str, current_node: str, progress_pct: float, message: str, completed_nodes: list = None) -> None:
+    def _progress(self, pid: str, status: str, current_node: str, progress_pct: float, message: str, completed_nodes: list = None) -> None:
         """Emit a workflow progress event."""
         from datetime import datetime
         event = WorkflowProgress(
@@ -174,14 +174,14 @@ class WorkerBase(abc.ABC):
         self._pending_repo.update_step(pid, 'current_node', 0, current_node=current_node)
         self._broadcaster.progress(event)
 
-    def _start_step(self, pid: int, step: str) -> None:
+    def _start_step(self, pid: str, step: str) -> None:
         """Mark a step as in-progress (val=0, status=processing)."""
         self._pending_repo.update_step(pid, step, 0)
         self._broadcaster.step_update(StatusUpdate(
             table=self.table, pid=pid, step=step, val=0,
         ))
 
-    def _provider_event_handler(self, pid: int, evt: dict) -> None:
+    def _provider_event_handler(self, pid: str, evt: dict) -> None:
         """Handle a single provider JSON event — log it for audit trail."""
         event_type = evt.get('type', '')
         if event_type == 'text':

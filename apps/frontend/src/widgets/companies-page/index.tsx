@@ -1,99 +1,138 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
-import { useCompanies } from '@/features/companies/hooks/useCompanies'
-import { useWorkflow } from '@/shared/hooks/useWorkflow'
-import CompanyDrawer from '@/features/companies/components/CompanyDrawer'
-import WorkflowTerminal from '@/shared/components/WorkflowTerminal'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useCompaniesInfiniteQuery, usePendingCompaniesQuery } from '@/entities/company/hooks'
+import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { toast } from 'sonner'
 import { setSearchParam, getSearchParam } from '@/shared/lib/url'
 
-const API = '/api'
-
 const CompaniesPageContent = dynamic(
-  () => import('@/features/companies/components/CompaniesPage').then(m => ({ default: m.default || m })),
+  () => import('@/features/companies-v2/components/CompaniesPage').then(m => ({ default: m.CompaniesPage })),
   { ssr: false }
 )
 
 function CompaniesPageAdapter() {
-  const { companies, fetchCompanies, deleteCompany, reprocessCompany } = useCompanies()
-  const [companyDrawer, setCompanyDrawer] = useState<any>(null)
+  const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
+  const [addCompanyDrawerOpen, setAddCompanyDrawerOpen] = useState(false)
+  const [detailCompanyId, setDetailCompanyId] = useState<string | null>(null)
+  const [editCompanyId, setEditCompanyId] = useState<string | null>(null)
+  const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
-    workflowDrawer, workflowLogs, workflowEndRef,
-    openWorkflow, closeWorkflow,
-  } = useWorkflow()
+    items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
+    isError, error, refetch,
+    query, setQuery,
+    sort, order, handleHeaderSort,
+    filterIndustry, setFilterIndustry,
+    activeFilterCount, clearFilters,
+    deleteMutation, reprocessMutation,
+  } = useCompaniesInfiniteQuery()
 
-  const openDrawer = useCallback(async (id: string) => {
-    window.dispatchEvent(new CustomEvent('openJob', { detail: id }))
+  const { data: pendingItems } = usePendingCompaniesQuery()
+  const pendingTotal = pendingItems?.length ?? 0
+
+  const navigateToJobs = useCallback(() => {
+    window.location.href = '/jobs'
   }, [])
 
-  const openCompanyDrawer = useCallback(async (id: string) => {
-    try {
-      const res = await fetch(`${API}/companies/${id}`)
-      const data = await res.json()
-      setCompanyDrawer(data)
-      setSearchParam('company', id)
-    } catch (e) {
-      console.error('Failed to load company', e)
-    }
+  const handleViewDetails = useCallback((id: string) => {
+    setDetailCompanyId(id)
+    setSearchParam('company', id)
   }, [])
 
-  const handleDeleteCompany = useCallback(async (id: number) => {
-    await deleteCompany(id)
-    setCompanyDrawer(null)
-    setSearchParam('company', null)
-  }, [deleteCompany])
+  const handleEdit = useCallback((id: string) => {
+    setEditCompanyId(id)
+  }, [])
 
-  const handleReprocessCompany = useCallback(async (id: number) => {
-    await reprocessCompany(id)
-    setCompanyDrawer(null)
-    setSearchParam('company', null)
-  }, [reprocessCompany])
+  const handleDelete = useCallback(async (id: string) => {
+    const ok = await showConfirm(
+      'Delete Company',
+      'Permanently delete this company and all its intelligence data?',
+      'Delete',
+    )
+    if (!ok) return
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('Company deleted')
+        setDetailCompanyId((current) => (current === id ? null : current))
+        setEditCompanyId((current) => (current === id ? null : current))
+        setSearchParam('company', null)
+      },
+      onError: () => {
+        toast.error('Failed to delete company')
+      },
+    })
+  }, [showConfirm, deleteMutation])
+
+  const handleReprocess = useCallback((id: string) => {
+    reprocessMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('Company queued for reprocessing')
+        setQueueDrawerOpen(true)
+      },
+      onError: () => {
+        toast.error('Failed to reprocess company')
+      },
+    })
+  }, [reprocessMutation])
 
   useEffect(() => {
     const companyId = getSearchParam('company')
     if (companyId) {
-      openCompanyDrawer(companyId)
+      setDetailCompanyId(companyId)
     }
   }, [])
 
+  useEffect(() => {
+    if (detailCompanyId === null) setSearchParam('company', null)
+  }, [detailCompanyId])
+
   return (
-    <>
+    <div className="flex flex-col h-[calc(100vh-80px)]">
       <CompaniesPageContent
-        companies={companies}
-        deepLinkId={null}
-        onClearDeepLink={() => {}}
-        onRefresh={fetchCompanies}
-        onOpenJob={openDrawer}
-        onNavigateToJob={() => {
-          window.location.href = `/jobs`
+        items={items}
+        total={total}
+        loadedCount={loadedCount}
+        isLoading={isLoading}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        onFetchNextPage={fetchNextPage}
+        isError={isError}
+        error={error}
+        onRefetch={refetch}
+        query={query}
+        onQueryChange={setQuery}
+        sort={sort}
+        onSortChange={handleHeaderSort}
+        order={order}
+        filterIndustry={filterIndustry}
+        onFilterIndustryChange={setFilterIndustry}
+        activeFilterCount={activeFilterCount}
+        onClearFilters={clearFilters}
+        onViewDetails={handleViewDetails}
+        onReprocess={handleReprocess}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        pendingTotal={pendingTotal}
+        queueDrawerOpen={queueDrawerOpen}
+        onQueueDrawerOpenChange={setQueueDrawerOpen}
+        addCompanyDrawerOpen={addCompanyDrawerOpen}
+        onAddCompanyDrawerOpenChange={setAddCompanyDrawerOpen}
+        detailCompanyId={detailCompanyId}
+        onDetailCompanyIdChange={(id) => {
+          setDetailCompanyId(id)
+          if (id === null) setSearchParam('company', null)
         }}
-        onOpenCompany={openCompanyDrawer}
-        openWorkflow={openWorkflow}
+        editCompanyId={editCompanyId}
+        onEditCompanyIdChange={setEditCompanyId}
+        onOpenJob={navigateToJobs}
+        onNavigateToJob={navigateToJobs}
+        onViewAllJobs={navigateToJobs}
       />
-
-      <CompanyDrawer
-        company={companyDrawer}
-        onClose={() => { setCompanyDrawer(null); setSearchParam('company', null) }}
-        onDelete={handleDeleteCompany}
-        onReprocess={handleReprocessCompany}
-        onOpenJob={(id: string) => openDrawer(id)}
-        onNavigateToJob={(id: string) => openDrawer(id)}
-        onViewAllJobs={() => {
-          setCompanyDrawer(null)
-          setSearchParam('company', null)
-        }}
-      />
-
-      <WorkflowTerminal
-        workflowDrawer={workflowDrawer}
-        workflowLogs={workflowLogs}
-        workflowEndRef={workflowEndRef}
-        onClose={closeWorkflow}
-      />
-    </>
+      <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
+    </div>
   )
 }
 

@@ -54,7 +54,7 @@ class Job(BaseEntity):
         fit_score: int | None = None,
         success_score: int | None = None,
         overall_score: int | None = None,
-        company_id: int | None = None,
+        company_id: str | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
         title: str | None = None,

@@ -288,7 +288,7 @@ class TestSACompanyLinkExtended:
     def test_get_by_company_id_empty(self, sa_session):
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
         repo = SQLAlchemyCompanyLinkRepository(sa_session)
-        assert repo.get_by_company_id(999) == []
+        assert repo.get_by_company_id("00000000-0000-0000-0000-000000000000") == []
 
     def test_get_by_id(self, sa_session):
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository

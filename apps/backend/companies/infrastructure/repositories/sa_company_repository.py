@@ -23,7 +23,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).order_by(CompanyModel.name).all()
         return [company_model_to_dict(r) for r in rows]
 
-    def get_by_id(self, company_id: int) -> dict[str, Any] | None:
+    def get_by_id(self, company_id: str) -> dict[str, Any] | None:
         model = self._session.query(CompanyModel).filter(CompanyModel.id == company_id).first()
         if not model:
             return None
@@ -42,7 +42,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         self._session.refresh(model)
         return self.get_by_id(model.id)
 
-    def update(self, company_id: int, data: dict[str, Any]) -> dict[str, Any] | None:
+    def update(self, company_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         model = self._session.query(CompanyModel).filter(CompanyModel.id == company_id).first()
         if not model:
             return None
@@ -58,12 +58,12 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         self._session.refresh(model)
         return self.get_by_id(model.id)
 
-    def delete(self, company_id: int) -> bool:
+    def delete(self, company_id: str) -> bool:
         self._session.query(CompanyModel).filter(CompanyModel.id == company_id).delete()
         self._session.commit()
         return True
 
-    def get_intelligence(self, company_id: int) -> dict[str, Any] | None:
+    def get_intelligence(self, company_id: str) -> dict[str, Any] | None:
         model = self._session.query(CompanyIntelligenceModel).filter(
             CompanyIntelligenceModel.company_id == company_id
         ).first()
@@ -80,7 +80,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         self._session.refresh(model)
         return self.get_by_id(model.id)
 
-    def get_intelligence_by_company_id(self, company_id: int) -> dict[str, Any] | None:
+    def get_intelligence_by_company_id(self, company_id: str) -> dict[str, Any] | None:
         return self.get_intelligence(company_id)
 
     # ── Lifecycle methods ───────────────────────────────────────────
@@ -108,7 +108,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
             CompanyModel.status == 'queued',
         ).count()
 
-    def update_status(self, company_id: int, status: str, **extra: Any) -> bool:
+    def update_status(self, company_id: str, status: str, **extra: Any) -> bool:
         fields = {'status': status, **extra}
         self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
         self._session.commit()
@@ -133,7 +133,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).all()
         return [company_model_to_dict(r) for r in rows]
 
-    def update_fields(self, company_id: int, **fields: Any) -> bool:
+    def update_fields(self, company_id: str, **fields: Any) -> bool:
         self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
         self._session.commit()
         return True
@@ -155,3 +155,48 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
             d["job_count"] = job_count
             result.append(d)
         return result
+
+    def list_all_with_details(self) -> list[dict[str, Any]]:
+        """All named companies with job counts and parsed intelligence scores.
+
+        Returns each company dict augmented with ``job_count`` and ``_scores``
+        (a parsed dict). Sort/pagination is applied by the v2 list use case.
+        """
+        from jobs.infrastructure.models.job_model import JobModel
+        rows = self._session.query(
+            CompanyModel,
+            func.count(JobModel.id).label("job_count"),
+            CompanyIntelligenceModel.scores,
+        ).outerjoin(
+            JobModel, (JobModel.company_id == CompanyModel.id) & (JobModel.deleted == 0)
+        ).outerjoin(
+            CompanyIntelligenceModel,
+            CompanyIntelligenceModel.company_id == CompanyModel.id,
+        ).filter(
+            CompanyModel.name.isnot(None),
+            CompanyModel.name != '',
+        ).group_by(
+            CompanyModel.id,
+            CompanyIntelligenceModel.scores,
+        ).all()
+
+        result = []
+        for company, job_count, scores_raw in rows:
+            d = company_model_to_dict(company)
+            d["job_count"] = job_count
+            d["_scores"] = self._parse_scores(scores_raw)
+            result.append(d)
+        return result
+
+    @staticmethod
+    def _parse_scores(raw: Any) -> dict[str, Any]:
+        """Parse the intelligence scores JSON (stored in a Text column)."""
+        if not raw:
+            return {}
+        if isinstance(raw, dict):
+            return raw
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else {}
+        except (TypeError, ValueError):
+            return {}

@@ -27,7 +27,7 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         return [company_model_to_dict(r) for r in rows]
 
     def get_by_id(self, item_id: str, table: str = "pending_companies") -> dict[str, Any] | None:
-        model = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
+        model = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
         return company_model_to_dict(model) if model else None
 
     def create(self, data: dict[str, Any], table: str = "pending_companies") -> dict[str, Any]:
@@ -42,7 +42,7 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         return company_model_to_dict(model)
 
     def update_status(self, item_id: str, status: str, table: str = "pending_companies", **fields) -> bool:
-        m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
         if not m:
             return False
         m.status = status
@@ -58,7 +58,7 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         ).count()
 
     def update_fields(self, item_id: str, table: str = "pending_companies", **fields) -> bool:
-        m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
         if not m:
             return False
         for k, v in fields.items():
@@ -67,15 +67,15 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         self._session.commit()
         return True
 
-    def update_step(self, item_id: int, step_field: str, value: int, table: str = "pending_companies", **extra) -> bool:
+    def update_step(self, item_id: str, step_field: str, value: int, table: str = "pending_companies", **extra) -> bool:
         fields = {step_field: value}
         fields.update(extra)
         return self.update_fields(item_id, table, **fields)
 
-    def save_session_id(self, item_id: int, session_id: str, table: str = "pending_companies") -> bool:
+    def save_session_id(self, item_id: str, session_id: str, table: str = "pending_companies") -> bool:
         return self.update_fields(item_id, table, session_id=session_id)
 
-    def update_workflow_log(self, item_id: int, log_json: str, table: str = "pending_companies") -> bool:
+    def update_workflow_log(self, item_id: str, log_json: str, table: str = "pending_companies") -> bool:
         return self.update_fields(item_id, table, workflow_log=log_json)
 
     def get_max_queue_order(self, table: str = "pending_companies") -> int:
@@ -137,7 +137,7 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         ).order_by(CompanyModel.id.asc()).all()
         return [company_model_to_dict(r) for r in rows]
 
-    def reset_steps(self, item_id: int, version: int, table: str = "pending_companies", keep_status: bool = False) -> bool:
+    def reset_steps(self, item_id: str, version: int, table: str = "pending_companies", keep_status: bool = False) -> bool:
         updates = {
             "error": None,
             "workflow_log": "[]",
@@ -156,18 +156,21 @@ class SQLAlchemyPendingCompanyRepository(IPendingRepository):
         return [company_model_to_dict(r) for r in rows]
 
     def delete(self, item_id: str, table: str = "pending_companies") -> bool:
-        m = self._session.query(CompanyModel).filter(CompanyModel.id == int(item_id)).first()
+        m = self._session.query(CompanyModel).filter(CompanyModel.id == item_id).first()
         if m:
             self._session.delete(m)
             self._session.commit()
             return True
         return False
 
-    def create_pending_company(self, input_text: str, input_type: str, source: str, status: str = "created", notes: str = "[]", company_id: int = None, links: str = "[]") -> dict[str, Any]:
+    def create_pending_company(self, input_text: str, input_type: str, source: str, status: str = "created", notes: str = "[]", company_id: str = None, links: str = "[]", name: str = None) -> dict[str, Any]:
         model = CompanyModel(
+            name=name,
             notes=notes,
             source=source,
             status=status,
+            input_text=input_text,
+            input_type=input_type,
         )
         self._session.add(model)
         self._session.commit()

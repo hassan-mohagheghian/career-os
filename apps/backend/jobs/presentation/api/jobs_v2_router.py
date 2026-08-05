@@ -133,7 +133,7 @@ def list_jobs_v2(
     sort: str = Query("updated_at"),
     order: str = Query("desc"),
     processing_status: str | None = Query(None),
-    company_id: int | None = Query(None),
+    company_id: str | None = Query(None),
     location: str | None = Query(None),
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),

@@ -4,6 +4,11 @@
 
 The Add Job Drawer allows users to create a new Job by providing the primary job posting URL, optional job information, additional reference links, and optional notes.
 
+The drawer is the job variant of the shared **Create Entity drawer** (also used
+by the Add Company drawer, see `docs/ux/features/companies/add-company.md`). Job
+mode renders: Job Post URL → optional Job Title → Additional Links → Notes, with
+**Add** and **Add & Queue** actions.
+
 The drawer is opened from the **Jobs** page without leaving the current workspace.
 
 A newly created Job can either:
@@ -81,7 +86,7 @@ The user should be able to:
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │                           [Cancel]                                         │
-│             [Create Job]        [Create & Queue]                           │
+│             [Add]              [Add & Queue]                            │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -288,15 +293,15 @@ Rules
 
 # Actions
 
-| Action         | Description                                                     |
-| -------------- | --------------------------------------------------------------- |
-| Create Job     | Create a Job and add it to the Jobs list                        |
-| Create & Queue | Create a Job and immediately place it into the Processing Queue |
-| Cancel         | Close the Drawer                                                |
-| Add Link       | Append a new Additional Link                                    |
-| Remove Link    | Remove one Additional Link                                      |
-| Add Note       | Append a new Note                                               |
-| Remove Note    | Remove one Note                                                 |
+| Action        | Description                                                     |
+| ------------- | --------------------------------------------------------------- |
+| Add           | Add a Job to the Jobs list                                      |
+| Add & Queue   | Add a Job and immediately place it into the Processing Queue    |
+| Cancel        | Close the Drawer                                                |
+| Add Link      | Append a new Additional Link                                    |
+| Remove Link   | Remove one Additional Link                                      |
+| Add Note      | Append a new Note                                               |
+| Remove Note   | Remove one Note                                                 |
 
 ---
 
@@ -322,7 +327,7 @@ A loading indicator is displayed.
 
 ---
 
-## Success (Create Job)
+## Success (Add)
 
 - Drawer closes.
 - Job appears in the Jobs list.
@@ -330,7 +335,7 @@ A loading indicator is displayed.
 
 ---
 
-## Success (Create & Queue)
+## Success (Add & Queue)
 
 - Drawer closes.
 - Job appears in the Jobs list.
@@ -350,7 +355,7 @@ A loading indicator is displayed.
 
 # User Flow
 
-## Create Job
+## Add
 
 ```text
 Open Drawer
@@ -379,11 +384,11 @@ Add Notes
 
 ↓
 
-Create Job
+Add
 
 ↓
 
-Job Created
+Job Added
 
 ↓
 
@@ -392,7 +397,7 @@ Status = Imported
 
 ---
 
-## Create & Queue
+## Add & Queue
 
 ```text
 Open Drawer
@@ -421,7 +426,7 @@ Add Notes
 
 ↓
 
-Create & Queue
+Add & Queue
 
 ↓
 
