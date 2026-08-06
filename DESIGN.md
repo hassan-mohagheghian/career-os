@@ -219,6 +219,7 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 │                                                                              │
 │ ┌─ Details ─────────────────────────────────────────────────────────────────┐ │
 │ │ Role            Senior Backend Engineer                                   │ │
+│ │ Company         Acme GmbH [▾]          (picker: link/unlink a company)     │ │
 │ │ Status          done                                                      │ │
 │ │ Salary          90k                                                       │ │
 │ │ Visa            sponsored                                                  │ │
@@ -365,7 +366,14 @@ row opens the detail drawer where the relation can be managed.
 │ Company Overview                                              │
 │ Intelligence sections (importance order)                      │
 │ Scores breakdown                                              │
-│ Linked Jobs                                                   │
+│ Linked Jobs                                              │
+│ ┌────────────────────────────────────────────────────────┐ │
+│ │ 2 linked jobs                                          │ │
+│ │ Senior Backend Engineer                    [B]         │ │
+│ │   Berlin · [Fit 84][Success 63][Overall 76]           │ │
+│ │ Platform Engineer                          [A]         │ │
+│ │   Munich · [Fit 90][Success 70][Overall 82]           │ │
+│ └────────────────────────────────────────────────────────┘ │
 │ Notes & Links (read only)                                     │
 │ [View All Jobs] [Website]        [Reprocess] [Delete]         │
 └────────────────────────────────────────────────────────────────┘

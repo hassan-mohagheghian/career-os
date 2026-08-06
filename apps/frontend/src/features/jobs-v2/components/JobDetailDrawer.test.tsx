@@ -56,7 +56,7 @@ describe('JobDetailDrawer edit', () => {
     const onEdit = vi.fn()
     renderDrawer('job-1', onEdit)
 
-    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Edit job' }))
     expect(onEdit).toHaveBeenCalledWith('job-1')
   })
@@ -76,8 +76,15 @@ describe('JobDetailDrawer edit', () => {
   it('links the company name to the companies page detail drawer', async () => {
     renderDrawer('job-1')
 
-    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
-    const link = screen.getByText('Acme GmbH').closest('a')
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    const link = screen.getByRole('link', { name: 'Acme GmbH' })
     expect(link).toHaveAttribute('href', '/companies?company=company-1')
+  })
+
+  it('offers a company picker in the Details section', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Change company' })).toBeInTheDocument()
   })
 })

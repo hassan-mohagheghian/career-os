@@ -339,6 +339,38 @@ Job not found.
 
 ---
 
+# Set Job Company
+
+Links a job to a company, or unlinks it. This is the **only** way the
+`company_id` relation is managed — it is not part of the edit-job payload.
+
+## Endpoint
+
+PUT /api/jobs/{job_id}/company
+
+## Request Body
+
+```json
+{
+  "company_id": "019fd657-7769-776c-be0d-9e3b843452cb"
+}
+```
+
+`company_id` may be `null` (or an empty string) to unlink the job. Linking also
+sets the job's stored company name to the company's canonical name; unlinking
+leaves the stored name untouched.
+
+## Response
+
+200 — updated job detail payload (see `GET /api/jobs/{job_id}`), with the new
+`company_id` / `company_name` reflected.
+
+404
+
+Job not found, or the given `company_id` does not reference an existing company.
+
+---
+
 # Performance Requirements
 
 The endpoint should support:

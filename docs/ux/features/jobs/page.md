@@ -922,6 +922,19 @@ The Processing Queue drawer automatically closes.
 
 The user always has only one drawer open.
 
+## Job Details — Set Company
+
+The **Details** section has a `Company` row with a picker (`Change company`
+button). It links the job to a company via `PUT /api/jobs/{id}/company`:
+
+- **Link** — search companies and pick one; the job's `company_id` is set and
+  its display name becomes the company's canonical name.
+- **Unlink** — clears `company_id` (the stored company name is left as-is).
+
+The picker is a searchable popover backed by `GET /api/companies/list`. Once
+linked, the company name in the drawer header becomes a deep link to the
+company detail drawer on the Companies page.
+
 ---
 
 # User Flows

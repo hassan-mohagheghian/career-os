@@ -60,5 +60,7 @@ export const jobApi = {
     api.put<{ favorite: boolean }>(`/jobs/${jobId}/favorite`, { favorite }),
   getDetail: (jobId: string) => api.get<JobDetail>(`/jobs/${jobId}`),
   updateJob: (jobId: string, data: JobEditInput) => api.patch<JobDetail>(`/jobs/${jobId}`, data),
+  setCompany: (jobId: string, companyId: string | null) =>
+    api.put<JobDetail>(`/jobs/${jobId}/company`, { company_id: companyId }),
   deleteJob: (jobId: string) => api.delete<void>(`/jobs/${jobId}`),
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.0] — 2026-08-06
+
+### Added
+
+- **Company picker in the Job Detail drawer.** A `Company` row in the Details
+  section lets you link a job to a company via a searchable picker
+  (`PUT /api/jobs/{id}/company`), or unlink it. Linking also sets the job's
+  display name to the company's canonical name.
+- **Linked jobs list in the Company Detail drawer** now shows each job's role,
+  location, and Fit / Success / Overall scores with an overall grade badge
+  (replacing the raw UUID + legacy score display).
+
 ## [3.4.2] — 2026-08-06
 
 ### Fixed

@@ -4,6 +4,7 @@ import pytest
 from jobs.infrastructure.models.job_model import JobModel
 from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
+from companies.infrastructure.models.company_model import CompanyModel
 
 
 def _create_job(test_db, **kwargs) -> JobModel:
@@ -534,3 +535,55 @@ class TestJobRecommendationFilterV2API:
     def test_invalid_recommendation_returns_422(self, client, test_db):
         resp = client.get("/api/jobs/list?recommendation=bogus")
         assert resp.status_code == 422
+
+
+def _create_company(test_db, **kwargs) -> CompanyModel:
+    import uuid
+
+    defaults = dict(name="Acme GmbH")
+    defaults.update(kwargs)
+    defaults.setdefault("id", str(uuid.uuid7()))
+    company = CompanyModel(**defaults)
+    test_db.add(company)
+    test_db.commit()
+    return company
+
+
+class TestJobCompanyV2API:
+    def test_set_company_links_job_and_sets_canonical_name(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", company="Old Name")
+        company = _create_company(test_db)
+
+        resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": company.id})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["company_id"] == company.id
+        assert body["company_name"] == "Acme GmbH"
+
+    def test_set_company_null_unlinks_without_touching_name(self, client, test_db):
+        company = _create_company(test_db)
+        job = _create_job(test_db, id=1, title="Engineer", company="Acme GmbH", company_id=company.id)
+
+        resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": None})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["company_id"] is None
+        assert body["company_name"] == "Acme GmbH"
+
+    def test_set_company_empty_string_unlinks(self, client, test_db):
+        company = _create_company(test_db)
+        job = _create_job(test_db, id=1, title="Engineer", company_id=company.id)
+
+        resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": ""})
+        assert resp.status_code == 200
+        assert resp.json()["company_id"] is None
+
+    def test_set_company_missing_job_returns_404(self, client, test_db):
+        company = _create_company(test_db)
+        resp = client.put("/api/jobs/does-not-exist/company", json={"company_id": company.id})
+        assert resp.status_code == 404
+
+    def test_set_company_missing_company_returns_404(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer")
+        resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": "does-not-exist"})
+        assert resp.status_code == 404

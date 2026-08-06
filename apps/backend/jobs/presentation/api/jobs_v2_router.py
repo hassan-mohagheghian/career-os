@@ -27,6 +27,7 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     JobNoteItem,
     JobLinkItem,
     FavoriteJobRequest,
+    SetJobCompanyRequest,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -34,7 +35,14 @@ from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlche
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.domain.enums import ExecutionStatus
-from dependencies import get_job_repo, get_processing_execution_repo, get_job_analysis_repo, get_summary_repo
+from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
+from dependencies import (
+    get_job_repo,
+    get_processing_execution_repo,
+    get_job_analysis_repo,
+    get_summary_repo,
+    get_company_repo,
+)
 router = APIRouter()
 
 
@@ -286,6 +294,38 @@ def _analysis_to_schema(
     return None
 
 
+def _job_detail_payload(
+    job_dict: dict[str, Any],
+    latest_execution: Any | None,
+) -> JobDetailResponseSchema:
+    """Build the detail response for a freshly read job row."""
+    return JobDetailResponseSchema(
+        id=job_dict.get("id"),
+        title=job_dict.get("title") or job_dict.get("role"),
+        company_name=job_dict.get("company"),
+        company_id=job_dict.get("company_id"),
+        role=job_dict.get("role"),
+        location=job_dict.get("location"),
+        work_types=_parse_string_list(job_dict.get("work_types")),
+        employment_types=_parse_string_list(job_dict.get("employment_types")),
+        salary=job_dict.get("salary"),
+        visa=job_dict.get("visa"),
+        url=job_dict.get("url"),
+        status=job_dict.get("status"),
+        scores=ScoresSchema(
+            overall=job_dict.get("overall_score"),
+            fit=job_dict.get("fit_score"),
+            success=job_dict.get("success_score"),
+        ),
+        latest_processing_execution=_execution_to_schema(latest_execution),
+        description=job_dict.get("description"),
+        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
+        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
+        updated_at=job_dict.get("updated_at"),
+        created_at=job_dict.get("created_at"),
+    )
+
+
 @router.get("/{job_id}", response_model=JobDetailResponseSchema)
 def get_job_detail(
     job_id: str,
@@ -395,6 +435,33 @@ def update_job(
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
+
+
+@router.put("/{job_id}/company", response_model=JobDetailResponseSchema)
+def set_job_company(
+    job_id: str,
+    body: SetJobCompanyRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Link a job to a company (or unlink it by passing company_id=null)."""
+    job_dict = repo.get_by_id(job_id)
+    if not job_dict:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    if body.company_id:
+        company = company_repo.get_by_id(body.company_id)
+        if not company:
+            raise HTTPException(status_code=404, detail=f"Company {body.company_id} not found")
+        repo.set_company(job_id, body.company_id, company.get("name") or None)
+    else:
+        repo.set_company(job_id, None)
+
+    job_dict = repo.get_by_id(job_id)
+    executions = exec_repo.list_by_target("job", job_id)
+    latest_execution = executions[0] if executions else None
+    return _job_detail_payload(job_dict, latest_execution)
 
 
 @router.put("/{job_id}/favorite")

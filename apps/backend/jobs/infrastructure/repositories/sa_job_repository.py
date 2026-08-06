@@ -267,6 +267,17 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.commit()
         return True
 
+    def set_company(self, job_id: str, company_id: str | None, company_name: str | None = None) -> bool:
+        """Link a job to a company (or unlink it with ``company_id=None``).
+
+        When linking, ``company_name`` is also written so the display name
+        matches the company's canonical name.
+        """
+        fields: dict[str, Any] = {"company_id": company_id}
+        if company_name is not None:
+            fields["company"] = company_name
+        return self.update_fields(job_id, **fields)
+
     def update_workflow_log(self, job_id: str, log_json: str) -> bool:
         self._session.query(JobModel).filter(JobModel.id == job_id).update(
             {"workflow_log": log_json, "updated_at": datetime.now(UTC).isoformat()}

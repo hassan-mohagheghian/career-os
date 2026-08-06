@@ -111,6 +111,23 @@ class FavoriteJobRequest(BaseModel):
     favorite: bool
 
 
+class SetJobCompanyRequest(BaseModel):
+    """Schema for linking a job to a company.
+
+    ``company_id`` set to ``None`` (or an empty string) unlinks the job from
+    its company without touching the stored company name.
+    """
+
+    company_id: str | None = None
+
+    @field_validator("company_id")
+    @classmethod
+    def normalize_company_id(cls, v: str | None) -> str | None:
+        if v is None or not str(v).strip():
+            return None
+        return str(v).strip()
+
+
 class PaginationSchema(BaseModel):
     page: int
     page_size: int

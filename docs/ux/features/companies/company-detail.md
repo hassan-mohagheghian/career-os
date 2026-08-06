@@ -122,8 +122,22 @@ Full score breakdown:
 
 ## Linked Jobs
 
-`CompanyJobsTab` — lists `company.jobs` from the detail payload. Clicking a job
+`CompanyJobsTab` — lists `company.jobs` from the detail payload. Each row shows
+the job's role, location, and its Fit / Success / Overall scores with an
+overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
 or "View All Jobs" navigates to the Jobs page.
+
+```text
+┌─ Linked Jobs ────────────────────────────────────────────┐
+│ 3 linked jobs                                            │
+│ Senior Backend Engineer                    [B]           │
+│  Berlin, Germany   [Fit 84][Success 63][Overall 76]      │
+│ Platform Engineer                           [A]          │
+│  Munich, Germany   [Fit 90][Success 70][Overall 82]      │
+│ ...                                                      │
+│ [Show all 3 jobs]                                        │
+└──────────────────────────────────────────────────────────┘
+```
 
 ## Notes (read only)
 

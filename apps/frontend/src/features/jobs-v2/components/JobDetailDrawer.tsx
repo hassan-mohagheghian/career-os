@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon, PencilSimple } from '@phosphor-icons/react'
@@ -11,6 +11,7 @@ import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { RecommendationBadge } from './RecommendationBadge'
+import { CompanyPicker } from './CompanyPicker'
 import { Button } from '@/shared/ui/button'
 
 interface JobDetailDrawerProps {
@@ -170,6 +171,14 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
 function JobDetailContent({ detail }: { detail: JobDetail }) {
   const exec = detail.latest_processing_execution
   const steps = exec?.workflow?.steps ?? []
+  const queryClient = useQueryClient()
+  const setCompany = useMutation({
+    mutationFn: (companyId: string | null) => jobApi.setCompany(detail.id, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-detail', detail.id] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
 
   return (
     <div className="space-y-4 px-4 py-4 min-w-0">
@@ -243,6 +252,15 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
       <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
         <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Details</p>
         <DetailRow label="Role" value={detail.role} />
+        <div className="flex items-start justify-between gap-4 py-1.5">
+          <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">Company</span>
+          <CompanyPicker
+            companyId={detail.company_id ?? null}
+            companyName={detail.company_name ?? null}
+            onSelect={(id) => setCompany.mutate(id)}
+            pending={setCompany.isPending}
+          />
+        </div>
         <DetailRow label="Status" value={detail.status} />
         <DetailRow label="Salary" value={detail.salary} />
         <DetailRow label="Visa" value={detail.visa} />
