@@ -918,6 +918,9 @@ No polling is used.
 
 Clicking an execution inside the drawer opens the Job Details drawer.
 
+Opening `/jobs?job=<id>` opens the Job Details drawer for that job on mount
+(e.g. from the company detail drawer's linked-jobs list).
+
 The Processing Queue drawer automatically closes.
 
 The user always has only one drawer open.

@@ -125,7 +125,8 @@ Full score breakdown:
 `CompanyJobsTab` — lists `company.jobs` from the detail payload. Each row shows
 the job's role, location, and its Fit / Success / Overall scores with an
 overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
-or "View All Jobs" navigates to the Jobs page.
+deep-links to `/jobs?job=<id>`, where the Jobs page opens that job's detail
+drawer on mount. "View All Jobs" navigates to the plain Jobs page.
 
 ```text
 ┌─ Linked Jobs ────────────────────────────────────────────┐

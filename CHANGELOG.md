@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.5.1] — 2026-08-06
+
+### Fixed
+
+- **Job links in the Company Detail drawer now open the job.** Clicking a
+  linked job deep-links to `/jobs?job=<id>`, and the Jobs page opens that job's
+  detail drawer on mount (previously it navigated to the plain Jobs page and
+  dropped the job id).
+
 ## [3.5.0] — 2026-08-06
 
 ### Added

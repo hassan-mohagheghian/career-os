@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
 import { processingApi } from '@/entities/processing/api'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
+import { getSearchParam, setSearchParam } from '@/shared/lib/url'
 
 const JobsPageContent = dynamic(
   () => import('@/features/jobs-v2/components/JobsPage').then(m => ({ default: m.JobsPage })),
@@ -106,6 +107,15 @@ function JobsPageV2Adapter() {
     if (!job) return
     favoriteMutation.mutate({ jobId: id, favorite: !job.favorite })
   }, [items, favoriteMutation])
+
+  useEffect(() => {
+    const jobId = getSearchParam('job')
+    if (jobId) setDetailJobId(jobId)
+  }, [])
+
+  useEffect(() => {
+    if (detailJobId === null) setSearchParam('job', null)
+  }, [detailJobId])
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">

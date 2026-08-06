@@ -34,6 +34,10 @@ function CompaniesPageAdapter() {
     window.location.href = '/jobs'
   }, [])
 
+  const openJob = useCallback((id: string) => {
+    window.location.href = `/jobs?job=${encodeURIComponent(id)}`
+  }, [])
+
   const handleViewDetails = useCallback((id: string) => {
     setDetailCompanyId(id)
     setSearchParam('company', id)
@@ -140,8 +144,8 @@ function CompaniesPageAdapter() {
         }}
         editCompanyId={editCompanyId}
         onEditCompanyIdChange={setEditCompanyId}
-        onOpenJob={navigateToJobs}
-        onNavigateToJob={navigateToJobs}
+        onOpenJob={openJob}
+        onNavigateToJob={openJob}
         onViewAllJobs={navigateToJobs}
       />
       <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
