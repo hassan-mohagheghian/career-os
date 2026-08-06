@@ -15,6 +15,7 @@ const sampleDetail = {
   id: 'job-1',
   title: 'Staff Engineer',
   company_name: 'Acme GmbH',
+  company_id: 'company-1',
   role: 'Staff',
   location: 'Berlin',
   work_types: ['Hybrid'],
@@ -70,5 +71,13 @@ describe('JobDetailDrawer edit', () => {
       </QueryClientProvider>
     )
     expect(screen.queryByRole('button', { name: 'Edit job' })).not.toBeInTheDocument()
+  })
+
+  it('links the company name to the companies page detail drawer', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    const link = screen.getByText('Acme GmbH').closest('a')
+    expect(link).toHaveAttribute('href', '/companies?company=company-1')
   })
 })

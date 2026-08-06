@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.1] — 2026-08-06
+
+### Fixed
+
+- **Company link in the Job Detail drawer now opens the company drawer.** The
+  link previously called `preventDefault` and only rewrote the current page's
+  URL, doing nothing. It now navigates to `/companies?company=<id>`, where the
+  Companies page opens the company's detail drawer on mount.
+
 ## [3.4.0] — 2026-08-06
 
 ### Added

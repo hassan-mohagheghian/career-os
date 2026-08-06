@@ -6,7 +6,6 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon, PencilSimple } from '@phosphor-icons/react'
 import { jobApi } from '@/entities/job/api'
 import type { JobDetail, JobDetailWorkflowStep } from '@/entities/job/types'
-import { setSearchParam } from '@/shared/lib/url'
 import DateTime from '@/shared/components/DateTime'
 import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
 import { GradeBadge } from '@/shared/components/GradeBadge'
@@ -179,7 +178,6 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         {detail.company_id ? (
           <a
             href={`/companies?company=${detail.company_id}`}
-            onClick={(e) => { e.preventDefault(); setSearchParam('company', detail.company_id!) }}
             className="text-sm text-primary hover:underline"
           >
             {detail.company_name || 'Linked Company'}
