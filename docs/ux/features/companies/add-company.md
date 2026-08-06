@@ -24,6 +24,7 @@ links → optional notes**.
 │ ┌───────────────────────────────┐            │
 │ │ https://acme.example          │            │
 │ └───────────────────────────────┘            │
+│ Tip: a copied link is auto-filled from your clipboard. │
 │ [Website]  [LinkedIn]                        │
 │                                              │
 │ Company Name (Optional)                      │
@@ -50,6 +51,11 @@ links → optional notes**.
 
 The primary link is the main source for the company and is required. The URL is
 typed into the input; URLs missing a scheme are prefixed with `https://`.
+
+Every time the drawer opens, if the clipboard holds a URL (matching
+`http(s)://…`), it is automatically pasted into the Primary Link field unless
+the field is already populated — matching the Add Job drawer behavior. An empty
+or non-URL clipboard is ignored silently.
 
 A title can be selected from the preset chips **Website** and **LinkedIn**.
 Clicking a chip toggles it on/off. Only one primary title can be active.

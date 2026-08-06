@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import CreateEntityDrawer, { type CreateEntityFormData } from './CreateEntityDrawer'
 
@@ -9,6 +9,16 @@ vi.mock('@/shared/ui/sheet', () => ({
   SheetHeader: ({ children }: any) => <div>{children}</div>,
   SheetTitle: ({ children }: any) => <div>{children}</div>,
 }))
+
+const readClipboardUrlMock = vi.fn()
+vi.mock('@/shared/lib/clipboard', () => ({
+  readClipboardUrl: (...args: any[]) => readClipboardUrlMock(...args),
+}))
+
+beforeEach(() => {
+  readClipboardUrlMock.mockReset()
+  readClipboardUrlMock.mockResolvedValue(null)
+})
 
 function renderDrawer(mode: 'job' | 'company', onSubmit: (data: CreateEntityFormData) => void = vi.fn()) {
   return render(
@@ -146,5 +156,28 @@ describe('CreateEntityDrawer — company mode', () => {
     }))
     const data = (onSubmit.mock.calls[0][0] as CreateEntityFormData)
     expect(data.primaryLink?.url).toBe('https://acme.example')
+  })
+})
+
+describe('CreateEntityDrawer — clipboard prefill', () => {
+  it('prefills the job URL from the clipboard when the drawer opens', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
+    renderDrawer('job')
+    const urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/123'))
+  })
+
+  it('prefills the company primary link from the clipboard when the drawer opens', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://acme.example')
+    renderDrawer('company')
+    const urlInput = screen.getByPlaceholderText('https://acme.example') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://acme.example'))
+  })
+
+  it('leaves the URL empty when the clipboard has no link', async () => {
+    renderDrawer('job')
+    const urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(readClipboardUrlMock).toHaveBeenCalled())
+    expect(urlInput.value).toBe('')
   })
 })

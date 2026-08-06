@@ -48,6 +48,11 @@ class ISkillRepository(ABC):
         ...
 
     @abstractmethod
+    def set_pinned(self, skill_id: int, pinned: bool) -> dict[str, Any] | None:
+        """Pin or unpin a skill."""
+        ...
+
+    @abstractmethod
     def rename(self, skill_id: int, new_name: str) -> dict[str, Any] | None:
         """Rename a skill and update all references."""
         ...

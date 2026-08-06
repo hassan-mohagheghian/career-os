@@ -22,6 +22,7 @@ class SkillModel(Base):
     path: Mapped[str] = mapped_column(String, default="")
     source: Mapped[str] = mapped_column(String, default="service")
     hidden: Mapped[int] = mapped_column(Integer, default=0)
+    pinned: Mapped[int] = mapped_column(Integer, default=0)
     merged_into: Mapped[str] = mapped_column(String, default="")
     category: Mapped[str] = mapped_column(String, default="")
     confidence: Mapped[float] = mapped_column(Float, default=0)

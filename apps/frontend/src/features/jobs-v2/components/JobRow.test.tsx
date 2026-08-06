@@ -16,7 +16,7 @@ function makeJob(overrides: Partial<JobListItem> = {}): JobListItem {
     latest_processing_execution: null,
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
-    favorite: false,
+    pinned: false,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
     ...overrides,
@@ -30,27 +30,33 @@ function renderRow(job: JobListItem, overrides: Record<string, unknown> = {}) {
     onViewDetails: vi.fn(),
     onEdit: vi.fn(),
     onDelete: vi.fn(),
-    onToggleFavorite: vi.fn(),
+    onTogglePinned: vi.fn(),
     ...overrides,
   }
   return render(<JobRow {...(props as any)} />)
 }
 
-describe('JobRow favorites', () => {
-  it('renders the favorite toggle with the job favorite state', () => {
-    renderRow(makeJob({ favorite: true }))
-    expect(screen.getByLabelText('Remove from favorites')).toBeInTheDocument()
+describe('JobRow pinned', () => {
+  it('renders the pinned toggle with the job pinned state', () => {
+    renderRow(makeJob({ pinned: true }), { showPinnedColumn: true })
+    expect(screen.getByLabelText('Unpin job')).toBeInTheDocument()
   })
 
-  it('calls onToggleFavorite when the star is clicked and stops row selection', () => {
-    const onToggleFavorite = vi.fn()
+  it('calls onTogglePinned when the pin is clicked and stops row selection', () => {
+    const onTogglePinned = vi.fn()
     const onViewDetails = vi.fn()
-    renderRow(makeJob(), { onToggleFavorite, onViewDetails })
+    renderRow(makeJob(), { onTogglePinned, onViewDetails, showPinnedColumn: true })
 
-    fireEvent.click(screen.getByLabelText('Add to favorites'))
+    fireEvent.click(screen.getByLabelText('Pin job for attention'))
 
-    expect(onToggleFavorite).toHaveBeenCalled()
+    expect(onTogglePinned).toHaveBeenCalled()
     expect(onViewDetails).not.toHaveBeenCalled()
+  })
+
+  it('hides the pinned toggle when the column is off', () => {
+    renderRow(makeJob({ pinned: true }), { showPinnedColumn: false })
+    expect(screen.queryByLabelText('Unpin job')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Pin job for attention')).not.toBeInTheDocument()
   })
 })
 

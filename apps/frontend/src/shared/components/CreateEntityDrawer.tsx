@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Textarea } from '@/shared/ui/textarea'
-import { Plus, X, Warning, LinkSimple, Note, CircleNotch, Buildings } from '@phosphor-icons/react'
+import { Plus, X, Warning, LinkSimple, Note, CircleNotch, Buildings, ClipboardText } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
+import { readClipboardUrl } from '@/shared/lib/clipboard'
 
 export type CreateEntityMode = 'job' | 'company'
 
@@ -77,6 +78,22 @@ export default function CreateEntityDrawer({
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [newNoteTitle, setNewNoteTitle] = useState('')
   const [newNoteContent, setNewNoteContent] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    readClipboardUrl().then((url) => {
+      if (cancelled || !url) return
+      if (isCompany) {
+        setPrimaryUrl((prev) => prev || url)
+      } else {
+        setUrlInput((prev) => prev || url)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, isCompany])
 
   const urlValid = urlInput.trim().startsWith('http')
 
@@ -189,6 +206,10 @@ export default function CreateEntityDrawer({
                     {primaryUrl && !primaryUrl.trim().startsWith('http') && (
                       <p className="text-xs text-destructive mt-1">URL must start with http:// or https://</p>
                     )}
+                    <p className="flex items-center gap-1 text-2xs text-muted-foreground/70 mt-1">
+                      <ClipboardText className="w-3 h-3" />
+                      Tip: a copied link is auto-filled from your clipboard
+                    </p>
                     <div className="flex items-center gap-1 mt-1.5">
                       {PRIMARY_TITLE_PRESETS.map(label => (
                         <button
@@ -245,6 +266,10 @@ export default function CreateEntityDrawer({
                     {urlInput && !urlValid && (
                       <p className="text-xs text-destructive mt-1">URL must start with http:// or https://</p>
                     )}
+                    <p className="flex items-center gap-1 text-2xs text-muted-foreground/70 mt-1">
+                      <ClipboardText className="w-3 h-3" />
+                      Tip: a copied link is auto-filled from your clipboard
+                    </p>
                   </div>
 
                   {/* Job Title */}

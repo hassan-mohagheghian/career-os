@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SkillsPage } from './SkillsPage'
@@ -33,6 +34,7 @@ function makeSkill(id: number, name: string): SkillListItem {
     aliases: [],
     source_type: 'user_input',
     mention_count: 0,
+    pinned: false,
     created_at: '2026-08-01T00:00:00Z',
   }
 }
@@ -109,5 +111,57 @@ describe('SkillsPage', () => {
     }))
     expect(screen.getByText('Unable to load skills')).toBeInTheDocument()
     expect(screen.getByText('Retry')).toBeInTheDocument()
+  })
+
+  it('triggers onRefetch when the refresh button is clicked', () => {
+    const onRefetch = vi.fn()
+    renderPage(baseProps({ onRefetch }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh skills' }))
+    expect(onRefetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the refresh button while refreshing', () => {
+    renderPage(baseProps({ isRefetching: true }))
+    expect(screen.getByRole('button', { name: 'Refresh skills' })).toBeDisabled()
+  })
+
+  it('renders the Pin column header when the pinned column is shown', () => {
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes')],
+      total: 1,
+      loadedCount: 1,
+      showPinnedColumn: true,
+      onTogglePinnedColumn: vi.fn(),
+    }))
+    expect(screen.getByText('Pin')).toBeInTheDocument()
+  })
+
+  it('reports a column toggle when the Pinned option is clicked', async () => {
+    const user = userEvent.setup()
+    const onTogglePinnedColumn = vi.fn()
+    renderPage(baseProps({ showPinnedColumn: false, onTogglePinnedColumn }))
+    await user.click(screen.getByText('Columns'))
+    const option = await screen.findByText('Pinned')
+    await user.click(option)
+    expect(onTogglePinnedColumn).toHaveBeenCalledWith(true)
+  })
+
+  it('renders the pinned filter button', () => {
+    renderPage(baseProps({ onFilterPinnedChange: vi.fn() }))
+    expect(screen.getByLabelText('Show pinned skills only')).toBeInTheDocument()
+  })
+
+  it('toggles the pinned filter on click', () => {
+    const onFilterPinnedChange = vi.fn()
+    renderPage(baseProps({ onFilterPinnedChange }))
+    fireEvent.click(screen.getByLabelText('Show pinned skills only'))
+    expect(onFilterPinnedChange).toHaveBeenCalledWith(true)
+  })
+
+  it('toggles the pinned filter off when active', () => {
+    const onFilterPinnedChange = vi.fn()
+    renderPage(baseProps({ filterPinned: true, onFilterPinnedChange }))
+    fireEvent.click(screen.getByLabelText('Show pinned skills only'))
+    expect(onFilterPinnedChange).toHaveBeenCalledWith(false)
   })
 })

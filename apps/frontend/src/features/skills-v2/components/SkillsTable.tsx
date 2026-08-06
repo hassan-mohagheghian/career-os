@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { SkillListItem } from '@/entities/skill/types'
 import { SkillRow } from './SkillRow'
 import { SortableHeader } from '@/features/jobs-v2/components/SortableHeader'
-import { SKILL_GRID_TEMPLATE } from './skillsColumns'
+import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN } from './skillsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -11,6 +11,8 @@ interface ColumnDef {
   label: string
   field?: string
 }
+
+const PIN_COLUMN: ColumnDef = { label: 'Pin' }
 
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
@@ -37,6 +39,8 @@ interface SkillsTableProps {
   onViewDetails: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  onTogglePinned?: (id: number, pinned: boolean) => void
+  showPinnedColumn?: boolean
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -44,12 +48,15 @@ interface SkillsTableProps {
 
 export function SkillsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onViewDetails, onEdit, onDelete,
+  onViewDetails, onEdit, onDelete, onTogglePinned, showPinnedColumn = true,
   sort = 'created_at', order = 'desc', onSortChange = () => {},
 }: SkillsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
+
+  const visibleColumnDefs = showPinnedColumn ? [PIN_COLUMN, ...COLUMN_DEFS] : COLUMN_DEFS
+  const gridStyle = { gridTemplateColumns: showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -79,8 +86,8 @@ export function SkillsTable({
 
   const renderHeader = () => (
     <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
-      {COLUMN_DEFS.map((col, i) => (
-        <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
+      {visibleColumnDefs.map((col, i) => (
+        <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
           <SortableHeader
             label={col.label}
             field={col.field}
@@ -109,11 +116,11 @@ export function SkillsTable({
                   width: '100%',
                   height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
-                  gridTemplateColumns: SKILL_GRID_TEMPLATE,
+                  gridTemplateColumns: gridStyle.gridTemplateColumns,
                 }}
                 className="grid border-b border-border/40"
               >
-                {COLUMN_DEFS.map((_, j) => (
+                {visibleColumnDefs.map((_, j) => (
                   <div key={j} className="py-2 px-3">
                     <div className="h-3 bg-muted rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
                   </div>
@@ -161,6 +168,8 @@ export function SkillsTable({
                   onViewDetails={onViewDetails}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onTogglePinned={onTogglePinned}
+                  showPinnedColumn={showPinnedColumn}
                 />
               </div>
             )

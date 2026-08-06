@@ -4,8 +4,9 @@ import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import type { ProcessingStatusFilter, RecommendationFilter } from '@/entities/job/types'
-import { MagnifyingGlass, MapPin, Funnel, Star } from '@phosphor-icons/react'
+import { MagnifyingGlass, MapPin, Funnel, PushPin } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
+import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
 
 const STATUS_FILTER_LABELS: Record<string, string> = {
   created: 'Created',
@@ -33,12 +34,14 @@ interface JobsToolbarProps {
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
   onFilterVisaChange: (value: boolean | '') => void
-  filterFavorite: boolean
-  onFilterFavoriteChange: (value: boolean) => void
+  filterPinned: boolean
+  onFilterPinnedChange: (value: boolean) => void
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
+  showPinnedColumn?: boolean
+  onTogglePinnedColumn?: (value: boolean) => void
 }
 
 export function JobsToolbar({
@@ -47,9 +50,10 @@ export function JobsToolbar({
   filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
-  filterFavorite, onFilterFavoriteChange,
+  filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
+  showPinnedColumn = true, onTogglePinnedColumn,
 }: JobsToolbarProps) {
   return (
     <div className="px-3 py-2 border-b border-border/40">
@@ -132,15 +136,21 @@ export function JobsToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className={cn('h-7 w-auto gap-1 text-2xs', filterFavorite && 'text-yellow-500')}
-            onClick={() => onFilterFavoriteChange(!filterFavorite)}
-            aria-label="Show favorites only"
-            aria-pressed={filterFavorite}
-            title={filterFavorite ? 'Showing favorites only' : 'Show favorites only'}
+            className={cn('h-7 w-auto gap-1 text-2xs', filterPinned && 'text-primary')}
+            onClick={() => onFilterPinnedChange(!filterPinned)}
+            aria-label="Show pinned only"
+            aria-pressed={filterPinned}
+            title={filterPinned ? 'Showing pinned only' : 'Show pinned only'}
           >
-            <Star className="w-3 h-3" weight={filterFavorite ? 'fill' : 'regular'} />
-            Favorites
+            <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
+            Pinned
           </Button>
+          {onTogglePinnedColumn && (
+            <ColumnsDropdown
+              options={[{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }]}
+              onToggle={(key, checked) => onTogglePinnedColumn(checked)}
+            />
+          )}
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" className="h-7 text-2xs text-emerald-500" onClick={onClearFilters}>
               Clear

@@ -10,7 +10,7 @@ vi.mock('@/entities/job/api', () => ({
   jobApi: {
     searchInfinite: vi.fn(),
     deleteJob: vi.fn(),
-    setFavorite: vi.fn(),
+    setPinned: vi.fn(),
   },
 }))
 
@@ -26,7 +26,7 @@ function makeJob(id: string): JobListItem {
     latest_processing_execution: null,
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
-    favorite: false,
+    pinned: false,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
   }
@@ -233,7 +233,7 @@ describe('useJobsInfiniteQuery.filterLocation', () => {
   })
 })
 
-describe('useJobsInfiniteQuery.filterFavorite', () => {
+describe("useJobsInfiniteQuery.filterPinned", () => {
   let qc: QueryClient
 
   beforeEach(() => {
@@ -244,7 +244,7 @@ describe('useJobsInfiniteQuery.filterFavorite', () => {
     vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
   })
 
-  it('sends favorite=true when the favorites filter is enabled', async () => {
+  it('sends pinned=true when the pinned filter is enabled', async () => {
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
 
     await waitFor(() => {
@@ -252,17 +252,17 @@ describe('useJobsInfiniteQuery.filterFavorite', () => {
     })
 
     act(() => {
-      result.current.setFilterFavorite(true)
+      result.current.setFilterPinned(true)
     })
 
     await waitFor(() => {
       expect(jobApi.searchInfinite).toHaveBeenCalledWith(
-        expect.objectContaining({ favorite: true })
+        expect.objectContaining({ pinned: true })
       )
     })
   })
 
-  it('omits the favorite param when the filter is off', async () => {
+  it('omits the pinned param when the filter is off', async () => {
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
 
     await waitFor(() => {
@@ -270,10 +270,10 @@ describe('useJobsInfiniteQuery.filterFavorite', () => {
     })
 
     const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
-    expect(lastCall.favorite).toBeUndefined()
+    expect(lastCall.pinned).toBeUndefined()
   })
 
-  it('counts the favorites filter as an active filter and clears it', async () => {
+  it('counts the pinned filter as an active filter and clears it', async () => {
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
 
     await waitFor(() => {
@@ -281,7 +281,7 @@ describe('useJobsInfiniteQuery.filterFavorite', () => {
     })
 
     act(() => {
-      result.current.setFilterFavorite(true)
+      result.current.setFilterPinned(true)
     })
     expect(result.current.activeFilterCount).toBe(1)
 
@@ -289,7 +289,7 @@ describe('useJobsInfiniteQuery.filterFavorite', () => {
       result.current.clearFilters()
     })
     expect(result.current.activeFilterCount).toBe(0)
-    expect(result.current.filterFavorite).toBe(false)
+    expect(result.current.filterPinned).toBe(false)
   })
 })
 
@@ -353,7 +353,7 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
   })
 })
 
-describe('useJobsInfiniteQuery.favoriteMutation', () => {
+describe('useJobsInfiniteQuery.pinnedMutation', () => {
   let qc: QueryClient
 
   beforeEach(() => {
@@ -364,10 +364,10 @@ describe('useJobsInfiniteQuery.favoriteMutation', () => {
     vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
   })
 
-  it('optimistically toggles the favorite flag before the request resolves', async () => {
-    let resolveFavorite!: (v: { favorite: boolean }) => void
-    vi.mocked(jobApi.setFavorite).mockImplementation(
-      () => new Promise((resolve) => { resolveFavorite = resolve })
+  it('optimistically toggles the pinned flag before the request resolves', async () => {
+    let resolvePinned!: (v: { pinned: boolean }) => void
+    vi.mocked(jobApi.setPinned).mockImplementation(
+      () => new Promise((resolve) => { resolvePinned = resolve })
     )
 
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
@@ -377,23 +377,23 @@ describe('useJobsInfiniteQuery.favoriteMutation', () => {
     })
 
     act(() => {
-      result.current.favoriteMutation.mutate({ jobId: 'job-1', favorite: true })
+      result.current.pinnedMutation.mutate({ jobId: 'job-1', pinned: true })
     })
 
     await waitFor(() => {
       const cached = qc.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: ['jobs-v2-infinite'] })
       const pages = cached[0]?.[1]?.pages ?? []
-      expect(pages[0].items[0].favorite).toBe(true)
+      expect(pages[0].items[0].pinned).toBe(true)
     })
 
-    act(() => { resolveFavorite({ favorite: true }) })
+    act(() => { resolvePinned({ pinned: true }) })
     await waitFor(() => {
-      expect(result.current.favoriteMutation.isSuccess).toBe(true)
+      expect(result.current.pinnedMutation.isSuccess).toBe(true)
     })
   })
 
-  it('restores the previous favorite state when the request fails', async () => {
-    vi.mocked(jobApi.setFavorite).mockRejectedValue(new Error('boom'))
+  it('restores the previous pinned state when the request fails', async () => {
+    vi.mocked(jobApi.setPinned).mockRejectedValue(new Error('boom'))
 
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
 
@@ -402,15 +402,15 @@ describe('useJobsInfiniteQuery.favoriteMutation', () => {
     })
 
     await act(async () => {
-      result.current.favoriteMutation.mutate({ jobId: 'job-1', favorite: true })
+      result.current.pinnedMutation.mutate({ jobId: 'job-1', pinned: true })
     })
 
     await waitFor(() => {
-      expect(result.current.favoriteMutation.isError).toBe(true)
+      expect(result.current.pinnedMutation.isError).toBe(true)
     })
 
     const cached = qc.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: ['jobs-v2-infinite'] })
     const pages = cached[0]?.[1]?.pages ?? []
-    expect(pages[0].items[0].favorite).toBe(false)
+    expect(pages[0].items[0].pinned).toBe(false)
   })
 })

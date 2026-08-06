@@ -98,17 +98,17 @@ class JobListItemSchema(BaseModel):
     latest_processing_execution: ProcessingExecutionSchema | None = None
     scores: ScoresSchema | None = None
     recommendation: str | None = None
-    favorite: bool = False
+    pinned: bool = False
     updated_at: str | None = None
     created_at: str | None = None
 
     model_config = {"populate_by_name": True, "from_attributes": True}
 
 
-class FavoriteJobRequest(BaseModel):
-    """Schema for setting/clearing the favorite flag on a job."""
+class PinJobRequest(BaseModel):
+    """Schema for pinning or unpinning a job."""
 
-    favorite: bool
+    pinned: bool
 
 
 class SetJobCompanyRequest(BaseModel):

@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { JobListItem } from '@/entities/job/types'
 import { JobRow } from './JobRow'
 import { SortableHeader, type ScoreSortOption } from './SortableHeader'
-import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
+import { COLUMN_GRID_TEMPLATE, COLUMN_GRID_TEMPLATE_NO_PIN } from './jobsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -19,9 +19,10 @@ interface JobsTableProps {
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onToggleFavorite: (id: string) => void
+  onTogglePinned: (id: string, pinned: boolean) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  showPinnedColumn?: boolean
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -40,7 +41,7 @@ interface ColumnDef {
 }
 
 const COLUMN_DEFS: ColumnDef[] = [
-  { label: 'Fav' },
+  { label: 'Pin' },
   { label: 'Title', field: 'title' },
   { label: 'Company', field: 'company' },
   { label: 'Location' },
@@ -52,16 +53,18 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Actions' },
 ]
 
-const gridStyle = { gridTemplateColumns: COLUMN_GRID_TEMPLATE }
-
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel,
+  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
+  showPinnedColumn = true,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
+
+  const visibleColumnDefs = showPinnedColumn ? COLUMN_DEFS : COLUMN_DEFS.filter((col) => col.label !== 'Pin')
+  const gridStyle = { gridTemplateColumns: showPinnedColumn ? COLUMN_GRID_TEMPLATE : COLUMN_GRID_TEMPLATE_NO_PIN }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -94,8 +97,8 @@ export function JobsTable({
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
         <div className="w-full">
           <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
-            {COLUMN_DEFS.map((col, i) => (
-              <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
+            {visibleColumnDefs.map((col, i) => (
+              <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
                 <SortableHeader
                   label={col.label}
                   field={col.field}
@@ -118,11 +121,11 @@ export function JobsTable({
                   width: '100%',
                   height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
-                  gridTemplateColumns: COLUMN_GRID_TEMPLATE,
+                  gridTemplateColumns: gridStyle.gridTemplateColumns,
                 }}
                 className="grid border-b border-border/40"
               >
-                {COLUMN_DEFS.map((_, j) => (
+                {visibleColumnDefs.map((_, j) => (
                   <div key={j} className="py-2 px-3">
                     <div className="h-3 bg-muted rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
                   </div>
@@ -149,8 +152,8 @@ export function JobsTable({
     <div className="flex-1 overflow-y-auto" ref={scrollRef}>
       <div className="w-full">
         <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
-          {COLUMN_DEFS.map((col, i) => (
-            <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
+          {visibleColumnDefs.map((col, i) => (
+            <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
               <SortableHeader
                 label={col.label}
                 field={col.field}
@@ -184,9 +187,10 @@ export function JobsTable({
                   onViewDetails={onViewDetails}
                   onEdit={onEdit}
                   onDelete={onDelete}
-                  onToggleFavorite={() => onToggleFavorite(job.id)}
+                  onTogglePinned={(_id, pinned) => onTogglePinned(job.id, pinned)}
                   onRetry={onRetry}
                   onCancel={onCancel}
+                  showPinnedColumn={showPinnedColumn}
                 />
               </div>
             )

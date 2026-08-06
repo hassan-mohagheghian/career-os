@@ -110,6 +110,15 @@ class SQLAlchemySkillRepository(ISkillRepository):
         self._session.refresh(model)
         return self.get_by_id(model.id)
 
+    def set_pinned(self, skill_id: int, pinned: bool) -> dict[str, Any] | None:
+        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        if not model:
+            return None
+        model.pinned = 1 if pinned else 0
+        self._session.commit()
+        self._session.refresh(model)
+        return self.get_by_id(model.id)
+
     def rename(self, skill_id: int, new_name: str) -> dict[str, Any] | None:
         model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
         if not model:

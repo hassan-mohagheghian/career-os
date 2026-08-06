@@ -17,7 +17,7 @@ export function useJobsInfiniteQuery() {
   const [filterLocation, setFilterLocation] = useState('')
   const [filterRemote, setFilterRemote] = useState<boolean | ''>('')
   const [filterVisa, setFilterVisa] = useState<boolean | ''>('')
-  const [filterFavorite, setFilterFavorite] = useState(false)
+  const [filterPinned, setFilterPinned] = useState(false)
   const [filterRecommendation, setFilterRecommendation] = useState<RecommendationFilter>('')
 
   const filterKey = useMemo(() => ({
@@ -28,9 +28,9 @@ export function useJobsInfiniteQuery() {
     location: filterLocation || undefined,
     remote: filterRemote === '' ? undefined : filterRemote,
     visa: filterVisa === '' ? undefined : filterVisa,
-    favorite: filterFavorite || undefined,
+    pinned: filterPinned || undefined,
     recommendation: filterRecommendation || undefined,
-  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterFavorite, filterRecommendation])
+  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterRecommendation])
 
   const {
     data,
@@ -41,6 +41,7 @@ export function useJobsInfiniteQuery() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isRefetching,
   } = useInfiniteQuery<InfiniteJobSearchResult>({
     queryKey: [JOBS_KEY, filterKey],
     queryFn: ({ pageParam }) => jobApi.searchInfinite({
@@ -53,7 +54,7 @@ export function useJobsInfiniteQuery() {
       location: filterKey.location as string | undefined,
       remote: filterKey.remote as boolean | undefined,
       visa: filterKey.visa as boolean | undefined,
-      favorite: filterKey.favorite as boolean | undefined,
+      pinned: filterKey.pinned as boolean | undefined,
       recommendation: filterKey.recommendation as RecommendationFilter | undefined,
     }),
     initialPageParam: undefined,
@@ -72,7 +73,7 @@ export function useJobsInfiniteQuery() {
     filterLocation,
     filterRemote !== '',
     filterVisa !== '',
-    filterFavorite,
+    filterPinned,
     filterRecommendation,
   ].filter(Boolean).length
 
@@ -81,7 +82,7 @@ export function useJobsInfiniteQuery() {
     setFilterLocation('')
     setFilterRemote('')
     setFilterVisa('')
-    setFilterFavorite(false)
+    setFilterPinned(false)
     setFilterRecommendation('')
   }, [])
 
@@ -170,9 +171,9 @@ export function useJobsInfiniteQuery() {
     },
   })
 
-  const favoriteMutation = useMutation({
-    mutationFn: ({ jobId, favorite }: { jobId: string; favorite: boolean }) => jobApi.setFavorite(jobId, favorite),
-    onMutate: async ({ jobId, favorite }) => {
+  const pinnedMutation = useMutation({
+    mutationFn: ({ jobId, pinned }: { jobId: string; pinned: boolean }) => jobApi.setPinned(jobId, pinned),
+    onMutate: async ({ jobId, pinned }) => {
       await queryClient.cancelQueries({ queryKey: [JOBS_KEY] })
       const previousData = queryClient.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: [JOBS_KEY] })
       queryClient.setQueriesData<{ pages: { items: JobListItem[] }[] }>(
@@ -184,7 +185,7 @@ export function useJobsInfiniteQuery() {
             pages: old.pages.map(page => ({
               ...page,
               items: page.items.map((item) =>
-                item.id === jobId ? { ...item, favorite } : item
+                item.id === jobId ? { ...item, pinned } : item
               ),
             })),
           }
@@ -210,6 +211,7 @@ export function useJobsInfiniteQuery() {
     loadedCount,
     isLoading,
     isFetchingNextPage,
+    isRefetching,
     isError,
     error,
     refetch,
@@ -228,14 +230,14 @@ export function useJobsInfiniteQuery() {
     setFilterRemote: useCallback((v: boolean | '') => { setFilterRemote(v) }, []),
     filterVisa,
     setFilterVisa: useCallback((v: boolean | '') => { setFilterVisa(v) }, []),
-    filterFavorite,
-    setFilterFavorite: useCallback((v: boolean) => { setFilterFavorite(v) }, []),
+    filterPinned,
+    setFilterPinned: useCallback((v: boolean) => { setFilterPinned(v) }, []),
     filterRecommendation,
     setFilterRecommendation: useCallback((v: RecommendationFilter) => { setFilterRecommendation(v) }, []),
     activeFilterCount,
     clearFilters,
     processMutation,
     deleteMutation,
-    favoriteMutation,
+    pinnedMutation,
   }
 }

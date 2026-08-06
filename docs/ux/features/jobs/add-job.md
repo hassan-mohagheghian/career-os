@@ -50,6 +50,20 @@ The user should be able to:
 
 ---
 
+# Opening the Drawer
+
+The drawer can be opened two ways:
+
+| Method                       | Description                                                    |
+| ---------------------------- | -------------------------------------------------------------- |
+| **Add Job button**           | Click the header button (shows an `N` shortcut hint).          |
+| **`N` keyboard shortcut**    | Press `N` anywhere on the Jobs page (jobs-only). Ignored while typing inside an input, textarea, select, or content-editable element, and when a modifier key (Ctrl/Cmd/Alt/Meta) is held. |
+
+When the drawer opens, a URL copied to the clipboard is auto-filled into the
+Job Post URL field (see Clipboard Prefill under Job Post URL).
+
+---
+
 # Layout
 
 ```text
@@ -61,6 +75,7 @@ The user should be able to:
 │ ┌────────────────────────────────────────────────────────────────────────┐ │
 │ │ https://...                                                           │ │
 │ └────────────────────────────────────────────────────────────────────────┘ │
+│ Tip: a copied link is auto-filled from your clipboard.                     │
 │                                                                            │
 │ Job Title (Optional)                                                      │
 │ ┌────────────────────────────────────────────────────────────────────────┐ │
@@ -125,6 +140,19 @@ Examples
 - Lever
 - Workday
 - Ashby
+
+## Clipboard Prefill
+
+Every time the drawer opens, if the clipboard holds a URL (matching
+`http(s)://…`), it is automatically pasted into the Job Post URL field —
+unless the field is already populated. A hint under the field explains this:
+
+```text
+Tip: a copied link is auto-filled from your clipboard.
+```
+
+This makes the common "copy a job posting → press N → Add" flow effectively
+three steps. An empty or non-URL clipboard is ignored silently.
 
 ---
 
@@ -310,6 +338,8 @@ Rules
 ## Default
 
 Empty form.
+
+The Job Post URL field is pre-filled when the clipboard holds a URL.
 
 ---
 

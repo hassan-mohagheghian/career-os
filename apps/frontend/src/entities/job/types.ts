@@ -73,7 +73,7 @@ export interface JobListItem {
   latest_processing_execution: ProcessingExecution | null
   scores: Scores
   recommendation: string | null
-  favorite: boolean
+  pinned: boolean
   updated_at: string | null
   created_at: string
 }
@@ -98,7 +98,7 @@ export interface JobSearchQuery {
   fit_score_max?: number
   success_score_min?: number
   success_score_max?: number
-  favorite?: boolean
+  pinned?: boolean
   recommendation?: RecommendationFilter
   sort?: string
   order?: 'asc' | 'desc'

@@ -24,6 +24,7 @@ interface JobsPageProps {
   isError: boolean
   error: Error | null
   onRefetch: () => void
+  isRefetching?: boolean
   query: string
   onQueryChange: (value: string) => void
   sort: string
@@ -37,8 +38,8 @@ interface JobsPageProps {
   onFilterRemoteChange: (value: boolean | '') => void
   filterVisa: boolean | ''
   onFilterVisaChange: (value: boolean | '') => void
-  filterFavorite: boolean
-  onFilterFavoriteChange: (value: boolean) => void
+  filterPinned: boolean
+  onFilterPinnedChange: (value: boolean) => void
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   activeFilterCount: number
@@ -47,9 +48,11 @@ interface JobsPageProps {
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onToggleFavorite: (id: string) => void
+  onTogglePinned: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  showPinnedColumn?: boolean
+  onTogglePinnedColumn?: (value: boolean) => void
   isProcessing: boolean
   queueDrawerOpen: boolean
   onQueueDrawerOpenChange: (open: boolean) => void
@@ -66,17 +69,18 @@ interface JobsPageProps {
 
 export function JobsPage({
   items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, onFetchNextPage,
-  isError, error, onRefetch,
+  isError, error, onRefetch, isRefetching,
   query, onQueryChange,
   sort, onSortChange, order,
   filterProcessingStatus, onFilterProcessingStatusChange,
   filterLocation, onFilterLocationChange,
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
-  filterFavorite, onFilterFavoriteChange,
+  filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, isProcessing,
+  showPinnedColumn = true, onTogglePinnedColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
   addJobDrawerOpen, onAddJobDrawerOpenChange, onJobQueued,
   detailJobId, onDetailJobIdChange,
@@ -113,6 +117,8 @@ export function JobsPage({
           processingCount={processingCount}
           onOpenQueue={() => onQueueDrawerOpenChange(true)}
           onAddJob={() => onAddJobDrawerOpenChange(true)}
+          onRefresh={onRefetch}
+          isRefreshing={isRefetching}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-2">
@@ -135,6 +141,8 @@ export function JobsPage({
         processingCount={processingCount}
         onOpenQueue={() => onQueueDrawerOpenChange(true)}
         onAddJob={() => onAddJobDrawerOpenChange(true)}
+        onRefresh={onRefetch}
+        isRefreshing={isRefetching}
       />
       <JobsToolbar
         query={query}
@@ -147,12 +155,14 @@ export function JobsPage({
         onFilterRemoteChange={onFilterRemoteChange}
         filterVisa={filterVisa}
         onFilterVisaChange={onFilterVisaChange}
-        filterFavorite={filterFavorite}
-        onFilterFavoriteChange={onFilterFavoriteChange}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={onFilterPinnedChange}
         filterRecommendation={filterRecommendation}
         onFilterRecommendationChange={onFilterRecommendationChange}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={onTogglePinnedColumn}
       />
       <JobsTable
         items={items}
@@ -166,9 +176,10 @@ export function JobsPage({
         onViewDetails={onViewDetails}
         onEdit={onEdit}
         onDelete={onDelete}
-        onToggleFavorite={onToggleFavorite}
+        onTogglePinned={onTogglePinned}
         onRetry={onRetry}
         onCancel={onCancel}
+        showPinnedColumn={showPinnedColumn}
         sort={sort}
         order={order}
         onSortChange={onSortChange}

@@ -90,3 +90,8 @@ class ICompanyRepository(ABC):
         (name, website, domain, status, source) without filling the full profile.
         """
         ...
+
+    @abstractmethod
+    def set_pinned(self, company_id: str, pinned: bool) -> bool:
+        """Set or clear the pinned flag on a company. Returns True if the company exists."""
+        ...

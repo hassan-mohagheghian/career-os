@@ -17,22 +17,28 @@ function SkillsPageAdapter() {
   const [addSkillDrawerOpen, setAddSkillDrawerOpen] = useState(false)
   const [detailSkillId, setDetailSkillId] = useState<number | null>(null)
   const [editSkillId, setEditSkillId] = useState<number | null>(null)
+  const [showPinnedColumn, setShowPinnedColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
-    isError, error, refetch,
+    isError, error, refetch, isRefetching,
     query, setQuery,
     sort, order, handleHeaderSort,
     filterCategory, setFilterCategory,
+    filterPinned, setFilterPinned,
     activeFilterCount, clearFilters,
-    deleteMutation,
+    deleteMutation, pinnedMutation,
   } = useSkillsInfiniteQuery()
 
   const handleViewDetails = useCallback((id: number) => {
     setDetailSkillId(id)
     setSearchParam('skill', String(id))
   }, [])
+
+  const handleTogglePinned = useCallback((id: number, pinned: boolean) => {
+    pinnedMutation.mutate({ id, pinned })
+  }, [pinnedMutation])
 
   const handleEdit = useCallback((id: number) => {
     setEditSkillId(id)
@@ -84,6 +90,7 @@ function SkillsPageAdapter() {
         isError={isError}
         error={error}
         onRefetch={refetch}
+        isRefetching={isRefetching}
         query={query}
         onQueryChange={setQuery}
         sort={sort}
@@ -91,11 +98,16 @@ function SkillsPageAdapter() {
         order={order}
         filterCategory={filterCategory}
         onFilterCategoryChange={setFilterCategory}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={setFilterPinned}
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onTogglePinned={handleTogglePinned}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={setShowPinnedColumn}
         addSkillDrawerOpen={addSkillDrawerOpen}
         onAddSkillDrawerOpenChange={setAddSkillDrawerOpen}
         detailSkillId={detailSkillId}

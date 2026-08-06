@@ -13,7 +13,7 @@ The Jobs page is built from repeated Job Rows.
 Desktop
 
 ```
-Favorite
+Pin
 
 Title
 
@@ -46,7 +46,7 @@ Cards are intentionally not used.
 
 Each row displays:
 
-- Favorite
+- Pin
 - Job Title
 - Company
 - Location
@@ -62,15 +62,15 @@ Each row displays:
 
 ---
 
-# Favorite
+# Pin
 
-A leading star button toggling the job's favorite flag (see
-`features/jobs/favorite-job.md`).
+A leading pushpin button toggling the job's pinned flag (see
+`features/jobs/pinned-job.md`).
 
-- Empty star: not favorited.
-- Filled star: favorited.
+- Empty pin: not pinned.
+- Filled pin: pinned.
 
-The toggle is optimistic — the star updates immediately and is rolled back on
+The toggle is optimistic — the pin updates immediately and is rolled back on
 failure. The button is a separate interactive element and does not trigger row
 selection.
 

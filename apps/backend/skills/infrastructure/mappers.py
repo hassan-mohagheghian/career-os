@@ -28,6 +28,7 @@ def skill_model_to_dict(model: SkillModel, aliases: list[str] | None = None) -> 
         "path": model.path,
         "source": model.source,
         "hidden": model.hidden,
+        "pinned": bool(model.pinned),
         "merged_into": model.merged_into,
         "category": model.category,
         "confidence": model.confidence,

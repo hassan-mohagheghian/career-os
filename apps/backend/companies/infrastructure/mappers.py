@@ -53,6 +53,7 @@ def company_model_to_dict(model: CompanyModel) -> dict[str, Any]:
         "failure_step": model.failure_step,
         "failure_timestamp": model.failure_timestamp,
         "session_id": model.session_id,
+        "pinned": model.pinned,
         "parent_company_id": model.parent_company_id,
     }
 

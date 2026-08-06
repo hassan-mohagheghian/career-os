@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { JobsToolbar } from './JobsToolbar'
 
@@ -15,8 +16,8 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onFilterRemoteChange: vi.fn(),
     filterVisa: '',
     onFilterVisaChange: vi.fn(),
-    filterFavorite: false,
-    onFilterFavoriteChange: vi.fn(),
+    filterPinned: false,
+    onFilterPinnedChange: vi.fn(),
     filterRecommendation: '',
     onFilterRecommendationChange: vi.fn(),
     activeFilterCount: 0,
@@ -65,28 +66,28 @@ describe('JobsToolbar location filter', () => {
   })
 })
 
-describe('JobsToolbar favorite filter', () => {
-  it('renders the favorites toggle', () => {
+describe('JobsToolbar pinned filter', () => {
+  it('renders the pinned toggle', () => {
     renderToolbar()
-    expect(screen.getByLabelText('Show favorites only')).toBeInTheDocument()
+    expect(screen.getByLabelText('Show pinned only')).toBeInTheDocument()
   })
 
-  it('toggles the favorite filter on click', () => {
-    const onFilterFavoriteChange = vi.fn()
-    renderToolbar({ onFilterFavoriteChange })
+  it('toggles the pinned filter on click', () => {
+    const onFilterPinnedChange = vi.fn()
+    renderToolbar({ onFilterPinnedChange })
 
-    fireEvent.click(screen.getByLabelText('Show favorites only'))
+    fireEvent.click(screen.getByLabelText('Show pinned only'))
 
-    expect(onFilterFavoriteChange).toHaveBeenCalledWith(true)
+    expect(onFilterPinnedChange).toHaveBeenCalledWith(true)
   })
 
-  it('toggles the favorite filter off when active', () => {
-    const onFilterFavoriteChange = vi.fn()
-    renderToolbar({ filterFavorite: true, onFilterFavoriteChange })
+  it('toggles the pinned filter off when active', () => {
+    const onFilterPinnedChange = vi.fn()
+    renderToolbar({ filterPinned: true, onFilterPinnedChange })
 
-    fireEvent.click(screen.getByLabelText('Show favorites only'))
+    fireEvent.click(screen.getByLabelText('Show pinned only'))
 
-    expect(onFilterFavoriteChange).toHaveBeenCalledWith(false)
+    expect(onFilterPinnedChange).toHaveBeenCalledWith(false)
   })
 })
 
@@ -109,5 +110,35 @@ describe('JobsToolbar recommendation filter', () => {
   it('shows the selected recommendation label when active', () => {
     renderToolbar({ filterRecommendation: 'consider' })
     expect(screen.getByText('Consider')).toBeInTheDocument()
+  })
+})
+
+describe('JobsToolbar columns toggle', () => {
+  it('renders a Columns dropdown when a toggle handler is provided', () => {
+    renderToolbar({ onTogglePinnedColumn: vi.fn() })
+    expect(screen.getByText('Columns')).toBeInTheDocument()
+  })
+
+  it('does not render the Columns dropdown without a toggle handler', () => {
+    renderToolbar()
+    expect(screen.queryByText('Columns')).not.toBeInTheDocument()
+  })
+
+  it('shows a check on the Pinned option when the column is visible', async () => {
+    const user = userEvent.setup()
+    renderToolbar({ showPinnedColumn: true, onTogglePinnedColumn: vi.fn() })
+    await user.click(screen.getByText('Columns'))
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getByText('Pinned')).toBeInTheDocument()
+  })
+
+  it('reports a column toggle when the Pinned option is clicked', async () => {
+    const user = userEvent.setup()
+    const onTogglePinnedColumn = vi.fn()
+    renderToolbar({ showPinnedColumn: false, onTogglePinnedColumn })
+    await user.click(screen.getByText('Columns'))
+    const option = within(await screen.findByRole('menu')).getByText('Pinned')
+    await user.click(option)
+    expect(onTogglePinnedColumn).toHaveBeenCalledWith(true)
   })
 })

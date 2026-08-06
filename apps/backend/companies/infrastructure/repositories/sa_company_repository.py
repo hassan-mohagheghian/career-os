@@ -172,6 +172,16 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
     def get_total_count(self) -> int:
         return self._session.query(func.count(CompanyModel.id)).scalar() or 0
 
+    def set_pinned(self, company_id: str, pinned: bool) -> bool:
+        """Set or clear the pinned flag on a company. Returns True if the company exists."""
+        model = self._session.query(CompanyModel).filter(CompanyModel.id == company_id).first()
+        if not model:
+            return False
+        model.pinned = 1 if pinned else 0
+        model.updated_at = datetime.now(UTC).isoformat()
+        self._session.commit()
+        return True
+
     def get_all_with_job_counts(self) -> list[dict[str, Any]]:
         from jobs.infrastructure.models.job_model import JobModel
         rows = self._session.query(

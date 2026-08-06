@@ -2,8 +2,9 @@ import type { SkillListItem } from '@/entities/skill/types'
 import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
 import DateTime from '@/shared/components/DateTime'
-import { SKILL_GRID_TEMPLATE } from './skillsColumns'
+import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN } from './skillsColumns'
 import { SkillActions } from './SkillActions'
+import { PinButton } from '@/shared/components/PinButton'
 
 export const CATEGORY_COLORS: Record<string, string> = {
   technical: 'text-blue-500 bg-blue-500/10',
@@ -45,11 +46,15 @@ export function SkillRow({
   onViewDetails,
   onEdit,
   onDelete,
+  showPinnedColumn = true,
+  onTogglePinned,
 }: {
   skill: SkillListItem
   onViewDetails: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  showPinnedColumn?: boolean
+  onTogglePinned?: (id: number, pinned: boolean) => void
 }) {
   const confidence = skill.confidence != null ? Math.round(skill.confidence * 100) : null
   const demand = skill.market_relevance != null ? Math.round(skill.market_relevance * 100) : null
@@ -60,9 +65,14 @@ export function SkillRow({
   return (
     <div
       className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
-      style={{ gridTemplateColumns: SKILL_GRID_TEMPLATE }}
+      style={{ gridTemplateColumns: showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE }}
       onClick={() => onViewDetails(skill.id)}
     >
+      {showPinnedColumn && (
+        <div className="py-2 px-2 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+          <PinButton pinned={skill.pinned} onToggle={() => onTogglePinned?.(skill.id, !skill.pinned)} entityLabel="skill" />
+        </div>
+      )}
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-medium text-foreground truncate">{skill.name}</span>

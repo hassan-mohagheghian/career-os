@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { SkillRow } from './SkillRow'
 import type { SkillListItem } from '@/entities/skill/types'
@@ -19,20 +19,21 @@ function makeSkill(overrides: Partial<SkillListItem> = {}): SkillListItem {
     aliases: [],
     source_type: 'user_input',
     mention_count: 0,
+    pinned: false,
     created_at: '2026-08-01T00:00:00Z',
     ...overrides,
   }
 }
 
-function renderRow(skill: SkillListItem) {
-  return render(
-    <SkillRow
-      skill={skill}
-      onViewDetails={vi.fn()}
-      onEdit={vi.fn()}
-      onDelete={vi.fn()}
-    />
-  )
+function renderRow(skill: SkillListItem, overrides: Record<string, unknown> = {}) {
+  const props = {
+    skill,
+    onViewDetails: vi.fn(),
+    onEdit: vi.fn(),
+    onDelete: vi.fn(),
+    ...overrides,
+  }
+  return render(<SkillRow {...(props as any)} />)
 }
 
 describe('SkillRow', () => {
@@ -93,5 +94,29 @@ describe('SkillRow', () => {
     )
     screen.getByText('Kubernetes').click()
     expect(onViewDetails).toHaveBeenCalledWith(1)
+  })
+})
+
+describe('SkillRow pinned column', () => {
+  it('hides the pin button when the column is off', () => {
+    renderRow(makeSkill({ pinned: true }), { showPinnedColumn: false })
+    expect(screen.queryByLabelText('Unpin skill')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Pin skill for attention')).not.toBeInTheDocument()
+  })
+
+  it('renders the pin button when the column is shown', () => {
+    renderRow(makeSkill({ pinned: true }), { showPinnedColumn: true })
+    expect(screen.getByLabelText('Unpin skill')).toBeInTheDocument()
+  })
+
+  it('calls onTogglePinned when the pin button is clicked and stops row selection', () => {
+    const onTogglePinned = vi.fn()
+    const onViewDetails = vi.fn()
+    renderRow(makeSkill(), { showPinnedColumn: true, onTogglePinned, onViewDetails })
+
+    fireEvent.click(screen.getByLabelText('Pin skill for attention'))
+
+    expect(onTogglePinned).toHaveBeenCalledWith(1, true)
+    expect(onViewDetails).not.toHaveBeenCalled()
   })
 })

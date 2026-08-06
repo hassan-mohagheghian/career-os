@@ -18,16 +18,18 @@ function CompaniesPageAdapter() {
   const [addCompanyDrawerOpen, setAddCompanyDrawerOpen] = useState(false)
   const [detailCompanyId, setDetailCompanyId] = useState<string | null>(null)
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null)
+  const [showPinnedColumn, setShowPinnedColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
-    isError, error, refetch,
+    isError, error, refetch, isRefetching,
     query, setQuery,
     sort, order, handleHeaderSort,
     filterIndustry, setFilterIndustry,
+    filterPinned, setFilterPinned,
     activeFilterCount, clearFilters,
-    deleteMutation, reprocessMutation, setMainMutation,
+    deleteMutation, reprocessMutation, setMainMutation, pinnedMutation,
   } = useCompaniesInfiniteQuery()
 
   const navigateToJobs = useCallback(() => {
@@ -94,6 +96,10 @@ function CompaniesPageAdapter() {
     })
   }, [setMainMutation])
 
+  const handleTogglePinned = useCallback((id: string, pinned: boolean) => {
+    pinnedMutation.mutate({ id, pinned })
+  }, [pinnedMutation])
+
   useEffect(() => {
     const companyId = getSearchParam('company')
     if (companyId) {
@@ -118,6 +124,7 @@ function CompaniesPageAdapter() {
         isError={isError}
         error={error}
         onRefetch={refetch}
+        isRefetching={isRefetching}
         query={query}
         onQueryChange={setQuery}
         sort={sort}
@@ -125,12 +132,17 @@ function CompaniesPageAdapter() {
         order={order}
         filterIndustry={filterIndustry}
         onFilterIndustryChange={setFilterIndustry}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={setFilterPinned}
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onViewDetails={handleViewDetails}
         onReprocess={handleReprocess}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onTogglePinned={handleTogglePinned}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={setShowPinnedColumn}
         onRelate={handleRelate}
         relatePending={setMainMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}

@@ -26,7 +26,7 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     UpdateJobRequest,
     JobNoteItem,
     JobLinkItem,
-    FavoriteJobRequest,
+    PinJobRequest,
     SetJobCompanyRequest,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
@@ -126,7 +126,7 @@ def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any]
         latest_processing_execution=exec_schema,
         scores=scores,
         recommendation=recommendation,
-        favorite=bool(job_dict.get("favorite")),
+        pinned=bool(job_dict.get("pinned")),
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -145,7 +145,7 @@ def list_jobs_v2(
     location: str | None = Query(None),
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),
-    favorite: bool | None = Query(None),
+    pinned: bool | None = Query(None),
     recommendation: str | None = Query(None, pattern="^(apply|consider|skip)$"),
     overall_score_min: int | None = Query(None),
     overall_score_max: int | None = Query(None),
@@ -175,7 +175,7 @@ def list_jobs_v2(
         overall_score_min=overall_score_min, overall_score_max=overall_score_max,
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
         success_score_min=success_score_min, success_score_max=success_score_max,
-        favorite=favorite,
+        pinned=pinned,
         recommendation=recommendation,
     )
     use_case = ListJobsV2UseCase(repo)
@@ -464,13 +464,13 @@ def set_job_company(
     return _job_detail_payload(job_dict, latest_execution)
 
 
-@router.put("/{job_id}/favorite")
-def set_job_favorite(
+@router.put("/{job_id}/pinned")
+def set_job_pinned(
     job_id: str,
-    body: FavoriteJobRequest,
+    body: PinJobRequest,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ):
-    """Set or clear the favorite flag on a job."""
-    if not repo.set_favorite(job_id, body.favorite):
+    """Set or clear the pinned flag on a job."""
+    if not repo.set_pinned(job_id, body.pinned):
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-    return {"favorite": body.favorite}
+    return {"pinned": body.pinned}

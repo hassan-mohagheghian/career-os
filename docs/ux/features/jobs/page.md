@@ -55,19 +55,19 @@ Jobs Page
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Jobs                                                    Queue (2 Running • 4 Waiting)      + Import Job      │
+│ Jobs                                                    Queue (2 Running • 4 Waiting)  ↻  + Add Job │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ Search .................................................................................................... │
 │                                                                                                              │
 │ Sort ▼                                         Filters ▼                                   Refresh          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                              │
-│ # │ Job │ Company │ Location │ Overall │ Fit │ Success │ Rec │ Processing │ Updated │ Actions          │
+│ # │ Pin │ Job │ Company │ Location │ Overall │ Fit │ Success │ Rec │ Processing │ Updated │ Actions │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ ★ Apply │ Ready │ 2m │ ...          │
-│ 2 │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ ☆ Apply │ Running │ now │ ...        │
-│ 3 │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ — Skip │ Failed │ 5m │ ...          │
+│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ ★ Apply │ Ready │ 2m │ ...   │
+│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ ☆ Apply │ Running │ now │ ... │
+│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ — Skip │ Failed │ 5m │ ...   │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
@@ -86,13 +86,15 @@ Responsibilities
 - Display processing queue summary.
 - Open Processing Queue drawer.
 - Open Import Job dialog.
+- Refresh the current result set.
 
 Controls
 
-| Control    | Description                        |
-| ---------- | ---------------------------------- |
-| Queue      | Opens the Processing Queue drawer. |
-| Import Job | Opens the Import Job dialog.       |
+| Control    | Description                                                                      |
+| ---------- | -------------------------------------------------------------------------------- |
+| Queue      | Opens the Processing Queue drawer.                                               |
+| Add Job    | Opens the Import Job dialog. The button shows an `N` shortcut hint (`<kbd>N</kbd>`). |
+| Refresh    | Reloads the current query (spins while a refetch is in flight).                  |
 
 ---
 
@@ -132,7 +134,7 @@ Controls
 | Location       | Filter by location (substring).          |
 | Remote         | Filter by remote / on-site.              |
 | Visa           | Filter by visa sponsorship.              |
-| Favorites      | Toggle favorites-only view.              |
+| Pinned         | Toggle pinned-only view.                 |
 | Recommendation | Filter by apply / consider / skip.       |
 | Sort           | Sort current result set.                 |
 | Clear          | Clears all active filters.               |
@@ -245,7 +247,17 @@ The list is refreshed through two mechanisms.
 
 ## Manual Refresh
 
-The Refresh button reloads the current query.
+The Refresh button in the Header reloads the current query. It calls the same
+`refetch` used by the error-state Retry button, so it works from any state
+(including the error state, where the header remains available). While a
+refetch is in flight the button is disabled and its icon spins.
+
+## Keyboard Shortcut — Add Job
+
+Pressing `N` anywhere on the Jobs page (unless the focus is inside an input,
+textarea, select, or content-editable element) opens the Add Job drawer. This
+is a jobs-only shortcut; there is no equivalent on the Companies or Skills
+pages. The hint is shown on the Add Job button and its tooltip.
 
 ## Automatic Refresh
 
@@ -284,7 +296,7 @@ Selecting a row opens the Job Details Drawer.
 | Column         | Description                                         |
 | -------------- | --------------------------------------------------- |
 | Select         | Multi-selection checkbox for future bulk operations |
-| Favorite       | Star toggle for bookmarked jobs                     |
+| Pin            | Pushpin toggle for pinned jobs                     |
 | Job            | Job title and employment type                       |
 | Company        | Company logo and company name                       |
 | Location       | City, country or Remote                             |
@@ -374,18 +386,18 @@ Remote
 
 ---
 
-## Favorite
+## Pin
 
-Displays a star toggle for the job's favorite flag.
+Displays a pushpin toggle for the job's pinned flag.
 
 ```text
-★   favorited
+●   pinned
 
-☆   not favorited
+○   not pinned
 ```
 
-The toggle is optimistic and does not reload the list. Activating the Favorites
-filter in the toolbar shows only favorited jobs.
+The toggle is optimistic and does not reload the list. Activating the Pinned
+filter in the toolbar shows only pinned jobs.
 
 ---
 
@@ -1188,7 +1200,7 @@ Search preserves
 
 Supported filters
 
-- Favorites
+- Pin
 - Recommendation
 - Processing Status
 - Location
@@ -1202,17 +1214,17 @@ Supported filters
 
 Filters are applied server-side.
 
-## Favorites Filter
+## Pinned Filter
 
-A star toggle in the toolbar restricts the list to favorited jobs.
+A pushpin toggle in the toolbar restricts the list to pinned jobs.
 
 ```text
-☆ All Jobs
-★ Favorites only
+○ All Jobs
+pinned Pinned only
 ```
 
 When active it counts as an active filter and is cleared by the toolbar's
-Clear action alongside the others. Favoriting or unfavoriting a job while the
+Clear action alongside the others. Pinning or unpinning a job while the
 filter is active refetches the list so rows update immediately.
 
 ## Recommendation Filter
@@ -1454,6 +1466,7 @@ Keyboard shortcuts
 | Enter    | Open Job Details |
 | Esc      | Close Drawer     |
 | Ctrl + F | Focus Search     |
+| N        | Open Add Job drawer |
 
 ---
 
@@ -1506,7 +1519,7 @@ Only visible rows are mounted.
 | Element        | Icon              |
 | -------------- | ----------------- |
 | Import Job     | Plus              |
-| Favorite       | Star              |
+| Pin            | Pushpin           |
 | Queue          | Workflow          |
 | Search         | Search            |
 | Filters        | SlidersHorizontal |

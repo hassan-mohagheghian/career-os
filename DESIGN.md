@@ -66,11 +66,11 @@ Placement is right by default; all variants become full-screen on mobile.
 │ Search .......................................................................       │
 │ Sort ▼                  Filters ▼                                        Refresh     │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│ # │ Job                  │ Company    │ Location │ Overall │ Fit │ Proc.  │ Updated │
+│ # │ Pin │ Job                  │ Company    │ Location │ Overall │ Fit │ Proc.  │ Updated │
 │─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ A++  94  │ 95  │ Ready  │ 2m      │
-│ 2 │ Backend Engineer     │ Karla      │ Berlin   │ A+  90   │ 90  │ Running│ now     │
-│ 3 │ Python Developer     │ Flexa      │ Remote   │ A   86   │ 86  │ Failed │ 5m      │
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ A++  94  │ 95  │ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ A+  90   │ 90  │ Running│ now     │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ A   86   │ 86  │ Failed │ 5m      │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
@@ -304,15 +304,15 @@ Full specs: `docs/ux/features/rules/`.
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │ Companies (128)                       Loaded 25 of 128      Queue           + Add Company│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search ............................................                    [Industry ▾] [Clear]│
+│ Search ............................................        [Industry ▾] [Pinned] [Columns] [Clear]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
-│──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
-│ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
-│ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
-│ Inc  │          │          │      │      │ alias            │           │     │     │   │
-│ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
+│ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
+│─────┼──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
+│ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
+│ ○  │ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
+│ ○  │ Inc  │          │          │      │      │ alias            │           │     │     │   │
+│ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
 │                                                                                          │
 │                                       Loading more companies...                           │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
@@ -446,13 +446,13 @@ infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ </> Skills (128)                     Loaded 25 of 128           + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................                                [Category ▾] │
+│ Search .........................                     [Category ▾] [Pinned] [Columns] │
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Name                  │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
-│───────────────────────────────────────────────────────────────────────────────│
-│ Kubernetes 2 aliases  │ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
-│ Kafka                 │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
-│ DDD                   │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
+│ Pin │ Name                  │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
+│─────│─────────────────────────────────────────────────────────────────────────│
+│ ●  │ Kubernetes 2 aliases  │ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
+│ ○  │ Kafka                 │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
+│ ○  │ DDD                   │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
 │                                                                               │
 │                                        Loading more skills...                 │
 └───────────────────────────────────────────────────────────────────────────────┘

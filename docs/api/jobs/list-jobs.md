@@ -121,13 +121,13 @@ visa=true
 
 ---
 
-### Favorite
+### Pinned
 
 ```text
-favorite=true
+pinned=true
 ```
 
-Filters to jobs the user has favorited. Omitted (or `false`) returns all jobs.
+Filters to jobs the user has pinned. Omitted (or `false`) returns all jobs.
 
 ---
 
@@ -219,7 +219,7 @@ desc
 
       "job_status": "completed",
 
-      "favorite": false,
+      "pinned": false,
 
       "recommendation": "apply",
 
@@ -306,20 +306,20 @@ the legacy `jobs`/`summaries` projections (no recommendation).
 
 ---
 
-# Favorite Job
+# Pin Job
 
-Toggles the user's favorite flag on a job. This is the **only** way the flag is
+Toggles the user's pinned flag on a job. This is the **only** way the flag is
 managed — it is not part of the edit-job payload.
 
 ## Endpoint
 
-PUT /api/jobs/{job_id}/favorite
+PUT /api/jobs/{job_id}/pinned
 
 ## Request Body
 
 ```json
 {
-  "favorite": true
+  "pinned": true
 }
 ```
 
@@ -329,7 +329,7 @@ PUT /api/jobs/{job_id}/favorite
 
 ```json
 {
-  "favorite": true
+  "pinned": true
 }
 ```
 

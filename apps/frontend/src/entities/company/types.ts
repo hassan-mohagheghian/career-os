@@ -38,6 +38,7 @@ export interface CompanyListItem {
   main_company: CompanyMainRef | null
   alias_count: number
   is_alias: boolean
+  pinned: boolean
   updated_at: string | null
   created_at: string | null
 }
@@ -49,6 +50,7 @@ export interface CompanySearchQuery {
   cursor?: string
   query?: string
   industry?: string
+  pinned?: boolean
   sort?: string
   order?: 'asc' | 'desc'
 }

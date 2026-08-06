@@ -30,6 +30,7 @@ from companies.presentation.api.schemas.companies_v2 import (
     CompanyMainRef,
     CompanyMainRequest,
     CompanyNoteSchema,
+    CompanyPinRequest,
     CompanyProcessingSchema,
     CompanyScoresSchema,
 )
@@ -64,7 +65,9 @@ def _cursor_encode(offset: int) -> str:
     return base64.b64encode(str(offset).encode()).decode()
 
 
-def _matches(row: dict[str, Any], query: str, industry: str) -> bool:
+def _matches(row: dict[str, Any], query: str, industry: str, pinned: bool | None = None) -> bool:
+    if pinned is not None and bool(row.get("pinned")) != pinned:
+        return False
     if query:
         q = query.lower()
         haystacks = [
@@ -147,6 +150,7 @@ def _to_list_item(
         main_company=main_company,
         alias_count=(alias_counts or {}).get(row["id"], 0),
         is_alias=bool(parent_company_id),
+        pinned=bool(row.get("pinned")),
         updated_at=row.get("updated_at"),
         created_at=row.get("created_at"),
     )
@@ -156,6 +160,7 @@ def _to_list_item(
 def list_companies_v2(
     query: str = Query("", description="Substring search over name, industry, city, country, description"),
     industry: str = Query("", description="Exact industry filter"),
+    pinned: bool | None = Query(None, description="Only include pinned companies"),
     sort: str = Query("created_at", description="Sort field"),
     order: str = Query("desc", description="asc or desc"),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=200),
@@ -164,7 +169,7 @@ def list_companies_v2(
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
-    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry)]
+    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned)]
 
     key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort)
     with_value = [r for r in rows if key(r) is not None]
@@ -337,6 +342,18 @@ def _build_company_detail(
         created_at=company.get("created_at"),
         updated_at=company.get("updated_at"),
     )
+
+
+@router.put("/{id}/pinned")
+def set_company_pinned(
+    id: str,
+    body: CompanyPinRequest,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+):
+    """Set or clear the pinned flag on a company."""
+    if not repo.set_pinned(id, body.pinned):
+        raise HTTPException(status_code=404, detail=f"Company {id} not found")
+    return {"id": id, "pinned": body.pinned}
 
 
 @router.put("/{id}/main", response_model=CompanyDetailResponseSchema)

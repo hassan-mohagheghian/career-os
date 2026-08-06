@@ -425,23 +425,23 @@ class TestJobListV2API:
         assert len(data["items"]) == 0
 
 
-class TestJobFavoritesV2API:
-    def test_list_item_carries_favorite_default_false(self, client, test_db):
+class TestJobPinnedV2API:
+    def test_list_item_carries_pinned_default_false(self, client, test_db):
         _create_job(test_db, id=1, title="Engineer")
 
         resp = client.get("/api/jobs/list")
         data = resp.json()
-        assert data["items"][0]["favorite"] is False
+        assert data["items"][0]["pinned"] is False
 
-    def test_filter_by_favorite(self, client, test_db):
-        _create_job(test_db, id=1, title="Starred", favorite=1)
+    def test_filter_by_pinned(self, client, test_db):
+        _create_job(test_db, id=1, title="Pinned", pinned=1)
         _create_job(test_db, id=2, title="Plain")
 
-        resp = client.get("/api/jobs/list?favorite=true")
+        resp = client.get("/api/jobs/list?pinned=true")
         data = resp.json()
-        assert [i["title"] for i in data["items"]] == ["Starred"]
+        assert [i["title"] for i in data["items"]] == ["Pinned"]
 
-        resp = client.get("/api/jobs/list?favorite=false")
+        resp = client.get("/api/jobs/list?pinned=false")
         data = resp.json()
         assert [i["title"] for i in data["items"]] == ["Plain"]
 
@@ -449,24 +449,24 @@ class TestJobFavoritesV2API:
         data = resp.json()
         assert len(data["items"]) == 2
 
-    def test_set_favorite_persists_and_toggles(self, client, test_db):
-        job = _create_job(test_db, id=1, title="Starred")
+    def test_set_pinned_persists_and_toggles(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Pinned")
 
-        resp = client.put(f"/api/jobs/{job.id}/favorite", json={"favorite": True})
+        resp = client.put(f"/api/jobs/{job.id}/pinned", json={"pinned": True})
         assert resp.status_code == 200
-        assert resp.json() == {"favorite": True}
+        assert resp.json() == {"pinned": True}
 
         data = client.get("/api/jobs/list").json()
-        assert data["items"][0]["favorite"] is True
-        assert [i["title"] for i in client.get("/api/jobs/list?favorite=true").json()["items"]] == ["Starred"]
+        assert data["items"][0]["pinned"] is True
+        assert [i["title"] for i in client.get("/api/jobs/list?pinned=true").json()["items"]] == ["Pinned"]
 
-        resp = client.put(f"/api/jobs/{job.id}/favorite", json={"favorite": False})
+        resp = client.put(f"/api/jobs/{job.id}/pinned", json={"pinned": False})
         assert resp.status_code == 200
         data = client.get("/api/jobs/list").json()
-        assert data["items"][0]["favorite"] is False
+        assert data["items"][0]["pinned"] is False
 
-    def test_set_favorite_missing_job_returns_404(self, client, test_db):
-        resp = client.put("/api/jobs/does-not-exist/favorite", json={"favorite": True})
+    def test_set_pinned_missing_job_returns_404(self, client, test_db):
+        resp = client.put("/api/jobs/does-not-exist/pinned", json={"pinned": True})
         assert resp.status_code == 404
 
 
@@ -522,15 +522,15 @@ class TestJobRecommendationFilterV2API:
         data = resp.json()
         assert [i["title"] for i in data["items"]] == ["Apply Job"]
 
-    def test_recommendation_filter_combines_with_favorite(self, client, test_db):
-        apply_job = _create_job(test_db, id=1, title="Starred Apply", favorite=1)
+    def test_recommendation_filter_combines_with_pinned(self, client, test_db):
+        apply_job = _create_job(test_db, id=1, title="Pinned Apply", pinned=1)
         plain_job = _create_job(test_db, id=2, title="Plain Apply")
         _create_analysis(test_db, apply_job.id, recommendation="apply")
         _create_analysis(test_db, plain_job.id, recommendation="apply")
 
-        resp = client.get("/api/jobs/list?recommendation=apply&favorite=true")
+        resp = client.get("/api/jobs/list?recommendation=apply&pinned=true")
         data = resp.json()
-        assert [i["title"] for i in data["items"]] == ["Starred Apply"]
+        assert [i["title"] for i in data["items"]] == ["Pinned Apply"]
 
     def test_invalid_recommendation_returns_422(self, client, test_db):
         resp = client.get("/api/jobs/list?recommendation=bogus")

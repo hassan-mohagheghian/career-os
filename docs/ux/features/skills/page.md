@@ -50,15 +50,15 @@ Skills Page
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ ⛭ Skills (128)                    Loaded 25 of 128          + Add Skill      │
+│ ⛭ Skills (128)                    Loaded 25 of 128          ↻  + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................                                          [Category ▾] [Clear]│
+│ Search .........................                    [Category ▾] [Pinned] [Columns] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
-│───────────────────────────────────────────────────────────────────────────────│
-│ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
-│ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
-│ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
+│ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
+│─────│─────────────────────────────────────────────────────────────────────────│
+│ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
+│ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
+│ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
 │                                                                               │
 │                                        Loading more skills...                 │
 │                                                                               │
@@ -76,12 +76,14 @@ Responsibilities
 - Display page title and total count.
 - Display loaded-vs-total count.
 - Open the Add Skill drawer.
+- Refresh the current result set.
 
 Controls
 
-| Control    | Description                  |
-| ---------- | ---------------------------- |
-| Add Skill  | Opens the Add Skill drawer.  |
+| Control    | Description                                                   |
+| ---------- | ------------------------------------------------------------- |
+| Add Skill  | Opens the Add Skill drawer.                                   |
+| Refresh    | Reloads the current query (spins while a refetch is in flight). |
 
 ---
 
@@ -91,6 +93,8 @@ Responsibilities
 
 - Search skills.
 - Filter skills by category.
+- Filter skills by pinned state.
+- Toggle the Pin column.
 - Clear active filters.
 
 Controls
@@ -99,6 +103,8 @@ Controls
 | -------- | ----------------------------------------------- |
 | Search   | Search by name, role, path, or alias.           |
 | Category | Filter by one of the five canonical categories. |
+| Pinned   | Toggle pinned-only view.                        |
+| Columns  | Show / hide the Pin column.                     |
 | Clear    | Clears all active filters.                      |
 
 Search is debounced (300ms) via the shared `DebouncedInput` primitive.
@@ -178,6 +184,7 @@ Configuration
 
 | Column     | Description                                        |
 | ---------- | -------------------------------------------------- |
+| Pin        | Pushpin toggle for pinned skills                   |
 | Name       | Skill name + origin badge (AI/Manual) + alias count badge |
 | Category   | Canonical category badge                           |
 | Level      | Skill proficiency level (Lv.1 … Lv.10)             |
@@ -188,9 +195,23 @@ Configuration
 | Mentions   | Total job/company mentions referencing this skill (sortable) |
 | Actions    | Row actions (Details, Edit, Delete)                |
 
+The Pin column is shown by default and can be hidden via the toolbar Columns
+dropdown.
+
 ---
 
 # Column Details
+
+## Pin
+
+A leading pushpin button toggling the skill's pinned flag.
+
+- Empty pin: not pinned.
+- Filled (primary color) pin: pinned.
+
+The toggle is optimistic — the pin updates immediately and is rolled back on
+failure. The button is a separate interactive element and does not trigger row
+selection.
 
 ## Name
 
@@ -331,6 +352,21 @@ After a successful submit the drawer closes and the skill appears in the list.
 
 ---
 
+# Pinned Filter
+
+A pushpin toggle in the toolbar restricts the list to pinned skills.
+
+```text
+○ All Skills
+pinned Pinned only
+```
+
+When active it counts as an active filter and is cleared by the toolbar's Clear
+action alongside the others. Pinning or unpinning a skill while the filter is
+active refetches the list so rows update immediately.
+
+---
+
 # Sorting
 
 Supported sort fields (backend, NULLS LAST):
@@ -346,6 +382,13 @@ Sorting is always performed by the backend. Rows where the sort column is empty
 sort last in both directions.
 
 ---
+
+# Data Refresh
+
+The Refresh button in the Header reloads the current query. It calls the same
+`refetch` used by the error-state Retry button, so it works from any state
+(including the error state, where the header remains available). While a
+refetch is in flight the button is disabled and its icon spins.
 
 # Empty States
 

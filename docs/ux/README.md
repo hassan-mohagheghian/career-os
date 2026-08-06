@@ -49,6 +49,7 @@ docs/ux/
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, infinite scroll)
 │       ├── job-row.md         Job row columns and scores
+│       ├── pinned-job.md      Pin a job for attention (replaces favorite)
 │       ├── add-job.md         Add Job drawer (shared Create Entity, job mode)
 │       ├── edit-job.md        Edit Job drawer
 │       ├── delete-job.md      Delete Job

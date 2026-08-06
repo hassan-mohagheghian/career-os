@@ -62,8 +62,15 @@ class CompanyListItemSchema(BaseModel):
     main_company: CompanyMainRef | None = None
     alias_count: int = 0
     is_alias: bool = False
+    pinned: bool = False
     updated_at: str | None = None
     created_at: str | None = None
+
+
+class CompanyPinRequest(BaseModel):
+    """Body for PUT /api/companies/{id}/pinned."""
+
+    pinned: bool = True
 
 
 class CompanyListResponseSchema(BaseModel):

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
+import { useAddJobShortcut } from '@/features/jobs-v2/hooks/useAddJobShortcut'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
 import { processingApi } from '@/entities/processing/api'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
@@ -21,26 +22,29 @@ function JobsPageV2Adapter() {
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
+  const [showPinnedColumn, setShowPinnedColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
-    isError, error, refetch,
+    isError, error, refetch, isRefetching,
     query, setQuery,
     sort, order, handleHeaderSort,
     filterProcessingStatus, setFilterProcessingStatus,
     filterLocation, setFilterLocation,
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
-    filterFavorite, setFilterFavorite,
+    filterPinned, setFilterPinned,
     filterRecommendation, setFilterRecommendation,
     activeFilterCount, clearFilters,
     processMutation,
     deleteMutation,
-    favoriteMutation,
+    pinnedMutation,
   } = useJobsInfiniteQuery()
 
   useProcessingEvents()
+
+  useAddJobShortcut(() => setAddJobDrawerOpen(true))
 
   const processingCount = useMemo(() => {
     return items.filter(i => {
@@ -102,11 +106,11 @@ function JobsPageV2Adapter() {
       .catch(() => toast.error('Failed to cancel processing'))
   }, [items, refetch])
 
-  const handleToggleFavorite = useCallback((id: string) => {
+  const handleTogglePinned = useCallback((id: string) => {
     const job = items.find(j => j.id === id)
     if (!job) return
-    favoriteMutation.mutate({ jobId: id, favorite: !job.favorite })
-  }, [items, favoriteMutation])
+    pinnedMutation.mutate({ jobId: id, pinned: !job.pinned })
+  }, [items, pinnedMutation])
 
   useEffect(() => {
     const jobId = getSearchParam('job')
@@ -130,6 +134,7 @@ function JobsPageV2Adapter() {
         isError={isError}
         error={error}
         onRefetch={refetch}
+        isRefetching={isRefetching}
         query={query}
         onQueryChange={setQuery}
         sort={sort}
@@ -143,8 +148,8 @@ function JobsPageV2Adapter() {
         onFilterRemoteChange={setFilterRemote}
         filterVisa={filterVisa}
         onFilterVisaChange={setFilterVisa}
-        filterFavorite={filterFavorite}
-        onFilterFavoriteChange={setFilterFavorite}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={setFilterPinned}
         filterRecommendation={filterRecommendation}
         onFilterRecommendationChange={setFilterRecommendation}
         activeFilterCount={activeFilterCount}
@@ -153,9 +158,11 @@ function JobsPageV2Adapter() {
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onToggleFavorite={handleToggleFavorite}
+        onTogglePinned={handleTogglePinned}
         onRetry={handleRetry}
         onCancel={handleCancel}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={setShowPinnedColumn}
         isProcessing={processMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}
         onQueueDrawerOpenChange={setQueueDrawerOpen}

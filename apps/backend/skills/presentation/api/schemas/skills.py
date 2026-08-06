@@ -29,6 +29,11 @@ class SkillUpdate(BaseModel):
     tags: list[str] | None = None
 
 
+class SkillPinRequest(BaseModel):
+    """Schema for pinning/unpinning a skill."""
+    pinned: bool = True
+
+
 class SkillRename(BaseModel):
     name: str = Field(..., min_length=1)
 
@@ -79,6 +84,7 @@ class SkillResponse(BaseModel):
     tags: list[str] = []
     aliases: list[str] = []
     hidden: int = 0
+    pinned: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -103,6 +109,7 @@ class SkillListItemSchema(BaseModel):
     aliases: list[str] = []
     source_type: str = "user_input"
     mention_count: int = 0
+    pinned: bool = False
     created_at: str | None = None
 
 

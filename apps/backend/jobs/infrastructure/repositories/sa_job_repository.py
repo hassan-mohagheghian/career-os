@@ -584,7 +584,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         fit_score_max: int | None = None,
         success_score_min: int | None = None,
         success_score_max: int | None = None,
-        favorite: bool | None = None,
+        pinned: bool | None = None,
         recommendation: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
         q = self._session.query(JobModel).filter(JobModel.deleted == 0)
@@ -639,8 +639,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         if success_score_max is not None:
             q = q.filter(JobModel.success_score <= success_score_max)
 
-        if favorite is not None:
-            q = q.filter(JobModel.favorite == (1 if favorite else 0))
+        if pinned is not None:
+            q = q.filter(JobModel.pinned == (1 if pinned else 0))
 
         if recommendation:
             q = q.filter(JobModel.id.in_(
@@ -771,12 +771,12 @@ class SQLAlchemyJobRepository(IJobRepository):
 
         return items, total, next_cursor, has_more
 
-    def set_favorite(self, job_id: str, favorite: bool) -> bool:
-        """Set or clear the favorite flag on a job. Returns True if the job exists."""
+    def set_pinned(self, job_id: str, pinned: bool) -> bool:
+        """Set or clear the pinned flag on a job. Returns True if the job exists."""
         model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
         if not model:
             return False
-        model.favorite = 1 if favorite else 0
+        model.pinned = 1 if pinned else 0
         model.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self._session.commit()
         return True

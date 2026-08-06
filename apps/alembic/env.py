@@ -54,7 +54,8 @@ def include_object(obj, name, type_, reflected, compare_to):
             if schema != target:
                 return False
             return True
-        if schema and context.get_context().get("schema") and schema != context.get_context().get("schema"):
+        configured_schema = context.get_context().opts.get("schema")
+        if schema and configured_schema and schema != configured_schema:
             return False
     return True
 

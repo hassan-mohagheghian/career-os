@@ -15,6 +15,7 @@ export const skillApi = {
     if (query.cursor) params.set('cursor', query.cursor)
     if (query.query) params.set('query', query.query)
     if (query.category) params.set('category', query.category)
+    if (query.pinned) params.set('pinned', 'true')
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
     return api.get<InfiniteSkillSearchResult>(`/skills/list?${params.toString()}`)
@@ -24,6 +25,7 @@ export const skillApi = {
   update: (id: number | string, data: SkillUpdateInput) => api.put<SkillListItem>(`/skills/${id}`, data),
   delete: (id: number | string) => api.delete<{ status: string }>(`/skills/${id}`),
   setCategory: (id: number | string, category: string) => api.put<SkillListItem>(`/skills/${id}/category`, { category }),
+  setPinned: (id: number | string, pinned: boolean) => api.put<{ id: number; pinned: boolean }>(`/skills/${id}/pinned`, { pinned }),
   rename: (id: number | string, name: string) => api.patch<SkillListItem>(`/skills/${id}/rename`, { name }),
   addAlias: (id: number | string, aliasName: string) => api.post<SkillListItem>(`/skills/${id}/aliases`, { alias_name: aliasName }),
   removeAlias: (id: number | string, aliasName: string) => api.delete<SkillListItem>(`/skills/${id}/aliases/${encodeURIComponent(aliasName)}`),

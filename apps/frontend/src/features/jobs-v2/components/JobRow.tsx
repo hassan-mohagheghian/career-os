@@ -3,12 +3,12 @@ import type { ProcessingStatus as PStatus } from '@/entities/job/types'
 import { ScoreBadge } from './ScoreBadge'
 import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
-import { FavoriteButton } from './FavoriteButton'
+import { PinButton } from '@/shared/components/PinButton'
 import { RecommendationBadge } from './RecommendationBadge'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
-import { COLUMN_GRID_TEMPLATE } from './jobsColumns'
+import { COLUMN_GRID_TEMPLATE, COLUMN_GRID_TEMPLATE_NO_PIN } from './jobsColumns'
 
 interface JobRowProps {
   job: JobListItem
@@ -16,26 +16,29 @@ interface JobRowProps {
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onToggleFavorite: (id: string) => void
+  onTogglePinned: (id: string, pinned: boolean) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
-  onOpenCompany?: (id: string) => void
+  showPinnedColumn?: boolean
 }
 
 export function JobRow({
-  job, onProcessV2, onViewDetails, onEdit, onDelete, onToggleFavorite, onRetry, onCancel,
+  job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
+  showPinnedColumn = true,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
   return (
     <div
       className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
-      style={{ gridTemplateColumns: COLUMN_GRID_TEMPLATE }}
+      style={{ gridTemplateColumns: showPinnedColumn ? COLUMN_GRID_TEMPLATE : COLUMN_GRID_TEMPLATE_NO_PIN }}
       onClick={() => onViewDetails(job.id)}
     >
-      <div className="py-2 px-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
-        <FavoriteButton favorite={job.favorite} onToggle={() => onToggleFavorite(job.id)} />
-      </div>
+      {showPinnedColumn && (
+        <div className="py-2 px-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
+          <PinButton pinned={job.pinned} onToggle={() => onTogglePinned(job.id, !job.pinned)} entityLabel="job" />
+        </div>
+      )}
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-medium text-foreground truncate">

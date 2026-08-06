@@ -12,7 +12,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 
 | Group               | Base Path                                   | Purpose                               |
 | ------------------- | ------------------------------------------- | ------------------------------------- |
-| Jobs                | `/api/jobs`                                 | List, create, update, delete, favorite jobs |
+| Jobs                | `/api/jobs`                                 | List, create, update, delete, pin jobs |
 | Processing          | `/api/jobs/{job_id}/process`                | Start a Processing Execution          |
 | Processing Queue    | `/api/processing/queue`                     | Snapshot of active executions         |
 | Execution Detail    | `/api/processing/executions/{execution_id}` | Execution status + workflow progress  |
@@ -85,16 +85,16 @@ block produced by the Job Analysis phase:
 
 ---
 
-## Favorites
+## Pinned
 
-Each job carries a user-managed `favorite` flag (`true`/`false`). It is managed
+Each job carries a user-managed `pinned` flag (`true`/`false`). It is managed
 exclusively through its own endpoint and is **not** part of the edit-job
 payload.
 
-### `GET /api/jobs/list?favorite=true`
+### `GET /api/jobs/list?pinned=true`
 
-Restricts the jobs list to favorited jobs. Omitted (or `false`) returns all
-jobs. Each list item exposes the `favorite` flag plus a lightweight
+Restricts the jobs list to pinned jobs. Omitted (or `false`) returns all
+jobs. Each list item exposes the `pinned` flag plus a lightweight
 `recommendation` field (`apply` / `consider` / `skip`, `null` without a
 completed analysis) — the full analysis block stays on the detail endpoint.
 
@@ -102,9 +102,9 @@ The list also supports `recommendation=apply|consider|skip` to filter to jobs
 whose analysis produced that recommendation (jobs without analysis never
 match).
 
-### `PUT /api/jobs/{job_id}/favorite`
+### `PUT /api/jobs/{job_id}/pinned`
 
-Request: `{ "favorite": true }` → Response `200`: `{ "favorite": true }`, or
+Request: `{ "pinned": true }` → Response `200`: `{ "pinned": true }`, or
 `404` when the job is unknown.
 
 ---

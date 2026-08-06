@@ -22,6 +22,7 @@ export function useCompaniesInfiniteQuery() {
   })
   const { sort, order } = sortState
   const [filterIndustry, setFilterIndustry] = useState('')
+  const [filterPinned, setFilterPinned] = useState(false)
 
   const filterKey = useMemo(
     () => ({
@@ -29,8 +30,9 @@ export function useCompaniesInfiniteQuery() {
       sort,
       order,
       industry: filterIndustry || undefined,
+      pinned: filterPinned || undefined,
     }),
-    [query, sort, order, filterIndustry]
+    [query, sort, order, filterIndustry, filterPinned]
   )
 
   const {
@@ -42,6 +44,7 @@ export function useCompaniesInfiniteQuery() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isRefetching,
   } = useInfiniteQuery<InfiniteCompanySearchResult>({
     queryKey: [COMPANIES_KEY, filterKey],
     queryFn: ({ pageParam }) =>
@@ -50,6 +53,7 @@ export function useCompaniesInfiniteQuery() {
         cursor: pageParam as string | undefined,
         query: filterKey.query || undefined,
         industry: filterKey.industry,
+        pinned: filterKey.pinned,
         sort: filterKey.sort,
         order: filterKey.order as 'asc' | 'desc',
       }),
@@ -61,11 +65,12 @@ export function useCompaniesInfiniteQuery() {
   const total = data?.pages[0]?.total_items ?? 0
   const loadedCount = items.length
 
-  const activeFilterCount = [query, filterIndustry].filter(Boolean).length
+  const activeFilterCount = [query, filterIndustry, filterPinned].filter(Boolean).length
 
   const clearFilters = useCallback(() => {
     setQuery('')
     setFilterIndustry('')
+    setFilterPinned(false)
   }, [])
 
   const handleHeaderSort = useCallback((field: string) => {
@@ -107,12 +112,40 @@ export function useCompaniesInfiniteQuery() {
     },
   })
 
+  const pinnedMutation = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => companyApi.setPinned(id, pinned),
+    onMutate: async ({ id, pinned }) => {
+      await queryClient.cancelQueries({ queryKey: [COMPANIES_KEY] })
+      const previousData = queryClient.getQueriesData<{ pages: { items: CompanyDetail[] }[] }>({ queryKey: [COMPANIES_KEY] })
+      queryClient.setQueriesData<{ pages: { items: CompanyDetail[] }[] }>(
+        { queryKey: [COMPANIES_KEY] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.id === id ? { ...item, pinned } : item
+              ),
+            })),
+          }
+        }
+      )
+      return previousData
+    },
+    onError: (_err, _vars, context) => {
+      if (context) queryClient.setQueriesData({ queryKey: [COMPANIES_KEY] }, context)
+    },
+  })
+
   return {
     items,
     total,
     loadedCount,
     isLoading,
     isFetchingNextPage,
+    isRefetching,
     hasNextPage: !!hasNextPage,
     fetchNextPage,
     isError,
@@ -125,12 +158,15 @@ export function useCompaniesInfiniteQuery() {
     handleHeaderSort,
     filterIndustry,
     setFilterIndustry: useCallback((v: string) => setFilterIndustry(v), []),
+    filterPinned,
+    setFilterPinned: useCallback((v: boolean) => setFilterPinned(v), []),
     activeFilterCount,
     clearFilters,
     deleteMutation,
     updateMutation,
     reprocessMutation,
     setMainMutation,
+    pinnedMutation,
   }
 }
 

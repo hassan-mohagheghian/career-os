@@ -38,7 +38,7 @@ JobListItem
 - location
 - remote
 - visa_sponsorship
-- favorite
+- pinned
 - recommendation
 - processing_status
 - latest_processing_execution
@@ -74,14 +74,14 @@ Scores are produced by the deterministic Job Analysis scoring rules
 
 ---
 
-# Favorite
+# Pinned
 
-A boolean flag (`favorite`, default `false`) marking the job as bookmarked by
-the user.
+A boolean flag (`pinned`, default `false`) marking the job as pinned by the
+user.
 
 It is independent of the analysis pipeline and is toggled exclusively through
-`PUT /api/jobs/{job_id}/favorite`. The Jobs List can be filtered to show only
-favorited jobs (`GET /api/jobs/list?favorite=true`).
+`PUT /api/jobs/{job_id}/pinned`. The Jobs List can be filtered to show only
+pinned jobs (`GET /api/jobs/list?pinned=true`).
 
 ---
 

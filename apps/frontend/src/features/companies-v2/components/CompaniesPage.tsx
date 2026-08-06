@@ -24,6 +24,7 @@ interface CompaniesPageProps {
   isError: boolean
   error: Error | null
   onRefetch: () => void
+  isRefetching?: boolean
   query: string
   onQueryChange: (value: string) => void
   sort: string
@@ -31,12 +32,17 @@ interface CompaniesPageProps {
   order: 'asc' | 'desc'
   filterIndustry: string
   onFilterIndustryChange: (value: string) => void
+  filterPinned: boolean
+  onFilterPinnedChange: (value: boolean) => void
   activeFilterCount: number
   onClearFilters: () => void
   onViewDetails: (id: string) => void
   onReprocess: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onTogglePinned: (id: string, pinned: boolean) => void
+  showPinnedColumn?: boolean
+  onTogglePinnedColumn?: (value: boolean) => void
   onRelate: (companyId: string, mainCompanyId: string | null) => void
   relatePending: boolean
   queueDrawerOpen: boolean
@@ -54,12 +60,14 @@ interface CompaniesPageProps {
 
 export function CompaniesPage({
   items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, onFetchNextPage,
-  isError, error, onRefetch,
+  isError, error, onRefetch, isRefetching,
   query, onQueryChange,
   sort, onSortChange, order,
   filterIndustry, onFilterIndustryChange,
+  filterPinned, onFilterPinnedChange,
   activeFilterCount, onClearFilters,
-  onViewDetails, onReprocess, onEdit, onDelete,
+  onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned,
+  showPinnedColumn = true, onTogglePinnedColumn,
   onRelate, relatePending,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addCompanyDrawerOpen, onAddCompanyDrawerOpenChange,
@@ -92,6 +100,8 @@ export function CompaniesPage({
           loadedCount={loadedCount}
           onOpenQueue={() => onQueueDrawerOpenChange(true)}
           onAddCompany={() => onAddCompanyDrawerOpenChange(true)}
+          onRefresh={onRefetch}
+          isRefreshing={isRefetching}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-2">
@@ -113,15 +123,21 @@ export function CompaniesPage({
         loadedCount={loadedCount}
         onOpenQueue={() => onQueueDrawerOpenChange(true)}
         onAddCompany={() => onAddCompanyDrawerOpenChange(true)}
+        onRefresh={onRefetch}
+        isRefreshing={isRefetching}
       />
       <CompaniesToolbar
         query={query}
         onQueryChange={onQueryChange}
         filterIndustry={filterIndustry}
         onFilterIndustryChange={onFilterIndustryChange}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={onFilterPinnedChange}
         items={items}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={onTogglePinnedColumn}
       />
       <CompaniesTable
         items={items}
@@ -135,6 +151,8 @@ export function CompaniesPage({
         onReprocess={onReprocess}
         onEdit={onEdit}
         onDelete={onDelete}
+        onTogglePinned={onTogglePinned}
+        showPinnedColumn={showPinnedColumn}
         sort={sort}
         order={order}
         onSortChange={onSortChange}

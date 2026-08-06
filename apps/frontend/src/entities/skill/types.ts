@@ -12,6 +12,7 @@ export interface SkillListItem {
   aliases: string[]
   source_type: string
   mention_count: number
+  pinned: boolean
   created_at: string | null
 }
 
@@ -29,6 +30,7 @@ export interface Skill {
   aliases: string[]
   source_type: string
   mention_count?: number
+  pinned?: boolean
   created_at: string | null
   [key: string]: unknown
 }
@@ -38,6 +40,7 @@ export interface SkillSearchQuery {
   cursor?: string
   query?: string
   category?: string
+  pinned?: boolean
   sort?: string
   order?: 'asc' | 'desc'
 }

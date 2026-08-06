@@ -12,6 +12,7 @@ from skills.infrastructure import SQLAlchemySkillRepository
 from skills.presentation.api.schemas.skills import (
     SkillCreate,
     SkillUpdate,
+    SkillPinRequest,
     SkillRename,
     SkillHide,
     SkillAliasAdd,
@@ -48,7 +49,9 @@ def _cursor_encode(offset: int) -> str:
     return base64.b64encode(str(offset).encode()).decode()
 
 
-def _skill_matches(row: dict[str, Any], query: str, category: str) -> bool:
+def _skill_matches(row: dict[str, Any], query: str, category: str, pinned: bool = False) -> bool:
+    if pinned and not bool(row.get("pinned")):
+        return False
     if category:
         if (row.get("category") or "") != category:
             return False
@@ -71,14 +74,15 @@ def _skill_sort_key(row: dict[str, Any], sort: str) -> Any:
 def list_skills_v2(
     query: str = Query("", description="Substring search over name, roles, path, aliases"),
     category: str = Query("", description="Exact category filter"),
+    pinned: bool = Query(False, description="Only include pinned skills"),
     sort: str = Query("mention_count", description="Sort field"),
     order: str = Query("desc", description="asc or desc"),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=200),
     cursor: str = Query("", description="Opaque pagination cursor"),
     repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
 ) -> SkillListResponseSchema:
-    """List visible skills with server-side search, category filter, sort and cursor pagination."""
-    rows = [r for r in repo.list_visible() if _skill_matches(r, query, category)]
+    """List visible skills with server-side search, category/pinned filter, sort and cursor pagination."""
+    rows = [r for r in repo.list_visible() if _skill_matches(r, query, category, pinned)]
 
     if rows:
         mention_counts = repo.get_mention_counts([r["id"] for r in rows])
@@ -113,6 +117,7 @@ def list_skills_v2(
                 aliases=r.get("aliases") or [],
                 source_type=r.get("source_type") or "user_input",
                 mention_count=r.get("mention_count") or 0,
+                pinned=bool(r.get("pinned")),
                 created_at=r.get("created_at"),
             )
             for r in page
@@ -219,6 +224,15 @@ def restore_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_r
     if not result:
         raise NotFoundError(f"Skill {id} not found")
     return result
+
+
+@router.put("/{id}/pinned")
+def set_skill_pinned(id: int, data: SkillPinRequest, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+    """Pin or unpin a skill."""
+    result = repo.set_pinned(id, data.pinned)
+    if not result:
+        raise NotFoundError(f"Skill {id} not found")
+    return {"id": id, "pinned": data.pinned}
 
 
 @router.post("/{id}/aliases")

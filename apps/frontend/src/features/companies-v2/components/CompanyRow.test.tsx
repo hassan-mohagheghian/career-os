@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { CompanyRow } from './CompanyRow'
 import type { CompanyListItem } from '@/entities/company/types'
@@ -24,6 +24,7 @@ function makeCompany(overrides: Partial<CompanyListItem> = {}): CompanyListItem 
     main_company: null,
     alias_count: 0,
     is_alias: false,
+    pinned: false,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
     ...overrides,
@@ -38,6 +39,7 @@ function renderRow(company: CompanyListItem) {
       onReprocess={vi.fn()}
       onEdit={vi.fn()}
       onDelete={vi.fn()}
+      onTogglePinned={vi.fn()}
     />
   )
 }
@@ -77,5 +79,59 @@ describe('CompanyRow scores', () => {
       parent_company_id: 'company-2',
     }))
     expect(screen.getByText('alias')).toBeInTheDocument()
+  })
+})
+
+describe('CompanyRow pinned', () => {
+  it('renders the pinned toggle with the company pinned state', () => {
+    render(
+      <CompanyRow
+        company={makeCompany({ pinned: true })}
+        onViewDetails={vi.fn()}
+        onReprocess={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onTogglePinned={vi.fn()}
+        showPinnedColumn
+      />
+    )
+    expect(screen.getByLabelText('Unpin company')).toBeInTheDocument()
+  })
+
+  it('calls onTogglePinned when the pin is clicked and stops row selection', () => {
+    const onTogglePinned = vi.fn()
+    const onViewDetails = vi.fn()
+    render(
+      <CompanyRow
+        company={makeCompany()}
+        onViewDetails={onViewDetails}
+        onReprocess={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onTogglePinned={onTogglePinned}
+        showPinnedColumn
+      />
+    )
+
+    fireEvent.click(screen.getByLabelText('Pin company for attention'))
+
+    expect(onTogglePinned).toHaveBeenCalled()
+    expect(onViewDetails).not.toHaveBeenCalled()
+  })
+
+  it('hides the pinned toggle when the column is off', () => {
+    render(
+      <CompanyRow
+        company={makeCompany({ pinned: true })}
+        onViewDetails={vi.fn()}
+        onReprocess={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onTogglePinned={vi.fn()}
+        showPinnedColumn={false}
+      />
+    )
+    expect(screen.queryByLabelText('Unpin company')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Pin company for attention')).not.toBeInTheDocument()
   })
 })

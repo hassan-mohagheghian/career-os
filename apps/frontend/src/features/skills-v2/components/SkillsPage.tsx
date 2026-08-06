@@ -23,6 +23,7 @@ interface SkillsPageProps {
   isError: boolean
   error: Error | null
   onRefetch: () => void
+  isRefetching?: boolean
   query: string
   onQueryChange: (value: string) => void
   sort: string
@@ -30,11 +31,16 @@ interface SkillsPageProps {
   order: 'asc' | 'desc'
   filterCategory: string
   onFilterCategoryChange: (value: string) => void
+  filterPinned?: boolean
+  onFilterPinnedChange?: (value: boolean) => void
   activeFilterCount: number
   onClearFilters: () => void
   onViewDetails: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  onTogglePinned?: (id: number, pinned: boolean) => void
+  showPinnedColumn?: boolean
+  onTogglePinnedColumn?: (value: boolean) => void
   addSkillDrawerOpen: boolean
   onAddSkillDrawerOpenChange: (open: boolean) => void
   detailSkillId: number | null
@@ -45,12 +51,14 @@ interface SkillsPageProps {
 
 export function SkillsPage({
   items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, onFetchNextPage,
-  isError, error, onRefetch,
+  isError, error, onRefetch, isRefetching,
   query, onQueryChange,
   sort, onSortChange, order,
   filterCategory, onFilterCategoryChange,
+  filterPinned = false, onFilterPinnedChange,
   activeFilterCount, onClearFilters,
-  onViewDetails, onEdit, onDelete,
+  onViewDetails, onEdit, onDelete, onTogglePinned,
+  showPinnedColumn = true, onTogglePinnedColumn,
   addSkillDrawerOpen, onAddSkillDrawerOpenChange,
   detailSkillId, onDetailSkillIdChange,
   editSkillId, onEditSkillIdChange,
@@ -80,6 +88,8 @@ export function SkillsPage({
           total={total}
           loadedCount={loadedCount}
           onAddSkill={() => onAddSkillDrawerOpenChange(true)}
+          onRefresh={onRefetch}
+          isRefreshing={isRefetching}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-2">
@@ -100,14 +110,20 @@ export function SkillsPage({
         total={total}
         loadedCount={loadedCount}
         onAddSkill={() => onAddSkillDrawerOpenChange(true)}
+        onRefresh={onRefetch}
+        isRefreshing={isRefetching}
       />
       <SkillsToolbar
         query={query}
         onQueryChange={onQueryChange}
         filterCategory={filterCategory}
         onFilterCategoryChange={onFilterCategoryChange}
+        filterPinned={filterPinned}
+        onFilterPinnedChange={onFilterPinnedChange}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
+        showPinnedColumn={showPinnedColumn}
+        onTogglePinnedColumn={onTogglePinnedColumn}
       />
       <SkillsTable
         items={items}
@@ -120,6 +136,8 @@ export function SkillsPage({
         onViewDetails={onViewDetails}
         onEdit={onEdit}
         onDelete={onDelete}
+        onTogglePinned={onTogglePinned}
+        showPinnedColumn={showPinnedColumn}
         sort={sort}
         order={order}
         onSortChange={onSortChange}

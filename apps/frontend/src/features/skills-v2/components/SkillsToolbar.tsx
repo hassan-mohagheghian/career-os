@@ -4,15 +4,21 @@ import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import { SKILL_CATEGORIES } from '@/entities/skill/types'
-import { MagnifyingGlass, FunnelSimple } from '@phosphor-icons/react'
+import { MagnifyingGlass, FunnelSimple, PushPin } from '@phosphor-icons/react'
+import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
+import { cn } from '@/shared/lib/utils'
 
 interface SkillsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
   filterCategory: string
   onFilterCategoryChange: (value: string) => void
+  filterPinned?: boolean
+  onFilterPinnedChange?: (value: boolean) => void
   activeFilterCount: number
   onClearFilters: () => void
+  showPinnedColumn?: boolean
+  onTogglePinnedColumn?: (value: boolean) => void
 }
 
 export function SkillsToolbar({
@@ -20,8 +26,12 @@ export function SkillsToolbar({
   onQueryChange,
   filterCategory,
   onFilterCategoryChange,
+  filterPinned = false,
+  onFilterPinnedChange,
   activeFilterCount,
   onClearFilters,
+  showPinnedColumn = true,
+  onTogglePinnedColumn,
 }: SkillsToolbarProps) {
   return (
     <div className="px-3 py-2 border-b border-border/40">
@@ -53,6 +63,26 @@ export function SkillsToolbar({
               ))}
             </SelectContent>
           </Select>
+          {onFilterPinnedChange && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn('h-7 w-auto gap-1 text-2xs', filterPinned && 'text-primary')}
+              onClick={() => onFilterPinnedChange(!filterPinned)}
+              aria-label="Show pinned skills only"
+              aria-pressed={filterPinned}
+              title={filterPinned ? 'Showing pinned skills only' : 'Show pinned skills only'}
+            >
+              <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
+              Pinned
+            </Button>
+          )}
+          {onTogglePinnedColumn && (
+            <ColumnsDropdown
+              options={[{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }]}
+              onToggle={(key, checked) => onTogglePinnedColumn(checked)}
+            />
+          )}
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" className="h-7 text-2xs text-emerald-500" onClick={onClearFilters}>
               Clear

@@ -55,6 +55,7 @@ class CompanyModel(Base):
     failure_step: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     failure_timestamp: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    pinned: Mapped[int] = mapped_column(Integer, default=0)
     parent_company_id: Mapped[Optional[str]] = mapped_column(
         String(36),
         ForeignKey("company.companies.id", ondelete="SET NULL"),

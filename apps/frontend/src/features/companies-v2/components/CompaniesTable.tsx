@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { CompanyListItem } from '@/entities/company/types'
 import { CompanyRow } from './CompanyRow'
 import { SortableHeader, type ScoreSortOption } from '@/features/jobs-v2/components/SortableHeader'
-import { COMPANY_GRID_TEMPLATE } from './companiesColumns'
+import { COMPANY_GRID_TEMPLATE, COMPANY_GRID_TEMPLATE_WITH_PIN } from './companiesColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -19,6 +19,8 @@ interface CompaniesTableProps {
   onReprocess: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onTogglePinned: (id: string, pinned: boolean) => void
+  showPinnedColumn?: boolean
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -36,6 +38,8 @@ interface ColumnDef {
   scoreOptions?: ScoreSortOption[]
 }
 
+const PIN_COLUMN: ColumnDef = { label: 'Pin' }
+
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
   { label: 'Industry' },
@@ -49,16 +53,17 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Actions' },
 ]
 
-const gridStyle = { gridTemplateColumns: COMPANY_GRID_TEMPLATE }
-
 export function CompaniesTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onViewDetails, onReprocess, onEdit, onDelete,
+  onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned, showPinnedColumn = true,
   sort = 'created_at', order = 'desc', onSortChange = () => {},
 }: CompaniesTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
+
+  const visibleColumnDefs = showPinnedColumn ? [PIN_COLUMN, ...COLUMN_DEFS] : COLUMN_DEFS
+  const gridStyle = { gridTemplateColumns: showPinnedColumn ? COMPANY_GRID_TEMPLATE_WITH_PIN : COMPANY_GRID_TEMPLATE }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -86,24 +91,28 @@ export function CompaniesTable({
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, onFetchNextPage])
 
+  const renderHeader = () => (
+    <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
+      {visibleColumnDefs.map((col, i) => (
+        <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
+          <SortableHeader
+            label={col.label}
+            field={col.field}
+            scoreOptions={col.scoreOptions}
+            sort={sort}
+            order={order}
+            onSortChange={onSortChange}
+          />
+        </div>
+      ))}
+    </div>
+  )
+
   if (isLoading) {
     return (
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
         <div className="w-full">
-          <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
-            {COLUMN_DEFS.map((col, i) => (
-              <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
-                <SortableHeader
-                  label={col.label}
-                  field={col.field}
-                  scoreOptions={col.scoreOptions}
-                  sort={sort}
-                  order={order}
-                  onSortChange={onSortChange}
-                />
-              </div>
-            ))}
-          </div>
+          {renderHeader()}
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map(virtualItem => (
               <div
@@ -115,11 +124,11 @@ export function CompaniesTable({
                   width: '100%',
                   height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
-                  gridTemplateColumns: COMPANY_GRID_TEMPLATE,
+                  gridTemplateColumns: gridStyle.gridTemplateColumns,
                 }}
                 className="grid border-b border-border/40"
               >
-                {COLUMN_DEFS.map((_, j) => (
+                {visibleColumnDefs.map((_, j) => (
                   <div key={j} className="py-2 px-3">
                     <div className="h-3 bg-muted rounded animate-pulse" style={{ width: `${50 + Math.random() * 40}%` }} />
                   </div>
@@ -145,20 +154,7 @@ export function CompaniesTable({
   return (
     <div className="flex-1 overflow-y-auto" ref={scrollRef}>
       <div className="w-full">
-        <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
-          {COLUMN_DEFS.map((col, i) => (
-            <div key={col.label} className={`py-2 px-3 flex items-center ${i === COLUMN_DEFS.length - 1 ? 'justify-end' : ''}`}>
-              <SortableHeader
-                label={col.label}
-                field={col.field}
-                scoreOptions={col.scoreOptions}
-                sort={sort}
-                order={order}
-                onSortChange={onSortChange}
-              />
-            </div>
-          ))}
-        </div>
+        {renderHeader()}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {virtualizer.getVirtualItems().map(virtualItem => {
             const company = items[virtualItem.index]
@@ -181,6 +177,8 @@ export function CompaniesTable({
                   onReprocess={onReprocess}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onTogglePinned={onTogglePinned}
+                  showPinnedColumn={showPinnedColumn}
                 />
               </div>
             )

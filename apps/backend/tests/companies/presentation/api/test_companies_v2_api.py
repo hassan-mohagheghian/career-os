@@ -45,6 +45,51 @@ def _create_intel(sa_session, company_id: str, scores: dict) -> CompanyIntellige
     return model
 
 
+class TestCompanyPinnedV2API:
+    def test_list_item_carries_pinned_default_false(self, client, sa_session):
+        _create_company(sa_session, name="Tech Corp")
+
+        resp = client.get("/api/companies/list")
+        data = resp.json()
+        assert data["items"][0]["pinned"] is False
+
+    def test_filter_by_pinned(self, client, sa_session):
+        _create_company(sa_session, name="Pinned Corp", pinned=1)
+        _create_company(sa_session, name="Plain Corp")
+
+        resp = client.get("/api/companies/list?pinned=true")
+        data = resp.json()
+        assert [i["name"] for i in data["items"]] == ["Pinned Corp"]
+
+        resp = client.get("/api/companies/list?pinned=false")
+        data = resp.json()
+        assert [i["name"] for i in data["items"]] == ["Plain Corp"]
+
+        resp = client.get("/api/companies/list")
+        data = resp.json()
+        assert len(data["items"]) == 2
+
+    def test_set_pinned_persists_and_toggles(self, client, sa_session):
+        company = _create_company(sa_session, name="Tech Corp")
+
+        resp = client.put(f"/api/companies/{company.id}/pinned", json={"pinned": True})
+        assert resp.status_code == 200
+        assert resp.json() == {"id": company.id, "pinned": True}
+
+        data = client.get("/api/companies/list").json()
+        assert data["items"][0]["pinned"] is True
+        assert [i["name"] for i in client.get("/api/companies/list?pinned=true").json()["items"]] == ["Tech Corp"]
+
+        resp = client.put(f"/api/companies/{company.id}/pinned", json={"pinned": False})
+        assert resp.status_code == 200
+        data = client.get("/api/companies/list").json()
+        assert data["items"][0]["pinned"] is False
+
+    def test_set_pinned_missing_company_returns_404(self, client, sa_session):
+        resp = client.put("/api/companies/does-not-exist/pinned", json={"pinned": True})
+        assert resp.status_code == 404
+
+
 class TestCompanyListV2API:
     def test_list_empty(self, client):
         resp = client.get("/api/companies/list")

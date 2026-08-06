@@ -29,7 +29,7 @@ class ListJobsV2Request:
     fit_score_max: int | None = None
     success_score_min: int | None = None
     success_score_max: int | None = None
-    favorite: bool | None = None
+    pinned: bool | None = None
     recommendation: str | None = None
 
 
@@ -68,7 +68,7 @@ class ListJobsV2UseCase:
             fit_score_max=request.fit_score_max,
             success_score_min=request.success_score_min,
             success_score_max=request.success_score_max,
-            favorite=request.favorite,
+            pinned=request.pinned,
             recommendation=request.recommendation,
         )
         return ListJobsV2Response(

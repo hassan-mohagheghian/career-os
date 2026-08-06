@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.8.0] — 2026-08-06
+
+### Added
+
+- **Unified Pinned across Jobs, Companies, Skills.** A single pushpin concept
+  replaces Jobs' "favorite": every table now shows a Pin column (on by default,
+  toggleable via the toolbar Columns dropdown), an optimistic per-row pin
+  toggle, and a toolbar Pinned filter.
+  - **Jobs** rename `favorite` → `pinned` at the API/DTO level (`GET
+    /api/jobs/list?pinned=true`, `PUT /api/jobs/{id}/pinned`); the physical DB
+    column stays `favorite` so no data migration is needed on the large table.
+  - **Companies** gain a real `pinned` column (migration `5b6c673f3d38`), the
+    list `pinned` filter and `PUT /api/companies/{id}/pinned` (404 when the
+    company is unknown).
+  - **Skills** keep their existing pinned pipeline, now driven by the shared
+    `PinButton` component.
+  - Docs: `docs/ux/features/jobs/pinned-job.md` (replaces `favorite-job.md`),
+    updated wireframes in `jobs/page.md`, `companies/page.md`, `skills/page.md`,
+    plus `API.md` / `DOMAIN.md` / `docs/api/jobs/list-jobs.md` /
+    `docs/domain/jobs/job-list-item.md`.
+
 ## [3.7.0] — 2026-08-06
 
 ### Added

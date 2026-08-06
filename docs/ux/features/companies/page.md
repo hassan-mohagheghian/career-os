@@ -10,6 +10,7 @@ Users can:
 - Browse processed companies
 - Search companies
 - Filter companies by industry
+- Pin companies for attention
 - Sort companies
 - View company details (intelligence, scores, notes, jobs)
 - Manage related companies (set / remove a main company via the detail drawer)
@@ -59,16 +60,16 @@ Companies Page
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ⛭ Companies (128)                    Loaded 25 of 128          Queue (3)        + Add Company │
+│ ⛭ Companies (128)                    Loaded 25 of 128          Queue (3)   ↻  + Add Company │
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................                                          [Industry ▾] [Clear]│
+│ Search .........................                            [Industry ▾] [Pinned] [Columns] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                               │
-│ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions     │
-│───────────────────────────────────────────────────────────────────────────────────────────────│
-│ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
-│ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
+│ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
+│─────│─────────────────────────────────────────────────────────────────────────────────────────│
+│ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
+│ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
 │                                                                                               │
 │                                        Loading more companies...                              │
 │                                                                                               │
@@ -87,13 +88,15 @@ Responsibilities
 - Display loaded-vs-total count.
 - Open the shared Processing Drawer (companies filter).
 - Open Add Company drawer.
+- Refresh the current result set.
 
 Controls
 
-| Control     | Description                                     |
-| ----------- | ----------------------------------------------- |
-| Queue       | Opens the shared Processing Drawer (companies). |
-| Add Company | Opens the Add Company drawer.                   |
+| Control     | Description                                                       |
+| ----------- | ----------------------------------------------------------------- |
+| Queue       | Opens the shared Processing Drawer (companies).                   |
+| Add Company | Opens the Add Company drawer.                                     |
+| Refresh     | Reloads the current query (spins while a refetch is in flight).   |
 
 ---
 
@@ -118,6 +121,8 @@ Responsibilities
 
 - Search companies.
 - Filter companies by industry.
+- Filter companies by pinned state.
+- Toggle the Pin column.
 - Clear active filters.
 
 Controls
@@ -126,6 +131,8 @@ Controls
 | -------- | ---------------------------------------------- |
 | Search   | Search by name, industry, city or description. |
 | Industry | Filter by exact industry.                      |
+| Pinned   | Toggle pinned-only view.                       |
+| Columns  | Show / hide the Pin column.                    |
 | Clear    | Clears all active filters.                     |
 
 Changing filters never reloads the entire page.
@@ -207,6 +214,7 @@ Configuration
 
 | Column   | Description                                            |
 | -------- | ------------------------------------------------------ |
+| Pin      | Pushpin toggle for pinned companies                    |
 | Name     | Company logo and name                                  |
 | Industry | Industry classification                                |
 | Location | City, Country                                          |
@@ -218,9 +226,23 @@ Configuration
 | Created  | Relative creation time                                 |
 | Actions  | Row actions (Details, Reprocess, Edit, Delete)         |
 
+The Pin column is shown by default and can be hidden via the toolbar Columns
+dropdown.
+
 ---
 
 # Column Details
+
+## Pin
+
+A leading pushpin button toggling the company's pinned flag.
+
+- Empty pin: not pinned.
+- Filled (primary color) pin: pinned.
+
+The toggle is optimistic — the pin updates immediately and is rolled back on
+failure. The button is a separate interactive element and does not trigger row
+selection.
 
 ## Name
 
@@ -442,6 +464,21 @@ Start / Cancel / Retry call `/api/processing/executions/{id}/...`; Remove calls
 
 ---
 
+# Pinned Filter
+
+A pushpin toggle in the toolbar restricts the list to pinned companies.
+
+```text
+○ All Companies
+pinned Pinned only
+```
+
+When active it counts as an active filter and is cleared by the toolbar's Clear
+action alongside the others. Pinning or unpinning a company while the filter is
+active refetches the list so rows update immediately.
+
+---
+
 # Sorting
 
 Supported sort fields (backend, NULLS LAST):
@@ -455,6 +492,15 @@ Supported sort fields (backend, NULLS LAST):
 
 Sorting is always performed by the backend. Rows where the sort column is empty
 sort last in both directions.
+
+---
+
+# Data Refresh
+
+The Refresh button in the Header reloads the current query. It calls the same
+`refetch` used by the error-state Retry button, so it works from any state
+(including the error state, where the header remains available). While a
+refetch is in flight the button is disabled and its icon spins.
 
 ---
 
