@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CompanyDetailDrawer } from './CompanyDetailDrawer'
@@ -35,7 +35,7 @@ function makeDetail(overrides: Partial<CompanyDetail> = {}): CompanyDetail {
   }
 }
 
-function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn()) {
+function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn(), onEdit: (id: string) => void = vi.fn()) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -46,6 +46,7 @@ function renderDrawer(companyId: string | null, onOpenChange: (id: string | null
         onOpenChange={onOpenChange}
         onDelete={vi.fn()}
         onReprocess={vi.fn()}
+        onEdit={onEdit}
         onRelate={vi.fn()}
         relatePending={false}
       />
@@ -98,5 +99,17 @@ describe('CompanyDetailDrawer scores', () => {
     renderDrawer('company-1')
 
     await waitFor(() => expect(screen.getByText('No scores available yet.')).toBeInTheDocument())
+  })
+})
+
+describe('CompanyDetailDrawer edit', () => {
+  it('opens the edit drawer when Edit is clicked', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail())
+    const onEdit = vi.fn()
+    renderDrawer('company-1', vi.fn(), onEdit)
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Edit company' }))
+    expect(onEdit).toHaveBeenCalledWith('company-1')
   })
 })

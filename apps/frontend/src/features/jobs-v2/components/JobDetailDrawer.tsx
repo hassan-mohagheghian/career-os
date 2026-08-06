@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
-import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon } from '@phosphor-icons/react'
+import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon, PencilSimple } from '@phosphor-icons/react'
 import { jobApi } from '@/entities/job/api'
 import type { JobDetail, JobDetailWorkflowStep } from '@/entities/job/types'
 import { setSearchParam } from '@/shared/lib/url'
@@ -12,10 +12,12 @@ import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { RecommendationBadge } from './RecommendationBadge'
+import { Button } from '@/shared/ui/button'
 
 interface JobDetailDrawerProps {
   jobId: string | null
   onOpenChange: (jobId: string | null) => void
+  onEdit?: (id: string) => void
 }
 
 function stepIcon(status: JobDetailWorkflowStep['status']) {
@@ -280,7 +282,7 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
   )
 }
 
-export function JobDetailDrawer({ jobId, onOpenChange }: JobDetailDrawerProps) {
+export function JobDetailDrawer({ jobId, onOpenChange, onEdit }: JobDetailDrawerProps) {
   const { data: detail, isLoading, isError } = useQuery<JobDetail>({
     queryKey: ['job-detail', jobId],
     queryFn: () => jobApi.getDetail(jobId!),
@@ -292,6 +294,17 @@ export function JobDetailDrawer({ jobId, onOpenChange }: JobDetailDrawerProps) {
       <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Job Details</SheetTitle>
+          {onEdit && jobId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-muted-foreground"
+              onClick={() => onEdit(jobId)}
+              aria-label="Edit job"
+            >
+              <PencilSimple className="w-3.5 h-3.5" /> Edit
+            </Button>
+          )}
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0 min-w-0">
           {isLoading && (

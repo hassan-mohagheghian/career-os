@@ -149,6 +149,7 @@ export function CompaniesPage({
         onOpenChange={onDetailCompanyIdChange}
         onDelete={onDelete}
         onReprocess={onReprocess}
+        onEdit={onEdit}
         onRelate={onRelate}
         relatePending={relatePending}
         onOpenJob={onOpenJob}

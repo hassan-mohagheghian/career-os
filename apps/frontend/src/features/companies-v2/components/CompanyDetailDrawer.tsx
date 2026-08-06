@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import { CircleNotch, MapPin, Users, Briefcase, LinkSimple, Repeat, Trash } from '@phosphor-icons/react'
+import { CircleNotch, MapPin, Users, Briefcase, LinkSimple, Repeat, Trash, PencilSimple } from '@phosphor-icons/react'
 import type { CompanyDetail, CompanyIntelligence, CompanyIntelligenceScores, CompanyScores } from '@/entities/company/types'
 import { useCompanyQuery } from '@/entities/company/hooks'
 import CompanyJobsTab from '@/features/companies/components/CompanyJobsTab'
@@ -36,6 +36,7 @@ interface CompanyDetailDrawerProps {
   onOpenChange: (id: string | null) => void
   onDelete: (id: string) => void
   onReprocess: (id: string) => void
+  onEdit?: (id: string) => void
   onRelate: (companyId: string, mainCompanyId: string | null) => void
   relatePending: boolean
   onOpenJob?: (id: string) => void
@@ -44,7 +45,7 @@ interface CompanyDetailDrawerProps {
 }
 
 export function CompanyDetailDrawer({
-  companyId, onOpenChange, onDelete, onReprocess, onRelate, relatePending, onOpenJob, onNavigateToJob, onViewAllJobs,
+  companyId, onOpenChange, onDelete, onReprocess, onEdit, onRelate, relatePending, onOpenJob, onNavigateToJob, onViewAllJobs,
 }: CompanyDetailDrawerProps) {
   const { data: company, isLoading, isError } = useCompanyQuery(companyId)
   const [relateDialogOpen, setRelateDialogOpen] = useState(false)
@@ -54,6 +55,17 @@ export function CompanyDetailDrawer({
       <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Company Details</SheetTitle>
+          {onEdit && companyId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-muted-foreground"
+              onClick={() => onEdit(companyId)}
+              aria-label="Edit company"
+            >
+              <PencilSimple className="w-3.5 h-3.5" /> Edit
+            </Button>
+          )}
         </SheetHeader>
         <ScrollArea className="flex-1 min-h-0 min-w-0">
           {isLoading && (

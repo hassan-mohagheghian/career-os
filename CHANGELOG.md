@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.0] — 2026-08-06
+
+### Added
+
+- **Edit buttons in the Company and Job Detail drawers.** A ghost `[Edit]`
+  action now sits in the top-right of each detail drawer header and opens the
+  existing **Edit Company** / **Edit Job** drawer for the same entity, as a
+  shortcut alongside the row-level Edit action.
+
 ## [3.3.1] — 2026-08-06
 
 ### Fixed

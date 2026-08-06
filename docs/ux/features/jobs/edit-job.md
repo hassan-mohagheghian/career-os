@@ -4,7 +4,7 @@
 
 The Edit Job Drawer allows users to correct or complete a Job's core data after it has been imported or processed.
 
-The drawer is opened from the **Edit** action on a **Job Row** in the Jobs page.
+The drawer is opened from the **Edit** action on a **Job Row** in the Jobs page, or from the **Edit** button in the Job Details drawer header (same page-level edit state).
 
 Changes are persisted to the `jobs` record and the affected row refreshes. Editing does not automatically start or stop processing, and is not blocked while an execution is active.
 
@@ -37,7 +37,8 @@ Related:
 
 # Trigger
 
-The **Edit** action in the Job Row's Actions column.
+The **Edit** action in the Job Row's Actions column, or the **Edit** button in
+the Job Details drawer header (top-right, next to the "Job Details" title).
 
 Available for all processing statuses.
 

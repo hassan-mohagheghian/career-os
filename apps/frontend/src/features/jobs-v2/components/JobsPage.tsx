@@ -181,6 +181,7 @@ export function JobsPage({
       <JobDetailDrawer
         jobId={detailJobId}
         onOpenChange={onDetailJobIdChange}
+        onEdit={onEdit}
       />
       <JobEditDrawer
         jobId={editJobId}

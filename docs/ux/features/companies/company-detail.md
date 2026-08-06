@@ -15,7 +15,7 @@ visa-seeking software engineer.
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Company Details                              │
+│ Company Details                    [Edit]     │
 ├──────────────────────────────────────────────┤
 │ [A+]  Fit 85  Success 90  Overall 88         │
 │ ◉ Acme GmbH                                  │
@@ -49,6 +49,13 @@ visa-seeking software engineer.
 
 The header mirrors the Job Detail drawer's first section: no action buttons in
 the header. Actions are grouped in a footer at the bottom of the page.
+
+## Header Actions
+
+- **Edit** — a ghost button in the top-right of the drawer header, next to the
+  "Company Details" title. It opens the **Edit Company** drawer for the same
+  company (`CompanyEditDrawer`), reusing the page-level edit state. The detail
+  drawer stays open underneath.
 
 ---
 

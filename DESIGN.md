@@ -183,7 +183,7 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Job Details                                                             [Close]│
+│ Job Details                                            [Edit]         [Close]│
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Senior Backend Engineer                                                      │
 │ Acme Inc  ·  Berlin, Germany  ·  Hybrid  ·  Full-time                        │
@@ -351,7 +351,7 @@ row opens the detail drawer where the relation can be managed.
 
 ```text
 ┌────────────────────────────────────────────────────────────────┐
-│ Company Details                                          Close │
+│ Company Details                                    [Edit] Close │
 ├────────────────────────────────────────────────────────────────┤
 │ [A+]  Fit 85 · Success 90 · Overall 88                         │
 │ ◉ Acme GmbH                                                    │
