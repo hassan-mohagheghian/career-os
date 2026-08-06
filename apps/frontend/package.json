@@ -1,7 +1,7 @@
 {
   "name": "job-search-client",
   "private": true,
-  "version": "3.5.1",
+  "version": "3.5.4",
   "type": "module",
   "scripts": {
     "dev": "next dev",

@@ -44,26 +44,77 @@ class TestBuildCmd:
     def test_basic_cmd(self):
         from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
         provider = OpencodeProvider()
-        cmd = provider._build_cmd('test prompt')
+        cmd = provider._build_cmd(session_id=None)
         assert cmd[0].endswith('opencode')
         assert 'run' in cmd
-        assert 'test prompt' in cmd
         assert '--format' in cmd
         assert 'json' in cmd
         assert '--dangerously-skip-permissions' in cmd
 
+    def test_cmd_does_not_contain_prompt(self):
+        """Prompt must never be passed as a CLI argument (breaks ARG_MAX)."""
+        from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
+        provider = OpencodeProvider()
+        huge_prompt = 'x' * (1024 * 1024)
+        cmd = provider._build_cmd(session_id=None)
+        assert huge_prompt not in cmd
+        assert all(len(arg) < 64 * 1024 for arg in cmd)
+
     def test_cmd_with_session_id(self):
         from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
         provider = OpencodeProvider()
-        cmd = provider._build_cmd('test prompt', session_id='ses_123')
+        cmd = provider._build_cmd(session_id='ses_123')
         assert '--session' in cmd
         assert 'ses_123' in cmd
 
     def test_cmd_without_session_id(self):
         from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
         provider = OpencodeProvider()
-        cmd = provider._build_cmd('test prompt', session_id=None)
+        cmd = provider._build_cmd(session_id=None)
         assert '--session' not in cmd
+
+
+class TestStdinTransport:
+    """Prompt is piped via stdin, so large prompts never hit argv limits."""
+
+    def test_run_subprocess_writes_stdin_data(self):
+        """Verify Popen gets stdin=PIPE and stdin_data is written + closed."""
+        import subprocess
+        from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
+        import json
+
+        events = [
+            json.dumps({"type": "text", "part": {"text": "ok"}}),
+        ]
+
+        proc_mock = MagicMock()
+        proc_mock.stdout = iter(events)
+        proc_mock.returncode = 0
+        proc_mock.wait.return_value = 0
+        proc_mock.stdin = MagicMock()
+
+        captured_kwargs = {}
+
+        def mock_popen(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return proc_mock
+
+        with patch('subprocess.Popen', side_effect=mock_popen):
+            provider = OpencodeProvider()
+            provider._run_subprocess(['opencode', 'run'], timeout=10,
+                                     stdin_data='test prompt')
+
+        assert captured_kwargs.get('stdin') == subprocess.PIPE
+        proc_mock.stdin.write.assert_called_once_with('test prompt')
+        proc_mock.stdin.close.assert_called_once()
+
+    def test_large_prompt_still_short_command(self):
+        """A >1 MB prompt must not inflate the command line."""
+        from ai.infrastructure.providers.opencode.adapter import OpencodeProvider
+        provider = OpencodeProvider()
+        huge_prompt = 'x' * (2 * 1024 * 1024)
+        cmd = provider._build_cmd(session_id=None)
+        assert len(cmd) == 5
 
 
 class TestRunSubprocess:

@@ -7,6 +7,11 @@ LLM analysis, scoring, and career guidance.
 
 from __future__ import annotations
 
+from processing.application.services.context_budget import (
+    MAX_COMBINED_CHARS,
+    MAX_SOURCE_CHARS,
+    trim_text,
+)
 from processing.domain.workflow.extracted_content import ExtractedContent
 from processing.domain.workflow.job_processing_context import JobProcessingContext
 from processing.domain.workflow.job_processing_state import JobProcessingState
@@ -25,9 +30,9 @@ class JobContextBuilderService:
             if note.strip():
                 parts.append(f"[NOTE] {note.strip()}")
         for content in extracted:
-            parts.append(content.clean_text.strip())
+            parts.append(trim_text(content.clean_text, max_chars=MAX_SOURCE_CHARS))
 
-        combined_text = "\n\n".join(parts)
+        combined_text = trim_text("\n\n".join(parts), max_chars=MAX_COMBINED_CHARS)
 
         return JobProcessingContext(
             job_id=state.job_id,

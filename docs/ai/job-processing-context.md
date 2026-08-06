@@ -43,6 +43,12 @@ the prepared `combined_text` to the job row (`raw_description` +
 context durable so the analysis phase has a stable, reusable LLM input even
 though the in-memory workflow state is not persisted between phases.
 
+The `combined_text` is trimmed to a prompt budget (see
+`processing/application/services/context_budget.py`): each extracted source
+is capped at `MAX_SOURCE_CHARS` (8 000) and the total at
+`MAX_COMBINED_CHARS` (48 000). Truncated text keeps its head and is marked
+with `[truncated]`.
+
 ---
 
 ## Job Data

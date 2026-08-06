@@ -24,6 +24,7 @@ import pytest
 
 from processing.application.services.job_context_builder import JobContextBuilderService
 from processing.application.services.job_context_validator import JobContextValidatorService
+from processing.application.ports.content_extractor import ContentExtractor
 from processing.application.workflows.job_context_preparation import JobContextPreparationGraph
 from processing.application.workflows.job_context_preparation.nodes import (
     BuildContextNode,
@@ -454,6 +455,44 @@ class TestBuildContextNode:
         assert "[NOTE] Must know Python and Postgres" in context.combined_text
         assert context.metadata["extracted_count"] == 3
 
+    def test_trims_oversized_source(self):
+        from processing.application.services.context_budget import MAX_SOURCE_CHARS
+
+        state = _initial_state()
+        state.job = JobData.from_job_dict(_job_dict())
+        state.extracted_contents = [
+            ExtractedContent(
+                source=JobSource(url="https://example.com/job", type=SourceType.PRIMARY_URL),
+                url="https://example.com/job",
+                clean_text="x" * (MAX_SOURCE_CHARS * 2),
+                length=MAX_SOURCE_CHARS * 2,
+            )
+        ]
+
+        state = BuildContextNode(JobContextBuilderService())(state)
+
+        assert len(state.processing_context.combined_text) <= MAX_SOURCE_CHARS
+        assert state.processing_context.combined_text.endswith("[truncated]")
+
+    def test_trims_combined_total(self):
+        from processing.application.services.context_budget import MAX_SOURCE_CHARS
+
+        state = _initial_state()
+        state.job = JobData.from_job_dict(_job_dict())
+        state.extracted_contents = [
+            ExtractedContent(
+                source=JobSource(url=f"https://example.com/{i}", type=SourceType.ADDITIONAL_URL),
+                url=f"https://example.com/{i}",
+                clean_text="y" * MAX_SOURCE_CHARS,
+                length=MAX_SOURCE_CHARS,
+            )
+            for i in range(10)
+        ]
+
+        state = BuildContextNode(JobContextBuilderService())(state)
+
+        assert state.processing_context.combined_text.endswith("[truncated]")
+
 
 class TestValidateContextNode:
     def _built_state(self):
@@ -810,6 +849,78 @@ class TestCompositeContentExtractor:
         result = composite.extract(fetched)
 
         assert result.clean_text == "clean text"
+
+
+class TestCompositeFallback:
+    def _composite_with_failing_extractors(self):
+        class _Fail(ContentExtractor):
+            def extract(self, content):
+                raise ImportError("not installed")
+
+        return CompositeContentExtractor([_Fail(), _Fail()])
+
+    def test_strips_non_content_element_bodies(self):
+        html = (
+            "<html><head><title>T</title>"
+            "<script>window.__next_f.push('$undefined')</script>"
+            "<style>.cls{color:red}</style>"
+            "</head><body>"
+            "<script data-cfasync='false'>var dataLayer=[];dataLayer.push({});</script>"
+            "<p>Company overview text</p>"
+            "<iframe src='x'></iframe>"
+            "<noscript>no js text</noscript>"
+            "</body></html>"
+        )
+        source = JobSource(url="https://acme.example", type=SourceType.PRIMARY_URL)
+        fetched = FetchedContent(
+            source=source,
+            url="https://acme.example",
+            success=True,
+            content=html,
+            content_type="html",
+        )
+
+        result = self._composite_with_failing_extractors().extract(fetched)
+
+        assert "window.__next_f" not in result.clean_text
+        assert "dataLayer" not in result.clean_text
+        assert ".cls" not in result.clean_text
+        assert "Company overview text" in result.clean_text
+        assert result.extraction_method == "fallback"
+
+    def test_collapses_whitespace(self):
+        html = "<p>a     b</p>  <p>c</p>  "
+        source = JobSource(url="https://acme.example", type=SourceType.PRIMARY_URL)
+        fetched = FetchedContent(
+            source=source,
+            url="https://acme.example",
+            success=True,
+            content=html,
+            content_type="html",
+        )
+
+        result = self._composite_with_failing_extractors().extract(fetched)
+
+        assert "a     b" not in result.clean_text
+        assert "a b c" in result.clean_text
+
+    def test_caps_fallback_output(self):
+        body = "<p>%s</p>" % ("word " * 50_000)
+        source = JobSource(url="https://acme.example", type=SourceType.PRIMARY_URL)
+        fetched = FetchedContent(
+            source=source,
+            url="https://acme.example",
+            success=True,
+            content=f"<html><body>{body}</body></html>",
+            content_type="html",
+        )
+
+        from processing.infrastructure.content.extractors import MAX_FALLBACK_CHARS
+
+        result = self._composite_with_failing_extractors().extract(fetched)
+
+        assert len(result.clean_text) <= MAX_FALLBACK_CHARS
+        assert result.extraction_method == "fallback"
 
 
 # --------------------------------------------------------------------------- #

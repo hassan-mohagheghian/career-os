@@ -7,6 +7,11 @@ for the company analysis phase.
 
 from __future__ import annotations
 
+from processing.application.services.context_budget import (
+    MAX_COMBINED_CHARS,
+    MAX_SOURCE_CHARS,
+    trim_text,
+)
 from processing.domain.workflow.company_processing_context import CompanyProcessingContext
 from processing.domain.workflow.company_processing_state import CompanyProcessingState
 
@@ -24,9 +29,9 @@ class CompanyContextBuilderService:
             if note.strip():
                 parts.append(f"[NOTE] {note.strip()}")
         for content in extracted:
-            parts.append(content.clean_text.strip())
+            parts.append(trim_text(content.clean_text, max_chars=MAX_SOURCE_CHARS))
 
-        combined_text = "\n\n".join(parts)
+        combined_text = trim_text("\n\n".join(parts), max_chars=MAX_COMBINED_CHARS)
 
         return CompanyProcessingContext(
             company_id=state.company_id,

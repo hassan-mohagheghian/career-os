@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import threading
 from typing import Any, Callable, Optional
 
 from ..base import LLMProvider, ProviderConfig, ProviderResponse
@@ -40,9 +42,9 @@ class MimoProvider(LLMProvider):
         timeout = timeout or self._config.timeout
         session_id = context.get("session_id")
 
-        cmd = self._build_cmd(prompt, session_id)
+        cmd = self._build_cmd(session_id)
         returncode, output_lines, discovered_session_id = self._run_subprocess(
-            cmd, timeout=timeout
+            cmd, timeout=timeout, stdin_data=prompt
         )
 
         text_parts = []
@@ -156,12 +158,13 @@ class MimoProvider(LLMProvider):
         session_id = context.get("session_id")
         key = context.get("key")
 
-        cmd = self._build_cmd(prompt, session_id)
+        cmd = self._build_cmd(session_id)
         cwd = context.get("cwd", _project_root)
 
         returncode, output_lines, discovered_session_id = self._run_subprocess(
             cmd, timeout=timeout, cwd=cwd,
             on_event=on_event, on_session_id=on_session_id,
+            stdin_data=prompt,
         )
 
         if returncode == -9:
@@ -191,12 +194,29 @@ class MimoProvider(LLMProvider):
             model="mimo-cli",
         )
 
-    def _build_cmd(self, prompt: str, session_id: Optional[str] = None) -> list:
-        """Build mimo CLI command."""
-        cmd = [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions']
+    def _build_cmd(self, session_id: Optional[str] = None) -> list:
+        """Build mimo CLI command.
+
+        The prompt is NOT passed as a CLI argument — mimo reads the message
+        from stdin. Passing large prompts via argv exceeds Linux's MAX_ARG_STRLEN
+        and raises OSError [Errno 7] "Argument list too long".
+        """
+        cmd = [MIMO_BIN, 'run', '--format', 'json', '--dangerously-skip-permissions']
         if session_id:
             cmd.extend(['--session', session_id])
         return cmd
+
+    @staticmethod
+    def _write_stdin(proc: subprocess.Popen, data: str) -> None:
+        """Write the prompt to the child's stdin from a worker thread."""
+        try:
+            proc.stdin.write(data)
+            proc.stdin.close()
+        except (BrokenPipeError, OSError, ValueError):
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
 
     def _run_subprocess(
         self,
@@ -205,23 +225,32 @@ class MimoProvider(LLMProvider):
         cwd: Optional[str] = None,
         on_event: Optional[Callable] = None,
         on_session_id: Optional[Callable] = None,
+        stdin_data: Optional[str] = None,
     ) -> tuple[int, list[str], Optional[str]]:
         """Run mimo subprocess with streaming output and event callbacks.
 
+        The prompt is written to the child's stdin (from a daemon thread) so
+        arbitrarily large prompts never hit the OS argv limit.
+
         Returns (returncode, output_lines, session_id).
         """
-        import subprocess
-        import threading
-
         env = {**os.environ, 'NO_COLOR': '1'}
         proc = subprocess.Popen(
             cmd,
             cwd=cwd or _project_root,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             env=env,
         )
+
+        stdin_writer = None
+        if stdin_data:
+            stdin_writer = threading.Thread(
+                target=self._write_stdin, args=(proc, stdin_data), daemon=True
+            )
+            stdin_writer.start()
 
         all_lines = []
         session_id = None
@@ -273,6 +302,8 @@ class MimoProvider(LLMProvider):
 
             timed_out.set()
             proc.wait()
+            if stdin_writer is not None:
+                stdin_writer.join(timeout=5)
             return proc.returncode, all_lines, session_id
 
         except Exception:
@@ -282,6 +313,8 @@ class MimoProvider(LLMProvider):
             except OSError:
                 pass
             proc.wait()
+            if stdin_writer is not None:
+                stdin_writer.join(timeout=5)
             raise
         finally:
             timed_out.set()

@@ -266,6 +266,89 @@ class TestCompanyScoring:
 
 
 # --------------------------------------------------------------------------- #
+# Prompt builder
+# --------------------------------------------------------------------------- #
+
+
+class TestCompanyAnalysisPrompt:
+    def test_prompt_enforces_tight_output_size_limits(self):
+        """Regression: the combined prompt must keep the reply short so the
+        model output stays under its token ceiling and is never truncated."""
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt(
+            "Prepared context text for Acme.",
+            "PRODUCT_COMPANY",
+            "python_fit: required",
+        )
+
+        assert "at most 50 words" in prompt
+        assert "at most 15 words" in prompt
+        assert "at most 3 items" in prompt
+        assert "~1600 words" in prompt
+        assert "Never truncate the output" in prompt
+
+    def test_prompt_forbids_duplicating_extraction_facts(self):
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt(
+            "Prepared context text for Acme.",
+            "PRODUCT_COMPANY",
+            "",
+        )
+
+        assert "Do NOT duplicate extraction facts" in prompt
+
+    def test_prompt_dropped_low_value_intelligence_fields(self):
+        """The trimmed template must not enumerate the low-value sub-fields
+        whose removal keeps the output inside the model's token budget."""
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt(
+            "Prepared context text for Acme.",
+            "PRODUCT_COMPANY",
+            "",
+        )
+
+        assert "engineering_blog" not in prompt
+        assert '"environment"' not in prompt
+        assert "salary_info" not in prompt
+        assert '"equity"' not in prompt
+        assert '"pension"' not in prompt
+
+    def test_prompt_keeps_rendered_intelligence_fields(self):
+        """Fields the frontend draws must remain present in the template."""
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt(
+            "Prepared context text for Acme.",
+            "PRODUCT_COMPANY",
+            "",
+        )
+
+        for field in (
+            "engineering_org",
+            "team_structure",
+            "methodology",
+            "market_position",
+            "growth_trajectory",
+            "visa_analysis",
+            "technology_analysis",
+            "recommendation",
+            "scores",
+        ):
+            assert field in prompt
+
+
+# --------------------------------------------------------------------------- #
 # Nodes
 # --------------------------------------------------------------------------- #
 

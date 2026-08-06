@@ -1,5 +1,57 @@
 # Changelog
 
+## [3.5.4] — 2026-08-06
+
+### Fixed
+
+- **Company analysis output truncated by the model's output-token ceiling.**
+  After the input side was slimmed (3.5.3), the full combined company-analysis
+  JSON (extraction + 7 intelligence sections + recommendation + scores) still
+  needed ~2,559 output tokens, but `deepseek-v4-flash-free` caps output around
+  ~2.7K tokens — so a complete reply sat right at the edge and the model
+  truncated it mid-JSON (`Failed to parse opencode JSON output`). The combined
+  prompt template (`company_combined_analyze.txt`) now enforces a tight size
+  budget: description ≤50 words, explanations ≤15 words, factor lists ≤3 items,
+  total JSON under ~1,600 words, and intelligence must add new insight instead
+  of duplicating extraction facts. Low-value/un-rendered intelligence
+  sub-fields were dropped. Verified end-to-end: a complete valid JSON now
+  returns in ~1,084 output tokens, comfortably under the cap.
+
+## [3.5.3] — 2026-08-06
+
+### Fixed
+
+- **LLM prompts bloated by JS/RSC noise; company/job analysis output
+  truncated.** No HTML extractor (`trafilatura`/`beautifulsoup4`) was
+  installed, so `CompositeContentExtractor` fell back to a raw tag-strip that
+  kept inline JavaScript (Next.js RSC payloads, `dataLayer`) — a single
+  company page produced a 175 KB context block (~87% of the prompt). The small
+  model then truncated or malformed the response JSON.
+  - `beautifulsoup4` is now a dependency, activating the existing
+    `BeautifulSoupContentExtractor` (decomposes `script`/`style`/`noscript`).
+  - The composite fallback now also strips non-content element bodies
+    (script/style/head/iframe/template/svg) and caps output at
+    `MAX_FALLBACK_CHARS` (40 000).
+  - New `processing/application/services/context_budget.py` trims the LLM
+    context: each extracted source is capped at `MAX_SOURCE_CHARS` (8 000) and
+    the total `combined_text` at `MAX_COMBINED_CHARS` (48 000), keeping the
+    head and marking truncated text. Applied in both `CompanyContextBuilder`
+    and `JobContextBuilder`.
+
+## [3.5.2] — 2026-08-06
+
+### Fixed
+
+- **Company analysis fails with "Argument list too long" for large prompts.**
+  `OpencodeProvider` and `MimoProvider` passed the full LLM prompt as a single
+  CLI argument (`<cli> run <prompt> ...`). Linux caps a single argv string at
+  `MAX_ARG_STRLEN` (~131 KB), so the large combined company-analysis prompt
+  (company text + scoring rules + schema) made `execve` raise
+  `OSError [Errno 7] Argument list too long`, which `AnalyzeCompanyNode`
+  surfaced as a clean "analysis does not match the required format" failure.
+  Both providers now pipe the prompt to the CLI via **stdin** from a daemon
+  thread, so arbitrarily large prompts work.
+
 ## [3.5.1] — 2026-08-06
 
 ### Fixed

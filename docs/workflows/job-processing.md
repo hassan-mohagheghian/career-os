@@ -197,7 +197,13 @@ Output:
 Transforms raw content into structured text.
 
 Handled by `CompositeContentExtractor` (`TrafilaturaContentExtractor`,
-`BeautifulSoupContentExtractor`).
+`BeautifulSoupContentExtractor`). The extractors decompose non-content
+elements (script/style/head/noscript/iframe/template/svg) so inline JS and
+Next.js RSC payloads never leak into the LLM context. When no extractor
+produces clean text, the composite falls back to a best-effort
+markup-stripped passthrough that also removes those element bodies and caps
+the result at `MAX_FALLBACK_CHARS` (40 000) in
+`processing/infrastructure/content/extractors/__init__.py`.
 
 Output:
 
@@ -209,6 +215,17 @@ Output:
 
 Combines the extracted content into a single `combined_text` processing
 context.
+
+The context is trimmed to the prompt budget via
+`processing/application/services/context_budget.py`:
+
+- each extracted source is trimmed to `MAX_SOURCE_CHARS` (8 000) so a single
+  oversized page cannot crowd out the others
+- the combined text is trimmed to `MAX_COMBINED_CHARS` (48 000) so the total
+  prompt stays inside the provider output window (oversized inputs make the
+  small models truncate or malform the response JSON)
+
+Truncated text keeps its head and ends with a `[truncated]` marker.
 
 Output:
 

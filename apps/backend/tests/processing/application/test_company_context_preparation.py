@@ -308,6 +308,24 @@ class TestBuildContextNode:
         assert "[NOTE] Note one" in state.processing_context.combined_text
         assert "Extracted text here" in state.processing_context.combined_text
 
+    def test_trims_oversized_source(self):
+        from processing.application.services.context_budget import MAX_SOURCE_CHARS
+
+        state = _initial_state()
+        state.company = CompanyData.from_company_dict(_company_dict())
+        state.extracted_contents = [
+            ExtractedContent(
+                source=JobSource(url="https://acme.example", type=SourceType.PRIMARY_URL),
+                url="https://acme.example",
+                clean_text="x" * (MAX_SOURCE_CHARS * 2),
+                length=MAX_SOURCE_CHARS * 2,
+            )
+        ]
+        state = BuildContextNode(CompanyContextBuilderService())(state)
+
+        assert len(state.processing_context.combined_text) <= MAX_SOURCE_CHARS
+        assert state.processing_context.combined_text.endswith("[truncated]")
+
 
 class TestValidateContextNode:
     def test_valid_context(self):
