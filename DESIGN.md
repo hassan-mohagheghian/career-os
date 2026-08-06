@@ -16,26 +16,23 @@ The interface follows WCAG AA: keyboard navigation, focus management, screen-rea
 
 ## Navigation Structure
 
+Navigation is a single **top header menu** (full-width, fixed). No left sidebar.
+Each top-level item links to its page; `AI` opens a dropdown submenu.
+
 ```
-JOBS
+HEADER
+  ├── Job Search (brand → /jobs)
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
-  └── Companies      Company intelligence + processing queue
-
-GROWTH PATH
-  └── Skills         Skill management, roadmaps, progress
-
-INSIGHTS
-  ├── Overview       Career health score, next actions
-  ├── Opportunities  Job funnel, best jobs
-  ├── Companies      Company scoring, top targets
-  ├── Market         Countries, cities, remote opportunities
-  ├── Networking     Connection strategy, LinkedIn targets
-  └── Skills         Skills analysis
-
-SETTINGS
+  ├── Companies      Company intelligence + processing queue
+  ├── Skills         Skill management, roadmaps, progress
   ├── Resume         Resume / cover letter generation
-  └── Rules          Scoring rules configuration
+  ├── Rules          Scoring rules configuration
+  └── AI ▾           Dropdown submenu
+      └── LLM Configurations
 ```
+
+On mobile the top menu collapses into a hamburger (top-left) that opens a left
+sheet with the same items and submenu.
 
 ---
 
