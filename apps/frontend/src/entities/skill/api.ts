@@ -25,4 +25,7 @@ export const skillApi = {
   delete: (id: number | string) => api.delete<{ status: string }>(`/skills/${id}`),
   setCategory: (id: number | string, category: string) => api.put<SkillListItem>(`/skills/${id}/category`, { category }),
   rename: (id: number | string, name: string) => api.patch<SkillListItem>(`/skills/${id}/rename`, { name }),
+  addAlias: (id: number | string, aliasName: string) => api.post<SkillListItem>(`/skills/${id}/aliases`, { alias_name: aliasName }),
+  removeAlias: (id: number | string, aliasName: string) => api.delete<SkillListItem>(`/skills/${id}/aliases/${encodeURIComponent(aliasName)}`),
+  merge: (targetId: number, sourceIds: number[]) => api.post<{ status: string; target: SkillListItem; merged: string[]; aliases: string[] }>('/skills/merge', { target_id: targetId, source_ids: sourceIds }),
 }

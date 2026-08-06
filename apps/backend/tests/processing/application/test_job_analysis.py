@@ -38,6 +38,7 @@ from processing.application.workflows.job_analysis.nodes import (
     ExtractSkillsNode,
     LoadContextNode,
     PersistNode,
+    PersistSkillsNode,
     PrepareProfileNode,
     RecommendNode,
     ScoreNode,
@@ -97,11 +98,29 @@ class FakeSkillRepo:
     def __init__(self, skills=None, error=None):
         self._skills = skills or []
         self._error = error
+        self.mentions = []
+        self._next_id = 1000
 
     def list_visible(self):
         if self._error is not None:
             raise self._error
         return self._skills
+
+    def resolve_skill(self, data):
+        if self._error is not None:
+            raise self._error
+        for skill in self._skills:
+            if skill["name"] == data["name"]:
+                return skill.get("id") or 1
+        self._next_id += 1
+        self._skills.append({"name": data["name"], **data})
+        return self._next_id
+
+    def upsert_mentions(self, skill_id, source_type, source_id, status="", evidence="[]"):
+        self.mentions.append({"skill_id": skill_id, "source_type": source_type, "source_id": source_id, "status": status})
+
+    def delete_mentions_for_source(self, source_type, source_id):
+        self.mentions = [m for m in self.mentions if not (m["source_type"] == source_type and m["source_id"] == source_id)]
 
 
 class FakeResumeRepo:
@@ -790,6 +809,54 @@ class TestPersistNode:
 
         state = node(state)
         assert state.persisted is True
+
+
+class TestPersistSkillsNode:
+    def test_resolves_and_links_each_skill(self):
+        skill_repo = FakeSkillRepo([{"name": "Python", "level": 4}])
+        node = PersistSkillsNode(skill_repo)
+        state = _state()
+        state.analysis_result = {
+            "skills": [
+                {"name": "Python", "category": "Language", "status": "matched", "evidence": "posted"},
+                {"name": "Kafka", "category": "Data", "status": "missing", "evidence": "posted"},
+            ]
+        }
+
+        state = node(state)
+
+        assert state.status != ExecutionStatus.FAILED
+        assert len(skill_repo.mentions) == 2
+        assert all(m["source_type"] == "job" for m in skill_repo.mentions)
+        assert all(m["source_id"] == "job-uuid-1" for m in skill_repo.mentions)
+        statuses = {m["status"] for m in skill_repo.mentions}
+        assert statuses == {"matched", "missing"}
+        assert skill_repo.mentions[0]["skill_id"] == 1  # Python resolved to existing
+
+    def test_skips_blank_names(self):
+        skill_repo = FakeSkillRepo()
+        node = PersistSkillsNode(skill_repo)
+        state = _state()
+        state.analysis_result = {"skills": [{"name": ""}, {"name": "  "}]}
+
+        node(state)
+        assert skill_repo.mentions == []
+
+    def test_no_skills_is_noop(self):
+        skill_repo = FakeSkillRepo()
+        node = PersistSkillsNode(skill_repo)
+        state = node(_state())
+        assert state.status != ExecutionStatus.FAILED
+        assert skill_repo.mentions == []
+
+    def test_error_marks_failed(self):
+        skill_repo = FakeSkillRepo(error=RuntimeError("db down"))
+        node = PersistSkillsNode(skill_repo)
+        state = _state()
+        state.analysis_result = {"skills": [{"name": "Python"}]}
+        state = node(state)
+        assert state.status == ExecutionStatus.FAILED
+        assert any("persist skills" in e and "db down" in e for e in state.errors)
 
 
 class TestTerminalNodes:

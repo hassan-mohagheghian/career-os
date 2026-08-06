@@ -20,6 +20,9 @@ from processing.application.workflows.company_analysis.nodes.load_context_node i
 from processing.application.workflows.company_analysis.nodes.persist_company_node import (
     PersistCompanyNode,
 )
+from processing.application.workflows.company_analysis.nodes.persist_company_skills_node import (
+    PersistCompanySkillsNode,
+)
 from processing.application.workflows.company_analysis.nodes.prepare_company_node import (
     PrepareCompanyNode,
 )
@@ -39,6 +42,7 @@ __all__ = [
     "ExecutionFailedNode",
     "LoadContextNode",
     "PersistCompanyNode",
+    "PersistCompanySkillsNode",
     "PrepareCompanyNode",
     "RecommendCompanyNode",
     "ScoreCompanyNode",

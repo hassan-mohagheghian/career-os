@@ -91,3 +91,34 @@ class ISkillRepository(ABC):
     def delete_relationship(self, rel_id: int) -> bool:
         """Delete a skill relationship."""
         ...
+
+    @abstractmethod
+    def resolve_skill(self, data: dict[str, Any]) -> int:
+        """Resolve a skill row by name (then alias), creating it when new.
+        Returns the skill id."""
+        ...
+
+    @abstractmethod
+    def upsert_mentions(self, skill_id: int, source_type: str, source_id: str, status: str = "", evidence: str = "[]") -> None:
+        """Upsert a skill mention link for a job/company source."""
+        ...
+
+    @abstractmethod
+    def delete_mentions_for_source(self, source_type: str, source_id: str) -> None:
+        """Delete all mention links for a job/company source (idempotent reprocessing)."""
+        ...
+
+    @abstractmethod
+    def get_mention_counts(self, skill_ids: list[int]) -> dict[int, int]:
+        """Return {skill_id: total mention count} for the given skill ids."""
+        ...
+
+    @abstractmethod
+    def add_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Add an alias to a skill. Returns the updated skill or None."""
+        ...
+
+    @abstractmethod
+    def remove_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Remove an alias from a skill. Returns the updated skill or None."""
+        ...

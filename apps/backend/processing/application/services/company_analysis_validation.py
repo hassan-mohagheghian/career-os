@@ -53,6 +53,42 @@ def _coerce_dict(value: Any) -> dict[str, Any]:
     return {}
 
 
+class CompanySkillInput(BaseModel):
+    """A single skill observed at the company (name + optional detail)."""
+
+    name: str
+    category: str = Field(default="")
+    evidence: str = Field(default="")
+
+    @field_validator("name", "category", "evidence", mode="before")
+    @classmethod
+    def coerce_str(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        return str(v).strip()
+
+
+def _coerce_skill_list(value: Any) -> list[CompanySkillInput]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        items = [x.strip() for x in value.split(",") if x.strip()]
+        value = items
+    if isinstance(value, list):
+        result: list[CompanySkillInput] = []
+        for item in value:
+            if isinstance(item, str):
+                name = item.strip()
+                if name:
+                    result.append(CompanySkillInput(name=name))
+            elif isinstance(item, dict):
+                name = str(item.get("name") or "").strip()
+                if name:
+                    result.append(CompanySkillInput(**item))
+        return result
+    return []
+
+
 class CompanyExtraction(BaseModel):
     """The extractable company facts (mirrors the legacy extraction schema)."""
 
@@ -74,6 +110,7 @@ class CompanyExtraction(BaseModel):
     work_environment: dict[str, Any] = Field(default_factory=dict)
     funding_stage: str | None = None
     funding_amount: str | None = None
+    skills: list[CompanySkillInput] = Field(default_factory=list)
 
     @field_validator("company_type")
     @classmethod
@@ -94,6 +131,11 @@ class CompanyExtraction(BaseModel):
     @classmethod
     def coerce_dict(cls, v: Any) -> dict[str, Any]:
         return _coerce_dict(v)
+
+    @field_validator("skills", mode="before")
+    @classmethod
+    def coerce_skills(cls, v: Any) -> list[CompanySkillInput]:
+        return _coerce_skill_list(v)
 
     @field_validator(
         "name", "website", "domain", "industry", "country", "city",

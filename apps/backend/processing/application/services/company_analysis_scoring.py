@@ -93,6 +93,32 @@ def _coerce_str(value: Any) -> str:
     return str(value).strip()
 
 
+def _coerce_skill_list(value: Any) -> list[dict[str, Any]]:
+    """Normalize the LLM skills list: accept strings or dicts, drop empties."""
+    if isinstance(value, str):
+        items = [x.strip() for x in value.split(",") if x.strip()]
+        value = items
+    if not isinstance(value, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for item in value:
+        if isinstance(item, str):
+            name = item.strip()
+            if not name:
+                continue
+            result.append({"name": name, "category": "", "evidence": ""})
+        elif isinstance(item, dict):
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            result.append({
+                "name": name,
+                "category": _coerce_str(item.get("category")),
+                "evidence": _coerce_str(item.get("evidence")),
+            })
+    return result
+
+
 def normalize_payload(raw: Any) -> dict[str, Any]:
     """Coerce the LLM payload (dict or JSON string) into a canonical dict."""
     if isinstance(raw, str):
@@ -139,6 +165,7 @@ def build_company_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
             "work_environment": _coerce_dict(extraction_raw.get("work_environment")),
             "funding_stage": _coerce_str(extraction_raw.get("funding_stage")),
             "funding_amount": _coerce_str(extraction_raw.get("funding_amount")),
+            "skills": _coerce_skill_list(extraction_raw.get("skills")),
         },
         "intelligence": {
             "overview": _coerce_dict(intelligence_raw.get("overview")),

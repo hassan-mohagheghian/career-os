@@ -53,8 +53,8 @@ parameter (one of technical / engineering / professional / domain / career).
 
 ## 4. Sort
 
-Clicking a sortable header (Name, Created) or the sort control refetches with
-the chosen `sort` and `order`. Default: `created_at desc`.
+Clicking a sortable header (Name, Level, Demand, Confidence, Created, Mentions)
+refetches with the chosen `sort` and `order`. Default: `created_at desc`.
 
 ## 5. Scroll
 
@@ -80,6 +80,12 @@ Deletion requires confirmation (`ConfirmDialog`).
 
 From the detail drawer the user can Generate / Extend / Finegrain a learning
 roadmap and watch live progress. Background generation does not block browsing.
+
+## 10. Manage aliases and merge duplicates
+
+From the Edit drawer the user can add/remove aliases and merge a duplicate skill
+into a canonical one (`docs/ux/flows/skills/merge-skills.md`). The Mentions
+column shows how many job/company analyses reference each skill.
 
 ---
 

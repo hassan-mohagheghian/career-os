@@ -50,7 +50,14 @@ Perform a SINGLE combined analysis of this company. First extract every piece of
       "visa_sponsorship": "Visa sponsorship availability"
     }},
     "funding_stage": "Bootstrapped/Seed/Series A/B/C/D/E/Public or null",
-    "funding_amount": "Total funding raised if mentioned"
+    "funding_amount": "Total funding raised if mentioned",
+    "skills": [
+      {{
+        "name": "A technology or skill the company uses or requires (e.g., 'Python', 'PostgreSQL', 'Kubernetes')",
+        "category": "Optional category hint (e.g., 'backend', 'infrastructure')",
+        "evidence": "Short evidence from the content (max 15 words)"
+      }}
+    ]
   }},
   "intelligence": {{
     "overview": {{
@@ -203,7 +210,7 @@ Provide explanations and positive/negative factors for both fit and success scor
 OUTPUT SIZE LIMITS (critical — the response must be SHORT so it is never truncated):
 1. extraction.description: concise, at most 50 words.
 2. Every explanation field (fit_explanation, success_explanation, observation, evidence, impact, action, timing, and every intelligence sub-field value): at most 15 words.
-3. factor lists (fit_positive_factors, fit_negative_factors, success_positive_factors, success_negative_factors, positive_signals, risks, products, countries_of_operation): at most 3 items each.
+3. factor lists (fit_positive_factors, fit_negative_factors, success_positive_factors, success_negative_factors, positive_signals, risks, products, countries_of_operation): at most 3 items each. List at most 10 skills in extraction.skills.
 4. The entire JSON must be under ~1600 words total. If you approach the limit, shorten explanations rather than dropping required fields.
 5. The JSON must be complete and valid — every string and bracket closed. Never truncate the output.
 

@@ -37,6 +37,14 @@ class SkillHide(BaseModel):
     hidden: int = 1
 
 
+class SkillAliasAdd(BaseModel):
+    alias_name: str = Field(..., min_length=1)
+
+
+class SkillAliasRemove(BaseModel):
+    alias_name: str = Field(..., min_length=1)
+
+
 class SkillMerge(BaseModel):
     target_id: int
     source_ids: list[int]
@@ -93,6 +101,8 @@ class SkillListItemSchema(BaseModel):
     evidence: str | None = None
     tags: list[str] = []
     aliases: list[str] = []
+    source_type: str = "user_input"
+    mention_count: int = 0
     created_at: str | None = None
 
 

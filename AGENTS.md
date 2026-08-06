@@ -72,6 +72,7 @@ app/
 11. Do not use `print()` — use `structlog`.
 12. Never change the version in only one place — keep all version references in sync (see `## Versioning` below).
 13. Every UI page / feature / component / flow change must be fully documented under `docs/ux/features/` (and `docs/ux/flows/` when a user journey is involved) **with an ASCII wireframe** of the layout, states, and actions — no UI change ships without its wireframe docs. Update the `docs/ux/README.md` index and `DESIGN.md` wireframes accordingly.
+14. **Always generate DB migrations with Alembic autogenerate**, then review/tune the generated file if needed — never write a migration by hand from scratch. After changing a model, run `uv run alembic revision --autogenerate -m "<description>"` (from the repo root, `alembic.ini` at root with per-context `version_locations`), inspect the generated file, adjust naming/indexes/FKs as required, and verify with `uv run alembic history` + `uv run alembic upgrade head` against a dev DB. Commit the tuned migration with the change.
 
 ## Versioning
 

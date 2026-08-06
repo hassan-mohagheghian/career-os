@@ -16,6 +16,7 @@ def _create_skill(sa_session, **kwargs) -> SkillModel:
         tags="[]",
         hidden=0,
         source="user",
+        source_type="user_input",
     )
     defaults.update(kwargs)
     model = SkillModel(**defaults)
@@ -143,6 +144,26 @@ class TestSkillListV2API:
         names = [i["name"] for i in data["items"]]
         assert names == ["High Demand", "No Demand"]
 
+    def test_sort_by_mention_count(self, client, sa_session):
+        from skills.infrastructure import SQLAlchemySkillRepository
+
+        python = _create_skill(sa_session, name="Python")
+        k8s = _create_skill(sa_session, name="Kubernetes")
+        go = _create_skill(sa_session, name="Go")
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(python.id, "job", "job-1")
+        repo.upsert_mentions(python.id, "job", "job-2")
+        repo.upsert_mentions(python.id, "company", "company-1")
+        repo.upsert_mentions(k8s.id, "job", "job-3")
+
+        data = client.get("/api/skills/list?sort=mention_count&order=desc").json()
+        names = [i["name"] for i in data["items"]]
+        assert names == ["Python", "Kubernetes", "Go"]
+
+        data = client.get("/api/skills/list?sort=mention_count&order=asc").json()
+        names = [i["name"] for i in data["items"]]
+        assert names == ["Go", "Kubernetes", "Python"]
+
     def test_default_sort_newest_first(self, client, sa_session):
         _create_skill(sa_session, name="Old Skill", created_at="2026-01-01T00:00:00Z")
         _create_skill(sa_session, name="New Skill", created_at="2026-07-01T00:00:00Z")
@@ -177,4 +198,91 @@ class TestSkillListV2API:
         assert item["market_relevance"] == 8.5
         assert item["tags"] == ["ai", "ml"]
         assert item["aliases"] == ["CPython"]
+        assert item["source_type"] == "user_input"
+        assert item["mention_count"] == 0
         assert item["created_at"] is not None
+
+    def test_item_shape_ai_generated_source(self, client, sa_session):
+        _create_skill(sa_session, name="Kubernetes", source_type="ai_generated")
+
+        item = client.get("/api/skills/list").json()["items"][0]
+        assert item["source_type"] == "ai_generated"
+
+    def test_get_by_id(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python", level=4, category="technical")
+        _create_alias(sa_session, skill.id, "CPython")
+
+        resp = client.get(f"/api/skills/{skill.id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == skill.id
+        assert data["name"] == "Python"
+        assert data["level"] == 4
+        assert data["aliases"] == ["CPython"]
+        assert data["tags"] == []
+        assert data["source_type"] == "user_input"
+
+    def test_get_by_id_not_found(self, client):
+        resp = client.get("/api/skills/9999")
+        assert resp.status_code == 404
+
+    def test_get_by_id_literal_routes_still_win(self, client, sa_session):
+        _create_skill(sa_session, name="Python")
+        resp = client.get("/api/skills/list")
+        assert resp.status_code == 200
+        assert "items" in resp.json()
+
+
+def test_list_mention_count(client, sa_session):
+    from skills.infrastructure import SQLAlchemySkillRepository
+
+    python = _create_skill(sa_session, name="Python")
+    k8s = _create_skill(sa_session, name="Kubernetes")
+    repo = SQLAlchemySkillRepository(sa_session)
+    repo.upsert_mentions(python.id, "job", "job-1", status="", evidence="[]")
+    repo.upsert_mentions(python.id, "company", "company-1", status="", evidence="[]")
+    repo.upsert_mentions(k8s.id, "job", "job-2", status="", evidence="[]")
+
+    items = client.get("/api/skills/list").json()["items"]
+    by_name = {i["name"]: i["mention_count"] for i in items}
+    assert by_name == {"Python": 2, "Kubernetes": 1}
+
+
+def test_add_alias_api(client, sa_session):
+    skill = _create_skill(sa_session, name="React")
+    resp = client.post(f"/api/skills/{skill.id}/aliases", json={"alias_name": "ReactJS"})
+    assert resp.status_code == 200
+    assert "ReactJS" in resp.json()["aliases"]
+
+    items = client.get("/api/skills/list").json()["items"]
+    assert items[0]["aliases"] == ["ReactJS"]
+
+
+def test_remove_alias_api(client, sa_session):
+    skill = _create_skill(sa_session, name="React")
+    _create_alias(sa_session, skill.id, "ReactJS")
+    resp = client.delete(f"/api/skills/{skill.id}/aliases/ReactJS")
+    assert resp.status_code == 200
+    assert "ReactJS" not in resp.json()["aliases"]
+
+
+def test_add_alias_missing_skill_404(client, sa_session):
+    resp = client.post("/api/skills/9999/aliases", json={"alias_name": "X"})
+    assert resp.status_code == 404
+
+
+def test_merge_folds_mentions_via_api(client, sa_session):
+    from skills.infrastructure import SQLAlchemySkillRepository
+
+    target = _create_skill(sa_session, name="React")
+    source = _create_skill(sa_session, name="ReactJS")
+    repo = SQLAlchemySkillRepository(sa_session)
+    repo.upsert_mentions(source.id, "job", "job-1")
+
+    resp = client.post("/api/skills/merge", json={"target_id": target.id, "source_ids": [source.id]})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "merged"
+
+    items = client.get("/api/skills/list").json()["items"]
+    by_name = {i["name"]: i for i in items}
+    assert by_name["React"]["mention_count"] == 1

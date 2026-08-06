@@ -15,7 +15,7 @@ import {
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import type { SkillListItem } from '@/entities/skill/types'
-import { CategoryBadge } from './SkillRow'
+import { CategoryBadge, OriginBadge } from './SkillRow'
 
 function RoadmapNode({ node, depth = 0 }: { node: any; depth?: number }) {
   const [open, setOpen] = useState(depth < 2)
@@ -140,6 +140,7 @@ export function SkillDetailDrawer({
             <Code className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="truncate">{skill.name}</span>
             <CategoryBadge category={skill.category} />
+            <OriginBadge sourceType={skill.source_type} />
           </SheetTitle>
           {onEdit && skillId != null && (
             <Button

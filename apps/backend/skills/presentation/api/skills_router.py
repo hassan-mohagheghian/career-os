@@ -14,6 +14,8 @@ from skills.presentation.api.schemas.skills import (
     SkillUpdate,
     SkillRename,
     SkillHide,
+    SkillAliasAdd,
+    SkillAliasRemove,
     SkillMerge,
     SkillBulkHide,
     SkillBulkCategorize,
@@ -29,7 +31,7 @@ DEFAULT_PAGE_SIZE = 25
 
 SKILL_CATEGORIES = ("technical", "engineering", "professional", "domain", "career")
 
-SORTABLE_SKILL_FIELDS = ("name", "level", "confidence", "market_relevance")
+SORTABLE_SKILL_FIELDS = ("name", "level", "confidence", "market_relevance", "mention_count")
 
 
 def _cursor_decode(cursor: str) -> int:
@@ -78,6 +80,11 @@ def list_skills_v2(
     """List visible skills with server-side search, category filter, sort and cursor pagination."""
     rows = [r for r in repo.list_visible() if _skill_matches(r, query, category)]
 
+    if rows:
+        mention_counts = repo.get_mention_counts([r["id"] for r in rows])
+        for r in rows:
+            r["mention_count"] = mention_counts.get(r["id"], 0)
+
     key: Callable[[dict[str, Any]], Any] = lambda r: _skill_sort_key(r, sort)
     with_value = [r for r in rows if key(r) is not None]
     without_value = [r for r in rows if key(r) is None]
@@ -104,6 +111,8 @@ def list_skills_v2(
                 evidence=r.get("evidence"),
                 tags=r.get("tags") or [],
                 aliases=r.get("aliases") or [],
+                source_type=r.get("source_type") or "user_input",
+                mention_count=r.get("mention_count") or 0,
                 created_at=r.get("created_at"),
             )
             for r in page
@@ -139,6 +148,15 @@ def get_categories(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
 def get_stats(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Get overall skills statistics."""
     return repo.get_stats()
+
+
+@router.get("/{id}")
+def get_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+    """Get a single skill with aliases and tags."""
+    skill = repo.get_by_id(id)
+    if not skill:
+        raise NotFoundError(f"Skill {id} not found")
+    return skill
 
 
 @router.post("")
@@ -198,6 +216,24 @@ def hide_skill(id: int, data: SkillHide, repo: SQLAlchemySkillRepository = Depen
 def restore_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Restore a hidden skill."""
     result = repo.set_hidden(id, 0)
+    if not result:
+        raise NotFoundError(f"Skill {id} not found")
+    return result
+
+
+@router.post("/{id}/aliases")
+def add_skill_alias(id: int, data: SkillAliasAdd, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+    """Add an alias to a skill."""
+    result = repo.add_alias(id, data.alias_name)
+    if not result:
+        raise NotFoundError(f"Skill {id} not found")
+    return result
+
+
+@router.delete("/{id}/aliases/{alias_name}")
+def remove_skill_alias(id: int, alias_name: str, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+    """Remove an alias from a skill."""
+    result = repo.remove_alias(id, alias_name)
     if not result:
         raise NotFoundError(f"Skill {id} not found")
     return result

@@ -10,6 +10,8 @@ export interface SkillListItem {
   evidence: string | null
   tags: string[]
   aliases: string[]
+  source_type: string
+  mention_count: number
   created_at: string | null
 }
 
@@ -25,6 +27,8 @@ export interface Skill {
   evidence: string | null
   tags: string[]
   aliases: string[]
+  source_type: string
+  mention_count?: number
   created_at: string | null
   [key: string]: unknown
 }
@@ -62,7 +66,7 @@ export interface SkillUpdateInput {
   tags?: string[]
 }
 
-export type SkillSortField = 'created_at' | 'name' | 'level' | 'confidence' | 'market_relevance'
+export type SkillSortField = 'created_at' | 'name' | 'level' | 'confidence' | 'market_relevance' | 'mention_count'
 
 export const SKILL_CATEGORIES = ['technical', 'engineering', 'professional', 'domain', 'career'] as const
 

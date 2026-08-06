@@ -11,7 +11,7 @@ row's columns and inline row actions.
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Kubernetes 2 aliases │ engineering │ Lv.4 │ DevOps, SRE │ 90% │ 85% │ 2m │ ⋯ │
+│ Kubernetes [AI] 2 aliases │ engineering │ Lv.4 │ DevOps, SRE │ 90% │ 85% │ 2m │ 3 │ ⋯ │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -21,13 +21,14 @@ row's columns and inline row actions.
 
 | Column     | Field                    | Notes                                     |
 | ---------- | ------------------------ | ----------------------------------------- |
-| Name       | `name`                   | Alias count badge when `alias_count > 0`  |
+| Name       | `name`                   | Origin badge (AI/Manual) + alias count badge when aliases exist |
 | Category   | `category`               | Canonical category badge                  |
 | Level      | `level`                  | Rendered as `Lv.{level}`                  |
 | Roles      | `roles`                  | Truncated list of relevant roles          |
 | Demand     | `market_relevance`       | Percentage or `—` when null               |
 | Confidence | `confidence`             | Percentage or `—` when null               |
 | Created    | `created_at`             | Relative time via `formatTimeAgo`         |
+| Mentions   | `mention_count`          | Sortable count of job/company mentions    |
 | Actions    | —                        | Details / Edit / Delete icon buttons      |
 
 ---
@@ -73,6 +74,26 @@ Detail drawer.
 | ≥ 50  | Yellow |
 | < 50  | Orange |
 | null  | `—`    |
+
+---
+
+# Origin Badge
+
+The origin badge shows where the skill came from:
+
+| Badge   | `source_type`      | Meaning                                    |
+| ------- | ------------------ | ------------------------------------------ |
+| AI      | `ai_generated`     | Created by job/company analysis processing |
+| Manual  | `user_input`       | Created by the user                        |
+
+The badge is hidden when `source_type` is absent.
+
+---
+
+# Mentions Column
+
+Renders `mention_count` — the total number of job/company analysis mentions
+referencing the skill. A nonzero count is highlighted; zero renders muted.
 
 ---
 

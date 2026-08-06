@@ -28,6 +28,12 @@ The Edit Skill drawer updates the core data of an existing skill via
 │ Tags (comma-separated)                        │
 │ [infra, orchestration ....................]   │
 │                                               │
+│ Aliases                                       │
+│ [K8s] ×  [Kube] ×                             │
+│ [Add alias...                    ] [+]       │
+│                                               │
+│ [⟳ Merge into another skill]                  │
+│                                               │
 │ [Cancel]                          [Save]      │
 └────────────────────────────────────────────────┘
 ```
@@ -43,6 +49,8 @@ The Edit Skill drawer updates the core data of an existing skill via
 | Category       | select   | No       | Canonical category.                   |
 | Relevant Roles | text     | No       | Comma-separated roles.                |
 | Tags           | text     | No       | Comma-separated tags.                 |
+| Aliases        | badges + text | No | Add via `+`, remove via `×`.        |
+| Merge          | button   | No       | Opens Merge Skill dialog.             |
 
 ---
 
@@ -69,6 +77,11 @@ Submit (PUT /api/skills/{id})
 # Behaviors
 
 - Fields are pre-filled from the existing skill.
+- **Aliases** — `+` adds via `POST /api/skills/{id}/aliases`; `×` removes via
+  `DELETE /api/skills/{id}/aliases/{name}`. The alias list refreshes from the
+  response and the list query is invalidated.
+- **Merge** — opens the Merge Skill dialog; merging calls
+  `POST /api/skills/merge` and closes the drawer.
 - On success the list query is invalidated.
 - Cancel closes the drawer without saving.
 
@@ -78,4 +91,5 @@ Submit (PUT /api/skills/{id})
 
 - `docs/ux/features/skills/page.md`
 - `docs/ux/features/skills/skill-detail.md`
+- `docs/ux/flows/skills/merge-skills.md`
 - `docs/api/skills/update-skill.md`

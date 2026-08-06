@@ -1,13 +1,13 @@
 """CompanyAnalysisGraph — LangGraph workflow that runs the single combined LLM
 analysis for a company and persists the result.
 
-Flow:
+    Flow:
 
     Company
     ↓
     LoadContext → PrepareCompany → AnalyzeCompany → ScoreCompany
     → RecommendCompany → SummarizeCompany → PersistCompany
-    → AnalysisReady | ExecutionFailed
+    → PersistCompanySkills → AnalysisReady | ExecutionFailed
 
 This graph runs after CompanyContextPreparationGraph and reuses its state (and
 the persisted prepared context). It performs exactly one LLM call
@@ -26,6 +26,7 @@ from processing.application.workflows.company_analysis.nodes import (
     ExecutionFailedNode,
     LoadContextNode,
     PersistCompanyNode,
+    PersistCompanySkillsNode,
     PrepareCompanyNode,
     RecommendCompanyNode,
     ScoreCompanyNode,
@@ -41,6 +42,7 @@ NODE_SCORE_COMPANY = "score_company"
 NODE_RECOMMEND_COMPANY = "recommend_company"
 NODE_SUMMARIZE_COMPANY = "summarize_company"
 NODE_PERSIST_COMPANY = "persist_company"
+NODE_PERSIST_COMPANY_SKILLS = "persist_company_skills"
 NODE_ANALYSIS_READY = "analysis_ready"
 NODE_EXECUTION_FAILED = "execution_failed"
 
@@ -53,11 +55,13 @@ class CompanyAnalysisGraph:
         self,
         company_service: Any,
         rule_repo: Any,
+        skill_repo: Any | None = None,
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
     ):
         self._company_service = company_service
         self._rules = rule_repo
+        self._skills = skill_repo
         self._llm = llm_service
         self._events = event_publisher
         self._graph = self._build()
@@ -72,6 +76,7 @@ class CompanyAnalysisGraph:
         graph.add_node(NODE_RECOMMEND_COMPANY, RecommendCompanyNode(self._events))
         graph.add_node(NODE_SUMMARIZE_COMPANY, SummarizeCompanyNode(self._events))
         graph.add_node(NODE_PERSIST_COMPANY, PersistCompanyNode(self._company_service, self._events))
+        graph.add_node(NODE_PERSIST_COMPANY_SKILLS, PersistCompanySkillsNode(self._skills, self._events))
         graph.add_node(NODE_ANALYSIS_READY, AnalysisReadyNode(self._events))
         graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._events))
 
@@ -97,8 +102,9 @@ class CompanyAnalysisGraph:
         graph.add_conditional_edges(
             NODE_PERSIST_COMPANY,
             self._after_persist,
-            {NODE_ANALYSIS_READY: NODE_ANALYSIS_READY, NODE_EXECUTION_FAILED: NODE_EXECUTION_FAILED},
+            {NODE_PERSIST_COMPANY_SKILLS: NODE_PERSIST_COMPANY_SKILLS, NODE_EXECUTION_FAILED: NODE_EXECUTION_FAILED},
         )
+        graph.add_edge(NODE_PERSIST_COMPANY_SKILLS, NODE_ANALYSIS_READY)
 
         graph.add_edge(NODE_ANALYSIS_READY, END)
         graph.add_edge(NODE_EXECUTION_FAILED, END)
@@ -115,7 +121,7 @@ class CompanyAnalysisGraph:
 
     @staticmethod
     def _after_persist(state: CompanyProcessingState) -> str:
-        return NODE_ANALYSIS_READY if state.status != ExecutionStatus.FAILED else NODE_EXECUTION_FAILED
+        return NODE_PERSIST_COMPANY_SKILLS if state.status != ExecutionStatus.FAILED else NODE_EXECUTION_FAILED
 
     def invoke(self, state: CompanyProcessingState) -> CompanyProcessingState:
         result = self._graph.invoke(state)

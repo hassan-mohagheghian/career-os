@@ -13,6 +13,7 @@ from processing.application.workflows.job_analysis.nodes.score_node import Score
 from processing.application.workflows.job_analysis.nodes.recommend_node import RecommendNode
 from processing.application.workflows.job_analysis.nodes.summarize_node import SummarizeNode
 from processing.application.workflows.job_analysis.nodes.persist_node import PersistNode
+from processing.application.workflows.job_analysis.nodes.persist_skills_node import PersistSkillsNode
 from processing.application.workflows.job_analysis.nodes.link_company_node import LinkCompanyNode
 from processing.application.workflows.job_analysis.nodes.analysis_ready_node import AnalysisReadyNode
 from processing.application.workflows.job_analysis.nodes.execution_failed_node import ExecutionFailedNode
@@ -26,6 +27,7 @@ __all__ = [
     "RecommendNode",
     "SummarizeNode",
     "PersistNode",
+    "PersistSkillsNode",
     "LinkCompanyNode",
     "AnalysisReadyNode",
     "ExecutionFailedNode",

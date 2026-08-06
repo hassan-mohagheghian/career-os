@@ -89,6 +89,8 @@ level
 confidence
 
 market_relevance
+
+mention_count
 ```
 
 Default: `created_at`.
@@ -129,7 +131,8 @@ Default: `desc`.
       "confidence": 0.85,
       "market_relevance": 0.9,
       "evidence": "...",
-      "alias_count": 2,
+      "source_type": "user_input",
+      "mention_count": 3,
       "created_at": "..."
     }
   ],
@@ -143,6 +146,25 @@ Default: `desc`.
 # Returned Information
 
 Each row contains only the information required by the Skills page.
+
+Row fields:
+
+| Field              | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| `id`               | Skill id.                                             |
+| `name`             | Skill name.                                           |
+| `category`         | Canonical category.                                   |
+| `level`            | Proficiency level (1–10).                             |
+| `roles`            | Relevant roles.                                       |
+| `path`             | Learning path.                                        |
+| `tags`             | Tag list.                                             |
+| `aliases`          | Alias list.                                           |
+| `confidence`       | AI confidence (0–1) or null.                          |
+| `market_relevance` | Market demand (0–1) or null.                          |
+| `evidence`         | Evidence string or null.                              |
+| `source_type`      | Origin: `user_input` (manual) or `ai_generated` (AI). |
+| `mention_count`    | Total job/company mentions referencing this skill.    |
+| `created_at`       | Creation timestamp.                                   |
 
 Large objects must never be returned.
 

@@ -6,10 +6,12 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import { PencilSimple, Warning, Check, TagSimple, CircleNotch } from '@phosphor-icons/react'
+import { Badge } from '@/shared/ui/badge'
+import { PencilSimple, Warning, Check, TagSimple, CircleNotch, Plus, X, GitMerge } from '@phosphor-icons/react'
 import { skillApi } from '@/entities/skill/api'
 import { SKILL_CATEGORIES } from '@/entities/skill/types'
 import { useQueryClient } from '@tanstack/react-query'
+import { MergeSkillDialog } from './MergeSkillDialog'
 
 const SKILLS_KEY = 'skills-v2-infinite'
 
@@ -53,6 +55,11 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
   const [category, setCategory] = useState('')
   const [roles, setRoles] = useState('')
   const [tagsInput, setTagsInput] = useState('')
+  const [aliases, setAliases] = useState<string[]>([])
+  const [newAlias, setNewAlias] = useState('')
+  const [aliasBusy, setAliasBusy] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const [mergePending, setMergePending] = useState(false)
 
   const open = skillId != null
 
@@ -69,6 +76,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
         setCategory(d.category ?? '')
         setRoles(d.roles ?? '')
         setTagsInput((d.tags ?? []).join(', '))
+        setAliases(d.aliases ?? [])
       })
       .catch(() => active && setError('Unable to load skill details.'))
       .finally(() => active && setLoading(false))
@@ -100,6 +108,54 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
       setError('Failed to save changes. Please try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAddAlias = async () => {
+    if (skillId == null) return
+    const alias = newAlias.trim()
+    if (!alias || aliases.includes(alias)) return
+    setAliasBusy(true)
+    setError(null)
+    try {
+      const updated = await skillApi.addAlias(skillId, alias)
+      setAliases(updated.aliases ?? [...aliases, alias])
+      setNewAlias('')
+      queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] })
+    } catch {
+      setError('Failed to add alias.')
+    } finally {
+      setAliasBusy(false)
+    }
+  }
+
+  const handleRemoveAlias = async (alias: string) => {
+    if (skillId == null) return
+    setAliasBusy(true)
+    setError(null)
+    try {
+      const updated = await skillApi.removeAlias(skillId, alias)
+      setAliases(updated.aliases ?? aliases.filter((a) => a !== alias))
+      queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] })
+    } catch {
+      setError('Failed to remove alias.')
+    } finally {
+      setAliasBusy(false)
+    }
+  }
+
+  const handleMerge = async (targetId: number) => {
+    if (skillId == null) return
+    setMergePending(true)
+    setError(null)
+    try {
+      await skillApi.merge(targetId, [skillId])
+      queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] })
+      onOpenChange(null)
+    } catch {
+      setError('Failed to merge skill.')
+    } finally {
+      setMergePending(false)
     }
   }
 
@@ -164,6 +220,48 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
                 </div>
               </Field>
 
+              <Field label="Aliases" hint="Other names for this skill (e.g. 'ReactJS' for 'React')">
+                <div className="space-y-2">
+                  {aliases.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {aliases.map((a) => (
+                        <Badge key={a} variant="outline" className="gap-1 pr-1 text-2xs">
+                          {a}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAlias(a)}
+                            className="rounded-full p-0.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                            aria-label={`Remove alias ${a}`}
+                            disabled={aliasBusy}
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-2xs text-muted-foreground">No aliases yet.</p>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={newAlias}
+                      onChange={(e) => setNewAlias(e.target.value)}
+                      placeholder="Add alias..."
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddAlias() } }}
+                    />
+                    <Button type="button" size="icon" variant="outline" className="h-7 w-7 shrink-0" onClick={handleAddAlias} disabled={aliasBusy || !newAlias.trim()} aria-label="Add alias">
+                      {aliasBusy ? <CircleNotch className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                    </Button>
+                  </div>
+                </div>
+              </Field>
+
+              <div className="pt-1">
+                <Button variant="outline" size="sm" className="h-7 text-2xs gap-1" onClick={() => setMergeOpen(true)}>
+                  <GitMerge className="w-3 h-3" /> Merge into another skill
+                </Button>
+              </div>
+
               {error && (
                 <div className="flex items-start gap-1 text-xs text-destructive bg-destructive/10 rounded p-2">
                   <Warning className="w-3.5 h-3.5 shrink-0" />
@@ -186,6 +284,13 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
           </div>
         )}
       </SheetContent>
+      <MergeSkillDialog
+        skill={skillId != null ? { id: skillId, name } : null}
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        onMerge={handleMerge}
+        pending={mergePending}
+      />
     </Sheet>
   )
 }

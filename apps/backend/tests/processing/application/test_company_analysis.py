@@ -27,6 +27,7 @@ from processing.application.workflows.company_analysis.nodes import (
     ExecutionFailedNode,
     LoadContextNode,
     PersistCompanyNode,
+    PersistCompanySkillsNode,
     PrepareCompanyNode,
     RecommendCompanyNode,
     ScoreCompanyNode,
@@ -104,6 +105,33 @@ class _LLMResponse:
         self.content = content
 
 
+class FakeSkillRepo:
+    def __init__(self):
+        self.mentions = []
+        self.skills = []
+
+    def resolve_skill(self, data):
+        self.skills.append(dict(data))
+        return len(self.skills)
+
+    def delete_mentions_for_source(self, source_type, source_id):
+        self.mentions = [
+            m for m in self.mentions if not (m["source_type"] == source_type and m["source_id"] == source_id)
+        ]
+
+    def upsert_mentions(self, skill_id, source_type, source_id, status, evidence):
+        self.mentions = [
+            m for m in self.mentions if not (m["skill_id"] == skill_id and m["source_type"] == source_type and m["source_id"] == source_id)
+        ]
+        self.mentions.append({
+            "skill_id": skill_id,
+            "source_type": source_type,
+            "source_id": source_id,
+            "status": status,
+            "evidence": evidence,
+        })
+
+
 def _valid_payload(**overrides) -> dict:
     data = {
         "extraction": {
@@ -125,6 +153,11 @@ def _valid_payload(**overrides) -> dict:
             "work_environment": {"remote_policy": "Hybrid"},
             "funding_stage": "Series A",
             "funding_amount": "€10M",
+            "skills": [
+                {"name": "Python", "category": "backend", "evidence": "Uses Python."},
+                {"name": "Kubernetes", "category": "infrastructure"},
+                "PostgreSQL",
+            ],
         },
         "intelligence": {
             "overview": {"description": "A growing dev-tools company.", "size": "50-200 employees"},
@@ -216,6 +249,25 @@ class TestCompanyCombinedAnalysisOutput:
         output = CompanyCombinedAnalysisOutput.model_validate(payload)
         assert output.scores.fit == 100
         assert output.scores.success == 0
+
+    def test_skills_coerced_from_dicts_and_strings(self):
+        payload = _valid_payload()
+        payload["extraction"]["skills"] = [
+            {"name": "Python", "category": "backend", "evidence": "Used widely"},
+            "PostgreSQL",
+            {"name": "   "},
+        ]
+        output = CompanyCombinedAnalysisOutput.model_validate(payload)
+        names = [s.name for s in output.extraction.skills]
+        assert names == ["Python", "PostgreSQL"]
+        assert output.extraction.skills[0].category == "backend"
+        assert output.extraction.skills[0].evidence == "Used widely"
+
+    def test_skills_default_empty(self):
+        payload = _valid_payload()
+        payload["extraction"].pop("skills", None)
+        output = CompanyCombinedAnalysisOutput.model_validate(payload)
+        assert output.extraction.skills == []
 
 
 # --------------------------------------------------------------------------- #
@@ -484,6 +536,72 @@ class TestPersistCompanyNode:
         assert any("persist" in e for e in state.errors)
 
 
+class TestPersistCompanySkillsNode:
+    def test_persists_mentions_from_extraction_skills(self):
+        repo = FakeSkillRepo()
+        node = PersistCompanySkillsNode(repo)
+        state = _state_with_company()
+        state.analysis_result = build_company_analysis_result(_valid_payload())
+
+        node(state)
+
+        assert state.status != ExecutionStatus.FAILED
+        assert len(repo.skills) == 3
+        assert {s["name"] for s in repo.skills} == {"Python", "Kubernetes", "PostgreSQL"}
+        assert all(s["source_type"] == "ai_generated" for s in repo.skills)
+        assert len(repo.mentions) == 3
+        assert all(m["source_type"] == "company" and m["source_id"] == "company-uuid-1" for m in repo.mentions)
+
+    def test_reprocessing_replaces_mentions(self):
+        repo = FakeSkillRepo()
+        node = PersistCompanySkillsNode(repo)
+        state = _state_with_company()
+        state.analysis_result = build_company_analysis_result(_valid_payload())
+
+        node(state)
+        node(state)
+
+        assert len(repo.mentions) == 3
+        assert len(repo.skills) == 6
+
+    def test_missing_skills_is_noop(self):
+        repo = FakeSkillRepo()
+        node = PersistCompanySkillsNode(repo)
+        state = _state_with_company()
+        state.analysis_result = build_company_analysis_result({
+            "extraction": {"name": "Acme GmbH", "skills": []},
+            "intelligence": {},
+            "recommendation": {},
+            "scores": {"fit": 50, "success": 50},
+        })
+
+        node(state)
+
+        assert state.status != ExecutionStatus.FAILED
+        assert repo.mentions == []
+
+    def test_none_skill_repo_is_noop(self):
+        node = PersistCompanySkillsNode(None)
+        state = _state_with_company()
+        state.analysis_result = build_company_analysis_result(_valid_payload())
+
+        node(state)
+
+        assert state.status != ExecutionStatus.FAILED
+
+    def test_error_marks_failed(self):
+        repo = FakeSkillRepo()
+        node = PersistCompanySkillsNode(repo)
+        state = _state_with_company()
+        state.analysis_result = build_company_analysis_result(_valid_payload())
+        repo.resolve_skill = lambda data: (_ for _ in ()).throw(RuntimeError("db down"))
+
+        node(state)
+
+        assert state.status == ExecutionStatus.FAILED
+        assert any("persist" in e for e in state.errors)
+
+
 class TestTerminalNodes:
     def test_analysis_ready(self):
         state = AnalysisReadyNode()(_state_with_company())
@@ -506,6 +624,7 @@ class TestCompanyAnalysisGraph:
         return CompanyAnalysisGraph(
             company_service=FakeCompanyService(_company_dict()),
             rule_repo=FakeRuleRepo(),
+            skill_repo=FakeSkillRepo(),
             llm_service=llm or FakeLLMService(_valid_payload()),
             event_publisher=RecordingEventPublisher(),
         )
@@ -531,7 +650,6 @@ class TestCompanyAnalysisGraph:
         )
         state = graph.invoke(_initial_state())
         assert state.status == ExecutionStatus.FAILED
-
     def test_invalid_llm_payload_fails(self):
         graph = self._graph(llm=FakeLLMService({"bad": "payload"}))
         state = graph.invoke(_state_with_company())

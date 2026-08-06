@@ -20,6 +20,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Demand', field: 'market_relevance' },
   { label: 'Confidence', field: 'confidence' },
   { label: 'Created', field: 'created_at' },
+  { label: 'Mentions', field: 'mention_count' },
   { label: 'Actions' },
 ]
 

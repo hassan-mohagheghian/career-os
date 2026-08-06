@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.types import Numeric
 
 from skills.domain.repositories.skill_repository import ISkillRepository
-from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel, SkillRelationshipModel
+from skills.infrastructure.models.skill_model import (
+    SkillModel,
+    SkillAliasModel,
+    SkillRelationshipModel,
+    SkillMentionModel,
+)
 from skills.infrastructure.mappers import skill_model_to_dict
 
 
@@ -91,6 +96,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
             return False
 
         self._session.query(SkillAliasModel).filter(SkillAliasModel.skill_id == skill_id).delete()
+        self._session.query(SkillMentionModel).filter(SkillMentionModel.skill_id == skill_id).delete()
         self._session.delete(model)
         self._session.commit()
         return True
@@ -167,6 +173,9 @@ class SQLAlchemySkillRepository(ISkillRepository):
                     normalized_name=source_name.lower(),
                 ))
 
+            # Fold mention links onto the target skill
+            self._fold_mentions(target_id, sid)
+
             source.hidden = 1
             merged.append(source_name)
 
@@ -180,6 +189,26 @@ class SQLAlchemySkillRepository(ISkillRepository):
             "merged": merged,
             "aliases": aliases,
         }
+
+    def _fold_mentions(self, target_id: int, source_id: int) -> None:
+        """Re-point source skill mention rows to the target skill. When a mention
+        already exists for the same (source_type, source_id) on the target, skip
+        the duplicate so the unique constraint is respected."""
+        existing_keys = set()
+        for row in self._session.query(
+            SkillMentionModel.source_type, SkillMentionModel.source_id
+        ).filter(SkillMentionModel.skill_id == target_id).all():
+            existing_keys.add((row[0], row[1]))
+
+        for row in self._session.query(SkillMentionModel).filter(
+            SkillMentionModel.skill_id == source_id
+        ).all():
+            key = (row.source_type, row.source_id)
+            if key in existing_keys:
+                self._session.delete(row)
+                continue
+            row.skill_id = target_id
+            existing_keys.add(key)
 
     def get_categories(self) -> list[dict[str, Any]]:
         rows = self._session.query(
@@ -259,6 +288,113 @@ class SQLAlchemySkillRepository(ISkillRepository):
         self._session.query(SkillRelationshipModel).filter(SkillRelationshipModel.id == rel_id).delete()
         self._session.commit()
         return True
+
+    # ── Skill mentions (job/company demand links) ───────────────────
+
+    def resolve_skill(self, data: dict[str, Any]) -> int:
+        """Resolve a skill row by exact name, then by alias. Creates the row
+        (source_type="ai_generated") when neither matches."""
+        name = (data.get("name") or "").strip()
+        if not name:
+            raise ValueError("Skill name is required")
+
+        existing = self._session.query(SkillModel).filter(SkillModel.name == name).first()
+        if not existing:
+            existing = self._session.query(SkillModel).join(
+                SkillAliasModel, SkillAliasModel.skill_id == SkillModel.id
+            ).filter(SkillAliasModel.alias_name == name).first()
+
+        if existing:
+            return existing.id
+
+        m = SkillModel(
+            name=name,
+            level=data.get("level", 1),
+            roles=data.get("roles", ""),
+            path=data.get("path", ""),
+            source=data.get("source", "service"),
+            source_type=data.get("source_type", "ai_generated"),
+            category=data.get("category", ""),
+            confidence=data.get("confidence", 0),
+            market_relevance=data.get("market_relevance", 0),
+            evidence=data.get("evidence", "[]"),
+            tags=data.get("tags", "[]"),
+        )
+        self._session.add(m)
+        self._session.commit()
+        self._session.refresh(m)
+        return m.id
+
+    def upsert_mentions(self, skill_id: int, source_type: str, source_id: str, status: str = "", evidence: str = "[]") -> None:
+        """Upsert a skill mention link for a job/company source."""
+        existing = self._session.query(SkillMentionModel).filter(
+            SkillMentionModel.skill_id == skill_id,
+            SkillMentionModel.source_type == source_type,
+            SkillMentionModel.source_id == source_id,
+        ).first()
+        if existing:
+            existing.status = status or existing.status
+            existing.evidence = evidence or existing.evidence
+        else:
+            self._session.add(SkillMentionModel(
+                skill_id=skill_id,
+                source_type=source_type,
+                source_id=source_id,
+                status=status,
+                evidence=evidence,
+            ))
+        self._session.commit()
+
+    def delete_mentions_for_source(self, source_type: str, source_id: str) -> None:
+        """Delete all mention links for a job/company source."""
+        self._session.query(SkillMentionModel).filter(
+            SkillMentionModel.source_type == source_type,
+            SkillMentionModel.source_id == source_id,
+        ).delete()
+        self._session.commit()
+
+    def get_mention_counts(self, skill_ids: list[int]) -> dict[int, int]:
+        """Return {skill_id: total mention count} for the given skill ids."""
+        if not skill_ids:
+            return {}
+        rows = self._session.query(
+            SkillMentionModel.skill_id, func.count(SkillMentionModel.id)
+        ).filter(SkillMentionModel.skill_id.in_(skill_ids)).group_by(SkillMentionModel.skill_id).all()
+        return {r[0]: r[1] for r in rows}
+
+    def add_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Add an alias to a skill. Returns the updated skill or None."""
+        alias = alias_name.strip()
+        if not alias:
+            return None
+        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        if not model:
+            return None
+
+        exists = self._session.query(SkillAliasModel).filter(
+            SkillAliasModel.skill_id == skill_id,
+            SkillAliasModel.alias_name == alias,
+        ).first()
+        if not exists:
+            self._session.add(SkillAliasModel(
+                skill_id=skill_id,
+                alias_name=alias,
+                normalized_name=alias.lower(),
+            ))
+            self._session.commit()
+        return self.get_by_id(skill_id)
+
+    def remove_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Remove an alias from a skill. Returns the updated skill or None."""
+        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        if not model:
+            return None
+        self._session.query(SkillAliasModel).filter(
+            SkillAliasModel.skill_id == skill_id,
+            SkillAliasModel.alias_name == alias_name,
+        ).delete()
+        self._session.commit()
+        return self.get_by_id(skill_id)
 
     # ── Extended methods for services ───────────────────────────────
 

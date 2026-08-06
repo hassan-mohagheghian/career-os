@@ -6,6 +6,7 @@ def __getattr__(name: str):
         "SkillModel": ("skills.infrastructure.models.skill_model", "SkillModel"),
         "SkillAliasModel": ("skills.infrastructure.models.skill_model", "SkillAliasModel"),
         "SkillRelationshipModel": ("skills.infrastructure.models.skill_model", "SkillRelationshipModel"),
+        "SkillMentionModel": ("skills.infrastructure.models.skill_model", "SkillMentionModel"),
         "SkillRoadmapModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapModel"),
         "SkillRoadmapProgressModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapProgressModel"),
         "SkillRoadmapJobModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapJobModel"),
@@ -27,7 +28,7 @@ def __getattr__(name: str):
 
 
 __all__ = [
-    "SkillModel", "SkillAliasModel", "SkillRelationshipModel",
+    "SkillModel", "SkillAliasModel", "SkillRelationshipModel", "SkillMentionModel",
     "SkillRoadmapModel", "SkillRoadmapProgressModel", "SkillRoadmapJobModel",
     "SQLAlchemySkillRepository", "SQLAlchemySkillAliasRepository",
     "SQLAlchemySkillRelationshipRepository", "SQLAlchemySkillRoadmapRepository",

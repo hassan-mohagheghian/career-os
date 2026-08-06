@@ -17,6 +17,8 @@ function makeSkill(overrides: Partial<SkillListItem> = {}): SkillListItem {
     evidence: null,
     tags: ['containers', 'k8s'],
     aliases: [],
+    source_type: 'user_input',
+    mention_count: 0,
     created_at: '2026-08-01T00:00:00Z',
     ...overrides,
   }
@@ -57,6 +59,26 @@ describe('SkillRow', () => {
   it('shows the alias badge when aliases exist', () => {
     renderRow(makeSkill({ aliases: ['K8s'] }))
     expect(screen.getByText('1 alias')).toBeInTheDocument()
+  })
+
+  it('shows an AI origin badge for ai_generated skills', () => {
+    renderRow(makeSkill({ source_type: 'ai_generated' }))
+    expect(screen.getByText('AI')).toBeInTheDocument()
+  })
+
+  it('shows a Manual origin badge for user_input skills', () => {
+    renderRow(makeSkill({ source_type: 'user_input' }))
+    expect(screen.getByText('Manual')).toBeInTheDocument()
+  })
+
+  it('shows the mention count', () => {
+    renderRow(makeSkill({ mention_count: 7 }))
+    expect(screen.getByText('7')).toBeInTheDocument()
+  })
+
+  it('shows zero mentions', () => {
+    renderRow(makeSkill({ mention_count: 0 }))
+    expect(screen.getByText('0')).toBeInTheDocument()
   })
 
   it('calls onViewDetails on row click', () => {

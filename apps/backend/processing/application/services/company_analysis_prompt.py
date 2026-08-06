@@ -14,8 +14,8 @@ from typing import Any
 
 from shared.infrastructure.prompts.loader import load_prompt
 
-COMPANY_ANALYSIS_PROMPT_VERSION = "1.1.0"
-COMPANY_ANALYSIS_SCHEMA_VERSION = "1.1.0"
+COMPANY_ANALYSIS_PROMPT_VERSION = "1.2.0"
+COMPANY_ANALYSIS_SCHEMA_VERSION = "1.2.0"
 
 _COMBINED_PROMPT_NAME = "company/company_combined_analyze"
 
@@ -52,6 +52,18 @@ def build_company_analysis_output_schema() -> dict[str, Any]:
                     "work_environment": nullable_object,
                     "funding_stage": nullable_str,
                     "funding_amount": nullable_str,
+                    "skills": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "category": {"type": "string"},
+                                "evidence": {"type": "string"},
+                            },
+                            "required": ["name"],
+                        },
+                    },
                 },
             },
             "intelligence": {

@@ -54,11 +54,11 @@ Skills Page
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Search .........................                                          [Category ▾] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Name │ Category │ Level │ Roles │ Demand │ Confidence │ Created │ Actions    │
+│ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
 │───────────────────────────────────────────────────────────────────────────────│
-│ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%        │ 2m      │ ⋯          │
-│ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%        │ 5m      │ ⋯          │
-│ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%        │ 1h      │ ⋯          │
+│ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
+│ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
+│ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
 │                                                                               │
 │                                        Loading more skills...                 │
 │                                                                               │
@@ -178,13 +178,14 @@ Configuration
 
 | Column     | Description                                        |
 | ---------- | -------------------------------------------------- |
-| Name       | Skill name + alias count badge                     |
+| Name       | Skill name + origin badge (AI/Manual) + alias count badge |
 | Category   | Canonical category badge                           |
 | Level      | Skill proficiency level (Lv.1 … Lv.10)             |
 | Roles      | Relevant roles                                     |
 | Demand     | Market demand percentage                           |
 | Confidence | AI confidence percentage                           |
 | Created    | Relative creation time                             |
+| Mentions   | Total job/company mentions referencing this skill (sortable) |
 | Actions    | Row actions (Details, Edit, Delete)                |
 
 ---
@@ -193,10 +194,16 @@ Configuration
 
 ## Name
 
-Displays the skill name and, when aliases exist, an alias count badge.
+Displays the skill name and, when aliases exist, an alias count badge. An origin
+badge indicates where the skill came from:
+
+| Badge   | `source_type`      | Meaning             |
+| ------- | ------------------ | ------------------- |
+| AI      | `ai_generated`     | Created by processing (job/company analysis) |
+| Manual  | `user_input`       | Created by the user |
 
 ```text
-Kubernetes  2 aliases
+Kubernetes  [AI]  2 aliases
 ```
 
 ---
@@ -244,6 +251,14 @@ Displays the AI confidence as a percentage using the same thresholds.
 
 ---
 
+## Mentions
+
+Displays the total number of job/company analysis mentions that reference this
+skill. A nonzero count is highlighted; zero renders muted. The column is
+sortable (see Sorting below).
+
+---
+
 # Row Actions
 
 Each row provides three icon actions (tooltip buttons):
@@ -283,8 +298,21 @@ The Edit drawer (Sheet) edits:
 - Category (canonical select)
 - Relevant Roles
 - Tags (comma-separated)
+- **Aliases** — add/remove alternate names via `POST`/`DELETE
+  /api/skills/{id}/aliases`
+- **Merge** — "Merge into another skill" opens the Merge Skill dialog
+  (`POST /api/skills/merge`)
 
 Saving calls `PUT /api/skills/{id}` and invalidates the list query.
+
+---
+
+# Merge Skill Dialog
+
+The Merge dialog searches visible skills (excluding the current skill), lets the
+user pick a target, and merges the current skill into it. Mentions, roadmaps,
+and progress re-point to the target; the source skill becomes a hidden alias.
+The dialog mirrors the Companies "Relate Company" UX.
 
 ---
 
@@ -312,6 +340,7 @@ Supported sort fields (backend, NULLS LAST):
 - `level`
 - `confidence`
 - `market_relevance`
+- `mention_count`
 
 Sorting is always performed by the backend. Rows where the sort column is empty
 sort last in both directions.

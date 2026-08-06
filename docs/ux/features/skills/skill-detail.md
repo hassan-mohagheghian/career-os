@@ -11,7 +11,7 @@ user manage its learning roadmap.
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ </> Kubernetes (engineering)                       ✕  Edit │
+│ </> Kubernetes (engineering) [AI]                 ✕  Edit │
 ├────────────────────────────────────────────────────────────┤
 │ [Details]  [Roadmap]  [History]                           │
 │                                                            │
@@ -41,7 +41,7 @@ user manage its learning roadmap.
 
 | Element      | Behavior                                         |
 | ------------ | ------------------------------------------------ |
-| Title        | Skill name + CategoryBadge.                      |
+| Title        | Skill name + CategoryBadge + OriginBadge.        |
 | Edit button  | Switches to the Edit drawer (`onEdit`).          |
 | Close        | Closes the drawer, clears `?skill=` param.       |
 

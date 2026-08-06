@@ -60,10 +60,10 @@ docs/ux/
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
 │   └── skills/
 │       ├── page.md            Skills page (list, toolbar, infinite scroll, drawers)
-│       ├── skill-row.md       Skill row columns, category badges, level, actions
+│       ├── skill-row.md       Skill row columns, origin/alias badges, mentions, actions
 │       ├── skill-detail.md    Skill Detail drawer (Details/Roadmap/History tabs)
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
-│       └── edit-skill.md      Edit Skill drawer
+│       └── edit-skill.md      Edit Skill drawer (aliases, merge)
 └── flows/
     ├── companies/
     │   ├── browse-companies.md  Browse, search, filter, sort, open details
@@ -81,7 +81,8 @@ docs/ux/
     ├── rules/
         └── reorder-rules.md   Move up/down + drag reorder, priority math, clamping
     └── skills/
-        └── browse-skills.md   Browse, search, filter, sort, open details
+        ├── browse-skills.md   Browse, search, filter, sort, open details
+        └── merge-skills.md    Merge a duplicate skill into a canonical one
 ```
 
 ## Current Focus

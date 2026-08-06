@@ -298,11 +298,14 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/skills/list` | GET | — | `SkillListResponse` | Paginated, searchable, filterable, sortable skill list (cursor-based) |
 | `/api/skills` | POST | `SkillCreate` | `SkillResponse` | Create skill |
 | `/api/skills/{id}` | PUT | `SkillUpdate` | `SkillResponse` | Update skill |
+| `/api/skills/{id}` | GET | — | `SkillResponse` | Get single skill (aliases, tags) |
 | `/api/skills/{id}` | DELETE | — | `{"success": true}` | Delete skill |
 | `/api/skills/{id}/hide` | PATCH | — | `SkillResponse` | Soft-delete skill |
 | `/api/skills/{id}/restore` | PATCH | — | `SkillResponse` | Restore hidden skill |
 | `/api/skills/{id}/rename` | PATCH | `RenameSkill` | `SkillResponse` | Rename skill |
-| `/api/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills |
+| `/api/skills/{id}/aliases` | POST | `SkillAliasAdd` | `SkillResponse` | Add an alias |
+| `/api/skills/{id}/aliases/{alias_name}` | DELETE | — | `SkillResponse` | Remove an alias |
+| `/api/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills (folds mentions) |
 | `/api/skills/categories` | GET | — | `CategoryList` | List categories |
 | `/api/skills/stats` | GET | — | `SkillStats` | Skill statistics |
 

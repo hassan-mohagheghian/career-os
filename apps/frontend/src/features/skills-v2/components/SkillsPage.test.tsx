@@ -31,6 +31,8 @@ function makeSkill(id: number, name: string): SkillListItem {
     evidence: null,
     tags: [],
     aliases: [],
+    source_type: 'user_input',
+    mention_count: 0,
     created_at: '2026-08-01T00:00:00Z',
   }
 }
