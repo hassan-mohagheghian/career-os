@@ -98,6 +98,14 @@ keeps its own ordering:
 
 ## Scores
 
+The scores shown in the header (grade badge + Fit / Success / Overall cards)
+and in the breakdown are exactly the scores **calculated by company
+processing** (`company_fit_score` / `company_success_score` → weighted overall),
+persisted into `company.intelligence.scores` and surfaced through the
+normalized top-level `company.scores` field. The drawer reads `company.scores`
+first and falls back to the raw `intelligence.scores` dict; this mirrors the Job
+Detail drawer, which reads the same normalized `scores` payload.
+
 Full score breakdown:
 
 - Overall grade card (derived from the overall score via the shared grade helper)

@@ -32,11 +32,15 @@ Rows are never expandable. Selecting a row opens the Company Detail drawer.
 [A+]  F 85   S 90   O 88
 ```
 
-The overall grade badge is derived from the overall score via the shared grade
-helper (`A++` ≥ 90, `A+` ≥ 80, `A` ≥ 70, `B` ≥ 50, `C` ≥ 30, `D` ≥ 0) and sits
-inline next to the Fit / Success / Overall values. Null scores render `—` and
-no grade renders `—`. Color matches the shared grade tokens (A++/A+ green, A
-lime, B blue, C orange, D red).
+The Fit / Success / Overall values and the grade badge are exactly the scores
+**calculated by company processing** (fit / success → weighted overall, stored
+in `company.intelligence.scores` and surfaced as the normalized `scores` field
+by `GET /api/companies/list`). The row prefers the processing-computed
+`scores.overall_grade` and only falls back to deriving the grade from the
+overall score via the shared grade helper (`A++` ≥ 90, `A+` ≥ 80, `A` ≥ 70,
+`B` ≥ 50, `C` ≥ 30, `D` ≥ 0). Null scores render `—` and no grade renders `—`.
+Color matches the shared grade tokens (A++/A+ green, A lime, B blue, C orange,
+D red).
 
 ---
 

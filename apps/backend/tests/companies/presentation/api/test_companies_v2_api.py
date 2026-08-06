@@ -3,9 +3,13 @@
 import json
 import uuid
 
+from companies.application.services.company_service import CompanyService
 from companies.infrastructure.models.company_model import CompanyModel, CompanyIntelligenceModel
+from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
 from jobs.infrastructure.models.job_model import JobModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
+from processing.application.services.company_analysis_scoring import build_company_analysis_result
 from processing.domain.enums import ExecutionType, ExecutionStatus
 
 
@@ -315,3 +319,82 @@ class TestCompanyRelationsAPI:
         company = self._create(sa_session, "Acme GmbH")
         resp = client.put(f"/api/companies/{company.id}/main", json={"main_company_id": "ghost"})
         assert resp.status_code == 404
+
+
+class TestCompanyScoresFromProcessing:
+    """The list row scores and detail scores must be exactly what company
+    processing computed (build_company_analysis_result → persist_analysis)."""
+
+    @staticmethod
+    def _processed_scores() -> dict:
+        return build_company_analysis_result({
+            "extraction": {"name": "Acme GmbH", "industry": "Software"},
+            "intelligence": {"overview": {"description": "Dev tools"}},
+            "recommendation": {"priority": "A", "action": "Apply"},
+            "scores": {
+                "company_fit_score": 88,
+                "company_success_score": 72,
+                "fit_explanation": "Strong Python alignment.",
+                "success_explanation": "English-first Berlin team.",
+            },
+        })["scores"]
+
+    def test_list_row_scores_reflect_processing(self, client, sa_session):
+        company = _create_company(sa_session, name="Acme GmbH", status="processed")
+        scores = self._processed_scores()
+
+        CompanyService(
+            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyIntelligenceRepository(sa_session),
+        ).persist_analysis(
+            company.id,
+            extraction={"name": "Acme GmbH", "industry": "Software"},
+            intelligence={"overview": {"description": "Dev tools"}},
+            recommendation={"priority": "A", "action": "Apply"},
+            scores=scores,
+        )
+
+        item = client.get("/api/companies/list").json()["items"][0]
+        assert item["name"] == "Acme GmbH"
+        assert item["scores"]["fit"] == 88
+        assert item["scores"]["success"] == 72
+        assert item["scores"]["overall"] == 80
+        assert item["scores"]["overall_grade"] == "A+"
+
+    def test_detail_scores_match_intelligence_and_processing(self, client, sa_session):
+        company = _create_company(sa_session, name="Acme GmbH", status="processed")
+        scores = self._processed_scores()
+
+        CompanyService(
+            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyIntelligenceRepository(sa_session),
+        ).persist_analysis(
+            company.id,
+            extraction={"name": "Acme GmbH"},
+            intelligence={"overview": {"description": "Dev tools"}},
+            recommendation={"priority": "A"},
+            scores=scores,
+        )
+
+        detail = client.get(f"/api/companies/{company.id}").json()
+        assert detail["scores"]["fit"] == 88
+        assert detail["scores"]["success"] == 72
+        assert detail["scores"]["overall"] == 80
+        assert detail["scores"]["overall_grade"] == "A+"
+
+        intel_scores = detail["intelligence"]["scores"]
+        assert intel_scores["company_fit_score"] == 88
+        assert intel_scores["company_success_score"] == 72
+        assert intel_scores["company_overall_score"] == 80
+        assert intel_scores["overall_grade"] == "A+"
+        assert intel_scores["fit"] == 88
+        assert intel_scores["success"] == 72
+        assert intel_scores["overall"] == 80
+
+    def test_company_without_processing_has_null_scores(self, client, sa_session):
+        _create_company(sa_session, name="Unprocessed Co", status="created")
+        item = client.get("/api/companies/list").json()["items"][0]
+        assert item["scores"]["overall"] is None
+        assert item["scores"]["fit"] is None
+        assert item["scores"]["success"] is None
+        assert item["scores"]["overall_grade"] is None

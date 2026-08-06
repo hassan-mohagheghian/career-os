@@ -1,0 +1,81 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
+import { CompanyRow } from './CompanyRow'
+import type { CompanyListItem } from '@/entities/company/types'
+
+function makeCompany(overrides: Partial<CompanyListItem> = {}): CompanyListItem {
+  return {
+    id: 'company-1',
+    name: 'Acme GmbH',
+    industry: 'Software',
+    city: 'Berlin',
+    country: 'Germany',
+    company_size: '50-200',
+    company_type: 'PRODUCT_COMPANY',
+    logo_url: null,
+    website: null,
+    description: null,
+    job_count: 3,
+    scores: { overall: null, fit: null, success: null, overall_grade: null },
+    processing: { status: null, current_node: null, progress_pct: null, error: null },
+    latest_processing_execution: null,
+    parent_company_id: null,
+    main_company: null,
+    alias_count: 0,
+    is_alias: false,
+    updated_at: null,
+    created_at: '2026-08-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function renderRow(company: CompanyListItem) {
+  return render(
+    <CompanyRow
+      company={company}
+      onViewDetails={vi.fn()}
+      onReprocess={vi.fn()}
+      onEdit={vi.fn()}
+      onDelete={vi.fn()}
+    />
+  )
+}
+
+describe('CompanyRow scores', () => {
+  it('renders the processing-computed fit, success and overall values', () => {
+    renderRow(makeCompany({ scores: { overall: 80, fit: 88, success: 72, overall_grade: 'A+' } }))
+
+    expect(screen.getByText('88')).toBeInTheDocument()
+    expect(screen.getByText('72')).toBeInTheDocument()
+    expect(screen.getByText('80')).toBeInTheDocument()
+    expect(screen.getByText('A+')).toBeInTheDocument()
+  })
+
+  it('shows the overall_grade computed by processing when present', () => {
+    renderRow(makeCompany({ scores: { overall: 80, fit: 88, success: 72, overall_grade: 'A+' } }))
+    expect(screen.getByText('A+')).toBeInTheDocument()
+  })
+
+  it('falls back to deriving the grade from the overall score', () => {
+    renderRow(makeCompany({ scores: { overall: 85, fit: 88, success: 72, overall_grade: null } }))
+    expect(screen.getByText('A+')).toBeInTheDocument()
+  })
+
+  it('renders placeholders when there is no processing score', () => {
+    renderRow(makeCompany({ scores: { overall: null, fit: null, success: null, overall_grade: null } }))
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+    expect(screen.queryByText('A+')).not.toBeInTheDocument()
+  })
+
+  it('shows the alias badge for alias companies', () => {
+    renderRow(makeCompany({
+      scores: { overall: 80, fit: 88, success: 72, overall_grade: 'A+' },
+      is_alias: true,
+      main_company: { id: 'company-2', name: 'Acme SE' },
+      parent_company_id: 'company-2',
+    }))
+    expect(screen.getByText('alias')).toBeInTheDocument()
+  })
+})

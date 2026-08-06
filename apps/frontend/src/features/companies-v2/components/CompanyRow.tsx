@@ -19,7 +19,7 @@ interface CompanyRowProps {
 export function CompanyRow({
   company, onViewDetails, onReprocess, onEdit, onDelete,
 }: CompanyRowProps) {
-  const grade = company.scores?.overall != null ? gradeForScore(company.scores.overall) : (company.scores?.overall_grade ?? null)
+  const grade = company.scores?.overall_grade ?? (company.scores?.overall != null ? gradeForScore(company.scores.overall) : null)
   const processingStatus = company.processing?.status ?? null
 
   return (

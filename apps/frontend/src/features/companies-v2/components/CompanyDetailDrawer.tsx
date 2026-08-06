@@ -6,7 +6,7 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { CircleNotch, MapPin, Users, Briefcase, LinkSimple, Repeat, Trash } from '@phosphor-icons/react'
-import type { CompanyDetail, CompanyIntelligence, CompanyIntelligenceScores } from '@/entities/company/types'
+import type { CompanyDetail, CompanyIntelligence, CompanyIntelligenceScores, CompanyScores } from '@/entities/company/types'
 import { useCompanyQuery } from '@/entities/company/hooks'
 import CompanyJobsTab from '@/features/companies/components/CompanyJobsTab'
 import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
@@ -105,11 +105,13 @@ function CompanyDetailContent({
   onDelete, onReprocess, onOpenJobsRelation, onOpenJob, onNavigateToJob, onViewAllJobs,
 }: CompanyDetailContentProps) {
   const intel = company.intelligence
-  const scores = intel?.scores || {}
-  const fitScore = scores.company_fit_score ?? null
-  const successScore = scores.company_success_score ?? null
-  const overallScore = scores.company_overall_score ?? null
-  const overallGrade = overallScore != null ? gradeForScore(overallScore) : (scores.overall_grade || scores.fit_grade || null)
+  const rawScores = (intel?.scores || {}) as CompanyIntelligenceScores
+  const normalized = company.scores ?? ({} as CompanyScores)
+  const fitScore = normalized.fit ?? rawScores.company_fit_score ?? null
+  const successScore = normalized.success ?? rawScores.company_success_score ?? null
+  const overallScore = normalized.overall ?? rawScores.company_overall_score ?? null
+  const overallGrade = normalized.overall_grade
+    ?? (overallScore != null ? gradeForScore(overallScore) : (rawScores.overall_grade || rawScores.fit_grade || null))
 
   return (
     <div className="space-y-4 px-4 py-4 min-w-0">
@@ -169,7 +171,7 @@ function CompanyDetailContent({
 
       <CompanyIntelligenceSection company={company} intel={intel} isRecruiter={isRecruiterType(company.company_type)} />
 
-      <CompanyScoresSection intel={intel} />
+      <CompanyScoresSection intel={intel} scores={company.scores} />
 
       {company.jobs && company.jobs.length > 0 && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
@@ -433,26 +435,31 @@ function CompanyIntelligenceSection({ company, intel, isRecruiter }: {
   )
 }
 
-function CompanyScoresSection({ intel }: { intel: CompanyIntelligence | null | undefined }) {
-  if (!intel) {
+function CompanyScoresSection({ intel, scores }: {
+  intel: CompanyIntelligence | null | undefined
+  scores?: CompanyScores | null
+}) {
+  const intelScores = (intel?.scores || {}) as CompanyIntelligenceScores
+  const normalized = scores ?? ({} as CompanyScores)
+  const fitScore = normalized.fit ?? (typeof intelScores.company_fit_score === 'number' ? intelScores.company_fit_score : null)
+  const successScore = normalized.success ?? (typeof intelScores.company_success_score === 'number' ? intelScores.company_success_score : null)
+  const overallScore = normalized.overall ?? (typeof intelScores.company_overall_score === 'number' ? intelScores.company_overall_score : null)
+  const overallGrade = normalized.overall_grade
+    ?? (overallScore != null
+      ? gradeForScore(overallScore)
+      : typeof intelScores.overall_grade === 'string'
+        ? intelScores.overall_grade
+        : typeof intelScores.fit_grade === 'string'
+          ? intelScores.fit_grade
+          : '—')
+
+  if (!intel && !scores) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center">
         <p className="text-sm text-muted-foreground">No scores available yet.</p>
       </div>
     )
   }
-
-  const scores = (intel.scores || {}) as CompanyIntelligenceScores
-  const fitScore = typeof scores.company_fit_score === 'number' ? scores.company_fit_score : null
-  const successScore = typeof scores.company_success_score === 'number' ? scores.company_success_score : null
-  const overallScore = typeof scores.company_overall_score === 'number' ? scores.company_overall_score : null
-  const overallGrade = overallScore != null
-    ? gradeForScore(overallScore)
-    : typeof scores.overall_grade === 'string'
-      ? scores.overall_grade
-      : typeof scores.fit_grade === 'string'
-        ? scores.fit_grade
-        : '—'
 
   const FactorList = ({ title, items, color }: { title: string; items: unknown[]; color: string }) => (
     items.length > 0 ? (
@@ -463,12 +470,12 @@ function CompanyScoresSection({ intel }: { intel: CompanyIntelligence | null | u
     ) : null
   )
 
-  const fitExplanation = typeof scores.fit_explanation === 'string' ? scores.fit_explanation : null
-  const successExplanation = typeof scores.success_explanation === 'string' ? scores.success_explanation : null
-  const fitPositive = Array.isArray(scores.fit_positive_factors) ? scores.fit_positive_factors as unknown[] : []
-  const fitNegative = Array.isArray(scores.fit_negative_factors) ? scores.fit_negative_factors as unknown[] : []
-  const successPositive = Array.isArray(scores.success_positive_factors) ? scores.success_positive_factors as unknown[] : []
-  const successNegative = Array.isArray(scores.success_negative_factors) ? scores.success_negative_factors as unknown[] : []
+  const fitExplanation = typeof intelScores.fit_explanation === 'string' ? intelScores.fit_explanation : null
+  const successExplanation = typeof intelScores.success_explanation === 'string' ? intelScores.success_explanation : null
+  const fitPositive = Array.isArray(intelScores.fit_positive_factors) ? intelScores.fit_positive_factors as unknown[] : []
+  const fitNegative = Array.isArray(intelScores.fit_negative_factors) ? intelScores.fit_negative_factors as unknown[] : []
+  const successPositive = Array.isArray(intelScores.success_positive_factors) ? intelScores.success_positive_factors as unknown[] : []
+  const successNegative = Array.isArray(intelScores.success_negative_factors) ? intelScores.success_negative_factors as unknown[] : []
 
   return (
     <div className="space-y-4">

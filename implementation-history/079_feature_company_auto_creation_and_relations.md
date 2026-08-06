@@ -164,6 +164,15 @@ Implemented in full (2026-08-06):
 - **Release**: bumped to `3.3.0` (VERSION, CHANGELOG, pyproject, package.json);
   `./scripts/check-version.sh` passes.
 
+Follow-up (score-source verification, 2026-08-06): confirmed the company list
+row scores and the Company Detail drawer scores are exactly what company
+processing computed (`build_company_analysis_result` → `persist_analysis` →
+`company_intelligence.scores` → normalized `scores` field on list/detail).
+Added backend integration tests proving processing→list and processing→detail
+score parity, made the drawer read the normalized `company.scores` first
+(fallback to `intelligence.scores`), made the row prefer the processing-
+computed `overall_grade`, and added vitest coverage for both.
+
 Known pre-existing baseline issues (untouched by this feature): frontend `tsc
 --noEmit` fails on ~112 lines (ConfirmDialog, DuplicateJobDialog, ResumeTab, ...)
 and `next lint`/`eslint` have no valid config in this checkout.
