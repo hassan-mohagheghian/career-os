@@ -6,10 +6,10 @@ import { Button } from '@/shared/ui/button'
 import { CompaniesHeader } from './CompaniesHeader'
 import { CompaniesToolbar } from './CompaniesToolbar'
 import { CompaniesTable } from './CompaniesTable'
-import { CompanyQueueDrawer } from './CompanyQueueDrawer'
 import { CompanyDetailDrawer } from './CompanyDetailDrawer'
 import { CompanyEditDrawer } from './CompanyEditDrawer'
 import CreateEntityDrawer, { type CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
+import { ProcessingDrawer } from '@/shared/components/ProcessingDrawer'
 import { useCreateCompany } from '@/features/companies-v2/hooks/useCreateCompany'
 import { toast } from 'sonner'
 
@@ -37,7 +37,8 @@ interface CompaniesPageProps {
   onReprocess: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
-  pendingTotal: number
+  onRelate: (companyId: string, mainCompanyId: string | null) => void
+  relatePending: boolean
   queueDrawerOpen: boolean
   onQueueDrawerOpenChange: (open: boolean) => void
   addCompanyDrawerOpen: boolean
@@ -59,7 +60,7 @@ export function CompaniesPage({
   filterIndustry, onFilterIndustryChange,
   activeFilterCount, onClearFilters,
   onViewDetails, onReprocess, onEdit, onDelete,
-  pendingTotal,
+  onRelate, relatePending,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addCompanyDrawerOpen, onAddCompanyDrawerOpenChange,
   detailCompanyId, onDetailCompanyIdChange,
@@ -89,7 +90,6 @@ export function CompaniesPage({
         <CompaniesHeader
           total={total}
           loadedCount={loadedCount}
-          pendingTotal={pendingTotal}
           onOpenQueue={() => onQueueDrawerOpenChange(true)}
           onAddCompany={() => onAddCompanyDrawerOpenChange(true)}
         />
@@ -111,7 +111,6 @@ export function CompaniesPage({
       <CompaniesHeader
         total={total}
         loadedCount={loadedCount}
-        pendingTotal={pendingTotal}
         onOpenQueue={() => onQueueDrawerOpenChange(true)}
         onAddCompany={() => onAddCompanyDrawerOpenChange(true)}
       />
@@ -140,15 +139,18 @@ export function CompaniesPage({
         order={order}
         onSortChange={onSortChange}
       />
-      <CompanyQueueDrawer
+      <ProcessingDrawer
         open={queueDrawerOpen}
         onOpenChange={onQueueDrawerOpenChange}
+        targetType="company"
       />
       <CompanyDetailDrawer
         companyId={detailCompanyId}
         onOpenChange={onDetailCompanyIdChange}
         onDelete={onDelete}
         onReprocess={onReprocess}
+        onRelate={onRelate}
+        relatePending={relatePending}
         onOpenJob={onOpenJob}
         onNavigateToJob={onNavigateToJob}
         onViewAllJobs={onViewAllJobs}

@@ -86,7 +86,7 @@
 jobs ── company ── company_intelligence
   │                  └── company_links
   ├── resumes
-  └── pending_jobs (processing queue)
+  └── processing_executions (processing queue)
 
 skills ── skill_aliases
   ├── skill_relationships
@@ -184,7 +184,7 @@ app/
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                  Application Services                    │
-│              (worker.py, company_worker.py)              │
+│                 (processing runner)                      │
 └─────────────────────────┬───────────────────────────────┘
                           │
               ┌───────────▼───────────┐
@@ -238,7 +238,10 @@ persist → jobs row projection + summaries (legacy grade) + job_analysis table 
 ### Company Processing
 
 ```
-Notes/Links → pending_companies → CompanyWorker (Template Method) → LLMService → fetch → extract → analyze → save to companies + company_intelligence
+POST /api/companies (queue:true) → ProcessingExecution (COMPANY_PROCESSING)
+  Phase 1 (no LLM): load company → collect sources → fetch → extract → build context → validate → persist context
+  Phase 2 (one LLM call): load context → prepare profile → analyze → extract → score → persist
+→ save to companies + company_intelligence, SSE events with target_type=company
 ```
 
 ### Insights Generation
@@ -272,7 +275,7 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 - **FastAPI + python-socketio**: Async-native with automatic OpenAPI docs, request validation via Pydantic v2
 - **Feature-based frontend**: Each feature owns its components, hooks, and types
 - **Concurrency lock**: Only one insights generation at a time
-- **Version tracking**: `version` column on pending_jobs/companies for retry counting
+- **Version tracking**: `version` column on processing executions for retry counting
 - **Session resumption**: Previous session_id enables continuing interrupted AI sessions
 - **Stale run recovery**: On startup, stuck `processing` jobs marked `failed`
 - **Font size system**: Custom Tailwind tokens `text-3xs` (6px) and `text-2xs` (8px) for dense dashboard UI
@@ -280,7 +283,7 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 - **Notes+Links input**: Both jobs and companies accept multi-source input (URL + text notes + labeled links)
 - **Provider abstraction**: LLMService wraps all AI calls — never call providers directly
 - **LangGraph workflows**: Composable, stateful processing pipelines for multi-step AI operations
-- **Template Method pattern**: WorkerBase with Worker subclasses (JobWorker, CompanyWorker, GenerationWorker)
+- **Template Method pattern**: WorkerBase with Worker subclasses (JobWorker, GenerationWorker)
 - **LLMService via Provider abstraction**: Swap providers (Mimo, OpenAI, Local, Gemini, ...) via `AI_PROVIDER` env var
 - **DDD/OOP/SOLID/TDD**: Follow domain-driven design, OOP, SOLID principles, and test-driven development
 
@@ -313,9 +316,9 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 
 | Endpoint                 | Method     | Purpose                  |
 | ------------------------ | ---------- | ------------------------ |
-| `/api/companies`         | GET/POST   | Company CRUD             |
+| `/api/companies`         | GET/POST   | Company CRUD; POST creates + queues processing (intake) |
 | `/api/companies/:id`     | GET/DELETE | Company details/delete   |
-| `/api/pending-companies` | GET/POST   | Company processing queue |
+| `/api/companies/:id/reprocess` | POST | Re-queue company processing (returns `{status, execution_id}`) |
 
 ### Skills
 
@@ -353,8 +356,6 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 
 | Endpoint                  | Method   | Purpose                                                          |
 | ------------------------- | -------- | ---------------------------------------------------------------- |
-| `/api/pending`            | GET/POST | Job queue                                                        |
-| `/api/pending-companies`  | GET/POST | Company processing queue                                         |
 | `/api/rules`              | GET/PUT  | Scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
 | `/api/generation-history` | GET      | Unified generation history (5 source tables)                     |
 | `/api/health`             | GET      | Health check                                                     |

@@ -65,3 +65,15 @@ describe('JobRow recommendation', () => {
     expect(container.textContent).toContain('—')
   })
 })
+
+describe('JobRow grade', () => {
+  it('renders a grade badge derived from the overall score', () => {
+    renderRow(makeJob({ scores: { overall: 92, fit: 90, success: 85 } }))
+    expect(screen.getByText('A++')).toBeInTheDocument()
+  })
+
+  it('renders an em dash when there is no overall score', () => {
+    const { container } = renderRow(makeJob())
+    expect(container.textContent).toContain('—')
+  })
+})

@@ -1,5 +1,72 @@
 # Changelog
 
+## [3.3.0] — 2026-08-06
+
+### Added
+
+- **Companies are auto-created and linked during job processing.** The single
+  job-analysis LLM call now also extracts a `company_url`; after the job is
+  persisted, a best-effort `link_company` step matches the extracted company
+  against existing ones (website domain, root-domain + loose name, normalized
+  exact name, then conservative fuzzy match ≥ 0.88) and sets `job.company_id`.
+  On no match, a minimal company is created with `status=created` and
+  `source=job` — never auto-queued for processing. Company enrichment remains
+  the responsibility of the Companies page.
+- **Main / alias company relations.** A company can be related to a main
+  company (`parent_company_id`); relating re-points all non-deleted jobs of the
+  alias (and its own aliases) onto the main, consolidating scores and
+  intelligence on a single reference record. Managed from the Company Detail
+  drawer via the new Relate Company dialog (`PUT /api/companies/{id}/main`).
+- **Relation fields exposed on company APIs.** `GET /api/companies/list` and
+  `GET /api/companies/{id}` now return `parent_company_id`, `main_company`,
+  `is_alias`, and `alias_count`; the job detail endpoint returns `company_id`.
+- **UI:** `alias` badge on alias companies in the Companies list, a Related
+  Companies section in the Company Detail drawer, a searchable Relate Company
+  dialog, and a clickable company link in the Job Detail drawer that deep-links
+  to the company's detail page.
+
+### Changed
+
+- Job-analysis prompt version bumped to `1.2.0` (adds `company_url` to the
+  single `job.analyze` LLM call schema).
+
+## [3.2.0] — 2026-08-05
+
+### Added
+
+- **Company processing now runs through the ProcessingExecution lifecycle** — the
+  legacy pending-company queue and company worker graph were removed. Companies
+  are created via `POST /api/companies` (which returns `{id, status,
+  execution_id?}`) and, when queued, go through a two-phase workflow mirroring
+  jobs: a context-preparation phase (no LLM) followed by a single-LLM-call
+  analysis phase. `POST /api/companies/{id}/reprocess` queues a new execution
+  and returns its id. The companies list exposes `latest_processing_execution`,
+  and deleting a company hard-deletes its executions, links and intelligence.
+- **Target-scoped processing events** — SSE events now carry `target_type`
+  (`job` | `company`) and `target_id` on the envelope and payload, and queue
+  entries expose `target_type`/`target_id` so the processing queue drawer can
+  show jobs and companies side by side (the shared ProcessingDrawer gained a
+  `targetType` prop; the company Queue button now opens it filtered to
+  companies).
+- **`company.companies.raw_content` column** — new per-context Alembic migration
+  `company_003_add_companies_raw_content` (the flat `versions/026_...` migration
+  was dead code and never applied).
+
+### Fixed
+
+- **Company intelligence/link insert collisions** — `company_intelligence` and
+  `company_links` rows seeded with explicit ids left their SERIAL sequences
+  behind, so new `autoincrement` inserts collided with an existing primary key
+  (`UniqueViolation pk_company_intelligence` on `persist_company`). Migration
+  `company_004_sync_sequences` re-aligns both sequences to `max(id)+1`.
+
+### Changed
+
+- Removed the legacy `/api/pending-companies*` endpoints, the company worker
+  (`companies/infrastructure/workers/`), the company taskiq helpers and the
+  company processing graph under `ai/infrastructure/graphs/company/`.
+- `CompanyModel.status` now uses the shared `JobStatus` vocabulary.
+
 ## [3.1.0] — 2026-08-05
 
 ### Added

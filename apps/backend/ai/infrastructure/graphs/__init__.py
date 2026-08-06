@@ -8,7 +8,6 @@ Each graph is a self-contained workflow that:
 
 Graph Registry:
 - job_processing: Job posting analysis pipeline
-- company_processing: Company intelligence pipeline
 - resume_generation: Tailored resume creation
 - cover_letter_generation: Cover letter creation
 - skill_extraction: Skill extraction from job postings
@@ -26,13 +25,10 @@ from .runtime.state import (
     BaseState,
     create_initial_state,
     JobProcessingState,
-    CompanyProcessingState,
     SkillRoadmapState,
     CheckpointConfig,
     JobExtractionOutput,
     JobAnalysisOutput,
-    CompanyExtractionOutput,
-    CompanyAnalysisOutput,
     ResumeOutput,
     CoverLetterOutput,
     SkillExtractionOutput,
@@ -49,14 +45,12 @@ def get_all_graphs() -> dict[str, GraphBuilder]:
         Dict mapping graph name to GraphBuilder instance.
     """
     from .job.graph import build_job_processing_graph
-    from .company.graph import build_company_processing_graph
     from jobs.infrastructure.ai.graphs.generator import build_resume_generation_graph
     from jobs.infrastructure.ai.graphs.cover_letter import build_cover_letter_graph
     from .skills.extraction import build_skill_extraction_graph
     from .skills.roadmap import build_skill_roadmap_graph
     return {
         "job_processing": build_job_processing_graph(),
-        "company_processing": build_company_processing_graph(),
         "resume_generation": build_resume_generation_graph(),
         "cover_letter_generation": build_cover_letter_graph(),
         "skill_extraction": build_skill_extraction_graph(),
@@ -87,13 +81,10 @@ __all__ = [
     "BaseState",
     "create_initial_state",
     "JobProcessingState",
-    "CompanyProcessingState",
     "SkillRoadmapState",
     "CheckpointConfig",
     "JobExtractionOutput",
     "JobAnalysisOutput",
-    "CompanyExtractionOutput",
-    "CompanyAnalysisOutput",
     "ResumeOutput",
     "CoverLetterOutput",
     "SkillExtractionOutput",

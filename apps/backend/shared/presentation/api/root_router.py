@@ -198,130 +198,35 @@ def link_job_to_company(job_id: str, data: dict):
 
 @api_router.post("/companies/{id}/reprocess")
 def reprocess_company(id: str, session: Session = Depends(get_session_sync)):
-    from shared.infrastructure.taskiq.client import enqueue_company_sync
     from companies.infrastructure import SQLAlchemyCompanyRepository
+    from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
+    from processing.domain.enums import ExecutionType
+    from processing.application.use_cases.create_processing_execution import (
+        CreateProcessingExecutionRequest,
+        CreateProcessingExecutionUseCase,
+    )
+    from processing.application.services.dispatch_processing_execution import (
+        DispatchProcessingExecutionService,
+    )
+
     company_repo = SQLAlchemyCompanyRepository(session)
     company = company_repo.get_by_id(id)
     if not company:
         return {"error": "Not found"}
-    company_repo.update_fields(id, status='queued', error=None, updated_at=datetime.now(UTC).isoformat())
+
+    company_repo.update_fields(id, status="queued", error=None, updated_at=datetime.now(UTC).isoformat())
     session.commit()
-    enqueue_company_sync(id)
-    return {"status": "queued"}
 
-
-@api_router.get("/pending-companies")
-def list_pending_companies(session: Session = Depends(get_session_sync)):
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    return repo.list_pending("pending_companies")
-
-
-@api_router.post("/pending-companies")
-def create_pending_company(data: dict, session: Session = Depends(get_session_sync)):
-    import json
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingCompanyRepository(session)
-
-    notes = data.get("notes", [])
-    links = data.get("links", [])
-
-    all_notes = list(notes)
-    for link in links:
-        url = link.get("url", link) if isinstance(link, dict) else str(link)
-        title = link.get("title", "") if isinstance(link, dict) else ""
-        all_notes.append({"type": "url", "content": url, "title": title})
-
-    input_text = data.get("input_text", data.get("name", ""))
-    if not input_text and all_notes:
-        input_text = all_notes[0].get("content", "")
-
-    result = repo.create_pending_company(
-        input_text=input_text,
-        input_type=data.get("input_type", "url"),
-        source=data.get("source", "web"),
-        status="created",
-        notes=json.dumps(all_notes),
-        name=data.get("name") or None,
+    exec_repo = SQLAlchemyProcessingExecutionRepository(session)
+    use_case = CreateProcessingExecutionUseCase(exec_repo)
+    request = CreateProcessingExecutionRequest(
+        execution_type=ExecutionType.COMPANY_PROCESSING,
+        target_type="company",
+        target_id=id,
     )
-    pid = result["id"]
-    if data.get("queue", True):
-        enqueue_company_sync(pid)
-    return repo.get_by_id(str(pid), "pending_companies")
-
-
-@api_router.post("/pending-companies/queue-all")
-def queue_all_pending_companies(session: Session = Depends(get_session_sync)):
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    items = repo.list_pending("pending_companies")
-    for item in items:
-        enqueue_company_sync(item['id'])
-    return {"status": "queued", "count": len(items)}
-
-
-@api_router.get("/pending-companies/{item_id}")
-def get_pending_company(item_id: str, session: Session = Depends(get_session_sync)):
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    result = repo.get_by_id(str(item_id), "pending_companies")
-    if result is None:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    return result
-
-
-@api_router.delete("/pending-companies/{item_id}")
-def delete_pending_company(item_id: str, session: Session = Depends(get_session_sync)):
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    ok = repo.delete(item_id, "pending_companies")
-    if not ok:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    return {"status": "deleted"}
-
-
-@api_router.post("/pending-companies/{item_id}/notes")
-def add_pending_company_notes(item_id: str, data: dict = None, session: Session = Depends(get_session_sync)):
-    import json
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    item = repo.get_by_id(str(item_id), "pending_companies")
-    if not item:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    existing_notes = json.loads(item.get('notes', '[]'))
-    new_notes = (data or {}).get('notes', [])
-    notes = existing_notes + new_notes
-    repo.update_fields(str(item_id), table="pending_companies", notes=json.dumps(notes))
-    return {"status": "updated", "notes": notes}
-
-
-@api_router.post("/pending-companies/{item_id}/links")
-def add_pending_company_links(item_id: str, data: dict = None, session: Session = Depends(get_session_sync)):
-    import json
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from fastapi.responses import JSONResponse
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    item = repo.get_by_id(str(item_id), "pending_companies")
-    if not item:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    new_links = (data or {}).get('links', [])
-    repo.update_fields(str(item_id), table="pending_companies", notes=json.dumps(new_links))
-    return {"status": "updated", "links": new_links}
-
-
-@api_router.post("/pending-companies/{item_id}/process")
-def process_pending_company(item_id: str, session: Session = Depends(get_session_sync)):
-    from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
-    from shared.infrastructure.taskiq.client import enqueue_company_sync
-    repo = SQLAlchemyPendingCompanyRepository(session)
-    repo.update_fields(item_id, table="pending_companies", status="queued")
-    enqueue_company_sync(item_id)
-    return {"status": "queued"}
+    response = use_case.execute(request)
+    DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
+    return {"status": "queued", "execution_id": response.execution_id}
 
 
 # ── Resume compat routes ────────────────────────────────────────

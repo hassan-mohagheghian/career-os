@@ -57,13 +57,13 @@ The system is divided into six bounded contexts, each representing a distinct bu
 - Store and manage resume versions
 - Link resumes to jobs
 
-### 6. Pending
-**Responsibility**: Job and company processing queue management.
+### 6. Processing
+**Responsibility**: Execution queue and workflow state for jobs and companies (GET /api/processing/queue, SSE events at /events/processing).
 
-**Core Entities**: `PendingJob`
+**Core Entities**: `ProcessingExecution`
 
 **Key Behaviors**:
-- Manage processing queue (pending → queued → processing → done/failed)
+- Manage execution queue (pending → queued → processing → done/failed)
 - Track step-by-step progress
 - Handle cancellation and reset
 - Manage generation requests
@@ -82,31 +82,33 @@ The `shared/` context provides infrastructure and domain primitives used by all 
 ## Context Map
 
 ```
-                    ┌─────────────┐
-                    │   Pending   │
-                    │  (Queue)    │
-                    └──────┬──────┘
-                           │ enqueues
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │   Jobs   │ │Companies │ │  Resume  │
-        │          │ │          │ │          │
-        └────┬─────┘ └────┬─────┘ └────┬─────┘
-             │            │            │
-             │  provides  │  provides  │
-             ▼            ▼            ▼
-        ┌──────────────────────────────────┐
-        │            Career                │
-        │    (Insights & Intelligence)     │
-        └──────────────────────────────────┘
-                       │
-                       ▼
-        ┌──────────────────────────────────┐
-        │            Skills                │
-        │   (Roadmaps & Relationships)     │
-        └──────────────────────────────────┘
+                    ┌───────────────────┐
+                    │   Processing      │
+                    │ (Execution Queue) │
+                    └─────────┬─────────┘
+                              │ enqueues
+               ┌──────────────┼──────────────┐
+               ▼              ▼              ▼
+         ┌──────────┐   ┌──────────┐   ┌──────────┐
+         │   Jobs   │   │Companies │   │  Resume  │
+         │          │   │          │   │          │
+         └────┬─────┘   └────┬─────┘   └────┬─────┘
+              │              │              │
+              │  provides    │  provides    │
+              ▼              ▼              ▼
+     ┌─────────────────────────────────────────┐
+     │              Career                     │
+     │      (Insights & Intelligence)          │
+     └─────────────────────────────────────────┘
+                         │
+                         ▼
+     ┌─────────────────────────────────────────┐
+     │              Skills                     │
+     │     (Roadmaps & Relationships)          │
+     └─────────────────────────────────────────┘
 ```
+
+The Processing (Execution Queue) context enqueues both job and company processing (and resume generation).
 
 ## Integration Patterns
 

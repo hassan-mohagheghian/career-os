@@ -59,6 +59,8 @@ class ExecutionActionService:
             execution.id,
             self._job_id(execution),
             execution.status.value,
+            target_type=execution.target_type,
+            target_id=execution.target_id,
             updated_at=datetime.now(UTC).isoformat(),
         )
         return {
@@ -91,6 +93,8 @@ class ExecutionActionService:
             execution.id,
             self._job_id(execution),
             ExecutionStatus.CANCELLED.value,
+            target_type=execution.target_type,
+            target_id=execution.target_id,
             updated_at=cancelled_at.isoformat(),
         )
         return {
@@ -140,6 +144,8 @@ class ExecutionActionService:
                 execution.id,
                 self._job_id(execution),
                 ExecutionStatus.CANCELLED.value,
+                target_type=execution.target_type,
+                target_id=execution.target_id,
                 updated_at=cancelled_at.isoformat(),
             )
         elif execution.status == ExecutionStatus.FAILED:
@@ -154,6 +160,8 @@ class ExecutionActionService:
                 execution.id,
                 self._job_id(execution),
                 ExecutionStatus.CANCELLED.value,
+                target_type=execution.target_type,
+                target_id=execution.target_id,
             )
         else:
             raise ConflictError(

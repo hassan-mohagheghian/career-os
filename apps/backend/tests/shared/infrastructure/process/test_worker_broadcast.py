@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
 from shared.infrastructure.database.sqlalchemy_config import Base
 from jobs.infrastructure.models.job_model import JobModel
-from companies.infrastructure.models.company_model import CompanyModel
 
 
 @pytest.fixture
@@ -27,14 +26,6 @@ def _insert_pending_job(session, url, status):
     global _counter
     _counter += 1
     m = JobModel(id=str(uuid.uuid7()), url=url, source='cli', status=status)
-    session.add(m)
-    session.commit()
-    session.refresh(m)
-    return m.id
-
-
-def _insert_pending_company(session, input_text, status):
-    m = CompanyModel(name=input_text, source='web', status=status)
     session.add(m)
     session.commit()
     session.refresh(m)
@@ -110,77 +101,6 @@ class TestWorkerBroadcasting:
             event = mock_broadcaster.step_update.call_args[0][0]
             assert event.step == 'session_id'
             assert event.extra['session_id'] == 'sess_abc123'
-
-
-class TestCompanyWorkerBroadcasting:
-    """Test that company_worker.py emits SocketIO events via broadcaster."""
-
-    def test_update_step_emits_event(self, sa_test_db):
-        cid = _insert_pending_company(sa_test_db, 'https://example.com/company', 'processing')
-        mock_broadcaster = MagicMock()
-        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_test_db), \
-             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
-            from companies.infrastructure.workers.company_worker import _update_step
-            _update_step(cid, 'step_fetch', 1)
-            mock_broadcaster.step_update.assert_called_once()
-            event = mock_broadcaster.step_update.call_args[0][0]
-            assert event.table == 'company'
-            assert event.pid == cid
-            assert event.step == 'step_fetch'
-            assert event.val == 1
-
-    def test_update_step_with_status_emits_extra(self, sa_test_db):
-        cid = _insert_pending_company(sa_test_db, 'https://example.com/company', 'queued')
-        mock_broadcaster = MagicMock()
-        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_test_db), \
-             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
-            from companies.infrastructure.workers.company_worker import _update_step
-            _update_step(cid, 'step_fetch', 0, status='processing')
-            event = mock_broadcaster.step_update.call_args[0][0]
-            assert event.val == 0
-            assert event.extra['status'] == 'processing'
-
-    def test_log_emits_event(self, sa_test_db):
-        cid = _insert_pending_company(sa_test_db, 'https://example.com/company', 'processing')
-        mock_broadcaster = MagicMock()
-        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_test_db), \
-             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
-            from companies.infrastructure.workers.company_worker import _log
-            _log(cid, 'fetch', 'Fetching URL...')
-            mock_broadcaster.log.assert_called_once()
-            event = mock_broadcaster.log.call_args[0][0]
-            assert event.table == 'company'
-            assert event.pid == cid
-            assert event.step == 'fetch'
-            assert event.msg == 'Fetching URL...'
-
-    def test_fail_emits_error_event(self, sa_test_db):
-        cid = _insert_pending_company(sa_test_db, 'https://example.com/company', 'processing')
-        mock_broadcaster = MagicMock()
-        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_test_db), \
-             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
-            from companies.infrastructure.workers.company_worker import _fail
-            _fail(cid, 'Page not found', step='fetch')
-            mock_broadcaster.error.assert_called_once()
-            event = mock_broadcaster.error.call_args[0][0]
-            assert event.table == 'company'
-            assert event.pid == cid
-            assert 'Page not found' in event.msg
-            assert event.step == 'fetch'
-
-    def test_save_session_id_persists_and_broadcasts(self, sa_test_db):
-        cid = _insert_pending_company(sa_test_db, 'https://example.com/company', 'processing')
-        mock_broadcaster = MagicMock()
-        with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_test_db), \
-             patch('companies.infrastructure.workers.company_worker.broadcaster', mock_broadcaster):
-            from companies.infrastructure.workers.company_worker import _save_session_id
-            _save_session_id(cid, 'sess_xyz789')
-            row = sa_test_db.query(CompanyModel).filter(CompanyModel.id == cid).first()
-            assert row.session_id == 'sess_xyz789'
-            mock_broadcaster.step_update.assert_called_once()
-            event = mock_broadcaster.step_update.call_args[0][0]
-            assert event.step == 'session_id'
-            assert event.extra['session_id'] == 'sess_xyz789'
 
 
 class TestBroadcasterLogging:

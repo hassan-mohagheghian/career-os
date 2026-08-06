@@ -6,7 +6,12 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon } from '@phosphor-icons/react'
 import { jobApi } from '@/entities/job/api'
 import type { JobDetail, JobDetailWorkflowStep } from '@/entities/job/types'
+import { setSearchParam } from '@/shared/lib/url'
 import DateTime from '@/shared/components/DateTime'
+import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
+import { GradeBadge } from '@/shared/components/GradeBadge'
+import { gradeForScore } from '@/shared/lib/grade'
+import { RecommendationBadge } from './RecommendationBadge'
 
 interface JobDetailDrawerProps {
   jobId: string | null
@@ -70,26 +75,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analysis']> }) {
-  const recommendation = analysis.recommendation
-
   return (
     <div className="space-y-4">
       <Section title="AI Analysis">
-        <div className="flex items-center gap-2 mb-2">
-          <Badge>
-            {recommendation === 'apply' && 'Apply'}
-            {recommendation === 'consider' && 'Consider'}
-            {recommendation === 'skip' && 'Skip'}
-            {!recommendation && '—'}
-          </Badge>
-          {analysis.generated_at && (
-            <span className="text-2xs text-muted-foreground">
-              <DateTime value={analysis.generated_at} />
-            </span>
-          )}
-        </div>
-        {analysis.apply_reason && (
-          <p className="text-xs text-foreground whitespace-pre-wrap">{analysis.apply_reason}</p>
+        {analysis.generated_at && (
+          <span className="text-2xs text-muted-foreground">
+            Generated <DateTime value={analysis.generated_at} />
+          </span>
         )}
         {analysis.insights && analysis.insights.length > 0 && (
           <ul className="mt-2 space-y-1">
@@ -182,7 +174,17 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
     <div className="space-y-4 px-4 py-4 min-w-0">
       <div>
         <h2 className="text-base font-semibold text-foreground">{detail.title || detail.role || 'Untitled'}</h2>
-        <p className="text-sm text-muted-foreground">{detail.company_name || 'Unknown'}</p>
+        {detail.company_id ? (
+          <a
+            href={`/companies?company=${detail.company_id}`}
+            onClick={(e) => { e.preventDefault(); setSearchParam('company', detail.company_id!) }}
+            className="text-sm text-primary hover:underline"
+          >
+            {detail.company_name || 'Linked Company'}
+          </a>
+        ) : (
+          <p className="text-sm text-muted-foreground">{detail.company_name || 'Unknown'}</p>
+        )}
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
           {detail.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{detail.location}</span>}
           {detail.work_types && detail.work_types.length > 0 && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{detail.work_types.join(', ')}</span>}
@@ -200,7 +202,7 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
           <p className="text-lg font-semibold text-foreground">{detail.scores?.overall ?? '—'}</p>
           <p className="text-2xs text-muted-foreground">Overall</p>
@@ -213,7 +215,30 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
           <p className="text-lg font-semibold text-foreground">{detail.scores?.success ?? '—'}</p>
           <p className="text-2xs text-muted-foreground">Success</p>
         </div>
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
+          <div className="flex items-center justify-center min-h-6">
+            <GradeBadge grade={gradeForScore(detail.scores?.overall ?? null)} />
+          </div>
+          <p className="text-2xs text-muted-foreground">Grade</p>
+        </div>
       </div>
+
+      {detail.analysis?.recommendation && (
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Recommendation</p>
+          <div className="flex items-center gap-2 mb-2">
+            <RecommendationBadge recommendation={detail.analysis.recommendation} />
+            {detail.analysis.generated_at && (
+              <span className="text-2xs text-muted-foreground">
+                <DateTime value={detail.analysis.generated_at} />
+              </span>
+            )}
+          </div>
+          {detail.analysis.apply_reason && (
+            <p className="text-xs text-foreground whitespace-pre-wrap">{detail.analysis.apply_reason}</p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
         <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Details</p>
@@ -246,29 +271,10 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         </div>
       )}
       {detail.notes && detail.notes.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
-          <div className="space-y-1.5">
-            {detail.notes.map((n, i) => (
-              <div key={i} className="text-xs text-foreground whitespace-pre-wrap">
-                {n.title && <span className="font-medium">{n.title}: </span>}
-                {n.content}
-              </div>
-            ))}
-          </div>
-        </div>
+        <NotesLinksReadOnly notes={detail.notes} links={[]} heading="Notes" />
       )}
       {detail.links && detail.links.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Links</p>
-          <div className="space-y-1.5">
-            {detail.links.map((l, i) => (
-              <a key={i} href={l.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline break-all">
-                {l.title || l.url}
-              </a>
-            ))}
-          </div>
-        </div>
+        <NotesLinksReadOnly notes={[]} links={detail.links} heading="Links" />
       )}
     </div>
   )

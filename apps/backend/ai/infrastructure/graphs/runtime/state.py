@@ -68,16 +68,6 @@ class JobProcessingState(BaseState):
     session_id: str
 
 
-class CompanyProcessingState(BaseState):
-    raw_content: str
-    company_name: str
-    company_type: str
-    extraction_data: dict[str, Any]
-    intelligence_data: dict[str, Any]
-    scores: dict[str, Any]
-    company_id: Optional[str]
-
-
 class SkillRoadmapState(BaseState):
     skill_name: str
     job_type: str
@@ -147,25 +137,6 @@ class JobAnalysisOutput(BaseModel):
     success_score: Optional[float] = None
     overall_score: Optional[float] = None
     summary: str = ""
-
-
-class CompanyExtractionOutput(BaseModel):
-    name: str = ""
-    company_type: str = ""
-    industry: str = ""
-    size: str = ""
-    location: str = ""
-    website: str = ""
-    description: str = ""
-    tech_stack: list[str] = Field(default_factory=list)
-    visa_sponsorship: Optional[bool] = None
-
-
-class CompanyAnalysisOutput(BaseModel):
-    extraction: CompanyExtractionOutput = Field(default_factory=CompanyExtractionOutput)
-    scores: dict[str, Any] = Field(default_factory=dict)
-    intelligence: dict[str, Any] = Field(default_factory=dict)
-    rules: dict[str, Any] = Field(default_factory=dict)
 
 
 class ResumeOutput(BaseModel):

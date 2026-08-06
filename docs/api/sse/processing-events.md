@@ -123,6 +123,8 @@ Example:
   "timestamp": "2026-01-01T10:00:00Z",
   "job_id": "job-id",
   "execution_id": "execution-id",
+  "target_type": "job",
+  "target_id": "job-id",
   "payload": {}
 }
 ```
@@ -134,9 +136,19 @@ Fields:
 | id           | Unique event identifier                |
 | type         | Event type                             |
 | timestamp    | Event creation time                    |
-| job_id       | Related Job identifier                 |
+| job_id       | Related Job identifier (legacy; may be null) |
 | execution_id | Related ProcessingExecution identifier |
-| payload      | Event specific data                    |
+| target_type  | Processing target kind: `job` or `company` |
+| target_id    | Identifier of the processing target (job id or company UUID) |
+| payload      | Event specific data (mirrors `target_type` / `target_id`) |
+
+> Every lifecycle event (`execution.created` / `started` / `completed` /
+> `failed` / `cancelled` and `queue.entry.removed`) carries `target_type` and
+> `target_id` on both the envelope and the payload. The frontend routes the
+> event to the right react-query cache (`jobs-v2-infinite` for jobs,
+> `companies-v2-infinite` + `company-detail` for companies) using
+> `data.target_type`. Companies fall back to `job_id` semantics via
+> `target_id`.
 
 ---
 
@@ -187,9 +199,10 @@ Triggered when execution finishes successfully.
 Purpose:
 
 - Remove item from Processing Queue.
-- Update Job state.
-- Frontend refetches the job detail (`['job-detail', jobId]`) so the new
-  scores + analysis block appear live in the Job Details drawer.
+- Update Job or Company state.
+- Frontend refetches the target detail (`['job-detail', jobId]` for jobs,
+  `['company-detail', companyId]` for companies) so the new scores + analysis
+  block appear live in the detail drawer.
 
 Payload:
 
@@ -210,8 +223,8 @@ Purpose:
 
 - Show failed state.
 - Display failure reason.
-- Frontend refetches the job detail (`['job-detail', jobId]`) to clear stale
-  analysis data.
+- Frontend refetches the target detail (`['job-detail', jobId]` /
+  `['company-detail', companyId]`) to clear stale analysis data.
 
 Payload:
 
@@ -452,9 +465,10 @@ Workflow step events are applied directly to the in-memory workflow tree via a
 local merge (`mergeWorkflowStep`), so step/child progress renders instantly
 without a REST round-trip. REST is only re-fetched when needed: on drawer open,
 on `execution.created`, and on lifecycle/queue changes. In addition,
-`useProcessingEvents.ts` invalidates the `['job-detail', jobId]` react-query
-query on `execution.completed` and `execution.failed`, so the Job Details
-drawer refetches and shows the persisted scores + analysis block live.
+`useProcessingEvents.ts` invalidates the target detail react-query query
+(`['job-detail', jobId]` or `['company-detail', companyId]` depending on
+`data.target_type`) on `execution.completed` and `execution.failed`, so the
+detail drawer refetches and shows the persisted scores + analysis block live.
 
 Flow:
 

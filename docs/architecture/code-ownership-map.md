@@ -28,7 +28,6 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | `domain/repositories/` | `company_repository.py`, `company_link_repository.py`, `company_intelligence_repository.py` | Repository interfaces |
 | `infrastructure/models/` | `company_model.py` | SQLAlchemy models |
 | `infrastructure/repositories/` | `sa_company_repository.py`, `sa_company_link_repository.py`, `sa_company_intelligence_repository.py` | Repository implementations |
-| `infrastructure/workers/` | `company_worker.py` | Company processing worker |
 | `infrastructure/ai/prompts/` | `company/*.txt` | AI prompts for company analysis |
 | `presentation/api/` | `companies_router.py` | FastAPI router |
 | `presentation/api/schemas/` | `companies.py` | Pydantic schemas |
@@ -66,16 +65,12 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | `jobs/presentation/api/` | `resumes_router.py` | FastAPI router |
 | `jobs/presentation/api/schemas/` | `resumes.py` | Pydantic schemas |
 
-### Pending Context (`pending/`)
+### Processing Context (`processing/`)
 
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
-| `domain/entities/` | `pending_job.py` | Pending job entity |
-| `domain/repositories/` | `pending_repository.py`, `pending_generation_repository.py` | Repository interfaces |
-| `infrastructure/models/` | `pending_model.py`, `misc_models.py` | SQLAlchemy models |
-| `infrastructure/repositories/` | `sa_pending_repository.py`, `sa_pending_generation_repository.py` | Repository implementations |
-| `presentation/api/` | `pending_router.py`, `pending_companies_router.py` | FastAPI routers |
-| `presentation/api/schemas/` | `pending.py` | Pydantic schemas |
+| `domain/entities/` | `processing_execution.py` | ProcessingExecution entity (jobs + companies) |
+| `presentation/api/` | `executions_router.py`, `process_router.py` | FastAPI routers (`/processing`, `/jobs`) |
 
 ### Shared Kernel (`shared/`)
 
@@ -106,7 +101,6 @@ These modules exist at their old locations for backward compatibility. All new c
 | `core/queue.py` | `shared/infrastructure/config/queue.py` |
 | `schemas/*.py` | `*/presentation/api/schemas/*.py` |
 | `services/worker.py` | `jobs/infrastructure/workers/worker.py` |
-| `services/company_worker.py` | `companies/infrastructure/workers/company_worker.py` |
 | `services/generation_worker.py` | `jobs/infrastructure/workers/generation_worker.py` |
 | `services/insights.py` | `rules/application/services/insights.py` |
 | `services/skill_roadmap_service.py` | `skills/application/services/skill_roadmap_service.py` |

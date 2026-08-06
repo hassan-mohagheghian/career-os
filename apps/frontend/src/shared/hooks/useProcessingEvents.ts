@@ -5,29 +5,35 @@ import { useQueryClient } from '@tanstack/react-query'
 import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
 import type { JobListItem, ProcessingStatus } from '@/entities/job/types'
+import type { CompanyListItem } from '@/entities/company/types'
 
 const JOBS_KEY = 'jobs-v2-infinite'
+const COMPANIES_KEY = 'companies-v2-infinite'
+
+type ProcessingItem = JobListItem | CompanyListItem
 
 export function useProcessingEvents() {
   const queryClient = useQueryClient()
 
-  const updateJobInCache = useCallback((jobId: string | null, updater: (job: JobListItem) => JobListItem) => {
-    if (!jobId) return
-    queryClient.setQueriesData<{ pages: { items: JobListItem[] }[] }>(
-      { queryKey: [JOBS_KEY] },
-      (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            items: page.items.map((item) =>
-              item.id === jobId ? updater(item) : item
-            ),
-          })),
+  const updateItemInCache = useCallback((itemId: string | null, updater: (item: ProcessingItem) => ProcessingItem) => {
+    if (!itemId) return
+    for (const key of [JOBS_KEY, COMPANIES_KEY]) {
+      queryClient.setQueriesData<{ pages: { items: ProcessingItem[] }[] }>(
+        { queryKey: [key] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.id === itemId ? updater(item) : item
+              ),
+            })),
+          }
         }
-      }
-    )
+      )
+    }
   }, [queryClient])
 
   const handleEvent = useCallback((type: SSEEventType, data: SSEEventEnvelope) => {
@@ -42,13 +48,15 @@ export function useProcessingEvents() {
 
     const rawStatus = data.payload.status
     const processingStatus = statusMap[rawStatus] || null
-    const jobId = data.job_id
+    const isCompany = data.target_type === 'company'
+    const itemId = isCompany ? data.target_id : data.job_id
+    const detailKey = isCompany ? 'company-detail' : 'job-detail'
 
     switch (type) {
       case 'execution.created':
       case 'execution.started':
-        updateJobInCache(jobId, (job) => ({
-          ...job,
+        updateItemInCache(itemId, (item) => ({
+          ...item,
           latest_processing_execution: {
             id: data.execution_id,
             status: processingStatus || 'running',
@@ -60,48 +68,57 @@ export function useProcessingEvents() {
 
       case 'workflow.step.started':
       case 'workflow.step.progress':
-        updateJobInCache(jobId, (job) => ({
-          ...job,
-          latest_processing_execution: job.latest_processing_execution
-            ? { ...job.latest_processing_execution, status: 'running' }
+        updateItemInCache(itemId, (item) => ({
+          ...item,
+          latest_processing_execution: item.latest_processing_execution
+            ? { ...item.latest_processing_execution, status: 'running' }
             : { id: data.execution_id, status: 'running', started_at: null, finished_at: null },
         }))
         break
 
       case 'execution.completed':
-        updateJobInCache(jobId, (job) => ({
-          ...job,
-          latest_processing_execution: job.latest_processing_execution
-            ? { ...job.latest_processing_execution, status: 'completed', finished_at: data.payload.updated_at || null }
+        updateItemInCache(itemId, (item) => ({
+          ...item,
+          latest_processing_execution: item.latest_processing_execution
+            ? { ...item.latest_processing_execution, status: 'completed', finished_at: data.payload.updated_at || null }
             : { id: data.execution_id, status: 'completed', started_at: null, finished_at: data.payload.updated_at || null },
-          updated_at: data.payload.updated_at || job.updated_at,
+          updated_at: data.payload.updated_at || item.updated_at,
         }))
-        queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
-        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+        if (itemId) {
+          queryClient.invalidateQueries({ queryKey: [detailKey, itemId] })
+          queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+          queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+        }
         break
 
       case 'execution.failed':
-        updateJobInCache(jobId, (job) => ({
-          ...job,
-          latest_processing_execution: job.latest_processing_execution
-            ? { ...job.latest_processing_execution, status: 'failed', finished_at: data.payload.updated_at || null }
+        updateItemInCache(itemId, (item) => ({
+          ...item,
+          latest_processing_execution: item.latest_processing_execution
+            ? { ...item.latest_processing_execution, status: 'failed', finished_at: data.payload.updated_at || null }
             : { id: data.execution_id, status: 'failed', started_at: null, finished_at: data.payload.updated_at || null },
         }))
-        queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] })
-        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+        if (itemId) {
+          queryClient.invalidateQueries({ queryKey: [detailKey, itemId] })
+          queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+          queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+        }
         break
 
       case 'execution.cancelled':
-        updateJobInCache(jobId, (job) => ({
-          ...job,
-          latest_processing_execution: job.latest_processing_execution
-            ? { ...job.latest_processing_execution, status: 'cancelled', finished_at: data.payload.updated_at || null }
+        updateItemInCache(itemId, (item) => ({
+          ...item,
+          latest_processing_execution: item.latest_processing_execution
+            ? { ...item.latest_processing_execution, status: 'cancelled', finished_at: data.payload.updated_at || null }
             : { id: data.execution_id, status: 'cancelled', started_at: null, finished_at: data.payload.updated_at || null },
         }))
-        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+        if (itemId) {
+          queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+          queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+        }
         break
     }
-  }, [updateJobInCache, queryClient])
+  }, [updateItemInCache, queryClient])
 
   useEffect(() => {
     return subscribeProcessingEvents((type, data) => {

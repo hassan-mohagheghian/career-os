@@ -37,7 +37,6 @@ interface ColumnDef {
 }
 
 const COLUMN_DEFS: ColumnDef[] = [
-  { label: 'Grade' },
   { label: 'Name', field: 'name' },
   { label: 'Industry' },
   { label: 'Location' },
@@ -46,6 +45,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
   { label: 'Status' },
   { label: 'Updated', field: 'updated_at' },
+  { label: 'Created', field: 'created_at' },
   { label: 'Actions' },
 ]
 

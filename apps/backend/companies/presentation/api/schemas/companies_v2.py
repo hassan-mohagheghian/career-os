@@ -25,6 +25,22 @@ class CompanyProcessingSchema(BaseModel):
     error: str | None = None
 
 
+class CompanyExecutionSchema(BaseModel):
+    """Latest ProcessingExecution reference for a company."""
+
+    id: str | None = None
+    status: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+
+
+class CompanyMainRef(BaseModel):
+    """Reference to the main company of an alias (or the company itself)."""
+
+    id: str
+    name: str
+
+
 class CompanyListItemSchema(BaseModel):
     """A single company in the v2 list."""
 
@@ -41,6 +57,11 @@ class CompanyListItemSchema(BaseModel):
     job_count: int = 0
     scores: CompanyScoresSchema | None = None
     processing: CompanyProcessingSchema | None = None
+    latest_processing_execution: CompanyExecutionSchema | None = None
+    parent_company_id: str | None = None
+    main_company: CompanyMainRef | None = None
+    alias_count: int = 0
+    is_alias: bool = False
     updated_at: str | None = None
     created_at: str | None = None
 
@@ -121,6 +142,10 @@ class CompanyDetailResponseSchema(BaseModel):
     current_node: str | None = None
     progress_pct: float | None = None
     error: str | None = None
+    parent_company_id: str | None = None
+    main_company: CompanyMainRef | None = None
+    alias_count: int = 0
+    is_alias: bool = False
     notes: list[CompanyNoteSchema] = Field(default_factory=list)
     links: list[CompanyLinkItemSchema] = Field(default_factory=list)
     intelligence: CompanyIntelligenceSchema | None = None
@@ -128,3 +153,9 @@ class CompanyDetailResponseSchema(BaseModel):
     jobs: list[CompanyJobRefSchema] = Field(default_factory=list)
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class CompanyMainRequest(BaseModel):
+    """Body for PUT /api/companies/{id}/main — null clears the relation."""
+
+    main_company_id: str | None = None

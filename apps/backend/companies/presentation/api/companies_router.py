@@ -2,14 +2,42 @@
 
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status as http_status
+from fastapi.responses import Response
 
-from dependencies import get_company_repo, get_company_link_repo, get_company_intelligence_repo, get_job_repo
+from dependencies import get_company_repo, get_company_intelligence_repo, get_company_link_repo, get_job_repo, get_processing_execution_repo
+from companies.application.services.company_service import CompanyService
 from companies.infrastructure import SQLAlchemyCompanyRepository, SQLAlchemyCompanyIntelligenceRepository, SQLAlchemyCompanyLinkRepository
 from jobs.infrastructure import SQLAlchemyJobRepository
+from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
+
+
+def _queue_company_for_processing(company_id: str, exec_repo) -> str:
+    """Create a COMPANY_PROCESSING execution and dispatch it to the worker queue.
+
+    Mirrors the job intake flow: create execution → mark queued → enqueue TaskIQ.
+    """
+    from processing.domain.enums import ExecutionType
+    from processing.application.use_cases.create_processing_execution import (
+        CreateProcessingExecutionRequest,
+        CreateProcessingExecutionUseCase,
+    )
+    from processing.application.services.dispatch_processing_execution import (
+        DispatchProcessingExecutionService,
+    )
+
+    use_case = CreateProcessingExecutionUseCase(exec_repo)
+    request = CreateProcessingExecutionRequest(
+        execution_type=ExecutionType.COMPANY_PROCESSING,
+        target_type="company",
+        target_id=company_id,
+    )
+    response = use_case.execute(request)
+    DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
+    return response.execution_id
 
 
 @router.get("")
@@ -61,10 +89,31 @@ def get_company(
     return company
 
 
-@router.post("")
-def create_company(data: dict, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
-    """Create a new company."""
-    return repo.create(data)
+@router.post("", status_code=http_status.HTTP_201_CREATED)
+def create_company(
+    data: dict,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Create a company from intake (name + notes + links).
+
+    When ``data.queue`` is true (default) the company is created and immediately
+    queued for processing through the COMPANY_PROCESSING execution lifecycle.
+    """
+    service = CompanyService(repo, intel_repo)
+    company = service.create_from_intake(
+        name=data.get("name", ""),
+        notes=data.get("notes") or [],
+        links=data.get("links") or [],
+        source=data.get("source", "web"),
+        input_type=data.get("input_type", "url"),
+    )
+    if data.get("queue", True):
+        execution_id = _queue_company_for_processing(company["id"], exec_repo)
+        company["status"] = "queued"
+        company["execution_id"] = execution_id
+    return company
 
 
 @router.put("/{id}")
@@ -76,11 +125,24 @@ def update_company(id: str, data: dict, repo: SQLAlchemyCompanyRepository = Depe
     return company
 
 
-@router.delete("/{id}")
-def delete_company(id: str, repo: SQLAlchemyCompanyRepository = Depends(get_company_repo)):
-    """Delete a company."""
-    repo.delete(id)
-    return {"status": "deleted", "id": id}
+@router.delete("/{id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_company(
+    id: str,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Hard-delete a company and its related tables and executions."""
+    company = repo.get_by_id(id)
+    if not company:
+        raise NotFoundError(f"Company {id} not found")
+    exec_repo.delete_by_target("company", id)
+    link_repo.delete_by_company_id(id)
+    intel_repo.delete_by_company_id(id)
+    if not repo.delete(id):
+        raise NotFoundError(f"Company {id} not found")
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{id}/intelligence")

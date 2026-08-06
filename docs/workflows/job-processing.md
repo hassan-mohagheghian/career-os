@@ -664,25 +664,17 @@ SSE invalidation above.
 
 ---
 
-# Current State: Two Processing Paths (Important)
+# Current State: Single Unified Processing Path
 
-The realized trace-through above reflects the **v2 ProcessingExecution
-queue** (SSE world). An older **legacy LLM pipeline** also exists. They do
-not share the same workflow or the same real-time channel today:
+The trace-through above reflects the **ProcessingExecution queue** (SSE
+world). The legacy Socket.IO / pending pipeline was fully retired.
 
-| Concern | v2 queue (SSE) | Legacy LLM pipeline (Socket) |
-| --- | --- | --- |
-| Trigger | `POST /api/jobs/{id}/process` | `POST /api/pending/{id}/process` |
-| Task | `process_execution_task` | `process_job_task` |
-| Runner | `ProcessingExecutionRunner` | `JobWorker._execute_pipeline` |
-| Graph | Two-phase: `JobContextPreparationGraph` → `JobAnalysisGraph` (fetch → extract → **LLM analyze → score → recommend → persist**) | `build_job_processing_graph` (`extract_raw → analyze → score → persist`) |
-| Real-time | SSE `/events/processing` | Socket.IO broadcaster |
-| LLM + score + save | **wired — `analyze` runs `job.analyze` via `LLMService`, `persist` writes jobs/summaries/job_analysis** | present (`LLMService`, `persist_results`) |
-
-Implication: the modern SSE queue runs **LLM analysis, scoring, and DB
-persistence to completion** — a single SSE stream now reaches the end,
-producing scores, an `analysis` block, and a recommendation. The legacy
-Socket.IO path remains only for legacy/company/generation flows. See
+Jobs AND companies both run through the shared ProcessingExecution lifecycle
+(`COMPANY_PROCESSING` for companies): a two-phase workflow — context
+preparation without any LLM call, then a single-LLM analysis (fetch →
+extract → LLM analyze → score → persist). Live progress streams over SSE at
+`/events/processing` (target_type=company for companies) and the queue is
+monitored via `GET /api/processing/queue`. See
 `docs/adr/020-execution-queue-vs-llm-pipeline.md` for the decision that
 moved the analysis steps onto the v2 execution graph.
 

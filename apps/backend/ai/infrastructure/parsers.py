@@ -67,17 +67,6 @@ class SkillExtractionOutput(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, description="Extraction confidence")
 
 
-class CompanyAnalysisOutput(BaseModel):
-    """Structured output for company analysis."""
-    name: str = Field(description="Company name")
-    industry: str = Field(default="", description="Industry")
-    size: str = Field(default="", description="Company size")
-    culture: str = Field(default="", description="Company culture")
-    tech_stack: list[str] = Field(default_factory=list, description="Tech stack")
-    strengths: list[str] = Field(default_factory=list, description="Company strengths")
-    concerns: list[str] = Field(default_factory=list, description="Potential concerns")
-
-
 class ResumeGenerationOutput(BaseModel):
     """Structured output for resume generation."""
     summary: str = Field(default="", description="Professional summary")

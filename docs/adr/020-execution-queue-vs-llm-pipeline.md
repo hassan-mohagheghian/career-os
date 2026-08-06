@@ -1,5 +1,7 @@
 # ADR-020: Execution Queue (SSE) vs Legacy LLM Pipeline
 
+> **Status update (v3.2.0):** The legacy Socket.IO / pending pipeline was fully removed; jobs AND companies now run through the ProcessingExecution/SSE model.
+
 ## Status
 
 Proposed

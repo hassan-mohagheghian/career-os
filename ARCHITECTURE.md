@@ -80,7 +80,7 @@ Contexts must not cross-import. Dependencies flow domain → application → inf
 
 - **LLMService** — single facade for all AI calls; providers are never called directly.
 - **Provider abstraction** — swap via `AI_PROVIDER` env var (openai, mimo, local, gemini, ...).
-- **LangGraph workflows** — stateful pipelines: `JobContextPreparationGraph` (LLM-free prep) → `JobAnalysisGraph` (single combined `job.analyze` call), plus `CompanyProcessing`.
+- **LangGraph workflows** — stateful pipelines: `JobContextPreparationGraph` (LLM-free prep) → `JobAnalysisGraph` (single combined `job.analyze` call), plus the company two-phase workflow (`COMPANY_PROCESSING` `ProcessingExecution`: context preparation without LLM, then a single-LLM analysis).
 - **Job Analysis prompt** — the `job.analyze` prompt and its output JSON schema are versioned and self-contained in `processing/application/services/job_analysis_prompt.py`; called via `LLMService.generate_structured`. The obsolete `ai/infrastructure/prompts/` package and unused `jobs/infrastructure/ai/prompts/*.py`/`.md` prompt modules were removed.
 
 ---

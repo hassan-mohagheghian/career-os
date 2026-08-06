@@ -47,12 +47,12 @@ app/
 │   │
 │   │                                 # Resume lives in jobs/presentation/api/resumes_router.py
 │   │
-│   ├── processing/                # Pending Queue Bounded Context
+│   ├── processing/                # Processing Bounded Context (executions + queue)
 │   │   ├── domain/
 │   │   ├── infrastructure/
 │   │   └── presentation/api/
-│   │       ├── pending_router.py
-│   │       └── pending_companies_router.py
+│   │       ├── executions_router.py   # prefix /processing (queue, executions)
+│   │       └── process_router.py      # prefix /jobs (job process trigger)
 │   │
 │   ├── ai/                        # AI Agent Layer
 │   │   ├── service.py
@@ -149,7 +149,6 @@ app/
 │   │   ├── workers/              # Background workers
 │   │   │   ├── __init__.py
 │   │   │   ├── job_worker.py     # Job processing worker
-│   │   │   ├── company_worker.py # Company processing worker
 │   │   │   ├── insight_worker.py # Insights generation worker
 │   │   │   └── resume_worker.py  # Resume generation worker
 │   │   └── process/              # Process management
@@ -309,7 +308,7 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 | Flask Blueprint | FastAPI Router | Bounded Context |
 |-----------------|----------------|-----------------|
 | `jobs` | `jobs_router` | `jobs/presentation/api/jobs_router.py` |
-| `pending` | `pending_router` | `processing/presentation/api/pending_router.py` |
+| `pending` | `executions_router` | `processing/presentation/api/executions_router.py` |
 | `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
 | `resumes` | `resumes_router` | `jobs/presentation/api/resumes_router.py` |
 | `skills` | `skills_router` | `skills/presentation/api/skills_router.py` |

@@ -12,10 +12,11 @@ Users can:
 - Filter companies by industry
 - Sort companies
 - View company details (intelligence, scores, notes, jobs)
+- Manage related companies (set / remove a main company via the detail drawer)
 - Edit company core data
 - Reprocess a company
 - Delete a company
-- Open the Company Queue (legacy company processing pipeline)
+- Open the shared Processing Drawer (filtered to companies)
 
 The Companies page mirrors the Jobs v2 page UX: virtualized table, server-side
 pagination, infinite scroll, and Sheet-based drawers.
@@ -28,9 +29,10 @@ The page follows these principles.
 
 - Companies are always the primary business entity.
 - Browsing must never be blocked by background processing.
-- Company processing is asynchronous and **legacy** — it is not the
-  Processing-Execution / SSE model used by Jobs. It is monitored through the
-  Company Queue drawer, which polls the pending-companies endpoint.
+- Company processing runs through the shared `ProcessingExecution` / SSE model
+  (same as Jobs) — a two-phase workflow (context preparation without LLM, then a
+  single-LLM analysis). It is monitored through the shared Processing Drawer
+  filtered to companies, fed by `GET /api/processing/queue` + SSE.
 - The Company List is optimized for very large datasets.
 - Users can continue working while companies are processing.
 
@@ -44,8 +46,9 @@ Companies Page
 ├── Header
 ├── Toolbar
 ├── Company List
-├── Company Queue Drawer
+├── Processing Drawer (companies filter)
 ├── Company Detail Drawer
+├── Relate Company Dialog (from the detail drawer)
 ├── Company Edit Drawer
 └── Add Company Drawer
 ```
@@ -61,11 +64,11 @@ Companies Page
 │ Search .........................                                          [Industry ▾] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                               │
-│ Grade │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Actions     │
+│ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions     │
 │───────────────────────────────────────────────────────────────────────────────────────────────│
-│  A+   │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ F 85 │ S 90 │ O 88 │ Processed │ 2m │ ⋯ │
-│  B    │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ F 60 │ S 55 │ O 58 │ Completed │ 5m │ ⋯ │
-│  —    │ Nova │ Health   │ —        │ —    │ 0    │ F —  │ S —  │ O —  │ Pending    │ 1h │ ⋯ │
+│ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
+│ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
 │                                                                                               │
 │                                        Loading more companies...                              │
 │                                                                                               │
@@ -82,32 +85,30 @@ Responsibilities
 
 - Display page title and total count.
 - Display loaded-vs-total count.
-- Display Company Queue summary badge.
-- Open Company Queue drawer.
+- Open the shared Processing Drawer (companies filter).
 - Open Add Company drawer.
 
 Controls
 
-| Control      | Description                        |
-| ------------ | ---------------------------------- |
-| Queue        | Opens the Company Queue drawer.    |
-| Add Company  | Opens the Add Company drawer.      |
+| Control     | Description                                     |
+| ----------- | ----------------------------------------------- |
+| Queue       | Opens the shared Processing Drawer (companies). |
+| Add Company | Opens the Add Company drawer.                   |
 
 ---
 
-## Queue Badge
+## Queue Button
 
-The Queue button displays the total number of pending companies across all
-non-terminal states (created, pending, queued, processing, failed).
+The Queue button opens the shared Processing Drawer filtered to
+`target_type: company`.
 
 ```text
 Queue
-
-3
 ```
 
-The badge is refreshed by polling `GET /api/pending-companies` every 5 seconds
-while the queue drawer state is tracked by the widget's react-query query.
+The drawer is fed by `GET /api/processing/queue` and live SSE
+(`/events/processing`), showing Running / Waiting / Failed sections with
+Start / Retry / Remove / Cancel actions. No polling is used.
 
 ---
 
@@ -121,11 +122,11 @@ Responsibilities
 
 Controls
 
-| Control  | Description                                       |
-| -------- | ------------------------------------------------- |
-| Search   | Search by name, industry, city or description.    |
-| Industry | Filter by exact industry.                         |
-| Clear    | Clears all active filters.                        |
+| Control  | Description                                    |
+| -------- | ---------------------------------------------- |
+| Search   | Search by name, industry, city or description. |
+| Industry | Filter by exact industry.                      |
+| Clear    | Clears all active filters.                     |
 
 Changing filters never reloads the entire page.
 
@@ -204,47 +205,22 @@ Configuration
 
 # Row Columns
 
-| Column    | Description                               |
-| --------- | ----------------------------------------- |
-| Grade     | Overall grade badge (A++ … D)             |
-| Name      | Company logo and name                     |
-| Industry  | Industry classification                   |
-| Location  | City, Country                             |
-| Size      | Company size band                         |
-| Jobs      | Number of linked, non-deleted jobs        |
-| Scores    | Fit / Success / Overall score values      |
-| Status    | Legacy processing state                   |
-| Updated   | Relative update time                      |
-| Actions   | Row actions (Details, Reprocess, Edit, Delete) |
+| Column   | Description                                            |
+| -------- | ------------------------------------------------------ |
+| Name     | Company logo and name                                  |
+| Industry | Industry classification                                |
+| Location | City, Country                                          |
+| Size     | Company size band                                      |
+| Jobs     | Number of linked, non-deleted jobs                     |
+| Scores   | Grade badge + Fit / Success / Overall score values     |
+| Status   | Processing status from the latest processing execution |
+| Updated  | Relative update time                                   |
+| Created  | Relative creation time                                 |
+| Actions  | Row actions (Details, Reprocess, Edit, Delete)         |
 
 ---
 
 # Column Details
-
-## Grade
-
-Displays the overall grade badge.
-
-```text
-A++
-```
-
-Grade colors match the Jobs design tokens:
-
-| Grade | Color |
-| ----- | ----- |
-| A++   | Green |
-| A+    | Green |
-| A     | Lime  |
-| A-    | Green |
-| B+    | Blue  |
-| B     | Blue  |
-| C     | Orange |
-| D     | Red   |
-
-When no grade exists an em dash (`—`) is shown.
-
----
 
 ## Name
 
@@ -303,21 +279,22 @@ Zero jobs displays `—`.
 
 ## Scores
 
-Displays three compact score badges.
+Displays the overall grade badge (derived from the overall score via the shared
+grade helper, `A++` … `D`) followed by three compact score badges.
 
 ```text
-F 85   S 90   O 88
+[A+]  F 85   S 90   O 88
 ```
 
 Color thresholds (matches `ScoreBadge` in jobs-v2):
 
-| Value  | Color   |
-| ------ | ------- |
-| ≥ 90   | Green   |
-| ≥ 70   | Emerald |
-| ≥ 50   | Yellow  |
-| ≥ 30   | Orange  |
-| < 30   | Red     |
+| Value | Color   |
+| ----- | ------- |
+| ≥ 90  | Green   |
+| ≥ 70  | Emerald |
+| ≥ 50  | Yellow  |
+| ≥ 30  | Orange  |
+| < 30  | Red     |
 
 Null scores display `—`.
 
@@ -325,19 +302,16 @@ Null scores display `—`.
 
 ## Status
 
-Displays the legacy company processing status badge.
+Displays the processing status from the company's latest processing execution
+(shared `JobStatus` vocabulary).
 
-| Status     | Color   |
-| ---------- | ------- |
-| created    | Gray    |
-| pending    | Sky     |
-| queued     | Yellow  |
+| Status     | Color              |
+| ---------- | ------------------ |
+| queued     | Yellow             |
 | processing | Blue (pulsing dot) |
-| running    | Emerald (pulsing dot) |
-| completed  | Green   |
-| processed  | Green   |
-| failed     | Red     |
-| cancelled  | Red     |
+| completed  | Green              |
+| failed     | Red                |
+| cancelled  | Red                |
 
 ---
 
@@ -353,16 +327,28 @@ Just now
 
 ---
 
+## Created
+
+Displays relative creation time via the shared `DateTime` component.
+
+```text
+2 hours ago
+
+2 days ago
+```
+
+---
+
 # Row Actions
 
 Each row provides four icon actions (tooltip buttons):
 
-| Action    | Description                           |
-| --------- | ------------------------------------- |
-| Details   | Opens Company Details drawer.         |
+| Action    | Description                             |
+| --------- | --------------------------------------- |
+| Details   | Opens Company Details drawer.           |
 | Reprocess | Re-enqueues the company for processing. |
-| Edit      | Opens Company Edit drawer.            |
-| Delete    | Deletes the company (with confirm).   |
+| Edit      | Opens Company Edit drawer.              |
+| Delete    | Deletes the company (with confirm).     |
 
 All row actions stop propagation so clicking an action never opens the detail
 drawer.
@@ -373,28 +359,29 @@ drawer.
 
 Selecting a row opens the Company Detail drawer (Sheet from the right).
 
-The drawer shows:
+The drawer shows a single scrollable page (no tabs), mirroring the Job Detail
+drawer:
 
-- Overall grade + Fit / Success / Overall score cards
-- Company name, logo, industry
-- Location, size, company type, linked-job count badges
-- Actions: View All Jobs, Website, Reprocess, Delete
-- Tabs:
-  - **Original Notes** — `CompanyNotesTab` (notes + links CRUD)
-  - **Intelligence** — company intelligence sections (product or recruiter variant)
-  - **Scores** — full score breakdown with factors and calculation
-  - **Jobs** — linked jobs list (`CompanyJobsTab`)
+- Overall grade badge (derived from the overall score) + Fit / Success / Overall
+  score cards, then company name, logo, industry and meta badges — no action
+  buttons in the header
+- Recommendation (prioritized to the top)
+- Intelligence sections (product or recruiter variant)
+- Full score breakdown with factors and calculation
+- Linked jobs list (`CompanyJobsTab`)
+- Notes & Links — read only (CRUD lives in the Edit drawer)
+- Footer actions: View All Jobs, Website, Reprocess, Delete
 
 The drawer loads the company once via `GET /api/companies/list/{id}`, which
 returns all company data (base fields, status, notes, links, intelligence,
-scores, jobs) in a single payload. The tabs read from that payload — no
+scores, jobs) in a single payload. The sections read from that payload — no
 separate `/links`, `/jobs` or local-history calls are made.
 
 ---
 
 # Company Edit Drawer
 
-The Edit drawer (Sheet) edits core company fields:
+The Edit drawer (Sheet) edits core company fields plus notes and links:
 
 - Name (required)
 - Industry
@@ -402,6 +389,7 @@ The Edit drawer (Sheet) edits core company fields:
 - Company Size / Company Type
 - Website
 - Description
+- Notes & Links — `CompanyNotesTab` (notes + links CRUD)
 
 Saving calls `PUT /api/companies/{id}` and invalidates the list and detail
 queries.
@@ -415,40 +403,42 @@ The Add Company drawer (Sheet) collects:
 - Free-text notes (company name, description, observations)
 - Links (LinkedIn, Website, Careers, GitHub, custom)
 
-Submitting calls `POST /api/pending-companies` with `notes`, `links`, and
-`source: "web"`. The created pending company is enqueued for processing by the
-legacy pipeline (`enqueue_company_sync`). After a successful submit the Company
-Queue drawer opens.
+Submitting calls `POST /api/companies` with `{name, notes, links,
+source: "web", queue}`. The company is created and, when queued, a
+`COMPANY_PROCESSING` `ProcessingExecution` starts (the response includes
+`execution_id`). After a successful submit the drawer closes and the company
+appears in the list with its processing status.
 
 ---
 
-# Company Queue Drawer
+# Processing Drawer (Companies)
 
-The Company Queue drawer (Sheet) monitors the **legacy** company processing
-pipeline. It is a monitoring tool, not a replacement for the Company List.
+The Processing Drawer is the **shared** `ProcessingDrawer`
+(`shared/components/ProcessingDrawer.tsx`) opened with `targetType="company"`,
+so it lists only company executions. It is the same drawer the Jobs page uses
+with `targetType="job"`.
 
-The drawer polls `GET /api/pending-companies` every 5 seconds (react-query
-`refetchInterval`).
+It is fed by `GET /api/processing/queue` and live SSE
+(`/events/processing`, filtered by `target_type: "company"`). No polling is
+used.
 
 Sections:
 
-| Section              | Statuses included      | Actions                    |
-| -------------------- | ---------------------- | -------------------------- |
-| Created              | created                | Process, Delete            |
-| Pending              | pending                | Process, Delete            |
-| Queued               | queued                 | Delete                     |
-| Processing           | processing, running    | Delete                     |
-| Failed / Cancelled   | failed, cancelled      | Process, Delete            |
+| Section | Action        |
+| ------- | ------------- |
+| Running | Cancel        |
+| Waiting | Start, Remove |
+| Failed  | Retry, Remove |
 
-Each item shows its input text (or first note), current node / status, error,
-and up to four parsed notes/links.
+Each item shows the company name, current step / status, links, and (in the
+expanded view) the workflow step tree with progress.
 
-Process calls `POST /api/pending-companies/{id}/process`; Delete calls
-`DELETE /api/pending-companies/{id}`.
+Start / Cancel / Retry call `/api/processing/executions/{id}/...`; Remove calls
+`DELETE /api/processing/queue/{execution_id}`.
 
-> The company processing pipeline is legacy: `pending_companies` +
-> `enqueue_company_sync` + the LangGraph company graph. It is intentionally
-> **not** rebuilt as a Processing Execution. Polling is used instead of SSE.
+> Company processing runs through the shared ProcessingExecution lifecycle —
+> context preparation without LLM, then a single-LLM analysis — streaming
+> per-step progress over SSE exactly like Jobs.
 
 ---
 
@@ -534,6 +524,6 @@ mounted.
 - `docs/ux/features/companies/company-row.md`
 - `docs/ux/features/companies/company-detail.md`
 - `docs/ux/features/companies/add-company.md`
-- `docs/ux/features/companies/company-queue.md`
+- `docs/ux/features/jobs/processing-queue.md` (shared Processing Drawer)
 - `docs/ux/flows/companies/browse-companies.md`
 - `docs/ux/features/jobs/page.md` (reference: shared virtualized-table UX)

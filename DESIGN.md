@@ -189,14 +189,17 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 │ Acme Inc  ·  Berlin, Germany  ·  Hybrid  ·  Full-time                        │
 │ Open job posting ↗                                                           │
 │                                                                              │
-│ ┌───────────┐ ┌───────────┐ ┌───────────┐                                    │
-│ │ Overall   │ │ Fit       │ │ Success   │                                    │
-│ │ 79        │ │ 85        │ │ 70        │                                    │
-│ └───────────┘ └───────────┘ └───────────┘                                    │
+│ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐                    │
+│ │ Overall   │ │ Fit       │ │ Success   │ │ Grade     │                    │
+│ │ 79        │ │ 85        │ │ 70        │ │ [B]       │                    │
+│ └───────────┘ └───────────┘ └───────────┘ └───────────┘                    │
 │                                                                              │
-│ ┌─ AI Analysis ────────────────────────────────────────────────────────────┐ │
+│ ┌─ Recommendation ─────────────────────────────────────────────────────────┐ │
 │ │ [consider]           2026-08-03 12:00                                    │ │
 │ │ Great role overall. It matches the senior backend profile...             │ │
+│ └───────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│ ┌─ AI Analysis ────────────────────────────────────────────────────────────┐ │
 │ │ • Mention Kafka coursework                                               │ │
 │ │ • Ask about salary band                                                  │ │
 │ ├─ Scores Explanation ────────────────────────────────────────────────────┤ │
@@ -301,19 +304,24 @@ Full specs: `docs/ux/features/rules/`.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ Companies (128)                       Loaded 25 of 128      Queue (3)       + Add Company│
+│ Companies (128)                       Loaded 25 of 128      Queue           + Add Company│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │ Search ............................................                    [Industry ▾] [Clear]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Grade │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Actions │
-│───────┼──────┼──────────┼──────────┼──────┼──────┼─────────┼─────────┼─────────┼─────────│
-│  A+   │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ F 85 S 90 O 88 │ Processed │ 2m │ ⋯ │
-│  B    │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ F 60 S 55 O 58 │ Completed │ 5m │ ⋯ │
-│  —    │ Nova │ Health   │ —        │ —    │ 0    │ F — S — O — │ Pending    │ 1h │ ⋯ │
+│ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
+│──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
+│ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
+│ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
+│ Inc  │          │          │      │      │ alias            │           │     │     │   │
+│ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
 │                                                                                          │
 │                                       Loading more companies...                           │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+Alias companies render a small `alias` badge next to their name; selecting the
+row opens the detail drawer where the relation can be managed.
 
 ### Add Company Drawer (Create Entity — company mode)
 
@@ -350,42 +358,77 @@ Full specs: `docs/ux/features/rules/`.
 │ Software Development                                           │
 │ Berlin, Germany · 51-200 · Product Company                      │
 │ 12 jobs                                                        │
-│                     [View All Jobs] [Website] [Reprocess] [Del]│
-│ [Original Notes] [Intelligence] [Scores] [Jobs (12)]           │
+│ ◈ Related Companies                                  [ Manage ]│
 │ ┌────────────────────────────────────────────────────────────┐ │
-│ │ <tab content>                                             │ │
+│ │ Recommendation: A — apply via careers page                 │ │
 │ └────────────────────────────────────────────────────────────┘ │
+│ Company Overview                                              │
+│ Intelligence sections (importance order)                      │
+│ Scores breakdown                                              │
+│ Linked Jobs                                                   │
+│ Notes & Links (read only)                                     │
+│ [View All Jobs] [Website]        [Reprocess] [Delete]         │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### Company Queue Drawer
+### Relate Company Dialog
+
+Opened via `Manage` in the Related Companies section of the Company Detail
+drawer. Relating an alias re-points its jobs onto the chosen main.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ Related Companies                                      Close │
+├──────────────────────────────────────────────────────────────┤
+│ Relate <current company> to a main company. Jobs linked to   │
+│ an alias are re-pointed to the main company.                 │
+│                                                              │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ [alias of] Acme GmbH                            [Remove] │ │ ← alias only
+│ └──────────────────────────────────────────────────────────┘ │
+│ Search companies...                                          │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ ◉ Acme GmbH                                      2 alias │ │
+│ │ ◉ Beta GmbH                                             │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                              [Cancel]          [Set as Main] │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Processing Drawer (Companies)
+
+The Companies page opens the **shared** Processing Drawer with
+`targetType="company"` (same drawer as Jobs, filtered to companies). It is fed
+by `GET /api/processing/queue` and live SSE.
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Company Queue (7)                      Close │
+│ Processing Queue                      Close │
 ├──────────────────────────────────────────────┤
-│ Created (1)                                  │
+│ Running (1)                                  │
 │ ┌──────────────────────────────────────────┐ │
 │ │ Acme GmbH                                │ │
-│ │ created · ▶ Process · 🗑 Delete          │ │
+│ │ Step: analyze · ▒▒▒▒░░ 60% · 🗙 Cancel   │ │
+│ │ └─ Workflow step tree (live SSE)         │ │
 │ └──────────────────────────────────────────┘ │
-│ Processing (2)                               │
+│ Waiting (2)                                  │
 │ ┌──────────────────────────────────────────┐ │
 │ │ Beta GmbH                                │ │
-│ │ processing · 🗑 Delete                   │ │
+│ │ queued · ▶ Start · 🗑 Remove             │ │
 │ └──────────────────────────────────────────┘ │
-│ Failed / Cancelled (1)                       │
+│ Failed (1)                                   │
 │ ┌──────────────────────────────────────────┐ │
 │ │ Nova                                     │ │
-│ │ failed: timeout · ▶ Process · 🗑 Delete  │ │
+│ │ failed: timeout · ⟳ Retry · 🗑 Remove    │ │
 │ └──────────────────────────────────────────┘ │
 └──────────────────────────────────────────────┘
 ```
 
 The Companies workspace is parity with the Jobs v2 UX (virtualized table,
-infinite scroll, Sheet drawers). Company processing remains the legacy
-`pending_companies` pipeline, monitored via the polling-based Company Queue
-drawer. Full specs live in `docs/ux/features/companies/`.
+infinite scroll, Sheet drawers). Company processing runs through the shared
+`ProcessingExecution` / SSE lifecycle (context preparation without LLM, then a
+single-LLM analysis), monitored via the shared Processing Drawer filtered to
+companies. Full specs live in `docs/ux/features/companies/`.
 
 ---
 

@@ -2,9 +2,11 @@
 
 ## Purpose
 
-The Add Company drawer imports a new company into the legacy company processing
-pipeline. It is the company variant of the shared **Create Entity drawer**
-(also used by the Add Job drawer, see `docs/ux/features/jobs/add-job.md`).
+The Add Company drawer imports a new company via `POST /api/companies` and,
+when queued, processes it through the shared `ProcessingExecution` lifecycle
+(`COMPANY_PROCESSING`). It is the company variant of the shared **Create Entity
+drawer** (also used by the Add Job drawer, see
+`docs/ux/features/jobs/add-job.md`).
 
 The form follows this field order: **primary link → optional name → additional
 links → optional notes**.
@@ -26,7 +28,7 @@ links → optional notes**.
 │                                              │
 │ Company Name (Optional)                      │
 │ ┌───────────────────────────────┐            │
-│ │ Acme GmbH                    │            │
+│ │ Acme GmbH                     │            │
 │ └───────────────────────────────┘            │
 │                                              │
 │ Additional Links                  [+ Add]    │
@@ -54,9 +56,8 @@ Clicking a chip toggles it on/off. Only one primary title can be active.
 
 ## Company Name
 
-Optional. If provided, the name is persisted with the pending company and shown
-in the Company Queue. If empty, the primary link URL is used as the display
-name.
+Optional. If provided, the name is persisted with the company and shown in the
+Companies list. If empty, the primary link URL is used as the display name.
 
 ## Additional Links
 
@@ -75,12 +76,12 @@ the `+` button. Notes whose content starts with `http` are treated as URLs
 
 Two actions are offered in the footer:
 
-| Action         | Behavior                                        | State        |
-| -------------- | ----------------------------------------------- | ------------ |
-| Add            | Adds the company to the list, no processing.    | Enabled      |
-| Add & Process  | Adds the company and queues it for processing.  | Disabled for now |
+| Action      | Behavior                                       | State   |
+| ----------- | ---------------------------------------------- | ------- |
+| Add         | Adds the company to the list, no processing.   | Enabled |
+| Add & Queue | Adds the company and queues it for processing. | Enabled |
 
-`Add` posts `POST /api/pending-companies` with:
+`Add` posts `POST /api/companies` with:
 
 ```json
 {
@@ -92,19 +93,21 @@ Two actions are offered in the footer:
 }
 ```
 
-The backend creates a `pending_companies` row with status `created` and
-persists the name. With `queue: false` the entry is **not** enqueued — it can be
-processed later from the Company Queue. When `queue: true`, the entry is enqueued
-via `enqueue_company_sync`. The created record is returned.
+The backend creates a `company.companies` row with status `created` and
+persists the name and URL notes. With `queue: false` the company is **not**
+processed — it can be reprocessed later from the row/detail actions. When
+`queue: true`, a `COMPANY_PROCESSING` `ProcessingExecution` is created and
+enqueued, and the response includes `execution_id`.
 
 ## After Submit
 
 - A success toast is shown.
-- The pending-companies and companies queries are invalidated.
+- The companies-v2 list query is invalidated.
 - The drawer closes.
-- The entry appears in the Companies list / Company Queue.
-- The Company Queue drawer is **not** opened automatically (unlike the Job
-  Create & Queue flow).
+- The entry appears in the Companies list (with processing status from
+  `latest_processing_execution`).
+- The Processing Drawer is **not** opened automatically (unlike the Job Create
+  & Queue flow).
 
 ## Validation
 
@@ -117,6 +120,5 @@ Submit is disabled while:
 # Related Documents
 
 - `docs/ux/features/companies/page.md`
-- `docs/ux/features/companies/company-queue.md`
 - `docs/ux/flows/companies/browse-companies.md`
 - `docs/ux/features/jobs/add-job.md` (job variant of the shared drawer)

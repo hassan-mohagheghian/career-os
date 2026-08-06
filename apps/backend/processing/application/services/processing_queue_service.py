@@ -18,9 +18,10 @@ from processing.domain.repositories.processing_execution_repository import IProc
 
 
 class ProcessingQueueService:
-    def __init__(self, execution_repository: IProcessingExecutionRepository, job_repository: Any = None):
+    def __init__(self, execution_repository: IProcessingExecutionRepository, job_repository: Any = None, company_repository: Any = None):
         self._execution_repository = execution_repository
         self._job_repository = job_repository
+        self._company_repository = company_repository
 
     def snapshot(self, limit: int = 200) -> dict[str, list[dict[str, Any]]]:
         executions = self._execution_repository.list_recent(limit=limit)
@@ -46,14 +47,18 @@ class ProcessingQueueService:
         progress = execution.workflow_progress or {}
         current_step = progress.get("current_step") or {}
 
-        job = self._job(execution)
+        target_type = execution.target_type
+        job = self._job(execution) if target_type == "job" else None
+        company = self._company(execution) if target_type == "company" else None
 
         return {
             "execution_id": execution.id,
             "job_id": execution.target_id if execution.target_type == "job" else execution.target_id,
-            "title": self._job_title(job, execution),
-            "url": job.get("url") if job else None,
-            "links": self._job_links(job) if job else [],
+            "target_type": target_type,
+            "target_id": execution.target_id,
+            "title": self._title(job, company, execution),
+            "url": (job or company or {}).get("url"),
+            "links": self._links(job, company),
             "status": execution.status.value,
             "current_step": current_step.get("title") or current_step.get("id"),
             "progress": progress.get("progress"),
@@ -62,6 +67,32 @@ class ProcessingQueueService:
             "started_at": execution.started_at.isoformat() if execution.started_at else None,
             "finished_at": execution.finished_at.isoformat() if execution.finished_at else None,
         }
+
+    @staticmethod
+    def _links(job, company) -> list[dict[str, Any]]:
+        return ProcessingQueueService._job_links(job) if job else ProcessingQueueService._company_links(company) if company else []
+
+    @staticmethod
+    def _company_links(company: dict[str, Any]) -> list[dict[str, Any]]:
+        """Parse a company's stored ``notes`` (URL notes) into link item dicts."""
+        raw = company.get("notes")
+        if not raw:
+            return []
+        items = raw
+        if isinstance(raw, str):
+            try:
+                items = json.loads(raw)
+            except (TypeError, ValueError):
+                return [{"url": raw}]
+        result = []
+        for item in items or []:
+            if isinstance(item, dict):
+                content = item.get("content") or item.get("url")
+                if item.get("type") == "url" and content:
+                    result.append({"url": content, "title": item.get("title", "")})
+            elif isinstance(item, str):
+                result.append({"url": item})
+        return result
 
     @staticmethod
     def _job_links(job: dict[str, Any]) -> list[dict[str, Any]]:
@@ -94,8 +125,18 @@ class ProcessingQueueService:
         except Exception:
             return None
 
+    def _company(self, execution: ProcessingExecution):
+        if self._company_repository is None or execution.target_type != "company":
+            return None
+        try:
+            return self._company_repository.get_by_id(execution.target_id)
+        except Exception:
+            return None
+
     @staticmethod
-    def _job_title(job, execution: ProcessingExecution) -> str:
+    def _title(job, company, execution: ProcessingExecution) -> str:
         if job:
             return job.get("title") or job.get("role") or execution.target_id
+        if company:
+            return company.get("name") or execution.target_id
         return execution.target_id

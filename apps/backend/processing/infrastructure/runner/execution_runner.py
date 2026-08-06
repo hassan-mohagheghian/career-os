@@ -59,13 +59,17 @@ class ProcessingExecutionRunner:
 
             execution.status = ExecutionStatus.RUNNING
             execution.started_at = started_at
-            execution.workflow_progress = progress_ops.build_initial_progress(execution.id).to_dict()
+            execution.workflow_progress = progress_ops.build_initial_progress(
+                execution.id, execution.target_type
+            ).to_dict()
             repo.save(execution)
             processing_events.publish_sync(
                 processing_events.EXECUTION_STARTED,
                 execution.id,
                 job_id,
                 ExecutionStatus.RUNNING.value,
+                target_type=execution.target_type,
+                target_id=execution.target_id,
                 updated_at=started_at.isoformat(),
             )
 
@@ -87,6 +91,8 @@ class ProcessingExecutionRunner:
                     job_id,
                     ExecutionStatus.FAILED.value,
                     message=str(e),
+                    target_type=execution.target_type,
+                    target_id=execution.target_id,
                     updated_at=finished_at.isoformat(),
                 )
                 log.error("processing.execution.failed", execution_id=execution.id, error=str(e))
@@ -105,6 +111,8 @@ class ProcessingExecutionRunner:
                 execution.id,
                 job_id,
                 ExecutionStatus.COMPLETED.value,
+                target_type=execution.target_type,
+                target_id=execution.target_id,
                 updated_at=finished_at.isoformat(),
             )
             log.info("processing.execution.completed", execution_id=execution.id)
@@ -149,7 +157,9 @@ class ProcessingExecutionRunner:
                 state = JobProcessingState(
                     execution_id=execution.id,
                     job_id=self._job_id(execution) or "",
-                    workflow_progress=progress_ops.build_initial_progress(execution.id),
+                    workflow_progress=progress_ops.build_initial_progress(
+                        execution.id, execution.target_type
+                    ),
                 )
                 final = graph.invoke(state)
                 if final.status != ExecutionStatus.FAILED:
@@ -165,10 +175,38 @@ class ProcessingExecutionRunner:
                     graph_session.close()
 
         if execution.execution_type == ExecutionType.COMPANY_PROCESSING:
-            from companies.infrastructure.workers.company_worker import process_company
+            from processing.domain.workflow.company_processing_state import CompanyProcessingState
+            from processing.infrastructure.workflow import (
+                build_company_analysis_graph,
+                build_company_context_preparation_graph,
+            )
 
-            process_company(self._resolve_company_id(execution))
-            return {"company_id": execution.target_id}
+            graph_session = session
+            owns_session = False
+            if graph_session is None:
+                graph_session = get_session_sync()
+                owns_session = True
+            try:
+                graph = build_company_context_preparation_graph(graph_session)
+                state = CompanyProcessingState(
+                    execution_id=execution.id,
+                    company_id=execution.target_id,
+                    workflow_progress=progress_ops.build_initial_progress(
+                        execution.id, execution.target_type
+                    ),
+                )
+                final = graph.invoke(state)
+                if final.status != ExecutionStatus.FAILED:
+                    analysis_graph = build_company_analysis_graph(graph_session)
+                    final = analysis_graph.invoke(final)
+                if final.workflow_progress is not None:
+                    execution.workflow_progress = final.workflow_progress.to_dict()
+                if final.status == ExecutionStatus.FAILED:
+                    raise RuntimeError("; ".join(final.errors) or "Company processing failed")
+                return {"company_id": execution.target_id}
+            finally:
+                if owns_session:
+                    graph_session.close()
 
         if execution.execution_type in (
             ExecutionType.RESUME_GENERATION,
@@ -181,10 +219,3 @@ class ProcessingExecutionRunner:
             return {"gen_id": execution.target_id}
 
         raise RuntimeError(f"Unsupported execution type: {execution.execution_type}")
-
-    @staticmethod
-    def _resolve_company_id(execution) -> str:
-        target_id = execution.target_id
-        if target_id and len(target_id) <= 36:
-            return str(target_id)
-        raise ValueError(f"Invalid company id: {target_id}")

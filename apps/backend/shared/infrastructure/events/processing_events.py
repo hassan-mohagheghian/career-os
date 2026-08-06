@@ -80,10 +80,16 @@ def build_event(
     The outer envelope ``{"event": ..., "data": ...}`` is the Redis pub/sub
     message. ``data`` is the SSE payload with a stable public contract:
 
-    {id, type, timestamp, job_id, execution_id, payload}
+    {id, type, timestamp, job_id, execution_id, target_type, target_id, payload}
     """
+    target_type = kwargs.pop("target_type", None)
+    target_id = kwargs.pop("target_id", None)
     payload: dict[str, Any] = {"status": status}
     payload.update(kwargs)
+    if target_type is not None:
+        payload["target_type"] = target_type
+    if target_id is not None:
+        payload["target_id"] = target_id
     return {
         "event": event_name,
         "data": {
@@ -92,6 +98,8 @@ def build_event(
             "timestamp": datetime.now(UTC).isoformat(),
             "job_id": job_id,
             "execution_id": execution_id,
+            "target_type": target_type,
+            "target_id": target_id,
             "payload": payload,
         },
     }

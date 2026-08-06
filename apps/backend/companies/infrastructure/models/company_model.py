@@ -24,6 +24,7 @@ class CompanyModel(Base):
     country: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    raw_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     company_size: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     company_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     logo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -54,6 +55,12 @@ class CompanyModel(Base):
     failure_step: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     failure_timestamp: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    parent_company_id: Mapped[Optional[str]] = mapped_column(
+        String(36),
+        ForeignKey("company.companies.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Relationships
     intelligence: Mapped[Optional["CompanyIntelligenceModel"]] = relationship(
@@ -61,6 +68,13 @@ class CompanyModel(Base):
     )
     links: Mapped[list["CompanyLinkModel"]] = relationship(
         back_populates="company", cascade="all, delete-orphan"
+    )
+    main_company: Mapped[Optional["CompanyModel"]] = relationship(
+        remote_side="CompanyModel.id",
+        back_populates="aliases",
+    )
+    aliases: Mapped[list["CompanyModel"]] = relationship(
+        back_populates="main_company",
     )
 
 

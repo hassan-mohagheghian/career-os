@@ -57,7 +57,9 @@ Example:
 
 # Processing Section
 
-Contains Jobs currently assigned to workers.
+Contains executions currently assigned to workers. The queue serves both Jobs
+and Companies: each entry carries a `target_type` (`job` | `company`), and for
+companies `title` is the company name while `url`/`links` may be null.
 
 Example:
 
@@ -66,6 +68,8 @@ Example:
 {
 "execution_id": "exec_123",
 "job_id": "job_123",
+"target_type": "job",
+"target_id": "job_123",
 "title": "Senior Backend Engineer",
 "url": "https://www.linkedin.com/jobs/view/1234567890123456",
 "links": [
@@ -73,6 +77,26 @@ Example:
 ],
 "status": "processing",
 "current_step": "fetch_content",
+"progress": 60,
+"started_at": "2026-08-01T10:00:00Z"
+}
+]
+}
+
+A company entry looks like:
+
+{
+"processing": [
+{
+"execution_id": "exec_789",
+"job_id": "company-uuid",
+"target_type": "company",
+"target_id": "company-uuid",
+"title": "Acme GmbH",
+"url": null,
+"links": [ { "title": "Website", "url": "https://acme.example.com" } ],
+"status": "processing",
+"current_step": "analyze",
 "progress": 60,
 "started_at": "2026-08-01T10:00:00Z"
 }
@@ -87,19 +111,31 @@ The active ProcessingExecution identifier.
 
 job_id
 
-The related Job identifier.
+Legacy alias of the target identifier (kept for backward compatibility; prefer
+`target_id`).
+
+target_type
+
+The processing target kind: `job` or `company`.
+
+target_id
+
+The identifier of the processing target — a Job id for jobs, a Company UUID for
+companies.
 
 title
 
-Human readable Job title.
+Human readable title — Job title for jobs, company name for companies.
 
 url
 
-The Job's primary URL when the execution targets a Job, otherwise null.
+The target's primary URL when the execution targets a Job (or a company with a
+website), otherwise null.
 
 links
 
-Related link items parsed from the Job. Each item has an optional title and a url. Empty when the Job has no links or the execution does not target a Job.
+Related link items parsed from the target. Each item has an optional title and a
+url. Empty when the target has no links.
 
 status
 
@@ -137,6 +173,8 @@ Example:
 {
 "execution_id": "exec_456",
 "job_id": "job_456",
+"target_type": "job",
+"target_id": "job_456",
 "title": "Python Developer",
 "status": "queued",
 "position": 2,
@@ -153,11 +191,19 @@ Queue execution identifier.
 
 job_id
 
-Related Job identifier.
+Legacy alias of the target identifier (prefer `target_id`).
+
+target_type
+
+`job` or `company`.
+
+target_id
+
+Target identifier (Job id or Company UUID).
 
 title
 
-Job title.
+Job title or company name.
 
 position
 
@@ -202,11 +248,19 @@ Failed execution identifier.
 
 job_id
 
-Related Job identifier.
+Legacy alias of the target identifier (prefer `target_id`).
+
+target_type
+
+`job` or `company`.
+
+target_id
+
+Target identifier (Job id or Company UUID).
 
 title
 
-Job title.
+Job title or company name.
 
 error
 

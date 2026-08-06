@@ -12,8 +12,6 @@ from typing import Optional, List, Dict
 from shared.domain.models.generation_models import GenerationHistoryItem
 from dependencies import get_session_sync
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from companies.infrastructure.repositories.sa_pending_company_repository import SQLAlchemyPendingCompanyRepository
 from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 
 
@@ -88,9 +86,11 @@ class GenerationHistoryRepository:
         try:
             session = self._session()
             try:
-                repo = SQLAlchemyPendingCompanyRepository(session)
-                rows = repo.get_all_for_stream()[:200]
-                for r in rows:
+                from companies.infrastructure.models.company_model import CompanyModel
+                from companies.infrastructure.mappers import company_model_to_dict
+                rows = session.query(CompanyModel).order_by(CompanyModel.created_at.desc()).limit(200).all()
+                for m in rows:
+                    r = company_model_to_dict(m)
                     items.append(GenerationHistoryItem(
                         id=r['id'],
                         source='company-processing',

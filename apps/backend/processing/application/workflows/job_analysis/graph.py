@@ -1,16 +1,16 @@
 """JobAnalysisGraph — LangGraph workflow that runs the single combined LLM
 analysis for a job and persists the result.
 
-Flow:
+    Flow:
 
-    Job
-    ↓
-    LoadContext → PrepareProfile → Analyze → ExtractSkills → Score
-    → Recommend → Summarize → Persist
-    → AnalysisReady | ExecutionFailed
+        Job
+        ↓
+        LoadContext → PrepareProfile → Analyze → ExtractSkills → Score
+        → Recommend → Summarize → Persist → LinkCompany
+        → AnalysisReady | ExecutionFailed
 
-This graph runs after JobContextPreparationGraph and reuses its state (and the
-persisted prepared context). It performs exactly one LLM call (job.analyze).
+    This graph runs after JobContextPreparationGraph and reuses its state (and the
+    persisted prepared context). It performs exactly one LLM call (job.analyze).
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from processing.application.workflows.job_analysis.nodes import (
     AnalyzeNode,
     ExecutionFailedNode,
     ExtractSkillsNode,
+    LinkCompanyNode,
     LoadContextNode,
     PersistNode,
     PrepareProfileNode,
@@ -42,6 +43,7 @@ NODE_SCORE = "score"
 NODE_RECOMMEND = "recommend"
 NODE_SUMMARIZE = "summarize"
 NODE_PERSIST = "persist"
+NODE_LINK_COMPANY = "link_company"
 NODE_ANALYSIS_READY = "analysis_ready"
 NODE_EXECUTION_FAILED = "execution_failed"
 
@@ -59,6 +61,7 @@ class JobAnalysisGraph:
         job_repo: Any,
         summary_repo: Any,
         analysis_repo: Any,
+        matching_service: Any = None,
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
     ):
@@ -69,6 +72,7 @@ class JobAnalysisGraph:
         self._jobs = job_repo
         self._summaries = summary_repo
         self._analysis = analysis_repo
+        self._matching = matching_service
         self._llm = llm_service
         self._events = event_publisher
         self._graph = self._build()
@@ -84,6 +88,7 @@ class JobAnalysisGraph:
         graph.add_node(NODE_RECOMMEND, RecommendNode(self._events))
         graph.add_node(NODE_SUMMARIZE, SummarizeNode(self._events))
         graph.add_node(NODE_PERSIST, PersistNode(self._jobs, self._summaries, self._analysis, self._events))
+        graph.add_node(NODE_LINK_COMPANY, LinkCompanyNode(self._matching, self._jobs, self._events))
         graph.add_node(NODE_ANALYSIS_READY, AnalysisReadyNode(self._events))
         graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._events))
 
@@ -110,9 +115,9 @@ class JobAnalysisGraph:
         graph.add_conditional_edges(
             NODE_PERSIST,
             self._after_persist,
-            {NODE_ANALYSIS_READY: NODE_ANALYSIS_READY, NODE_EXECUTION_FAILED: NODE_EXECUTION_FAILED},
+            {NODE_LINK_COMPANY: NODE_LINK_COMPANY, NODE_EXECUTION_FAILED: NODE_EXECUTION_FAILED},
         )
-
+        graph.add_edge(NODE_LINK_COMPANY, NODE_ANALYSIS_READY)
         graph.add_edge(NODE_ANALYSIS_READY, END)
         graph.add_edge(NODE_EXECUTION_FAILED, END)
 
@@ -128,7 +133,7 @@ class JobAnalysisGraph:
 
     @staticmethod
     def _after_persist(state: JobProcessingState) -> str:
-        return NODE_ANALYSIS_READY if state.status != ExecutionStatus.FAILED else NODE_EXECUTION_FAILED
+        return NODE_LINK_COMPANY if state.status != ExecutionStatus.FAILED else NODE_EXECUTION_FAILED
 
     def invoke(self, state: JobProcessingState) -> JobProcessingState:
         result = self._graph.invoke(state)

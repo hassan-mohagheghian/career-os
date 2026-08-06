@@ -71,3 +71,22 @@ class ICompanyRepository(ABC):
     def update_fields(self, company_id: str, **fields: Any) -> bool:
         """Update arbitrary fields on a company."""
         ...
+
+    @abstractmethod
+    def list_for_matching(self) -> list[dict[str, Any]]:
+        """Slim projections (id, name, website, domain, parent_company_id) for company matching."""
+        ...
+
+    @abstractmethod
+    def count_aliases(self, company_id: str) -> int:
+        """Number of companies related to this one as an alias (parent_company_id == company_id)."""
+        ...
+
+    @abstractmethod
+    def insert(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Insert a company row from an arbitrary dict of model attributes.
+
+        Used by the company matching service to create minimal companies
+        (name, website, domain, status, source) without filling the full profile.
+        """
+        ...

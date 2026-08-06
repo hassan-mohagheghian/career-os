@@ -202,6 +202,7 @@ export interface JobDetail {
   id: string
   title: string | null
   company_name: string | null
+  company_id?: string | null
   role: string | null
   location: string | null
   work_types: string[] | null

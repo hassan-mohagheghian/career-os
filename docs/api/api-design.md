@@ -19,8 +19,8 @@ api_router.include_router(companies_router, prefix="/companies", tags=["companie
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(insights_router, prefix="/insights", tags=["insights"])
 api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
-api_router.include_router(pending_router, prefix="/pending", tags=["pending"])
-api_router.include_router(pending_companies_router, prefix="/pending-companies", tags=["pending-companies"])
+api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
+api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
 api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
@@ -260,37 +260,35 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/companies/list` | GET | — | `CompanyListResponse` | Paginated list (search/sort/filter) |
 | `/api/companies/list/{id}` | GET | — | `CompanyDetailResponse` | Get company + notes, links, intelligence, scores, jobs (single payload) |
 | `/api/companies/{id}` | GET | — | `CompanyResponse` | Get company |
-| `/api/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company |
+| `/api/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company (`{name, notes, links, source, queue}` → `{id, name, status, execution_id?}`, 201) |
 | `/api/companies/{id}` | PUT | `CompanyUpdate` | `CompanyResponse` | Update company |
-| `/api/companies/{id}` | DELETE | — | `{"success": true}` | Delete company |
+| `/api/companies/{id}` | DELETE | — | `204` | Hard-delete company (executions, links, intelligence) |
+| `/api/companies/{id}/reprocess` | POST | — | `{"status": "queued", "execution_id": "..."}` | Queue company for reprocessing |
 | `/api/companies/{id}/intelligence` | GET | — | `CompanyIntelligenceResponse` | Get intelligence |
 | `/api/companies/{id}/notes` | POST | `NoteCreate` | `NoteResponse` | Add note |
 | `/api/companies/{id}/links` | POST | `LinkCreate` | `LinkResponse` | Add link |
 
 > `{id}` values for companies are **UUID v7 strings** (migration
 > `company_002_add_uuid_v7`); all company endpoints accept/take string ids.
+>
+> Company processing runs through the shared `ProcessingExecution` lifecycle
+> (execution type `COMPANY_PROCESSING`), the same two-phase model as jobs: a
+> context-preparation phase (no LLM) followed by a single-LLM-call analysis
+> phase. List items include `latest_processing_execution`
+> (`{id, status, started_at, finished_at}` or `null`). Live progress is streamed
+> over `/api/sse/processing-events` with `target_type: "company"` and can be
+> monitored via the Processing Drawer filtered to companies.
 
-### Pending (Job Queue)
-
-| Endpoint | Method | Request Body | Response | Description |
-|----------|--------|--------------|----------|-------------|
-| `/api/pending` | GET | — | `PendingListResponse` | List pending jobs |
-| `/api/pending` | POST | `PendingCreate` | `PendingResponse` | Queue new job |
-| `/api/pending/{id}` | GET | — | `PendingResponse` | Get pending job |
-| `/api/pending/{id}` | DELETE | — | `{"success": true}` | Cancel pending job |
-| `/api/pending/{id}/reset` | POST | — | `PendingResponse` | Reset pending job |
-| `/api/pending/stream` | GET | — | SSE stream | Real-time updates |
-| `/api/pending/queue-all` | POST | — | `{"queued": N}` | Queue all pending |
-
-### Pending Companies
+### Processing
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/pending-companies` | GET | — | `PendingCompanyListResponse` | List pending companies |
-| `/api/pending-companies` | POST | `PendingCompanyCreate` | `PendingCompanyResponse` | Queue company |
-| `/api/pending-companies/{id}` | GET | — | `PendingCompanyResponse` | Get pending company |
-| `/api/pending-companies/{id}` | DELETE | — | `{"success": true}` | Cancel pending company |
-| `/api/pending-companies/stream` | GET | — | SSE stream | Real-time updates |
+| `/api/processing/queue` | GET | — | `QueueSnapshotResponse` | Execution queue snapshot (jobs + companies) |
+| `/api/processing/queue/{execution_id}` | DELETE | — | `{"success": true}` | Remove a queue entry |
+| `/api/processing/executions/{execution_id}` | GET | — | `ExecutionDetailResponse` | Execution + workflow progress |
+| `/api/processing/executions/{execution_id}/start` | POST | — | `{"status": "started"}` | Start a queued execution |
+| `/api/processing/executions/{execution_id}/cancel` | POST | — | `{"status": "cancelled"}` | Cancel a running execution |
+| `/api/processing/executions/{execution_id}/retry` | POST | — | `{"status": "queued"}` | Retry a failed execution |
 
 ### Skills
 
@@ -399,29 +397,35 @@ const ws = new WebSocket(`ws://${host}/ws`);
 ### Server Events
 
 ```json
-{"type": "pending:update", "room": "pending_123", "data": {...}}
-{"type": "pending:log", "room": "pending_123", "data": {...}}
-{"type": "pending:complete", "room": "pending_123", "data": {...}}
-{"type": "pending:error", "room": "pending_123", "data": {...}}
-{"type": "company:update", "room": "company_456", "data": {...}}
-{"type": "generation:update", "room": "generation_789", "data": {...}}
-{"type": "insights:progress", "room": "insights", "data": {...}}
+{"type": "execution:created", "room": "execution_123", "data": {...}}
+{"type": "execution:started", "room": "execution_123", "data": {...}}
+{"type": "execution:completed", "room": "execution_123", "data": {...}}
+{"type": "execution:failed", "room": "execution_123", "data": {...}}
+{"type": "execution:cancelled", "room": "execution_123", "data": {...}}
+{"type": "workflow:step:started", "room": "execution_123", "data": {...}}
+{"type": "workflow:step:completed", "room": "execution_123", "data": {...}}
+{"type": "queue:entry:removed", "room": "execution_123", "data": {...}}
 ```
 
 ## SSE Endpoints
 
-### Pending Stream
+### Processing Events Stream
 
 ```
-GET /api/pending/stream
+GET /events/processing
 Accept: text/event-stream
 
-event: pending:update
-data: {"id": "abc-123", "step": "fetch", "status": "processing"}
-
-event: pending:complete
-data: {"id": "abc-123", "job_id": "8f5b1c2e-…"}
+event: execution.started
+data: {"id": "abc-123", "type": "execution.started", "timestamp": "…",
+       "job_id": null, "execution_id": "exec-1",
+       "target_type": "company", "target_id": "8f5b1c2e-…",
+       "payload": {"status": "RUNNING", "updated_at": "…", "target_type": "company", "target_id": "8f5b1c2e-…"}}
 ```
+
+Every processing event carries `target_type` (`job` | `company`) and `target_id`
+on both the envelope and the payload so subscribers can route events to the
+right entity. See `docs/api/sse/processing-events.md` for the full event
+catalogue.
 
 ## Authentication
 

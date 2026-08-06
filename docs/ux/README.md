@@ -41,10 +41,10 @@ docs/ux/
 │   ├── companies/
 │   │   ├── page.md            Companies page (list, toolbar, infinite scroll, drawers)
 │   │   ├── company-row.md     Company row columns, grades, scores, status, actions
-│   │   ├── company-detail.md  Company Detail drawer (tabs, scores, single-payload data)
+│   │   ├── company-detail.md  Company Detail drawer (single page, scores, recommendation)
+│   │   ├── relate-company.md  Related companies: main/alias relations, Relate Company dialog
 │   │   ├── add-company.md     Add Company drawer (shared Create Entity, company mode)
 │   │   ├── edit-company.md    Edit Company drawer
-│   │   └── company-queue.md   Company Queue drawer (legacy processing monitor)
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, infinite scroll)
 │       ├── job-row.md         Job row columns and scores
@@ -60,7 +60,8 @@ docs/ux/
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
 └── flows/
     ├── companies/
-    │   └── browse-companies.md  Browse, search, filter, sort, open details
+    │   ├── browse-companies.md  Browse, search, filter, sort, open details
+    │   ├── relate-company.md    Relate an alias company to a main (consolidate duplicates)
     ├── jobs/
     │   ├── browse-jobs.md     Browse, search, filter, sort
     │   ├── create-job.md      Create job (import only)

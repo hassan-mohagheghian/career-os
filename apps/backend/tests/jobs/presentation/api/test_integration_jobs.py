@@ -103,3 +103,28 @@ def test_get_job_detail(client, test_db):
 
     missing = client.get("/api/jobs/does-not-exist")
     assert missing.status_code == 404
+
+
+def test_get_job_detail_includes_company_id(client, test_db):
+    """Test the V2 detail endpoint exposes the linked company_id."""
+    job = JobModel(
+        url="https://example.com/job/43",
+        title="Frontend Engineer",
+        company="Example Co",
+        company_id="company-abc",
+        location="Berlin",
+        deleted=0,
+        workflow_log="[]",
+        locations='["Berlin"]',
+        work_types='["On-site"]',
+        employment_types='["Full-time"]',
+        rescoring=0,
+    )
+    test_db.add(job)
+    test_db.commit()
+
+    response = client.get(f"/api/jobs/{job.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["company_name"] == "Example Co"
+    assert data["company_id"] == "company-abc"

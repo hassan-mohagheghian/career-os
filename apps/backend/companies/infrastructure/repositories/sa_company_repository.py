@@ -1,6 +1,7 @@
 """SQLAlchemy-based company repository implementation."""
 
 import json
+from datetime import datetime, UTC
 from typing import Any
 
 from sqlalchemy import func
@@ -109,6 +110,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).count()
 
     def update_status(self, company_id: str, status: str, **extra: Any) -> bool:
+        extra.setdefault("updated_at", datetime.now(UTC).isoformat())
         fields = {'status': status, **extra}
         self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
         self._session.commit()
@@ -122,6 +124,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).first()
         if model:
             model.status = 'processing'
+            model.updated_at = datetime.now(UTC).isoformat()
             self._session.commit()
             self._session.refresh(model)
             return company_model_to_dict(model)
@@ -134,9 +137,37 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         return [company_model_to_dict(r) for r in rows]
 
     def update_fields(self, company_id: str, **fields: Any) -> bool:
+        fields.setdefault("updated_at", datetime.now(UTC).isoformat())
         self._session.query(CompanyModel).filter(CompanyModel.id == company_id).update(fields)
         self._session.commit()
         return True
+
+    def list_for_matching(self) -> list[dict[str, Any]]:
+        rows = self._session.query(
+            CompanyModel.id,
+            CompanyModel.name,
+            CompanyModel.website,
+            CompanyModel.domain,
+            CompanyModel.parent_company_id,
+        ).filter(
+            CompanyModel.name.isnot(None),
+            CompanyModel.name != '',
+        ).all()
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "website": r.website,
+                "domain": r.domain,
+                "parent_company_id": r.parent_company_id,
+            }
+            for r in rows
+        ]
+
+    def count_aliases(self, company_id: str) -> int:
+        return self._session.query(func.count(CompanyModel.id)).filter(
+            CompanyModel.parent_company_id == company_id,
+        ).scalar() or 0
 
     def get_total_count(self) -> int:
         return self._session.query(func.count(CompanyModel.id)).scalar() or 0

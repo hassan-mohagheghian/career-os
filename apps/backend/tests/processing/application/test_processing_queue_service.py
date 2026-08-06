@@ -17,11 +17,11 @@ class FakeExecutionRepo:
         return list(self._store.values())[:limit]
 
 
-def _execution(status: ExecutionStatus, job_id: str = "job-1") -> ProcessingExecution:
+def _execution(status: ExecutionStatus, job_id: str = "job-1", target_type: str = "job") -> ProcessingExecution:
     return ProcessingExecution(
         id=str(uuid.uuid4()),
         execution_type=ExecutionType.JOB_PROCESSING,
-        target_type="job",
+        target_type=target_type,
         target_id=job_id,
         status=status,
         created_at=datetime.now(UTC),
@@ -36,8 +36,20 @@ class FakeJobRepo:
         return self._jobs.get(job_id)
 
 
-def _service(jobs: dict[str, dict], executions) -> ProcessingQueueService:
-    return ProcessingQueueService(FakeExecutionRepo(executions), FakeJobRepo(jobs))
+class FakeCompanyRepo:
+    def __init__(self, companies: dict[str, dict]):
+        self._companies = companies
+
+    def get_by_id(self, company_id: str) -> dict | None:
+        return self._companies.get(company_id)
+
+
+def _service(jobs: dict[str, dict], executions, companies: dict[str, dict] | None = None) -> ProcessingQueueService:
+    return ProcessingQueueService(
+        FakeExecutionRepo(executions),
+        FakeJobRepo(jobs),
+        FakeCompanyRepo(companies or {}),
+    )
 
 
 class TestProcessingQueueServiceSnapshot:
@@ -89,3 +101,30 @@ class TestProcessingQueueServiceSnapshot:
         execution = _execution(ExecutionStatus.RUNNING, job_id=job_id)
         entry = _service(jobs, [execution]).snapshot()["processing"][0]
         assert entry["links"] == [{"url": "{not-json"}]
+
+
+class TestProcessingQueueServiceCompany:
+    def test_entry_resolves_company_title_and_url_notes(self):
+        company_id = "company-1"
+        companies = {
+            company_id: {
+                "name": "Acme GmbH",
+                "notes": json.dumps([
+                    {"type": "url", "content": "https://acme.example", "title": "Website"},
+                    {"type": "text", "content": "Berlin product company"},
+                ]),
+            }
+        }
+        execution = _execution(ExecutionStatus.RUNNING, job_id=company_id, target_type="company")
+        entry = _service({}, [execution], companies).snapshot()["processing"][0]
+
+        assert entry["target_type"] == "company"
+        assert entry["target_id"] == company_id
+        assert entry["title"] == "Acme GmbH"
+        assert entry["links"] == [{"url": "https://acme.example", "title": "Website"}]
+
+    def test_entry_company_without_repo_falls_back_to_target_id(self):
+        execution = _execution(ExecutionStatus.QUEUED, job_id="company-9", target_type="company")
+        entry = _service({}, [execution]).snapshot()["queued"][0]
+        assert entry["title"] == "company-9"
+        assert entry["links"] == []

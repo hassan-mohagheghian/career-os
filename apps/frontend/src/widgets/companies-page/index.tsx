@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { useCompaniesInfiniteQuery, usePendingCompaniesQuery } from '@/entities/company/hooks'
+import { useCompaniesInfiniteQuery } from '@/entities/company/hooks'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
 import { setSearchParam, getSearchParam } from '@/shared/lib/url'
@@ -27,11 +27,8 @@ function CompaniesPageAdapter() {
     sort, order, handleHeaderSort,
     filterIndustry, setFilterIndustry,
     activeFilterCount, clearFilters,
-    deleteMutation, reprocessMutation,
+    deleteMutation, reprocessMutation, setMainMutation,
   } = useCompaniesInfiniteQuery()
-
-  const { data: pendingItems } = usePendingCompaniesQuery()
-  const pendingTotal = pendingItems?.length ?? 0
 
   const navigateToJobs = useCallback(() => {
     window.location.href = '/jobs'
@@ -78,6 +75,21 @@ function CompaniesPageAdapter() {
     })
   }, [reprocessMutation])
 
+  const handleRelate = useCallback((companyId: string, mainCompanyId: string | null) => {
+    setMainMutation.mutate({ id: companyId, mainCompanyId }, {
+      onSuccess: () => {
+        toast.success(
+          mainCompanyId
+            ? 'Company related to main company'
+            : 'Company relation removed'
+        )
+      },
+      onError: () => {
+        toast.error('Failed to update company relation')
+      },
+    })
+  }, [setMainMutation])
+
   useEffect(() => {
     const companyId = getSearchParam('company')
     if (companyId) {
@@ -115,7 +127,8 @@ function CompaniesPageAdapter() {
         onReprocess={handleReprocess}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        pendingTotal={pendingTotal}
+        onRelate={handleRelate}
+        relatePending={setMainMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}
         onQueueDrawerOpenChange={setQueueDrawerOpen}
         addCompanyDrawerOpen={addCompanyDrawerOpen}

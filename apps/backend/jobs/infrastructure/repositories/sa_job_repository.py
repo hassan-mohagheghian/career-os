@@ -452,6 +452,18 @@ class SQLAlchemyJobRepository(IJobRepository):
         ).order_by(JobModel.created_at.desc()).all()
         return [job_model_to_dict(r) for r in rows]
 
+    def reassign_company(self, from_company_id: str, to_company_id: str) -> bool:
+        """Re-point all non-deleted jobs linked to ``from_company_id`` to ``to_company_id``."""
+        self._session.query(JobModel).filter(
+            JobModel.company_id == from_company_id,
+            JobModel.deleted == 0,
+        ).update(
+            {"company_id": to_company_id, "updated_at": datetime.now(UTC).isoformat()},
+            synchronize_session=False,
+        )
+        self._session.commit()
+        return True
+
     def search_jobs(
         self,
         page: int = 1,

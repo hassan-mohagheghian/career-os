@@ -102,7 +102,6 @@ ai/infrastructure/tools/
 | File | Change |
 |------|--------|
 | `worker.py` | `_fetch_url` now uses `fetch_page()` |
-| `company_worker.py` | `_fetch_url` now uses `fetch_page()` |
 | `backfill_raw.py` | `fetch_url` now uses `fetch_page()` |
 | `stream_server.py` | `fetch_url` now uses `fetch_page()` |
 | `job/graph.py` | `fetch_url` node uses `WebFetchTool` |

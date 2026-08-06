@@ -60,6 +60,13 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
         self._session.commit()
         return True
 
+    def delete_by_company_id(self, company_id: str) -> int:
+        count = self._session.query(CompanyLinkModel).filter(
+            CompanyLinkModel.company_id == company_id
+        ).delete(synchronize_session=False)
+        self._session.commit()
+        return count
+
     def reset_statuses(self, company_id: str) -> int:
         count = self._session.query(CompanyLinkModel).filter(
             CompanyLinkModel.company_id == company_id

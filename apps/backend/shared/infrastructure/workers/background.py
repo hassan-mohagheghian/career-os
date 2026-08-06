@@ -108,23 +108,6 @@ async def process_job_task(job_id: str) -> None:
         raise
 
 
-async def process_company_task(company_id: str) -> None:
-    """Background task for processing a pending company."""
-    from companies.infrastructure.workers.company_worker import process_company
-    from shared.infrastructure.process.logging_config import get_logger
-
-    log = get_logger("background.company")
-    log.info("company.background_start", company_id=company_id)
-
-    try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, process_company, company_id)
-        log.info("company.background_complete", company_id=company_id)
-    except Exception as e:
-        log.error("company.background_failed", company_id=company_id, error=str(e))
-        raise
-
-
 async def generate_resume_task(job_id: str, resume_id: str = "original") -> None:
     """Background task for generating a resume."""
     from jobs.infrastructure.workers.generation_worker import process_generation

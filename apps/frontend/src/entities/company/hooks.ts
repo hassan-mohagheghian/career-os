@@ -7,13 +7,11 @@ import type {
   CompanyDetail,
   CompanyEditInput,
   InfiniteCompanySearchResult,
-  PendingCompany,
 } from './types'
 
 const PAGE_SIZE = 25
 const COMPANIES_KEY = 'companies-v2-infinite'
 const COMPANY_DETAIL_KEY = 'company-detail'
-const PENDING_KEY = 'companies-pending'
 
 export function useCompaniesInfiniteQuery() {
   const queryClient = useQueryClient()
@@ -100,6 +98,15 @@ export function useCompaniesInfiniteQuery() {
     },
   })
 
+  const setMainMutation = useMutation({
+    mutationFn: ({ id, mainCompanyId }: { id: string; mainCompanyId: string | null }) =>
+      companyApi.setMain(id, mainCompanyId),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
+      queryClient.invalidateQueries({ queryKey: [COMPANY_DETAIL_KEY] })
+    },
+  })
+
   return {
     items,
     total,
@@ -123,6 +130,7 @@ export function useCompaniesInfiniteQuery() {
     deleteMutation,
     updateMutation,
     reprocessMutation,
+    setMainMutation,
   }
 }
 
@@ -131,33 +139,5 @@ export function useCompanyQuery(id: number | string | null) {
     queryKey: [COMPANY_DETAIL_KEY, id],
     queryFn: () => companyApi.get(id as string),
     enabled: !!id,
-  })
-}
-
-export function usePendingCompaniesQuery() {
-  return useQuery<PendingCompany[]>({
-    queryKey: [PENDING_KEY],
-    queryFn: () => companyApi.pendingList(),
-    refetchInterval: 5000,
-  })
-}
-
-export function usePendingProcessMutation() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number | string) => companyApi.pendingProcess(id),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [PENDING_KEY] })
-    },
-  })
-}
-
-export function usePendingDeleteMutation() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number | string) => companyApi.pendingDelete(id),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [PENDING_KEY] })
-    },
   })
 }

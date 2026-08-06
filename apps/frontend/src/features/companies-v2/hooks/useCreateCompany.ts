@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companyApi } from '@/entities/company/api'
 
 const COMPANIES_KEY = 'companies-v2-infinite'
-const PENDING_KEY = 'companies-pending'
 
 export interface CreateCompanyLinkItem {
   url: string
@@ -30,7 +29,7 @@ export function useCreateCompany() {
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (data: CreateCompanyRequest) => companyApi.pendingCreate({
+    mutationFn: (data: CreateCompanyRequest) => companyApi.create({
       name: data.name || undefined,
       notes: data.notes as unknown as Array<Record<string, unknown>>,
       links: data.links as unknown as Array<Record<string, unknown>>,
@@ -41,7 +40,6 @@ export function useCreateCompany() {
       setError((e as { message?: string })?.message || 'Failed to add company')
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [PENDING_KEY] })
       queryClient.invalidateQueries({ queryKey: [COMPANIES_KEY] })
     },
   })

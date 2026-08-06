@@ -13,7 +13,6 @@ import asyncio
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.taskiq.config import build_broker
 from shared.infrastructure.taskiq.tasks import (
-    process_company_task,
     process_execution_task,
     process_generation_task,
 )
@@ -35,11 +34,6 @@ async def _enqueue(task, *args, **kwargs) -> str | None:
         await broker.shutdown()
 
 
-async def enqueue_company(company_id: str) -> str | None:
-    """Dispatch a company processing task."""
-    return await _enqueue(process_company_task, company_id)
-
-
 async def enqueue_generation(gen_id: str) -> str | None:
     """Dispatch a resume / cover letter generation task."""
     return await _enqueue(process_generation_task, gen_id)
@@ -48,10 +42,6 @@ async def enqueue_generation(gen_id: str) -> str | None:
 async def enqueue_execution(execution_id: str) -> str | None:
     """Dispatch a ProcessingExecution task."""
     return await _enqueue(process_execution_task, execution_id)
-
-
-def enqueue_company_sync(company_id: str) -> str | None:
-    return asyncio.run(enqueue_company(company_id))
 
 
 def enqueue_generation_sync(gen_id: str) -> str | None:

@@ -526,14 +526,16 @@ refetched live when the execution completes/fails (SSE invalidates the
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│ Senior Backend Engineer                        [ Apply ]      │
+│ Senior Backend Engineer                                      │
 │ GetYourGuide · Berlin · visa-sponsored                        │
 ├──────────────────────────────────────────────────────────────┤
-│ AI Analysis                    generated Jul 30, 2026, 4:32 PM │
+│ [A+]  Overall 91   Fit 94   Success 88                      │
 │                                                              │
-│  Recommendation: Apply ✓                                     │
+│ Recommendation                      [ Apply ]                │
 │  Because the role matches your Go + Postgres stack and the   │
 │  company sponsors work visas.                                │
+│                                                              │
+│ AI Analysis                    generated Jul 30, 2026, 4:32 PM │
 │                                                              │
 │  Why it fits                                                  │
 │    • Go, PostgreSQL, Kubernetes — core stack match           │
@@ -562,6 +564,12 @@ refetched live when the execution completes/fails (SSE invalidates the
 │    • Salary is negotiable — apply early                      │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+The Recommendation section (recommendation badge + apply reason) is
+prioritized directly below the score grid at the top of the drawer; the AI
+Analysis section then shows the generated timestamp, insights, score
+explanations, summary and tagged skills. The grade badge (`[A+]`) is derived
+from the overall score via the shared grade helper.
 
 For legacy rows (processed before the analysis phase existed) the section
 renders from the `jobs`/`summaries` projections without a recommendation

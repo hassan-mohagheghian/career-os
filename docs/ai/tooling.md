@@ -9,7 +9,7 @@ The AI Tool Layer provides a unified abstraction for all tool executions across 
 ```
 ┌─────────────────────────────────────────────────┐
 │               LangGraph Workflows               │
-│  (job_processing, company_processing, etc.)     │
+│  (job_processing, resume_generation, ...)       │
 └──────────────────┬──────────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────────┐

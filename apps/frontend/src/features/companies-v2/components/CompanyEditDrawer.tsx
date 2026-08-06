@@ -10,6 +10,7 @@ import { CircleNotch, Pencil, Warning } from '@phosphor-icons/react'
 import type { CompanyDetail, CompanyEditInput } from '@/entities/company/types'
 import { companyApi } from '@/entities/company/api'
 import { useQueryClient } from '@tanstack/react-query'
+import CompanyNotesTab from '@/features/companies/components/CompanyNotesTab'
 
 const COMPANY_KEY = 'companies-v2-infinite'
 const COMPANY_DETAIL_KEY = 'company-detail'
@@ -168,6 +169,9 @@ export function CompanyEditDrawer({ companyId, onOpenChange }: CompanyEditDrawer
               <Field label="Description">
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Company description..." className="min-h-[80px] text-xs resize-none" />
               </Field>
+
+              <div className="pt-1 border-t" />
+              <CompanyNotesTab company={detail} />
 
               {error && detail && (
                 <div className="flex items-start gap-1 text-xs text-destructive bg-destructive/10 rounded p-2">

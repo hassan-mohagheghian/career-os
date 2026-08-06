@@ -2,8 +2,10 @@
 
 ## Purpose
 
-The Company Edit drawer edits a company's core profile data. It is the Sheet
-successor to the legacy edit flow.
+The Company Edit drawer edits a company's core profile data and its notes and
+links. It is the Sheet successor to the legacy edit flow. Notes and links CRUD
+moved here from the Company Detail drawer so the detail drawer can stay
+read-only.
 
 ---
 
@@ -11,7 +13,7 @@ successor to the legacy edit flow.
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Edit Company                                 │
+│ ✏️ Edit Company                              │
 ├──────────────────────────────────────────────┤
 │                                              │
 │ Name *        [ Acme GmbH              ]     │
@@ -23,6 +25,15 @@ successor to the legacy edit flow.
 │ Company Type  [ Product Company        ]     │
 │ Description   [ ...................... ]     │
 │               [ ...................... ]     │
+│                                              │
+│ ── Company Notes ──────────────────────────  │
+│ [ add a note ...                   ] [Add]   │
+│ • Test note                    ✏️ 🗑          │
+│ • Research note                 ✏️ 🗑          │
+│                                              │
+│ ── Company Links ──────────────────────────  │
+│ [+ Add Link]                                 │
+│ 🔗 https://example.com        ↩ ✏️ 🗑          │
 │                                              │
 │                [ Save ]                      │
 │                                              │
@@ -43,6 +54,16 @@ successor to the legacy edit flow.
 | Company Size | No       | Select of size bands           |
 | Company Type | No       | Select (Product/Recruiting/...) |
 | Description  | No       | Multiline                      |
+
+---
+
+# Notes & Links
+
+- `CompanyNotesTab` renders below the profile fields with full CRUD for notes
+  (`/api/companies/{id}/notes`) and links (`/api/companies/{id}/links`).
+- Notes and links are saved immediately on add/update/delete (not on the
+  drawer's Save button); the Save button persists the profile fields via
+  `PUT /api/companies/{id}`.
 
 ---
 

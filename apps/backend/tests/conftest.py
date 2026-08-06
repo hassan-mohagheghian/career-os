@@ -103,12 +103,6 @@ def mock_get_session_worker(sa_session):
 
 
 @pytest.fixture
-def mock_get_session_company_worker(sa_session):
-    with patch('companies.infrastructure.workers.company_worker.get_session_sync', return_value=sa_session):
-        yield sa_session
-
-
-@pytest.fixture
 def client(sa_session):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

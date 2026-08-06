@@ -196,6 +196,7 @@ class JobDetailResponseSchema(BaseModel):
     id: str
     title: str | None = None
     company_name: str | None = Field(default=None, validation_alias="company")
+    company_id: str | None = None
     role: str | None = None
     location: str | None = None
     work_types: list[str] | None = None

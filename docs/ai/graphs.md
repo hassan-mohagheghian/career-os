@@ -57,19 +57,12 @@ START → validate_input → fetch_url → fallback_to_notes → extract_raw_con
 **Typed Output**: `JobAnalysisOutput`
 **Retry Nodes**: `extract_raw_content`, `score_job`
 
-## Company Processing Graph
+## Company Processing (removed graph)
 
-**Name**: `company_processing`
-**Entry**: `validate_input`
-**Finish**: `completion_event`
-
-```
-START → validate_input → fetch_content → extract_company_data
-      → analyze_company → score_company → save_results → completion_event → END
-```
-
-**Typed Output**: `CompanyAnalysisOutput`
-**Retry Nodes**: `extract_company_data`, `analyze_company`
+The standalone `company_processing` graph was **removed**. Companies now run
+through the shared two-phase ProcessingExecution workflow (`COMPANY_PROCESSING`):
+context preparation without an LLM call, then a single-LLM analysis — the same
+pattern used by jobs.
 
 ## Resume Generation Graph
 
@@ -155,7 +148,7 @@ START → overview → skills → market → companies
 **Finish**: `completion_event`
 
 ```
-START → job_processing → company_processing → resume_generation
+START → job_processing → resume_generation
       → cover_letter_generation → skill_extraction → skill_roadmap
       → insights_generation → completion_event → END
 ```

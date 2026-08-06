@@ -94,9 +94,14 @@ Details drawer.
 
 # Score Presentation
 
-Scores are displayed as compact badges.
+Scores are displayed as compact badges, led by the overall grade badge
+(derived from the overall score via the shared grade helper, `A++` … `D`).
 
 Example
+
+Grade
+
+A+
 
 Overall
 
@@ -109,6 +114,13 @@ Fit
 Success
 
 88
+
+```text
+[A+]  O 91   F 94   S 88
+```
+
+Null scores show `—`; a missing overall score shows `—` for the grade instead
+of `P`.
 
 ---
 

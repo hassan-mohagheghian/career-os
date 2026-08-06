@@ -9,13 +9,14 @@ This endpoint is optimized for browsing, searching, filtering and sorting.
 The endpoint is read-only.
 
 Scores are exposed as **raw values from the legacy scores blob** (they are
-stored as numbers and may be fractional, e.g. `38.5`). The overall grade is the
-company's `overall_grade`, falling back to `fit_grade` when the former is empty.
+stored as numbers and may be fractional, e.g. `38.5`). The overall grade is `scores.overall_grade`, falling back to `fit_grade` when the former is empty.
 
-> Company processing is **legacy**: `pending_companies` + `enqueue_company_sync`
-> + the LangGraph company graph. Unlike Jobs, there is no
-> Processing-Execution/SSE model. Processing state is monitored through the
-> pending-companies endpoint (polled by the Company Queue drawer).
+> Company processing runs through the shared `ProcessingExecution` lifecycle
+> (execution type `COMPANY_PROCESSING`), the same two-phase model as jobs: a
+> context-preparation phase (no LLM) followed by a single-LLM-call analysis
+> phase. Live progress is streamed over `/events/processing` with
+> `target_type: "company"` and monitored via the shared Processing Drawer
+> filtered to companies (no legacy pending-company polling).
 
 ---
 
@@ -119,30 +120,44 @@ desc
     {
       "id": "...",
       "name": "...",
-      "logo_url": "...",
       "industry": "...",
       "city": "...",
       "country": "...",
       "company_size": "...",
       "company_type": "...",
+      "logo_url": "...",
       "website": "...",
-      "linkedin_url": "...",
-      "jobs_count": 12,
-      "grade": "A+",
+      "description": "...",
+      "job_count": 12,
       "scores": {
         "overall": 88,
         "fit": 85,
-        "success": 90
+        "success": 90,
+        "overall_grade": "A+"
       },
-      "status": "processed",
+      "processing": {
+        "status": "completed",
+        "current_node": null,
+        "progress_pct": null,
+        "error": null
+      },
+      "latest_processing_execution": {
+        "id": "exec-123",
+        "status": "completed",
+        "started_at": "...",
+        "finished_at": "..."
+      },
+      "parent_company_id": null,
+      "main_company": null,
+      "alias_count": 0,
+      "is_alias": false,
       "updated_at": "...",
       "created_at": "..."
     }
   ],
   "next_cursor": "...",
   "has_more": true,
-  "total_count": 128,
-  "loaded_count": 25
+  "total_items": 128
 }
 ```
 
@@ -161,15 +176,29 @@ Excluded data includes:
 - Links
 - Intelligence payloads
 - Score explanation / factors / prompts
-- Processing logs / history
+- Processing logs / history (exposed via the Processing Drawer / `/api/processing/queue`)
 
 Those are loaded by a single detail endpoint: `GET /api/companies/list/{id}`,
 which returns the company plus its notes, links, intelligence, scores and jobs
 in one payload.
 
-The only score-derived values exposed on the list are the lightweight `grade`
-and the three `scores` values, batch-loaded per page (no N+1). Companies
-without intelligence return `grade = null` and null scores.
+The only score-derived values exposed on the list are the lightweight
+`scores.overall_grade` and the three `scores` values, batch-loaded per page (no
+N+1). Companies without intelligence return null grades and null scores.
+
+### Main / Alias relation
+
+Each row includes relation fields so the list can render an `alias` badge and
+relationship state without a detail call:
+
+- `parent_company_id` — the main company's id (null when not an alias)
+- `main_company` — `{ id, name }` of the main, or null
+- `is_alias` — true when `parent_company_id` is set
+- `alias_count` — number of companies related to this one as aliases
+
+`latest_processing_execution` is batch-attached per page from the
+`ProcessingExecution` table (no N+1); companies without an execution return
+`null`.
 
 ---
 

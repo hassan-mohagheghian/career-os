@@ -73,8 +73,6 @@ apps/backend/
 │   │   │   ├── sa_company_repository.py
 │   │   │   ├── sa_company_link_repository.py
 │   │   │   └── sa_company_intelligence_repository.py
-│   │   ├── workers/
-│   │   │   └── company_worker.py
 │   │   └── ai/prompts/company/
 │   │       ├── company_extract.txt
 │   │       └── company_analyze.txt
@@ -149,27 +147,13 @@ apps/backend/
 │                                        #   jobs/presentation/api/resumes_router.py
 │                                        #   jobs/presentation/api/schemas/resumes.py
 │
-├── pending/                         # Pending Bounded Context
+├── processing/                     # Processing Bounded Context (executions + queue)
 │   ├── domain/
-│   │   ├── entities/pending_job.py
-│   │   └── repositories/
-│   │       ├── pending_repository.py
-│   │       └── pending_generation_repository.py
-│   ├── application/
-│   │   └── dto/
+│   │   └── entities/processing_execution.py
 │   ├── infrastructure/
-│   │   ├── models/
-│   │   │   ├── pending_model.py
-│   │   │   └── misc_models.py
-│   │   └── repositories/
-│   │       ├── sa_pending_repository.py
-│   │       └── sa_pending_generation_repository.py
-│   └── presentation/
-│       ├── api/
-│       │   ├── pending_router.py
-│       │   ├── pending_companies_router.py
-│       │   └── schemas/pending.py
-│       └── cli/
+│   └── presentation/api/
+│       ├── executions_router.py    # prefix /processing
+│       └── process_router.py       # prefix /jobs
 │
 ├── shared/                          # Shared Kernel
 │   ├── domain/

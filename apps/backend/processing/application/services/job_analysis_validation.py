@@ -72,6 +72,7 @@ class JobAnalysisOutput(BaseModel):
 
     title: str | None = None
     company: str | None = None
+    company_url: str | None = None
     role: str | None = None
     location: str | None = None
     salary: str | None = None

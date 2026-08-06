@@ -1,3 +1,5 @@
+import type { ProcessingExecution } from '@/entities/job/types'
+
 export interface CompanyScores {
   overall: number | null
   fit: number | null
@@ -10,6 +12,11 @@ export interface CompanyProcessing {
   current_node: string | null
   progress_pct: number | null
   error: string | null
+}
+
+export interface CompanyMainRef {
+  id: string
+  name: string
 }
 
 export interface CompanyListItem {
@@ -26,6 +33,11 @@ export interface CompanyListItem {
   job_count: number
   scores: CompanyScores | null
   processing: CompanyProcessing | null
+  latest_processing_execution: ProcessingExecution | null
+  parent_company_id: string | null
+  main_company: CompanyMainRef | null
+  alias_count: number
+  is_alias: boolean
   updated_at: string | null
   created_at: string | null
 }
@@ -119,9 +131,17 @@ export interface CompanyDetail {
   intelligence?: CompanyIntelligence | null
   scores?: CompanyScores | null
   jobs?: CompanyLinkedJob[]
+  parent_company_id?: string | null
+  main_company?: CompanyMainRef | null
+  alias_count?: number
+  is_alias?: boolean
   created_at?: string | null
   updated_at?: string | null
   [key: string]: unknown
+}
+
+export interface CompanyMainRequest {
+  main_company_id: string | null
 }
 
 export interface CompanyEditInput {
@@ -137,16 +157,4 @@ export interface CompanyEditInput {
   links?: unknown
 }
 
-export interface PendingCompany {
-  id: string
-  name?: string | null
-  status: string
-  input_text?: string | null
-  notes?: string | null
-  error?: string | null
-  company_id?: string | null
-  current_node?: string | null
-  progress_pct?: number | null
-  created_at?: string | null
-  [key: string]: unknown
-}
+

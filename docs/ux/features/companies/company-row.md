@@ -13,51 +13,47 @@ Rows are never expandable. Selecting a row opens the Company Detail drawer.
 
 | Column    | Description                               |
 | --------- | ----------------------------------------- |
-| Grade     | Overall grade badge (A++ … D)             |
-| Name      | Company logo and name                     |
+| Name      | Company logo, name, and `alias` badge when the company is related to a main |
 | Industry  | Industry classification                   |
 | Location  | City, Country                             |
 | Size      | Company size band                         |
 | Jobs      | Number of linked, non-deleted jobs        |
-| Scores    | Fit / Success / Overall score values      |
-| Status    | Legacy processing state                   |
+| Scores    | Grade badge + Fit / Success / Overall score values |
+| Status    | Processing status from the latest processing execution |
 | Updated   | Relative update time                      |
+| Created   | Relative creation time                    |
 | Actions   | Details, Reprocess, Edit, Delete          |
-
----
-
-# Grade
-
-```text
-A++
-```
-
-Color matches the shared grade tokens (A++/A+ green, A lime, B blue, C orange,
-D red). No grade renders `—`.
 
 ---
 
 # Scores
 
 ```text
-F 85   S 90   O 88
+[A+]  F 85   S 90   O 88
 ```
 
-Null scores render `—`.
+The overall grade badge is derived from the overall score via the shared grade
+helper (`A++` ≥ 90, `A+` ≥ 80, `A` ≥ 70, `B` ≥ 50, `C` ≥ 30, `D` ≥ 0) and sits
+inline next to the Fit / Success / Overall values. Null scores render `—` and
+no grade renders `—`. Color matches the shared grade tokens (A++/A+ green, A
+lime, B blue, C orange, D red).
 
 ---
 
 # Status
 
+Rendered from the company's `latest_processing_execution` using the shared
+`JobStatus` vocabulary:
+
 ```text
-Processed
-Completed
-Pending
+Queued
 Processing
+Completed
 Failed
+Cancelled
 ```
 
-Processing/Running render a pulsing dot.
+Processing renders a pulsing dot.
 
 ---
 

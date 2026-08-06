@@ -5,8 +5,14 @@ import type {
   CompanyListItem,
   CompanySearchQuery,
   InfiniteCompanySearchResult,
-  PendingCompany,
 } from './types'
+
+export interface CreateCompanyResult {
+  id: string
+  name: string
+  status: string
+  execution_id?: string
+}
 
 export const companyApi = {
   listInfinite: (query: CompanySearchQuery) => {
@@ -21,14 +27,9 @@ export const companyApi = {
   },
   get: (id: number | string) => api.get<CompanyDetail>(`/companies/${id}`),
   update: (id: string, data: CompanyEditInput) => api.put<CompanyDetail>(`/companies/${id}`, data),
+  setMain: (id: string, mainCompanyId: string | null) => api.put<CompanyDetail>(`/companies/${id}/main`, { main_company_id: mainCompanyId }),
   delete: (id: string) => api.delete<void>(`/companies/${id}`),
-  reprocess: (id: string) => api.post<void>(`/companies/${id}/reprocess`),
-  pendingCreate: (data: { notes?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>>; source?: string; input_text?: string; name?: string; queue?: boolean }) =>
-    api.post<PendingCompany>('/pending-companies', data),  pendingList: () => api.get<PendingCompany[]>('/pending-companies'),
-  pendingDelete: (id: number | string) => api.delete<void>(`/pending-companies/${id}`),
-  pendingProcess: (id: number | string) => api.post<void>(`/pending-companies/${id}/process`),
-  pendingNotes: (id: number | string, note: string, noteType = 'text') =>
-    api.post<void>(`/pending-companies/${id}/notes`, { note, note_type: noteType }),
-  pendingLinks: (id: number | string, links: Array<{ url: string; title?: string }>) =>
-    api.post<void>(`/pending-companies/${id}/links`, { links }),
+  reprocess: (id: string) => api.post<{ status: string; execution_id: string }>(`/companies/${id}/reprocess`),
+  create: (data: { name?: string; notes?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>>; source?: string; queue?: boolean }) =>
+    api.post<CreateCompanyResult>('/companies', data),
 }

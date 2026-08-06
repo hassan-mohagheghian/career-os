@@ -17,11 +17,13 @@ This mirrors the Jobs v2 detail pattern: the drawer fetches once and every tab
 reads from the same payload. No separate `/links`, `/jobs` or local-history
 calls are needed for the Company detail drawer.
 
-> Company processing is **legacy**: `pending_companies` + `enqueue_company_sync`
-> + the LangGraph company graph. Unlike Jobs, there is no
-> Processing-Execution/SSE model. Processing state is exposed here via the
-> `status` / `current_node` / `progress_pct` fields and monitored live through
-> the pending-companies endpoint (polled by the Company Queue drawer).
+> Company processing runs through the shared `ProcessingExecution` lifecycle
+> (execution type `COMPANY_PROCESSING`), the same two-phase model as jobs:
+> context preparation without LLM, then a single-LLM analysis call. `status` uses
+> the shared `JobStatus` vocabulary (`queued` → `processing` → `completed` /
+> `failed` / `cancelled`). Live progress is exposed via `/api/processing/queue`
+> and SSE events (`/events/processing`, `target_type: "company"`), and is
+> monitored through the shared Processing Drawer filtered to companies.
 
 ---
 
@@ -54,8 +56,8 @@ for the same path.
   "logo_url": "https://...",
   "founded_year": "2015",
   "job_count": 3,
-  "status": "processed",
-  "current_node": "completed",
+  "status": "completed",
+  "current_node": null,
   "progress_pct": 100.0,
   "error": null,
   "notes": [
@@ -94,6 +96,10 @@ for the same path.
     "success": 87.0,
     "overall_grade": "A+"
   },
+  "parent_company_id": null,
+  "main_company": null,
+  "alias_count": 0,
+  "is_alias": false,
   "jobs": [
     {
       "id": "019fd122-...",
@@ -118,6 +124,24 @@ for the same path.
 Notes are stored as `company_links` rows whose `title` starts with `note:`.
 The detail endpoint returns them parsed as `{ id, content }` (the `note:`
 prefix is stripped). Non-note links are returned under `links`.
+
+---
+
+# Main / Alias Relation
+
+Companies may be related to a **main** company (`parent_company_id`). The
+detail payload exposes:
+
+| Field               | Type                | Description                                       |
+| ------------------- | ------------------- | ------------------------------------------------- |
+| `parent_company_id` | string \| null      | The main company's id (null when not an alias)    |
+| `main_company`      | `{ id, name }` \| null | The main company's id and name                 |
+| `is_alias`          | boolean             | True when `parent_company_id` is set              |
+| `alias_count`       | number              | Companies related to this one as aliases          |
+
+Relating is managed via `PUT /api/companies/{id}/main` (see
+`relate-company.md`). Relating re-points all non-deleted jobs of the alias and
+its own aliases onto the main.
 
 ---
 

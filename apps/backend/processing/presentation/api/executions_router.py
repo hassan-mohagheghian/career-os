@@ -20,7 +20,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from dependencies import get_processing_execution_repo, get_job_repo
+from dependencies import get_company_repo, get_processing_execution_repo, get_job_repo
+from companies.infrastructure import SQLAlchemyCompanyRepository
 from jobs.infrastructure import SQLAlchemyJobRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.application.services.processing_queue_service import ProcessingQueueService
@@ -96,8 +97,9 @@ def retry_execution(
 def get_queue(
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
 ):
-    return ProcessingQueueService(exec_repo, job_repo).snapshot()
+    return ProcessingQueueService(exec_repo, job_repo, company_repo).snapshot()
 
 
 @router.delete("/queue/{execution_id}")

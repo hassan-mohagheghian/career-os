@@ -7,7 +7,6 @@ application services / workers which own the LangGraph workflow execution.
 Each task mirrors the previous ARQ task it replaces:
 
 - process_job_task       → replaces ARQ ``process_job``
-- process_company_task   → replaces ARQ ``process_company``
 - process_generation_task→ replaces ARQ ``process_generation``
 - process_execution_task → drives the ProcessingExecution lifecycle through
   the TaskIQ worker → LangGraph workflow flow.
@@ -48,21 +47,6 @@ async def periodic_db_backup() -> dict:
         return {"status": "completed", **result}
     except Exception as e:
         log.error("taskiq.task.db_backup.failed", error=str(e))
-        raise
-
-
-@broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
-async def process_company_task(company_id: str) -> dict:
-    """Process a pending company through its processing pipeline."""
-    log.info("taskiq.task.company.start", company_id=company_id)
-    try:
-        from companies.infrastructure.workers.company_worker import process_company
-
-        await asyncio.to_thread(process_company, company_id)
-        log.info("taskiq.task.company.complete", company_id=company_id)
-        return {"status": "completed", "company_id": company_id}
-    except Exception as e:
-        log.error("taskiq.task.company.failed", company_id=company_id, error=str(e))
         raise
 
 

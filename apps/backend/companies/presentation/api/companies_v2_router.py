@@ -21,17 +21,21 @@ from companies.infrastructure.repositories.sa_company_link_repository import (
 )
 from companies.presentation.api.schemas.companies_v2 import (
     CompanyDetailResponseSchema,
+    CompanyExecutionSchema,
     CompanyIntelligenceSchema,
     CompanyJobRefSchema,
     CompanyLinkItemSchema,
     CompanyListResponseSchema,
     CompanyListItemSchema,
+    CompanyMainRef,
+    CompanyMainRequest,
     CompanyNoteSchema,
     CompanyProcessingSchema,
     CompanyScoresSchema,
 )
-from dependencies import get_company_intelligence_repo, get_company_link_repo, get_company_repo, get_job_repo
+from dependencies import get_company_intelligence_repo, get_company_link_repo, get_company_repo, get_job_repo, get_processing_execution_repo
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 
 router = APIRouter()
 
@@ -79,7 +83,7 @@ def _matches(row: dict[str, Any], query: str, industry: str) -> bool:
 
 
 def _score_value(row: dict[str, Any], sort: str) -> Any:
-    scores = row.get("_scores") or {}
+    scores = _score_aliases(row.get("_scores") or {})
     return scores.get(SCORE_KEY_MAP[sort])
 
 
@@ -93,8 +97,27 @@ def _sort_key(row: dict[str, Any], sort: str) -> Any:
     return row.get("created_at")
 
 
-def _to_list_item(row: dict[str, Any]) -> CompanyListItemSchema:
-    scores = row.get("_scores") or {}
+def _to_list_item(
+    row: dict[str, Any],
+    execution: dict[str, Any] | None = None,
+    name_by_id: dict[str, str] | None = None,
+    alias_counts: dict[str, int] | None = None,
+) -> CompanyListItemSchema:
+    scores = _score_aliases(row.get("_scores") or {})
+    exec_schema = None
+    if execution:
+        exec_schema = CompanyExecutionSchema(
+            id=str(execution.get("id") or row.get("id")),
+            status=execution.get("status"),
+            started_at=execution.get("started_at"),
+            finished_at=execution.get("finished_at"),
+        )
+    parent_company_id = row.get("parent_company_id")
+    main_company = None
+    if parent_company_id:
+        main_name = (name_by_id or {}).get(parent_company_id)
+        if main_name is not None:
+            main_company = CompanyMainRef(id=parent_company_id, name=main_name)
     return CompanyListItemSchema(
         id=row["id"],
         name=row.get("name") or "",
@@ -119,6 +142,11 @@ def _to_list_item(row: dict[str, Any]) -> CompanyListItemSchema:
             progress_pct=row.get("progress_pct"),
             error=row.get("error"),
         ),
+        latest_processing_execution=exec_schema,
+        parent_company_id=parent_company_id,
+        main_company=main_company,
+        alias_count=(alias_counts or {}).get(row["id"], 0),
+        is_alias=bool(parent_company_id),
         updated_at=row.get("updated_at"),
         created_at=row.get("created_at"),
     )
@@ -133,6 +161,7 @@ def list_companies_v2(
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=200),
     cursor: str = Query("", description="Opaque pagination cursor"),
     repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
     rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry)]
@@ -149,8 +178,21 @@ def list_companies_v2(
     next_offset = offset + len(page)
     has_more = next_offset < total
 
+    name_by_id = {r.get("id"): (r.get("name") or "") for r in rows if r.get("id")}
+    alias_counts: dict[str, int] = {}
+    for r in rows:
+        parent = r.get("parent_company_id")
+        if parent:
+            alias_counts[parent] = alias_counts.get(parent, 0) + 1
+
+    page_ids = [r.get("id") for r in page if r.get("id")]
+    latest_executions = exec_repo.latest_by_target_ids("company", page_ids)
+
     return CompanyListResponseSchema(
-        items=[_to_list_item(r) for r in page],
+        items=[
+            _to_list_item(r, latest_executions.get(r.get("id")), name_by_id, alias_counts)
+            for r in page
+        ],
         next_cursor=_cursor_encode(next_offset) if has_more else None,
         has_more=has_more,
         total_items=total,
@@ -169,10 +211,26 @@ def _parse_json_field(value: Any) -> Any:
         return value
 
 
+def _score_aliases(scores: dict[str, Any]) -> dict[str, Any]:
+    """Normalize score keys: accept both canonical (fit) and legacy (company_fit_score) forms."""
+    if not scores:
+        return {}
+    for legacy, canonical in (
+        ("company_fit_score", "fit"),
+        ("company_success_score", "success"),
+        ("company_overall_score", "overall"),
+    ):
+        if legacy in scores and canonical not in scores:
+            scores[canonical] = scores[legacy]
+        elif canonical in scores and legacy not in scores:
+            scores[legacy] = scores[canonical]
+    return scores
+
+
 def _scores_from_intelligence(intel: dict[str, Any] | None) -> CompanyScoresSchema | None:
     if not intel:
         return None
-    scores = _parse_json_field(intel.get("scores")) or {}
+    scores = _score_aliases(_parse_json_field(intel.get("scores")) or {})
     if not isinstance(scores, dict):
         scores = {}
     return CompanyScoresSchema(
@@ -209,6 +267,16 @@ def get_company_detail(
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
 ) -> CompanyDetailResponseSchema:
     """Get a company by id with all related data in a single payload."""
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo)
+
+
+def _build_company_detail(
+    id: str,
+    repo: SQLAlchemyCompanyRepository,
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository,
+    link_repo: SQLAlchemyCompanyLinkRepository,
+    job_repo: SQLAlchemyJobRepository,
+) -> CompanyDetailResponseSchema:
     company = repo.get_by_id(id)
     if not company:
         raise HTTPException(status_code=404, detail=f"Company {id} not found")
@@ -216,6 +284,13 @@ def get_company_detail(
     intel = intel_repo.get_by_company_id(id)
     links = link_repo.get_by_company_id(id)
     jobs = job_repo.get_jobs_by_company_id(id)
+
+    parent_company_id = company.get("parent_company_id")
+    main_company = None
+    if parent_company_id:
+        parent = repo.get_by_id(parent_company_id)
+        if parent:
+            main_company = CompanyMainRef(id=parent_company_id, name=parent.get("name") or "")
 
     notes = [
         CompanyNoteSchema(id=l["id"], content=l.get("title", "").removeprefix("note:"), created_at=l.get("created_at"))
@@ -271,6 +346,35 @@ def get_company_detail(
         intelligence=_to_intelligence_schema(intel),
         scores=_scores_from_intelligence(intel),
         jobs=jobs_schema,
+        parent_company_id=parent_company_id,
+        main_company=main_company,
+        alias_count=repo.count_aliases(id),
+        is_alias=bool(parent_company_id),
         created_at=company.get("created_at"),
         updated_at=company.get("updated_at"),
     )
+
+
+@router.put("/{id}/main", response_model=CompanyDetailResponseSchema)
+def relate_company_main(
+    id: str,
+    body: CompanyMainRequest,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+    job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+) -> CompanyDetailResponseSchema:
+    """Relate a company to a main company (null clears the relation).
+
+    Relating re-points the jobs of the company (and its own aliases) onto the
+    main company, so the main stays the single reference for the work.
+    """
+    from companies.application.services.company_relation_service import CompanyRelationService
+
+    service = CompanyRelationService(repo)
+    result = service.relate(id, body.main_company_id) if body.main_company_id else service.unrelate(id)
+
+    for affected_id in result.get("affected_company_ids", []):
+        job_repo.reassign_company(affected_id, result["main_company_id"])
+
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo)

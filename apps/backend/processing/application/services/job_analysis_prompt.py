@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-JOB_ANALYSIS_PROMPT_VERSION = "1.1.0"
+JOB_ANALYSIS_PROMPT_VERSION = "1.2.0"
 JOB_ANALYSIS_SCHEMA_VERSION = "1.0.0"
 
 
@@ -22,6 +22,7 @@ def build_job_analysis_output_schema() -> dict[str, Any]:
         "properties": {
             "title": nullable_str,
             "company": nullable_str,
+            "company_url": nullable_str,
             "role": nullable_str,
             "location": nullable_str,
             "salary": nullable_str,
@@ -109,7 +110,7 @@ SCORING RULES TO APPLY:
 {scoring_rules}
 
 Your analysis must:
-1. Extract the job fields (title, company, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
+1. Extract the job fields (title, company, company_url, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. company_url is the company's website (root domain) when it can be identified from the posting; otherwise null. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
 2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain). Base this primarily on the RESUME text; use the LinkedIn profile as supplementary evidence (current title, company, tenure, notable achievements).
 3. Score success (0-100): the user's probability of getting an offer (seniority match, level, salary, competition).
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).

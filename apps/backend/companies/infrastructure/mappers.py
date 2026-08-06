@@ -28,6 +28,7 @@ def company_model_to_dict(model: CompanyModel) -> dict[str, Any]:
         "country": model.country,
         "city": model.city,
         "description": model.description,
+        "raw_content": model.raw_content,
         "company_size": model.company_size,
         "company_type": model.company_type,
         "logo_url": model.logo_url,
@@ -52,6 +53,7 @@ def company_model_to_dict(model: CompanyModel) -> dict[str, Any]:
         "failure_step": model.failure_step,
         "failure_timestamp": model.failure_timestamp,
         "session_id": model.session_id,
+        "parent_company_id": model.parent_company_id,
     }
 
 

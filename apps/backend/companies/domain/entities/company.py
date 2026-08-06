@@ -45,6 +45,7 @@ class Company(BaseEntity):
         failure_step: str | None = None,
         failure_timestamp: str | None = None,
         session_id: str | None = None,
+        parent_company_id: str | None = None,
     ):
         super().__init__(id=id, created_at=created_at, updated_at=updated_at)
         self.name = name
@@ -76,6 +77,7 @@ class Company(BaseEntity):
         self.failure_step = failure_step
         self.failure_timestamp = failure_timestamp
         self.session_id = session_id
+        self.parent_company_id = parent_company_id
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,6 +113,7 @@ class Company(BaseEntity):
             "failure_step": self.failure_step,
             "failure_timestamp": self.failure_timestamp,
             "session_id": self.session_id,
+            "parent_company_id": self.parent_company_id,
         }
 
     @classmethod
@@ -148,4 +151,5 @@ class Company(BaseEntity):
             failure_step=data.get("failure_step"),
             failure_timestamp=data.get("failure_timestamp"),
             session_id=data.get("session_id"),
+            parent_company_id=data.get("parent_company_id"),
         )

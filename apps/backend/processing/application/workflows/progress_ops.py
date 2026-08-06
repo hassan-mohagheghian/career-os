@@ -4,7 +4,8 @@ Pure-ish helpers used by the workflow nodes (and the runner) to build and mutate
 the user-facing WorkflowProgress tree for one execution. Every mutation also
 emits a user-facing workflow.step.* event.
 
-The tree lives inside JobProcessingState.workflow_progress so that LangGraph
+The tree lives inside the workflow state (JobProcessingState or
+CompanyProcessingState).workflow_progress so that LangGraph
 nodes stay stateless over the execution; the runner persists the final tree onto
 the ProcessingExecution record.
 """
@@ -15,8 +16,8 @@ import uuid
 from datetime import datetime, UTC
 from typing import Any, Iterable
 
+from processing.application.workflows.company_workflow_step_mapper import CompanyWorkflowStepMapper
 from processing.application.workflows.workflow_step_mapper import WorkflowStepMapper
-from processing.domain.workflow.job_processing_state import JobProcessingState
 from processing.domain.workflow.workflow_progress import (
     WorkflowProgress,
     WorkflowProgressStatus,
@@ -29,12 +30,18 @@ from processing.domain.workflow.workflow_step import (
 from shared.infrastructure.events import processing_events
 
 
-def build_initial_progress(execution_id: str) -> WorkflowProgress:
-    """Build a fully-pending WorkflowProgress for an execution."""
+def build_initial_progress(execution_id: str, target_type: str | None = None) -> WorkflowProgress:
+    """Build a fully-pending WorkflowProgress for an execution.
+
+    Defaults to the job step tree; pass ``target_type="company"`` to get the
+    company step tree.
+    """
+    if target_type == "company":
+        return CompanyWorkflowStepMapper.build_initial_progress(execution_id)
     return WorkflowStepMapper.build_initial_progress(execution_id)
 
 
-def start_step(publisher: Any, state: JobProcessingState, node_id: str) -> WorkflowProgress:
+def start_step(publisher: Any, state: Any, node_id: str) -> WorkflowProgress:
     progress = _ensure_progress(state)
     step = _find(progress, node_id)
     if step is not None:
@@ -49,7 +56,7 @@ def start_step(publisher: Any, state: JobProcessingState, node_id: str) -> Workf
     return progress
 
 
-def complete_step(publisher: Any, state: JobProcessingState, node_id: str) -> WorkflowProgress:
+def complete_step(publisher: Any, state: Any, node_id: str) -> WorkflowProgress:
     progress = _ensure_progress(state)
     step = _find(progress, node_id)
     if step is not None:
@@ -66,7 +73,7 @@ def complete_step(publisher: Any, state: JobProcessingState, node_id: str) -> Wo
 
 def fail_step(
     publisher: Any,
-    state: JobProcessingState,
+    state: Any,
     node_id: str,
     message: str,
     code: str = "PROCESSING_ERROR",
@@ -88,7 +95,7 @@ def fail_step(
 
 def update_step(
     publisher: Any,
-    state: JobProcessingState,
+    state: Any,
     node_id: str,
     value: float,
 ) -> WorkflowProgress:
@@ -108,7 +115,7 @@ def update_step(
 
 def replace_children(
     publisher: Any,
-    state: JobProcessingState,
+    state: Any,
     node_id: str,
     children: Iterable[dict[str, Any]],
 ) -> WorkflowProgress:
@@ -128,7 +135,7 @@ def replace_children(
 
 def update_child(
     publisher: Any,
-    state: JobProcessingState,
+    state: Any,
     parent_node_id: str,
     child_id: str,
     status: WorkflowStepStatus,
@@ -153,7 +160,7 @@ def update_child(
     return progress
 
 
-def finish_progress(publisher: Any, state: JobProcessingState) -> WorkflowProgress:
+def finish_progress(publisher: Any, state: Any) -> WorkflowProgress:
     """Mark the whole workflow as completed (called by terminal nodes)."""
     progress = _ensure_progress(state)
     if all(
@@ -169,7 +176,7 @@ def finish_progress(publisher: Any, state: JobProcessingState) -> WorkflowProgre
     return progress
 
 
-def mark_failed(publisher: Any, state: JobProcessingState, message: str) -> WorkflowProgress:
+def mark_failed(publisher: Any, state: Any, message: str) -> WorkflowProgress:
     """Mark the whole workflow as failed."""
     progress = _ensure_progress(state)
     progress.status = WorkflowProgressStatus.FAILED
@@ -178,10 +185,21 @@ def mark_failed(publisher: Any, state: JobProcessingState, message: str) -> Work
     return progress
 
 
-def _ensure_progress(state: JobProcessingState) -> WorkflowProgress:
+def _ensure_progress(state: Any) -> WorkflowProgress:
     if state.workflow_progress is None:
-        state.workflow_progress = build_initial_progress(state.execution_id)
+        state.workflow_progress = _build_initial_progress(state)
     return state.workflow_progress
+
+
+def _build_initial_progress(state: Any) -> WorkflowProgress:
+    """Build the initial progress tree for the state's workflow.
+
+    Dispatches on the target type carried by the state (job_id vs company_id)
+    so both the job and company workflows render their own step tree.
+    """
+    if getattr(state, "company_id", None) is not None and getattr(state, "job_id", None) is None:
+        return CompanyWorkflowStepMapper.build_initial_progress(state.execution_id)
+    return WorkflowStepMapper.build_initial_progress(state.execution_id)
 
 
 def _recompute(progress: WorkflowProgress) -> None:
@@ -229,20 +247,35 @@ def _find_in_children(step: WorkflowStep, node_id: str) -> WorkflowStep | None:
     return None
 
 
-def _emit_step_event(publisher: Any, state: JobProcessingState, event: str, step: WorkflowStep) -> None:
+def _emit_step_event(publisher: Any, state: Any, event: str, step: WorkflowStep) -> None:
     if publisher is None:
         return
     try:
         publisher.publish(
             event,
             state.execution_id,
-            state.job_id,
+            _target_id(state),
             step.status.value,
             step=step.to_dict(),
+            target_type=_target_type(state),
+            target_id=_target_id(state),
         )
     except Exception:
         # Best-effort publishing must never break the workflow.
         pass
+
+
+def _target_id(state: Any) -> str | None:
+    """The entity id carried by any workflow state (job_id / company_id)."""
+    return getattr(state, "job_id", None) or getattr(state, "company_id", None)
+
+
+def _target_type(state: Any) -> str | None:
+    if getattr(state, "company_id", None) is not None and getattr(state, "job_id", None) is None:
+        return "company"
+    if getattr(state, "job_id", None) is not None:
+        return "job"
+    return getattr(state, "target_type", None)
 
 
 def _now() -> str:

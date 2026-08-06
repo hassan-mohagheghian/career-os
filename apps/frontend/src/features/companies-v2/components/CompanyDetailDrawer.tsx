@@ -3,16 +3,17 @@
 import { useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/tabs'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
-import { CircleNotch, MapPin, Users, Briefcase, Repeat, Trash, LinkSimple } from '@phosphor-icons/react'
+import { CircleNotch, MapPin, Users, Briefcase, LinkSimple, Repeat, Trash } from '@phosphor-icons/react'
 import type { CompanyDetail, CompanyIntelligence, CompanyIntelligenceScores } from '@/entities/company/types'
 import { useCompanyQuery } from '@/entities/company/hooks'
-import CompanyNotesTab from '@/features/companies/components/CompanyNotesTab'
 import CompanyJobsTab from '@/features/companies/components/CompanyJobsTab'
+import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
 import { CompanyGradeBadge } from './CompanyGradeBadge'
 import { CompanyScoreCard } from './CompanyScoreCard'
+import { RelateCompanyDialog } from './RelateCompanyDialog'
+import { gradeForScore } from '@/shared/lib/grade'
 
 const COMPANY_TYPE_LABELS: Record<string, string> = {
   PRODUCT_COMPANY: 'Product Company',
@@ -35,16 +36,18 @@ interface CompanyDetailDrawerProps {
   onOpenChange: (id: string | null) => void
   onDelete: (id: string) => void
   onReprocess: (id: string) => void
+  onRelate: (companyId: string, mainCompanyId: string | null) => void
+  relatePending: boolean
   onOpenJob?: (id: string) => void
   onNavigateToJob?: (id: string) => void
   onViewAllJobs?: (name: string) => void
 }
 
 export function CompanyDetailDrawer({
-  companyId, onOpenChange, onDelete, onReprocess, onOpenJob, onNavigateToJob, onViewAllJobs,
+  companyId, onOpenChange, onDelete, onReprocess, onRelate, relatePending, onOpenJob, onNavigateToJob, onViewAllJobs,
 }: CompanyDetailDrawerProps) {
-  const [activeTab, setActiveTab] = useState('notes')
   const { data: company, isLoading, isError } = useCompanyQuery(companyId)
+  const [relateDialogOpen, setRelateDialogOpen] = useState(false)
 
   return (
     <Sheet open={!!companyId} onOpenChange={(open) => { if (!open) onOpenChange(null) }}>
@@ -66,10 +69,9 @@ export function CompanyDetailDrawer({
           {company && !isLoading && (
             <CompanyDetailContent
               company={company}
-              activeTab={activeTab}
-              onActiveTabChange={setActiveTab}
               onDelete={onDelete}
               onReprocess={onReprocess}
+              onOpenJobsRelation={() => setRelateDialogOpen(true)}
               onOpenJob={onOpenJob}
               onNavigateToJob={onNavigateToJob}
               onViewAllJobs={onViewAllJobs}
@@ -77,16 +79,22 @@ export function CompanyDetailDrawer({
           )}
         </ScrollArea>
       </SheetContent>
+      <RelateCompanyDialog
+        company={company ?? null}
+        open={relateDialogOpen}
+        onOpenChange={setRelateDialogOpen}
+        onRelate={onRelate}
+        pending={relatePending}
+      />
     </Sheet>
   )
 }
 
 interface CompanyDetailContentProps {
   company: CompanyDetail
-  activeTab: string
-  onActiveTabChange: (tab: string) => void
   onDelete: (id: string) => void
   onReprocess: (id: string) => void
+  onOpenJobsRelation: () => void
   onOpenJob?: (id: string) => void
   onNavigateToJob?: (id: string) => void
   onViewAllJobs?: (name: string) => void
@@ -94,95 +102,80 @@ interface CompanyDetailContentProps {
 
 function CompanyDetailContent({
   company,
-  activeTab, onActiveTabChange,
-  onDelete, onReprocess, onOpenJob, onNavigateToJob, onViewAllJobs,
+  onDelete, onReprocess, onOpenJobsRelation, onOpenJob, onNavigateToJob, onViewAllJobs,
 }: CompanyDetailContentProps) {
   const intel = company.intelligence
   const scores = intel?.scores || {}
-  const overallGrade = scores.overall_grade || scores.fit_grade || null
   const fitScore = scores.company_fit_score ?? null
   const successScore = scores.company_success_score ?? null
   const overallScore = scores.company_overall_score ?? null
+  const overallGrade = overallScore != null ? gradeForScore(overallScore) : (scores.overall_grade || scores.fit_grade || null)
 
   return (
-    <div className="px-4 py-4 min-w-0">
-      <div className="flex gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-2">
-            <CompanyGradeBadge grade={overallGrade} className="w-10 h-8 text-sm" />
-            {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
-            {successScore != null && <CompanyScoreCard label="Success" value={successScore} />}
-            {overallScore != null && <CompanyScoreCard label="Overall" value={overallScore} />}
-          </div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            {company.logo_url && <img src={company.logo_url} alt="" className="w-5 h-5 rounded" />}
-            {company.name || 'Unknown Company'}
-          </h2>
-          <p className="text-sm text-muted-foreground">{company.industry || 'Technology'}</p>
-          <div className="flex flex-wrap gap-1 mt-2">
-            {(company.city || company.country) && (
-              <Badge variant="secondary" className="text-2xs">
-                <MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}
-              </Badge>
-            )}
-            {company.company_size && (
-              <Badge variant="secondary" className="text-2xs">
-                <Users className="w-2.5 h-2.5 mr-1" />{company.company_size}
-              </Badge>
-            )}
-            {company.company_type && (
-              <Badge variant="secondary" className="text-2xs">{formatCompanyType(company.company_type)}</Badge>
-            )}
-            {!!company.job_count && company.job_count > 0 && (
-              <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">
-                <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {!!company.job_count && company.job_count > 0 && onViewAllJobs && (
-            <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onViewAllJobs(company.name)}>
-              <Briefcase className="w-3 h-3" /> View All Jobs
-            </Button>
-          )}
-          {company.website && (
-            <a href={company.website} target="_blank" rel="noreferrer">
-              <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs">
-                <LinkSimple className="w-3 h-3" /> Website
-              </Button>
-            </a>
-          )}
-          <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onReprocess(company.id)}>
-            <Repeat className="w-3 h-3" /> Reprocess
-          </Button>
-          <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs text-destructive" onClick={() => onDelete(company.id)}>
-            <Trash className="w-3 h-3" /> Delete
-          </Button>
-        </div>
+    <div className="space-y-4 px-4 py-4 min-w-0">
+      <div className="flex items-center gap-3 mb-1">
+        <CompanyGradeBadge grade={overallGrade} className="w-10 h-8 text-sm" />
+        {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
+        {successScore != null && <CompanyScoreCard label="Success" value={successScore} />}
+        {overallScore != null && <CompanyScoreCard label="Overall" value={overallScore} />}
+      </div>
+      <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+        {company.logo_url && <img src={company.logo_url} alt="" className="w-5 h-5 rounded" />}
+        {company.name || 'Unknown Company'}
+      </h2>
+      <p className="text-sm text-muted-foreground -mt-2">{company.industry || 'Technology'}</p>
+      <div className="flex flex-wrap gap-1 -mt-1">
+        {(company.city || company.country) && (
+          <Badge variant="secondary" className="text-2xs">
+            <MapPin className="w-2.5 h-2.5 mr-1" />{[company.city, company.country].filter(Boolean).join(', ')}
+          </Badge>
+        )}
+        {company.company_size && (
+          <Badge variant="secondary" className="text-2xs">
+            <Users className="w-2.5 h-2.5 mr-1" />{company.company_size}
+          </Badge>
+        )}
+        {company.company_type && (
+          <Badge variant="secondary" className="text-2xs">{formatCompanyType(company.company_type)}</Badge>
+        )}
+        {!!company.job_count && company.job_count > 0 && (
+          <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">
+            <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
+          </Badge>
+        )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={onActiveTabChange} className="mb-3">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="notes">Original Notes</TabsTrigger>
-          <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
-          <TabsTrigger value="scores">Scores</TabsTrigger>
-          <TabsTrigger value="jobs">Jobs{!!company.job_count && company.job_count > 0 ? ` (${company.job_count})` : ''}</TabsTrigger>
-        </TabsList>
+      <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/10 px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <LinkSimple className="w-3.5 h-3.5 text-primary shrink-0" />
+          {company.is_alias && company.main_company ? (
+            <span className="text-xs text-muted-foreground truncate">
+              Part of <span className="font-semibold text-foreground">{company.main_company.name}</span>
+            </span>
+          ) : company.alias_count && company.alias_count > 0 ? (
+            <span className="text-xs text-muted-foreground truncate">
+              {company.alias_count} related compan{company.alias_count === 1 ? 'y' : 'ies'}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground truncate">No related companies</span>
+          )}
+        </div>
+        <Button variant="outline" size="sm" className="h-7 text-2xs shrink-0" onClick={onOpenJobsRelation}>
+          Manage
+        </Button>
+      </div>
 
-        <TabsContent value="notes" className="mt-3">
-          <CompanyNotesTab company={company} />
-        </TabsContent>
+      <CompanyRecommendationSection intel={intel} />
 
-        <TabsContent value="intelligence" className="mt-3">
-          <CompanyIntelligenceSection company={company} intel={intel} isRecruiter={isRecruiterType(company.company_type)} />
-        </TabsContent>
+      <CompanyIntelligenceSection company={company} intel={intel} isRecruiter={isRecruiterType(company.company_type)} />
 
-        <TabsContent value="scores" className="mt-3">
-          <CompanyScoresSection intel={intel} />
-        </TabsContent>
+      <CompanyScoresSection intel={intel} />
 
-        <TabsContent value="jobs" className="mt-3">
+      {company.jobs && company.jobs.length > 0 && (
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            <Briefcase className="w-3 h-3 inline mr-1 text-primary" />Linked Jobs
+          </p>
           <CompanyJobsTab
             companyId={company.id}
             companyName={company.name}
@@ -191,8 +184,75 @@ function CompanyDetailContent({
             onNavigateToJob={onNavigateToJob}
             onViewAllJobs={onViewAllJobs}
           />
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
+
+      <NotesLinksReadOnly notes={company.notes} links={company.links} heading="Notes & Links" />
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
+        {!!company.job_count && company.job_count > 0 && onViewAllJobs && (
+          <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onViewAllJobs(company.name)}>
+            <Briefcase className="w-3 h-3" /> View All Jobs
+          </Button>
+        )}
+        {company.website && (
+          <a href={company.website} target="_blank" rel="noreferrer">
+            <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs">
+              <LinkSimple className="w-3 h-3" /> Website
+            </Button>
+          </a>
+        )}
+        <div className="flex-1" />
+        <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs" onClick={() => onReprocess(company.id)}>
+          <Repeat className="w-3 h-3" /> Reprocess
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs text-destructive" onClick={() => onDelete(company.id)}>
+          <Trash className="w-3 h-3" /> Delete
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function CompanyRecommendationSection({ intel }: { intel: CompanyIntelligence | null | undefined }) {
+  const recommendation = intel?.recommendation
+  if (!recommendation || typeof recommendation !== 'object' || Object.keys(recommendation).length === 0) {
+    return null
+  }
+
+  const priority = recommendation.priority
+  const observation = recommendation.observation
+  const evidence = recommendation.evidence
+  const impact = recommendation.impact
+  const action = recommendation.action
+  const idealRole = recommendation.ideal_role
+  const timing = recommendation.timing
+
+  const Field = ({ label, value }: { label: string; value: unknown }) => (
+    value ? (
+      <div className="flex items-start justify-between gap-4 py-1.5">
+        <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">{label}</span>
+        <span className="text-xs text-foreground text-right break-words">{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+      </div>
+    ) : null
+  )
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+      <div className="flex items-center gap-2 mb-1">
+        <CompanyGradeBadge grade={typeof priority === 'string' ? priority : null} className="w-8 h-6 text-xs" />
+        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">Recommendation</p>
+      </div>
+      {typeof observation === 'string' && observation && (
+        <p className="text-xs text-foreground whitespace-pre-wrap mb-1">{observation}</p>
+      )}
+      {typeof action === 'string' && action && (
+        <p className="text-xs text-primary font-medium mb-2">{action}</p>
+      )}
+      <Field label="Evidence" value={evidence} />
+      <Field label="Impact" value={impact} />
+      <Field label="Ideal Role" value={idealRole} />
+      <Field label="Timing" value={timing} />
     </div>
   )
 }
@@ -244,117 +304,131 @@ function CompanyIntelligenceSection({ company, intel, isRecruiter }: {
   const visa = intel.visa_analysis || {}
   const tech = intel.technology_analysis || {}
 
-  if (isRecruiter) {
-    return (
-      <div className="space-y-4">
-        {company.description && <p className="text-sm text-muted-foreground">{company.description}</p>}
-        <Section title="Recruiter Overview" icon={<Briefcase className="w-3 h-3 text-primary" />}>
-          <Field label="Founded" value={overview.founded} />
-          <Field label="Headquarters" value={overview.headquarters} />
-          <Field label="Size" value={overview.size || company.company_size} />
-          {Array.isArray(overview.countries) && overview.countries.length > 0 && (
-            <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Countries</span><TagList items={overview.countries} /></div>
-          )}
-          <Field label="Market Position" value={overview.market_position} />
-          <Field label="Funding Summary" value={overview.funding_summary} />
-          <Field label="Growth Trajectory" value={overview.growth_trajectory} />
-        </Section>
-        <Section title="International Hiring" icon={<GlobeIcon />}>
-          <Field label="English Usage" value={international.english_usage} />
-          <Field label="International Employees" value={international.international_employees} />
-          <Field label="Visa Sponsorship" value={visa.sponsorship_history} />
-          <Field label="International Hiring" value={visa.international_hiring} />
-          {Array.isArray(visa.positive_signals) && visa.positive_signals.length > 0 && (
-            <div className="py-1.5">
-              <p className="text-2xs font-medium text-green-500">Positive Signals</p>
-              {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {typeof s === 'string' ? s : JSON.stringify(s)}</p>)}
-            </div>
-          )}
-        </Section>
-        <Section title="Work Environment" icon={<Users className="w-3 h-3 text-green-500" />}>
-          <Field label="Remote Policy" value={benefits.remote_policy} />
-          <Field label="Vacation" value={benefits.vacation} />
-          {Array.isArray(benefits.benefits) && benefits.benefits.length > 0 && (
-            <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Benefits</span><TagList items={benefits.benefits} /></div>
-          )}
-        </Section>
-      </div>
-    )
-  }
+  const OverviewSection = () => (
+    <Section title="Company Overview" icon={<Briefcase className="w-3 h-3 text-primary" />}>
+      <Field label="Products" value={overview.products} />
+      <Field label="Founded" value={overview.founded} />
+      <Field label="Headquarters" value={overview.headquarters} />
+      <Field label="Size" value={overview.size || company.company_size} />
+      {Array.isArray(overview.countries) && overview.countries.length > 0 && (
+        <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Countries</span><TagList items={overview.countries} /></div>
+      )}
+      <Field label="Market Position" value={overview.market_position} />
+      <Field label="Funding Summary" value={overview.funding_summary} />
+      <Field label="Growth Trajectory" value={overview.growth_trajectory} />
+    </Section>
+  )
+
+  const VisaSection = () => (
+    <Section title="Visa & Relocation Signals" icon={<LinkSimple className="w-3 h-3 text-emerald-500" />}>
+      <Field label="Sponsorship History" value={visa.sponsorship_history} />
+      <Field label="International Hiring" value={visa.international_hiring} />
+      <Field label="English First" value={visa.english_first} />
+      {Array.isArray(visa.positive_signals) && visa.positive_signals.length > 0 && (
+        <div className="py-1.5">
+          <p className="text-2xs font-medium text-green-500">Positive Signals</p>
+          {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {typeof s === 'string' ? s : JSON.stringify(s)}</p>)}
+        </div>
+      )}
+      {Array.isArray(visa.risks) && visa.risks.length > 0 && (
+        <div className="py-1.5">
+          <p className="text-2xs font-medium text-red-400">Risks</p>
+          {visa.risks.map((r, i) => <p key={i} className="text-xs mt-0.5">- {typeof r === 'string' ? r : JSON.stringify(r)}</p>)}
+        </div>
+      )}
+    </Section>
+  )
+
+  const WorkEnvironmentSection = () => (
+    <Section title="Work Environment" icon={<Users className="w-3 h-3 text-green-500" />}>
+      <Field label="Remote Policy" value={benefits.remote_policy} />
+      <Field label="Hybrid Policy" value={benefits.hybrid_details || benefits.hybrid_policy} />
+      <Field label="Vacation" value={benefits.vacation} />
+      <Field label="Learning Budget" value={benefits.learning_budget} />
+      <Field label="Equipment" value={benefits.equipment} />
+      {Array.isArray(benefits.benefits) && benefits.benefits.length > 0 && (
+        <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Benefits</span><TagList items={benefits.benefits} /></div>
+      )}
+    </Section>
+  )
+
+  const RecruiterOverviewSection = () => (
+    <Section title="Recruiter Overview" icon={<Briefcase className="w-3 h-3 text-primary" />}>
+      <Field label="Founded" value={overview.founded} />
+      <Field label="Headquarters" value={overview.headquarters} />
+      <Field label="Size" value={overview.size || company.company_size} />
+      {Array.isArray(overview.countries) && overview.countries.length > 0 && (
+        <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Countries</span><TagList items={overview.countries} /></div>
+      )}
+      <Field label="Market Position" value={overview.market_position} />
+      <Field label="Funding Summary" value={overview.funding_summary} />
+      <Field label="Growth Trajectory" value={overview.growth_trajectory} />
+    </Section>
+  )
+
+  const InternationalHiringSection = () => (
+    <Section title="International Hiring" icon={<GlobeIcon />}>
+      <Field label="English Usage" value={international.english_usage} />
+      <Field label="International Employees" value={international.international_employees} />
+      <Field label="Visa Sponsorship" value={visa.sponsorship_history} />
+      <Field label="International Hiring" value={visa.international_hiring} />
+      {Array.isArray(visa.positive_signals) && visa.positive_signals.length > 0 && (
+        <div className="py-1.5">
+          <p className="text-2xs font-medium text-green-500">Positive Signals</p>
+          {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {typeof s === 'string' ? s : JSON.stringify(s)}</p>)}
+        </div>
+      )}
+    </Section>
+  )
 
   return (
     <div className="space-y-4">
       {company.description && <p className="text-sm text-muted-foreground">{company.description}</p>}
-      <Section title="Company Overview" icon={<Briefcase className="w-3 h-3 text-primary" />}>
-        <Field label="Products" value={overview.products} />
-        <Field label="Founded" value={overview.founded} />
-        <Field label="Headquarters" value={overview.headquarters} />
-        <Field label="Size" value={overview.size || company.company_size} />
-        {Array.isArray(overview.countries) && overview.countries.length > 0 && (
-          <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Countries</span><TagList items={overview.countries} /></div>
-        )}
-        <Field label="Market Position" value={overview.market_position} />
-        <Field label="Funding Summary" value={overview.funding_summary} />
-        <Field label="Growth Trajectory" value={overview.growth_trajectory} />
-      </Section>
-      <Section title="Engineering Culture" icon={<Briefcase className="w-3 h-3 text-yellow-500" />}>
-        <Field label="Organization" value={culture.engineering_org} />
-        <Field label="Team Structure" value={culture.team_structure} />
-        <Field label="Methodology" value={culture.methodology} />
-        <Field label="Tech Decisions" value={culture.tech_decisions} />
-        <Field label="Maturity" value={culture.maturity} />
-        <Field label="Quality Culture" value={culture.quality_culture} />
-        <Field label="Open Source" value={culture.open_source} />
-      </Section>
-      <Section title="Technology Stack" icon={<Briefcase className="w-3 h-3 text-cyan-500" />}>
-        {Array.isArray(tech.backend) && tech.backend.length > 0 && (
-          <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Backend</span><TagList items={tech.backend} /></div>
-        )}
-        {Array.isArray(tech.frontend) && tech.frontend.length > 0 && (
-          <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Frontend</span><TagList items={tech.frontend} /></div>
-        )}
-        {Array.isArray(tech.infrastructure) && tech.infrastructure.length > 0 && (
-          <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Infrastructure</span><TagList items={tech.infrastructure} /></div>
-        )}
-        <Field label="Tech Match Score" value={tech.tech_match_score} />
-        <Field label="Matches Profile" value={tech.matches_profile} />
-        <Field label="Learning Opportunities" value={tech.learning_opportunities} />
-      </Section>
-      <Section title="Work Environment" icon={<Users className="w-3 h-3 text-green-500" />}>
-        <Field label="Remote Policy" value={benefits.remote_policy} />
-        <Field label="Hybrid Policy" value={benefits.hybrid_details || benefits.hybrid_policy} />
-        <Field label="Vacation" value={benefits.vacation} />
-        <Field label="Learning Budget" value={benefits.learning_budget} />
-        <Field label="Equipment" value={benefits.equipment} />
-        {Array.isArray(benefits.benefits) && benefits.benefits.length > 0 && (
-          <div className="py-1.5"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Benefits</span><TagList items={benefits.benefits} /></div>
-        )}
-      </Section>
-      <Section title="Visa & Relocation Signals" icon={<LinkSimple className="w-3 h-3 text-emerald-500" />}>
-        <Field label="Sponsorship History" value={visa.sponsorship_history} />
-        <Field label="International Hiring" value={visa.international_hiring} />
-        <Field label="English First" value={visa.english_first} />
-        {Array.isArray(visa.positive_signals) && visa.positive_signals.length > 0 && (
-          <div className="py-1.5">
-            <p className="text-2xs font-medium text-green-500">Positive Signals</p>
-            {visa.positive_signals.map((s, i) => <p key={i} className="text-xs mt-0.5">- {typeof s === 'string' ? s : JSON.stringify(s)}</p>)}
-          </div>
-        )}
-        {Array.isArray(visa.risks) && visa.risks.length > 0 && (
-          <div className="py-1.5">
-            <p className="text-2xs font-medium text-red-400">Risks</p>
-            {visa.risks.map((r, i) => <p key={i} className="text-xs mt-0.5">- {typeof r === 'string' ? r : JSON.stringify(r)}</p>)}
-          </div>
-        )}
-      </Section>
-      <Section title="Growth Opportunities" icon={<Briefcase className="w-3 h-3 text-primary" />}>
-        <Field label="Senior Opportunities" value={career.senior_opportunities} />
-        <Field label="Technical Challenges" value={career.technical_challenges} />
-        <Field label="Growth Potential" value={career.growth_potential} />
-        <Field label="Learning" value={career.learning_opportunities} />
-        <Field label="Career Progression" value={career.career_progression} />
-        <Field label="Engineering Impact" value={career.engineering_impact} />
-      </Section>
+
+      {isRecruiter ? (
+        <>
+          <RecruiterOverviewSection />
+          <InternationalHiringSection />
+          <WorkEnvironmentSection />
+        </>
+      ) : (
+        <>
+          <OverviewSection />
+          <VisaSection />
+          <WorkEnvironmentSection />
+          <Section title="Engineering Culture" icon={<Briefcase className="w-3 h-3 text-yellow-500" />}>
+            <Field label="Organization" value={culture.engineering_org} />
+            <Field label="Team Structure" value={culture.team_structure} />
+            <Field label="Methodology" value={culture.methodology} />
+            <Field label="Tech Decisions" value={culture.tech_decisions} />
+            <Field label="Maturity" value={culture.maturity} />
+            <Field label="Quality Culture" value={culture.quality_culture} />
+            <Field label="Open Source" value={culture.open_source} />
+          </Section>
+          <Section title="Technology Stack" icon={<Briefcase className="w-3 h-3 text-cyan-500" />}>
+            {Array.isArray(tech.backend) && tech.backend.length > 0 && (
+              <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Backend</span><TagList items={tech.backend} /></div>
+            )}
+            {Array.isArray(tech.frontend) && tech.frontend.length > 0 && (
+              <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Frontend</span><TagList items={tech.frontend} /></div>
+            )}
+            {Array.isArray(tech.infrastructure) && tech.infrastructure.length > 0 && (
+              <div className="py-1"><span className="text-2xs text-muted-foreground uppercase tracking-wide">Infrastructure</span><TagList items={tech.infrastructure} /></div>
+            )}
+            <Field label="Tech Match Score" value={tech.tech_match_score} />
+            <Field label="Matches Profile" value={tech.matches_profile} />
+            <Field label="Learning Opportunities" value={tech.learning_opportunities} />
+          </Section>
+          <Section title="Growth Opportunities" icon={<Briefcase className="w-3 h-3 text-primary" />}>
+            <Field label="Senior Opportunities" value={career.senior_opportunities} />
+            <Field label="Technical Challenges" value={career.technical_challenges} />
+            <Field label="Growth Potential" value={career.growth_potential} />
+            <Field label="Learning" value={career.learning_opportunities} />
+            <Field label="Career Progression" value={career.career_progression} />
+            <Field label="Engineering Impact" value={career.engineering_impact} />
+          </Section>
+        </>
+      )}
     </div>
   )
 }
@@ -372,11 +446,13 @@ function CompanyScoresSection({ intel }: { intel: CompanyIntelligence | null | u
   const fitScore = typeof scores.company_fit_score === 'number' ? scores.company_fit_score : null
   const successScore = typeof scores.company_success_score === 'number' ? scores.company_success_score : null
   const overallScore = typeof scores.company_overall_score === 'number' ? scores.company_overall_score : null
-  const overallGrade = typeof scores.overall_grade === 'string'
-    ? scores.overall_grade
-    : typeof scores.fit_grade === 'string'
-      ? scores.fit_grade
-      : '—'
+  const overallGrade = overallScore != null
+    ? gradeForScore(overallScore)
+    : typeof scores.overall_grade === 'string'
+      ? scores.overall_grade
+      : typeof scores.fit_grade === 'string'
+        ? scores.fit_grade
+        : '—'
 
   const FactorList = ({ title, items, color }: { title: string; items: unknown[]; color: string }) => (
     items.length > 0 ? (

@@ -226,186 +226,85 @@ def test_link_job_to_company_without_company_id(client, sa_session):
 
 def test_reprocess_company_found(client, sa_session):
     co_id = _seed_company(sa_session, name="ReproCo")
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
         resp = client.post(f"/api/companies/{co_id}/reprocess")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "queued"}
-    mock_enq.assert_called_once_with(co_id)
+    data = resp.json()
+    assert data["status"] == "queued"
+    assert "execution_id" in data
+    enqueue.assert_called_once_with(data["execution_id"])
 
 
 def test_reprocess_company_not_found(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
         resp = client.post("/api/companies/999999999/reprocess")
     assert resp.status_code == 200
     assert resp.json() == {"error": "Not found"}
-    mock_enq.assert_not_called()
+    enqueue.assert_not_called()
 
 
-# ── pending companies ───────────────────────────────────────────
+# ── company intake ──────────────────────────────────────────────
 
 
-def test_list_pending_companies(client, sa_session):
-    _mark_all_companies_processed(sa_session)
-    sa_session.add(CompanyModel(name="PendingCo1", status="created"))
-    sa_session.add(CompanyModel(name="PendingCo2", status="processed"))
-    sa_session.commit()
-    resp = client.get("/api/pending-companies")
-    assert resp.status_code == 200
-    assert [r["name"] for r in resp.json()] == ["PendingCo1"]
-
-
-def test_create_pending_company_fallback(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+def test_create_company_queue_default(client, sa_session):
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
         resp = client.post(
-            "/api/pending-companies",
-            json={
-                "notes": [{"type": "text", "content": "First note"}, "plain"],
-                "links": [{"url": "https://a.example.com", "title": "A"}, "https://b.example.com"],
-                "name": "",
-            },
-        )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "created"
-    mock_enq.assert_called_once()
-    assert mock_enq.call_args.args[0] == data["id"]
-
-
-def test_create_pending_company_with_input_text(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post(
-            "/api/pending-companies",
-            json={"input_text": "https://input.example.com", "notes": [], "links": []},
-        )
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "created"
-    mock_enq.assert_called_once()
-
-
-def test_create_pending_company_persists_name(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post(
-            "/api/pending-companies",
+            "/api/companies",
             json={
                 "name": "Acme GmbH",
-                "notes": [{"content": "Berlin product company"}],
+                "notes": [{"type": "text", "content": "Berlin product company"}],
                 "links": [{"url": "https://acme.example", "title": "Website"}],
             },
         )
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     data = resp.json()
     assert data["name"] == "Acme GmbH"
-    mock_enq.assert_called_once()
-    assert mock_enq.call_args.args[0] == data["id"]
+    assert data["status"] == "queued"
+    assert "execution_id" in data
+    enqueue.assert_called_once_with(data["execution_id"])
+
+    from companies.infrastructure.models.company_model import CompanyModel
+    company = sa_session.query(CompanyModel).filter(CompanyModel.id == data["id"]).first()
+    assert company is not None
+    assert "Berlin product company" in company.notes
+    assert "https://acme.example" in company.notes
 
 
-def test_create_pending_company_without_queue(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
+def test_create_company_without_queue(client, sa_session):
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
         resp = client.post(
-            "/api/pending-companies",
-            json={"input_text": "https://acme.example", "notes": [], "links": [], "queue": False},
+            "/api/companies",
+            json={"name": "IdleCo", "notes": [], "links": [], "queue": False},
         )
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "created"
-    mock_enq.assert_not_called()
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "IdleCo"
+    assert data["status"] == "created"
+    assert "execution_id" not in data
+    enqueue.assert_not_called()
 
 
-def test_create_pending_company_empty_body(client, sa_session):
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post("/api/pending-companies", json={})
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "created"
-    mock_enq.assert_called_once()
-
-
-def test_queue_all_pending_companies_empty(client, sa_session):
-    _mark_all_companies_processed(sa_session)
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post("/api/pending-companies/queue-all")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "queued", "count": 0}
-    mock_enq.assert_not_called()
-
-
-def test_queue_all_pending_companies_with_items(client, sa_session):
-    _mark_all_companies_processed(sa_session)
-    co1 = CompanyModel(name="QCo1", status="created")
-    co2 = CompanyModel(name="QCo2", status="created")
-    sa_session.add_all([co1, co2])
-    sa_session.commit()
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post("/api/pending-companies/queue-all")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "queued", "count": 2}
-    assert {c.args[0] for c in mock_enq.call_args_list} == {co1.id, co2.id}
-
-
-def test_get_pending_company_found(client, sa_session):
-    co_id = _seed_company(sa_session, name="GetPendCo")
-    resp = client.get(f"/api/pending-companies/{co_id}")
-    assert resp.status_code == 200
-    assert resp.json()["id"] == co_id
-
-
-def test_get_pending_company_not_found(client, sa_session):
-    resp = client.get("/api/pending-companies/999999998")
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Not found"}
-
-
-def test_delete_pending_company_found(client, sa_session):
-    co_id = _seed_company(sa_session, name="DelPendCo")
-    resp = client.delete(f"/api/pending-companies/{co_id}")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "deleted"}
-
-
-def test_delete_pending_company_not_found(client, sa_session):
-    resp = client.delete("/api/pending-companies/999999997")
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Not found"}
-
-
-def test_add_pending_company_notes(client, sa_session):
-    co_id = _seed_company(sa_session, name="NotesCo")
-    resp = client.post(f"/api/pending-companies/{co_id}/notes", json={"notes": ["n1", "n2"]})
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "updated", "notes": ["n1", "n2"]}
-    co = sa_session.query(CompanyModel).filter(CompanyModel.id == co_id).first()
-    assert co.notes == '["n1", "n2"]'
-
-
-def test_add_pending_company_notes_not_found(client, sa_session):
-    resp = client.post("/api/pending-companies/999999996/notes", json={"notes": ["n1"]})
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Not found"}
-
-
-def test_add_pending_company_links(client, sa_session):
-    co_id = _seed_company(sa_session, name="LinksCo")
-    resp = client.post(
-        f"/api/pending-companies/{co_id}/links",
-        json={"links": ["https://l1.example.com"]},
-    )
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "updated", "links": ["https://l1.example.com"]}
-    co = sa_session.query(CompanyModel).filter(CompanyModel.id == co_id).first()
-    assert co.notes == '["https://l1.example.com"]'
-
-
-def test_add_pending_company_links_not_found(client, sa_session):
-    resp = client.post("/api/pending-companies/999999995/links", json={"links": ["https://x"]})
-    assert resp.status_code == 404
-    assert resp.json() == {"error": "Not found"}
-
-
-def test_process_pending_company(client, sa_session):
-    co_id = _seed_company(sa_session, name="ProcPendCo")
-    with patch("shared.infrastructure.taskiq.client.enqueue_company_sync") as mock_enq:
-        resp = client.post(f"/api/pending-companies/{co_id}/process")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "queued"}
-    mock_enq.assert_called_once_with(co_id)
+def test_create_company_empty_body(client, sa_session):
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
+        resp = client.post("/api/companies", json={})
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "queued"
+    enqueue.assert_called_once()
 
 
 # ── resumes ─────────────────────────────────────────────────────

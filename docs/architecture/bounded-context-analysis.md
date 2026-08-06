@@ -54,7 +54,7 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 **Repository Interfaces:** `ICompanyRepository`, `ICompanyIntelligenceRepository`, `ICompanyLinkRepository`
 **Infrastructure:** `CompanyModel`, `CompanyIntelligenceModel`, `CompanyLinkModel`, SQLAlchemy implementations
 **API Endpoints:** `api/v1/companies.py` — CRUD, intelligence, links, notes
-**Workers:** `services/company_worker.py` — `process_company()`
+**Processing:** handled via the shared ProcessingExecution lifecycle (COMPANY_PROCESSING), not a dedicated worker.
 
 ---
 
@@ -152,12 +152,11 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 
 ---
 
-### 1.8 Pending (Processing Queue) Context
-**Responsibility:** Background job processing queue — job submissions, company submissions, generation requests, pipeline state tracking.
+### 1.8 Processing (Execution Queue) Context
+**Responsibility:** Background execution queue and workflow state — job and company submissions, generation requests, pipeline state tracking, live progress via SSE.
 
 **Entities:**
-- `PendingJob` — `pending_jobs` table, PK: `id`
-- `PendingCompany` — `pending_companies` table, PK: `id`
+- `ProcessingExecution` — execution rows, PK: `id` (types: JOB_PROCESSING, COMPANY_PROCESSING)
 - `PendingGeneration` — `pending_generations` table, PK: `id`
 
 **Value Objects:**
@@ -171,8 +170,8 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 - Process lifecycle management
 
 **Repository Interfaces:** `IPendingRepository`, `IPendingGenerationRepository`
-**Infrastructure:** `PendingJobModel`, `PendingCompanyModel`, `PendingGenerationModel`, SQLAlchemy implementations
-**API Endpoints:** `api/v1/pending.py`, `api/v1/pending_companies.py`
+**Infrastructure:** `ProcessingExecutionModel`, `PendingGenerationModel`, SQLAlchemy implementations
+**API Endpoints:** `processing/presentation/api/executions_router.py` (`/processing`), `process_router.py` (`/jobs`)
 **Core:** `core/queue.py` — `JobQueueManager`
 
 ---

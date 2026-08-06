@@ -38,6 +38,7 @@ NODE_TO_STEP: dict[str, tuple[str, str]] = {
     "recommend": ("recommend", "Recommendation"),
     "summarize": ("summarize", "Summarize"),
     "persist": ("persist", "Save Results"),
+    "link_company": ("link_company", "Link Company"),
     "analysis_ready": ("analysis_ready", "Analysis Ready"),
     "execution_failed": ("execution_failed", "Execution Failed"),
 }
@@ -57,6 +58,7 @@ WORKFLOW_STEP_IDS = [
     "recommend",
     "summarize",
     "persist",
+    "link_company",
 ]
 
 # Internal nodes that must never be rendered by the frontend.

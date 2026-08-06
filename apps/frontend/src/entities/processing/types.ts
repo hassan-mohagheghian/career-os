@@ -62,7 +62,9 @@ export interface QueueEntryLink {
 
 export interface QueueEntry {
   execution_id: string
-  job_id: string
+  job_id: string | null
+  target_type?: string | null
+  target_id?: string | null
   title: string
   url: string | null
   links: QueueEntryLink[]
@@ -95,6 +97,8 @@ export interface SSEEventEnvelope {
   timestamp: string
   job_id: string | null
   execution_id: string
+  target_type?: string | null
+  target_id?: string | null
   payload: SSEPayload
 }
 
