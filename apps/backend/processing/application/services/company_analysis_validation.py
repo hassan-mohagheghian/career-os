@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 VALID_COMPANY_TYPES = (
     "PRODUCT_COMPANY",
@@ -121,27 +121,6 @@ class CompanyScores(BaseModel):
     success_explanation: str = Field(default="")
     success_positive_factors: list[str] = Field(default_factory=list)
     success_negative_factors: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="before")
-    @classmethod
-    def map_legacy_keys(cls, data: Any) -> Any:
-        """Map the legacy LLM score keys onto the canonical field names.
-
-        The combined prompt emits company_fit_score / company_success_score /
-        company_overall_score (parity with the legacy worker). Normalize them
-        here so the Pydantic model stays canonical (fit/success/overall).
-        """
-        if not isinstance(data, dict):
-            return data
-        remap = {
-            "company_fit_score": "fit",
-            "company_success_score": "success",
-            "company_overall_score": "overall",
-        }
-        for legacy, canonical in remap.items():
-            if legacy in data and canonical not in data:
-                data[canonical] = data[legacy]
-        return data
 
     @field_validator("fit", "success", mode="before")
     @classmethod

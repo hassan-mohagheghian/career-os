@@ -44,9 +44,9 @@ DEFAULT_PAGE_SIZE = 25
 SORTABLE_SCORE_FIELDS = ("overall_score", "fit_score", "success_score")
 
 SCORE_KEY_MAP = {
-    "overall_score": "company_overall_score",
-    "fit_score": "company_fit_score",
-    "success_score": "company_success_score",
+    "overall_score": "overall",
+    "fit_score": "fit",
+    "success_score": "success",
 }
 
 
@@ -83,7 +83,7 @@ def _matches(row: dict[str, Any], query: str, industry: str) -> bool:
 
 
 def _score_value(row: dict[str, Any], sort: str) -> Any:
-    scores = _score_aliases(row.get("_scores") or {})
+    scores = row.get("_scores") or {}
     return scores.get(SCORE_KEY_MAP[sort])
 
 
@@ -103,7 +103,7 @@ def _to_list_item(
     name_by_id: dict[str, str] | None = None,
     alias_counts: dict[str, int] | None = None,
 ) -> CompanyListItemSchema:
-    scores = _score_aliases(row.get("_scores") or {})
+    scores = row.get("_scores") or {}
     exec_schema = None
     if execution:
         exec_schema = CompanyExecutionSchema(
@@ -131,9 +131,9 @@ def _to_list_item(
         description=row.get("description"),
         job_count=row.get("job_count", 0),
         scores=CompanyScoresSchema(
-            overall=scores.get("company_overall_score"),
-            fit=scores.get("company_fit_score"),
-            success=scores.get("company_success_score"),
+            overall=scores.get("overall"),
+            fit=scores.get("fit"),
+            success=scores.get("success"),
             overall_grade=scores.get("overall_grade") or scores.get("fit_grade"),
         ),
         processing=CompanyProcessingSchema(
@@ -211,32 +211,16 @@ def _parse_json_field(value: Any) -> Any:
         return value
 
 
-def _score_aliases(scores: dict[str, Any]) -> dict[str, Any]:
-    """Normalize score keys: accept both canonical (fit) and legacy (company_fit_score) forms."""
-    if not scores:
-        return {}
-    for legacy, canonical in (
-        ("company_fit_score", "fit"),
-        ("company_success_score", "success"),
-        ("company_overall_score", "overall"),
-    ):
-        if legacy in scores and canonical not in scores:
-            scores[canonical] = scores[legacy]
-        elif canonical in scores and legacy not in scores:
-            scores[legacy] = scores[canonical]
-    return scores
-
-
 def _scores_from_intelligence(intel: dict[str, Any] | None) -> CompanyScoresSchema | None:
     if not intel:
         return None
-    scores = _score_aliases(_parse_json_field(intel.get("scores")) or {})
+    scores = _parse_json_field(intel.get("scores")) or {}
     if not isinstance(scores, dict):
         scores = {}
     return CompanyScoresSchema(
-        overall=scores.get("company_overall_score"),
-        fit=scores.get("company_fit_score"),
-        success=scores.get("company_success_score"),
+        overall=scores.get("overall"),
+        fit=scores.get("fit"),
+        success=scores.get("success"),
         overall_grade=scores.get("overall_grade") or scores.get("fit_grade"),
     )
 

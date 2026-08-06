@@ -76,7 +76,7 @@ _RETRY_SHORTEN_HINT = (
     "Respond again with a SHORTER, COMPLETE JSON object matching the schema exactly: keep "
     "extraction.description to at most 60 words, at most 4 factor items per list, and at most "
     "40 words per explanation. Include all required fields: extraction (name, website, "
-    "company_type) and scores (company_fit_score, company_success_score). Never truncate the "
+    "company_type) and scores (fit, success). Never truncate the "
     "JSON — every string and bracket must be closed."
 )
 

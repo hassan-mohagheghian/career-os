@@ -107,9 +107,9 @@ function CompanyDetailContent({
   const intel = company.intelligence
   const rawScores = (intel?.scores || {}) as CompanyIntelligenceScores
   const normalized = company.scores ?? ({} as CompanyScores)
-  const fitScore = normalized.fit ?? rawScores.company_fit_score ?? null
-  const successScore = normalized.success ?? rawScores.company_success_score ?? null
-  const overallScore = normalized.overall ?? rawScores.company_overall_score ?? null
+  const fitScore = normalized.fit ?? rawScores.fit ?? null
+  const successScore = normalized.success ?? rawScores.success ?? null
+  const overallScore = normalized.overall ?? rawScores.overall ?? null
   const overallGrade = normalized.overall_grade
     ?? (overallScore != null ? gradeForScore(overallScore) : (rawScores.overall_grade || rawScores.fit_grade || null))
 
@@ -441,9 +441,9 @@ function CompanyScoresSection({ intel, scores }: {
 }) {
   const intelScores = (intel?.scores || {}) as CompanyIntelligenceScores
   const normalized = scores ?? ({} as CompanyScores)
-  const fitScore = normalized.fit ?? (typeof intelScores.company_fit_score === 'number' ? intelScores.company_fit_score : null)
-  const successScore = normalized.success ?? (typeof intelScores.company_success_score === 'number' ? intelScores.company_success_score : null)
-  const overallScore = normalized.overall ?? (typeof intelScores.company_overall_score === 'number' ? intelScores.company_overall_score : null)
+  const fitScore = normalized.fit ?? (typeof intelScores.fit === 'number' ? intelScores.fit : null)
+  const successScore = normalized.success ?? (typeof intelScores.success === 'number' ? intelScores.success : null)
+  const overallScore = normalized.overall ?? (typeof intelScores.overall === 'number' ? intelScores.overall : null)
   const overallGrade = normalized.overall_grade
     ?? (overallScore != null
       ? gradeForScore(overallScore)

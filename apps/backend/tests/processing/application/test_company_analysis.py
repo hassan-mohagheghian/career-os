@@ -139,9 +139,9 @@ def _valid_payload(**overrides) -> dict:
             "timing": "Now",
         },
         "scores": {
-            "company_fit_score": 88,
-            "company_success_score": 72,
-            "company_overall_score": 80,
+            "fit": 88,
+            "success": 72,
+            "overall": 80,
             "fit_grade": "A",
             "fit_explanation": "Strong Python alignment.",
             "fit_positive_factors": ["Python", "Growth"],
@@ -211,8 +211,8 @@ class TestCompanyCombinedAnalysisOutput:
 
     def test_scores_clamped(self):
         payload = _valid_payload()
-        payload["scores"]["company_fit_score"] = 150
-        payload["scores"]["company_success_score"] = -5
+        payload["scores"]["fit"] = 150
+        payload["scores"]["success"] = -5
         output = CompanyCombinedAnalysisOutput.model_validate(payload)
         assert output.scores.fit == 100
         assert output.scores.success == 0
@@ -245,9 +245,24 @@ class TestCompanyScoring:
         assert result["scores"]["overall"] == 80
         assert result["scores"]["fit_grade"] == "A+"
         assert result["scores"]["overall_grade"] == "A+"
-        assert result["scores"]["company_fit_score"] == 88
-        assert result["scores"]["company_success_score"] == 72
-        assert result["scores"]["company_overall_score"] == 80
+        assert "company_fit_score" not in result["scores"]
+        assert "company_success_score" not in result["scores"]
+        assert "company_overall_score" not in result["scores"]
+
+    def test_validated_payload_scores_survive_round_trip(self):
+        """Regression: the validated payload (raw_payload) must keep its scores.
+
+        AnalyzeCompanyNode persists CompanyCombinedAnalysisOutput.model_dump(),
+        and ScoreCompanyNode builds the result from that. The scores must not be
+        lost between validation and scoring.
+        """
+        validated = CompanyCombinedAnalysisOutput.model_validate(_valid_payload()).model_dump()
+        result = build_company_analysis_result(validated)
+        assert result["scores"]["fit"] == 88
+        assert result["scores"]["success"] == 72
+        assert result["scores"]["overall"] == 80
+        assert result["scores"]["fit_grade"] == "A+"
+        assert result["scores"]["overall_grade"] == "A+"
 
 
 # --------------------------------------------------------------------------- #
@@ -315,6 +330,27 @@ class TestScoreCompanyNode:
 
         assert state.analysis_result is not None
         assert state.analysis_result["scores"]["overall"] == 80
+
+    def test_scores_survive_analyze_then_score_chain(self):
+        """Regression: AnalyzeCompanyNode (validated dump) → ScoreCompanyNode.
+
+        The numeric scores must survive the validation step; this is the exact
+        production path that previously produced null scores.
+        """
+        state = _state_with_company()
+        state.analysis_context["company_text"] = "Prepared context text for Acme."
+        state.analysis_context["company_type"] = "UNKNOWN"
+        state.analysis_context["scoring_rules"] = "python_fit: required"
+
+        analyzed = AnalyzeCompanyNode(FakeLLMService(_valid_payload()))(state)
+        assert analyzed.errors == []
+
+        scored = ScoreCompanyNode()(analyzed)
+        assert scored.analysis_result["scores"]["fit"] == 88
+        assert scored.analysis_result["scores"]["success"] == 72
+        assert scored.analysis_result["scores"]["overall"] == 80
+        assert scored.analysis_result["scores"]["fit_grade"] == "A+"
+        assert scored.analysis_result["scores"]["overall_grade"] == "A+"
 
 
 class TestRecommendCompanyNode:

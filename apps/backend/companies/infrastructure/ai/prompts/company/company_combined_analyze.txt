@@ -144,9 +144,9 @@ Perform a SINGLE combined analysis of this company. First extract every piece of
     "timing": "Is now a good time to apply? Why or why not?"
   }},
   "scores": {{
-    "company_fit_score": 0,
-    "company_success_score": 0,
-    "company_overall_score": 0,
+    "fit": 0,
+    "success": 0,
+    "overall": 0,
     "fit_grade": "A++/A+/A/B/C/D",
     "fit_explanation": "Brief explanation of why this fit score was given",
     "fit_positive_factors": ["Main positive factors for company fit"],
@@ -162,7 +162,7 @@ SCORING GUIDELINES (be honest and evidence-based, reference the candidate's rule
 
 NOTE: Use only the rules provided above — do not apply rules that were not included.
 
-## company_fit_score (0-100)
+## fit (0-100)
 
 For PRODUCT_COMPANIES:
 Measures: "How well does this company match my technical background and career direction?"
@@ -178,7 +178,7 @@ Scoring bands (Product):
 - 50-69: Partial match — some technology overlap + moderate engineering culture
 - <50: Poor match — wrong tech stack + limited engineering growth
 
-## company_success_score (0-100)
+## success (0-100)
 
 For PRODUCT_COMPANIES:
 Measures: "How likely am I to successfully join this company?"
@@ -194,9 +194,9 @@ Scoring bands (Product):
 - 50-69: Moderate — some international hires + partial English
 - <50: Low odds — unclear sponsorship + local language required
 
-## company_overall_score (0-100)
+## overall (0-100)
 Calculate the final company score using this formula:
-company_overall_score = (company_fit_score * 0.5) + (company_success_score * 0.5)
+overall = (fit * 0.5) + (success * 0.5)
 
 ## Grade Calculation
 - A++: 90+

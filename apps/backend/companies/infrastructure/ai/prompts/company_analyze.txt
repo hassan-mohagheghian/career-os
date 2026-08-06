@@ -110,9 +110,9 @@ Analyze this company comprehensively. Use ALL the extracted data — funding, te
   }},
 
   "scores": {{
-    "company_fit_score": 0,
-    "company_success_score": 0,
-    "company_overall_score": 0,
+    "fit": 0,
+    "success": 0,
+    "overall": 0,
     "fit_grade": "A++/A+/A/B/C/D",
     "fit_explanation": "Brief explanation of why this fit score was given",
     "fit_positive_factors": ["Main positive factors for company fit"],
@@ -128,7 +128,7 @@ SCORING GUIDELINES (be honest and evidence-based, reference the candidate's rule
 
 NOTE: The scoring rules above are ALREADY filtered by company type. Use only the rules provided — do not apply rules that were not included.
 
-## company_fit_score (0-100)
+## fit (0-100)
 
 For PRODUCT_COMPANIES:
 Measures: "How well does this company match my technical background and career direction?"
@@ -152,7 +152,7 @@ Scoring bands (Recruiter):
 - 50-69: Moderate — some tech recruitment + limited evidence of relevant placements
 - <50: Poor — generic recruitment + no tech specialization + few opportunities
 
-## company_success_score (0-100)
+## success (0-100)
 
 For PRODUCT_COMPANIES:
 Measures: "How likely am I to successfully join this company?"
@@ -176,9 +176,9 @@ Scoring bands (Recruiter):
 - 50-69: Moderate — limited evidence of relevant placements
 - <50: Low value — no evidence of tech hiring or international support
 
-## company_overall_score (0-100)
+## overall (0-100)
 Calculate the final company score using this formula:
-company_overall_score = (company_fit_score * 0.5) + (company_success_score * 0.5)
+overall = (fit * 0.5) + (success * 0.5)
 
 ## Grade Calculation
 - A++: 90+

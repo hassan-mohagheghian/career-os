@@ -119,11 +119,11 @@ class TestCompanyListV2API:
 
     def test_sort_by_fit_score_nulls_last(self, client, sa_session):
         c1 = _create_company(sa_session, name="No Score")
-        _create_intel(sa_session, c1.id, {"company_fit_score": None})
+        _create_intel(sa_session, c1.id, {"fit": None})
         c2 = _create_company(sa_session, name="Low Fit")
-        _create_intel(sa_session, c2.id, {"company_fit_score": 30})
+        _create_intel(sa_session, c2.id, {"fit": 30})
         c3 = _create_company(sa_session, name="High Fit")
-        _create_intel(sa_session, c3.id, {"company_fit_score": 90})
+        _create_intel(sa_session, c3.id, {"fit": 90})
 
         data = client.get("/api/companies/list?sort=fit_score&order=desc").json()
         names = [i["name"] for i in data["items"]]
@@ -150,9 +150,9 @@ class TestCompanyListV2API:
             progress_pct=40,
         )
         _create_intel(sa_session, c.id, {
-            "company_overall_score": 78,
-            "company_fit_score": 80,
-            "company_success_score": 76,
+            "overall": 78,
+            "fit": 80,
+            "success": 76,
             "overall_grade": "A",
         })
 
@@ -195,7 +195,7 @@ class TestCompanyListV2API:
 class TestCompanyHardDelete:
     def test_delete_company_hard_deletes_related_rows(self, client, sa_session):
         c = _create_company(sa_session, name="Del Co")
-        _create_intel(sa_session, c.id, {"company_overall_score": 50})
+        _create_intel(sa_session, c.id, {"overall": 50})
         from companies.infrastructure.models.company_model import CompanyLinkModel
         sa_session.add(CompanyLinkModel(company_id=c.id, url="https://del.example"))
         sa_session.add(ProcessingExecutionModel(
@@ -332,8 +332,8 @@ class TestCompanyScoresFromProcessing:
             "intelligence": {"overview": {"description": "Dev tools"}},
             "recommendation": {"priority": "A", "action": "Apply"},
             "scores": {
-                "company_fit_score": 88,
-                "company_success_score": 72,
+                "fit": 88,
+                "success": 72,
                 "fit_explanation": "Strong Python alignment.",
                 "success_explanation": "English-first Berlin team.",
             },
@@ -383,13 +383,13 @@ class TestCompanyScoresFromProcessing:
         assert detail["scores"]["overall_grade"] == "A+"
 
         intel_scores = detail["intelligence"]["scores"]
-        assert intel_scores["company_fit_score"] == 88
-        assert intel_scores["company_success_score"] == 72
-        assert intel_scores["company_overall_score"] == 80
-        assert intel_scores["overall_grade"] == "A+"
         assert intel_scores["fit"] == 88
         assert intel_scores["success"] == 72
         assert intel_scores["overall"] == 80
+        assert intel_scores["overall_grade"] == "A+"
+        assert "company_fit_score" not in intel_scores
+        assert "company_success_score" not in intel_scores
+        assert "company_overall_score" not in intel_scores
 
     def test_company_without_processing_has_null_scores(self, client, sa_session):
         _create_company(sa_session, name="Unprocessed Co", status="created")

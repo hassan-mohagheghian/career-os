@@ -61,9 +61,9 @@ export interface InfiniteCompanySearchResult {
 }
 
 export interface CompanyIntelligenceScores {
-  company_fit_score?: number | null
-  company_success_score?: number | null
-  company_overall_score?: number | null
+  fit?: number | null
+  success?: number | null
+  overall?: number | null
   overall_grade?: string | null
   fit_grade?: string | null
   [key: string]: unknown

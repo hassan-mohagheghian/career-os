@@ -100,7 +100,7 @@ keeps its own ordering:
 
 The scores shown in the header (grade badge + Fit / Success / Overall cards)
 and in the breakdown are exactly the scores **calculated by company
-processing** (`company_fit_score` / `company_success_score` → weighted overall),
+processing** (`fit` / `success` → weighted `overall`),
 persisted into `company.intelligence.scores` and surfaced through the
 normalized top-level `company.scores` field. The drawer reads `company.scores`
 first and falls back to the raw `intelligence.scores` dict; this mirrors the Job

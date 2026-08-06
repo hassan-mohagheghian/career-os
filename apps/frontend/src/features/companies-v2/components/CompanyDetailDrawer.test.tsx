@@ -74,9 +74,9 @@ describe('CompanyDetailDrawer scores', () => {
       scores: null,
       intelligence: {
         scores: {
-          company_fit_score: 77,
-          company_success_score: 66,
-          company_overall_score: 72,
+          fit: 77,
+          success: 66,
+          overall: 72,
           overall_grade: 'A',
         },
       } as CompanyDetail['intelligence'],

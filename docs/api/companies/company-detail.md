@@ -83,9 +83,9 @@ for the same path.
     "technology_analysis": {},
     "recommendation": null,
     "scores": {
-      "company_fit_score": 88,
-      "company_success_score": 87,
-      "company_overall_score": 88,
+      "fit": 88,
+      "success": 87,
+      "overall": 88,
       "overall_grade": "A+"
     },
     "generated_at": "..."

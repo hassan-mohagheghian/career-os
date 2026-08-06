@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.3.1] — 2026-08-06
+
+### Fixed
+
+- **Company scores were persisted as null after processing.** The scoring step
+  read the legacy score keys (`company_fit_score` / `company_success_score`)
+  that the validated LLM payload no longer carried, so every company processed
+  through the new `COMPANY_PROCESSING` workflow stored `null` fit/success/overall
+  while keeping the explanation text. Score keys are now **unified to the
+  canonical form** (`fit` / `success` / `overall`) across the LLM prompt/schema,
+  validation, scoring, the v2 list/detail API, the frontend and the stored
+  data.
+
+### Changed
+
+- Company analysis prompt/schema versions `1.0.0` → `1.1.0`.
+- Legacy score-key aliases removed from the write path, the API read path and
+  the frontend; existing `company_intelligence.scores` rows normalized by data
+  migration `company_006_normalize_intelligence_score_keys`.
+
 ## [3.3.0] — 2026-08-06
 
 ### Added

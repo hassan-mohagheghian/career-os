@@ -8,7 +8,7 @@ This endpoint is optimized for browsing, searching, filtering and sorting.
 
 The endpoint is read-only.
 
-Scores are exposed as **raw values from the legacy scores blob** (they are
+Scores are exposed as **raw values from the scores blob** (they are
 stored as numbers and may be fractional, e.g. `38.5`). The overall grade is `scores.overall_grade`, falling back to `fit_grade` when the former is empty.
 
 > Company processing runs through the shared `ProcessingExecution` lifecycle
@@ -99,8 +99,8 @@ Every sort follows a **NULLS LAST** policy: rows where the sort column is `NULL`
 with a value, in both `asc` and `desc` order.
 
 Score sorts (`overall_score`, `fit_score`, `success_score`) read the
-corresponding key from the company's scores blob (`company_overall_score`,
-`company_fit_score`, `company_success_score`).
+corresponding canonical key from the company's scores blob (`overall`,
+`fit`, `success`).
 
 Order
 

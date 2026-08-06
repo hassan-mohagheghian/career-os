@@ -115,8 +115,8 @@ def build_company_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
     recommendation_raw = _coerce_dict(payload.get("recommendation"))
     scores_raw = _coerce_dict(payload.get("scores"))
 
-    fit = normalize_score_100(scores_raw.get("company_fit_score"))
-    success = normalize_score_100(scores_raw.get("company_success_score"))
+    fit = normalize_score_100(scores_raw.get("fit"))
+    success = normalize_score_100(scores_raw.get("success"))
     overall = calculate_overall_score(fit, success)
 
     return {
@@ -162,7 +162,7 @@ def build_company_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
             "fit": fit,
             "success": success,
             "overall": overall,
-            "fit_grade": grade_for_overall(scores_raw.get("company_fit_score")),
+            "fit_grade": grade_for_overall(fit),
             "overall_grade": grade_for_overall(overall),
             "fit_explanation": _coerce_str(scores_raw.get("fit_explanation")),
             "fit_positive_factors": _coerce_string_list(scores_raw.get("fit_positive_factors")),
@@ -170,9 +170,5 @@ def build_company_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
             "success_explanation": _coerce_str(scores_raw.get("success_explanation")),
             "success_positive_factors": _coerce_string_list(scores_raw.get("success_positive_factors")),
             "success_negative_factors": _coerce_string_list(scores_raw.get("success_negative_factors")),
-            # Legacy aliases consumed by the v2 list/detail APIs and the UI.
-            "company_fit_score": fit,
-            "company_success_score": success,
-            "company_overall_score": overall,
         },
     }

@@ -14,8 +14,8 @@ from typing import Any
 
 from shared.infrastructure.prompts.loader import load_prompt
 
-COMPANY_ANALYSIS_PROMPT_VERSION = "1.0.0"
-COMPANY_ANALYSIS_SCHEMA_VERSION = "1.0.0"
+COMPANY_ANALYSIS_PROMPT_VERSION = "1.1.0"
+COMPANY_ANALYSIS_SCHEMA_VERSION = "1.1.0"
 
 _COMBINED_PROMPT_NAME = "company/company_combined_analyze"
 
@@ -81,9 +81,9 @@ def build_company_analysis_output_schema() -> dict[str, Any]:
             "scores": {
                 "type": "object",
                 "properties": {
-                    "company_fit_score": {"type": "integer", "minimum": 0, "maximum": 100},
-                    "company_success_score": {"type": "integer", "minimum": 0, "maximum": 100},
-                    "company_overall_score": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+                    "fit": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "success": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "overall": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
                     "fit_grade": nullable_str,
                     "fit_explanation": nullable_str,
                     "fit_positive_factors": string_list,
