@@ -13,7 +13,7 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 _server_dir = os.path.join(os.path.dirname(__file__), '..', 'backend')
 sys.path.insert(0, os.path.abspath(_server_dir))
@@ -73,6 +73,26 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def ensure_widened_version_table(connection) -> None:
+    """Widen alembic_version.version_num beyond the default VARCHAR(32).
+
+    Several migration revision IDs (e.g. company_003_add_companies_raw_content)
+    are longer than 32 characters, so the table must be created with (or
+    altered to) a wider column before alembic stamps those revisions. Alembic
+    creates the table lazily with checkfirst=True, so a pre-created table is
+    reused as-is. Idempotent: existing databases keep their current column.
+    """
+    table = "alembic_version"
+    if connection.dialect.has_table(connection, table):
+        connection.execute(
+            text(f"ALTER TABLE {table} ALTER COLUMN version_num TYPE VARCHAR(255)")
+        )
+    else:
+        connection.execute(
+            text(f"CREATE TABLE {table} (version_num VARCHAR(255) NOT NULL)")
+        )
+
+
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -88,6 +108,7 @@ def run_migrations_online() -> None:
             include_object=include_object,
             version_table="alembic_version",
         )
+        ensure_widened_version_table(connection)
         with context.begin_transaction():
             context.run_migrations()
 

@@ -74,7 +74,7 @@ jobs:
           REDIS_PORT: 6379
 
       - name: Publish backend test report
-        if: always()
+        if: always() && hashFiles('test-results/pytest.xml') != ''
         uses: dorny/test-reporter@v1
         with:
           name: pytest

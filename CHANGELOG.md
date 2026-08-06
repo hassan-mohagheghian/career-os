@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.4.2] — 2026-08-06
+
+### Fixed
+
+- **Alembic migrations fail on a fresh database.** `alembic_version.version_num`
+  defaults to `VARCHAR(32)`, but three company migration revision IDs are longer
+  (e.g. `company_003_add_companies_raw_content`, 37 chars), so `alembic upgrade
+  head` aborted with `StringDataRightTruncation` in CI. `apps/alembic/env.py`
+  now creates/widens the version table column to `VARCHAR(255)` before running
+  migrations (idempotent for existing databases).
+- **CI hard-fails on missing test reports.** The `Publish backend test report`
+  step ran on every failed run and errored with "No test report files were
+  found" when an earlier step (e.g. migrations) failed before pytest produced
+  its JUnit XML. The step now only runs when `test-results/pytest.xml` exists.
+
 ## [3.4.1] — 2026-08-06
 
 ### Fixed
