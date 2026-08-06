@@ -32,6 +32,7 @@ from jobs.presentation.api.schemas.jobs_v2 import (
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
 from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
+from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.domain.enums import ExecutionStatus
@@ -40,6 +41,7 @@ from dependencies import (
     get_job_repo,
     get_processing_execution_repo,
     get_job_analysis_repo,
+    get_job_company_repo,
     get_summary_repo,
     get_company_repo,
 )
@@ -297,6 +299,7 @@ def _analysis_to_schema(
 def _job_detail_payload(
     job_dict: dict[str, Any],
     latest_execution: Any | None,
+    related_companies: list[Any] | None = None,
 ) -> JobDetailResponseSchema:
     """Build the detail response for a freshly read job row."""
     return JobDetailResponseSchema(
@@ -318,12 +321,41 @@ def _job_detail_payload(
             success=job_dict.get("success_score"),
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
+        related_companies=related_companies or [],
         description=job_dict.get("description"),
         notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
+
+
+def _related_companies_schema(
+    job_id: str,
+    job_company_repo: SQLAlchemyJobCompanyRepository,
+    company_repo: SQLAlchemyCompanyRepository,
+) -> list[Any]:
+    """Enrich job_companies rows with company names for the detail response."""
+    from jobs.presentation.api.schemas.jobs_v2 import RelatedCompanySchema
+
+    items = job_company_repo.list_by_job(job_id)
+    names: dict[str, str | None] = {}
+    for row in items:
+        company_id = row.get("company_id")
+        if company_id and company_id not in names:
+            company = company_repo.get_by_id(company_id)
+            names[company_id] = (company or {}).get("name")
+    return [
+        RelatedCompanySchema(
+            company_id=row["company_id"],
+            name=names.get(row["company_id"]),
+            role=row.get("role"),
+            company_type=row.get("company_type"),
+            confidence=row.get("confidence"),
+            reason=row.get("reason"),
+        )
+        for row in items
+    ]
 
 
 @router.get("/{job_id}", response_model=JobDetailResponseSchema)
@@ -333,6 +365,8 @@ def get_job_detail(
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
     analysis_repo: SQLAlchemyJobAnalysisRepository = Depends(get_job_analysis_repo),
     summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
 ):
     job_dict = repo.get_by_id(job_id)
     if not job_dict:
@@ -363,6 +397,7 @@ def get_job_detail(
         ),
         latest_processing_execution=_execution_to_schema(latest_execution),
         analysis=_analysis_to_schema(analysis, job_dict, summary),
+        related_companies=_related_companies_schema(job_id, job_company_repo, company_repo),
         description=job_dict.get("description"),
         notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
@@ -393,6 +428,8 @@ def update_job(
     body: UpdateJobRequest,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
 ):
     """Partially update a job's core data (Edit Job feature)."""
     data = body.model_dump(exclude_unset=True)
@@ -410,30 +447,10 @@ def update_job(
     executions = exec_repo.list_by_target("job", job_id)
     latest_execution = executions[0] if executions else None
 
-    return JobDetailResponseSchema(
-        id=job_dict.get("id"),
-        title=job_dict.get("title") or job_dict.get("role"),
-        company_name=job_dict.get("company"),
-        company_id=job_dict.get("company_id"),
-        role=job_dict.get("role"),
-        location=job_dict.get("location"),
-        work_types=_parse_string_list(job_dict.get("work_types")),
-        employment_types=_parse_string_list(job_dict.get("employment_types")),
-        salary=job_dict.get("salary"),
-        visa=job_dict.get("visa"),
-        url=job_dict.get("url"),
-        status=job_dict.get("status"),
-        scores=ScoresSchema(
-            overall=job_dict.get("overall_score"),
-            fit=job_dict.get("fit_score"),
-            success=job_dict.get("success_score"),
-        ),
-        latest_processing_execution=_execution_to_schema(latest_execution),
-        description=job_dict.get("description"),
-        notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
-        links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
-        updated_at=job_dict.get("updated_at"),
-        created_at=job_dict.get("created_at"),
+    return _job_detail_payload(
+        job_dict,
+        latest_execution,
+        _related_companies_schema(job_id, job_company_repo, company_repo),
     )
 
 
@@ -444,6 +461,7 @@ def set_job_company(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ):
     """Link a job to a company (or unlink it by passing company_id=null)."""
     job_dict = repo.get_by_id(job_id)
@@ -461,7 +479,11 @@ def set_job_company(
     job_dict = repo.get_by_id(job_id)
     executions = exec_repo.list_by_target("job", job_id)
     latest_execution = executions[0] if executions else None
-    return _job_detail_payload(job_dict, latest_execution)
+    return _job_detail_payload(
+        job_dict,
+        latest_execution,
+        _related_companies_schema(job_id, job_company_repo, company_repo),
+    )
 
 
 @router.put("/{job_id}/pinned")

@@ -209,6 +209,17 @@ class JobAnalysisBlockSchema(BaseModel):
     generated_at: str | None = None
 
 
+class RelatedCompanySchema(BaseModel):
+    """A company associated with this job (hiring or recruiter)."""
+
+    company_id: str
+    name: str | None = None
+    role: str | None = None
+    company_type: str | None = None
+    confidence: float | None = None
+    reason: str | None = None
+
+
 class JobDetailResponseSchema(BaseModel):
     id: str
     title: str | None = None
@@ -225,6 +236,7 @@ class JobDetailResponseSchema(BaseModel):
     scores: ScoresSchema | None = None
     latest_processing_execution: JobDetailExecutionSchema | None = None
     analysis: JobAnalysisBlockSchema | None = None
+    related_companies: list[RelatedCompanySchema] = Field(default_factory=list)
     description: str | None = None
     notes: list[JobNoteItem] = Field(default_factory=list)
     links: list[JobLinkItem] = Field(default_factory=list)

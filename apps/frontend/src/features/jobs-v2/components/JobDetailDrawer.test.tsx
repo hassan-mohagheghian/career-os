@@ -30,6 +30,7 @@ const sampleDetail = {
   notes: [],
   links: [],
   analysis: null,
+  related_companies: [],
   workflow: [],
   updated_at: null,
   created_at: null,
@@ -86,5 +87,38 @@ describe('JobDetailDrawer edit', () => {
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Change company' })).toBeInTheDocument()
+  })
+})
+
+describe('JobDetailDrawer published by', () => {
+  it('shows the recruiters as Published by', async () => {
+    vi.mocked(jobApi.getDetail).mockResolvedValue({
+      ...sampleDetail,
+      related_companies: [
+        {
+          company_id: 'recruiter-1',
+          name: 'RecruitCo',
+          role: 'recruiter',
+          company_type: 'recruiting_agency',
+          confidence: 0.9,
+          reason: 'listed as the recruiting partner',
+        },
+      ],
+    } as any)
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.getByText('Published by')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: 'RecruitCo' })
+    expect(link).toHaveAttribute('href', '/companies?company=recruiter-1')
+    expect(screen.getByText('recruiting agency')).toBeInTheDocument()
+    expect(screen.getByText('listed as the recruiting partner')).toBeInTheDocument()
+  })
+
+  it('does not render Published by without recruiters', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.queryByText('Published by')).not.toBeInTheDocument()
   })
 })

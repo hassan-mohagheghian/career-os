@@ -72,6 +72,9 @@ block produced by the Job Analysis phase:
     "generated_at": "2026-08-03T12:00:00+00:00"
   },
   "latest_processing_execution": { "…": "…" },
+  "related_companies": [
+    { "company_id": "…", "name": "RecruitCo", "role": "recruiter", "company_type": "recruiting_agency", "confidence": 0.9, "reason": "listed as recruiting partner" }
+  ],
   "description": "…"
 }
 ```
@@ -80,6 +83,11 @@ block produced by the Job Analysis phase:
 - For jobs processed before the analysis phase existed, `analysis` is a
   backward-compatible block built from the legacy `jobs`/`summaries`
   projections (no `recommendation`, grade-derived `summary`).
+- `related_companies` lists every company associated with the job via the
+  `job_companies` table: the `hiring` company (the employer that drives
+  `company_id`) plus any `recruiter` / staffing / agency companies extracted
+  from the posting. The frontend renders the recruiters under **Published by**
+  in the Job Details drawer.
 - The frontend refetches this endpoint on `execution.completed` /
   `execution.failed` SSE events so results appear live in the Job Details drawer.
 

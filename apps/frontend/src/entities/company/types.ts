@@ -111,6 +111,12 @@ export interface CompanyLinkedJob {
   overall_score: number | null
 }
 
+export interface RecruiterForCompany {
+  company_id: string
+  name: string | null
+  job_count: number
+}
+
 export interface CompanyDetail {
   id: string
   name: string
@@ -133,6 +139,8 @@ export interface CompanyDetail {
   intelligence?: CompanyIntelligence | null
   scores?: CompanyScores | null
   jobs?: CompanyLinkedJob[]
+  recruiter_job_count?: number
+  recruiter_for?: RecruiterForCompany[]
   parent_company_id?: string | null
   main_company?: CompanyMainRef | null
   alias_count?: number

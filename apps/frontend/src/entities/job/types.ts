@@ -198,6 +198,15 @@ export interface JobAnalysis {
   generated_at: string | null
 }
 
+export interface RelatedCompany {
+  company_id: string
+  name: string | null
+  role: string | null
+  company_type: string | null
+  confidence: number | null
+  reason: string | null
+}
+
 export interface JobDetail {
   id: string
   title: string | null
@@ -214,6 +223,7 @@ export interface JobDetail {
   scores: Scores
   latest_processing_execution: JobDetailExecution | null
   analysis: JobAnalysis | null
+  related_companies: RelatedCompany[]
   description: string | null
   notes: JobNoteItem[]
   links: JobLinkItem[]

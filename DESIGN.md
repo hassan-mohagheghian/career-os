@@ -223,6 +223,12 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 │ │ Created         2026-07-29 09:00                                          │ │
 │ └────────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
+│ ┌─ Published by ────────────────────────────────────────────────────────────┐ │
+│ │ RecruitCo                               [recruiting agency]               │ │
+│ │ TalentBridge GmbH                                                         │ │
+│ │ • listed as the recruiting partner                                        │ │
+│ └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
 │ ┌─ Processing ──────────────────────────────────────────────────────────────┐ │
 │ │ Execution     exec-1234    Status  completed                              │ │
 │ │ ✓ Load Job          ✓ Analyze Job      ✓ Score Job                        │ │
@@ -359,6 +365,11 @@ row opens the detail drawer where the relation can be managed.
 │ ◈ Related Companies                                  [ Manage ]│
 │ ┌────────────────────────────────────────────────────────────┐ │
 │ │ Recommendation: A — apply via careers page                 │ │
+│ └────────────────────────────────────────────────────────────┘ │
+│ Recruiter for 3 jobs (recruiter-type companies only)           │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ Acme GmbH                                  2 jobs          │ │
+│ │ Beta GmbH                                  1 job           │ │
 │ └────────────────────────────────────────────────────────────┘ │
 │ Company Overview                                              │
 │ Intelligence sections (importance order)                      │

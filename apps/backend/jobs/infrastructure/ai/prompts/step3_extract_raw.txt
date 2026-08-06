@@ -8,9 +8,27 @@ Output the result as JSON with this structure:
 {{
   "valid": true/false,
   "reason": "brief explanation if invalid",
-  "company": "Company name",
+  "company": "Hiring company name (the company actually hiring), else the publishing company",
   "company_url": "Company website URL if found (e.g. https://company.com), else null",
   "linkedin_url": "Company LinkedIn page URL if found (e.g. https://linkedin.com/company/...), else null",
+  "companies": {
+    "hiring_company": {
+      "name": "Hiring company name",
+      "normalized_name": "Normalized name (strip legal suffixes, e.g. 'Google LLC' -> 'Google')",
+      "company_type": "hiring",
+      "confidence": 0.98,
+      "reason": "Why this company is the hiring company"
+    },
+    "related_companies": [
+      {
+        "name": "Recruiter / staffing / agency company name",
+        "normalized_name": "Normalized name",
+        "company_type": "recruiter",
+        "confidence": 0.96,
+        "reason": "Why this company is related (e.g. published the job)"
+      }
+    ]
+  },
   "role": "Job title",
   "location": "Primary city only (Berlin, Munich, etc.)",
   "locations": ["City1", "City2"],
@@ -43,3 +61,15 @@ RULES:
 - requirements: extract ALL must-have skills
 - responsibilities: top 3-5 key duties
 - summary: concise overview for quick understanding
+- companies: identify EVERY company mentioned in the posting. hiring_company is
+  the company actually hiring — only set it with reasonable evidence ("Join
+  Google", "Google is hiring", official company domain, company career page).
+  Do NOT assume the publishing company is the hiring company. A recruiter's
+  website, contact info or logo are weak evidence and must not promote the
+  recruiter to hiring company. When the hiring company cannot be determined
+  confidently, return hiring_company: null — never guess. related_companies:
+  zero or more recruiting / staffing / agency / consulting companies.
+  company_type values: hiring, recruiter, staffing, consulting, outsourcing,
+  unknown. confidence 0.0-1.0. Do NOT merge companies; extract and classify
+  every mention. The flat "company" field is a projection of
+  hiring_company.name when present, else the publishing company.

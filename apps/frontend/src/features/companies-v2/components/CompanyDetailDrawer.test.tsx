@@ -113,3 +113,32 @@ describe('CompanyDetailDrawer edit', () => {
     expect(onEdit).toHaveBeenCalledWith('company-1')
   })
 })
+
+describe('CompanyDetailDrawer recruiter for', () => {
+  it('shows the hiring companies a recruiter publishes for', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      company_type: 'RECRUITING_AGENCY',
+      recruiter_job_count: 3,
+      recruiter_for: [
+        { company_id: 'hiring-1', name: 'Acme GmbH', job_count: 2 },
+        { company_id: 'hiring-2', name: 'Beta GmbH', job_count: 1 },
+      ],
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Recruiter for 3 jobs')).toBeInTheDocument())
+    const acmeLink = screen.getByRole('link', { name: 'Acme GmbH' })
+    expect(acmeLink).toHaveAttribute('href', '/companies?company=hiring-1')
+    expect(screen.getByText('Beta GmbH')).toBeInTheDocument()
+    expect(screen.getByText('2 jobs')).toBeInTheDocument()
+    expect(screen.getByText('1 job')).toBeInTheDocument()
+  })
+
+  it('does not render the section for non-recruiters', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({ company_type: 'PRODUCT_COMPANY' }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(screen.queryByText(/Recruiter for/)).not.toBeInTheDocument()
+  })
+})

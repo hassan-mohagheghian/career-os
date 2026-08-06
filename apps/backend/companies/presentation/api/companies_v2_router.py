@@ -33,8 +33,17 @@ from companies.presentation.api.schemas.companies_v2 import (
     CompanyPinRequest,
     CompanyProcessingSchema,
     CompanyScoresSchema,
+    RecruiterForSchema,
 )
-from dependencies import get_company_intelligence_repo, get_company_link_repo, get_company_repo, get_job_repo, get_processing_execution_repo
+from dependencies import (
+    get_company_intelligence_repo,
+    get_company_link_repo,
+    get_company_repo,
+    get_job_company_repo,
+    get_job_repo,
+    get_processing_execution_repo,
+)
+from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 
@@ -254,9 +263,10 @@ def get_company_detail(
     intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
     link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ) -> CompanyDetailResponseSchema:
     """Get a company by id with all related data in a single payload."""
-    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo)
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo)
 
 
 def _build_company_detail(
@@ -265,6 +275,7 @@ def _build_company_detail(
     intel_repo: SQLAlchemyCompanyIntelligenceRepository,
     link_repo: SQLAlchemyCompanyLinkRepository,
     job_repo: SQLAlchemyJobRepository,
+    job_company_repo: SQLAlchemyJobCompanyRepository,
 ) -> CompanyDetailResponseSchema:
     company = repo.get_by_id(id)
     if not company:
@@ -312,6 +323,23 @@ def _build_company_detail(
         for j in jobs
     ]
 
+    hiring_pairs = job_company_repo.recruiter_hiring_pairs(id)
+    recruiter_for_by_id: dict[str, int] = {}
+    for pair in hiring_pairs:
+        hiring_company_id = pair.get("hiring_company_id")
+        if hiring_company_id:
+            recruiter_for_by_id[hiring_company_id] = recruiter_for_by_id.get(hiring_company_id, 0) + 1
+    recruiter_for = [
+        RecruiterForSchema(
+            company_id=hiring_company_id,
+            name=(repo.get_by_id(hiring_company_id) or {}).get("name"),
+            job_count=count,
+        )
+        for hiring_company_id, count in sorted(
+            recruiter_for_by_id.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+
     return CompanyDetailResponseSchema(
         id=company["id"],
         name=company.get("name") or "",
@@ -335,6 +363,8 @@ def _build_company_detail(
         intelligence=_to_intelligence_schema(intel),
         scores=_scores_from_intelligence(intel),
         jobs=jobs_schema,
+        recruiter_job_count=len(hiring_pairs),
+        recruiter_for=recruiter_for,
         parent_company_id=parent_company_id,
         main_company=main_company,
         alias_count=repo.count_aliases(id),
@@ -364,6 +394,7 @@ def relate_company_main(
     intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
     link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ) -> CompanyDetailResponseSchema:
     """Relate a company to a main company (null clears the relation).
 
@@ -378,4 +409,4 @@ def relate_company_main(
     for affected_id in result.get("affected_company_ids", []):
         job_repo.reassign_company(affected_id, result["main_company_id"])
 
-    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo)
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo)

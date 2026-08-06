@@ -25,6 +25,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 # (Alembic autogenerate discovers models via Base.metadata).
 import jobs.infrastructure.models.job_model  # noqa: F401
 import jobs.infrastructure.models.job_analysis_model  # noqa: F401
+import jobs.infrastructure.models.job_company_model  # noqa: F401
 import jobs.infrastructure.models.misc_models  # noqa: F401
 import skills.infrastructure.models.skill_model  # noqa: F401
 import skills.infrastructure.models.skill_roadmap_models  # noqa: F401

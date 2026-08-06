@@ -129,6 +129,14 @@ class CompanyIntelligenceSchema(BaseModel):
     generated_at: str | None = None
 
 
+class RecruiterForSchema(BaseModel):
+    """A hiring company that this company publishes jobs for as a recruiter."""
+
+    company_id: str
+    name: str | None = None
+    job_count: int = 0
+
+
 class CompanyDetailResponseSchema(BaseModel):
     """All-in-one company detail payload (mirrors the jobs v2 detail)."""
 
@@ -153,6 +161,8 @@ class CompanyDetailResponseSchema(BaseModel):
     main_company: CompanyMainRef | None = None
     alias_count: int = 0
     is_alias: bool = False
+    recruiter_job_count: int = 0
+    recruiter_for: list[RecruiterForSchema] = Field(default_factory=list)
     notes: list[CompanyNoteSchema] = Field(default_factory=list)
     links: list[CompanyLinkItemSchema] = Field(default_factory=list)
     intelligence: CompanyIntelligenceSchema | None = None

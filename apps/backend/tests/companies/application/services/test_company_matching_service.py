@@ -5,8 +5,28 @@ import pytest
 from companies.application.services.company_matching_service import (
     CompanyMatchingService,
     extract_domain,
+    map_company_type,
     normalize_company_name,
 )
+
+
+class TestMapCompanyType:
+    def test_maps_extraction_types_to_vocabulary(self):
+        assert map_company_type("hiring") == "PRODUCT_COMPANY"
+        assert map_company_type("recruiter") == "RECRUITING_AGENCY"
+        assert map_company_type("staffing") == "STAFFING_COMPANY"
+        assert map_company_type("consulting") == "CONSULTING_COMPANY"
+        assert map_company_type("outsourcing") == "UNKNOWN"
+
+    def test_case_and_whitespace_insensitive(self):
+        assert map_company_type("  Recruiter ") == "RECRUITING_AGENCY"
+
+    def test_unknown_values_map_to_unknown(self):
+        assert map_company_type("bogus") == "UNKNOWN"
+
+    def test_empty_returns_none(self):
+        assert map_company_type("") is None
+        assert map_company_type(None) is None
 
 
 class FakeCompanyRepo:
@@ -136,3 +156,21 @@ class TestFindOrCreate:
         repo = FakeCompanyRepo([])
         with pytest.raises(ValueError):
             CompanyMatchingService(repo).find_or_create("", "https://x.example")
+
+    def test_new_company_stores_mapped_company_type(self):
+        repo = FakeCompanyRepo([])
+        company_id, created = CompanyMatchingService(repo).find_or_create(
+            "RecruitCo", None, company_type="recruiter"
+        )
+        assert created is True
+        assert company_id == "new-1"
+        assert repo.inserted[0]["company_type"] == "RECRUITING_AGENCY"
+
+    def test_matched_company_type_is_never_mutated(self):
+        repo = FakeCompanyRepo([_company(name="Acme GmbH")])
+        company_id, created = CompanyMatchingService(repo).find_or_create(
+            "Acme GmbH", None, company_type="recruiter"
+        )
+        assert created is False
+        assert company_id == "c-1"
+        assert repo.inserted == []

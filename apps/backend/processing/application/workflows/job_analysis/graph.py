@@ -64,6 +64,7 @@ class JobAnalysisGraph:
         summary_repo: Any,
         analysis_repo: Any,
         matching_service: Any = None,
+        job_company_repo: Any = None,
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
     ):
@@ -75,6 +76,7 @@ class JobAnalysisGraph:
         self._summaries = summary_repo
         self._analysis = analysis_repo
         self._matching = matching_service
+        self._job_companies = job_company_repo
         self._llm = llm_service
         self._events = event_publisher
         self._graph = self._build()
@@ -91,7 +93,7 @@ class JobAnalysisGraph:
         graph.add_node(NODE_SUMMARIZE, SummarizeNode(self._events))
         graph.add_node(NODE_PERSIST, PersistNode(self._jobs, self._summaries, self._analysis, self._events))
         graph.add_node(NODE_PERSIST_SKILLS, PersistSkillsNode(self._skills, self._events))
-        graph.add_node(NODE_LINK_COMPANY, LinkCompanyNode(self._matching, self._jobs, self._events))
+        graph.add_node(NODE_LINK_COMPANY, LinkCompanyNode(self._matching, self._jobs, self._job_companies, self._events))
         graph.add_node(NODE_ANALYSIS_READY, AnalysisReadyNode(self._events))
         graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._events))
 

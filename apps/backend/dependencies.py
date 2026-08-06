@@ -105,6 +105,11 @@ def get_job_analysis_repo(session: Session = Depends(get_session)):
     return SQLAlchemyJobAnalysisRepository(session)
 
 
+def get_job_company_repo(session: Session = Depends(get_session)):
+    from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
+    return SQLAlchemyJobCompanyRepository(session)
+
+
 # ── Jobs Tailored Document Dependencies ─────────────────────────
 
 def get_tailored_document_repo(session: Session = Depends(get_session)):

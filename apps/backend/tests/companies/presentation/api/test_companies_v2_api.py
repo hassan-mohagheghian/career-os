@@ -443,3 +443,60 @@ class TestCompanyScoresFromProcessing:
         assert item["scores"]["fit"] is None
         assert item["scores"]["success"] is None
         assert item["scores"]["overall_grade"] is None
+
+
+class TestCompanyRecruiterForAPI:
+    def test_detail_exposes_recruiter_for_and_count(self, client, sa_session):
+        from jobs.infrastructure.models.job_model import JobModel
+        from jobs.infrastructure.models.job_company_model import JobCompanyModel
+
+        recruiter = _create_company(sa_session, name="RecruitCo")
+        hiring_a = _create_company(sa_session, name="Acme GmbH")
+        hiring_b = _create_company(sa_session, name="Beta GmbH")
+
+        job1 = JobModel(company_id=hiring_a.id, deleted=0, workflow_log="[]", rescoring=0)
+        job2 = JobModel(company_id=hiring_a.id, deleted=0, workflow_log="[]", rescoring=0)
+        job3 = JobModel(company_id=hiring_b.id, deleted=0, workflow_log="[]", rescoring=0)
+        sa_session.add_all([job1, job2, job3])
+        sa_session.commit()
+        sa_session.add_all([
+            JobCompanyModel(job_id=job1.id, company_id=recruiter.id, role="recruiter"),
+            JobCompanyModel(job_id=job2.id, company_id=recruiter.id, role="recruiter"),
+            JobCompanyModel(job_id=job3.id, company_id=recruiter.id, role="recruiter"),
+            JobCompanyModel(job_id=job1.id, company_id=hiring_a.id, role="hiring"),
+            JobCompanyModel(job_id=job2.id, company_id=hiring_a.id, role="hiring"),
+            JobCompanyModel(job_id=job3.id, company_id=hiring_b.id, role="hiring"),
+        ])
+        sa_session.commit()
+
+        detail = client.get(f"/api/companies/{recruiter.id}").json()
+        assert detail["recruiter_job_count"] == 3
+        by_id = {r["company_id"]: r for r in detail["recruiter_for"]}
+        assert by_id[hiring_a.id]["name"] == "Acme GmbH"
+        assert by_id[hiring_a.id]["job_count"] == 2
+        assert by_id[hiring_b.id]["name"] == "Beta GmbH"
+        assert by_id[hiring_b.id]["job_count"] == 1
+
+    def test_non_recruiter_company_has_empty_recruiter_for(self, client, sa_session):
+        company = _create_company(sa_session, name="Product Co")
+        detail = client.get(f"/api/companies/{company.id}").json()
+        assert detail["recruiter_job_count"] == 0
+        assert detail["recruiter_for"] == []
+
+    def test_same_company_as_hiring_and_recruiter_excluded_from_itself(self, client, sa_session):
+        from jobs.infrastructure.models.job_model import JobModel
+        from jobs.infrastructure.models.job_company_model import JobCompanyModel
+
+        company = _create_company(sa_session, name="Mixed Co")
+        job = JobModel(company_id=company.id, deleted=0, workflow_log="[]", rescoring=0)
+        sa_session.add(job)
+        sa_session.commit()
+        sa_session.add_all([
+            JobCompanyModel(job_id=job.id, company_id=company.id, role="recruiter"),
+            JobCompanyModel(job_id=job.id, company_id=company.id, role="hiring"),
+        ])
+        sa_session.commit()
+
+        detail = client.get(f"/api/companies/{company.id}").json()
+        assert detail["recruiter_job_count"] == 0
+        assert detail["recruiter_for"] == []

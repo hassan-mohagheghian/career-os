@@ -100,6 +100,8 @@ for the same path.
   "main_company": null,
   "alias_count": 0,
   "is_alias": false,
+  "recruiter_job_count": 0,
+  "recruiter_for": [],
   "jobs": [
     {
       "id": "019fd122-...",
@@ -142,6 +144,22 @@ detail payload exposes:
 Relating is managed via `PUT /api/companies/{id}/main` (see
 `relate-company.md`). Relating re-points all non-deleted jobs of the alias and
 its own aliases onto the main.
+
+---
+
+# Recruiter Role
+
+When this company acts as a recruiter / staffing agency, the payload exposes
+its hiring-client portfolio via the `job_companies` table:
+
+| Field                 | Type                | Description                                              |
+| --------------------- | ------------------- | -------------------------------------------------------- |
+| `recruiter_job_count` | number              | Jobs where this company is a recruiter with an attributed hiring company |
+| `recruiter_for`       | array of `{ company_id, name, job_count }` | Distinct hiring companies this recruiter publishes for, sorted by job count descending |
+
+Only jobs that carry a **distinct** hiring company are counted — jobs where the
+recruiter is also the hiring company are excluded. Non-recruiter companies
+return `recruiter_job_count: 0` and `recruiter_for: []`.
 
 ---
 

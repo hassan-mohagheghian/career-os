@@ -181,6 +181,30 @@ function CompanyDetailContent({
 
       <CompanyRecommendationSection intel={intel} />
 
+      {isRecruiterType(company.company_type) && company.recruiter_for && company.recruiter_for.length > 0 && (
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            <Users className="w-3 h-3 inline mr-1 text-primary" />
+            Recruiter for {company.recruiter_job_count} job{company.recruiter_job_count === 1 ? '' : 's'}
+          </p>
+          <ul className="space-y-1.5">
+            {company.recruiter_for.map(r => (
+              <li key={r.company_id} className="flex items-center justify-between gap-3">
+                <a
+                  href={`/companies?company=${r.company_id}`}
+                  className="text-xs text-primary hover:underline break-words"
+                >
+                  {r.name || 'Hiring company'}
+                </a>
+                <span className="text-2xs text-muted-foreground shrink-0">
+                  {r.job_count} job{r.job_count === 1 ? '' : 's'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <CompanyIntelligenceSection company={company} intel={intel} isRecruiter={isRecruiterType(company.company_type)} />
 
       <CompanyScoresSection intel={intel} scores={company.scores} />

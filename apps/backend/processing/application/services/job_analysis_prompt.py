@@ -10,13 +10,38 @@ from __future__ import annotations
 import json
 from typing import Any
 
-JOB_ANALYSIS_PROMPT_VERSION = "1.2.0"
-JOB_ANALYSIS_SCHEMA_VERSION = "1.0.0"
+JOB_ANALYSIS_PROMPT_VERSION = "1.3.0"
+JOB_ANALYSIS_SCHEMA_VERSION = "1.1.0"
+
+COMPANY_TYPE_VALUES = [
+    "hiring",
+    "recruiter",
+    "staffing",
+    "consulting",
+    "outsourcing",
+    "unknown",
+]
+
+
+def build_company_reference_schema() -> dict[str, Any]:
+    """JSON schema for a single extracted company reference."""
+    return {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "normalized_name": {"type": "string"},
+            "company_type": {"type": "string", "enum": COMPANY_TYPE_VALUES},
+            "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+            "reason": {"type": "string"},
+        },
+        "required": ["name"],
+    }
 
 
 def build_job_analysis_output_schema() -> dict[str, Any]:
     """JSON schema for the combined analysis output."""
     nullable_str = {"type": ["string", "null"]}
+    company_ref = build_company_reference_schema()
     return {
         "type": "object",
         "properties": {
@@ -33,6 +58,13 @@ def build_job_analysis_output_schema() -> dict[str, Any]:
             "industry": nullable_str,
             "domain": nullable_str,
             "description": nullable_str,
+            "companies": {
+                "type": "object",
+                "properties": {
+                    "hiring_company": {"type": ["object", "null"], **company_ref},
+                    "related_companies": {"type": "array", "items": company_ref},
+                },
+            },
             "scores": {
                 "type": "object",
                 "properties": {
@@ -110,7 +142,11 @@ SCORING RULES TO APPLY:
 {scoring_rules}
 
 Your analysis must:
-1. Extract the job fields (title, company, company_url, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. company_url is the company's website (root domain) when it can be identified from the posting; otherwise null. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
+1. Extract the job fields (title, company, company_url, role, location, salary, stack, visa, work_types, employment_types, industry, domain, description). Use null when a field is absent. company_url is the hiring company's website (root domain) when it can be identified from the posting; otherwise null. work_types is an array of On-site / Remote / Hybrid; employment_types is an array of Full-time / Part-time / Contract / Internship / Temporary. Usually each array has exactly one value.
+1b. Identify EVERY company mentioned in the posting inside the companies block. A job may reference multiple companies (e.g. published by a recruiter while another company is hiring). Classify their relationship to the job:
+   - hiring_company: the company actually hiring. Only set it with reasonable evidence ("Join Google", "Google is hiring", "At Google...", internal benefits/culture, official company domain, company career page). Do NOT assume the publishing company is the hiring company. Weak evidence (recruiter website, recruiter contact info, recruiter logo) must not promote a recruiter to hiring company. When the hiring company cannot be determined confidently, return hiring_company: null — never guess.
+   - related_companies: zero or more recruiting / staffing / agency / consulting companies that published or represent the job.
+   Each company entry needs name, normalized_name (strip legal suffixes: "Google LLC" → "Google"), company_type (hiring, recruiter, staffing, consulting, outsourcing, unknown), confidence (0.0-1.0: 1.0 official career page, 0.95 clearly stated employer, 0.70 likely employer, 0.40 mentioned without enough evidence), and a short reason. Do NOT merge companies — extract and classify every mention. The flat company field is a projection: hiring_company.name when present, otherwise the highest-confidence related company.
 2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain). Base this primarily on the RESUME text; use the LinkedIn profile as supplementary evidence (current title, company, tenure, notable achievements).
 3. Score success (0-100): the user's probability of getting an offer (seniority match, level, salary, competition).
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).

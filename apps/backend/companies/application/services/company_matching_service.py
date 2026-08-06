@@ -52,6 +52,24 @@ LEGAL_SUFFIXES: tuple[str, ...] = (
 FUZZY_THRESHOLD = 0.88
 ROOT_DOMAIN_NAME_THRESHOLD = 0.6
 
+# Extraction company_type → companies.company_type vocabulary (only meaningful
+# when a company is created; matches are left untouched).
+EXTRACTION_COMPANY_TYPE_MAP: dict[str, str] = {
+    "hiring": "PRODUCT_COMPANY",
+    "recruiter": "RECRUITING_AGENCY",
+    "staffing": "STAFFING_COMPANY",
+    "consulting": "CONSULTING_COMPANY",
+    "outsourcing": "UNKNOWN",
+    "unknown": "UNKNOWN",
+}
+
+
+def map_company_type(company_type: str | None) -> str | None:
+    """Map the extraction company_type to the companies vocabulary."""
+    if not company_type:
+        return None
+    return EXTRACTION_COMPANY_TYPE_MAP.get(company_type.strip().lower(), "UNKNOWN")
+
 
 def normalize_company_name(name: str) -> str:
     """Lowercase, replace non-alphanumerics with spaces, strip a trailing
@@ -99,8 +117,13 @@ class CompanyMatchingService:
     def __init__(self, repository: Any):
         self._repo = repository
 
-    def find_or_create(self, name: str | None, website: str | None) -> tuple[str, bool]:
+    def find_or_create(self, name: str | None, website: str | None, company_type: str | None = None) -> tuple[str, bool]:
         """Return (company_id, created). ``created`` is True when a new company row was inserted.
+
+        ``company_type`` is the extraction classification (hiring/recruiter/
+        staffing/consulting/outsourcing/unknown) mapped to the companies
+        vocabulary and stored only when a new company is created — matching an
+        existing company never mutates it.
 
         An empty/None name raises ValueError (the caller should skip instead of
         creating a company without a name).
@@ -118,6 +141,7 @@ class CompanyMatchingService:
             "name": company_name,
             "website": website or None,
             "domain": extract_domain(website),
+            "company_type": map_company_type(company_type),
             "status": "created",
             "source": "job",
         })

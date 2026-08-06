@@ -950,6 +950,30 @@ The picker is a searchable popover backed by `GET /api/companies/list`. Once
 linked, the company name in the drawer header becomes a deep link to the
 company detail drawer on the Companies page.
 
+## Job Details — Published by
+
+When the job analysis extracted one or more **recruiter / staffing / agency**
+companies (`related_companies` with `role="recruiter"` from the `job_companies`
+table), a **"Published by"** section appears between the Details section and
+the Processing section:
+
+```text
+┌─ Published by ────────────────────────────────────────┐
+│ RecruitCo                                [recruiting  │
+│                                         agency]       │
+│ TalentBridge GmbH                                      │
+│ • listed as the recruiting partner                    │
+└───────────────────────────────────────────────────────┘
+```
+
+Each recruiter row is a link to that company's detail drawer on the Companies
+page (`/companies?company=<id>`) with an optional company-type badge. When any
+recruiter carries an extraction `reason`, the reasons are listed beneath the
+rows. The section is hidden when there are no recruiter companies.
+
+The hiring company is always the `Company` row in Details (set by analysis or
+manually via the picker) and is not duplicated in this section.
+
 ---
 
 # User Flows

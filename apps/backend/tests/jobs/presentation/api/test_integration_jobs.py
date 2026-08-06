@@ -128,3 +128,49 @@ def test_get_job_detail_includes_company_id(client, test_db):
     data = response.json()
     assert data["company_name"] == "Example Co"
     assert data["company_id"] == "company-abc"
+
+
+def test_get_job_detail_includes_related_companies(client, test_db):
+    """Test the V2 detail endpoint exposes extracted recruiter companies."""
+    import uuid
+    from companies.infrastructure.models.company_model import CompanyModel
+    from jobs.infrastructure.models.job_company_model import JobCompanyModel
+
+    job = JobModel(
+        url="https://example.com/job/44",
+        title="Backend Engineer",
+        company="Acme GmbH",
+        company_id="company-acme",
+        location="Berlin",
+        deleted=0,
+        workflow_log="[]",
+        locations='["Berlin"]',
+        work_types='["On-site"]',
+        employment_types='["Full-time"]',
+        rescoring=0,
+    )
+    test_db.add(job)
+    recruiter = CompanyModel(id="company-recruiter", name="RecruitCo")
+    test_db.add(recruiter)
+    test_db.commit()
+    test_db.add(JobCompanyModel(
+        job_id=job.id,
+        company_id="company-recruiter",
+        role="recruiter",
+        company_type="recruiting_agency",
+        confidence=0.9,
+        reason="listed as the recruiting partner",
+    ))
+    test_db.commit()
+
+    response = client.get(f"/api/jobs/{job.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["related_companies"] == [{
+        "company_id": "company-recruiter",
+        "name": "RecruitCo",
+        "role": "recruiter",
+        "company_type": "recruiting_agency",
+        "confidence": 0.9,
+        "reason": "listed as the recruiting partner",
+    }]

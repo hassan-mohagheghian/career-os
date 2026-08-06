@@ -17,6 +17,7 @@ from companies.infrastructure.repositories.sa_company_intelligence_repository im
 from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
 from jobs.application.services.job_service import JobService
 from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
+from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
@@ -73,6 +74,7 @@ def build_job_analysis_graph(session: Any) -> JobAnalysisGraph:
         summary_repo=SQLAlchemySummaryRepository(session),
         analysis_repo=SQLAlchemyJobAnalysisRepository(session),
         matching_service=CompanyMatchingService(SQLAlchemyCompanyRepository(session)),
+        job_company_repo=SQLAlchemyJobCompanyRepository(session),
         llm_service=get_llm_service(),
         event_publisher=event_publisher,
     )

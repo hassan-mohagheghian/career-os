@@ -90,6 +90,73 @@ def normalize_payload(raw: Any) -> dict[str, Any]:
     return dict(raw) if isinstance(raw, dict) else {}
 
 
+def _coerce_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def normalize_company_refs(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize the ``companies`` extraction block from the LLM payload.
+
+    Returns ``{"hiring_company": ref | None, "related_companies": [ref, ...]}``
+    where each ref is ``{"name", "normalized_name", "company_type", "confidence",
+    "reason"}``. Malformed entries are dropped; names are required.
+    """
+    raw = _coerce_dict(payload.get("companies"))
+    if not raw:
+        return {"hiring_company": None, "related_companies": []}
+
+    def _ref(item: Any) -> dict[str, Any] | None:
+        entry = _coerce_dict(item)
+        name = str(entry.get("name") or "").strip()
+        if not name:
+            return None
+        company_type = str(entry.get("company_type") or "unknown").strip().lower()
+        try:
+            confidence = float(entry.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            confidence = 0.0
+        return {
+            "name": name,
+            "normalized_name": str(entry.get("normalized_name") or name).strip(),
+            "company_type": company_type,
+            "confidence": max(0.0, min(1.0, confidence)),
+            "reason": str(entry.get("reason") or "").strip(),
+        }
+
+    hiring = _ref(raw.get("hiring_company"))
+    related_raw = raw.get("related_companies") or []
+    related = [_ref(r) for r in related_raw if isinstance(r, dict)]
+    related = [r for r in related if r is not None]
+    return {"hiring_company": hiring, "related_companies": related}
+
+
+def project_company_name(payload: dict[str, Any]) -> str | None:
+    """The display company for a job: the hiring company when confidently
+    extracted, else the highest-confidence related (recruiting) company, else
+    the flat LLM field."""
+    refs = normalize_company_refs(payload)
+    hiring = refs.get("hiring_company")
+    if hiring:
+        return hiring["name"]
+    related = refs.get("related_companies") or []
+    if related:
+        best = max(related, key=lambda r: r["confidence"])
+        return best["name"]
+    value = payload.get("company")
+    if value is None:
+        return None
+    name = str(value).strip()
+    return name or None
+
+
 def build_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
     """Build the canonical analysis result from a normalized LLM payload.
 
@@ -103,11 +170,12 @@ def build_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
 
     explanation = payload.get("scores_explanation") or {}
     summary = payload.get("summary") or {}
+    companies = normalize_company_refs(payload)
 
     return {
         "fields": {
             "title": payload.get("title"),
-            "company": payload.get("company"),
+            "company": project_company_name(payload),
             "role": payload.get("role"),
             "location": payload.get("location"),
             "salary": payload.get("salary"),
@@ -119,6 +187,7 @@ def build_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
             "domain": payload.get("domain"),
             "description": payload.get("description"),
         },
+        "companies": companies,
         "scores": {
             "fit": fit,
             "success": success,

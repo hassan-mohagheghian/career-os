@@ -389,8 +389,8 @@ class TestJobAnalysisPrompt:
         assert "resume text" in prompt
 
     def test_versions(self):
-        assert JOB_ANALYSIS_PROMPT_VERSION == "1.2.0"
-        assert JOB_ANALYSIS_SCHEMA_VERSION == "1.0.0"
+        assert JOB_ANALYSIS_PROMPT_VERSION == "1.3.0"
+        assert JOB_ANALYSIS_SCHEMA_VERSION == "1.1.0"
 
 
 class TestJobAnalysisInputs:
@@ -583,7 +583,7 @@ class TestAnalyzeNode:
         assert len(llm.calls) == 1
         assert llm.calls[0]["timeout"] == 240
         assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
-        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.2.0"
+        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.3.0"
         assert state.status != ExecutionStatus.FAILED
 
     def test_no_job_text_fails(self):

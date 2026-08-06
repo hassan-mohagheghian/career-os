@@ -130,6 +130,14 @@ persist
 
 ↓
 
+persist_skills
+
+↓
+
+link_company
+
+↓
+
 analysis_ready | execution_failed
 
 Exactly ONE LLM call: `analyze` runs the `job.analyze` prompt via
@@ -310,6 +318,12 @@ Output:
 
 - Structured analysis payload (job fields, scores, recommendation, summary,
   skills, insights)
+- A `companies` block with an optional `hiring_company` and a list of
+  `related_companies` (recruiter / staffing / consulting agencies). Each
+  company reference carries `name`, `company_type` (`hiring`, `recruiter`,
+  `staffing`, `consulting`, `outsourcing`, `unknown`), `confidence` and a
+  `reason`. The `hiring_company` is never guessed — it is omitted when the
+  evidence is weak.
 
 ---
 
@@ -351,6 +365,38 @@ Writes results to three places:
 - the `summaries` row (legacy grade via `grade_for_overall`)
 - the canonical `job_analysis` table (schema `job`) via
   `SQLAlchemyJobAnalysisRepository.upsert_by_job_id`
+
+---
+
+## persist_skills
+
+Persists the normalized skills list and the per-skill match status.
+
+---
+
+## link_company
+
+Best-effort company resolution for the extracted `companies` block. Never fails
+the execution — a resolution error is appended to `state.errors` and the
+workflow continues.
+
+1. **Hiring company** — when a `hiring_company` with a non-empty `name` was
+   extracted, `CompanyMatchingService.find_or_create(name, company_url,
+   company_type)` resolves or creates it and `jobs.company_id` /
+   `jobs.company` are updated. The extraction `company_type` is mapped to the
+   companies vocabulary (`hiring → PRODUCT_COMPANY`, `recruiter →
+   RECRUITING_AGENCY`, `staffing → STAFFING_COMPANY`, `consulting →
+   CONSULTING_COMPANY`, else `UNKNOWN`) and stored **only** on newly-created
+   companies — matching an existing company never mutates it.
+2. **Related companies** — each `related_companies` reference is resolved or
+   created with `role="recruiter"`.
+3. **Persist** — all resolved associations are written to the `job_companies`
+   table (schema `job`) as rows (`role` `hiring` or `recruiter`, `company_type`,
+   `confidence`, `reason`). Rows are **replaced** for the job on every
+   re-process (`replace_for_job`).
+4. **Fallback display** — when no hiring company was extracted but a related
+   (publishing) company exists, `jobs.company` falls back to the
+   highest-confidence related company so the job still has a display name.
 
 ---
 

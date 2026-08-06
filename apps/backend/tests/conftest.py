@@ -24,6 +24,7 @@ os.environ["TASKIQ_BROKER"] = "memory"
 from shared.infrastructure.database.sqlalchemy_config import Base, ensure_schemas
 import jobs.infrastructure.models.job_model
 import jobs.infrastructure.models.misc_models
+import jobs.infrastructure.models.job_company_model
 import skills.infrastructure.models.skill_model
 import skills.infrastructure.models.skill_roadmap_models
 import companies.infrastructure.models.company_model

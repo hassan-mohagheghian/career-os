@@ -25,6 +25,7 @@ visa-seeking software engineer.
 │ ◈ Related Companies                 [Manage] │
 │                                              │
 │ <Recommendation>                             │
+│ <Recruiter for N jobs (recruiter types only)>│
 │ <Company Overview / description>             │
 │ <Intelligence sections, importance order>    │
 │ <Scores breakdown>                           │
@@ -77,6 +78,28 @@ A `Manage` button opens the Relate Company dialog.
 `company.intelligence.recommendation`, prioritized to the top of the drawer.
 Rendered as a highlighted card: priority badge, observation, action, evidence,
 impact, ideal role, timing.
+
+## Recruiter for
+
+Shown only for recruiter-type companies (`RECRUITING_AGENCY` /
+`STAFFING_COMPANY`) that publish jobs on behalf of hiring companies. Sits
+between the Recommendation card and the Intelligence sections.
+
+The section header reads **"Recruiter for N jobs"** (total recruiter jobs with
+an attributed hiring company). Each hiring company is listed as a row with its
+name (a link to that company's detail drawer on the Companies page) and the
+count of jobs published for it.
+
+```text
+┌─ Recruiter for 3 jobs ───────────────────────────────────┐
+│ Acme GmbH                             2 jobs            │
+│ Beta GmbH                             1 job             │
+└──────────────────────────────────────────────────────────┘
+```
+
+Data comes from the detail payload: `recruiter_for` (rows of `company_id`,
+`name`, `job_count`) and `recruiter_job_count`. Jobs whose only hiring company
+is the recruiter itself are excluded.
 
 ## Company Overview
 

@@ -179,6 +179,7 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
     },
   })
+  const recruiters = (detail.related_companies ?? []).filter(c => c.role === 'recruiter')
 
   return (
     <div className="space-y-4 px-4 py-4 min-w-0">
@@ -266,6 +267,35 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         <DetailRow label="Visa" value={detail.visa} />
         <DetailRow label="Created" value={<DateTime value={detail.created_at} />} />
       </div>
+
+      {recruiters.length > 0 && (
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Published by</p>
+          <ul className="space-y-1.5">
+            {recruiters.map(c => (
+              <li key={c.company_id} className="flex items-center justify-between gap-3">
+                <a
+                  href={`/companies?company=${c.company_id}`}
+                  className="text-xs text-primary hover:underline break-words"
+                >
+                  {c.name || 'Recruiting company'}
+                </a>
+                {c.company_type && <Badge>{c.company_type.replace(/_/g, ' ')}</Badge>}
+              </li>
+            ))}
+          </ul>
+          {recruiters.some(c => c.reason) && (
+            <ul className="mt-2 space-y-1">
+              {recruiters.filter(c => c.reason).map(c => (
+                <li key={c.company_id} className="text-2xs text-muted-foreground flex gap-1.5">
+                  <span className="shrink-0">•</span>
+                  <span className="break-words">{c.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
         <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Processing</p>

@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.9.0] — 2026-08-06
+
+### Added
+
+- **Multi-company extraction & recruiter tracking.** `job.analyze` now
+  extracts an optional `hiring_company` plus zero or more `related_companies`
+  (recruiter / staffing / consulting agencies) from each posting.
+  - Prompt/schema bumped to `JOB_ANALYSIS_PROMPT_VERSION 1.3.0` /
+    `JOB_ANALYSIS_SCHEMA_VERSION 1.1.0`; each reference carries `name`,
+    `company_type` (`hiring`/`recruiter`/`staffing`/`consulting`/
+    `outsourcing`/`unknown`), `confidence`, and `reason`. The hiring company is
+    never guessed when evidence is weak.
+  - New `job_companies` association table (schema `job`) persists the
+    associations per job; rows are **replaced** on every re-process and
+    cascade-deleted with the job (migration `job_005_add_job_companies`, head
+    merge `cfb9c0c021da`).
+  - `LinkCompanyNode` resolves the hiring company (drives `company_id` /
+    display name) and all recruiters via find-or-create; the extraction
+    `company_type` is mapped to the companies vocabulary (`hiring →
+    PRODUCT_COMPANY`, `recruiter → RECRUITING_AGENCY`, `staffing →
+    STAFFING_COMPANY`, `consulting → CONSULTING_COMPANY`) and stored only on
+    newly-created companies. Resolution is best-effort and never fails the
+    execution.
+  - Job detail API (`GET /api/jobs/{id}`) returns `related_companies`; the Job
+    detail drawer shows a **Published by** section for recruiters.
+  - Company detail API returns `recruiter_job_count` and `recruiter_for` (the
+    hiring companies a recruiter publishes for, with job counts); the Company
+    detail drawer shows a **Recruiter for** section for recruiter-type
+    companies.
+
 ## [3.8.0] — 2026-08-06
 
 ### Added
