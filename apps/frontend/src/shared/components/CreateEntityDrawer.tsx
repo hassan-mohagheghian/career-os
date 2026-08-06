@@ -40,6 +40,7 @@ interface CreateEntityDrawerProps {
   onSubmit: (data: CreateEntityFormData) => void
   submitting?: boolean
   error?: string | null
+  errorLink?: { label: string; href: string } | null
 }
 
 const LINK_PRESETS = ['LinkedIn', 'Website', 'Careers', 'GitHub']
@@ -59,6 +60,7 @@ export default function CreateEntityDrawer({
   onSubmit,
   submitting = false,
   error = null,
+  errorLink = null,
 }: CreateEntityDrawerProps) {
   const isCompany = mode === 'company'
 
@@ -478,7 +480,12 @@ export default function CreateEntityDrawer({
               {error && (
                 <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 rounded p-2">
                   <Warning className="w-3.5 h-3.5 shrink-0" />
-                  {error}
+                  <span className="flex-1 min-w-0">{error}</span>
+                  {errorLink && (
+                    <a href={errorLink.href} className="shrink-0 font-semibold text-destructive underline underline-offset-2">
+                      {errorLink.label}
+                    </a>
+                  )}
                 </div>
               )}
             </div>

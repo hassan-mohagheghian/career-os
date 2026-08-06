@@ -159,6 +159,37 @@ describe('CreateEntityDrawer — company mode', () => {
   })
 })
 
+describe('CreateEntityDrawer — error state', () => {
+  it('renders the error message', () => {
+    render(
+      <CreateEntityDrawer open onOpenChange={vi.fn()} mode="job" onSubmit={vi.fn()} error="Something failed" />
+    )
+    expect(screen.getByText('Something failed')).toBeInTheDocument()
+  })
+
+  it('renders an error link when errorLink is provided', () => {
+    render(
+      <CreateEntityDrawer
+        open
+        onOpenChange={vi.fn()}
+        mode="job"
+        onSubmit={vi.fn()}
+        error="A Job with the same primary URL already exists."
+        errorLink={{ label: 'Open existing job', href: '/jobs?job=job-dup' }}
+      />
+    )
+    const link = screen.getByRole('link', { name: 'Open existing job' })
+    expect(link).toHaveAttribute('href', '/jobs?job=job-dup')
+  })
+
+  it('does not render an error link when errorLink is null', () => {
+    render(
+      <CreateEntityDrawer open onOpenChange={vi.fn()} mode="job" onSubmit={vi.fn()} error="Something failed" />
+    )
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+})
+
 describe('CreateEntityDrawer — clipboard prefill', () => {
   it('prefills the job URL from the clipboard when the drawer opens', async () => {
     readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')

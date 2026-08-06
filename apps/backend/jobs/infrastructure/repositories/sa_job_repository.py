@@ -28,6 +28,16 @@ class SQLAlchemyJobRepository(IJobRepository):
             return None
         return job_model_to_dict(m)
 
+    def get_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        if not job_ids:
+            return []
+        rows = (
+            self._session.query(JobModel)
+            .filter(JobModel.id.in_(job_ids), JobModel.deleted == 0)
+            .all()
+        )
+        return [{"id": m.id, "title": m.title, "location": m.location} for m in rows]
+
     def list_jobs(
         self,
         offset: int | None = None,

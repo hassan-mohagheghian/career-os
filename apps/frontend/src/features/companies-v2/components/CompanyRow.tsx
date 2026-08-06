@@ -19,12 +19,23 @@ interface CompanyRowProps {
   showPinnedColumn?: boolean
 }
 
+const RECRUITER_TYPES = ['RECRUITING_AGENCY', 'STAFFING_COMPANY']
+
+function isRecruiterType(type: string | null | undefined) {
+  return RECRUITER_TYPES.includes(type ?? '')
+}
+
 export function CompanyRow({
   company, onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned,
   showPinnedColumn = true,
 }: CompanyRowProps) {
   const grade = company.scores?.overall_grade ?? (company.scores?.overall != null ? gradeForScore(company.scores.overall) : null)
   const processingStatus = company.processing?.status ?? null
+  const recruiter = isRecruiterType(company.company_type)
+  const listedJobs = recruiter ? company.recruiter_job_count : company.job_count
+  const listedLabel = recruiter
+    ? `${listedJobs} ${listedJobs === 1 ? 'job' : 'jobs'} listed for clients`
+    : `${listedJobs} ${listedJobs === 1 ? 'job' : 'jobs'}`
 
   return (
     <div
@@ -62,8 +73,8 @@ export function CompanyRow({
         <span className="text-xs text-muted-foreground truncate block">{company.company_size || '—'}</span>
       </div>
       <div className="py-2 px-3 flex items-center">
-        <span className="text-xs text-muted-foreground">
-          {company.job_count > 0 ? company.job_count : '—'}
+        <span className="text-xs text-muted-foreground" title={listedJobs > 0 ? listedLabel : undefined}>
+          {listedJobs > 0 ? listedJobs : '—'}
         </span>
       </div>
       <div className="py-2 px-3 flex items-center">

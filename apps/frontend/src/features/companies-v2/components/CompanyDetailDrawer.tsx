@@ -152,11 +152,17 @@ function CompanyDetailContent({
         {company.company_type && (
           <Badge variant="secondary" className="text-2xs">{formatCompanyType(company.company_type)}</Badge>
         )}
-        {!!company.job_count && company.job_count > 0 && (
-          <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">
-            <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
-          </Badge>
-        )}
+        {isRecruiterType(company.company_type)
+          ? (!!company.recruiter_job_count && company.recruiter_job_count > 0) && (
+            <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary" title={`${company.recruiter_job_count} jobs listed for clients`}>
+              <Briefcase className="w-2.5 h-2.5 mr-1" />{company.recruiter_job_count} listed
+            </Badge>
+          )
+          : !!company.job_count && company.job_count > 0 && (
+            <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary">
+              <Briefcase className="w-2.5 h-2.5 mr-1" />{company.job_count} job{company.job_count !== 1 ? 's' : ''}
+            </Badge>
+          )}
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/10 px-3 py-2">
@@ -187,18 +193,39 @@ function CompanyDetailContent({
             <Users className="w-3 h-3 inline mr-1 text-primary" />
             Recruiter for {company.recruiter_job_count} job{company.recruiter_job_count === 1 ? '' : 's'}
           </p>
-          <ul className="space-y-1.5">
+          <ul className="space-y-2.5">
             {company.recruiter_for.map(r => (
-              <li key={r.company_id} className="flex items-center justify-between gap-3">
-                <a
-                  href={`/companies?company=${r.company_id}`}
-                  className="text-xs text-primary hover:underline break-words"
-                >
-                  {r.name || 'Hiring company'}
-                </a>
-                <span className="text-2xs text-muted-foreground shrink-0">
-                  {r.job_count} job{r.job_count === 1 ? '' : 's'}
-                </span>
+              <li key={r.company_id}>
+                <div className="flex items-center justify-between gap-3">
+                  <a
+                    href={`/companies?company=${r.company_id}`}
+                    className="text-xs text-muted-foreground hover:text-primary hover:underline break-words"
+                  >
+                    {r.name || 'Hiring company'}
+                  </a>
+                  <span className="text-2xs text-muted-foreground shrink-0">
+                    {r.job_count} job{r.job_count === 1 ? '' : 's'}
+                  </span>
+                </div>
+                {r.jobs && r.jobs.length > 0 && (
+                  <ul className="mt-1 space-y-1">
+                    {r.jobs.map(job => (
+                      <li key={job.id}>
+                        <a
+                          href={`/jobs?job=${job.id}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            onOpenJob?.(job.id)
+                          }}
+                          className="text-xs text-primary hover:underline break-words"
+                        >
+                          <Briefcase className="w-3 h-3 inline mr-1" />
+                          {job.title || 'Job'}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>

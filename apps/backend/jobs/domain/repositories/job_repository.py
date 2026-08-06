@@ -13,6 +13,11 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        """Batch-fetch non-deleted jobs by ids (id, title, location)."""
+        ...
+
+    @abstractmethod
     def list_jobs(
         self,
         offset: int | None = None,

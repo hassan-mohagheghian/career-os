@@ -454,9 +454,9 @@ class TestCompanyRecruiterForAPI:
         hiring_a = _create_company(sa_session, name="Acme GmbH")
         hiring_b = _create_company(sa_session, name="Beta GmbH")
 
-        job1 = JobModel(company_id=hiring_a.id, deleted=0, workflow_log="[]", rescoring=0)
-        job2 = JobModel(company_id=hiring_a.id, deleted=0, workflow_log="[]", rescoring=0)
-        job3 = JobModel(company_id=hiring_b.id, deleted=0, workflow_log="[]", rescoring=0)
+        job1 = JobModel(company_id=hiring_a.id, title="Senior Backend Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0)
+        job2 = JobModel(company_id=hiring_a.id, title="Platform Engineer", location="Munich", deleted=0, workflow_log="[]", rescoring=0)
+        job3 = JobModel(company_id=hiring_b.id, title="Data Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0)
         sa_session.add_all([job1, job2, job3])
         sa_session.commit()
         sa_session.add_all([
@@ -474,8 +474,15 @@ class TestCompanyRecruiterForAPI:
         by_id = {r["company_id"]: r for r in detail["recruiter_for"]}
         assert by_id[hiring_a.id]["name"] == "Acme GmbH"
         assert by_id[hiring_a.id]["job_count"] == 2
+        assert by_id[hiring_a.id]["jobs"] == [
+            {"id": job2.id, "title": "Platform Engineer", "location": "Munich"},
+            {"id": job1.id, "title": "Senior Backend Engineer", "location": "Berlin"},
+        ]
         assert by_id[hiring_b.id]["name"] == "Beta GmbH"
         assert by_id[hiring_b.id]["job_count"] == 1
+        assert by_id[hiring_b.id]["jobs"] == [
+            {"id": job3.id, "title": "Data Engineer", "location": "Berlin"},
+        ]
 
     def test_non_recruiter_company_has_empty_recruiter_for(self, client, sa_session):
         company = _create_company(sa_session, name="Product Co")
@@ -500,3 +507,31 @@ class TestCompanyRecruiterForAPI:
         detail = client.get(f"/api/companies/{company.id}").json()
         assert detail["recruiter_job_count"] == 0
         assert detail["recruiter_for"] == []
+
+    def test_list_exposes_recruiter_job_count(self, client, sa_session):
+        from jobs.infrastructure.models.job_model import JobModel
+        from jobs.infrastructure.models.job_company_model import JobCompanyModel
+
+        recruiter = _create_company(sa_session, name="RecruitCo", company_type="RECRUITING_AGENCY")
+        hiring = _create_company(sa_session, name="Acme GmbH")
+        product = _create_company(sa_session, name="Product Co", company_type="PRODUCT_COMPANY")
+        job1 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0)
+        job2 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0)
+        job3 = JobModel(company_id=product.id, deleted=0, workflow_log="[]", rescoring=0)
+        sa_session.add_all([job1, job2, job3])
+        sa_session.commit()
+        sa_session.add_all([
+            JobCompanyModel(job_id=job1.id, company_id=recruiter.id, role="recruiter"),
+            JobCompanyModel(job_id=job2.id, company_id=recruiter.id, role="recruiter"),
+            JobCompanyModel(job_id=job1.id, company_id=hiring.id, role="hiring"),
+            JobCompanyModel(job_id=job2.id, company_id=hiring.id, role="hiring"),
+        ])
+        sa_session.commit()
+
+        items = {i["name"]: i for i in client.get("/api/companies/list").json()["items"]}
+        assert items["RecruitCo"]["recruiter_job_count"] == 2
+        assert items["RecruitCo"]["job_count"] == 0
+        assert items["Acme GmbH"]["job_count"] == 2
+        assert items["Acme GmbH"]["recruiter_job_count"] == 0
+        assert items["Product Co"]["job_count"] == 1
+        assert items["Product Co"]["recruiter_job_count"] == 0

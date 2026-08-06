@@ -65,7 +65,7 @@ def create_job(
     """
     existing = repo.get_by_url(body.job_post_url)
     if existing and not existing.get("deleted"):
-        raise JobAlreadyExistsError()
+        raise JobAlreadyExistsError(job_id=existing.get("id"))
 
     links_json = json.dumps([l.model_dump() for l in body.links], ensure_ascii=False)
     notes_json = json.dumps([n.model_dump() for n in body.notes], ensure_ascii=False)

@@ -55,6 +55,7 @@ class CompanyListItemSchema(BaseModel):
     website: str | None = None
     description: str | None = None
     job_count: int = 0
+    recruiter_job_count: int = 0
     scores: CompanyScoresSchema | None = None
     processing: CompanyProcessingSchema | None = None
     latest_processing_execution: CompanyExecutionSchema | None = None
@@ -129,12 +130,21 @@ class CompanyIntelligenceSchema(BaseModel):
     generated_at: str | None = None
 
 
+class RecruiterJobRefSchema(BaseModel):
+    """A job a recruiter publishes for a hiring company."""
+
+    id: str
+    title: str | None = None
+    location: str | None = None
+
+
 class RecruiterForSchema(BaseModel):
     """A hiring company that this company publishes jobs for as a recruiter."""
 
     company_id: str
     name: str | None = None
     job_count: int = 0
+    jobs: list[RecruiterJobRefSchema] = Field(default_factory=list)
 
 
 class CompanyDetailResponseSchema(BaseModel):

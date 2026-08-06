@@ -17,6 +17,7 @@ function makeCompany(overrides: Partial<CompanyListItem> = {}): CompanyListItem 
     website: null,
     description: null,
     job_count: 3,
+    recruiter_job_count: 0,
     scores: { overall: null, fit: null, success: null, overall_grade: null },
     processing: { status: null, current_node: null, progress_pct: null, error: null },
     latest_processing_execution: null,
@@ -133,5 +134,27 @@ describe('CompanyRow pinned', () => {
     )
     expect(screen.queryByLabelText('Unpin company')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Pin company for attention')).not.toBeInTheDocument()
+  })
+})
+
+describe('CompanyRow jobs column', () => {
+  it('shows job_count for product companies', () => {
+    renderRow(makeCompany({ company_type: 'PRODUCT_COMPANY', job_count: 3, recruiter_job_count: 0 }))
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('shows recruiter_job_count for recruiter companies', () => {
+    renderRow(makeCompany({
+      company_type: 'RECRUITING_AGENCY',
+      job_count: 0,
+      recruiter_job_count: 7,
+    }))
+    expect(screen.getByText('7')).toBeInTheDocument()
+    expect(screen.getByTitle('7 jobs listed for clients')).toBeInTheDocument()
+  })
+
+  it('shows a dash when a recruiter has no listed jobs', () => {
+    renderRow(makeCompany({ company_type: 'STAFFING_COMPANY', job_count: 0, recruiter_job_count: 0 }))
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 })

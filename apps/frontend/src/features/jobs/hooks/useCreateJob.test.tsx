@@ -78,7 +78,31 @@ describe('useCreateJob', () => {
 
     expect(response).toBeNull()
     expect(result.current.error).toBe('A Job with the same primary URL already exists.')
+    expect(result.current.existingJobId).toBeNull()
     await waitFor(() => expect(result.current.submitting).toBe(false))
+  })
+
+  it('exposes the existing job id on duplicate URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            message: 'A Job with the same primary URL already exists.',
+            details: { job_id: 'job-dup' },
+          },
+        },
+        false,
+        409
+      )
+    )
+
+    const { result } = renderHook(() => useCreateJob())
+    await act(async () => {
+      await result.current.createJob({ job_post_url: 'https://example.com/dup' })
+    })
+
+    expect(result.current.error).toBe('A Job with the same primary URL already exists.')
+    expect(result.current.existingJobId).toBe('job-dup')
   })
 
   it('clears previous errors', async () => {

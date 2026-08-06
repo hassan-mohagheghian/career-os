@@ -87,7 +87,7 @@ export function JobsPage({
   editJobId, onEditJobIdChange,
   processingCount,
 }: JobsPageProps) {
-  const { createJob, submitting, error: createError, clearError } = useCreateJob()
+  const { createJob, submitting, error: createError, existingJobId, clearError } = useCreateJob()
 
   const handleCreateJob = useCallback(async (data: CreateEntityFormData) => {
     const result = await createJob({
@@ -205,6 +205,7 @@ export function JobsPage({
         onSubmit={handleCreateJob}
         submitting={submitting}
         error={createError}
+        errorLink={existingJobId ? { label: 'Open existing job', href: `/jobs?job=${encodeURIComponent(existingJobId)}` } : null}
       />
     </div>
   )

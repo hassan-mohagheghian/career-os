@@ -51,6 +51,9 @@ class JobAlreadyExistsError(ConflictError):
     code: str = "JOB_ALREADY_EXISTS"
     detail: str = "A Job with the same primary URL already exists."
 
+    def __init__(self, job_id: str | None = None):
+        super().__init__(details={"job_id": job_id} if job_id else None)
+
 
 class ExternalServiceError(AppError):
     """External API call failed."""

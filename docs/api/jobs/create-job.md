@@ -215,13 +215,19 @@ Example
 409 Conflict
 ```
 
+The `details.job_id` field contains the id of the existing job (the one that
+shares the primary URL), so the UI can link to it.
+
 Example
 
 ```json
 {
   "error": {
     "code": "JOB_ALREADY_EXISTS",
-    "message": "A Job with the same primary URL already exists."
+    "message": "A Job with the same primary URL already exists.",
+    "details": {
+      "job_id": "job_01JABCDEFG123456789"
+    }
   }
 }
 ```
@@ -286,6 +292,12 @@ On success:
    sees the live workflow progress immediately.
 5. Optionally highlight the newly created Job.
 6. Optionally show a success notification.
+
+On duplicate URL (409):
+
+1. Keep the Add Job Drawer open and show the error message.
+2. Render an "Open existing job" link pointing to
+   `/jobs?job=<details.job_id>`, which opens the existing job's detail drawer.
 
 ---
 

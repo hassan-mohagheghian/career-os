@@ -101,7 +101,17 @@ for the same path.
   "alias_count": 0,
   "is_alias": false,
   "recruiter_job_count": 0,
-  "recruiter_for": [],
+  "recruiter_for": [
+    {
+      "company_id": "...",
+      "name": "Acme GmbH",
+      "job_count": 2,
+      "jobs": [
+        { "id": "job-1", "title": "Senior Backend Engineer", "location": "Berlin" },
+        { "id": "job-2", "title": "Platform Engineer", "location": "Munich" }
+      ]
+    }
+  ],
   "jobs": [
     {
       "id": "019fd122-...",
@@ -155,7 +165,7 @@ its hiring-client portfolio via the `job_companies` table:
 | Field                 | Type                | Description                                              |
 | --------------------- | ------------------- | -------------------------------------------------------- |
 | `recruiter_job_count` | number              | Jobs where this company is a recruiter with an attributed hiring company |
-| `recruiter_for`       | array of `{ company_id, name, job_count }` | Distinct hiring companies this recruiter publishes for, sorted by job count descending |
+| `recruiter_for`       | array of `{ company_id, name, job_count, jobs }` | Distinct hiring companies this recruiter publishes for, sorted by job count descending; `jobs` lists the `{ id, title, location }` of the jobs published for that company, sorted by title |
 
 Only jobs that carry a **distinct** hiring company are counted — jobs where the
 recruiter is also the hiring company are excluded. Non-recruiter companies

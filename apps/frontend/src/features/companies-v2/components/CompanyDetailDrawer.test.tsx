@@ -35,7 +35,7 @@ function makeDetail(overrides: Partial<CompanyDetail> = {}): CompanyDetail {
   }
 }
 
-function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn(), onEdit: (id: string) => void = vi.fn()) {
+function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn(), onEdit: (id: string) => void = vi.fn(), onOpenJob: (id: string) => void = vi.fn()) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -49,6 +49,7 @@ function renderDrawer(companyId: string | null, onOpenChange: (id: string | null
         onEdit={onEdit}
         onRelate={vi.fn()}
         relatePending={false}
+        onOpenJob={onOpenJob}
       />
     </QueryClientProvider>
   )
@@ -115,16 +116,30 @@ describe('CompanyDetailDrawer edit', () => {
 })
 
 describe('CompanyDetailDrawer recruiter for', () => {
-  it('shows the hiring companies a recruiter publishes for', async () => {
+  it('links each job a recruiter publishes to the job drawer', async () => {
+    const onOpenJob = vi.fn()
     vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
       company_type: 'RECRUITING_AGENCY',
       recruiter_job_count: 3,
       recruiter_for: [
-        { company_id: 'hiring-1', name: 'Acme GmbH', job_count: 2 },
-        { company_id: 'hiring-2', name: 'Beta GmbH', job_count: 1 },
+        {
+          company_id: 'hiring-1',
+          name: 'Acme GmbH',
+          job_count: 2,
+          jobs: [
+            { id: 'job-1', title: 'Senior Backend Engineer', location: 'Berlin' },
+            { id: 'job-2', title: 'Platform Engineer', location: 'Munich' },
+          ],
+        },
+        {
+          company_id: 'hiring-2',
+          name: 'Beta GmbH',
+          job_count: 1,
+          jobs: [{ id: 'job-3', title: 'Data Engineer', location: 'Berlin' }],
+        },
       ],
     }))
-    renderDrawer('company-1')
+    renderDrawer('company-1', vi.fn(), vi.fn(), onOpenJob)
 
     await waitFor(() => expect(screen.getByText('Recruiter for 3 jobs')).toBeInTheDocument())
     const acmeLink = screen.getByRole('link', { name: 'Acme GmbH' })
@@ -132,6 +147,13 @@ describe('CompanyDetailDrawer recruiter for', () => {
     expect(screen.getByText('Beta GmbH')).toBeInTheDocument()
     expect(screen.getByText('2 jobs')).toBeInTheDocument()
     expect(screen.getByText('1 job')).toBeInTheDocument()
+
+    const jobLink = screen.getByRole('link', { name: 'Senior Backend Engineer' })
+    expect(jobLink).toHaveAttribute('href', '/jobs?job=job-1')
+    fireEvent.click(jobLink)
+    expect(onOpenJob).toHaveBeenCalledWith('job-1')
+    expect(screen.getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs?job=job-2')
+    expect(screen.getByRole('link', { name: 'Data Engineer' })).toHaveAttribute('href', '/jobs?job=job-3')
   })
 
   it('does not render the section for non-recruiters', async () => {
@@ -140,5 +162,31 @@ describe('CompanyDetailDrawer recruiter for', () => {
 
     await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
     expect(screen.queryByText(/Recruiter for/)).not.toBeInTheDocument()
+  })
+})
+
+describe('CompanyDetailDrawer header jobs badge', () => {
+  it('shows the listed-jobs count for recruiter companies', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      company_type: 'RECRUITING_AGENCY',
+      job_count: 0,
+      recruiter_job_count: 7,
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(screen.getByText('7 listed')).toBeInTheDocument()
+  })
+
+  it('shows the hiring job count for product companies', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      company_type: 'PRODUCT_COMPANY',
+      job_count: 3,
+      recruiter_job_count: 0,
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(screen.getByText('3 jobs')).toBeInTheDocument()
   })
 })

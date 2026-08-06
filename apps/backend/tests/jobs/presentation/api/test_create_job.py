@@ -113,6 +113,10 @@ def test_create_duplicate_url_returns_409(client, test_db):
 
     second = client.post("/api/jobs", json={"job_post_url": url, "queue": True})
     assert second.status_code == 409
+    body = second.json()
+    assert body["error"]["code"] == "JOB_ALREADY_EXISTS"
+    assert body["error"]["message"] == "A Job with the same primary URL already exists."
+    assert body["error"]["details"]["job_id"] == first.json()["id"]
 
 
 def test_create_job_missing_url_returns_422(client):

@@ -31,6 +31,7 @@ export interface CompanyListItem {
   website: string | null
   description: string | null
   job_count: number
+  recruiter_job_count: number
   scores: CompanyScores | null
   processing: CompanyProcessing | null
   latest_processing_execution: ProcessingExecution | null
@@ -111,10 +112,17 @@ export interface CompanyLinkedJob {
   overall_score: number | null
 }
 
+export interface RecruiterJobRef {
+  id: string
+  title: string | null
+  location: string | null
+}
+
 export interface RecruiterForCompany {
   company_id: string
   name: string | null
   job_count: number
+  jobs: RecruiterJobRef[]
 }
 
 export interface CompanyDetail {

@@ -34,3 +34,10 @@ class IJobCompanyRepository(ABC):
         """For a recruiter company, return the hiring companies of the jobs it
         published: ``[{job_id, hiring_company_id}]`` (one entry per job)."""
         ...
+
+    @abstractmethod
+    def recruiter_job_counts(self, company_ids: list[str]) -> dict[str, int]:
+        """Per-company counts of jobs published as a recruiter with an
+        attributed distinct hiring company (same semantics as
+        ``recruiter_hiring_pairs``, aggregated for a list of company ids)."""
+        ...

@@ -164,3 +164,51 @@ class TestRecruiterHiringPairs:
 
     def test_unknown_company_returns_empty(self, repo, sa_session):
         assert repo.recruiter_hiring_pairs("does-not-exist") == []
+
+
+class TestRecruiterJobCounts:
+    def test_aggregates_per_company(self, repo, sa_session):
+        recruiter_a = _add_company(sa_session, "RecruitCo A")
+        recruiter_b = _add_company(sa_session, "RecruitCo B")
+        hiring = _add_company(sa_session, "Acme GmbH")
+        job_a = _add_job(sa_session, company_id=hiring.id)
+        job_b = _add_job(sa_session, company_id=hiring.id)
+        job_c = _add_job(sa_session, company_id=hiring.id)
+        repo.replace_for_job(job_a.id, [
+            _row(job_a.id, recruiter_a.id, "recruiter"),
+            _row(job_a.id, hiring.id, "hiring"),
+        ])
+        repo.replace_for_job(job_b.id, [
+            _row(job_b.id, recruiter_a.id, "recruiter"),
+            _row(job_b.id, hiring.id, "hiring"),
+        ])
+        repo.replace_for_job(job_c.id, [
+            _row(job_c.id, recruiter_b.id, "recruiter"),
+            _row(job_c.id, hiring.id, "hiring"),
+        ])
+        sa_session.commit()
+
+        counts = repo.recruiter_job_counts([recruiter_a.id, recruiter_b.id, hiring.id])
+        assert counts[recruiter_a.id] == 2
+        assert counts[recruiter_b.id] == 1
+        assert hiring.id not in counts
+
+    def test_excludes_jobs_without_distinct_hiring_company(self, repo, sa_session):
+        recruiter = _add_company(sa_session, "RecruitCo")
+        company = _add_company(sa_session, "Mixed Co")
+        job_a = _add_job(sa_session, company_id=company.id)
+        job_b = _add_job(sa_session)
+        repo.replace_for_job(job_a.id, [
+            _row(job_a.id, recruiter.id, "recruiter"),
+            _row(job_a.id, recruiter.id, "hiring"),
+        ])
+        repo.replace_for_job(job_b.id, [
+            _row(job_b.id, recruiter.id, "recruiter"),
+        ])
+        sa_session.commit()
+
+        counts = repo.recruiter_job_counts([recruiter.id])
+        assert counts.get(recruiter.id, 0) == 0
+
+    def test_empty_input_returns_empty(self, repo, sa_session):
+        assert repo.recruiter_job_counts([]) == {}

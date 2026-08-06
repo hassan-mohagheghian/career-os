@@ -34,6 +34,7 @@ from companies.presentation.api.schemas.companies_v2 import (
     CompanyProcessingSchema,
     CompanyScoresSchema,
     RecruiterForSchema,
+    RecruiterJobRefSchema,
 )
 from dependencies import (
     get_company_intelligence_repo,
@@ -114,6 +115,7 @@ def _to_list_item(
     execution: dict[str, Any] | None = None,
     name_by_id: dict[str, str] | None = None,
     alias_counts: dict[str, int] | None = None,
+    recruiter_job_counts: dict[str, int] | None = None,
 ) -> CompanyListItemSchema:
     scores = row.get("_scores") or {}
     exec_schema = None
@@ -142,6 +144,7 @@ def _to_list_item(
         website=row.get("website"),
         description=row.get("description"),
         job_count=row.get("job_count", 0),
+        recruiter_job_count=(recruiter_job_counts or {}).get(row["id"], 0),
         scores=CompanyScoresSchema(
             overall=scores.get("overall"),
             fit=scores.get("fit"),
@@ -176,6 +179,7 @@ def list_companies_v2(
     cursor: str = Query("", description="Opaque pagination cursor"),
     repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
     rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned)]
@@ -201,10 +205,17 @@ def list_companies_v2(
 
     page_ids = [r.get("id") for r in page if r.get("id")]
     latest_executions = exec_repo.latest_by_target_ids("company", page_ids)
+    recruiter_job_counts = job_company_repo.recruiter_job_counts(page_ids)
 
     return CompanyListResponseSchema(
         items=[
-            _to_list_item(r, latest_executions.get(r.get("id")), name_by_id, alias_counts)
+            _to_list_item(
+                r,
+                latest_executions.get(r.get("id")),
+                name_by_id,
+                alias_counts,
+                recruiter_job_counts,
+            )
             for r in page
         ],
         next_cursor=_cursor_encode(next_offset) if has_more else None,
@@ -324,19 +335,33 @@ def _build_company_detail(
     ]
 
     hiring_pairs = job_company_repo.recruiter_hiring_pairs(id)
-    recruiter_for_by_id: dict[str, int] = {}
+    jobs_by_hiring_company: dict[str, list[str]] = {}
     for pair in hiring_pairs:
         hiring_company_id = pair.get("hiring_company_id")
         if hiring_company_id:
-            recruiter_for_by_id[hiring_company_id] = recruiter_for_by_id.get(hiring_company_id, 0) + 1
+            jobs_by_hiring_company.setdefault(hiring_company_id, []).append(pair.get("job_id"))
+
+    all_job_ids = [job_id for job_ids in jobs_by_hiring_company.values() for job_id in job_ids]
+    job_by_id = {j["id"]: j for j in job_repo.get_by_ids(all_job_ids)}
     recruiter_for = [
         RecruiterForSchema(
             company_id=hiring_company_id,
             name=(repo.get_by_id(hiring_company_id) or {}).get("name"),
-            job_count=count,
+            job_count=len(job_ids),
+            jobs=[
+                RecruiterJobRefSchema(
+                    id=job_id,
+                    title=(job_by_id.get(job_id) or {}).get("title"),
+                    location=(job_by_id.get(job_id) or {}).get("location"),
+                )
+                for job_id in sorted(
+                    job_ids,
+                    key=lambda jid: (job_by_id.get(jid) or {}).get("title") or "",
+                )
+            ],
         )
-        for hiring_company_id, count in sorted(
-            recruiter_for_by_id.items(), key=lambda item: item[1], reverse=True
+        for hiring_company_id, job_ids in sorted(
+            jobs_by_hiring_company.items(), key=lambda item: len(item[1]), reverse=True
         )
     ]
 

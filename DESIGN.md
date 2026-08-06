@@ -122,10 +122,15 @@ Placement is right by default; all variants become full-screen on mobile.
 │ No additional links                         │
 │ Notes                                [+Add] │
 │ No notes                                    │
+│ ⚠ URL already exists.  Open existing job    │
 ├─────────────────────────────────────────────┤
 │                    [Cancel] [Add] [Add & Queue]│
 └─────────────────────────────────────────────┘
 ```
+
+On duplicate URL (409) the error box adds an **Open existing job** link that
+navigates to `/jobs?job=<id>` (id from `error.details.job_id`) and opens the
+existing job's detail drawer.
 
 ### Edit Job Drawer
 
@@ -318,6 +323,7 @@ Full specs: `docs/ux/features/rules/`.
 │ ○  │ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
 │ ○  │ Inc  │          │          │      │      │ alias            │           │     │     │   │
 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ ○  │ Head │ Recruit  │ Berlin   │ 1-50 │ 7¹  │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
 │                                                                                          │
 │                                       Loading more companies...                           │
@@ -326,6 +332,12 @@ Full specs: `docs/ux/features/rules/`.
 
 Alias companies render a small `alias` badge next to their name; selecting the
 row opens the detail drawer where the relation can be managed.
+
+The **Jobs** column is adaptive to company role: product companies show the
+count of jobs they hire for (`12`), while recruiter-type companies
+(`RECRUITING_AGENCY` / `STAFFING_COMPANY`) show the number of jobs they list
+for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
+`—`.
 
 ### Add Company Drawer (Create Entity — company mode)
 
@@ -368,8 +380,11 @@ row opens the detail drawer where the relation can be managed.
 │ └────────────────────────────────────────────────────────────┘ │
 │ Recruiter for 3 jobs (recruiter-type companies only)           │
 │ ┌────────────────────────────────────────────────────────────┐ │
-│ │ Acme GmbH                                  2 jobs          │ │
-│ │ Beta GmbH                                  1 job           │ │
+│ │ Acme GmbH                                    2 jobs        │ │
+│ │   • Senior Backend Engineer   → job drawer                 │ │
+│ │   • Platform Engineer         → job drawer                 │ │
+│ │ Beta GmbH                                    1 job         │ │
+│ │   • Data Engineer             → job drawer                 │ │
 │ └────────────────────────────────────────────────────────────┘ │
 │ Company Overview                                              │
 │ Intelligence sections (importance order)                      │
@@ -386,6 +401,11 @@ row opens the detail drawer where the relation can be managed.
 │ [View All Jobs] [Website]        [Reprocess] [Delete]         │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+The job-count badge in the header is adaptive like the list's Jobs column:
+product companies show `N jobs` (hiring count); recruiter-type companies
+(`RECRUITING_AGENCY` / `STAFFING_COMPANY`) show `N listed` (jobs listed for
+clients, matching the "Recruiter for N jobs" section below).
 
 ### Relate Company Dialog
 

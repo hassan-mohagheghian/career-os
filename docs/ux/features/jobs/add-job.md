@@ -380,6 +380,11 @@ A loading indicator is displayed.
 
 - Validation errors are displayed.
 - Previously entered values are preserved.
+- On duplicate URL (409 `JOB_ALREADY_EXISTS`): the error box shows the message
+  plus an **"Open existing job"** link. The link navigates to
+  `/jobs?job=<id>` (the id returned in `error.details.job_id`), opening the
+  existing job's detail drawer so the user can review or reprocess it instead
+  of importing a second copy.
 
 ---
 

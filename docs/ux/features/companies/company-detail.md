@@ -47,6 +47,10 @@ visa-seeking software engineer.
 - Company name + logo
 - Industry
 - Badges: location, company size, company type, linked-job count
+- **Adaptive job-count badge** in the header, matching the list column:
+  - Product / other companies — `N jobs` (hiring count, `job_count`)
+  - Recruiter-type companies (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) —
+    `N listed` (jobs listed for clients, `recruiter_job_count`)
 
 The header mirrors the Job Detail drawer's first section: no action buttons in
 the header. Actions are grouped in a footer at the bottom of the page.
@@ -86,9 +90,12 @@ Shown only for recruiter-type companies (`RECRUITING_AGENCY` /
 between the Recommendation card and the Intelligence sections.
 
 The section header reads **"Recruiter for N jobs"** (total recruiter jobs with
-an attributed hiring company). Each hiring company is listed as a row with its
+an attributed hiring company). Each hiring company is grouped as a row with its
 name (a link to that company's detail drawer on the Companies page) and the
-count of jobs published for it.
+count of jobs published for it. Under each hiring company, the **individual
+jobs** are listed as links (job title) that open the job's detail drawer on the
+Jobs page (`/jobs?job=<id>`). The job links are the primary action; the hiring
+company link is a secondary reference.
 
 ```text
 ┌─ Recruiter for 3 jobs ───────────────────────────────────┐

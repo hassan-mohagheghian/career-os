@@ -219,7 +219,7 @@ Configuration
 | Industry | Industry classification                                |
 | Location | City, Country                                          |
 | Size     | Company size band                                      |
-| Jobs     | Number of linked, non-deleted jobs                     |
+| Jobs     | Jobs count, adapted to role: hiring jobs for product companies, listed jobs for recruiters |
 | Scores   | Grade badge + Fit / Success / Overall score values     |
 | Status   | Processing status from the latest processing execution |
 | Updated  | Relative update time                                   |
@@ -289,10 +289,18 @@ Displays the company size band.
 
 ## Jobs
 
-Displays the count of linked jobs (`JobModel.deleted == 0`).
+Shows the number of jobs the company is involved in, adapted to its role:
+
+- **Product / other companies** — count of linked, non-deleted jobs where the
+  company is the hiring employer (`JobModel.deleted == 0`, `job_count`).
+- **Recruiter-type companies** (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) —
+  count of jobs the company **lists** for its clients (`recruiter_job_count`):
+  recruiter jobs that have an attributed distinct hiring company.
 
 ```text
-12
+12                              ← product company (jobs it hires for)
+7  (tooltip: "7 jobs listed     ← recruiter company (jobs it lists)
+    for clients")
 ```
 
 Zero jobs displays `—`.

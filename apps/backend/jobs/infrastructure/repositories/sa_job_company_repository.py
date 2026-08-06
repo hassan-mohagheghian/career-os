@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, aliased
 
 from jobs.domain.repositories.job_company_repository import IJobCompanyRepository
 from jobs.infrastructure.models.job_company_model import JobCompanyModel
@@ -90,3 +91,35 @@ class SQLAlchemyJobCompanyRepository(IJobCompanyRepository):
             .all()
         )
         return [{"job_id": r.job_id, "hiring_company_id": r.company_id} for r in hiring_rows]
+
+    def recruiter_job_counts(self, company_ids: list[str]) -> dict[str, int]:
+        """Per-company counts of jobs published as a recruiter with an
+        attributed distinct hiring company (same semantics as
+        ``recruiter_hiring_pairs``, aggregated for a list of company ids)."""
+        if not company_ids:
+            return {}
+        hiring_alias = aliased(JobCompanyModel)
+        rows = (
+            self._session.query(
+                JobCompanyModel.company_id,
+                func.count(func.distinct(JobCompanyModel.job_id)),
+            )
+            .filter(
+                JobCompanyModel.company_id.in_(company_ids),
+                JobCompanyModel.role == "recruiter",
+            )
+            .filter(
+                self._session.query(func.count())
+                .select_from(hiring_alias)
+                .filter(
+                    hiring_alias.job_id == JobCompanyModel.job_id,
+                    hiring_alias.role == "hiring",
+                    hiring_alias.company_id != JobCompanyModel.company_id,
+                )
+                .correlate(JobCompanyModel)
+                .exists()
+            )
+            .group_by(JobCompanyModel.company_id)
+            .all()
+        )
+        return {company_id: int(count) for company_id, count in rows}

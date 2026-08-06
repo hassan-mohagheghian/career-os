@@ -72,6 +72,24 @@ class TestGetById:
         assert result["company_id"] == co.id
 
 
+# ── get_by_ids ───────────────────────────────────────────────────
+
+class TestGetByIds:
+    def test_batch_fetches_title_and_location(self, sa_session, repo):
+        a = _add(sa_session, id="job-a", title="Engineer", location="Berlin")
+        b = _add(sa_session, id="job-b", title="Designer", location="Munich")
+        _add(sa_session, id="job-c", deleted=1, title="Deleted", location="Hamburg")
+
+        result = repo.get_by_ids([a.id, b.id, "job-c", "does-not-exist"])
+        assert result == [
+            {"id": a.id, "title": "Engineer", "location": "Berlin"},
+            {"id": b.id, "title": "Designer", "location": "Munich"},
+        ]
+
+    def test_empty_input_returns_empty_list(self, sa_session, repo):
+        assert repo.get_by_ids([]) == []
+
+
 # ── list_jobs ────────────────────────────────────────────────────
 
 class TestListJobs:

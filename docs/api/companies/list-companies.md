@@ -129,6 +129,7 @@ desc
       "website": "...",
       "description": "...",
       "job_count": 12,
+      "recruiter_job_count": 0,
       "scores": {
         "overall": 88,
         "fit": 85,
@@ -199,6 +200,20 @@ relationship state without a detail call:
 `latest_processing_execution` is batch-attached per page from the
 `ProcessingExecution` table (no N+1); companies without an execution return
 `null`.
+
+### Jobs counts
+
+Each row carries two derived counts, batch-computed per page from the
+`job_companies` table (no N+1):
+
+- `job_count` — number of linked, non-deleted jobs where the company is the
+  hiring employer.
+- `recruiter_job_count` — number of jobs the company **lists** for clients:
+  recruiter-role jobs that have an attributed distinct hiring company
+  (self-referencing rows and jobs without a hiring company are excluded).
+
+The frontend shows `recruiter_job_count` for recruiter-type companies
+(`RECRUITING_AGENCY` / `STAFFING_COMPANY`) and `job_count` for all others.
 
 ---
 

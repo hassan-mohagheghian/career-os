@@ -18,6 +18,7 @@ function makeCompany(id: string): CompanyListItem {
     website: null,
     description: null,
     job_count: 0,
+    recruiter_job_count: 0,
     scores: { overall: null, fit: null, success: null, overall_grade: null },
     processing: { status: null, current_node: null, progress_pct: null, error: null },
     latest_processing_execution: null,

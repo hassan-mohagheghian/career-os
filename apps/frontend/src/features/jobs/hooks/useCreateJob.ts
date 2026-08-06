@@ -30,10 +30,12 @@ export interface CreateJobResponse {
 export function useCreateJob() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [existingJobId, setExistingJobId] = useState<string | null>(null)
 
   const createJob = async (data: CreateJobRequest): Promise<CreateJobResponse | null> => {
     setSubmitting(true)
     setError(null)
+    setExistingJobId(null)
     try {
       const res = await fetch(`${API}/jobs`, {
         method: 'POST',
@@ -44,6 +46,7 @@ export function useCreateJob() {
         const body = await res.json().catch(() => ({}))
         const msg = body?.error?.message || `Failed to create job (${res.status})`
         setError(msg)
+        setExistingJobId(body?.error?.details?.job_id ?? null)
         return null
       }
       return await res.json()
@@ -55,7 +58,10 @@ export function useCreateJob() {
     }
   }
 
-  const clearError = () => setError(null)
+  const clearError = () => {
+    setError(null)
+    setExistingJobId(null)
+  }
 
-  return { createJob, submitting, error, clearError }
+  return { createJob, submitting, error, existingJobId, clearError }
 }
