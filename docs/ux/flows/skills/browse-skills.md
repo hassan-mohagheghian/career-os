@@ -54,7 +54,7 @@ parameter (one of technical / engineering / professional / domain / career).
 ## 4. Sort
 
 Clicking a sortable header (Name, Level, Demand, Confidence, Created, Mentions)
-refetches with the chosen `sort` and `order`. Default: `created_at desc`.
+refetches with the chosen `sort` and `order`. Default: `mention_count desc`.
 
 ## 5. Scroll
 

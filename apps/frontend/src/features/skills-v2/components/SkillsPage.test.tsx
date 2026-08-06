@@ -51,7 +51,7 @@ function baseProps(overrides: Partial<Parameters<typeof SkillsPage>[0]> = {}): P
     onRefetch: vi.fn(),
     query: '',
     onQueryChange: vi.fn(),
-    sort: 'created_at',
+    sort: 'mention_count',
     onSortChange: vi.fn(),
     order: 'desc',
     filterCategory: '',

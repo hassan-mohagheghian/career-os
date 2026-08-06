@@ -93,7 +93,7 @@ market_relevance
 mention_count
 ```
 
-Default: `created_at`.
+Default: `mention_count` (desc) — highest-demand skills first.
 
 Every sort follows a **NULLS LAST** policy: rows where the sort column is `NULL`
 (for example a skill without a confidence score) always sort **after** rows with

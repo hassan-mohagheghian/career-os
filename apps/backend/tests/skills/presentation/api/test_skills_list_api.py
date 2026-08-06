@@ -164,13 +164,19 @@ class TestSkillListV2API:
         names = [i["name"] for i in data["items"]]
         assert names == ["Go", "Kubernetes", "Python"]
 
-    def test_default_sort_newest_first(self, client, sa_session):
-        _create_skill(sa_session, name="Old Skill", created_at="2026-01-01T00:00:00Z")
-        _create_skill(sa_session, name="New Skill", created_at="2026-07-01T00:00:00Z")
+    def test_default_sort_by_mention_count(self, client, sa_session):
+        from skills.infrastructure import SQLAlchemySkillRepository
+
+        low = _create_skill(sa_session, name="Low")
+        high = _create_skill(sa_session, name="High")
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(high.id, "job", "job-1")
+        repo.upsert_mentions(high.id, "job", "job-2")
+        repo.upsert_mentions(low.id, "job", "job-3")
 
         data = client.get("/api/skills/list").json()
         names = [i["name"] for i in data["items"]]
-        assert names == ["New Skill", "Old Skill"]
+        assert names == ["High", "Low"]
 
     def test_item_shape(self, client, sa_session):
         skill = _create_skill(

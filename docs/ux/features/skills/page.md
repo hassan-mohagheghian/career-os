@@ -335,12 +335,12 @@ After a successful submit the drawer closes and the skill appears in the list.
 
 Supported sort fields (backend, NULLS LAST):
 
-- `created_at` (default, desc)
+- `mention_count` (default, desc — highest-demand skills first)
+- `created_at`
 - `name`
 - `level`
 - `confidence`
 - `market_relevance`
-- `mention_count`
 
 Sorting is always performed by the backend. Rows where the sort column is empty
 sort last in both directions.
