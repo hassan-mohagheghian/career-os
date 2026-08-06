@@ -1,0 +1,86 @@
+import type { SkillListItem } from '@/entities/skill/types'
+import { cn } from '@/shared/lib/utils'
+import { Badge } from '@/shared/ui/badge'
+import DateTime from '@/shared/components/DateTime'
+import { SKILL_GRID_TEMPLATE } from './skillsColumns'
+import { SkillActions } from './SkillActions'
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  technical: 'text-blue-500 bg-blue-500/10',
+  engineering: 'text-green-500 bg-green-500/10',
+  professional: 'text-purple-500 bg-purple-500/10',
+  domain: 'text-orange-500 bg-orange-500/10',
+  career: 'text-cyan-500 bg-cyan-500/10',
+}
+
+export function CategoryBadge({ category }: { category?: string }) {
+  if (!category) return null
+  const colors = CATEGORY_COLORS[category.toLowerCase()] || 'text-muted-foreground bg-muted'
+  return (
+    <Badge variant="outline" className={cn('text-2xs border-transparent', colors)}>
+      {category}
+    </Badge>
+  )
+}
+
+export function SkillRow({
+  skill,
+  onViewDetails,
+  onEdit,
+  onDelete,
+}: {
+  skill: SkillListItem
+  onViewDetails: (id: number) => void
+  onEdit: (id: number) => void
+  onDelete: (id: number) => void
+}) {
+  const confidence = skill.confidence != null ? Math.round(skill.confidence * 100) : null
+  const demand = skill.market_relevance != null ? Math.round(skill.market_relevance * 100) : null
+
+  const confidenceColor = confidence == null ? 'text-muted-foreground' : confidence >= 80 ? 'text-green-500' : confidence >= 50 ? 'text-yellow-500' : 'text-orange-500'
+  const demandColor = demand == null ? 'text-muted-foreground' : demand >= 80 ? 'text-green-500' : demand >= 50 ? 'text-yellow-500' : 'text-orange-500'
+
+  return (
+    <div
+      className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
+      style={{ gridTemplateColumns: SKILL_GRID_TEMPLATE }}
+      onClick={() => onViewDetails(skill.id)}
+    >
+      <div className="py-2 px-3 flex items-center">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-medium text-foreground truncate">{skill.name}</span>
+          {skill.aliases.length > 0 && (
+            <Badge variant="secondary" className="shrink-0 h-4 px-1.5 text-2xs text-muted-foreground">
+              {skill.aliases.length} alias{skill.aliases.length !== 1 ? 'es' : ''}
+            </Badge>
+          )}
+        </div>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <CategoryBadge category={skill.category} />
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <span className="text-xs font-semibold text-foreground">Lv.{skill.level}</span>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <span className="text-xs text-muted-foreground truncate block">{skill.roles || '—'}</span>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <span className={cn('text-xs font-semibold', demandColor)}>{demand != null ? `${demand}%` : '—'}</span>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <span className={cn('text-xs font-semibold', confidenceColor)}>{confidence != null ? `${confidence}%` : '—'}</span>
+      </div>
+      <div className="py-2 px-3 flex items-center">
+        <DateTime value={skill.created_at} format="relative" className="text-2xs text-muted-foreground" />
+      </div>
+      <div className="py-2 px-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+        <SkillActions
+          onViewDetails={() => onViewDetails(skill.id)}
+          onEdit={() => onEdit(skill.id)}
+          onDelete={() => onDelete(skill.id)}
+        />
+      </div>
+    </div>
+  )
+}

@@ -1,29 +1,113 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
+import { useState, useCallback, useEffect } from 'react'
+import { useSkillsInfiniteQuery } from '@/entities/skill/hooks'
+import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { toast } from 'sonner'
 import { setSearchParam, getSearchParam } from '@/shared/lib/url'
 
-const SkillsTabContent = dynamic(
-  () => import('@/features/skills/components/SkillsTab').then(m => ({ default: m.default || m })),
+const SkillsPageContent = dynamic(
+  () => import('@/features/skills-v2/components/SkillsPage').then(m => ({ default: m.SkillsPage })),
   { ssr: false }
 )
 
 function SkillsPageAdapter() {
-  const [deepLinkSkill, setDeepLinkSkill] = useState<string | null>(null)
+  const [addSkillDrawerOpen, setAddSkillDrawerOpen] = useState(false)
+  const [detailSkillId, setDetailSkillId] = useState<number | null>(null)
+  const [editSkillId, setEditSkillId] = useState<number | null>(null)
+  const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
-  useEffect(() => {
-    const skill = getSearchParam('skill')
-    if (skill) setDeepLinkSkill(skill)
+  const {
+    items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
+    isError, error, refetch,
+    query, setQuery,
+    sort, order, handleHeaderSort,
+    filterCategory, setFilterCategory,
+    activeFilterCount, clearFilters,
+    deleteMutation,
+  } = useSkillsInfiniteQuery()
+
+  const handleViewDetails = useCallback((id: number) => {
+    setDetailSkillId(id)
+    setSearchParam('skill', String(id))
   }, [])
 
+  const handleEdit = useCallback((id: number) => {
+    setEditSkillId(id)
+  }, [])
+
+  const handleDelete = useCallback(async (id: number) => {
+    const skill = items.find((s) => s.id === id)
+    const ok = await showConfirm(
+      'Delete Skill',
+      `Permanently delete "${skill?.name ?? 'this skill'}" and all its aliases?`,
+      'Delete',
+    )
+    if (!ok) return
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('Skill deleted')
+        setDetailSkillId((current) => (current === id ? null : current))
+        setEditSkillId((current) => (current === id ? null : current))
+        setSearchParam('skill', null)
+      },
+      onError: () => {
+        toast.error('Failed to delete skill')
+      },
+    })
+  }, [showConfirm, deleteMutation, items])
+
+  useEffect(() => {
+    const skillId = getSearchParam('skill')
+    if (skillId) {
+      const parsed = Number(skillId)
+      if (!Number.isNaN(parsed)) setDetailSkillId(parsed)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (detailSkillId === null) setSearchParam('skill', null)
+  }, [detailSkillId])
+
   return (
-    <SkillsTabContent
-      deepLinkSkill={deepLinkSkill}
-      onClearDeepLink={() => { setDeepLinkSkill(null); setSearchParam('skill', null) }}
-      onSkillOpen={(name: string) => setSearchParam('skill', name)}
-    />
+    <div className="flex flex-col h-[calc(100vh-80px)]">
+      <SkillsPageContent
+        items={items}
+        total={total}
+        loadedCount={loadedCount}
+        isLoading={isLoading}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        onFetchNextPage={fetchNextPage}
+        isError={isError}
+        error={error}
+        onRefetch={refetch}
+        query={query}
+        onQueryChange={setQuery}
+        sort={sort}
+        onSortChange={handleHeaderSort}
+        order={order}
+        filterCategory={filterCategory}
+        onFilterCategoryChange={setFilterCategory}
+        activeFilterCount={activeFilterCount}
+        onClearFilters={clearFilters}
+        onViewDetails={handleViewDetails}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        addSkillDrawerOpen={addSkillDrawerOpen}
+        onAddSkillDrawerOpenChange={setAddSkillDrawerOpen}
+        detailSkillId={detailSkillId}
+        onDetailSkillIdChange={(id) => {
+          setDetailSkillId(id)
+          if (id === null) setSearchParam('skill', null)
+        }}
+        editSkillId={editSkillId}
+        onEditSkillIdChange={setEditSkillId}
+      />
+      <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
+    </div>
   )
 }
 

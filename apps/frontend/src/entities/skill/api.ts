@@ -1,12 +1,28 @@
 import { api } from '@/shared/api'
-import type { Skill, SkillRoadmapProgress, DashboardData } from './types'
+import type {
+  Skill,
+  SkillCreateInput,
+  SkillListItem,
+  SkillSearchQuery,
+  SkillUpdateInput,
+  InfiniteSkillSearchResult,
+} from './types'
 
 export const skillApi = {
-  list: () => api.get<Skill[]>('/skills'),
-  dashboard: () => api.get<DashboardData>('/skills-intelligence/dashboard'),
-  roadmapProgress: () => api.get<SkillRoadmapProgress>('/skill-roadmap-progress/all'),
-  roadmapJobs: (params?: Record<string, string>) => {
-    const search = params ? `?${new URLSearchParams(params).toString()}` : ''
-    return api.get<{ items: any[] }>(`/skill-roadmap-jobs${search}`)
+  listInfinite: (query: SkillSearchQuery) => {
+    const params = new URLSearchParams()
+    params.set('page_size', String(query.page_size ?? 25))
+    if (query.cursor) params.set('cursor', query.cursor)
+    if (query.query) params.set('query', query.query)
+    if (query.category) params.set('category', query.category)
+    if (query.sort) params.set('sort', query.sort)
+    if (query.order) params.set('order', query.order)
+    return api.get<InfiniteSkillSearchResult>(`/skills/list?${params.toString()}`)
   },
+  get: (id: number | string) => api.get<Skill>(`/skills/${id}`),
+  create: (data: SkillCreateInput) => api.post<SkillListItem>('/skills', data),
+  update: (id: number | string, data: SkillUpdateInput) => api.put<SkillListItem>(`/skills/${id}`, data),
+  delete: (id: number | string) => api.delete<{ status: string }>(`/skills/${id}`),
+  setCategory: (id: number | string, category: string) => api.put<SkillListItem>(`/skills/${id}/category`, { category }),
+  rename: (id: number | string, name: string) => api.patch<SkillListItem>(`/skills/${id}/rename`, { name }),
 }

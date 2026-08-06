@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.6.0] — 2026-08-06
+
+### Added
+
+- **Skills v2 page.** Replaces the legacy SkillsTab with a Jobs/Companies v2
+  parity UX: virtualized, cursor-paginated skills table (`GET /api/skills/list`)
+  with infinite scroll, debounced search, category filter, sorting (NULLS
+  LAST), and a Loaded-of-Total counter. Add / Detail / Edit Sheet drawers
+  replace the old inline forms.
+  - **Add Skill drawer** — name, level, category, relevant roles, path.
+  - **Skill Detail drawer** — Details / Roadmap / History tabs, Generate /
+    Extend / Finegrain roadmap actions with live progress, Edit in header,
+    Delete in footer.
+  - **Skill Edit drawer** — name, level, category, roles, tags.
+  - Row actions (Details / Edit / Delete) with `ConfirmDialog` and `?skill=`
+    deep-link, matching the companies v2 pattern.
+  - Docs: `docs/ux/features/skills/`, `docs/ux/flows/skills/browse-skills.md`,
+    `docs/api/skills/list-skills.md`.
+
 ## [3.5.4] — 2026-08-06
 
 ### Fixed

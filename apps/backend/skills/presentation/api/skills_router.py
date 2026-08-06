@@ -1,5 +1,10 @@
 """Tech stack CRUD, skill relationships, merge, hide/restore."""
 
+from __future__ import annotations
+
+import base64
+from typing import Any, Callable
+
 from fastapi import APIRouter, Depends, Query
 
 from dependencies import get_skill_repo
@@ -13,10 +18,100 @@ from skills.presentation.api.schemas.skills import (
     SkillBulkHide,
     SkillBulkCategorize,
     SkillCategoryUpdate,
+    SkillListItemSchema,
+    SkillListResponseSchema,
 )
 from shared.application.exceptions import NotFoundError, BadRequestError, ConflictError
 
 router = APIRouter()
+
+DEFAULT_PAGE_SIZE = 25
+
+SKILL_CATEGORIES = ("technical", "engineering", "professional", "domain", "career")
+
+SORTABLE_SKILL_FIELDS = ("name", "level", "confidence", "market_relevance")
+
+
+def _cursor_decode(cursor: str) -> int:
+    """Decode an opaque base64 offset cursor; invalid cursors restart at 0."""
+    if not cursor:
+        return 0
+    try:
+        return int(base64.b64decode(cursor.encode()).decode())
+    except Exception:
+        return 0
+
+
+def _cursor_encode(offset: int) -> str:
+    return base64.b64encode(str(offset).encode()).decode()
+
+
+def _skill_matches(row: dict[str, Any], query: str, category: str) -> bool:
+    if category:
+        if (row.get("category") or "") != category:
+            return False
+    if query:
+        q = query.lower()
+        haystacks = [row.get("name"), row.get("roles"), row.get("path")]
+        haystacks += row.get("aliases") or []
+        if not any(h and q in str(h).lower() for h in haystacks):
+            return False
+    return True
+
+
+def _skill_sort_key(row: dict[str, Any], sort: str) -> Any:
+    if sort in SORTABLE_SKILL_FIELDS:
+        return row.get(sort)
+    return row.get("created_at")
+
+
+@router.get("/list")
+def list_skills_v2(
+    query: str = Query("", description="Substring search over name, roles, path, aliases"),
+    category: str = Query("", description="Exact category filter"),
+    sort: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="asc or desc"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=200),
+    cursor: str = Query("", description="Opaque pagination cursor"),
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+) -> SkillListResponseSchema:
+    """List visible skills with server-side search, category filter, sort and cursor pagination."""
+    rows = [r for r in repo.list_visible() if _skill_matches(r, query, category)]
+
+    key: Callable[[dict[str, Any]], Any] = lambda r: _skill_sort_key(r, sort)
+    with_value = [r for r in rows if key(r) is not None]
+    without_value = [r for r in rows if key(r) is None]
+    with_value.sort(key=key, reverse=(order == "desc"))
+    rows = with_value + without_value
+
+    total = len(rows)
+    offset = _cursor_decode(cursor)
+    page = rows[offset:offset + page_size]
+    next_offset = offset + len(page)
+    has_more = next_offset < total
+
+    return SkillListResponseSchema(
+        items=[
+            SkillListItemSchema(
+                id=r["id"],
+                name=r.get("name") or "",
+                level=r.get("level") or 1,
+                roles=r.get("roles") or "",
+                path=r.get("path") or "",
+                category=r.get("category") or "",
+                confidence=r.get("confidence"),
+                market_relevance=r.get("market_relevance"),
+                evidence=r.get("evidence"),
+                tags=r.get("tags") or [],
+                aliases=r.get("aliases") or [],
+                created_at=r.get("created_at"),
+            )
+            for r in page
+        ],
+        next_cursor=_cursor_encode(next_offset) if has_more else None,
+        has_more=has_more,
+        total_items=total,
+    )
 
 
 @router.get("")

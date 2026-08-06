@@ -79,6 +79,32 @@ class SkillListResponse(BaseModel):
     items: list[SkillResponse]
 
 
+class SkillListItemSchema(BaseModel):
+    """A single skill in the v2 list."""
+
+    id: int
+    name: str
+    level: int = 1
+    roles: str = ""
+    path: str = ""
+    category: str = ""
+    confidence: float | None = None
+    market_relevance: float | None = None
+    evidence: str | None = None
+    tags: list[str] = []
+    aliases: list[str] = []
+    created_at: str | None = None
+
+
+class SkillListResponseSchema(BaseModel):
+    """Cursor-paginated skill list response."""
+
+    items: list[SkillListItemSchema] = Field(default_factory=list)
+    next_cursor: str | None = None
+    has_more: bool = False
+    total_items: int = 0
+
+
 class CategoryResponse(BaseModel):
     category: str
     count: int

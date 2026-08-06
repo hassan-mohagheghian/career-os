@@ -55,9 +55,15 @@ docs/ux/
 │       └── workflow-progress.md
 │   └── resume/
 │       └── page.md            Resume / Profile page (master resume + LinkedIn)
-│   └── rules/
+│   ├── rules/
 │       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
+│   └── skills/
+│       ├── page.md            Skills page (list, toolbar, infinite scroll, drawers)
+│       ├── skill-row.md       Skill row columns, category badges, level, actions
+│       ├── skill-detail.md    Skill Detail drawer (Details/Roadmap/History tabs)
+│       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
+│       └── edit-skill.md      Edit Skill drawer
 └── flows/
     ├── companies/
     │   ├── browse-companies.md  Browse, search, filter, sort, open details
@@ -72,8 +78,10 @@ docs/ux/
     │   ├── process-job-live.md
     │   ├── processing-queue.md
     │   └── ...
-    └── rules/
+    ├── rules/
         └── reorder-rules.md   Move up/down + drag reorder, priority math, clamping
+    └── skills/
+        └── browse-skills.md   Browse, search, filter, sort, open details
 ```
 
 ## Current Focus

@@ -440,6 +440,64 @@ companies. Full specs live in `docs/ux/features/companies/`.
 
 ---
 
+### Skills Page
+
+The Skills page is parity with the Jobs/Companies v2 UX (virtualized table,
+infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
+
+```text
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ </> Skills (128)                     Loaded 25 of 128           + Add Skill   │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Search .........................                                [Category ▾] │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Name                  │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
+│───────────────────────────────────────────────────────────────────────────────│
+│ Kubernetes 2 aliases  │ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
+│ Kafka                 │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
+│ DDD                   │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
+│                                                                               │
+│                                        Loading more skills...                 │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Skill Detail Drawer
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ </> Kubernetes (engineering)                       ✕  Edit │
+├────────────────────────────────────────────────────────────┤
+│ [Details]  [Roadmap]  [History]                           │
+│ ★ Lv.4   Confidence: 85%   Market: 90%                    │
+│ ┌─ Relevant Roles ──────────────────────────────────────┐  │
+│ │ DevOps, SRE, Platform                                  │  │
+│ └────────────────────────────────────────────────────────┘  │
+│ [⚡ Generate Roadmap]                                     │
+├────────────────────────────────────────────────────────────┤
+│                                          [🗑 Delete]       │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Add Skill Drawer
+
+```text
+┌────────────────────────────────────────────────┐
+│ Add Skill                            ✕         │
+├────────────────────────────────────────────────┤
+│ Name                                        *  │
+│ [......................................]      │
+│ Level / Category / Relevant Roles / Path      │
+│ [Cancel]                          [Add Skill] │
+└────────────────────────────────────────────────┘
+```
+
+The Skills workspace is parity with the Jobs v2 UX (virtualized table, infinite
+scroll, Sheet drawers). Browsing is never blocked by background roadmap
+generation. Full specs live in `docs/ux/features/skills/` and
+`docs/ux/flows/skills/`.
+
+---
+
 ## UX Documentation
 
 Full UX specs live under `docs/ux/` and are split into:

@@ -295,6 +295,7 @@ async def app_error_handler(request: Request, exc: AppError):
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
 | `/api/skills` | GET | — | `SkillListResponse` | List skills |
+| `/api/skills/list` | GET | — | `SkillListResponse` | Paginated, searchable, filterable, sortable skill list (cursor-based) |
 | `/api/skills` | POST | `SkillCreate` | `SkillResponse` | Create skill |
 | `/api/skills/{id}` | PUT | `SkillUpdate` | `SkillResponse` | Update skill |
 | `/api/skills/{id}` | DELETE | — | `{"success": true}` | Delete skill |
