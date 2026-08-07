@@ -61,7 +61,7 @@ export function CompaniesToolbar({
               <Buildings className="w-3 h-3" />
               <span>{filterIndustry || 'Industry'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               {industries.map(ind => (
                 <SelectItem key={ind} value={ind}>{ind}</SelectItem>

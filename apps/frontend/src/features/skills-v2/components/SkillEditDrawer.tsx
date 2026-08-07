@@ -190,7 +190,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
                 <Field label="Level">
                   <Select value={String(level)} onValueChange={(v) => setLevel(Number(v))}>
                     <SelectTrigger className="h-8 text-xs">{level}</SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                         <SelectItem key={n} value={String(n)}>{n}</SelectItem>
                       ))}
@@ -202,7 +202,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
                     <SelectTrigger className="h-8 text-xs">
                       <span className="truncate">{category || 'Select'}</span>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper">
                       {SKILL_CATEGORIES.map((cat) => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}

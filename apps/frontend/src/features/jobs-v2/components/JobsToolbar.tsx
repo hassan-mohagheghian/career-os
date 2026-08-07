@@ -78,7 +78,7 @@ export function JobsToolbar({
               <Funnel className="w-3 h-3" />
               <span>{filterProcessingStatus ? STATUS_FILTER_LABELS[filterProcessingStatus] ?? filterProcessingStatus : 'Status'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               <SelectItem value="created">Created</SelectItem>
               <SelectItem value="queued">Queued</SelectItem>
@@ -106,7 +106,7 @@ export function JobsToolbar({
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterRemote !== '' ? (filterRemote ? 'Remote' : 'On-site') : 'Remote'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               <SelectItem value="true">Remote</SelectItem>
               <SelectItem value="false">On-site</SelectItem>
@@ -116,7 +116,7 @@ export function JobsToolbar({
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterVisa !== '' ? (filterVisa ? 'Visa' : 'No Visa') : 'Visa'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               <SelectItem value="true">Visa</SelectItem>
               <SelectItem value="false">No Visa</SelectItem>
@@ -126,7 +126,7 @@ export function JobsToolbar({
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterRecommendation ? RECOMMENDATION_LABELS[filterRecommendation] ?? filterRecommendation : 'Recommendation'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               <SelectItem value="apply">Apply</SelectItem>
               <SelectItem value="consider">Consider</SelectItem>

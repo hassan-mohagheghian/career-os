@@ -56,7 +56,7 @@ export function SkillsToolbar({
               <FunnelSimple className="w-3 h-3" />
               <span>{filterCategory || 'Category'}</span>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               {SKILL_CATEGORIES.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
