@@ -28,8 +28,7 @@ tests/
 │   │   ├── test_skills.py
 │   │   ├── test_pending.py
 │   │   ├── test_insights.py
-│   │   ├── test_resumes.py
-│   │   └── test_skill_roadmaps.py
+│   │   └── test_resumes.py
 │   ├── database/                 # Database operation tests
 │   │   ├── test_migrations.py
 │   │   └── test_repositories.py

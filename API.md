@@ -19,7 +19,6 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Execution Actions   | `/api/processing/executions/{id}/...`       | Start, cancel, retry, remove queue entry |
 | Companies           | `/api/companies`                            | Company intelligence CRUD             |
 | Skills              | `/api/tech-stack`                           | Skill management + aliases + merge    |
-| Skill Roadmaps      | `/api/skill-roadmaps`                       | AI learning roadmaps + progress       |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
 | Resumes             | `/api/resumes`                              | Resume / cover letter generation      |
 | LinkedIn Profiles   | `/api/linkedin`                             | Versioned LinkedIn profile upload/list/delete |

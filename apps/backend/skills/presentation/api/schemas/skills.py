@@ -137,7 +137,6 @@ class SkillStatsResponse(BaseModel):
     by_source: dict[str, int]
     total_relationships: int
     total_aliases: int
-    total_roadmaps: int
 
 
 class SkillRelationshipResponse(BaseModel):

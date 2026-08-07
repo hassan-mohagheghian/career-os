@@ -29,7 +29,7 @@ class Base(DeclarativeBase):
 SCHEMAS = {
     "job": ["jobs", "summaries"],
     "company": ["companies", "company_intelligence", "company_links"],
-    "skill": ["skills", "skill_aliases", "skill_relationships", "skill_roadmaps", "skill_roadmap_progress", "skill_roadmap_jobs"],
+    "skill": ["skills", "skill_aliases", "skill_relationships"],
     "ai": ["llm_configurations"],
     "processing": ["processing_executions"],
     "candidate": [

@@ -21,7 +21,6 @@ api_router.include_router(insights_router, prefix="/insights", tags=["insights"]
 api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
 api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
-api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 ```
@@ -308,20 +307,6 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills (folds mentions) |
 | `/api/skills/categories` | GET | — | `CategoryList` | List categories |
 | `/api/skills/stats` | GET | — | `SkillStats` | Skill statistics |
-
-### Skill Roadmaps
-
-| Endpoint | Method | Request Body | Response | Description |
-|----------|--------|--------------|----------|-------------|
-| `/api/skill-roadmaps` | GET | — | `RoadmapListResponse` | List roadmaps |
-| `/api/skill-roadmaps/{id}` | GET | — | `RoadmapResponse` | Get roadmap tree |
-| `/api/skill-roadmaps` | POST | `RoadmapCreate` | `RoadmapResponse` | Create roadmap |
-| `/api/skill-roadmaps/generate` | POST | `GenerateRoadmap` | `RoadmapResponse` | AI generate roadmap |
-| `/api/skill-roadmaps/extend` | POST | `ExtendRoadmap` | `RoadmapResponse` | Extend roadmap |
-| `/api/skill-roadmaps/finegrain` | POST | `FinegrainRoadmap` | `RoadmapResponse` | Fine-grain roadmap |
-| `/api/skill-roadmaps/{id}/cancel` | POST | — | `{"success": true}` | Cancel generation |
-| `/api/skill-roadmap-progress` | GET | — | `ProgressResponse` | All progress |
-| `/api/skill-roadmap-progress/{id}` | GET | — | `ProgressDetail` | Skill progress |
 
 ### Insights
 

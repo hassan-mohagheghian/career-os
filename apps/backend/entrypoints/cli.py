@@ -510,14 +510,13 @@ def sync_db(fix: bool = typer.Option(False, help="Actually update DB (dry run by
 def cleanup(
     kill_providers: bool = typer.Option(False, "--kill-providers", "-m", help="Kill all provider processes"),
     reset_jobs: bool = typer.Option(False, "--reset-jobs", "-j", help="Reset stuck jobs"),
-    reset_roadmaps: bool = typer.Option(False, "--reset-roadmaps", "-r", help="Reset stuck roadmap generation jobs"),
     all: bool = typer.Option(False, "--all", "-a", help="Run all cleanup actions"),
 ):
     """Clean up stuck processes and reset failed jobs."""
     import signal as _signal
 
     if all:
-        kill_providers = reset_jobs = reset_roadmaps = True
+        kill_providers = reset_jobs = True
 
     console.print(Panel("[bold]Cleanup[/bold]", title="Job Search CLI"))
 
@@ -537,21 +536,7 @@ def cleanup(
         else:
             console.print("  [dim]No provider processes found[/dim]")
 
-    if reset_roadmaps:
-        console.print("\n[bold]Resetting stuck roadmap jobs...[/bold]")
-        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
-        from dependencies import get_session_sync
-        session = get_session_sync()
-        try:
-            count = session.query(SkillRoadmapJobModel).filter(
-                SkillRoadmapJobModel.status.in_(['running', 'queued'])
-            ).update({'status': 'failed', 'error': 'Reset by CLI'})
-            session.commit()
-        finally:
-            session.close()
-        console.print(f"  [green]Reset {count} jobs[/green]")
-
-    if not (kill_providers or reset_jobs or reset_roadmaps):
+    if not (kill_providers or reset_jobs):
         console.print("[dim]No cleanup actions specified. Use --all or individual flags.[/dim]")
 
     console.print("\n[green]Done.[/green]")

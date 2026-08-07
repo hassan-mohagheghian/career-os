@@ -38,7 +38,6 @@
 - **Categories**: Technical, Engineering, Professional, Domain, Career
 - **Key fields**: `name`, `level` (1-5), `category`, `confidence`, `market_relevance`
 - **Aliases**: Merged skills (e.g., Postgres → PostgreSQL) stored in `skill_aliases`
-- **Roadmaps**: Hierarchical learning trees in `skill_roadmaps` with progress tracking
 
 ### Candidate Profile
 - **What**: The canonical Candidate Profile domain (`candidates` context, schema `candidate`) — the single source of truth for all candidate intelligence. It must never depend directly on a Resume or LinkedIn; sources converge into the profile.

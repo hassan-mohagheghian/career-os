@@ -66,7 +66,7 @@ Job Search Intelligence is a **DDD modular monolith** with a hexagonal backend (
 | ---------- | -------------------------------------------------------------- |
 | jobs       | Job lifecycle: import, process, score, list                    |
 | companies  | Company profiles, intelligence, visa assessment                |
-| skills     | 5-category taxonomy, aliases, relationships, roadmaps           |
+| skills     | 5-category taxonomy, aliases, relationships, insights           |
 | candidates | Canonical Candidate Profile domain: profile, sources, skills/experience/projects, evidence, versions; source adapters (resume/linkedin) + one `candidate.extract` LLM call |
 | rules      | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, ...) |
 | ai         | LLMService, providers, tools, LangGraph graphs                     |

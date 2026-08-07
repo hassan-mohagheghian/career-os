@@ -170,12 +170,10 @@ Large objects must never be returned.
 
 Excluded data includes:
 
-- Full roadmap trees
 - Generation history
 - Raw analysis payloads
 
-Those are loaded by dedicated endpoints
-(`GET /api/skill-roadmaps?skill=<name>`, generation history).
+Those are loaded by dedicated endpoints (generation history).
 
 ---
 

@@ -13,11 +13,6 @@ describe('SOURCE_CONFIG', () => {
     expect(SOURCE_CONFIG['company-processing'].label).toBe('Company')
   })
 
-  it('has config for roadmap', () => {
-    expect(SOURCE_CONFIG['roadmap']).toBeDefined()
-    expect(SOURCE_CONFIG['roadmap'].label).toBe('Roadmap')
-  })
-
   it('each config has icon, color, and label', () => {
     for (const [key, config] of Object.entries(SOURCE_CONFIG)) {
       expect(config.icon, `${key} missing icon`).toBeDefined()

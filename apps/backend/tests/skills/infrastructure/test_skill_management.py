@@ -7,11 +7,6 @@ from skills.infrastructure.models.skill_model import (
     SkillModel,
     SkillRelationshipModel,
 )
-from skills.infrastructure.models.skill_roadmap_models import (
-    SkillRoadmapModel,
-    SkillRoadmapJobModel,
-    SkillRoadmapProgressModel,
-)
 
 
 def _merge(session, target_id, source_ids):
@@ -26,15 +21,6 @@ def _merge(session, target_id, source_ids):
         if not source or source.name == target_name:
             continue
         source_name = source.name
-        session.query(SkillRoadmapModel).filter(
-            SkillRoadmapModel.skill_name == source_name
-        ).update({"skill_name": target_name})
-        session.query(SkillRoadmapProgressModel).filter(
-            SkillRoadmapProgressModel.skill_name == source_name
-        ).update({"skill_name": target_name})
-        session.query(SkillRoadmapJobModel).filter(
-            SkillRoadmapJobModel.skill_name == source_name
-        ).update({"skill_name": target_name})
         session.delete(source)
         merged.append(source_name)
     session.commit()
@@ -42,33 +28,16 @@ def _merge(session, target_id, source_ids):
 
 
 class TestMergeSkills:
-    def test_merge_renames_roadmaps(self, sa_session):
+    def test_merge_removes_source(self, sa_session):
         s1 = SkillModel(name="PostgreSQL", level=3, source="user")
         s2 = SkillModel(name="postgres", level=2, source="service")
         sa_session.add_all([s1, s2])
-        sa_session.flush()
-        roadmap = SkillRoadmapModel(skill_name="postgres", title="Basics", level=1)
-        sa_session.add(roadmap)
-        sa_session.flush()
-        sa_session.add(
-            SkillRoadmapProgressModel(roadmap_id=roadmap.id, skill_name="postgres", completed=1)
-        )
-        sa_session.add(
-            SkillRoadmapJobModel(skill_name="postgres", status="completed")
-        )
         sa_session.commit()
 
         merged = _merge(sa_session, s1.id, [s2.id])
         assert merged == ["postgres"]
 
-        roads = sa_session.query(SkillRoadmapModel.skill_name).all()
-        progress = sa_session.query(SkillRoadmapProgressModel.skill_name).all()
-        jobs = sa_session.query(SkillRoadmapJobModel.skill_name).all()
         tech = sa_session.query(SkillModel.name).all()
-
-        assert all(r[0] == "PostgreSQL" for r in roads)
-        assert all(r[0] == "PostgreSQL" for r in progress)
-        assert all(r[0] == "PostgreSQL" for r in jobs)
         assert len(tech) == 1
         assert tech[0][0] == "PostgreSQL"
 
@@ -100,20 +69,10 @@ class TestMergeSkills:
         s2 = SkillModel(name="ReactJS", level=3, source="service")
         s3 = SkillModel(name="react.js", level=2, source="service")
         sa_session.add_all([s1, s2, s3])
-        sa_session.flush()
-        roadmap = SkillRoadmapModel(skill_name="ReactJS", title="Basics", level=1)
-        sa_session.add(roadmap)
-        sa_session.flush()
-        sa_session.add(
-            SkillRoadmapProgressModel(roadmap_id=roadmap.id, skill_name="ReactJS", completed=1)
-        )
         sa_session.commit()
 
         merged = _merge(sa_session, s1.id, [s2.id, s3.id])
         assert set(merged) == {"ReactJS", "react.js"}
-
-        roads = sa_session.query(SkillRoadmapModel.skill_name).all()
-        assert all(r[0] == "React" for r in roads)
 
         tech = sa_session.query(SkillModel.name).order_by(SkillModel.id).all()
         assert len(tech) == 1

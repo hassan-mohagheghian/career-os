@@ -64,7 +64,7 @@ All ORM models inherit from this base. The naming convention ensures consistent 
 |--------|---------|--------|
 | `job` | Job Processing | `jobs`, `summaries`, `generation_history`, `job_analysis` |
 | `company` | Company Intelligence | `companies`, `company_intelligence`, `company_links` |
-| `skill` | Skills Management | `skills`, `skill_aliases`, `skill_relationships`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs` |
+| `skill` | Skills Management | `skills`, `skill_aliases`, `skill_relationships` |
 | `candidate` | Candidate Profile | `candidates`, `candidate_profiles`, `candidate_sources`, `candidate_skills`, `candidate_experiences`, `candidate_projects`, `candidate_educations`, `candidate_certificates`, `candidate_interests`, `candidate_languages`, `candidate_profile_versions` |
 | `shared` | Shared/Cross-Cutting | `rules`, `cities` |
 
@@ -97,7 +97,7 @@ Located in context-specific model files:
 | `skills/infrastructure/models/skill_model.py` | `skill` | `skills`, `skill_aliases`, `skill_relationships` |
 | `companies/infrastructure/models/company_model.py` | `company` | `companies`, `company_intelligence`, `company_links` |
 | `candidates/infrastructure/models/candidate_model.py` | `candidate` | `candidates`, `candidate_profiles`, `candidate_sources`, `candidate_skills`, `candidate_experiences`, `candidate_projects`, `candidate_educations`, `candidate_certificates`, `candidate_interests`, `candidate_languages`, `candidate_profile_versions` |
-| `shared/infrastructure/database/models/misc_models.py` | `job`, `skill`, `shared` | `summaries`, `resumes`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs`, `rules`, `cities` |
+| `shared/infrastructure/database/models/misc_models.py` | `job`, `shared` | `summaries`, `resumes`, `rules`, `cities` |
 
 All models are imported into `apps/alembic/env.py` (and `db.py::init_db`) so
 Alembic can autogenerate migrations for every schema.

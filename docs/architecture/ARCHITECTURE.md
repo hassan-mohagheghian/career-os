@@ -78,9 +78,6 @@
 | Skills                 | `skills`                 | Skills with category, confidence, market_relevance, source                    |
 | Skill Aliases          | `skill_aliases`          | Merged skill variants (canonical skill_id → alias_name)                       |
 | Skill Relationships    | `skill_relationships`    | Related, similar, parent, child, alternative links                            |
-| Skill Roadmaps         | `skill_roadmaps`         | Hierarchical learning trees per skill                                         |
-| Skill Roadmap Progress | `skill_roadmap_progress` | User completion tracking                                                      |
-| Skill Roadmap Jobs     | `skill_roadmap_jobs`     | Generation job status                                                         |
 
 ```
 jobs ── company ── company_intelligence
@@ -89,9 +86,7 @@ jobs ── company ── company_intelligence
   └── processing_executions (processing queue)
 
 skills ── skill_aliases
-  ├── skill_relationships
-  ├── skill_roadmaps ── skill_roadmap_progress
-  └── skill_roadmap_jobs
+  └── skill_relationships
 ```
 
 ## Navigation Structure
@@ -102,7 +97,7 @@ JOBS
   └── Companies      Company intelligence + processing
 
 GROWTH PATH
-  └── Skills         Skill management, roadmaps, progress tracking
+  └── Skills         Skill management, aliases, insights
 
 INSIGHTS
   ├── Overview       Career health score, next actions
@@ -141,8 +136,8 @@ app/
 │   │   ├── infrastructure/    SQLAlchemy models, repositories, workers, AI prompts
 │   │   └── presentation/      FastAPI routers + schemas
 │   ├── skills/                Skills Bounded Context
-│   │   ├── domain/            Skill entity, repository interfaces (7 repos)
-│   │   ├── application/       Service layer (roadmap generation, OOP wrappers)
+│   │   ├── domain/            Skill entity, repository interfaces (4 repos)
+│   │   ├── application/       Service layer (skill management)
 │   │   ├── infrastructure/    SQLAlchemy models, repositories, AI prompts
 │   │   └── presentation/      FastAPI routers + schemas
 │   ├── rules/                 Rules Bounded Context (Scoring Rules)
@@ -256,12 +251,6 @@ Click Generate → InsightsService → LLMService → per-section prompts (6 sec
 Click Generate → InsightsService → LLMService → skills_intelligence prompt → analyze skills
 ```
 
-### Skill Roadmap Generation
-
-```
-Click Generate → SkillRoadmapService → LLMService → prompts → save to skill_roadmaps + skill_roadmap_progress + emit progress
-```
-
 ### Resume/Cover Generation
 
 ```
@@ -299,7 +288,6 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 | `company:update`       | `company_{pid}`   | Company processing progress      |
 | `generation:update`    | `generation_{id}` | Resume/cover generation progress |
 | `insights:progress`    | insights          | Insights generation progress     |
-| `skill_roadmap:update` | skills            | Per-skill roadmap generation     |
 | `queue:status`         | —                 | Queue status changes             |
 
 ## API Endpoints
@@ -331,13 +319,6 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 | `/api/tech-stack/:id/rename`      | PATCH      | Rename skill                |
 | `/api/tech-stack/merge`           | POST       | Merge skills                |
 | `/api/tech-stack/hidden`          | GET        | List hidden skills          |
-| `/api/skill-roadmaps`             | GET        | Roadmap tree                |
-| `/api/skill-roadmaps/generate`    | POST       | AI roadmap generation       |
-| `/api/skill-roadmaps/extend`      | POST       | Extend roadmap              |
-| `/api/skill-roadmaps/finegrain`   | POST       | Fine-grain roadmap          |
-| `/api/skill-roadmap-progress/:id` | PUT        | Toggle topic completion     |
-| `/api/skill-roadmap-progress/all` | GET        | All progress summary        |
-| `/api/skill-roadmap-progress`     | GET        | Progress for specific skill |
 
 ### Insights
 
@@ -357,7 +338,7 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 | Endpoint                  | Method   | Purpose                                                          |
 | ------------------------- | -------- | ---------------------------------------------------------------- |
 | `/api/rules`              | GET/PUT  | Scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
-| `/api/generation-history` | GET      | Unified generation history (5 source tables)                     |
+| `/api/generation-history` | GET      | Unified generation history (jobs + companies)                     |
 | `/api/health`             | GET      | Health check                                                     |
 | `/api/docs`               | GET      | Swagger UI                                                       |
 | `/api/redoc`              | GET      | ReDoc                                                            |

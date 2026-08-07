@@ -16,11 +16,6 @@ from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillRelationshipModel
 from jobs.infrastructure.models.misc_models import SummaryModel
-from skills.infrastructure.models.skill_roadmap_models import (
-    SkillRoadmapModel,
-    SkillRoadmapProgressModel,
-    SkillRoadmapJobModel,
-)
 from shared.presentation.api import root_router as root_router_module
 
 
@@ -51,17 +46,6 @@ def _seed_company(sa_session, name="Co"):
     return co.id
 
 
-def _seed_roadmap(sa_session, skill_name, completed=0, title="Basics"):
-    rm = SkillRoadmapModel(skill_name=skill_name, title=title)
-    sa_session.add(rm)
-    sa_session.commit()
-    sa_session.add(
-        SkillRoadmapProgressModel(roadmap_id=rm.id, skill_name=skill_name, completed=completed)
-    )
-    sa_session.commit()
-    return rm.id
-
-
 # ── summaries / tech-stack ──────────────────────────────────────
 
 
@@ -82,67 +66,6 @@ def test_tech_stack_compat(client, sa_session):
     names = {r["name"] for r in resp.json()}
     assert "TechStackPy" in names
     assert "HiddenSkill" not in names
-
-
-# ── skill roadmap progress ──────────────────────────────────────
-
-
-def test_skill_roadmap_progress_all(client, sa_session):
-    rm1 = SkillRoadmapModel(skill_name="AggroAll", title="T1")
-    rm2 = SkillRoadmapModel(skill_name="AggroAll", title="T2")
-    sa_session.add_all([rm1, rm2])
-    sa_session.commit()
-    rid1 = rm1.id
-    sa_session.add(
-        SkillRoadmapProgressModel(roadmap_id=rid1, skill_name="AggroAll", completed=1)
-    )
-    sa_session.commit()
-    resp = client.get("/api/skill-roadmap-progress/all")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["AggroAll"] == {"total": 2, "completed": 1, "pct": 50, "checked": {str(rid1): 1}}
-
-
-def test_skill_roadmap_progress_compat_with_skill(client, sa_session):
-    rid = _seed_roadmap(sa_session, "GetBySkill", completed=1)
-    resp = client.get("/api/skill-roadmap-progress?skill=GetBySkill")
-    assert resp.status_code == 200
-    assert resp.json() == {str(rid): 1}
-
-
-def test_skill_roadmap_progress_compat_without_skill(client, sa_session):
-    _seed_roadmap(sa_session, "CompatAll", completed=1)
-    resp = client.get("/api/skill-roadmap-progress")
-    assert resp.status_code == 200
-    assert "CompatAll" in resp.json()
-
-
-def test_toggle_roadmap_progress(client, sa_session):
-    rid = _seed_roadmap(sa_session, "TogglePy", completed=0)
-    resp = client.patch(f"/api/skill-roadmap-progress/{rid}", json={})
-    assert resp.status_code == 200
-    assert resp.json()["completed"] == 1
-
-
-def test_update_roadmap_progress(client, sa_session):
-    rid = _seed_roadmap(sa_session, "UpdatePy", completed=0)
-    resp = client.put(f"/api/skill-roadmap-progress/{rid}", json={"completed": True})
-    assert resp.status_code == 200
-    assert resp.json()["completed"] == 1
-    resp = client.put(f"/api/skill-roadmap-progress/{rid}", json={"completed": False})
-    assert resp.status_code == 200
-    assert resp.json()["completed"] == 0
-    resp = client.put(f"/api/skill-roadmap-progress/{rid}", json={})
-    assert resp.status_code == 200
-    assert resp.json()["completed"] == 0
-
-
-def test_skill_roadmap_jobs_compat(client, sa_session):
-    sa_session.add(SkillRoadmapJobModel(skill_name="RoadmapJobs", status="queued"))
-    sa_session.commit()
-    resp = client.get("/api/skill-roadmap-jobs")
-    assert resp.status_code == 200
-    assert any(i["skill_name"] == "RoadmapJobs" for i in resp.json()["items"])
 
 
 # ── skill relationships ─────────────────────────────────────────

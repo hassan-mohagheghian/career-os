@@ -13,7 +13,6 @@ const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'job-processing', label: 'Job' },
   { value: 'company-processing', label: 'Company' },
-  { value: 'roadmap', label: 'Roadmap' },
 ]
 
 function matchesFilter(item: HistoryItemData, filter: string): boolean {

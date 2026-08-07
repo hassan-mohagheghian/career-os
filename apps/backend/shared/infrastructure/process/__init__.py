@@ -15,5 +15,4 @@ Architecture:
   job_worker.py        → Job processing implementation
   company_worker.py    → Company processing implementation
   insights_service.py  → Career intelligence service (OOP wrapper)
-  skill_roadmap_service.py → Skill roadmap service (OOP wrapper)
 """

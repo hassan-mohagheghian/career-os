@@ -59,30 +59,24 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 ---
 
 ### 1.3 Skills Context
-**Responsibility:** Technical skills taxonomy, aliases, relationships, categories, and skill roadmaps.
+**Responsibility:** Technical skills taxonomy, aliases, relationships, and categories.
 
 **Entities:**
 - `Skill` (aggregate root) — `skills` table, PK: `id`
 - `SkillAlias` — `skill_aliases` table, FK: `skill_id`
 - `SkillRelationship` — `skill_relationships` table
-- `SkillRoadmap` — `skill_roadmaps` table (self-referential tree)
-- `SkillRoadmapProgress` — `skill_roadmap_progress` table
-- `SkillRoadmapJob` — `skill_roadmap_jobs` table
 
 **Value Objects:**
 - `SkillMetadata` (confidence, market_relevance, evidence, category)
-- `RoadmapItem` (title, description, level, sort_order, version)
 - `SkillRelationshipType` (prerequisite, related, alternative)
 
 **Domain Services:**
 - Skill name normalization
 - Skill merging
-- Roadmap tree building
 
-**Repository Interfaces:** `ISkillRepository`, `ISkillAliasRepository`, `ISkillRelationshipRepository`, `ISkillRoadmapRepository`, `ISkillRoadmapProgressRepository`, `ISkillRoadmapJobRepository`, `ITechLearningRepository`
-**Infrastructure:** `SkillModel`, `SkillAliasModel`, `SkillRelationshipModel`, `SkillRoadmapModel`, etc., SQLAlchemy implementations
+**Repository Interfaces:** `ISkillRepository`, `ISkillAliasRepository`, `ISkillRelationshipRepository`
+**Infrastructure:** `SkillModel`, `SkillAliasModel`, `SkillRelationshipModel`, SQLAlchemy implementations
 **API Endpoints:** `api/v1/skills.py` — CRUD, merge, hide, categorize, relationships
-**Services:** `services/skill_roadmap_service.py` — generate, extend, finegrain
 
 ---
 

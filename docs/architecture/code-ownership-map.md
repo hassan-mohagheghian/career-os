@@ -37,13 +37,11 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
 | `domain/entities/` | `skill.py` | Skill domain entity |
-| `domain/repositories/` | `skill_repository.py`, `skill_alias_repository.py`, `skill_relationship_repository.py`, `skill_roadmap_repository.py`, `skill_roadmap_progress_repository.py`, `skill_roadmap_job_repository.py` | Repository interfaces |
-| `application/services/` | `skill_roadmap_service.py` | Roadmap generation service |
-| `infrastructure/models/` | `skill_model.py`, `misc_models.py` | SQLAlchemy models |
-| `infrastructure/repositories/` | `sa_skill_repository.py`, `sa_skill_alias_repository.py`, etc. | Repository implementations |
-| `infrastructure/ai/prompts/` | `skill_roadmaps/*.txt` | AI prompts for roadmaps |
-| `presentation/api/` | `skills_router.py`, `skill_roadmaps_router.py` | FastAPI routers |
-| `presentation/api/schemas/` | `skills.py`, `skill_roadmaps.py` | Pydantic schemas |
+| `domain/repositories/` | `skill_repository.py`, `skill_alias_repository.py`, `skill_relationship_repository.py` | Repository interfaces |
+| `infrastructure/models/` | `skill_model.py` | SQLAlchemy models |
+| `infrastructure/repositories/` | `sa_skill_repository.py`, `sa_skill_alias_repository.py`, `sa_skill_relationship_repository.py` | Repository implementations |
+| `presentation/api/` | `skills_router.py` | FastAPI routers |
+| `presentation/api/schemas/` | `skills.py` | Pydantic schemas |
 
 ### Rules Context (`rules/`)
 
@@ -103,7 +101,6 @@ These modules exist at their old locations for backward compatibility. All new c
 | `services/worker.py` | `jobs/infrastructure/workers/worker.py` |
 | `services/generation_worker.py` | `jobs/infrastructure/workers/generation_worker.py` |
 | `services/insights.py` | `rules/application/services/insights.py` |
-| `services/skill_roadmap_service.py` | `skills/application/services/skill_roadmap_service.py` |
 | `services/process_utils.py` | `shared/infrastructure/process_utils.py` |
 | `services/process/*.py` | `shared/infrastructure/process/*.py` |
 | `scripts/*.py` | `jobs/application/commands/*.py` |

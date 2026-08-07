@@ -88,37 +88,22 @@ apps/backend/
 │   │   └── repositories/
 │   │       ├── skill_repository.py
 │   │       ├── skill_alias_repository.py
-│   │       ├── skill_relationship_repository.py
-│   │       ├── skill_roadmap_repository.py
-│   │       ├── skill_roadmap_progress_repository.py
-│   │       └── skill_roadmap_job_repository.py
+│   │       └── skill_relationship_repository.py
 │   ├── application/
 │   │   ├── services/
-│   │   │   └── skill_roadmap_service.py
 │   │   └── dto/
 │   ├── infrastructure/
 │   │   ├── models/
-│   │   │   ├── skill_model.py
-│   │   │   └── misc_models.py
+│   │   │   └── skill_model.py
 │   │   ├── repositories/
 │   │   │   ├── sa_skill_repository.py
 │   │   │   ├── sa_skill_alias_repository.py
-│   │   │   ├── sa_skill_relationship_repository.py
-│   │   │   ├── sa_skill_roadmap_repository.py
-│   │   │   ├── sa_skill_roadmap_progress_repository.py
-│   │   │   └── sa_skill_roadmap_job_repository.py
-│   │   └── ai/prompts/skill_roadmaps/
-│   │       ├── skill_roadmaps.txt
-│   │       ├── skill_roadmaps_generate.txt
-│   │       ├── skill_roadmaps_extend.txt
-│   │       └── skill_roadmaps_finegrain.txt
+│   │   │   └── sa_skill_relationship_repository.py
 │   └── presentation/
 │       ├── api/
 │       │   ├── skills_router.py
-│       │   ├── skill_roadmaps_router.py
 │       │   └── schemas/
-│       │       ├── skills.py
-│       │       └── skill_roadmaps.py
+│       │       └── skills.py
 │       └── cli/
 │
 ├── rules/                           # Rules (Scoring) Bounded Context

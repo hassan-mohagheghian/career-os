@@ -50,4 +50,4 @@ All AI workflows follow the same pattern:
 - Worker code no longer writes to or reads from temp files
 - LLM provider may still use temporary files internally (transparent)
 - `TempFileManager` is deprecated
-- Only final business artifacts (resumes, cover letters, roadmaps, insights) are persisted
+- Only final business artifacts (resumes, cover letters, insights) are persisted

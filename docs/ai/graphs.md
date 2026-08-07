@@ -103,19 +103,6 @@ START → load_jobs → extract_skills → categorize_skills
 
 **Typed Output**: `SkillExtractionOutput`
 
-## Skill Roadmap Graph
-
-**Name**: `skill_roadmap`
-**Entry**: `load_current_skills`
-**Finish**: `completion_event`
-
-```
-START → load_current_skills → load_market_data → analyze_gaps
-      → generate_roadmap → prioritize → completion_event → END
-```
-
-**Typed Output**: `SkillRoadmapOutput`
-
 ## Career Insights Graph
 
 **Name**: `insights_generation`
@@ -149,7 +136,7 @@ START → overview → skills → market → companies
 
 ```
 START → job_processing → resume_generation
-      → cover_letter_generation → skill_extraction → skill_roadmap
+      → cover_letter_generation → skill_extraction
       → insights_generation → completion_event → END
 ```
 

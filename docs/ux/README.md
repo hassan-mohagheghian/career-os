@@ -63,7 +63,7 @@ docs/ux/
 │   └── skills/
 │       ├── page.md            Skills page (list, toolbar, infinite scroll, drawers)
 │       ├── skill-row.md       Skill row columns, origin/alias badges, mentions, actions
-│       ├── skill-detail.md    Skill Detail drawer (Details/Roadmap/History tabs)
+│       ├── skill-detail.md    Skill Detail drawer (level, roles, tags, aliases)
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
 │       └── edit-skill.md      Edit Skill drawer (aliases, merge)
 └── flows/

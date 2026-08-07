@@ -31,7 +31,7 @@ apps/backend/
 │       │   ├── session.py           # get_session, get_session_sync
 │       │   ├── mappers.py           # model↔dict converters (all contexts)
 │       │   └── models/
-│       │       └── misc_models.py   # Summary, Resume, Preference, SkillRoadmap*, etc.
+│       │       └── misc_models.py   # Summary, Resume, Preference, etc.
 │       ├── websocket/
 │       │   ├── broadcaster.py
 │       │   ├── manager.py
@@ -89,26 +89,18 @@ apps/backend/
 │   │   ├── entities/
 │   │   │   ├── skill.py
 │   │   │   ├── skill_alias.py
-│   │   │   ├── skill_relationship.py
-│   │   │   └── skill_roadmap.py
+│   │   │   └── skill_relationship.py
 │   │   └── repositories/
 │   │       ├── skill_repository.py
 │   │       ├── skill_alias_repository.py
-│   │       ├── skill_relationship_repository.py
-│   │       ├── skill_roadmap_repository.py
-│   │       ├── skill_roadmap_progress_repository.py
-│   │       └── skill_roadmap_job_repository.py
+│   │       └── skill_relationship_repository.py
 │   └── infrastructure/
 │       ├── models/
-│       │   ├── skill_model.py
-│       │   └── misc_models.py      # SkillRoadmap*
+│       │   └── skill_model.py
 │       └── repositories/
 │           ├── sa_skill_repository.py
 │           ├── sa_skill_alias_repository.py
-│           ├── sa_skill_relationship_repository.py
-│           ├── sa_skill_roadmap_repository.py
-│           ├── sa_skill_roadmap_progress.py
-│           └── sa_skill_roadmap_job_repository.py
+│           └── sa_skill_relationship_repository.py
 │
 ├── rules/                           # RULES CONTEXT
 │   ├── domain/

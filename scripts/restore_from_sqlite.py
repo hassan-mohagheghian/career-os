@@ -30,9 +30,6 @@ SCHEMA_MAP = {
     'rules': 'shared',
     'skill_aliases': 'skill',
     'skill_relationships': 'skill',
-    'skill_roadmap_jobs': 'skill',
-    'skill_roadmap_progress': 'skill',
-    'skill_roadmaps': 'skill',
     'skills': 'skill',
     'summaries': 'job',
 }

@@ -9,7 +9,6 @@ Each graph is a self-contained workflow that:
 Graph Registry:
 - job_processing: Job posting analysis pipeline
 - skill_extraction: Skill extraction from job postings
-- skill_roadmap: Learning roadmap generation
 - insights: Career intelligence (6 child graphs)
 """
 
@@ -22,12 +21,10 @@ from .runtime.state import (
     BaseState,
     create_initial_state,
     JobProcessingState,
-    SkillRoadmapState,
     CheckpointConfig,
     JobExtractionOutput,
     JobAnalysisOutput,
     SkillExtractionOutput,
-    SkillRoadmapOutput,
 )
 from .runtime.executor import AgentExecutor
 from .runtime.registry import AgentRegistry, AgentMetadata
@@ -41,11 +38,9 @@ def get_all_graphs() -> dict[str, GraphBuilder]:
     """
     from .job.graph import build_job_processing_graph
     from .skills.extraction import build_skill_extraction_graph
-    from .skills.roadmap import build_skill_roadmap_graph
     return {
         "job_processing": build_job_processing_graph(),
         "skill_extraction": build_skill_extraction_graph(),
-        "skill_roadmap": build_skill_roadmap_graph(),
     }
 
 
@@ -72,12 +67,10 @@ __all__ = [
     "BaseState",
     "create_initial_state",
     "JobProcessingState",
-    "SkillRoadmapState",
     "CheckpointConfig",
     "JobExtractionOutput",
     "JobAnalysisOutput",
     "SkillExtractionOutput",
-    "SkillRoadmapOutput",
 
     "GraphBuilder",
     "CompiledGraph",

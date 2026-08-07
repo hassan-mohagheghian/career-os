@@ -5,7 +5,6 @@ from .state import (
     JobExtractionOutput,
     JobAnalysisOutput,
     SkillExtractionOutput,
-    SkillRoadmapOutput,
 )
 from .registry import AgentRegistry, AgentMetadata
 from .executor import AgentExecutor
@@ -17,7 +16,6 @@ __all__ = [
     "JobExtractionOutput",
     "JobAnalysisOutput",
     "SkillExtractionOutput",
-    "SkillRoadmapOutput",
     "AgentRegistry",
     "AgentMetadata",
     "AgentExecutor",

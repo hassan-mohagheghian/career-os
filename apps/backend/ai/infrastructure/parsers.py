@@ -77,12 +77,3 @@ class ResumeGenerationOutput(BaseModel):
         default_factory=dict,
         description="Tailored sections for the job"
     )
-
-
-class RoadmapGenerationOutput(BaseModel):
-    """Structured output for roadmap generation."""
-    milestones: list[dict[str, Any]] = Field(default_factory=list, description="Career milestones")
-    skills_to_develop: list[str] = Field(default_factory=list, description="Skills to develop")
-    timeline: str = Field(default="", description="Estimated timeline")
-    resources: list[dict[str, str]] = Field(default_factory=list, description="Learning resources")
-    next_steps: list[str] = Field(default_factory=list, description="Immediate next steps")

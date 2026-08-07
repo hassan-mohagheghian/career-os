@@ -675,24 +675,13 @@ class TestCleanupCommand:
         assert result.exit_code == 0
         assert 'Failed to kill PID 123: denied' in result.output
 
-    def test_reset_roadmaps(self):
-        session = MagicMock()
-        session.query.return_value.filter.return_value.update.return_value = 3
-        with patch('dependencies.get_session_sync', return_value=session):
-            result = runner.invoke(cli.app, ['cleanup', '--reset-roadmaps'])
-        assert result.exit_code == 0
-        assert 'Reset 3 jobs' in result.output
-        session.commit.assert_called_once()
-
     def test_all_flag(self):
         proc = MagicMock()
         proc.stdout = '123\n'
-        session = MagicMock()
-        session.query.return_value.filter.return_value.update.return_value = 2
         with patch('apps.backend.entrypoints.cli.subprocess.run', return_value=proc), \
-             patch('apps.backend.entrypoints.cli.os.kill'), \
-             patch('dependencies.get_session_sync', return_value=session):
+             patch('apps.backend.entrypoints.cli.os.kill') as kill_mock:
             result = runner.invoke(cli.app, ['cleanup', '--all'])
         assert result.exit_code == 0
         assert 'Sent SIGTERM to PID 123' in result.output
-        assert 'Reset 2 jobs' in result.output
+        assert 'Done.' in result.output
+        assert kill_mock.call_count == 1

@@ -34,19 +34,9 @@ export const STEP_CONFIGS: Record<string, { steps: Array<{ key: string; label: s
     ],
   },
   // Resume/Cover letter generation was removed with the legacy generation stack.
-  // Skill roadmap: 4 steps
-  'roadmap': {
-    totalSteps: 4,
-    steps: [
-      { key: 'step_prepare', label: 'Preparing' },
-      { key: 'step_generate', label: 'Generating' },
-      { key: 'step_save', label: 'Saving' },
-      { key: 'step_done', label: 'Done' },
-    ],
-  },
 }
 
-const DEFAULT_STEPS = STEP_CONFIGS['roadmap'].steps
+const DEFAULT_STEPS = STEP_CONFIGS['job-processing'].steps
 
 function formatElapsed(seconds) {
   if (!seconds && seconds !== 0) return ''

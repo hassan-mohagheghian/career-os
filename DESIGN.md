@@ -26,7 +26,7 @@ SIDEBAR RAIL
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
   ├── Companies      Company intelligence + processing queue
   ├── Candidate      Candidate profile import + review
-  ├── Skills         Skill management, roadmaps, progress
+  ├── Skills         Skill management, aliases, insights
   ├── Rules          Scoring rules configuration
   └── AI ▾           Inline expandable submenu
       └── LLM Configurations
@@ -499,12 +499,19 @@ infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
 ┌────────────────────────────────────────────────────────────┐
 │ </> Kubernetes (engineering)                       ✕  Edit │
 ├────────────────────────────────────────────────────────────┤
-│ [Details]  [Roadmap]  [History]                           │
 │ ★ Lv.4   Confidence: 85%   Market: 90%                    │
 │ ┌─ Relevant Roles ──────────────────────────────────────┐  │
 │ │ DevOps, SRE, Platform                                  │  │
 │ └────────────────────────────────────────────────────────┘  │
-│ [⚡ Generate Roadmap]                                     │
+│ ┌─ Path ────────────────────────────────────────────────┐  │
+│ │ Container orchestration → service mesh → ...          │  │
+│ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Tags ────────────────────────────────────────────────┐  │
+│ │ [kubernetes] [helm] [istio]                            │  │
+│ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Also Known As ───────────────────────────────────────┐  │
+│ │ [k8s]                                                  │  │
+│ └────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────┤
 │                                          [🗑 Delete]       │
 └────────────────────────────────────────────────────────────┘
@@ -524,8 +531,7 @@ infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
 ```
 
 The Skills workspace is parity with the Jobs v2 UX (virtualized table, infinite
-scroll, Sheet drawers). Browsing is never blocked by background roadmap
-generation. Full specs live in `docs/ux/features/skills/` and
+scroll, Sheet drawers). Full specs live in `docs/ux/features/skills/` and
 `docs/ux/flows/skills/`.
 
 ### Candidate Profile Import Page

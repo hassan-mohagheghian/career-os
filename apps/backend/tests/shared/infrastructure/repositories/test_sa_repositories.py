@@ -14,7 +14,6 @@ import skills.infrastructure.models.skill_model
 import companies.infrastructure.models.company_model
 
 import jobs.infrastructure.models.misc_models
-import skills.infrastructure.models.skill_roadmap_models
 import rules.infrastructure.models.rule_model
 
 

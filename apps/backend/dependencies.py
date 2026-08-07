@@ -59,21 +59,6 @@ def get_skill_relationship_repo(session: Session = Depends(get_session)):
     return SQLAlchemySkillRelationshipRepository(session)
 
 
-def get_skill_roadmap_repo(session: Session = Depends(get_session)):
-    from skills.infrastructure import SQLAlchemySkillRoadmapRepository
-    return SQLAlchemySkillRoadmapRepository(session)
-
-
-def get_skill_roadmap_progress_repo(session: Session = Depends(get_session)):
-    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
-    return SQLAlchemySkillRoadmapProgressRepository(session)
-
-
-def get_skill_roadmap_job_repo(session: Session = Depends(get_session)):
-    from skills.infrastructure import SQLAlchemySkillRoadmapJobRepository
-    return SQLAlchemySkillRoadmapJobRepository(session)
-
-
 # ── Rules Context Dependencies ───────────────────────────────────
 
 def get_rule_repo(session: Session = Depends(get_session)):

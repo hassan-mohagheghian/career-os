@@ -11,10 +11,10 @@ Users can:
 - Search skills
 - Filter skills by category
 - Sort skills
-- View skill details (level, roles, path, tags, aliases, roadmap, history)
+- View skill details (level, roles, path, tags, aliases, evidence)
 - Edit skill core data
 - Delete a skill
-- Generate / Extend / Finegrain learning roadmaps from the detail drawer
+- Merge duplicate skills into a canonical skill
 
 The Skills page mirrors the Jobs/Companies v2 UX: virtualized table,
 server-side pagination, infinite scroll, and Sheet-based drawers.
@@ -25,9 +25,7 @@ server-side pagination, infinite scroll, and Sheet-based drawers.
 
 - Skills are categorized into the canonical taxonomy: `technical`,
   `engineering`, `professional`, `domain`, `career`.
-- Browsing must never be blocked by background roadmap generation.
 - The Skills list is optimized for large inventories.
-- Users can continue working while roadmaps are generating.
 
 ---
 
@@ -297,14 +295,11 @@ drawer.
 
 # Skill Detail Drawer
 
-Selecting a row opens the Skill Detail drawer (Sheet from the right) with three
-tabs:
+Selecting a row opens the Skill Detail drawer (Sheet from the right) showing the
+skill's data directly (no tabs):
 
-- **Details** — level, confidence, market demand, roles, path, tags, aliases,
-  evidence, and a "Generate Roadmap" action.
-- **Roadmap** — Generate / Extend / Finegrain actions plus the rendered roadmap
-  tree (from `GET /api/skill-roadmaps?skill=<name>`).
-- **History** — generation history via the shared `useLocalHistory` hook.
+- **Level**, confidence, market demand, roles, path, tags, aliases, and "Why
+  This Skill Matters" (evidence).
 
 The header has an **Edit** button; the footer has a **Delete** button.
 
@@ -331,8 +326,8 @@ Saving calls `PUT /api/skills/{id}` and invalidates the list query.
 # Merge Skill Dialog
 
 The Merge dialog searches visible skills (excluding the current skill), lets the
-user pick a target, and merges the current skill into it. Mentions, roadmaps,
-and progress re-point to the target; the source skill becomes a hidden alias.
+user pick a target, and merges the current skill into it. Mentions re-point to
+the target; the source skill becomes a hidden alias.
 The dialog mirrors the Companies "Relate Company" UX.
 
 ---

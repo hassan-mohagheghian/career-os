@@ -26,7 +26,6 @@ import jobs.infrastructure.models.job_model
 import jobs.infrastructure.models.misc_models
 import jobs.infrastructure.models.job_company_model
 import skills.infrastructure.models.skill_model
-import skills.infrastructure.models.skill_roadmap_models
 import companies.infrastructure.models.company_model
 import rules.infrastructure.models.rule_model
 import processing.infrastructure.models.processing_execution_model
@@ -113,7 +112,6 @@ def client(sa_session):
         get_session, get_session_sync, get_job_repo, get_skill_repo,
         get_company_repo, get_pending_repo, get_rule_repo,
         get_summary_repo, get_company_link_repo, get_company_intelligence_repo,
-        get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
         get_processing_execution_repo,
         get_candidate_repo, get_candidate_profile_repo, get_candidate_source_repo,
     )
@@ -125,9 +123,6 @@ def client(sa_session):
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
     from processing.infrastructure.repositories.sa_processing_execution_repository import SQLAlchemyProcessingExecutionRepository
     from candidates.infrastructure.repositories.sa_candidate_repository import SQLAlchemyCandidateRepository
     from candidates.infrastructure.repositories.sa_candidate_profile_repository import SQLAlchemyCandidateProfileRepository
@@ -159,9 +154,6 @@ def client(sa_session):
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
     app.dependency_overrides[get_company_link_repo] = lambda: SQLAlchemyCompanyLinkRepository(sa_session)
     app.dependency_overrides[get_company_intelligence_repo] = lambda: SQLAlchemyCompanyIntelligenceRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)
     app.dependency_overrides[get_processing_execution_repo] = lambda: SQLAlchemyProcessingExecutionRepository(sa_session)
     app.dependency_overrides[get_candidate_repo] = lambda: SQLAlchemyCandidateRepository(sa_session)
     app.dependency_overrides[get_candidate_profile_repo] = lambda: SQLAlchemyCandidateProfileRepository(sa_session)

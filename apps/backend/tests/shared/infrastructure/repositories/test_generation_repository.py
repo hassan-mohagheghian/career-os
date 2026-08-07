@@ -17,8 +17,6 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 
-from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
-
 from shared.domain.models.generation_models import GenerationHistoryItem
 from shared.infrastructure.repositories.generation_repository import GenerationHistoryRepository
 
@@ -88,28 +86,6 @@ class TestGenerationHistoryRepository:
     def test_reads_pending_generations(self, repo, sa_session):
         """pending_generations table has been removed - this test is a no-op."""
         pass
-
-    def test_reads_skill_roadmap_jobs(self, repo, sa_session):
-        m = SkillRoadmapJobModel(
-            skill_name='Python',
-            job_type='generate',
-            status='completed',
-            step=0,
-            total_steps=4,
-            message='',
-            session_id='sess_rm',
-            started_at='2026-07-27T10:00:00',
-            completed_at='2026-07-27T10:04:00',
-        )
-        sa_session.add(m)
-        sa_session.commit()
-
-        result = repo.get_all()
-        assert result['total'] == 1
-        item = result['items'][0]
-        assert item.source == 'roadmap'
-        assert 'Python' in item.title
-        assert 'generate' in item.title
 
     def test_error_captured(self, repo, sa_session):
         m = JobModel(

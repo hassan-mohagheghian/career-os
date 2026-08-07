@@ -26,9 +26,9 @@ Load first page (GET /api/skills/list, page_size=25)
              ▼
    ┌──────────────────┐   ┌──────────────────┐
    │  Detail Drawer   │   │  Add Skill Drawer│
-   │  Edit / Roadmap  │   │                  │
-   │  History / Delete│   │  Name, Level,    │
-   └──────────────────┘   │  Category, Roles │
+   │  Edit / Delete   │   │                  │
+   └──────────────────┘   │  Name, Level,    │
+                          │  Category, Roles │
                           └──────────────────┘
 ```
 
@@ -76,12 +76,7 @@ skill appears at the top of the list.
 From the detail drawer or row actions the user can edit or delete the skill.
 Deletion requires confirmation (`ConfirmDialog`).
 
-## 9. Roadmap management
-
-From the detail drawer the user can Generate / Extend / Finegrain a learning
-roadmap and watch live progress. Background generation does not block browsing.
-
-## 10. Manage aliases and merge duplicates
+## 9. Manage aliases and merge duplicates
 
 From the Edit drawer the user can add/remove aliases and merge a duplicate skill
 into a canonical one (`docs/ux/flows/skills/merge-skills.md`). The Mentions

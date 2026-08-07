@@ -72,7 +72,7 @@ Both apps run in **reload mode**: backend via uvicorn `--reload`, frontend via `
 ```
 Jobs              Job processing queue + processed cards
 Companies         Company intelligence + processing queue
-Skills            Skill management, roadmaps, progress tracking
+Skills            Skill management, aliases, insights
 Resume            Resume/cover letter generation
 Rules             Scoring rules configuration
 ```
@@ -101,7 +101,7 @@ Rules             Scoring rules configuration
 ### Skills Management
 - 5 categories: Technical, Engineering, Professional, Domain, Career
 - Skill aliases/merge, drag-and-drop reorganization
-- AI-powered roadmap generation with checkable progress tracking
+- AI-powered insights (market relevance, confidence)
 
 ### Resume Generation
 - AI-powered resume tailoring and cover letter generation

@@ -27,15 +27,14 @@ The system is divided into six bounded contexts, each representing a distinct bu
 - Manage company links and notes
 
 ### 3. Skills
-**Responsibility**: Skill management, learning roadmaps, and skill relationships.
+**Responsibility**: Skill management, relationships, and aliases.
 
 **Core Entities**: `Skill`
 
 **Key Behaviors**:
 - Track skills with categories, confidence, market relevance
-- Generate AI-powered learning roadmaps
 - Manage skill aliases and relationships
-- Track learning progress
+- Merge duplicate skills into canonical skills
 
 ### 4. Rules
 **Responsibility**: Scoring rules.
@@ -104,7 +103,7 @@ The `shared/` context provides infrastructure and domain primitives used by all 
                          ▼
      ┌─────────────────────────────────────────┐
      │              Skills                     │
-     │     (Roadmaps & Relationships)          │
+     │        (Aliases & Relationships)        │
      └─────────────────────────────────────────┘
 ```
 

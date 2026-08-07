@@ -68,16 +68,6 @@ class JobProcessingState(BaseState):
     session_id: str
 
 
-class SkillRoadmapState(BaseState):
-    skill_name: str
-    job_type: str
-    job_id: int
-    items: list[dict[str, Any]]
-    version: int
-    session_id: str
-    provider_name: str
-
-
 class CheckpointConfig(TypedDict, total=False):
     enabled: bool
     db_url: str
@@ -143,13 +133,6 @@ class SkillExtractionOutput(BaseModel):
     skills: list[dict[str, Any]] = Field(default_factory=list)
     categories: dict[str, list[str]] = Field(default_factory=dict)
     raw_skills: list[str] = Field(default_factory=list)
-
-
-class SkillRoadmapOutput(BaseModel):
-    roadmap: list[dict[str, Any]] = Field(default_factory=list)
-    priorities: list[str] = Field(default_factory=list)
-    estimated_timelines: dict[str, str] = Field(default_factory=dict)
-    learning_resources: list[dict[str, Any]] = Field(default_factory=list)
 
 
 

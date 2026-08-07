@@ -215,6 +215,4 @@ stateDiagram-v2
 # Related Documents
 
 - `docs/ux/flows/candidate/import-profile.md` (user journey)
-- `docs/ux/features/skills/skill-detail.md` (existing Roadmap tab — will be
-  replaced in the 110 Phase 8 roadmap phase)
 - `DESIGN.md` (nav tree + wireframes)

@@ -60,5 +60,4 @@ registry = get_registry()
 | `resume.tailor` | 1.0.0 | jobs | user | resume, tailoring |
 | `resume.cover-letter` | 1.0.0 | jobs | user | resume, cover-letter |
 | `skills.extract` | 1.0.0 | skills | extraction | skills, extraction |
-| `skills.roadmap` | 1.0.0 | skills | summarization | skills, roadmap |
 | `insights.overview` | 1.0.0 | rules | summarization | rules, insights |

@@ -17,9 +17,9 @@ Modular monolith with 8 bounded contexts, each with clear domain boundaries.
 - Event-driven: `ResumeRequested` → `ResumeGenerated`
 
 ### Phase 3: Extract Skills Context
-- Self-contained — `skills`, `skill_*`, `tech_learning` tables
+- Self-contained — `skills`, `skill_*` tables
 - No FK dependencies on other contexts
-- API: CRUD + roadmap generation
+- API: CRUD + merge
 
 ### Phase 4: Extract Career Context
 - Depends on reading jobs, companies, skills data

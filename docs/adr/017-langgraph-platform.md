@@ -20,7 +20,6 @@ Every AI generation process becomes an independent LangGraph workflow:
 - `resume_generation`: Tailored resume creation
 - `cover_letter_generation`: Cover letter creation
 - `skill_extraction`: Skill extraction from jobs
-- `skill_roadmap`: Learning roadmap generation
 - `insights`: Career intelligence (6 child graphs)
 - `generate_all`: Parent orchestrator
 

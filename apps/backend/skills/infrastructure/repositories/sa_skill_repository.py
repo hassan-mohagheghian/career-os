@@ -137,10 +137,6 @@ class SQLAlchemySkillRepository(ISkillRepository):
         model.name = new_name
 
         # Update references in other tables
-        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
-        self._session.query(SkillRoadmapModel).filter(SkillRoadmapModel.skill_name == old_name).update({"skill_name": new_name})
-        self._session.query(SkillRoadmapProgressModel).filter(SkillRoadmapProgressModel.skill_name == old_name).update({"skill_name": new_name})
-        self._session.query(SkillRoadmapJobModel).filter(SkillRoadmapJobModel.skill_name == old_name).update({"skill_name": new_name})
         self._session.query(SkillAliasModel).filter(
             SkillAliasModel.alias_name == old_name, SkillAliasModel.skill_id == skill_id
         ).update({"alias_name": new_name})
@@ -157,19 +153,12 @@ class SQLAlchemySkillRepository(ISkillRepository):
         target_name = target.name
         merged = []
 
-        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
-
         for sid in source_ids:
             source = self._session.query(SkillModel).filter(SkillModel.id == sid).first()
             if not source or source.name == target_name:
                 continue
 
             source_name = source.name
-
-            # Update references
-            self._session.query(SkillRoadmapModel).filter(SkillRoadmapModel.skill_name == source_name).update({"skill_name": target_name})
-            self._session.query(SkillRoadmapProgressModel).filter(SkillRoadmapProgressModel.skill_name == source_name).update({"skill_name": target_name})
-            self._session.query(SkillRoadmapJobModel).filter(SkillRoadmapJobModel.skill_name == source_name).update({"skill_name": target_name})
 
             # Create alias if not exists
             existing = self._session.query(SkillAliasModel).filter(
@@ -246,7 +235,6 @@ class SQLAlchemySkillRepository(ISkillRepository):
         ).scalar()
         total_relationships = self._session.query(func.count(SkillRelationshipModel.id)).scalar()
         total_aliases = self._session.query(func.count(SkillAliasModel.id)).scalar()
-        total_roadmaps = self._session.query(func.count(func.distinct(SkillModel.name))).scalar()
 
         return {
             "total": total or 0,
@@ -256,7 +244,6 @@ class SQLAlchemySkillRepository(ISkillRepository):
             "by_source": by_source,
             "total_relationships": total_relationships or 0,
             "total_aliases": total_aliases or 0,
-            "total_roadmaps": total_roadmaps or 0,
         }
 
     def bulk_hide(self, skill_ids: list[int]) -> int:

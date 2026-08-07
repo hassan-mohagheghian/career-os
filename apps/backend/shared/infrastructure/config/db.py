@@ -36,7 +36,6 @@ def init_db():
     import jobs.infrastructure.models.job_model
     import jobs.infrastructure.models.misc_models
     import skills.infrastructure.models.skill_model
-    import skills.infrastructure.models.skill_roadmap_models
     import companies.infrastructure.models.company_model
     import rules.infrastructure.models.rule_model
     import candidates.infrastructure.models.candidate_model  # noqa: F401

@@ -4,8 +4,8 @@
 
 How a user consolidates duplicate skill rows into a single canonical skill.
 
-The user picks a target skill; the current skill's mentions, roadmaps, and
-progress re-point to the target, and the source becomes a hidden alias of it.
+The user picks a target skill; the current skill's mentions re-point to the
+target, and the source becomes a hidden alias of it.
 
 ---
 
@@ -48,7 +48,6 @@ Click **Merge into selected**. The backend:
 
 - Re-points `skill_mentions` rows from the source to the target (skipping
   duplicate `(source_type, source_id)` keys already on the target).
-- Re-points roadmap references and updates progress/job rows.
 - Adds the source name as an alias of the target.
 - Hides the source skill.
 

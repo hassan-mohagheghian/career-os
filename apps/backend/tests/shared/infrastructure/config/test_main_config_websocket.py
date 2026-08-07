@@ -238,25 +238,17 @@ class TestSASkillRepositoryExtended:
         result = repo.create_relationship({})
         assert result is False
 
-    def test_merge_with_roadmap_references(self, sa_session):
+    def test_merge_with_references(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
         from skills.infrastructure.models.skill_model import SkillModel
-        from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapModel, SkillRoadmapProgressModel, SkillRoadmapJobModel
         sa_session.add(SkillModel(name="Python"))
         sa_session.add(SkillModel(name="Python3"))
         sa_session.commit()
         target = sa_session.query(SkillModel).filter(SkillModel.name == "Python").first()
         source = sa_session.query(SkillModel).filter(SkillModel.name == "Python3").first()
-        sa_session.add(SkillRoadmapModel(skill_name="Python3", title="Basics"))
-        sa_session.add(SkillRoadmapProgressModel(roadmap_id=1, skill_name="Python3"))
-        sa_session.add(SkillRoadmapJobModel(skill_name="Python3"))
-        sa_session.commit()
         repo = SQLAlchemySkillRepository(sa_session)
         result = repo.merge(target.id, [source.id])
         assert result["status"] == "merged"
-        roadmap = sa_session.query(SkillRoadmapModel).filter(SkillRoadmapModel.skill_name == "Python3").first()
-        # Roadmap should be renamed to Python
-        assert roadmap is None or roadmap.skill_name == "Python"
 
 
 # ── SA preference extended ────────────────────────────────────────
@@ -307,41 +299,6 @@ class TestSACompanyLinkExtended:
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
         repo = SQLAlchemyCompanyLinkRepository(sa_session)
         assert repo.get_by_id(999) is None
-
-
-# ── SA skill roadmap extended ─────────────────────────────────────
-
-class TestSASkillRoadmapExtended:
-    def test_delete_by_skill_name_empty(self, sa_session):
-        from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-        repo = SQLAlchemySkillRoadmapRepository(sa_session)
-        assert repo.delete_by_skill_name("Nonexistent") == 0
-
-    def test_get_max_version_empty(self, sa_session):
-        from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-        repo = SQLAlchemySkillRoadmapRepository(sa_session)
-        assert repo.get_max_version("Nonexistent") == 0
-
-
-# ── SA skill roadmap job extended ─────────────────────────────────
-
-class TestSASkillRoadmapJobExtended:
-    def test_create_with_kwargs(self, sa_session):
-        from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-        repo = SQLAlchemySkillRoadmapJobRepository(sa_session)
-        result = repo.create("Python", "extend", "queued", message="Starting", version=2)
-        assert result["message"] == "Starting"
-        assert result["version"] == 2
-
-    def test_get_all_empty(self, sa_session):
-        from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-        repo = SQLAlchemySkillRoadmapJobRepository(sa_session)
-        assert repo.get_all() == []
-
-    def test_get_for_skill_empty(self, sa_session):
-        from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
-        repo = SQLAlchemySkillRoadmapJobRepository(sa_session)
-        assert repo.get_for_skill("Python") == []
 
 
 # ── SA skill relationship extended ────────────────────────────────

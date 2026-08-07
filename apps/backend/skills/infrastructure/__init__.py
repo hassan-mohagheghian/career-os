@@ -7,15 +7,9 @@ def __getattr__(name: str):
         "SkillAliasModel": ("skills.infrastructure.models.skill_model", "SkillAliasModel"),
         "SkillRelationshipModel": ("skills.infrastructure.models.skill_model", "SkillRelationshipModel"),
         "SkillMentionModel": ("skills.infrastructure.models.skill_model", "SkillMentionModel"),
-        "SkillRoadmapModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapModel"),
-        "SkillRoadmapProgressModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapProgressModel"),
-        "SkillRoadmapJobModel": ("skills.infrastructure.models.skill_roadmap_models", "SkillRoadmapJobModel"),
         "SQLAlchemySkillRepository": ("skills.infrastructure.repositories.sa_skill_repository", "SQLAlchemySkillRepository"),
         "SQLAlchemySkillAliasRepository": ("skills.infrastructure.repositories.sa_skill_alias_repository", "SQLAlchemySkillAliasRepository"),
         "SQLAlchemySkillRelationshipRepository": ("skills.infrastructure.repositories.sa_skill_relationship_repository", "SQLAlchemySkillRelationshipRepository"),
-        "SQLAlchemySkillRoadmapRepository": ("skills.infrastructure.repositories.sa_skill_roadmap_repository", "SQLAlchemySkillRoadmapRepository"),
-        "SQLAlchemySkillRoadmapProgressRepository": ("skills.infrastructure.repositories.sa_skill_roadmap_progress_repository", "SQLAlchemySkillRoadmapProgressRepository"),
-        "SQLAlchemySkillRoadmapJobRepository": ("skills.infrastructure.repositories.sa_skill_roadmap_job_repository", "SQLAlchemySkillRoadmapJobRepository"),
         "skill_model_to_dict": ("skills.infrastructure.mappers", "skill_model_to_dict"),
         "dict_to_skill_model": ("skills.infrastructure.mappers", "dict_to_skill_model"),
     }
@@ -29,9 +23,7 @@ def __getattr__(name: str):
 
 __all__ = [
     "SkillModel", "SkillAliasModel", "SkillRelationshipModel", "SkillMentionModel",
-    "SkillRoadmapModel", "SkillRoadmapProgressModel", "SkillRoadmapJobModel",
     "SQLAlchemySkillRepository", "SQLAlchemySkillAliasRepository",
-    "SQLAlchemySkillRelationshipRepository", "SQLAlchemySkillRoadmapRepository",
-    "SQLAlchemySkillRoadmapProgressRepository", "SQLAlchemySkillRoadmapJobRepository",
+    "SQLAlchemySkillRelationshipRepository",
     "skill_model_to_dict", "dict_to_skill_model",
 ]

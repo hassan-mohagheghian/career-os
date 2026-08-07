@@ -35,8 +35,7 @@ app/
 │   │   ├── application/
 │   │   ├── infrastructure/
 │   │   └── presentation/api/
-│   │       ├── skills_router.py
-│   │       └── skill_roadmaps_router.py
+│   │       └── skills_router.py
 │   │
 │   ├── rules/                     # Rules (Scoring) Bounded Context
 │   │   ├── domain/
@@ -312,7 +311,6 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 | `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
 | `resumes` | `resumes_router` | `jobs/presentation/api/resumes_router.py` |
 | `skills` | `skills_router` | `skills/presentation/api/skills_router.py` |
-| `skill_roadmaps` | `skill_roadmaps_router` | `skills/presentation/api/skill_roadmaps_router.py` |
 | `rules` | `rules_router` | `rules/presentation/api/rules_router.py` |
 | `misc` | `dashboard_router` | `shared/presentation/api/dashboard_router.py` |
 | `static` | SPA catch-all | `entrypoints/api.py` |

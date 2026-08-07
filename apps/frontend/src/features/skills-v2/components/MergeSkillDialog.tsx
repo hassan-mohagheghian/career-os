@@ -45,7 +45,7 @@ export function MergeSkillDialog({ skill, open, onOpenChange, onMerge, pending }
           </DialogTitle>
           <DialogDescription>
             Merge <span className="font-semibold text-foreground">{skill?.name || 'this skill'}</span> into another skill.
-            Mentions and roadmaps are re-pointed; the skill becomes an alias of the target.
+            Mentions are re-pointed; the skill becomes an alias of the target.
           </DialogDescription>
         </DialogHeader>
 

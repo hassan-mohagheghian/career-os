@@ -2,9 +2,8 @@
 
 ## Purpose
 
-Consolidate duplicate skills into a single canonical skill. Mentions, roadmap
-references, and progress re-point to the target; the source becomes a hidden
-alias of the target.
+Consolidate duplicate skills into a single canonical skill. Mentions re-point
+to the target; the source becomes a hidden alias of the target.
 
 ---
 
@@ -35,9 +34,8 @@ For each source skill:
 1. `skill_mentions` rows are re-pointed to the target. Rows whose
    `(source_type, source_id)` key already exists on the target are dropped
    (the target's existing mention is kept).
-2. Roadmap references and progress/job rows are re-pointed to the target.
-3. The source name is added as an alias of the target.
-4. The source skill is hidden (merged), keeping the alias lineage.
+2. The source name is added as an alias of the target.
+3. The source skill is hidden (merged), keeping the alias lineage.
 
 ## Errors
 

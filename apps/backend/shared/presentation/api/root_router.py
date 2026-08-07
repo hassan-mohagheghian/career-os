@@ -15,7 +15,6 @@ from jobs.presentation.api.jobs_router import router as jobs_router
 from skills.presentation.api.skills_router import router as skills_router
 from companies.presentation.api.companies_router import router as companies_router
 
-from skills.presentation.api.skill_roadmaps_router import router as skill_roadmaps_router
 from rules.presentation.api.rules_router import router as rules_router
 from shared.presentation.api.dashboard_router import router as dashboard_router
 from ai.presentation.api.llm_configurations_router import router as llm_configurations_router
@@ -24,7 +23,7 @@ from processing.presentation.api.executions_router import router as executions_r
 from candidates.presentation.api.candidates_router import router as candidates_router
 
 # DI dependencies — wired through bounded context infrastructure
-from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
+from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo
 
 # Bounded context infrastructure — for inline routes in this file
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -47,7 +46,6 @@ api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 
-api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
@@ -77,69 +75,6 @@ def tech_stack_compat():
     try:
         repo = SQLAlchemySkillRepository(session)
         return repo.list_visible()
-    finally:
-        session.close()
-
-
-# ── Skill roadmap progress routes ───────────────────────────────
-
-@api_router.get("/skill-roadmap-progress/all")
-def skill_roadmap_progress_all():
-    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRoadmapProgressRepository(session)
-        return repo.get_all_aggregated()
-    finally:
-        session.close()
-
-
-@api_router.get("/skill-roadmap-progress")
-def skill_roadmap_progress_compat(skill: str = None):
-    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRoadmapProgressRepository(session)
-        if skill:
-            return repo.get_by_skill(skill)
-        else:
-            return skill_roadmap_progress_all()
-    finally:
-        session.close()
-
-
-@api_router.patch("/skill-roadmap-progress/{id}")
-def toggle_roadmap_progress(id: int, data: dict = None):
-    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRoadmapProgressRepository(session)
-        result = repo.toggle(id, "")
-        return result
-    finally:
-        session.close()
-
-
-@api_router.put("/skill-roadmap-progress/{id}")
-def update_roadmap_progress(id: int, data: dict = None):
-    from skills.infrastructure import SQLAlchemySkillRoadmapProgressRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRoadmapProgressRepository(session)
-        data = data or {}
-        completed = 1 if data.get("completed") else 0
-        return repo.set_completed(id, completed)
-    finally:
-        session.close()
-
-
-@api_router.get("/skill-roadmap-jobs")
-def skill_roadmap_jobs_compat(limit: int = 50):
-    from skills.infrastructure import SQLAlchemySkillRoadmapJobRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRoadmapJobRepository(session)
-        return {"items": repo.get_all(limit)}
     finally:
         session.close()
 

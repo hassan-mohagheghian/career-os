@@ -33,7 +33,6 @@ import jobs.infrastructure.models.job_analysis_model  # noqa: F401
 import jobs.infrastructure.models.job_company_model  # noqa: F401
 import jobs.infrastructure.models.misc_models  # noqa: F401
 import skills.infrastructure.models.skill_model  # noqa: F401
-import skills.infrastructure.models.skill_roadmap_models  # noqa: F401
 import companies.infrastructure.models.company_model  # noqa: F401
 import rules.infrastructure.models.rule_model  # noqa: F401
 import ai.infrastructure.models.llm_configuration_model  # noqa: F401

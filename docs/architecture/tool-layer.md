@@ -20,7 +20,7 @@ The Tool Layer provides a unified abstraction for all tool executions across AI 
 │                    AI Workflows                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
 │  │   Job    │  │ Company  │  │   Skill  │  │ Skills │  │
-│  │Processing│  │Processing│  │ Roadmaps │  │Extrac. │  │
+│  │Processing│  │Processing│  │  Merge   │  │Extrac. │  │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │
 │       │              │              │             │       │
 │  ┌────▼──────────────▼──────────────▼─────────────▼───┐  │

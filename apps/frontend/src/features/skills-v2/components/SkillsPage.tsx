@@ -148,7 +148,6 @@ export function SkillsPage({
         onOpenChange={onDetailSkillIdChange}
         onEdit={onEdit}
         onDelete={onDelete}
-        onRefresh={onRefetch}
       />
       <SkillEditDrawer
         skillId={editSkillId}

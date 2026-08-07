@@ -75,7 +75,6 @@ def _build_app(sa_session):
         get_session, get_session_sync, get_job_repo, get_skill_repo,
         get_company_repo, get_pending_repo, get_rule_repo,
         get_summary_repo, get_company_link_repo, get_company_intelligence_repo,
-        get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
         get_processing_execution_repo,
     )
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -85,9 +84,6 @@ def _build_app(sa_session):
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
-    from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
     from processing.infrastructure.repositories.sa_processing_execution_repository import SQLAlchemyProcessingExecutionRepository
 
     app = create_app()
@@ -109,9 +105,6 @@ def _build_app(sa_session):
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
     app.dependency_overrides[get_company_link_repo] = lambda: SQLAlchemyCompanyLinkRepository(sa_session)
     app.dependency_overrides[get_company_intelligence_repo] = lambda: SQLAlchemyCompanyIntelligenceRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
-    app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)
     app.dependency_overrides[get_processing_execution_repo] = lambda: SQLAlchemyProcessingExecutionRepository(sa_session)
 
     return app

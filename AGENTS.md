@@ -8,7 +8,7 @@ This file gives AI coding agents the context needed to work correctly in this re
 
 - Job discovery and processing (URL → fetch → extract → AI analysis → score → save)
 - Company intelligence (profile extraction, visa assessment, Fit/Success/Overall scoring)
-- Skills management (5-category taxonomy, aliases, AI roadmaps)
+- Skills management (5-category taxonomy, aliases, AI insights)
 - Career insights (health score, market analysis, opportunity funnel)
 - Resume and cover letter generation
 

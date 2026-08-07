@@ -27,11 +27,6 @@ class GenerationSource(str, Enum):
     JOB_PROCESS = 'job_process'
     COMPANY_PROCESS = 'company_process'
 
-    # Skill roadmap sources
-    SKILL_ROADMAP_GENERATE = 'skill_roadmap_generate'
-    SKILL_ROADMAP_EXTEND = 'skill_roadmap_extend'
-    SKILL_ROADMAP_FINEGRAIN = 'skill_roadmap_finegrain'
-
     @property
     def group(self) -> str:
         """Logical group for filtering/display."""
@@ -39,8 +34,6 @@ class GenerationSource(str, Enum):
             return 'processing'
         if self.value.startswith('company_'):
             return 'processing'
-        if self.value.startswith('skill_roadmap_'):
-            return 'roadmap'
         return 'other'
 
     @property
@@ -49,10 +42,6 @@ class GenerationSource(str, Enum):
         _DISPLAY = {
             'job_process': 'Job Processing',
             'company_process': 'Company Processing',
-
-            'skill_roadmap_generate': 'Skill Roadmap: Generate',
-            'skill_roadmap_extend': 'Skill Roadmap: Extend',
-            'skill_roadmap_finegrain': 'Skill Roadmap: Fine-grain',
         }
         return _DISPLAY.get(self.value, self.value.replace('_', ' ').title())
 
@@ -116,37 +105,6 @@ SOURCE_STEP_CONFIG: Dict[GenerationSource, Dict[str, Any]] = {
             {'key': 'step_done', 'label': 'Done'},
         ],
     },
-    # Skill Roadmap: 4 steps each
-    GenerationSource.SKILL_ROADMAP_GENERATE: {
-        'label': 'Skill Roadmap: Generate',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.SKILL_ROADMAP_EXTEND: {
-        'label': 'Skill Roadmap: Extend',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    GenerationSource.SKILL_ROADMAP_FINEGRAIN: {
-        'label': 'Skill Roadmap: Fine-grain',
-        'total_steps': 4,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
 }
 
 
@@ -203,7 +161,6 @@ class GenerationRun:
         source_group = self.source.group
         source_label_map = {
             'processing': 'job-processing' if 'job' in self.source.value else 'company-processing',
-            'roadmap': 'roadmap',
         }
         normalized_source = source_label_map.get(source_group, source_group)
 
@@ -228,7 +185,7 @@ class GenerationHistoryItem:
     """
 
     id: int
-    source: str  # 'job-processing', 'company-processing', 'generation', 'roadmap'
+    source: str  # 'job-processing', 'company-processing', 'generation'
     title: str
     status: str
     started_at: Optional[str] = None

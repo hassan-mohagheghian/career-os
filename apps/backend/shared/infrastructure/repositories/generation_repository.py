@@ -12,12 +12,11 @@ from typing import Optional, List, Dict
 from shared.domain.models.generation_models import GenerationHistoryItem
 from dependencies import get_session_sync
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
 
 
 
 class GenerationHistoryRepository:
-    """Reads generation history from all 5 source tables and normalizes.
+    """Reads generation history from all source tables and normalizes.
 
     DDD: Read-only repository for the generation history projection.
     SRP: Only handles reading and normalizing generation history.
@@ -43,8 +42,6 @@ class GenerationHistoryRepository:
             all_items.extend(self._query_pending_jobs())
         if source_filter is None or source_filter == 'company-processing':
             all_items.extend(self._query_pending_companies())
-        if source_filter is None or source_filter == 'roadmap':
-            all_items.extend(self._query_roadmap_jobs())
         def sort_key(item: GenerationHistoryItem) -> str:
             return item.started_at or item.completed_at or ''
 
@@ -105,33 +102,6 @@ class GenerationHistoryRepository:
             pass
         return items
 
-    def _query_roadmap_jobs(self) -> List[GenerationHistoryItem]:
-        items = []
-        try:
-            session = self._session()
-            try:
-                repo = SQLAlchemySkillRoadmapJobRepository(session)
-                rows = repo.get_all(limit=200)
-                for r in rows:
-                    skill = r.get('skill_name', '?')
-                    job_type = r.get('job_type', 'generate')
-                    items.append(GenerationHistoryItem(
-                        id=r['id'],
-                        source='roadmap',
-                        title=f"{skill} ({job_type})",
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('started_at'),
-                        completed_at=r.get('completed_at'),
-                        error=r.get('error'),
-                        session_id=r.get('session_id'),
-                        provider=r.get('provider_name'),
-                    ))
-            finally:
-                session.close()
-        except Exception:
-            pass
-        return items
-
     # ── Context-filtered queries for local history ────────────────────
 
     def get_for_job(self, job_id: str, limit: int = 50) -> Dict[str, any]:
@@ -148,19 +118,11 @@ class GenerationHistoryRepository:
         all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
         return {'items': all_items[:limit], 'total': len(all_items)}
 
-    def get_for_skill(self, skill_name: str, limit: int = 50) -> Dict[str, any]:
-        """Get generation history for a specific skill."""
-        all_items: List[GenerationHistoryItem] = []
-        all_items.extend(self._query_roadmap_jobs_for_skill(skill_name))
-        all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
-        return {'items': all_items[:limit], 'total': len(all_items)}
-
     def get_active_count(
         self,
         context: str,
         job_id: Optional[str] = None,
         company_id: Optional[str] = None,
-        skill_name: Optional[str] = None,
     ) -> int:
         """Count currently running/queued items for a context."""
         count = 0
@@ -179,12 +141,6 @@ class GenerationHistoryRepository:
                     count = session.query(CompanyModel).filter(
                         CompanyModel.id == company_id,
                         CompanyModel.status.in_(["processing", "queued"]),
-                    ).count()
-                elif context == 'skill' and skill_name is not None:
-                    from skills.infrastructure.models.skill_roadmap_models import SkillRoadmapJobModel
-                    count = session.query(SkillRoadmapJobModel).filter(
-                        SkillRoadmapJobModel.skill_name.ilike(skill_name),
-                        SkillRoadmapJobModel.status.in_(["queued", "running"]),
                     ).count()
 
             finally:
@@ -243,32 +199,6 @@ class GenerationHistoryRepository:
                         completed_at=d.get('updated_at') if d.get('status') in ('done', 'failed') else None,
                         error=d.get('error'),
                         session_id=d.get('session_id'),
-                    ))
-            finally:
-                session.close()
-        except Exception:
-            pass
-        return items
-
-    def _query_roadmap_jobs_for_skill(self, skill_name: str) -> List[GenerationHistoryItem]:
-        items = []
-        try:
-            session = self._session()
-            try:
-                repo = SQLAlchemySkillRoadmapJobRepository(session)
-                rows = repo.get_for_skill(skill_name)
-                for r in rows:
-                    job_type = r.get('job_type', 'generate')
-                    items.append(GenerationHistoryItem(
-                        id=r['id'],
-                        source='roadmap',
-                        title=f"{skill_name} ({job_type})",
-                        status=r.get('status', 'unknown'),
-                        started_at=r.get('started_at'),
-                        completed_at=r.get('completed_at'),
-                        error=r.get('error'),
-                        session_id=r.get('session_id'),
-                        provider=r.get('provider_name'),
                     ))
             finally:
                 session.close()
