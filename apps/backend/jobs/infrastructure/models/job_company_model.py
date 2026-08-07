@@ -32,7 +32,6 @@ class JobCompanyModel(Base):
     )
     company_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("company.companies.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

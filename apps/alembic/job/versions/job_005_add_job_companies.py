@@ -46,12 +46,6 @@ def upgrade() -> None:
             name=op.f("fk_job_companies_job_id_jobs"),
             ondelete="CASCADE",
         ),
-        sa.ForeignKeyConstraint(
-            ["company_id"],
-            ["company.companies.id"],
-            name=op.f("fk_job_companies_company_id_companies"),
-            ondelete="CASCADE",
-        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_job_companies")),
         schema="job",
     )
