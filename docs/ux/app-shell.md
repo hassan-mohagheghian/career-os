@@ -20,8 +20,8 @@ same content as a left `Sheet` drawer.
 │              │                         page content                         │
 │ ◉ Jobs       │                  (flex column beside the rail)               │
 │ ▣ Companies  │                                                              │
-│ ▤ Candidate  │                                                              │
 │ ▧ Skills     │                                                              │
+│ ▤ Candidate  │                                                              │
 │ ⚙ Rules      │                                                              │
 │ 🧠 AI ▾      │                                                              │
 │   └ LLM Conf │                                                              │
@@ -70,8 +70,8 @@ Hamburger (☰) opens left Sheet (w-72):
 ├────────────────┤
 │ ◉ Jobs         │
 │ ▣ Companies    │
-│ ▤ Candidate    │
 │ ▧ Skills       │
+│ ▤ Candidate    │
 │ ⚙ Rules        │
 │ 🧠 AI ▾        │
 │   └ LLM Configurations │
@@ -91,9 +91,9 @@ flowchart TD
     B --> E[Brand → /jobs]
     B --> F[Jobs → /jobs]
     B --> G[Companies → /companies]
-    B --> H[Candidate → /candidate]
-    B --> I[Skills → /skills]
+    B --> H[Skills → /skills]
     B --> J[Rules → /rules]
+    B --> I[Candidate → /candidate]
     B --> K[AI]
     K --> L[LLM Configurations → /ai/llm-configurations]
     B --> M[Bottom cluster]

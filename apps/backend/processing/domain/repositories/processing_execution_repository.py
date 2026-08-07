@@ -20,6 +20,16 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
+    def active_execution(self, target_type: str, target_id: str) -> ProcessingExecution | None:
+        """Return the most recent active execution for a target, if any.
+
+        Active means the execution is still in flight or awaiting action:
+        ``queued``, ``starting``, ``running`` or ``failed``. Used to enforce the
+        single-active-execution-per-target invariant.
+        """
+        ...
+
+    @abstractmethod
     def latest_by_target_ids(
         self, target_type: str, target_ids: list[str]
     ) -> dict[str, dict[str, Any]]:

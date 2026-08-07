@@ -10,7 +10,7 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ </> Kubernetes (engineering) [AI]                 ✕  Edit │
+│ </> Kubernetes (engineering) [AI]   Edit                  ✕ │
 ├────────────────────────────────────────────────────────────┤
 │ ★ Lv.4   Confidence: 85%   Market: 90%                    │
 │                                                            │

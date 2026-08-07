@@ -71,6 +71,9 @@ shared `Drawer` primitive (`docs/ux/design-system/drawer.md`).
 - **Save** is disabled until both `key` and `value` are non-empty.
 - Saving the same `key` twice for a category is prevented by the backend unique
   constraint on `(category, key)`.
+- **Save** uses the shared primary button variant (`variant="default"`,
+  `size="sm"`) — the same design-token save button as every other drawer.
+  **Cancel** uses `variant="outline"`.
 
 ## Behavior
 

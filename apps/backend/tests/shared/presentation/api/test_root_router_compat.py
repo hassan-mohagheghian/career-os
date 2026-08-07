@@ -158,6 +158,61 @@ def test_reprocess_company_not_found(client, sa_session):
     enqueue.assert_not_called()
 
 
+def test_reprocess_company_replaces_failed_execution(client, sa_session):
+    from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
+
+    co_id = _seed_company(sa_session, name="RetryCo")
+    failed = ProcessingExecutionModel(
+        id="exec-failed-company",
+        execution_type="company_processing",
+        status="failed",
+        target_type="company",
+        target_id=co_id,
+    )
+    sa_session.add(failed)
+    sa_session.commit()
+
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
+        resp = client.post(f"/api/companies/{co_id}/reprocess")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "queued"
+    assert data["execution_id"] != failed.id
+    enqueue.assert_called_once_with(data["execution_id"])
+
+    sa_session.expire_all()
+    old = sa_session.get(ProcessingExecutionModel, failed.id)
+    assert old.status == "cancelled"
+
+
+def test_reprocess_company_is_conflict_when_active(client, sa_session):
+    from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
+
+    co_id = _seed_company(sa_session, name="ActiveCo")
+    sa_session.add(
+        ProcessingExecutionModel(
+            id="exec-active-company",
+            execution_type="company_processing",
+            status="queued",
+            target_type="company",
+            target_id=co_id,
+        )
+    )
+    sa_session.commit()
+
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+    ):
+        resp = client.post(f"/api/companies/{co_id}/reprocess")
+    assert resp.status_code == 409
+    enqueue.assert_not_called()
+    publish.assert_not_called()
+
+
 # ── company intake ──────────────────────────────────────────────
 
 

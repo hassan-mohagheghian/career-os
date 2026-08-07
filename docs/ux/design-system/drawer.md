@@ -117,6 +117,25 @@ Drawer
 
 ---
 
+# Header Close Button Clearance
+
+The `Sheet`-based drawers render the close button at a **fixed position** in the
+top-right corner (`absolute top-4 right-4`), independent of the header layout.
+
+A header that also renders an action button on the right (for example the
+**Edit** button in the Job / Company / Skill detail drawers) must reserve space
+for the close button so the two never overlap:
+
+- Header actions must leave at least `pr-14` right padding
+  (`pl-4 pr-14 py-3`).
+- Title-only headers keep the default `px-4 py-3` — there is nothing in the
+  corner to collide with.
+
+The vaul-based `Drawer` shell lays its close button out in normal flex flow, so
+it never overlaps header content.
+
+---
+
 # Properties
 
 | Property     | Description              |

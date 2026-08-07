@@ -452,8 +452,10 @@ Rules:
 
 Retry:
 
+- Cancels the failed execution (it leaves the Failed section).
 - Creates a new ProcessingExecution.
-- Creates a new queue entry.
+- Creates a new queue entry (Queued).
+- Only one active execution is kept per target.
 
 Remove:
 
@@ -638,7 +640,10 @@ workflow state from the first live event:
 - Jobs are the source of truth.
 - Processing Queue is a live execution view.
 - ProcessingExecution owns execution lifecycle.
-- A Job has at most one active execution.
+- A Job has at most one active execution (enforced by the backend — creating a
+  second one while an active execution exists returns HTTP 409).
+- Retrying / reprocessing a failed Job cancels the failed execution so it leaves
+  the Failed section and is replaced by a new queued execution.
 - Completed executions disappear from Queue.
 - Failed executions remain until retry or removal.
 - Removing queue entry never deletes Job.

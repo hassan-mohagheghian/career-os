@@ -36,7 +36,7 @@ export function SkillDetailDrawer({
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onOpenChange(null) }}>
       <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
-        <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
+        <SheetHeader className="flex flex-row items-center justify-between pl-4 pr-14 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold flex items-center gap-1.5">
             <Code className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="truncate">{skill.name}</span>

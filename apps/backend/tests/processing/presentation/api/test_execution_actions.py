@@ -87,7 +87,51 @@ def test_retry_failed_execution(client, sa_session):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "queued"
-    enqueue.assert_called_once()
+    assert data["retry_of"] == execution.id
+    assert data["execution_id"] != execution.id
+    enqueue.assert_called_once_with(data["execution_id"])
+
+    sa_session.expire_all()
+    old = sa_session.get(ProcessingExecutionModel, execution.id)
+    assert old.status == "cancelled"
+
+
+def test_retry_removes_failed_entry_from_queue_snapshot(client, sa_session):
+    execution = _execution("failed")
+    sa_session.add(execution)
+    sa_session.commit()
+
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync"),
+        patch("shared.infrastructure.events.processing_events.publish_sync"),
+    ):
+        response = client.post(f"/api/processing/executions/{execution.id}/retry")
+
+    assert response.status_code == 200
+    new_id = response.json()["execution_id"]
+    snapshot = client.get("/api/processing/queue").json()
+    assert all(
+        entry["execution_id"] != execution.id
+        for section in snapshot.values()
+        for entry in section
+    )
+    assert any(entry["execution_id"] == new_id for entry in snapshot["queued"])
+
+
+def test_retry_non_failed_execution_is_conflict(client, sa_session):
+    execution = _execution("completed")
+    sa_session.add(execution)
+    sa_session.commit()
+
+    with (
+        patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+        patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+    ):
+        response = client.post(f"/api/processing/executions/{execution.id}/retry")
+
+    assert response.status_code == 409
+    enqueue.assert_not_called()
+    publish.assert_not_called()
 
 
 def test_remove_queue_entry(client, sa_session):

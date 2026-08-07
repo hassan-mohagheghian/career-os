@@ -241,6 +241,11 @@ Processing
 
 Completed
 
+The failed attempt (ProcessingExecution #1) is **cancelled** when the retry is
+created, so it leaves the queue's Failed section. The platform keeps a single
+active execution per job (queued / processing / failed); a new execution is
+refused with HTTP 409 while one is already active.
+
 ---
 
 # TaskIQ Relationship

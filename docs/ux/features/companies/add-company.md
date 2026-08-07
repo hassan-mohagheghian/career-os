@@ -52,10 +52,11 @@ links → optional notes**.
 The primary link is the main source for the company and is required. The URL is
 typed into the input; URLs missing a scheme are prefixed with `https://`.
 
-Every time the drawer opens, if the clipboard holds a URL (matching
-`http(s)://…`), it is automatically pasted into the Primary Link field unless
-the field is already populated — matching the Add Job drawer behavior. An empty
-or non-URL clipboard is ignored silently.
+Every time the drawer opens, the Primary Link field is **cleared first**, then
+the clipboard is read — if it holds a URL (matching `http(s)://…`), that URL is
+pasted into the field, replacing any stale value — matching the Add Job drawer
+behavior. An empty or non-URL clipboard is ignored silently (the field opens
+empty).
 
 After a successful **Add** / **Add & Process**, the very next open of the drawer
 **skips** the clipboard prefill so the Primary Link field opens empty — the

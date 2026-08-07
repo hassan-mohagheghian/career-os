@@ -151,6 +151,22 @@ LangGraph Workflow
 
 ---
 
+# Single Active Execution
+
+The platform keeps **at most one active execution per target**
+(`queued` / `starting` / `running` / `failed`).
+
+When `POST /api/jobs/{job_id}/process` is called:
+
+- If the job has a **failed** execution, it is cancelled (removed from the
+  Failed section) and replaced by a new execution.
+- If the job already has a **queued / starting / running** execution, the
+  request is rejected with **HTTP 409 Conflict** — no second execution is
+  created.
+- A `completed` or `cancelled` execution does not block a new one.
+
+---
+
 # TaskIQ Integration
 
 After creating ProcessingExecution:

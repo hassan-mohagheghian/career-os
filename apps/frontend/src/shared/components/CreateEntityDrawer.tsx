@@ -85,6 +85,14 @@ export default function CreateEntityDrawer({
 
   useEffect(() => {
     if (!open) return
+    // Clear the link field first so every open starts fresh, then read the
+    // clipboard. Replacing (not `prev || url`) also overwrites any stale value
+    // left behind by a programmatic close that skipped the reset.
+    if (isCompany) {
+      setPrimaryUrl('')
+    } else {
+      setUrlInput('')
+    }
     if (skipClipboardPrefill.current) {
       skipClipboardPrefill.current = false
       return
@@ -93,9 +101,9 @@ export default function CreateEntityDrawer({
     readClipboardUrl().then((url) => {
       if (cancelled || !url) return
       if (isCompany) {
-        setPrimaryUrl((prev) => prev || url)
+        setPrimaryUrl(url)
       } else {
-        setUrlInput((prev) => prev || url)
+        setUrlInput(url)
       }
     })
     return () => {

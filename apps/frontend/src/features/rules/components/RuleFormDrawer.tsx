@@ -85,7 +85,7 @@ export default function RuleFormDrawer({ open, onOpenChange, title, initial, onS
       </DrawerContent>
       <DrawerFooter>
         <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}><X className="w-3 h-3" /> Cancel</Button>
-        <Button size="sm" className="bg-green-500 hover:bg-green-600" disabled={!f.key || !f.value} onClick={() => { if (f.key && f.value) onSave(f) }}><Check className="w-3 h-3" /> Save</Button>
+        <Button variant="default" size="sm" disabled={!f.key || !f.value} onClick={() => { if (f.key && f.value) onSave(f) }}><Check className="w-3 h-3" /> Save</Button>
       </DrawerFooter>
     </Drawer>
   )

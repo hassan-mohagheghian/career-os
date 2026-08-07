@@ -6,6 +6,7 @@ from typing import Any
 from processing.domain.enums import ExecutionType, ExecutionStatus
 from processing.domain.entities.processing_execution import ProcessingExecution
 from processing.domain.repositories.processing_execution_repository import IProcessingExecutionRepository
+from shared.application.exceptions import ConflictError
 
 
 @dataclass
@@ -26,6 +27,12 @@ class CreateProcessingExecutionUseCase:
         self._repository = repository
 
     def execute(self, request: CreateProcessingExecutionRequest) -> CreateProcessingExecutionResponse:
+        active = self._repository.active_execution(request.target_type, request.target_id)
+        if active:
+            raise ConflictError(
+                f"{request.target_type.capitalize()} {request.target_id} already has an active "
+                f"execution (status={active.status.value})"
+            )
         execution = ProcessingExecution(
             execution_type=request.execution_type,
             target_type=request.target_type,

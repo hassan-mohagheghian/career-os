@@ -102,6 +102,26 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         ).order_by(ProcessingExecutionModel.created_at.desc()).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
+    _ACTIVE_STATUSES = ("queued", "starting", "running", "failed")
+
+    def active_execution(self, target_type: str, target_id: str) -> ProcessingExecution | None:
+        model = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.target_type == target_type,
+                ProcessingExecutionModel.target_id == target_id,
+                ProcessingExecutionModel.status.in_(self._ACTIVE_STATUSES),
+            )
+            .order_by(
+                ProcessingExecutionModel.created_at.desc(),
+                ProcessingExecutionModel.id.desc(),
+            )
+            .first()
+        )
+        if not model:
+            return None
+        return ProcessingExecution.from_dict(model_to_dict(model))
+
     def latest_by_target_ids(
         self, target_type: str, target_ids: list[str]
     ) -> dict[str, dict[str, Any]]:

@@ -212,6 +212,27 @@ describe('CreateEntityDrawer — clipboard prefill', () => {
     expect(urlInput.value).toBe('')
   })
 
+  it('clears a stale URL and re-reads the clipboard on every open', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
+    const onOpenChange = vi.fn()
+    const { rerender } = render(
+      <CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={vi.fn()} />
+    )
+    let urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/123'))
+
+    // Simulate a programmatic close that bypasses the on-close reset: the stale
+    // value survives in state.
+    fireEvent.change(urlInput, { target: { value: 'https://stale.example' } })
+    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={vi.fn()} />)
+
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/456')
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={vi.fn()} />)
+    urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/456'))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(2)
+  })
+
   it('skips the clipboard prefill on the reopen right after a successful Add', async () => {
     readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
     const onSubmit = vi.fn()

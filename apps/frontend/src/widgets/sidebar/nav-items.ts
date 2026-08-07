@@ -23,8 +23,8 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: 'jobs', label: 'Jobs', icon: Briefcase },
   { id: 'companies', label: 'Companies', icon: Buildings },
-  { id: 'candidate', label: 'Candidate', icon: UserCircle },
   { id: 'skills', label: 'Skills', icon: TreeStructure },
+  { id: 'candidate', label: 'Candidate', icon: UserCircle },
   { id: 'rules', label: 'Rules', icon: Gear },
   {
     id: 'ai',

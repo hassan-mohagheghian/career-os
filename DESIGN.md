@@ -25,8 +25,8 @@ SIDEBAR RAIL
   ├── Job Search (brand → /jobs)
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
   ├── Companies      Company intelligence + processing queue
-  ├── Candidate      Candidate profile import + review
   ├── Skills         Skill management, aliases, insights
+  ├── Candidate      Candidate profile import + review
   ├── Rules          Scoring rules configuration
   └── AI ▾           Inline expandable submenu
       └── LLM Configurations

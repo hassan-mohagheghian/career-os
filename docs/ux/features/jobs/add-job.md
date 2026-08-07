@@ -143,16 +143,18 @@ Examples
 
 ## Clipboard Prefill
 
-Every time the drawer opens, if the clipboard holds a URL (matching
-`http(s)://…`), it is automatically pasted into the Job Post URL field —
-unless the field is already populated. A hint under the field explains this:
+Every time the drawer opens, the Job Post URL field is **cleared first**, then
+the clipboard is read — if it holds a URL (matching `http(s)://…`), that URL is
+pasted into the field. Any stale value from a previous interaction is always
+replaced by the clipboard content. A hint under the field explains this:
 
 ```text
 Tip: a copied link is auto-filled from your clipboard.
 ```
 
 This makes the common "copy a job posting → press N → Add" flow effectively
-three steps. An empty or non-URL clipboard is ignored silently.
+three steps. An empty or non-URL clipboard is ignored silently (the field opens
+empty).
 
 After a successful **Add** / **Add & Queue**, the very next open of the drawer
 **skips** the clipboard prefill so the URL field opens empty — the clipboard

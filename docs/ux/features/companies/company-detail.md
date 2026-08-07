@@ -15,7 +15,7 @@ visa-seeking software engineer.
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Company Details                    [Edit]     │
+│ Company Details              [Edit]              ✕ │
 ├──────────────────────────────────────────────┤
 │ [A+]  Fit 85  Success 90  Overall 88         │
 │ ◉ Acme GmbH                                  │

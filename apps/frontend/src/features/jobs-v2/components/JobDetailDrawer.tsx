@@ -338,7 +338,7 @@ export function JobDetailDrawer({ jobId, onOpenChange, onEdit }: JobDetailDrawer
   return (
     <Sheet open={!!jobId} onOpenChange={(open) => { if (!open) onOpenChange(null) }}>
       <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
-        <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b border-border/40 shrink-0">
+        <SheetHeader className="flex flex-row items-center justify-between pl-4 pr-14 py-3 border-b border-border/40 shrink-0">
           <SheetTitle className="text-sm font-semibold">Job Details</SheetTitle>
           {onEdit && jobId && (
             <Button

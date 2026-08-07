@@ -8,7 +8,9 @@ Retry does not restart the previous execution.
 
 A new ProcessingExecution is created and added to the Processing Queue.
 
-The original failed execution remains available for history and auditing.
+The previous failed execution is **cancelled** so it leaves the Failed section —
+the platform keeps a single active execution per target (queued / processing /
+failed). The cancelled row remains in the database for history and auditing.
 
 ---
 
@@ -53,6 +55,12 @@ Main flow:
         v
 
     Backend validates failed execution
+
+        |
+
+        v
+
+    Cancel previous failed execution (removed from Failed section)
 
         |
 
@@ -120,11 +128,15 @@ Retry is not allowed when execution status is:
 
     cancelled
 
+Retry keeps a single active execution per target. If the target already has a
+queued / processing / failed execution other than the one being retried, the
+request is rejected with HTTP 409.
+
 ---
 
 # Execution Relationship
 
-A retry creates a new ProcessingExecution.
+A retry creates a new ProcessingExecution and cancels the previous one.
 
 Example:
 
@@ -132,7 +144,7 @@ Previous execution:
 
     execution-123
 
-    status: failed
+    status: failed → cancelled (on retry)
 
 New execution:
 
@@ -154,7 +166,7 @@ Original execution:
 
         v
 
-    remains failed
+    cancelled (removed from the Failed section, kept in DB for history)
 
 New execution:
 
@@ -172,10 +184,12 @@ New execution:
 
 After retry:
 
-1. Create new ProcessingExecution.
-2. Add it to Processing Queue.
-3. New execution waits for available worker.
-4. Previous failed execution remains unchanged.
+1. Cancel the previous failed execution (it leaves the Failed section).
+2. Create a new ProcessingExecution.
+3. Add it to Processing Queue.
+4. New execution waits for available worker.
+
+Only one active execution is kept per target.
 
 Example:
 
@@ -189,18 +203,14 @@ Before:
 
 After:
 
-    Failed
-
-    Senior Backend Engineer
-
-    execution-123
-
-
     Queued
 
     Senior Backend Engineer
 
     execution-456
+
+The cancelled previous execution (`execution-123`) no longer appears in the
+Failed section.
 
 ---
 
@@ -225,9 +235,22 @@ After successful retry:
 
 Backend emits:
 
+    queue.entry.removed
+
+for the cancelled previous execution, and:
+
     execution.created
 
+for the new one.
+
 Example:
+
+    {
+      "type": "queue.entry.removed",
+      "execution_id": "execution-123",
+      "status": "cancelled",
+      "timestamp": "2026-01-01T11:00:00Z"
+    }
 
     {
       "type": "execution.created",
@@ -253,7 +276,7 @@ After receiving success response:
 
 Frontend should:
 
-1. Remove old failed item only if user action requires it.
+1. Remove the old failed item (the backend has cancelled it).
 2. Add new queued item.
 3. Subscribe to SSE updates.
 4. Show new execution progress.
@@ -269,13 +292,6 @@ Before:
     Failed to fetch source
 
 After:
-
-    Failed
-
-    Senior Backend Engineer
-
-    Failed to fetch source
-
 
     Queued
 

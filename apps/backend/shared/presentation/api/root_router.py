@@ -136,33 +136,19 @@ def link_job_to_company(job_id: str, data: dict):
 def reprocess_company(id: str, session: Session = Depends(get_session_sync)):
     from companies.infrastructure import SQLAlchemyCompanyRepository
     from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
-    from processing.domain.enums import ExecutionType
-    from processing.application.use_cases.create_processing_execution import (
-        CreateProcessingExecutionRequest,
-        CreateProcessingExecutionUseCase,
-    )
-    from processing.application.services.dispatch_processing_execution import (
-        DispatchProcessingExecutionService,
-    )
+    from processing.application.services.execution_actions import ExecutionActionService
 
     company_repo = SQLAlchemyCompanyRepository(session)
     company = company_repo.get_by_id(id)
     if not company:
         return {"error": "Not found"}
 
+    exec_repo = SQLAlchemyProcessingExecutionRepository(session)
+    result = ExecutionActionService(exec_repo).reprocess("company", id)
+
     company_repo.update_fields(id, status="queued", error=None, updated_at=datetime.now(UTC).isoformat())
     session.commit()
-
-    exec_repo = SQLAlchemyProcessingExecutionRepository(session)
-    use_case = CreateProcessingExecutionUseCase(exec_repo)
-    request = CreateProcessingExecutionRequest(
-        execution_type=ExecutionType.COMPANY_PROCESSING,
-        target_type="company",
-        target_id=id,
-    )
-    response = use_case.execute(request)
-    DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
-    return {"status": "queued", "execution_id": response.execution_id}
+    return {"status": "queued", "execution_id": result["execution_id"]}
 
 
 
