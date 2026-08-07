@@ -29,7 +29,7 @@ docs/ux/
 │   ├── drawer.md              Drawer (variants, placement, anatomy)
 │   ├── input.md               DebouncedInput (text search / filter inputs)
 │   └── README.md
-├── app-shell.md               Header top menu (main nav), AI submenu, mobile sheet
+├── app-shell.md               Left sidebar nav (rail + collapse + mobile sheet)
 ├── features/
 │   ├── ai/
 │   │   ├── llm-configurations.md

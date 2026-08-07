@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
-import Header from './index'
+import Sidebar from './index'
+import { TooltipProvider } from '@/shared/ui/tooltip'
 
 const pushMock = vi.fn()
 
@@ -20,13 +21,20 @@ vi.mock('next/dynamic', () => ({
   default: () => () => null,
 }))
 
-describe('Header', () => {
+const renderSidebar = () =>
+  render(
+    <TooltipProvider>
+      <Sidebar>page</Sidebar>
+    </TooltipProvider>
+  )
+
+describe('Sidebar', () => {
   beforeEach(() => {
     pushMock.mockClear()
   })
 
   it('renders all main nav items', () => {
-    render(<Header />)
+    renderSidebar()
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
     for (const label of ['Jobs', 'Companies', 'Candidate', 'Skills', 'Rules', 'AI']) {
       expect(screen.getByRole('button', { name: new RegExp(label, 'i') })).toBeInTheDocument()
@@ -34,20 +42,20 @@ describe('Header', () => {
   })
 
   it('marks the active tab', () => {
-    render(<Header />)
+    renderSidebar()
     expect(screen.getByRole('button', { name: /jobs/i })).toHaveClass('text-primary')
   })
 
   it('navigates on non-active item click', async () => {
     const user = userEvent.setup()
-    render(<Header />)
+    renderSidebar()
     await user.click(screen.getByRole('button', { name: /companies/i }))
     expect(pushMock).toHaveBeenCalledWith('/companies')
   })
 
   it('does not hide the menu when the active item is clicked', async () => {
     const user = userEvent.setup()
-    render(<Header />)
+    renderSidebar()
     const jobs = screen.getByRole('button', { name: /jobs/i })
     await user.click(jobs)
     expect(pushMock).toHaveBeenCalledWith('/jobs')
@@ -55,12 +63,18 @@ describe('Header', () => {
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
   })
 
-  it('opens the AI submenu with LLM Configurations and navigates', async () => {
+  it('expands the AI submenu inline with LLM Configurations and navigates', async () => {
     const user = userEvent.setup()
-    render(<Header />)
+    renderSidebar()
     await user.click(screen.getByRole('button', { name: /ai/i }))
-    const submenu = await waitFor(() => screen.getByRole('menuitem', { name: /llm configurations/i }))
+    const submenu = screen.getByRole('button', { name: /llm configurations/i })
     await user.click(submenu)
     expect(pushMock).toHaveBeenCalledWith('/ai/llm-configurations')
+  })
+
+  it('renders the bottom cluster with theme toggle and history button', () => {
+    renderSidebar()
+    expect(screen.getAllByTitle('Toggle theme').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('Generation History').length).toBeGreaterThan(0)
   })
 })

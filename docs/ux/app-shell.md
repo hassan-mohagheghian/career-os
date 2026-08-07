@@ -1,38 +1,131 @@
-# App Shell — Header Navigation
+# App Shell — Sidebar Navigation
 
 ## Purpose
 
-The app shell provides the top-level navigation. Navigation is a single
-**top header menu**; there is no left sidebar. Clicking a menu item never hides
-the menu — the header is always visible on desktop.
+The app shell provides the top-level navigation via a **left sidebar** rail.
+On desktop (`lg+`) a fixed rail holds the brand, the primary nav items, and a
+bottom action cluster (theme toggle, Generation History, collapse toggle). On
+mobile (`<lg`) the rail is hidden; a slim top bar with a hamburger opens the
+same content as a left `Sheet` drawer.
 
 ---
 
 # Anatomy
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ ☰  Job Search   Jobs  Companies  Candidate  Skills  Rules  AI ▾    [🌙] [☰]  │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│                               page content                                  │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+## Desktop rail (lg+)
 
-AI dropdown:
+```text
+┌──────────────┬──────────────────────────────────────────────────────────────┐
+│ ◪ Job Search │                                                              │
+│              │                         page content                         │
+│ ◉ Jobs       │                  (flex column beside the rail)               │
+│ ▣ Companies  │                                                              │
+│ ▤ Candidate  │                                                              │
+│ ▧ Skills     │                                                              │
+│ ⚙ Rules      │                                                              │
+│ 🧠 AI ▾      │                                                              │
+│   └ LLM Conf │                                                              │
+│              │                                                              │
+│ ─────────────│                                                              │
+│ [🌙] [☰]    │                                                              │
+│ [◱] Collapse │                                                              │
+└──────────────┴──────────────────────────────────────────────────────────────┘
+
+Collapsed rail (w-[68px], icon-only, tooltips):
+┌──────┬───────────────────────────────────────────────────────────────┐
+│ ◪    │                                                               │
+│ ◉    │                                                               │
+│ ▣    │                                                               │
+│ ▤    │                                                               │
+│ ▧    │                                                               │
+│ ⚙    │                                                               │
+│ 🧠   │                                                               │
+│      │                                                               │
+│ ─────│                                                               │
+│ 🌙   │                                                               │
+│ ☰    │                                                               │
+│ ◱    │                                                               │
+└──────┴───────────────────────────────────────────────────────────────┘
+
+AI submenu (expanded rail):
 ┌──────────────┐
-│ LLM Configurations │
+│ 🧠 AI ▾      │
+│   └ LLM Configurations │
 └──────────────┘
 ```
 
-| Element            | Behavior                                              |
-| ------------------ | ----------------------------------------------------- |
-| `☰` (mobile only) | Opens the mobile nav sheet (left).                    |
-| Job Search brand   | Navigates to `/jobs`.                                 |
-| Top-level items    | Navigate to `/{id}` (`jobs`, `companies`, `candidate`, `skills`, `rules`). |
-| `AI ▾`             | Dropdown submenu → `LLM Configurations` (`/ai/llm-configurations`). |
-| Theme toggle       | Switches light/dark.                                  |
-| History button     | Opens the Generation History drawer.                  |
+## Mobile drawer (<lg)
+
+```text
+┌──────────────────────────┬─────────────────────────────────────────┐
+│ ☰ Job Search    [🌙] [☰] │                                         │
+│ ─────────────────────────│              page content              │
+│ ◪ ◉ ▣ ▤ ▧ ⚙ 🧠          │                                         │
+│   └ LLM Configurations   │                                         │
+└──────────────────────────┴─────────────────────────────────────────┘
+
+Hamburger (☰) opens left Sheet (w-72):
+┌────────────────┐
+│ ◪ Job Search   │
+├────────────────┤
+│ ◉ Jobs         │
+│ ▣ Companies    │
+│ ▤ Candidate    │
+│ ▧ Skills       │
+│ ⚙ Rules        │
+│ 🧠 AI ▾        │
+│   └ LLM Configurations │
+│                │
+├────────────────┤
+│ [🌙] [☰]      │
+└────────────────┘
+```
+
+## Navigation tree
+
+```mermaid
+flowchart TD
+    A[App Shell] --> B[Desktop rail lg+]
+    A --> C[Mobile top bar <lg]
+    C -->|hamburger| D[Left Sheet drawer]
+    B --> E[Brand → /jobs]
+    B --> F[Jobs → /jobs]
+    B --> G[Companies → /companies]
+    B --> H[Candidate → /candidate]
+    B --> I[Skills → /skills]
+    B --> J[Rules → /rules]
+    B --> K[AI]
+    K --> L[LLM Configurations → /ai/llm-configurations]
+    B --> M[Bottom cluster]
+    M --> M1[Theme toggle]
+    M --> M2[Generation History → drawer]
+    M --> M3[Collapse toggle → icon-only rail]
+    D --> E
+    D --> F
+    D --> G
+    D --> H
+    D --> I
+    D --> J
+    D --> K
+    D --> L
+    D --> M1
+    D --> M2
+```
+
+---
+
+# Elements
+
+| Element                  | Behavior                                                       |
+| ------------------------ | -------------------------------------------------------------- |
+| Brand (rail / drawer)    | Navigates to `/jobs`.                                          |
+| Top-level items          | Navigate to `/{id}` (`jobs`, `companies`, `candidate`, `skills`, `rules`). |
+| `AI ▾` (expanded rail)   | Inline expandable group; chevron rotates; children indented under a left border. |
+| `AI` (collapsed rail)    | Expands the sidebar and opens the AI group.                    |
+| Active item              | `bg-primary/10` + `text-primary` + left accent bar (desktop, expanded only). |
+| Theme toggle             | Switches light/dark.                                           |
+| History button           | Opens the Generation History drawer.                           |
+| Collapse toggle          | Narrowed to `w-[68px]` icon-only rail; labels become tooltips; state persisted in `localStorage`. |
 
 ---
 
@@ -41,30 +134,39 @@ AI dropdown:
 ## Active item
 
 The item matching the current route (`/pathname[1]`) is highlighted with a
-primary background tint + primary text; its sub-item (e.g. LLM Configurations on
-`/ai/llm-configurations`) is marked primary in the dropdown.
+primary background tint + primary text and a left accent bar (desktop rail,
+expanded). Its sub-item (e.g. LLM Configurations on `/ai/llm-configurations`)
+is marked primary in the inline group.
 
 ## Clicking the active item
 
-Pushes the same route again — a no-op navigation. The menu **stays visible** on
-desktop (no collapse, no reload needed).
+Pushes the same route again — a no-op navigation. The menu **stays visible** —
+no collapse, no reload.
+
+## Collapsed rail
+
+Clicking an icon navigates immediately (tooltip shows the label). Clicking a
+parent with children (AI) expands the sidebar first, then opens the group. The
+collapse state persists across reloads.
 
 ## Mobile
 
-The top menu is hidden below `md`; a hamburger opens a left sheet with the same
-items, including the `AI` submenu expanded inline. Selecting any item navigates
-and closes the sheet.
+The rail is hidden below `lg`; a hamburger in the slim top bar opens a left
+sheet with the same items and the `AI` submenu expanded inline. Selecting any
+item navigates and closes the sheet.
 
 ---
 
 # Behavior Rules
 
-- `handleNav(id, childId?)` → `router.push(childId ? /{id}/{childId} : /{id})`;
-  on mobile it also closes the sheet.
-- Submenu items render via a shadcn `DropdownMenu`; the active sub-item is
-  highlighted.
-- Header is `fixed top-0 h-12` and full-width; page content scrolls beneath it
-  with `pt-16` clearance.
+- `go(id, childId?)` → `router.push(childId ? /{id}/{childId} : /{id})`; on
+  mobile it also closes the sheet.
+- The desktop rail is `hidden lg:flex`; the top bar is `lg:hidden`.
+- Rail widths: `w-60` expanded, `w-[68px]` collapsed (transition-all 150ms).
+- The rail and sheet share the same `NAV_ITEMS` data and `NavRow` rendering.
+- Page content sits in a `flex` column beside the rail; there is **no** fixed
+  header offset (`pt-16` is gone). Page widgets fill `h-full`.
+- `GenerationHistoryDrawer` is dynamically imported (`ssr: false`).
 
 ---
 

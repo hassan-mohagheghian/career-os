@@ -16,23 +16,27 @@ The interface follows WCAG AA: keyboard navigation, focus management, screen-rea
 
 ## Navigation Structure
 
-Navigation is a single **top header menu** (full-width, fixed). No left sidebar.
-Each top-level item links to its page; `AI` opens a dropdown submenu.
+Navigation is a **left sidebar rail** on desktop (`lg+`), collapsible to an
+icon-only rail. On mobile (`<lg`) the rail collapses into a hamburger (top-left
+of a slim top bar) that opens a left sheet with the same items.
 
 ```
-HEADER
+SIDEBAR RAIL
   ├── Job Search (brand → /jobs)
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
   ├── Companies      Company intelligence + processing queue
   ├── Candidate      Candidate profile import + review
   ├── Skills         Skill management, roadmaps, progress
   ├── Rules          Scoring rules configuration
-  └── AI ▾           Dropdown submenu
+  └── AI ▾           Inline expandable submenu
       └── LLM Configurations
-```
+  ──────────────────────────
+  ├── Theme toggle   (bottom cluster)
+  ├── Generation History (bottom cluster)
+  └── Collapse toggle   (w-60 ⇄ w-[68px] icon rail, persisted)
 
-On mobile the top menu collapses into a hamburger (top-left) that opens a left
-sheet with the same items and submenu.
+MOBILE (<lg): hamburger → left Sheet with the same nav + bottom cluster.
+```
 
 ---
 

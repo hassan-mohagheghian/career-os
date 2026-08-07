@@ -112,7 +112,7 @@ function CompaniesPageAdapter() {
   }, [detailCompanyId])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-full">
       <CompaniesPageContent
         items={items}
         total={total}
