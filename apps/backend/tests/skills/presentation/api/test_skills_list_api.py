@@ -254,6 +254,41 @@ def test_list_mention_count(client, sa_session):
     assert by_name == {"Python": 2, "Kubernetes": 1}
 
 
+def test_list_mention_count_folds_aliases(client, sa_session):
+    from skills.infrastructure import SQLAlchemySkillRepository
+
+    kubernetes = _create_skill(sa_session, name="Kubernetes")
+    k8s = _create_skill(sa_session, name="K8s")
+    _create_alias(sa_session, kubernetes.id, "K8s")
+    repo = SQLAlchemySkillRepository(sa_session)
+    repo.upsert_mentions(kubernetes.id, "job", "job-1")
+    repo.upsert_mentions(k8s.id, "job", "job-2")
+    repo.upsert_mentions(k8s.id, "company", "company-1")
+
+    items = client.get("/api/skills/list").json()["items"]
+    by_name = {i["name"]: i["mention_count"] for i in items}
+    assert by_name["Kubernetes"] == 3
+    assert by_name["K8s"] == 2
+
+
+def test_list_sort_by_mention_count_folds_aliases(client, sa_session):
+    from skills.infrastructure import SQLAlchemySkillRepository
+
+    kubernetes = _create_skill(sa_session, name="Kubernetes")
+    k8s = _create_skill(sa_session, name="K8s")
+    go = _create_skill(sa_session, name="Go")
+    _create_alias(sa_session, kubernetes.id, "K8s")
+    repo = SQLAlchemySkillRepository(sa_session)
+    repo.upsert_mentions(kubernetes.id, "job", "job-1")
+    repo.upsert_mentions(k8s.id, "job", "job-2")
+    repo.upsert_mentions(k8s.id, "company", "company-1")
+    repo.upsert_mentions(go.id, "job", "job-3")
+
+    data = client.get("/api/skills/list?sort=mention_count&order=desc").json()
+    names = [i["name"] for i in data["items"]]
+    assert names == ["Kubernetes", "K8s", "Go"]
+
+
 def test_add_alias_api(client, sa_session):
     skill = _create_skill(sa_session, name="React")
     resp = client.post(f"/api/skills/{skill.id}/aliases", json={"alias_name": "ReactJS"})

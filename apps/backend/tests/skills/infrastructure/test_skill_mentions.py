@@ -82,6 +82,54 @@ class TestSkillMentions:
         assert repo.get_mention_counts([9999]) == {}
 
 
+class TestAliasMentionFolding:
+    """A skill's mention count folds in mentions recorded under separate skill
+    rows whose name matches one of the skill's aliases."""
+
+    def test_folds_mentions_from_alias_skill_rows(self, sa_session):
+        k8s = SkillModel(name="K8s", source="user")
+        sa_session.add(k8s)
+        sa_session.commit()
+
+        kubernetes = SkillModel(name="Kubernetes", source="user")
+        sa_session.add(kubernetes)
+        sa_session.flush()
+        sa_session.add(SkillAliasModel(skill_id=kubernetes.id, alias_name="K8s", normalized_name="k8s"))
+        sa_session.commit()
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(kubernetes.id, "job", "job-1")
+        repo.upsert_mentions(k8s.id, "job", "job-2")
+        repo.upsert_mentions(k8s.id, "company", "company-1")
+
+        assert repo.get_mention_counts([kubernetes.id]) == {kubernetes.id: 3}
+        assert repo.get_mention_counts([k8s.id]) == {k8s.id: 2}
+
+    def test_alias_without_skill_row_does_not_fold(self, sa_session):
+        skill = SkillModel(name="React", source="user")
+        sa_session.add(skill)
+        sa_session.flush()
+        sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
+        sa_session.commit()
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(skill.id, "job", "job-1")
+
+        assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
+
+    def test_alias_matching_own_name_not_double_counted(self, sa_session):
+        skill = SkillModel(name="Go", source="user")
+        sa_session.add(skill)
+        sa_session.flush()
+        sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="Go", normalized_name="go"))
+        sa_session.commit()
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(skill.id, "job", "job-1")
+
+        assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
+
+
 class TestSkillAliases:
     def test_add_alias(self, sa_session):
         skill = SkillModel(name="React", source="user")

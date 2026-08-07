@@ -115,7 +115,11 @@ class ISkillRepository(ABC):
 
     @abstractmethod
     def get_mention_counts(self, skill_ids: list[int]) -> dict[int, int]:
-        """Return {skill_id: total mention count} for the given skill ids."""
+        """Return {skill_id: total mention count} for the given skill ids.
+
+        Each count sums the skill's own mentions plus mentions recorded under
+        separate skill rows whose name matches one of the skill's aliases.
+        """
         ...
 
     @abstractmethod

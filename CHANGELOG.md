@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.10.0] — 2026-08-07
+
+### Added
+
+- **Skill mentions fold in aliases.** A skill's `mention_count` is now the sum
+  of its own mentions plus the mentions recorded under any separate skill row
+  whose name matches one of its aliases (e.g. an ai_generated "K8s" row folds
+  into "Kubernetes" once "K8s" is registered as an alias). Folding happens at
+  read time in `get_mention_counts` / the skills list endpoint, so adding an
+  alias immediately includes that alias row's stored mentions with no data
+  movement. Docs updated in `docs/ux/features/skills/skill-row.md`,
+  `docs/ux/features/skills/page.md`, `docs/api/skills/list-skills.md` and
+  `docs/ux/flows/skills/merge-skills.md`.
+
 ## [3.9.0] — 2026-08-06
 
 ### Added

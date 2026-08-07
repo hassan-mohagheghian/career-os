@@ -273,7 +273,10 @@ Displays the AI confidence as a percentage using the same thresholds.
 ## Mentions
 
 Displays the total number of job/company analysis mentions that reference this
-skill. A nonzero count is highlighted; zero renders muted. The column is
+skill: the sum of the skill's own mentions plus the mentions recorded under any
+separate skill row whose name matches one of the skill's aliases (e.g. an
+ai_generated "K8s" row folds into "Kubernetes" once "K8s" is registered as an
+alias). A nonzero count is highlighted; zero renders muted. The column is
 sortable (see Sorting below).
 
 ---

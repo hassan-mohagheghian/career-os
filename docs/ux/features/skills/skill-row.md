@@ -93,7 +93,11 @@ The badge is hidden when `source_type` is absent.
 # Mentions Column
 
 Renders `mention_count` — the total number of job/company analysis mentions
-referencing the skill. A nonzero count is highlighted; zero renders muted.
+referencing the skill. This is the sum of the skill's own mentions plus the
+mentions recorded under any separate skill row whose name matches one of the
+skill's aliases (e.g. an ai_generated "K8s" row folds into "Kubernetes" once
+"K8s" is registered as an alias). A nonzero count is highlighted; zero renders
+muted.
 
 ---
 

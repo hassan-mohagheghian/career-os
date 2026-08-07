@@ -163,7 +163,7 @@ Row fields:
 | `market_relevance` | Market demand (0–1) or null.                          |
 | `evidence`         | Evidence string or null.                              |
 | `source_type`      | Origin: `user_input` (manual) or `ai_generated` (AI). |
-| `mention_count`    | Total job/company mentions referencing this skill.    |
+| `mention_count`    | Total job/company mentions referencing this skill. Includes mentions stored under separate skill rows whose name matches one of the skill's aliases. |
 | `created_at`       | Creation timestamp.                                   |
 
 Large objects must never be returned.

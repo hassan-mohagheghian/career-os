@@ -350,13 +350,55 @@ class SQLAlchemySkillRepository(ISkillRepository):
         self._session.commit()
 
     def get_mention_counts(self, skill_ids: list[int]) -> dict[int, int]:
-        """Return {skill_id: total mention count} for the given skill ids."""
+        """Return {skill_id: total mention count} for the given skill ids.
+
+        A skill's count is the sum of its own mentions plus the mentions
+        recorded under any separate skill row whose name matches one of the
+        skill's aliases (e.g. an ai_generated "K8s" row folds into
+        "Kubernetes" once "K8s" is registered as an alias)."""
         if not skill_ids:
             return {}
-        rows = self._session.query(
-            SkillMentionModel.skill_id, func.count(SkillMentionModel.id)
-        ).filter(SkillMentionModel.skill_id.in_(skill_ids)).group_by(SkillMentionModel.skill_id).all()
-        return {r[0]: r[1] for r in rows}
+
+        counts = {
+            r[0]: r[1]
+            for r in self._session.query(
+                SkillMentionModel.skill_id, func.count(SkillMentionModel.id)
+            ).filter(SkillMentionModel.skill_id.in_(skill_ids))
+            .group_by(SkillMentionModel.skill_id).all()
+        }
+
+        alias_rows = self._session.query(
+            SkillAliasModel.skill_id, SkillAliasModel.alias_name
+        ).filter(SkillAliasModel.skill_id.in_(skill_ids)).all()
+        if not alias_rows:
+            return counts
+
+        alias_names = {name for _, name in alias_rows}
+        name_to_id = {
+            name: sid
+            for sid, name in self._session.query(
+                SkillModel.id, SkillModel.name
+            ).filter(SkillModel.name.in_(alias_names)).all()
+        }
+        extra_ids = {
+            name_to_id[name]
+            for sid, name in alias_rows
+            if name in name_to_id and name_to_id[name] != sid
+        }
+        if not extra_ids:
+            return counts
+
+        extra_counts = dict(
+            self._session.query(
+                SkillMentionModel.skill_id, func.count(SkillMentionModel.id)
+            ).filter(SkillMentionModel.skill_id.in_(extra_ids))
+            .group_by(SkillMentionModel.skill_id).all()
+        )
+        for sid, name in alias_rows:
+            alias_id = name_to_id.get(name)
+            if alias_id is not None and alias_id != sid:
+                counts[sid] += extra_counts.get(alias_id, 0)
+        return counts
 
     def add_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
         """Add an alias to a skill. Returns the updated skill or None."""
