@@ -401,19 +401,19 @@ def frontend(
 @app.command()
 def theme(
     code: str = typer.Argument(
-        "b4ZVZIPi9h", help="Shadcn preset code to decode (default: b4ZVZIPi9h)"
+        "b4ZVZIPi9h", help="Shadcn preset code to apply (default: b4ZVZIPi9h)"
     ),
 ):
-    """Get a shadcn preset code — decode and print it, no file changes"""
-    _log(f"Fetching shadcn preset code ({code})...")
+    """Apply a shadcn preset code to the frontend theme"""
+    _log(f"Applying shadcn preset ({code})...")
     result = subprocess.run(
-        ["npx", "shadcn@latest", "preset", "decode", code, "--json"],
+        ["npx", "shadcn@latest", "apply", code, "-y"],
         cwd=str(CLIENT_DIR),
     )
     if result.returncode == 0:
-        _ok("Preset code retrieved.")
+        _ok("Preset applied.")
     else:
-        _err("Failed to retrieve preset code.")
+        _err("Failed to apply preset.")
         raise typer.Exit(code=1)
 
 

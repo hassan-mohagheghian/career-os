@@ -192,13 +192,12 @@ component-level color literals. The sidebar uses only theme tokens
   the unlayered blocks in the cascade.
 - Example: to switch the accent color, change `--primary` (and its
   `-foreground`) in both `:root` and `.dark` — no component edits needed.
-- To re-apply the saved theme preset:
+- To apply the saved theme preset:
+  `./start theme [code]` (runs `npx shadcn@latest apply <code> -y` in
+  `apps/frontend`; defaults to `b4ZVZIPi9h`), or the equivalent one-liner
   `cd apps/frontend && npx shadcn@latest apply --preset b4ZVZIPi9h`
   (radix-lyra style, taupe base, remixicon icons, Merriweather heading +
   JetBrains Mono fonts; body copy stays Inter).
-- To get/decode a preset code (read-only, prints the preset config):
-  `./start theme [code]` (runs `npx shadcn@latest preset decode <code> --json`;
-  defaults to `b4ZVZIPi9h`).
 
 ---
 
