@@ -12,7 +12,7 @@ import { mergeWorkflowStep } from '@/entities/processing/workflowMerge'
 import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
 import type { QueueEntry, QueueSnapshot, WorkflowStep, WorkflowProgress } from '@/entities/processing/types'
 
-export type ProcessingTargetType = 'job' | 'company'
+export type ProcessingTargetType = 'job' | 'company' | 'candidate'
 
 interface ProcessingDrawerProps {
   open: boolean
@@ -353,7 +353,9 @@ export function ProcessingDrawer({ open, onOpenChange, reloadKey, targetType = '
     failed: snapshot.failed.filter(matchesTarget),
   }
 
-  const emptyText = targetType === 'company' ? 'No companies in this state.' : 'No jobs in this state.'
+  const emptyText = targetType === 'company' ? 'No companies in this state.'
+    : targetType === 'candidate' ? 'No candidate analysis in this state.'
+    : 'No jobs in this state.'
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

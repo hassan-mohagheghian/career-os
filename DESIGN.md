@@ -26,7 +26,6 @@ HEADER
   ├── Companies      Company intelligence + processing queue
   ├── Candidate      Candidate profile import + review
   ├── Skills         Skill management, roadmaps, progress
-  ├── Resume         Resume / cover letter generation
   ├── Rules          Scoring rules configuration
   └── AI ▾           Dropdown submenu
       └── LLM Configurations
@@ -542,12 +541,15 @@ resume/LinkedIn sources, run AI analysis, and review the canonical profile.
 │ │ textarea ┌──────────────┐│  │ textarea ┌──────────────┐│              │
 │ │          └──────────────┘│  │          └──────────────┘│              │
 │ │ [Save Resume]            │  │ [Save Profile]           │              │
+│ │ Last updated 5m ago · v2 │  │ Last updated 3d ago · v1 │              │
+│ │ [👁 View]                │  │ [👁 View]                │              │
 │ └──────────────────────────┘  └──────────────────────────┘              │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
 │ │ GITHUB (optional — placeholder)    [username..............]        │  │
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
-│ │ [✨ Analyze Profile]      (queues candidate processing execution)  │  │
+│ │ [✨ Analyze Profile]  [☑ Processing]   (queues candidate analysis; │  │
+│ │  Processing opens queue drawer filtered to candidate executions)   │  │
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ [REVIEW TAB]                                                           │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
@@ -556,9 +558,11 @@ resume/LinkedIn sources, run AI analysis, and review the canonical profile.
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ ┌──────────────────────────┐  ┌──────────────────────────┐              │
 │ │ CONNECTED SOURCES        │  │ VERSION HISTORY          │              │
-│ │  resume v1  [processed]  │  │  v2 "added linkedin"     │              │
-│ │  linkedin v1 [processed] │  │  v1 "initial import"     │              │
-│ └──────────────────────────┘  └──────────────────────────┘              │
+│ │  resume v2 [pending] 5m  │  │  v2 "added linkedin"     │              │
+│ │   [👁 View]              │  │  v1 "initial import"     │              │
+│ │  linkedin v1 [processed] │  └──────────────────────────┘              │
+│ │   3d [👁 View]           │                                           │
+│ └──────────────────────────┘                                           │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
 │ │ SKILLS   [Python L4 96%] [PostgreSQL L4 90%] ...                  │  │
 │ ├────────────────────────────────────────────────────────────────────┤  │

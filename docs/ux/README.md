@@ -57,8 +57,6 @@ docs/ux/
 │       ├── delete-job.md      Delete Job
 │       ├── processing-queue.md
 │       └── workflow-progress.md
-│   └── resume/
-│       └── page.md            Resume / Profile page (master resume + LinkedIn)
 │   ├── rules/
 │       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer

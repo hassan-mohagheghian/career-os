@@ -33,27 +33,7 @@ export const STEP_CONFIGS: Record<string, { steps: Array<{ key: string; label: s
       { key: 'step_done', label: 'Done' },
     ],
   },
-  // Resume/Cover letter generation: 5 steps
-  'resume': {
-    totalSteps: 5,
-    steps: [
-      { key: 'step_prepare', label: 'Preparing' },
-      { key: 'step_context', label: 'Context' },
-      { key: 'step_generate', label: 'Generating' },
-      { key: 'step_save', label: 'Saving' },
-      { key: 'step_done', label: 'Done' },
-    ],
-  },
-  'cover-letter': {
-    totalSteps: 5,
-    steps: [
-      { key: 'step_prepare', label: 'Preparing' },
-      { key: 'step_context', label: 'Context' },
-      { key: 'step_generate', label: 'Generating' },
-      { key: 'step_save', label: 'Saving' },
-      { key: 'step_done', label: 'Done' },
-    ],
-  },
+  // Resume/Cover letter generation was removed with the legacy generation stack.
   // Skill roadmap: 4 steps
   'roadmap': {
     totalSteps: 4,

@@ -28,7 +28,7 @@ describe('Header', () => {
   it('renders all main nav items', () => {
     render(<Header />)
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
-    for (const label of ['Jobs', 'Companies', 'Skills', 'Resume', 'Rules', 'AI']) {
+    for (const label of ['Jobs', 'Companies', 'Candidate', 'Skills', 'Rules', 'AI']) {
       expect(screen.getByRole('button', { name: new RegExp(label, 'i') })).toBeInTheDocument()
     }
   })

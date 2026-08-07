@@ -245,7 +245,6 @@ ai/infrastructure/graphs/
 ├── job/
 │   └── graph.py        # 13-node job processing graph
 ├── company/
-├── resume/
 ├── skills/
 └── insights/
 ```

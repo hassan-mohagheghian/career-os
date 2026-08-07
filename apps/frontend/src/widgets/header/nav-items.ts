@@ -2,7 +2,6 @@ import {
   Briefcase,
   Buildings,
   TreeStructure,
-  FileText,
   Gear,
   Brain,
   UserCircle,
@@ -27,7 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'companies', label: 'Companies', icon: Buildings, color: 'text-emerald-500' },
   { id: 'candidate', label: 'Candidate', icon: UserCircle, color: 'text-violet-500' },
   { id: 'skills', label: 'Skills', icon: TreeStructure, color: 'text-amber-500' },
-  { id: 'resume', label: 'Resume', icon: FileText, color: 'text-purple-500' },
   { id: 'rules', label: 'Rules', icon: Gear, color: 'text-cyan-500' },
   {
     id: 'ai',

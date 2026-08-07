@@ -35,16 +35,24 @@ Review profile (skills / experience / projects / sources / versions)
 | | |
 | --- | --- |
 | User action | Paste resume text into the Resume card, click **Save Resume** |
-| System behavior | `POST /api/resumes` → stores next `original_N` row |
-| UI state | Toast "Resume saved"; textarea cleared |
+| System behavior | `POST /api/candidates/sources` with `{ source_type: "resume", raw_text }` → stores the next resume source version (`pending`); sources query invalidated |
+| UI state | Toast "Resume saved"; textarea cleared; Resume card footer updates to the new version + relative last-updated time with a [👁 View] action |
 
 ### Step 2 — Add LinkedIn
 
 | | |
 | --- | --- |
 | User action | Paste LinkedIn text into the LinkedIn card, click **Save Profile** |
-| System behavior | `POST /api/linkedin` → stores next `linkedin_N` row |
-| UI state | Toast "LinkedIn profile saved"; textarea cleared |
+| System behavior | `POST /api/candidates/sources` with `{ source_type: "linkedin", raw_text }` → stores the next LinkedIn source version (`pending`); sources query invalidated |
+| UI state | Toast "LinkedIn profile saved"; textarea cleared; LinkedIn card footer updates to the new version + relative last-updated time with a [👁 View] action |
+
+### Step 2b — View a saved source
+
+| | |
+| --- | --- |
+| User action | Click **👁 View** on a SourceCard footer or a Connected Sources row |
+| System behavior | No network call — the source dict (returned by `GET /api/candidates/sources`) already carries the stored (PII-masked) `raw_text` |
+| UI state | `SourceContentDialog` opens with the source title (`resume v2`) and a scrollable read-only pre block of the stored content |
 
 ### Step 3 — Analyze Profile
 
@@ -63,6 +71,14 @@ Review profile (skills / experience / projects / sources / versions)
         ↓
    GET /profile, /sources, /versions refetch
 ```
+
+### Step 3b — Watch analysis progress
+
+| | |
+| --- | --- |
+| User action | Click **☑ Processing** in the Analyze card |
+| System behavior | `GET /api/processing/queue` returns candidate executions (`target_type="candidate"`); workflow step details via `GET /api/processing/{execution_id}`; live SSE step events merge into the workflow |
+| UI state | Shared `ProcessingDrawer` (same as Jobs/Companies) shows running / waiting / failed candidate runs with step checklist + progress bars; "No candidate analysis in this state." when the queue is empty |
 
 ### Step 4 — Review
 
@@ -84,6 +100,7 @@ Review profile (skills / experience / projects / sources / versions)
 - Resume/LinkedIn empty text → Save buttons disabled.
 - Re-importing the same source version → workflow skips it (`already_processed`).
 - No sources at all → analysis still queues; sources-ready node degrades.
+- Source without content → View dialog shows "No content saved."
 
 ## Component Structure
 
@@ -91,14 +108,12 @@ Review profile (skills / experience / projects / sources / versions)
 widgets/candidate-page
 └── features/candidate-v2/components/ProfileImportPage
     ├── entities/candidate { api, hooks, types }
-    ├── entities/resume { api.upload }
-    └── entities/linkedin { api.upload }
 ```
 
 ## Data Dependencies
 
+- `POST /api/candidates/sources` (upload resume / LinkedIn source text).
 - `POST /api/candidates/analyze`, `GET /api/candidates/profile|sources|versions`.
-- `POST /api/resumes`, `POST /api/linkedin` (existing jobs-context endpoints).
 - SSE `/events/processing` for workflow progress.
 
 # Related Documents

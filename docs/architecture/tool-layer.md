@@ -19,8 +19,8 @@ The Tool Layer provides a unified abstraction for all tool executions across AI 
 ┌─────────────────────────────────────────────────────────┐
 │                    AI Workflows                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │
-│  │   Job    │  │ Company  │  │  Resume  │  │ Skills │  │
-│  │Processing│  │Processing│  │Generation│  │Extrac. │  │
+│  │   Job    │  │ Company  │  │   Skill  │  │ Skills │  │
+│  │Processing│  │Processing│  │ Roadmaps │  │Extrac. │  │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───┬────┘  │
 │       │              │              │             │       │
 │  ┌────▼──────────────▼──────────────▼─────────────▼───┐  │
@@ -93,7 +93,6 @@ ai/infrastructure/tools/
 ├── job_tools.py         # Job-specific tools
 ├── company_tools.py     # Company-specific tools
 ├── skill_tools.py       # Skill-specific tools
-├── resume_tools.py      # Resume-specific tools
 └── database.py          # Database query tools
 ```
 

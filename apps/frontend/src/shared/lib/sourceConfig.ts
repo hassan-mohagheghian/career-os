@@ -1,7 +1,7 @@
-import { Briefcase, Buildings, TreeStructure, FileText } from '@phosphor-icons/react'
+import { Briefcase, Buildings, TreeStructure } from '@phosphor-icons/react'
 
 export interface HistoryItemData {
-  source: 'roadmap' | 'job-processing' | 'company-processing' | 'generation'
+  source: 'roadmap' | 'job-processing' | 'company-processing'
   title: string
   status: string
   started_at: string | null
@@ -15,7 +15,6 @@ export interface HistoryItemData {
 export const SOURCE_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
   'job-processing': { icon: Briefcase, color: 'bg-blue-500/15 text-blue-500', label: 'Job' },
   'company-processing': { icon: Buildings, color: 'bg-purple-500/15 text-purple-500', label: 'Company' },
-  'generation': { icon: FileText, color: 'bg-cyan-500/15 text-cyan-500', label: 'Generate' },
   'roadmap': { icon: TreeStructure, color: 'bg-emerald-500/15 text-emerald-500', label: 'Roadmap' },
 }
 

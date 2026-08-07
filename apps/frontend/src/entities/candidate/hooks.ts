@@ -39,3 +39,14 @@ export function useAnalyzeProfileMutation() {
     },
   })
 }
+
+export function useUploadSourceMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceType, rawText }: { sourceType: 'resume' | 'linkedin'; rawText: string }) =>
+      candidateApi.uploadSource(sourceType, rawText),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] })
+    },
+  })
+}

@@ -13,11 +13,6 @@ describe('SOURCE_CONFIG', () => {
     expect(SOURCE_CONFIG['company-processing'].label).toBe('Company')
   })
 
-  it('has config for generation', () => {
-    expect(SOURCE_CONFIG['generation']).toBeDefined()
-    expect(SOURCE_CONFIG['generation'].label).toBe('Generate')
-  })
-
   it('has config for roadmap', () => {
     expect(SOURCE_CONFIG['roadmap']).toBeDefined()
     expect(SOURCE_CONFIG['roadmap'].label).toBe('Roadmap')

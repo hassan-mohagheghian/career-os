@@ -13,17 +13,11 @@ const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'job-processing', label: 'Job' },
   { value: 'company-processing', label: 'Company' },
-  { value: 'generation:resume', label: 'Resume' },
-  { value: 'generation:cover', label: 'Cover Letter' },
-  { value: 'generation', label: 'All Generation' },
   { value: 'roadmap', label: 'Roadmap' },
 ]
 
 function matchesFilter(item: HistoryItemData, filter: string): boolean {
   if (filter === 'all') return true
-  if (filter === 'generation:resume') return item.source === 'generation' && item.title === 'Resume'
-  if (filter === 'generation:cover') return item.source === 'generation' && item.title === 'Cover Letter'
-  if (filter === 'generation') return item.source === 'generation'
   return item.source === filter
 }
 

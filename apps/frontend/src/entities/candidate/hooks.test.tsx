@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { candidateApi } from './api'
-import { useAnalyzeProfileMutation, useCandidateProfileQuery, useCandidateSourcesQuery, useCandidateVersionsQuery } from './hooks'
+import { useAnalyzeProfileMutation, useCandidateProfileQuery, useCandidateSourcesQuery, useCandidateVersionsQuery, useUploadSourceMutation } from './hooks'
 import type { CandidateProfile, CandidateSource, CandidateVersion } from './types'
 
 vi.mock('./api', () => ({
@@ -11,6 +11,7 @@ vi.mock('./api', () => ({
     getProfile: vi.fn(),
     getSources: vi.fn(),
     getVersions: vi.fn(),
+    uploadSource: vi.fn(),
     analyze: vi.fn(),
   },
 }))
@@ -40,7 +41,7 @@ const profile: CandidateProfile = {
 }
 
 const sources: CandidateSource[] = [
-  { id: 'src-1', profile_id: 'profile-1', source_type: 'resume', version: 1, status: 'processed', error: null, processed_at: '2026-01-01T00:00:00', created_at: null, updated_at: null },
+  { id: 'src-1', profile_id: 'profile-1', source_type: 'resume', version: 1, status: 'processed', error: null, raw_text: 'Resume text', processed_at: '2026-01-01T00:00:00', created_at: null, updated_at: null },
 ]
 
 const versions: CandidateVersion[] = [
@@ -94,5 +95,29 @@ describe('useAnalyzeProfileMutation', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mockApi.analyze).toHaveBeenCalledTimes(1)
     expect(result.current.data?.execution_id).toBe('exec-1')
+  })
+})
+
+describe('useUploadSourceMutation', () => {
+  it('calls uploadSource with the source type and raw text', async () => {
+    mockApi.uploadSource.mockResolvedValue({ id: 'src-2', source_type: 'resume', version: 2, status: 'pending', raw_text: '...' })
+    const { result } = renderHook(() => useUploadSourceMutation(), { wrapper })
+    result.current.mutate({ sourceType: 'resume', rawText: 'Hello world' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockApi.uploadSource).toHaveBeenCalledWith('resume', 'Hello world')
+  })
+
+  it('invalidates the sources query on success', async () => {
+    mockApi.uploadSource.mockResolvedValue({ id: 'src-2', source_type: 'linkedin', version: 1, status: 'pending', raw_text: '...' })
+    mockApi.getSources.mockResolvedValue({ items: sources })
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const qcSpy = vi.spyOn(qc, 'invalidateQueries')
+    function TestWrapper({ children }: { children: ReactNode }) {
+      return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    }
+    const { result } = renderHook(() => useUploadSourceMutation(), { wrapper: TestWrapper })
+    result.current.mutate({ sourceType: 'linkedin', rawText: 'LinkedIn text' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(qcSpy).toHaveBeenCalledWith({ queryKey: ['candidate-sources'] })
   })
 })

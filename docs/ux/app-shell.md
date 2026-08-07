@@ -12,7 +12,7 @@ the menu — the header is always visible on desktop.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ☰  Job Search   Jobs  Companies  Skills  Resume  Rules  AI ▾    [🌙] [☰]  │
+│ ☰  Job Search   Jobs  Companies  Candidate  Skills  Rules  AI ▾    [🌙] [☰]  │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │                               page content                                  │
@@ -29,7 +29,7 @@ AI dropdown:
 | ------------------ | ----------------------------------------------------- |
 | `☰` (mobile only) | Opens the mobile nav sheet (left).                    |
 | Job Search brand   | Navigates to `/jobs`.                                 |
-| Top-level items    | Navigate to `/{id}` (`jobs`, `companies`, `skills`, `resume`, `rules`). |
+| Top-level items    | Navigate to `/{id}` (`jobs`, `companies`, `candidate`, `skills`, `rules`). |
 | `AI ▾`             | Dropdown submenu → `LLM Configurations` (`/ai/llm-configurations`). |
 | Theme toggle       | Switches light/dark.                                  |
 | History button     | Opens the Generation History drawer.                  |

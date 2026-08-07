@@ -100,6 +100,7 @@ export interface CandidateSource {
   version: number
   status: string
   error: string | null
+  raw_text: string | null
   processed_at: string | null
   created_at: string | null
   updated_at: string | null

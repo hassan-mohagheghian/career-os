@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Upload, LinkSimple, GitBranch, CheckCircle, Sparkle, FileText } from '@phosphor-icons/react'
+import { Upload, LinkSimple, GitBranch, CheckCircle, Sparkle, FileText, Eye, ListChecks } from '@phosphor-icons/react'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/ui/card'
 import { Badge } from '@/shared/ui/badge'
@@ -13,14 +13,18 @@ import { Label } from '@/shared/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/tabs'
 import { Separator } from '@/shared/ui/separator'
 import { ScrollArea } from '@/shared/ui/scroll-area'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/shared/ui/dialog'
 import { PageHeader } from '@/shared/components/PageHeader'
-import { resumeApi } from '@/entities/resume/api'
-import { linkedinApi } from '@/entities/linkedin/api'
+import { ProcessingDrawer } from '@/shared/components/ProcessingDrawer'
+import DateTime from '@/shared/components/DateTime'
 import {
   useCandidateProfileQuery,
   useCandidateSourcesQuery,
   useCandidateVersionsQuery,
   useAnalyzeProfileMutation,
+  useUploadSourceMutation,
 } from '@/entities/candidate/hooks'
 import type { CandidateProfile, CandidateSource, CandidateVersion } from '@/entities/candidate/types'
 
@@ -31,17 +35,21 @@ const VERSIONS_KEY = 'candidate-versions'
 export function ProfileImportPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'sources' | 'review'>('sources')
+  const [viewSource, setViewSource] = useState<CandidateSource | null>(null)
+  const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
 
   const [resumeText, setResumeText] = useState('')
   const [linkedinText, setLinkedinText] = useState('')
   const [githubUsername, setGithubUsername] = useState('')
-  const [savingResume, setSavingResume] = useState(false)
-  const [savingLinkedin, setSavingLinkedin] = useState(false)
 
   const profileQuery = useCandidateProfileQuery()
   const sourcesQuery = useCandidateSourcesQuery()
   const versionsQuery = useCandidateVersionsQuery()
   const analyzeMutation = useAnalyzeProfileMutation()
+  const uploadSourceMutation = useUploadSourceMutation()
+  const uploadingType = uploadSourceMutation.isPending ? uploadSourceMutation.variables?.sourceType : null
+  const savingResume = uploadingType === 'resume'
+  const savingLinkedin = uploadingType === 'linkedin'
 
   const hasProfile = !!profileQuery.data
   const isAnalyzing = analyzeMutation.isPending
@@ -53,33 +61,31 @@ export function ProfileImportPage() {
     queryClient.invalidateQueries({ queryKey: [VERSIONS_KEY] })
   }, [queryClient])
 
-  const handleSaveResume = useCallback(async () => {
+  const handleSaveResume = useCallback(() => {
     if (!resumeText.trim()) return
-    setSavingResume(true)
-    try {
-      await resumeApi.upload(resumeText)
-      setResumeText('')
-      toast.success('Resume saved')
-    } catch {
-      toast.error('Failed to save resume')
-    } finally {
-      setSavingResume(false)
-    }
-  }, [resumeText])
+    uploadSourceMutation.mutate({ sourceType: 'resume', rawText: resumeText }, {
+      onSuccess: () => {
+        setResumeText('')
+        toast.success('Resume saved')
+      },
+      onError: () => {
+        toast.error('Failed to save resume')
+      },
+    })
+  }, [resumeText, uploadSourceMutation])
 
-  const handleSaveLinkedin = useCallback(async () => {
+  const handleSaveLinkedin = useCallback(() => {
     if (!linkedinText.trim()) return
-    setSavingLinkedin(true)
-    try {
-      await linkedinApi.upload(linkedinText)
-      setLinkedinText('')
-      toast.success('LinkedIn profile saved')
-    } catch {
-      toast.error('Failed to save LinkedIn profile')
-    } finally {
-      setSavingLinkedin(false)
-    }
-  }, [linkedinText])
+    uploadSourceMutation.mutate({ sourceType: 'linkedin', rawText: linkedinText }, {
+      onSuccess: () => {
+        setLinkedinText('')
+        toast.success('LinkedIn profile saved')
+      },
+      onError: () => {
+        toast.error('Failed to save LinkedIn profile')
+      },
+    })
+  }, [linkedinText, uploadSourceMutation])
 
   const handleAnalyze = useCallback(() => {
     analyzeMutation.mutate(undefined, {
@@ -96,6 +102,14 @@ export function ProfileImportPage() {
 
   const sources = sourcesQuery.data?.items ?? []
   const versions = versionsQuery.data?.items ?? []
+
+  const latestSourceByType = useMemo(() => {
+    const latest = new Map<string, CandidateSource>()
+    for (const s of sources) {
+      if (!latest.has(s.source_type)) latest.set(s.source_type, s)
+    }
+    return latest
+  }, [sources])
 
   const skills = useMemo(() => profileQuery.data?.skills ?? [], [profileQuery.data])
   const experiences = useMemo(() => profileQuery.data?.experiences ?? [], [profileQuery.data])
@@ -123,6 +137,8 @@ export function ProfileImportPage() {
               actionLabel={savingResume ? 'Saving...' : 'Save Resume'}
               disabled={savingResume || !resumeText.trim()}
               onAction={handleSaveResume}
+              latestSource={latestSourceByType.get('resume') ?? null}
+              onView={setViewSource}
             />
             <SourceCard
               title="LinkedIn"
@@ -134,6 +150,8 @@ export function ProfileImportPage() {
               actionLabel={savingLinkedin ? 'Saving...' : 'Save Profile'}
               disabled={savingLinkedin || !linkedinText.trim()}
               onAction={handleSaveLinkedin}
+              latestSource={latestSourceByType.get('linkedin') ?? null}
+              onView={setViewSource}
             />
           </div>
 
@@ -163,10 +181,16 @@ export function ProfileImportPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-fit gap-2">
-                <Sparkle className="h-4 w-4" />
-                {isAnalyzing ? 'Queuing analysis...' : 'Analyze Profile'}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-fit gap-2">
+                  <Sparkle className="h-4 w-4" />
+                  {isAnalyzing ? 'Queuing analysis...' : 'Analyze Profile'}
+                </Button>
+                <Button variant="outline" className="w-fit gap-2" onClick={() => setQueueDrawerOpen(true)}>
+                  <ListChecks className="h-4 w-4" />
+                  Processing
+                </Button>
+              </div>
               {lastError && <p className="text-sm text-destructive">{lastError}</p>}
             </CardContent>
           </Card>
@@ -184,7 +208,7 @@ export function ProfileImportPage() {
           />
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <SourcesCard sources={sources} />
+            <SourcesCard sources={sources} onView={setViewSource} />
             <VersionsCard versions={versions} />
           </div>
 
@@ -193,6 +217,9 @@ export function ProfileImportPage() {
           <ProjectList projects={projects} />
         </TabsContent>
       </Tabs>
+
+      <SourceContentDialog source={viewSource} onOpenChange={(open) => { if (!open) setViewSource(null) }} />
+      <ProcessingDrawer open={queueDrawerOpen} onOpenChange={setQueueDrawerOpen} targetType="candidate" />
     </div>
   )
 }
@@ -212,6 +239,8 @@ function SourceCard({
   actionLabel,
   disabled,
   onAction,
+  latestSource,
+  onView,
 }: {
   title: string
   description: string
@@ -222,6 +251,8 @@ function SourceCard({
   actionLabel: string
   disabled: boolean
   onAction: () => void
+  latestSource?: CandidateSource | null
+  onView: (source: CandidateSource) => void
 }) {
   return (
     <Card>
@@ -234,6 +265,18 @@ function SourceCard({
         <Button variant="outline" className="w-fit gap-1.5" onClick={onAction} disabled={disabled}>
           <Upload className="h-3.5 w-3.5" /> {actionLabel}
         </Button>
+        {latestSource && (
+          <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <span className="flex min-w-0 items-center gap-1.5">
+              Last updated
+              <DateTime value={latestSource.updated_at ?? latestSource.created_at} format="relative" />
+              <span className="shrink-0">· v{latestSource.version}</span>
+            </span>
+            <Button variant="ghost" size="sm" className="h-7 shrink-0 gap-1.5" onClick={() => onView(latestSource)}>
+              <Eye className="h-3.5 w-3.5" /> View
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -313,7 +356,27 @@ function ProfileReview({
   )
 }
 
-function SourcesCard({ sources }: { sources: CandidateSource[] }) {
+function SourceContentDialog({ source, onOpenChange }: { source: CandidateSource | null; onOpenChange: (open: boolean) => void }) {
+  if (!source) return null
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader className="space-y-1.5">
+          <DialogTitle className="capitalize">{source.source_type} v{source.version}</DialogTitle>
+          <DialogDescription>
+            Saved source content · last updated{' '}
+            <DateTime value={source.updated_at ?? source.created_at} format="relative" />
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="h-[55vh] rounded-md border bg-muted/30 p-4">
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs">{source.raw_text || 'No content saved.'}</pre>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SourcesCard({ sources, onView }: { sources: CandidateSource[]; onView: (source: CandidateSource) => void }) {
   if (sources.length === 0) {
     return (
       <Card>
@@ -330,8 +393,16 @@ function SourcesCard({ sources }: { sources: CandidateSource[] }) {
           <ul className="space-y-2">
             {sources.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="capitalize">{s.source_type} v{s.version}</span>
-                <Badge variant={s.status === 'processed' ? 'default' : 'secondary'}>{s.status}</Badge>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 capitalize">{s.source_type} v{s.version}</span>
+                  <DateTime value={s.updated_at ?? s.created_at} format="relative" className="text-xs text-muted-foreground" />
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <Badge variant={s.status === 'processed' ? 'default' : 'secondary'}>{s.status}</Badge>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onView(s)} aria-label={`View ${s.source_type} v${s.version}`}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </span>
               </li>
             ))}
           </ul>
