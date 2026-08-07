@@ -2,7 +2,9 @@
 
 Loads the user's skills, the latest resume and LinkedIn profile raw text, and
 the enabled scoring rules, and stores formatted text in the state's
-analysis_context. The resume is authoritative, LinkedIn supplements it.
+analysis_context. When a structured Candidate Profile exists it is the primary
+source for skills and the profile document section; the raw resume/LinkedIn
+text is the fallback when no profile has been built yet.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from processing.application.services.job_analysis_inputs import (
+    build_candidate_profile_text,
     build_profile_documents_text,
     build_profile_text,
     build_resume_text,
@@ -28,11 +31,13 @@ class PrepareProfileNode:
         resume_repo: Any,
         rule_repo: Any,
         event_publisher: Any | None = None,
+        candidate_profile_repo: Any | None = None,
     ):
         self._skills = skill_repo
         self._resumes = resume_repo
         self._rules = rule_repo
         self._events = event_publisher
+        self._profiles = candidate_profile_repo
 
     def __call__(self, state: JobProcessingState) -> JobProcessingState:
         progress_ops.start_step(self._events, state, NODE_ID)
@@ -44,13 +49,28 @@ class PrepareProfileNode:
         except Exception as e:
             state.errors.append(f"[{NODE_ID}] Failed to load user profile: {e}")
             skills, rule_rows, resume_raw, linkedin_raw = [], [], None, None
+        profile = self._load_candidate_profile(state)
 
         state.analysis_context["job_text"] = (
             state.processing_context.combined_text if state.processing_context else ""
         )
-        state.analysis_context["profile_text"] = build_profile_text(skills)
+        if profile:
+            profile_skills = profile.get("skills") or []
+            state.analysis_context["profile_text"] = build_profile_text(profile_skills)
+            state.analysis_context["profile_documents"] = build_candidate_profile_text(profile)
+        else:
+            state.analysis_context["profile_text"] = build_profile_text(skills)
+            state.analysis_context["profile_documents"] = build_profile_documents_text(resume_raw, linkedin_raw)
         state.analysis_context["scoring_rules"] = build_scoring_rules_text(rule_rows)
         state.analysis_context["resume_text"] = build_resume_text(resume_raw)
-        state.analysis_context["profile_documents"] = build_profile_documents_text(resume_raw, linkedin_raw)
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state
+
+    def _load_candidate_profile(self, state: JobProcessingState) -> dict[str, Any] | None:
+        if self._profiles is None:
+            return None
+        try:
+            return self._profiles.get_current_profile()
+        except Exception as e:
+            state.errors.append(f"[{NODE_ID}] Failed to load candidate profile: {e}")
+            return None

@@ -5,7 +5,12 @@ Migration scripts are organized in separate directories per context:
   - apps/alembic/job/versions/     (job schema)
   - apps/alembic/company/versions/ (company schema)
   - apps/alembic/skill/versions/   (skill schema)
+  - apps/alembic/candidate/versions/ (candidate schema)
   - apps/alembic/shared/versions/  (shared schema)
+
+New context branches are created with autogenerate (never by hand) so the
+revision-graph references (revision/down_revision/branch_labels) are computed
+by Alembic; see docs/database/alembic-guide.md.
 """
 
 import os
@@ -33,6 +38,7 @@ import companies.infrastructure.models.company_model  # noqa: F401
 import rules.infrastructure.models.rule_model  # noqa: F401
 import ai.infrastructure.models.llm_configuration_model  # noqa: F401
 import processing.infrastructure.models.processing_execution_model  # noqa: F401
+import candidates.infrastructure.models.candidate_model  # noqa: F401
 
 config = context.config
 config.set_main_option('sqlalchemy.url', DATABASE_URL)

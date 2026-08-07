@@ -8,4 +8,5 @@ export const resumeApi = {
   generateResume: (jobId: string) => api.post<{ gen_id: number }>(`/jobs/${jobId}/generate-resume`),
   generateCover: (jobId: string) => api.post<{ gen_id: number }>(`/jobs/${jobId}/generate-cover`),
   cancelGeneration: (id: number) => api.post<void>(`/generations/${id}/cancel`),
+  upload: (rawText: string) => api.post<{ status: string; version: number }>('/resumes', { raw_text: rawText }),
 }

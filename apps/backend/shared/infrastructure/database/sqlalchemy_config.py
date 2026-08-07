@@ -32,6 +32,19 @@ SCHEMAS = {
     "skill": ["skills", "skill_aliases", "skill_relationships", "skill_roadmaps", "skill_roadmap_progress", "skill_roadmap_jobs"],
     "ai": ["llm_configurations"],
     "processing": ["processing_executions"],
+    "candidate": [
+        "candidates",
+        "candidate_profiles",
+        "candidate_sources",
+        "candidate_skills",
+        "candidate_experiences",
+        "candidate_projects",
+        "candidate_educations",
+        "candidate_certificates",
+        "candidate_interests",
+        "candidate_languages",
+        "candidate_profile_versions",
+    ],
     "shared": ["rules", "cities", "resumes", "metadata", "generation_history", "alembic_version"],
 }
 

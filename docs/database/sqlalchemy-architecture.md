@@ -4,7 +4,7 @@
 
 The persistence layer uses SQLAlchemy 2.x with the declarative base pattern. All database access goes through repository implementations that use SQLAlchemy sessions, hiding the underlying database details from the domain and application layers.
 
-The database uses a **schema-per-bounded-context** architecture, isolating each domain's tables in its own PostgreSQL schema. This enables independent versioning via Alembic and clean separation of concerns, while allowing cross-schema foreign key relationships where needed.
+The database uses a **schema-per-bounded-context** architecture, isolating each domain's tables in its own PostgreSQL schema. This enables independent versioning via Alembic and clean separation of concerns. Foreign keys are allowed **within** a bounded context's schema (aggregate + children); **cross-context links are logical references only** — a plain id column with no FK constraint (AGENTS.md rule 15), so schemas stay decoupled for a future microservice split.
 
 ## Key Components
 
@@ -62,9 +62,10 @@ All ORM models inherit from this base. The naming convention ensures consistent 
 
 | Schema | Context | Tables |
 |--------|---------|--------|
-| `job` | Job Processing | `jobs`, `summaries`, `resumes`, `generation_history` |
+| `job` | Job Processing | `jobs`, `summaries`, `resumes`, `generation_history`, `job_analysis` |
 | `company` | Company Intelligence | `companies`, `company_intelligence`, `company_links` |
 | `skill` | Skills Management | `skills`, `skill_aliases`, `skill_relationships`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs` |
+| `candidate` | Candidate Profile | `candidates`, `candidate_profiles`, `candidate_sources`, `candidate_skills`, `candidate_experiences`, `candidate_projects`, `candidate_educations`, `candidate_certificates`, `candidate_interests`, `candidate_languages`, `candidate_profile_versions` |
 | `shared` | Shared/Cross-Cutting | `rules`, `cities` |
 
 Models declare their schema via `__table_args__`:
@@ -75,11 +76,16 @@ class JobModel(Base):
     __table_args__ = {"schema": "job"}
 ```
 
-Foreign keys use fully-qualified table names:
+Foreign keys use fully-qualified table names **only within a single schema**
+(same bounded context):
 
 ```python
-company_id = Column(UUID, ForeignKey("company.companies.id"), nullable=True)
+profile_id = Column(UUID, ForeignKey("candidate.candidate_profiles.id"), nullable=False)
 ```
+
+Cross-context links are **plain columns without** `ForeignKey(...)` — e.g.
+`candidate_skills.skill_id` references `skill.skills.id` logically only, with
+integrity enforced at the repository layer (AGENTS.md rule 15).
 
 ### ORM Models
 
@@ -90,9 +96,11 @@ Located in context-specific model files:
 | `jobs/infrastructure/models/job_model.py` | `job` | `jobs` |
 | `skills/infrastructure/models/skill_model.py` | `skill` | `skills`, `skill_aliases`, `skill_relationships` |
 | `companies/infrastructure/models/company_model.py` | `company` | `companies`, `company_intelligence`, `company_links` |
+| `candidates/infrastructure/models/candidate_model.py` | `candidate` | `candidates`, `candidate_profiles`, `candidate_sources`, `candidate_skills`, `candidate_experiences`, `candidate_projects`, `candidate_educations`, `candidate_certificates`, `candidate_interests`, `candidate_languages`, `candidate_profile_versions` |
 | `shared/infrastructure/database/models/misc_models.py` | `job`, `skill`, `shared` | `summaries`, `resumes`, `skill_roadmaps`, `skill_roadmap_progress`, `skill_roadmap_jobs`, `rules`, `cities` |
 
-All models are re-exported from `shared/infrastructure/database/models/__init__.py` for Alembic auto-discovery.
+All models are imported into `apps/alembic/env.py` (and `db.py::init_db`) so
+Alembic can autogenerate migrations for every schema.
 
 ### Domain-to-Database Mapping
 

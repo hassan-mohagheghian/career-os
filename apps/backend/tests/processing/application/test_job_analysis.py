@@ -16,6 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from processing.application.services.job_analysis_inputs import (
+    build_candidate_profile_text,
     build_profile_documents_text,
     build_profile_text,
     build_resume_text,
@@ -149,6 +150,58 @@ class FakeRuleRepo:
         if self._error is not None:
             raise self._error
         return self._rules
+
+
+class FakeCandidateProfileRepo:
+    def __init__(self, profile=None, error=None):
+        self._profile = profile
+        self._error = error
+
+    def get_current_profile(self):
+        if self._error is not None:
+            raise self._error
+        return self._profile
+
+
+def _candidate_profile(**overrides) -> dict:
+    profile = {
+        "id": "profile-1",
+        "candidate_id": "cand-1",
+        "version": 2,
+        "name": "Jane Doe",
+        "title": "Senior Backend Engineer",
+        "headline": "Distributed systems at scale",
+        "summary": "8+ years building backend platforms.",
+        "location": "Berlin, Germany",
+        "skills": [
+            {
+                "name": "Python",
+                "level": 4,
+                "category": "Language",
+                "confidence": 0.96,
+                "origin": "explicit",
+                "years_of_experience": 6,
+                "last_used": "2026-01",
+                "evidence": {"sources": ["resume"]},
+            }
+        ],
+        "experiences": [
+            {
+                "company": "Acme Inc",
+                "role": "Senior Backend Engineer",
+                "start_date": "2021-03",
+                "end_date": "present",
+                "summary": "Led event-driven platform.",
+            }
+        ],
+        "projects": [{"name": "Job Search AI", "description": "AI career platform.", "url": "https://example.com"}],
+        "educations": [{"institution": "TU Berlin", "degree": "MSc CS", "field": "Computer Science"}],
+        "certificates": [{"name": "AWS Solutions Architect", "issuer": "Amazon"}],
+        "interests": [{"name": "Kubernetes"}],
+        "languages": [{"name": "English", "proficiency": "fluent"}],
+    }
+    profile.update(overrides)
+    return profile
 
 
 class FakeJobRepo:
@@ -389,7 +442,7 @@ class TestJobAnalysisPrompt:
         assert "resume text" in prompt
 
     def test_versions(self):
-        assert JOB_ANALYSIS_PROMPT_VERSION == "1.3.0"
+        assert JOB_ANALYSIS_PROMPT_VERSION == "1.4.0"
         assert JOB_ANALYSIS_SCHEMA_VERSION == "1.1.0"
 
 
@@ -437,6 +490,45 @@ class TestJobAnalysisInputs:
             [{"key": "VISA_OK", "value": "must sponsor", "priority": 5}]
         )
         assert "#5" in text and "VISA_OK" in text and "weight:5" in text
+
+
+class TestBuildCandidateProfileText:
+    def test_empty_profile(self):
+        assert build_candidate_profile_text({}) == "(no candidate profile available)"
+
+    def test_header_and_sections(self):
+        text = build_candidate_profile_text(_candidate_profile())
+        assert "Jane Doe" in text
+        assert "Senior Backend Engineer" in text
+        assert "Distributed systems at scale" in text
+        assert "8+ years building backend platforms." in text
+        assert "Berlin, Germany" in text
+        assert "SKILLS:" in text
+        assert "EXPERIENCE:" in text
+        assert "PROJECTS:" in text
+        assert "EDUCATION:" in text
+        assert "CERTIFICATES:" in text
+        assert "INTERESTS:" in text
+        assert "LANGUAGES:" in text
+
+    def test_skill_metadata_included(self):
+        text = build_candidate_profile_text(_candidate_profile())
+        assert "- Python (level 4, confidence 0.96, years 6, evidence: resume)" in text
+
+    def test_experience_fields(self):
+        text = build_candidate_profile_text(_candidate_profile())
+        assert "Acme Inc - Senior Backend Engineer (2021-03 -> present)" in text
+        assert "Led event-driven platform." in text
+
+    def test_truncates_to_max_chars(self):
+        profile = _candidate_profile(summary="S" * 20000)
+        text = build_candidate_profile_text(profile)
+        assert len(text) <= 6000
+
+    def test_missing_children_defaults(self):
+        text = build_candidate_profile_text({"name": "Noah", "title": "Engineer"})
+        assert "Noah" in text
+        assert "SKILLS:" not in text
 
 
 # --------------------------------------------------------------------------- #
@@ -572,6 +664,68 @@ class TestPrepareProfileNode:
         assert state.analysis_context["profile_text"] == "(no skills registered)"
         assert any("boom" in e for e in state.errors)
 
+    def test_structured_profile_takes_priority(self):
+        skills = [{"name": "Python", "level": 4, "category": "Language"}]
+        rules = [{"key": "VISA_OK", "value": "must sponsor", "priority": 1}]
+        node = PrepareProfileNode(
+            FakeSkillRepo(skills),
+            FakeResumeRepo(original="Resume text here", linkedin="LinkedIn raw here"),
+            FakeRuleRepo(rules),
+            candidate_profile_repo=FakeCandidateProfileRepo(_candidate_profile()),
+        )
+        state = _state()
+        state.processing_context = type("Ctx", (), {"combined_text": "job text"})()
+        state = node(state)
+
+        assert "Jane Doe" in state.analysis_context["profile_documents"]
+        assert "SKILLS:" in state.analysis_context["profile_documents"]
+        assert "RESUME TEXT (latest):" not in state.analysis_context["profile_documents"]
+        assert "Python" in state.analysis_context["profile_text"]
+        assert state.analysis_context["profile_text"].startswith("Total skills: 1")
+        assert state.analysis_context["resume_text"] == "Resume text here"
+
+    def test_structured_profile_skills_win(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo([{"name": "CuratedSkill", "level": 5}]),
+            FakeResumeRepo(),
+            FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(_candidate_profile()),
+        )
+        state = node(_state())
+        assert "Python" in state.analysis_context["profile_text"]
+        assert "CuratedSkill" not in state.analysis_context["profile_text"]
+
+    def test_no_profile_falls_back_to_raw_documents(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(),
+            FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"),
+            FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
+        )
+        state = node(_state())
+        assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
+        assert "LinkedIn raw" in state.analysis_context["profile_documents"]
+
+    def test_profile_repo_failure_degrades_to_raw(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(),
+            FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"),
+            FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(error=RuntimeError("profile db down")),
+        )
+        state = node(_state())
+        assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
+        assert any("profile db down" in e for e in state.errors)
+
+    def test_no_profile_repo_keeps_legacy_behavior(self):
+        node = PrepareProfileNode(
+            FakeSkillRepo(),
+            FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"),
+            FakeRuleRepo(),
+        )
+        state = node(_state())
+        assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
+
 
 class TestAnalyzeNode:
     def test_calls_llm_and_stores_raw_payload(self):
@@ -583,7 +737,7 @@ class TestAnalyzeNode:
         assert len(llm.calls) == 1
         assert llm.calls[0]["timeout"] == 240
         assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
-        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.3.0"
+        assert state.analysis_context["raw_payload"]["prompt_version"] == "1.4.0"
         assert state.status != ExecutionStatus.FAILED
 
     def test_no_job_text_fails(self):

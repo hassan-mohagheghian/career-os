@@ -67,6 +67,7 @@ class JobAnalysisGraph:
         job_company_repo: Any = None,
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
+        candidate_profile_repo: Any | None = None,
     ):
         self._job_service = job_service
         self._skills = skill_repo
@@ -79,13 +80,17 @@ class JobAnalysisGraph:
         self._job_companies = job_company_repo
         self._llm = llm_service
         self._events = event_publisher
+        self._profiles = candidate_profile_repo
         self._graph = self._build()
 
     def _build(self):
         graph = StateGraph(JobProcessingState)
 
         graph.add_node(NODE_LOAD_CONTEXT, LoadContextNode(self._job_service, self._events))
-        graph.add_node(NODE_PREPARE_PROFILE, PrepareProfileNode(self._skills, self._resumes, self._rules, self._events))
+        graph.add_node(
+            NODE_PREPARE_PROFILE,
+            PrepareProfileNode(self._skills, self._resumes, self._rules, self._events, self._profiles),
+        )
         graph.add_node(NODE_ANALYZE, AnalyzeNode(self._llm, self._events))
         graph.add_node(NODE_EXTRACT_SKILLS, ExtractSkillsNode(self._events))
         graph.add_node(NODE_SCORE, ScoreNode(self._events))

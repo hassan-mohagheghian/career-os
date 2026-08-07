@@ -40,6 +40,16 @@
 - **Aliases**: Merged skills (e.g., Postgres → PostgreSQL) stored in `skill_aliases`
 - **Roadmaps**: Hierarchical learning trees in `skill_roadmaps` with progress tracking
 
+### Candidate Profile
+- **What**: The canonical Candidate Profile domain (`candidates` context, schema `candidate`) — the single source of truth for all candidate intelligence. It must never depend directly on a Resume or LinkedIn; sources converge into the profile.
+- **Entities**: `Candidate` (singleton person), `CandidateProfile` (aggregate root with core facts: name, title, headline, summary, location), `CandidateSource` (resume/linkedin/… each with its own independent version), `CandidateSkill` (links to `skill.skills` via logical `skill_id`, snapshot name/category, level 1-5, `confidence`, `origin` explicit/inferred, `years_of_experience`, `last_used`, `evidence`), `CandidateExperience`, `CandidateProject`, `CandidateEducation`, `CandidateCertificate`, `CandidateInterest`, `CandidateLanguage`, `CandidateProfileVersion` (immutable snapshot per merge).
+- **Provenance (Evidence)**: every extracted entity carries `sources` (e.g. `["resume","linkedin"]`) + `confidence` (0-1) + notes; explicit vs inferred skills are distinguished.
+- **Versioning**: each merge produces a new `CandidateProfileVersion`; sources version independently (updating Resume must not reprocess LinkedIn).
+- **Persistence**: within-context FKs only; the cross-context `skill_id` link to `skill.skills` is a logical reference (no FK, AGENTS.md rule 15).
+- **Extraction**: `CandidateExtractService` (one `candidate.extract` LLM call per source via `LLMService.generate_structured`, versioned prompt/schema + strict validation) turns a raw source document into the structured profile. Source adapters (`CandidateSourceAdapter` → `ResumeAdapter` / `LinkedInAdapter`) read the latest `original_*` / `linkedin_*` rows from `job.resumes` (cross-context read; GitHub/Portfolio are stubs). Extracted skills resolve into `skill.skills` via `resolve_skill`; skills mentioned in a document are stored `origin=explicit` with `Evidence` and confidence; the `inferred` origin is reserved for merge/inference phases.
+- **Merge (ProfileMergeService)**: the single persistence primitive — folds every extracted payload into the canonical profile deterministically and idempotently. Core fields (name/title/headline/summary/location): incoming non-empty wins. Natural keys: skills by `skill_id` (fallback name; keep max level/confidence/years, union evidence sources), experiences by `(company, role)`, projects by `name`, educations by `(institution, degree)`, certificates by `name`, interests/languages by `name`. Removed = present in current but absent from incoming. Every merge writes core + all child sets + a new `CandidateProfileVersion` snapshot (`v1` for the first merge, then `version+1`) with a `source_versions` map and a `change_summary` derived from the diff.
+- **Events (EDD)**: domain events (see `docs/domain/candidates/events.md`) are emitted through the `CandidateEventPublisher` port during merge/extract operations. The default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
+
 ### Resume
 - **What**: Generated resume or cover letter
 - **Types**: `original`, `original_1`, `linkedin_*`, `resume_*`, `cover_*`
@@ -103,6 +113,27 @@ over two LangGraph phases:
 
 Each step emits SSE `workflow.step.*` events; the frontend refetches the Job
 Details on `execution.completed|failed`.
+
+### Candidate Processing Pipeline (v2, SSE)
+Runs as a single `ProcessingExecution` (`CANDIDATE_PROCESSING`, target
+`candidate` / `profile_id`) driven by the runner over two LangGraph phases:
+
+**Phase 1 — Source Preparation (no LLM)**
+1. `load_profile`: load (or create) the canonical candidate profile
+2. `prepare_sources`: collect raw content for every available source via the
+   adapters (resume/linkedin/github/portfolio), skipping already-known versions
+3. `sources_ready` / `execution_failed`
+
+**Phase 2 — Extraction + Merge (one `candidate.extract` LLM call per new source)**
+1. `extract`: run `candidate.extract` per pending source (validate + retry once);
+   per the approved decision an extraction failure fails the whole run
+2. `merge`: `ProfileMergeService` folds all extracted payloads into the profile,
+   writes core + children + a `CandidateProfileVersion` snapshot and marks the
+   sources processed
+3. `candidate_ready` / `execution_failed`
+
+Each step emits SSE `workflow.step.*` events; the candidate domain events
+(`candidate.*`) are collected in-memory by the `CandidateEventPublisher` port.
 
 ### Resume/Cover Generation Pipeline
 1. **Prepare**: Load job data, resume, rules

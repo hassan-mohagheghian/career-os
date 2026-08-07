@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-JOB_ANALYSIS_PROMPT_VERSION = "1.3.0"
+JOB_ANALYSIS_PROMPT_VERSION = "1.4.0"
 JOB_ANALYSIS_SCHEMA_VERSION = "1.1.0"
 
 COMPANY_TYPE_VALUES = [
@@ -147,7 +147,7 @@ Your analysis must:
    - hiring_company: the company actually hiring. Only set it with reasonable evidence ("Join Google", "Google is hiring", "At Google...", internal benefits/culture, official company domain, company career page). Do NOT assume the publishing company is the hiring company. Weak evidence (recruiter website, recruiter contact info, recruiter logo) must not promote a recruiter to hiring company. When the hiring company cannot be determined confidently, return hiring_company: null — never guess.
    - related_companies: zero or more recruiting / staffing / agency / consulting companies that published or represent the job.
    Each company entry needs name, normalized_name (strip legal suffixes: "Google LLC" → "Google"), company_type (hiring, recruiter, staffing, consulting, outsourcing, unknown), confidence (0.0-1.0: 1.0 official career page, 0.95 clearly stated employer, 0.70 likely employer, 0.40 mentioned without enough evidence), and a short reason. Do NOT merge companies — extract and classify every mention. The flat company field is a projection: hiring_company.name when present, otherwise the highest-confidence related company.
-2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain). Base this primarily on the RESUME text; use the LinkedIn profile as supplementary evidence (current title, company, tenure, notable achievements).
+2. Score fit (0-100): how well the role matches the user's profile (skills, seniority, domain). Base this primarily on the structured CANDIDATE PROFILE when provided (it merges all sources: resume, LinkedIn, GitHub, ...); use the RESUME text as a supplement/fallback and the LinkedIn profile as supplementary evidence (current title, company, tenure, notable achievements).
 3. Score success (0-100): the user's probability of getting an offer (seniority match, level, salary, competition).
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).
 5. Recommend apply / consider / skip based on the scores, and write a short apply_reason justifying it.

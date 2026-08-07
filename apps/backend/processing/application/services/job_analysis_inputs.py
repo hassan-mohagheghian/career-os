@@ -49,6 +49,101 @@ def build_profile_documents_text(resume_raw: str | None, linkedin_raw: str | Non
     return "\n\n".join(sections)
 
 
+def build_candidate_profile_text(profile: dict[str, Any]) -> str:
+    """Format the structured Candidate Profile as a labeled prompt section.
+
+    Used as the primary profile document for job analysis when a candidate
+    profile exists (Phase 102). Falls back to raw resume/LinkedIn text only
+    when no profile is available. Truncated to ``MAX_PROFILE_DOC_CHARS`` so a
+    large profile cannot crowd out the rest of the prompt.
+    """
+    if not profile:
+        return "(no candidate profile available)"
+
+    header = []
+    if profile.get("name"):
+        header.append(profile["name"])
+    if profile.get("title"):
+        header.append(profile["title"])
+    if profile.get("headline"):
+        header.append(profile["headline"])
+    if profile.get("location"):
+        header.append(profile["location"])
+    if profile.get("version") is not None:
+        header.append(f"profile version {profile['version']}")
+    if profile.get("summary"):
+        header.append(f"Summary: {profile['summary']}")
+
+    lines = ["CANDIDATE PROFILE (canonical, from merged sources):"]
+    if header:
+        lines.append(" | ".join(header))
+
+    skills = profile.get("skills") or []
+    if skills:
+        lines.append("SKILLS:")
+        for s in skills:
+            meta = []
+            if s.get("level") is not None:
+                meta.append(f"level {s['level']}")
+            if s.get("confidence") is not None:
+                meta.append(f"confidence {s['confidence']}")
+            if s.get("years_of_experience") is not None:
+                meta.append(f"years {s['years_of_experience']}")
+            evidence = s.get("evidence")
+            if isinstance(evidence, dict) and evidence.get("sources"):
+                meta.append("evidence: " + ", ".join(str(x) for x in evidence["sources"]))
+            suffix = f" ({', '.join(meta)})" if meta else ""
+            lines.append(f"- {s.get('name')}{suffix}")
+
+    for label, items in (
+        ("EXPERIENCE:", profile.get("experiences") or []),
+        ("PROJECTS:", profile.get("projects") or []),
+        ("EDUCATION:", profile.get("educations") or []),
+        ("CERTIFICATES:", profile.get("certificates") or []),
+        ("INTERESTS:", profile.get("interests") or []),
+        ("LANGUAGES:", profile.get("languages") or []),
+    ):
+        if not items:
+            continue
+        lines.append(label)
+        for item in items:
+            if label == "EXPERIENCE:":
+                dates = ""
+                if item.get("start_date") or item.get("end_date"):
+                    dates = f" ({item.get('start_date')} -> {item.get('end_date')})"
+                detail = f"  {item.get('company')} - {item.get('role')}{dates}"
+                if item.get("summary"):
+                    detail += f"\n    {item['summary']}"
+                lines.append(detail)
+            elif label == "PROJECTS:":
+                detail = f"  {item.get('name')}"
+                if item.get("url"):
+                    detail += f" ({item.get('url')})"
+                if item.get("description"):
+                    detail += f"\n    {item['description']}"
+                lines.append(detail)
+            elif label == "EDUCATION:":
+                lines.append(
+                    f"  {item.get('institution')} - {item.get('degree')}"
+                    + (f", {item.get('field')}" if item.get("field") else "")
+                )
+            elif label == "CERTIFICATES:":
+                detail = f"  {item.get('name')}"
+                if item.get("issuer"):
+                    detail += f" ({item.get('issuer')})"
+                lines.append(detail)
+            elif label == "LANGUAGES:":
+                detail = f"  {item.get('name')}"
+                if item.get("proficiency"):
+                    detail += f" ({item.get('proficiency')})"
+                lines.append(detail)
+            else:
+                lines.append(f"  {item.get('name')}")
+
+    text = "\n".join(lines)
+    return text[:MAX_PROFILE_DOC_CHARS]
+
+
 def build_scoring_rules_text(rules: list[dict[str, Any]]) -> str:
     """Format enabled scoring rules (SHARED + JOB scopes) for the prompt."""
     if not rules:

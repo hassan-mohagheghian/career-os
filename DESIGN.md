@@ -24,6 +24,7 @@ HEADER
   ├── Job Search (brand → /jobs)
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
   ├── Companies      Company intelligence + processing queue
+  ├── Candidate      Candidate profile import + review
   ├── Skills         Skill management, roadmaps, progress
   ├── Resume         Resume / cover letter generation
   ├── Rules          Scoring rules configuration
@@ -523,6 +524,56 @@ The Skills workspace is parity with the Jobs v2 UX (virtualized table, infinite
 scroll, Sheet drawers). Browsing is never blocked by background roadmap
 generation. Full specs live in `docs/ux/features/skills/` and
 `docs/ux/flows/skills/`.
+
+### Candidate Profile Import Page
+
+The Candidate module (110 Phase 1) starts with **Profile Import**: import
+resume/LinkedIn sources, run AI analysis, and review the canonical profile.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Candidate Profile                                    [nav: Candidate]    │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [Sources] [Review]                                                       │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [SOURCES TAB]                                                            │
+│ ┌──────────────────────────┐  ┌──────────────────────────┐              │
+│ │ RESUME                   │  │ LINKEDIN                 │              │
+│ │ textarea ┌──────────────┐│  │ textarea ┌──────────────┐│              │
+│ │          └──────────────┘│  │          └──────────────┘│              │
+│ │ [Save Resume]            │  │ [Save Profile]           │              │
+│ └──────────────────────────┘  └──────────────────────────┘              │
+│ ┌────────────────────────────────────────────────────────────────────┐  │
+│ │ GITHUB (optional — placeholder)    [username..............]        │  │
+│ └────────────────────────────────────────────────────────────────────┘  │
+│ ┌────────────────────────────────────────────────────────────────────┐  │
+│ │ [✨ Analyze Profile]      (queues candidate processing execution)  │  │
+│ └────────────────────────────────────────────────────────────────────┘  │
+│ [REVIEW TAB]                                                           │
+│ ┌────────────────────────────────────────────────────────────────────┐  │
+│ │ PROFILE SUMMARY    name · title · version · location               │  │
+│ │ [2 skills] [1 experience] [1 project] [1 education] [1 language]   │  │
+│ └────────────────────────────────────────────────────────────────────┘  │
+│ ┌──────────────────────────┐  ┌──────────────────────────┐              │
+│ │ CONNECTED SOURCES        │  │ VERSION HISTORY          │              │
+│ │  resume v1  [processed]  │  │  v2 "added linkedin"     │              │
+│ │  linkedin v1 [processed] │  │  v1 "initial import"     │              │
+│ └──────────────────────────┘  └──────────────────────────┘              │
+│ ┌────────────────────────────────────────────────────────────────────┐  │
+│ │ SKILLS   [Python L4 96%] [PostgreSQL L4 90%] ...                  │  │
+│ ├────────────────────────────────────────────────────────────────────┤  │
+│ │ EXPERIENCE  role · company · dates · summary                      │  │
+│ ├────────────────────────────────────────────────────────────────────┤  │
+│ │ PROJECTS  name · description · url                                 │  │
+│ └────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Profile analysis is a background workflow (`CANDIDATE_PROCESSING` execution,
+SSE progress); the Review tab refetches `/profile`, `/sources` and `/versions`
+after analysis. Full specs live in
+`docs/ux/features/candidate/profile-import.md` and
+`docs/ux/flows/candidate/import-profile.md`.
 
 ---
 

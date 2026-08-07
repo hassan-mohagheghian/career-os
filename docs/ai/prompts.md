@@ -17,8 +17,8 @@
 > The `job.analyze` prompt is now self-contained and versioned in
 > `processing/application/services/job_analysis_prompt.py`
 > (`build_job_analysis_prompt`, `build_job_analysis_output_schema`,
-> `JOB_ANALYSIS_PROMPT_VERSION`, `JOB_ANALYSIS_SCHEMA_VERSION` — prompt "1.1.0",
-> schema "1.0.0").
+> `JOB_ANALYSIS_PROMPT_VERSION`, `JOB_ANALYSIS_SCHEMA_VERSION` — prompt "1.4.0",
+> schema "1.1.0").
 > It is executed by the `analyze` node of the JobAnalysisGraph via
 > `LLMService.generate_structured(prompt, schema=…, timeout=240)` — exactly
 > one LLM call per job.
@@ -37,8 +37,8 @@ is a self-contained builder:
 
 ```python
 from processing.application.services.job_analysis_prompt import (
-    JOB_ANALYSIS_PROMPT_VERSION,   # "1.1.0"
-    JOB_ANALYSIS_SCHEMA_VERSION,   # "1.0.0"
+    JOB_ANALYSIS_PROMPT_VERSION,   # "1.4.0"
+    JOB_ANALYSIS_SCHEMA_VERSION,   # "1.1.0"
     build_job_analysis_prompt,
     build_job_analysis_output_schema,
 )
@@ -48,7 +48,7 @@ prompt = build_job_analysis_prompt(
     profile_text,
     scoring_rules,
     resume_text,
-    profile_documents,  # latest resume + LinkedIn, labeled sections
+    profile_documents,  # structured candidate profile OR raw resume + LinkedIn
 )
 schema = build_job_analysis_output_schema()
 
@@ -56,26 +56,37 @@ schema = build_job_analysis_output_schema()
 resp = llm.generate_structured(prompt=prompt, schema=schema, timeout=240)
 ```
 
-### Profile documents (since v1.1.0)
+### Profile documents (since v1.4.0)
 
-The `prepare_profile` node fetches the latest resume (`original_*`) and the
-latest LinkedIn profile (`linkedin_*`) separately and passes them into the
-prompt as labeled sections:
+The `prepare_profile` node now reads the structured **Candidate Profile** when
+one exists and uses it as the primary document section, falling back to the raw
+resume / LinkedIn text only when no profile has been built yet.
 
-```
-RESUME TEXT (latest):
-…
-LINKEDIN PROFILE TEXT (latest):
-…
-```
+- **Candidate profile present** → `profile_documents` is the formatted canonical
+  profile (header, skills with level/confidence/years/evidence, experience,
+  projects, education, certificates, interests, languages) via
+  `build_candidate_profile_text` (`job_analysis_inputs.py`), truncated to a
+  6000-character budget. `profile_text` is also built from the profile's skills
+  (richer evidence metadata) instead of the curated skills registry.
+- **No candidate profile** → legacy behavior: raw labeled sections:
 
-The resume is the **authoritative** source for skills and seniority; LinkedIn
-is supplementary (current title, company, tenure, achievements). Each source is
-truncated independently to a 6000-character budget so neither can crowd out the
-other. If neither document exists the builder falls back to the resume-only
-section. Builders live in
+  ```
+  RESUME TEXT (latest):
+  …
+  LINKEDIN PROFILE TEXT (latest):
+  …
+  ```
+
+  via `build_profile_documents_text`. The resume is the authoritative source for
+  skills and seniority; LinkedIn is supplementary. Each source is truncated
+  independently to a 6000-character budget.
+
+A DB failure reading the profile degrades gracefully to the raw-document path
+and records an error, so job analysis never blocks on the profile. Fit scoring
+is based primarily on the structured profile when provided (prompt v1.4.0);
+otherwise on the resume text as before. Builders live in
 `processing/application/services/job_analysis_inputs.py`
-(`build_profile_documents_text`).
+(`build_candidate_profile_text`, `build_profile_documents_text`).
 
 The prompt and its output JSON schema are versioned together and live in
 `processing/application/services/job_analysis_prompt.py`.

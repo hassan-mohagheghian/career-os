@@ -208,6 +208,40 @@ class ProcessingExecutionRunner:
                 if owns_session:
                     graph_session.close()
 
+        if execution.execution_type == ExecutionType.CANDIDATE_PROCESSING:
+            from processing.domain.workflow.candidate_processing_state import CandidateProcessingState
+            from processing.infrastructure.workflow import (
+                build_candidate_processing_graph,
+                build_candidate_source_preparation_graph,
+            )
+
+            graph_session = session
+            owns_session = False
+            if graph_session is None:
+                graph_session = get_session_sync()
+                owns_session = True
+            try:
+                graph = build_candidate_source_preparation_graph(graph_session)
+                state = CandidateProcessingState(
+                    execution_id=execution.id,
+                    profile_id=execution.target_id or "",
+                    workflow_progress=progress_ops.build_initial_progress(
+                        execution.id, execution.target_type
+                    ),
+                )
+                final = graph.invoke(state)
+                if final.status != ExecutionStatus.FAILED:
+                    processing_graph = build_candidate_processing_graph(graph_session)
+                    final = processing_graph.invoke(final)
+                if final.workflow_progress is not None:
+                    execution.workflow_progress = final.workflow_progress.to_dict()
+                if final.status == ExecutionStatus.FAILED:
+                    raise RuntimeError("; ".join(final.errors) or "Candidate processing failed")
+                return {"profile_id": final.profile_id or execution.target_id}
+            finally:
+                if owns_session:
+                    graph_session.close()
+
         if execution.execution_type in (
             ExecutionType.RESUME_GENERATION,
             ExecutionType.COVER_LETTER_GENERATION,

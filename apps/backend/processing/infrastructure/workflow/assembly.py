@@ -11,6 +11,12 @@ from __future__ import annotations
 from typing import Any
 
 from ai.infrastructure.service import get_llm_service
+from candidates.application.services.candidate_extract_service import CandidateExtractService
+from candidates.domain.event_publisher import InMemoryEventCollector
+from candidates.infrastructure import (
+    SQLAlchemyCandidateProfileRepository,
+    SQLAlchemyCandidateSourceRepository,
+)
 from companies.application.services.company_matching_service import CompanyMatchingService
 from companies.application.services.company_service import CompanyService
 from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
@@ -21,6 +27,8 @@ from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchem
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+from processing.application.workflows.candidate_processing import CandidateProcessingGraph
+from processing.application.workflows.candidate_source_preparation import CandidateSourcePreparationGraph
 from processing.application.workflows.company_analysis import CompanyAnalysisGraph
 from processing.application.workflows.company_context_preparation import CompanyContextPreparationGraph
 from processing.application.workflows.job_analysis import JobAnalysisGraph
@@ -77,6 +85,7 @@ def build_job_analysis_graph(session: Any) -> JobAnalysisGraph:
         job_company_repo=SQLAlchemyJobCompanyRepository(session),
         llm_service=get_llm_service(),
         event_publisher=event_publisher,
+        candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
     )
 
 
@@ -111,5 +120,30 @@ def build_company_analysis_graph(session: Any) -> CompanyAnalysisGraph:
         company_service=_company_service(session),
         rule_repo=SQLAlchemyRuleRepository(session),
         llm_service=get_llm_service(),
+        event_publisher=RedisProcessingEventPublisher(),
+    )
+
+
+def build_candidate_source_preparation_graph(session: Any) -> CandidateSourcePreparationGraph:
+    """Build the Candidate source preparation graph (no LLM)."""
+    return CandidateSourcePreparationGraph(
+        profile_repo=SQLAlchemyCandidateProfileRepository(session),
+        source_repo=SQLAlchemyCandidateSourceRepository(session),
+        resume_repo=SQLAlchemyResumeRepository(session),
+        event_publisher=RedisProcessingEventPublisher(),
+    )
+
+
+def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
+    """Build the Candidate extraction/merge graph with production adapters."""
+    extract_service = CandidateExtractService(
+        profile_repo=SQLAlchemyCandidateProfileRepository(session),
+        source_repo=SQLAlchemyCandidateSourceRepository(session),
+        skill_repo=SQLAlchemySkillRepository(session),
+        llm=get_llm_service(),
+        event_publisher=InMemoryEventCollector(),
+    )
+    return CandidateProcessingGraph(
+        extract_service=extract_service,
         event_publisher=RedisProcessingEventPublisher(),
     )

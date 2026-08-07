@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alembic manages database schema migrations across four bounded contexts. Each context has its own migration directory and Alembic revision line, allowing independent schema versioning per domain.
+Alembic manages database schema migrations across the bounded contexts. Each context has its own migration directory and Alembic revision line, allowing independent schema versioning per domain.
 
 ## Directory Structure
 
@@ -16,32 +16,74 @@ apps/alembic/
 │   └── versions/       # company schema migrations
 ├── skill/
 │   └── versions/       # skill schema migrations
+├── candidate/
+│   └── versions/       # candidate schema migrations
 └── shared/
     └── versions/       # shared schema migrations
 ```
 
 ## Setup
 
-- **Config**: `apps/alembic/alembic.ini`
+- **Config**: `alembic.ini` (repo root)
 - **Environment**: `apps/alembic/env.py`
 - **Version locations**: configured per context in `alembic.ini`
 
 ```ini
-version_locations = %(here)s/job/versions %(here)s/company/versions %(here)s/skill/versions %(here)s/shared/versions
+version_locations = apps/alembic/job/versions apps/alembic/company/versions apps/alembic/skill/versions apps/alembic/shared/versions apps/alembic/candidate/versions
 ```
 
 ## Schema Configuration
 
 Each bounded context owns a PostgreSQL schema:
 
-| Context | Schema | Migration Dir |
-|---------|--------|---------------|
-| Job | `job` | `apps/alembic/job/` |
-| Company | `company` | `apps/alembic/company/` |
-| Skill | `skill` | `apps/alembic/skill/` |
-| Shared | `shared` | `apps/alembic/shared/` |
+| Context    | Schema      | Migration Dir                 |
+| ---------- | ----------- | ----------------------------- |
+| Job        | `job`       | `apps/alembic/job/`           |
+| Company    | `company`   | `apps/alembic/company/`       |
+| Skill      | `skill`     | `apps/alembic/skill/`         |
+| Candidate  | `candidate` | `apps/alembic/candidate/`     |
+| Shared     | `shared`    | `apps/alembic/shared/`        |
 
-The `env.py` imports all models from `shared.infrastructure.database.models` so Alembic can autogenerate migrations for all schemas. `include_schemas=True` ensures schema-aware operations.
+The `env.py` imports all models per context so Alembic can autogenerate
+migrations for all schemas. `include_schemas=True` ensures schema-aware
+operations, and `include_object` respects `ALEMBIC_TARGET_SCHEMA` for
+single-schema autogenerate.
+
+## Non-Negotiable: Generate First, Then Tune
+
+> **Every new migration MUST be created by Alembic autogenerate FIRST, then
+> tuned. Never hand-author a migration file from scratch.**
+
+The generated file is authoritative for the **revision-graph references** —
+`revision`, `down_revision`, `branch_labels` and `depends_on`. Only Alembic can
+compute these correctly (which migration is the parent, whether a new context
+is a fresh branch, where the revision must chain, and whether a merge/head is
+needed). Manually guessing these headers corrupts the migration history.
+
+Workflow:
+
+1. **Modify ORM models** in the context's model file.
+2. **Scaffold the new context** (only for a brand-new bounded context) before
+   generating:
+   - add the schema to `SCHEMAS` in
+     `apps/backend/shared/infrastructure/database/sqlalchemy_config.py`
+   - add its `versions/` dir to `version_locations` in `alembic.ini`
+   - import its models in `apps/alembic/env.py`
+3. **Generate**: `uv run alembic revision --autogenerate -m "<description>"`
+   (optionally `ALEMBIC_TARGET_SCHEMA=<schema>` to scope a single context).
+   For a brand-new context branch pass `--branch-label <context>` and
+   `--version-path apps/alembic/<context>/versions`.
+4. **Tune the CONTENT ONLY**: add `CREATE SCHEMA IF NOT EXISTS`, indexes,
+   naming, FKs, review column types. You may rename the file and revision id to
+   match repo convention (e.g. `candidate_001_initial_candidate_schema.py` with
+   `revision = "candidate_001"`) **provided nothing references the original id
+   and the tuned id stays consistent across history/DB stamp**.
+5. **Verify**: `uv run alembic history`, `uv run alembic heads` (single head),
+   `uv run alembic upgrade head`, then a downgrade → upgrade round-trip.
+6. **Commit** the migration with its implementation-history file.
+
+Do NOT hand-edit the header references (except the repo-convention rename above)
+after generation. If the graph is wrong, re-run autogenerate instead.
 
 ## Recent Schema Additions
 
@@ -61,74 +103,83 @@ The `env.py` imports all models from `shared.infrastructure.database.models` so 
 
 ## Common Commands
 
-Run all commands from the `apps/alembic/` directory:
+Run all commands from the repository root (`alembic.ini` lives at the root,
+with per-context `version_locations`).
 
 ### Check current migration state for all contexts
 
 ```bash
-cd apps/alembic
-alembic current
+uv run alembic current
 ```
 
 ### View migration history
 
 ```bash
-alembic history
+uv run alembic history
 ```
 
-### Generate a new migration (autogenerate for all schemas)
+### Generate a new migration (autogenerate, scoped to one schema when needed)
 
 ```bash
-alembic revision --autogenerate -m "description of changes"
+uv run alembic revision --autogenerate -m "description of changes"
+ALEMBIC_TARGET_SCHEMA=<schema> uv run alembic revision --autogenerate -m "description"
 ```
 
-This creates a new migration file in the appropriate version directory based on which tables changed.
+For a brand-new context branch (e.g. `candidate`):
+
+```bash
+ALEMBIC_TARGET_SCHEMA=candidate uv run alembic revision --autogenerate \
+  --version-path apps/alembic/candidate/versions \
+  --branch-label candidate -m "initial candidate schema"
+```
 
 ### Apply pending migrations
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### Merge divergent migration heads
 
-If `alembic upgrade head` fails with
+If `uv run alembic upgrade head` fails with
 `Multiple head revisions are present for given argument 'head'`, two migration
 lines diverged from a common ancestor (e.g. two feature migrations were created
 from the same base). Re-join them into a single head with a merge migration:
 
 ```bash
-alembic merge -m "merge <desc-a> and <desc-b> heads" <head_a> <head_b>
+uv run alembic merge -m "merge <desc-a> and <desc-b> heads" <head_a> <head_b>
 ```
 
-Then commit the generated merge file. Verify with `alembic heads` (must show a
-single head) before running `alembic upgrade head`.
+Then commit the generated merge file. Verify with `uv run alembic heads` (must
+show a single head) before running `uv run alembic upgrade head`.
 
 ### Rollback one migration
 
 ```bash
-alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 ### Rollback to a specific revision
 
 ```bash
-alembic downgrade <revision_id>
+uv run alembic downgrade <revision_id>
 ```
 
 ### Stamp a database as up-to-date (without running migrations)
 
 ```bash
-alembic stamp head
+uv run alembic stamp head
 ```
 
 ## Migration Workflow
 
-1. **Modify ORM models** in the appropriate context model file
-2. **Generate migration**: `alembic revision --autogenerate -m "description"`
-3. **Review** the generated file in the relevant `versions/` directory
-4. **Test** the migration: `alembic upgrade head && alembic downgrade -1`
-5. **Commit** the migration file
+Follow the **Non-Negotiable: Generate First, Then Tune** section above:
+
+1. Modify ORM models in the context's model file
+2. Generate the migration with autogenerate (never hand-write from scratch)
+3. Tune the content only (schema creation, indexes, naming, review)
+4. Test the migration: `uv run alembic upgrade head && uv run alembic downgrade <prev> && uv run alembic upgrade head`
+5. Commit the migration with its implementation-history file
 
 ## Review Process
 
@@ -138,11 +189,21 @@ Always review auto-generated migrations before committing:
 - Verify index creation/deletion
 - Ensure schema operations are correct (CREATE SCHEMA, SET search_path)
 - Test both upgrade and downgrade paths
-- Verify cross-schema foreign key references
+- **No cross-context foreign keys** (AGENTS.md rule 15): FKs are allowed only
+  within a bounded context's own schema; cross-context links (e.g.
+  `candidate_skills.skill_id` → `skill.skills`) are plain logical-reference
+  columns with no `ForeignKey(...)` constraint
+- Confirm the revision header references (`revision`, `down_revision`,
+  `branch_labels`) came from autogenerate and were not guessed by hand
 
 ## How Models Connect to Alembic
 
-Alembic's `env.py` imports the `Base` object and all models via `shared.infrastructure.database.models`. The `target_metadata = Base.metadata` line tells Alembic to inspect all registered tables across all schemas for autogeneration.
+Alembic's `env.py` imports the `Base` object and every context's model package
+(e.g. `candidates.infrastructure.models.candidate_model`) so all tables
+register with `Base.metadata`. The `target_metadata = Base.metadata` line tells
+Alembic to inspect all registered tables across all schemas for autogeneration.
+When you add a new context (or a new model file), register it in `env.py`
+**before** generating the migration, or autogenerate will not see it.
 
 ## Data Migrations
 
@@ -169,7 +230,9 @@ The `alembic-migrate` service runs `alembic upgrade head` and exits.
 The database already has the table. Use `alembic stamp head` to mark it as current.
 
 ### Migration doesn't detect changes
-Ensure all models are imported in `shared/infrastructure/database/models/__init__.py`.
+Ensure all models are imported in `apps/alembic/env.py` (one import per context
+model package). If the new models aren't registered with `Base.metadata`,
+autogenerate cannot see them — and this must be done **before** generating.
 
 ### SQLite-specific issues
 - SQLite doesn't support `CREATE SCHEMA` — migrations must be run against PostgreSQL

@@ -16,6 +16,7 @@ import uuid
 from datetime import datetime, UTC
 from typing import Any, Iterable
 
+from processing.application.workflows.candidate_workflow_step_mapper import CandidateWorkflowStepMapper
 from processing.application.workflows.company_workflow_step_mapper import CompanyWorkflowStepMapper
 from processing.application.workflows.workflow_step_mapper import WorkflowStepMapper
 from processing.domain.workflow.workflow_progress import (
@@ -33,9 +34,11 @@ from shared.infrastructure.events import processing_events
 def build_initial_progress(execution_id: str, target_type: str | None = None) -> WorkflowProgress:
     """Build a fully-pending WorkflowProgress for an execution.
 
-    Defaults to the job step tree; pass ``target_type="company"`` to get the
-    company step tree.
+    Defaults to the job step tree; pass ``target_type="company"`` for the
+    company step tree or ``target_type="candidate"`` for the candidate tree.
     """
+    if target_type == "candidate":
+        return CandidateWorkflowStepMapper.build_initial_progress(execution_id)
     if target_type == "company":
         return CompanyWorkflowStepMapper.build_initial_progress(execution_id)
     return WorkflowStepMapper.build_initial_progress(execution_id)
@@ -194,9 +197,11 @@ def _ensure_progress(state: Any) -> WorkflowProgress:
 def _build_initial_progress(state: Any) -> WorkflowProgress:
     """Build the initial progress tree for the state's workflow.
 
-    Dispatches on the target type carried by the state (job_id vs company_id)
-    so both the job and company workflows render their own step tree.
+    Dispatches on the target type carried by the state (job_id vs company_id vs
+    profile_id) so each workflow renders its own step tree.
     """
+    if getattr(state, "profile_id", None):
+        return CandidateWorkflowStepMapper.build_initial_progress(state.execution_id)
     if getattr(state, "company_id", None) is not None and getattr(state, "job_id", None) is None:
         return CompanyWorkflowStepMapper.build_initial_progress(state.execution_id)
     return WorkflowStepMapper.build_initial_progress(state.execution_id)
@@ -266,11 +271,17 @@ def _emit_step_event(publisher: Any, state: Any, event: str, step: WorkflowStep)
 
 
 def _target_id(state: Any) -> str | None:
-    """The entity id carried by any workflow state (job_id / company_id)."""
-    return getattr(state, "job_id", None) or getattr(state, "company_id", None)
+    """The entity id carried by any workflow state (job_id / company_id / profile_id)."""
+    return (
+        getattr(state, "job_id", None)
+        or getattr(state, "company_id", None)
+        or getattr(state, "profile_id", None)
+    )
 
 
 def _target_type(state: Any) -> str | None:
+    if getattr(state, "profile_id", None) and not getattr(state, "job_id", None) and not getattr(state, "company_id", None):
+        return "candidate"
     if getattr(state, "company_id", None) is not None and getattr(state, "job_id", None) is None:
         return "company"
     if getattr(state, "job_id", None) is not None:

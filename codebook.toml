@@ -2,6 +2,7 @@ words = [
     "ADR",
     "ARQ",
     "Checkpointing",
+    "EDD",
     "HTTPX",
     "LLM",
     "NATS",

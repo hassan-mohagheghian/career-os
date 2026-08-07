@@ -40,6 +40,7 @@ def init_db():
     import skills.infrastructure.models.skill_roadmap_models
     import companies.infrastructure.models.company_model
     import rules.infrastructure.models.rule_model
+    import candidates.infrastructure.models.candidate_model  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

@@ -46,6 +46,8 @@ docs/ux/
 │   │   ├── relate-company.md  Related companies: main/alias relations, Relate Company dialog
 │   │   ├── add-company.md     Add Company drawer (shared Create Entity, company mode)
 │   │   ├── edit-company.md    Edit Company drawer
+│   ├── candidate/
+│   │   └── profile-import.md  Candidate Profile Import page (sources, analyze, review)
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, infinite scroll)
 │       ├── job-row.md         Job row columns and scores
@@ -67,6 +69,8 @@ docs/ux/
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
 │       └── edit-skill.md      Edit Skill drawer (aliases, merge)
 └── flows/
+    ├── candidate/
+    │   └── import-profile.md  Import resume/LinkedIn, analyze, review profile
     ├── companies/
     │   ├── browse-companies.md  Browse, search, filter, sort, open details
     │   ├── relate-company.md    Relate an alias company to a main (consolidate duplicates)
@@ -97,6 +101,11 @@ The current product focus is the **Jobs** workspace:
 - Delete a job and all its processing data (`docs/ux/features/jobs/delete-job.md`).
 - Monitor AI processing through the Processing Queue (`docs/ux/features/jobs/processing-queue.md`, `docs/ux/flows/jobs/processing-queue.md`).
 - Watch live workflow progress (`docs/ux/flows/jobs/process-job-live.md`).
+
+**Candidate** is the newest module (110 Phase 1): import resume/LinkedIn, run
+AI profile analysis and review the canonical profile
+(`docs/ux/features/candidate/profile-import.md`,
+`docs/ux/flows/candidate/import-profile.md`).
 
 ## Design Language
 

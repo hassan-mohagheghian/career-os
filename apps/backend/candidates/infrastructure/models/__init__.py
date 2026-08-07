@@ -1,0 +1,1 @@
+"""Candidate domain models."""

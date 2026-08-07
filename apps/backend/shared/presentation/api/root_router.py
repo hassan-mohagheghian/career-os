@@ -23,6 +23,7 @@ from shared.presentation.api.dashboard_router import router as dashboard_router
 from ai.presentation.api.llm_configurations_router import router as llm_configurations_router
 from processing.presentation.api.process_router import router as process_router
 from processing.presentation.api.executions_router import router as executions_router
+from candidates.presentation.api.candidates_router import router as candidates_router
 
 # DI dependencies — wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo, get_skill_roadmap_repo, get_skill_roadmap_progress_repo
@@ -56,6 +57,10 @@ api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
 api_router.include_router(llm_configurations_router, prefix="/llm-configurations", tags=["llm-configurations"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
 api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
+
+# ── Candidate Profile ────────────────────────────────────────────
+
+api_router.include_router(candidates_router, prefix="/candidates", tags=["candidates"])
 
 # ── Flask compat routes ─────────────────────────────────────────
 

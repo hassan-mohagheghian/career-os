@@ -67,6 +67,7 @@ Job Search Intelligence is a **DDD modular monolith** with a hexagonal backend (
 | jobs       | Job lifecycle: import, process, score, list                    |
 | companies  | Company profiles, intelligence, visa assessment                |
 | skills     | 5-category taxonomy, aliases, relationships, roadmaps           |
+| candidates | Canonical Candidate Profile domain: profile, sources, skills/experience/projects, evidence, versions; source adapters (resume/linkedin) + one `candidate.extract` LLM call |
 | rules      | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, ...) |
 | ai         | LLMService, providers, tools, LangGraph graphs                     |
 | processing | ProcessingExecution, workflow progress, events, queue, job analysis graphs |
@@ -80,7 +81,8 @@ Contexts must not cross-import. Dependencies flow domain → application → inf
 
 - **LLMService** — single facade for all AI calls; providers are never called directly.
 - **Provider abstraction** — swap via `AI_PROVIDER` env var (openai, mimo, local, gemini, ...).
-- **LangGraph workflows** — stateful pipelines: `JobContextPreparationGraph` (LLM-free prep) → `JobAnalysisGraph` (single combined `job.analyze` call), plus the company two-phase workflow (`COMPANY_PROCESSING` `ProcessingExecution`: context preparation without LLM, then a single-LLM analysis).
+- **LangGraph workflows** — stateful pipelines: `JobContextPreparationGraph` (LLM-free prep) → `JobAnalysisGraph` (single combined `job.analyze` call), the company two-phase workflow (`COMPANY_PROCESSING` `ProcessingExecution`: context preparation without LLM, then a single-LLM analysis), and the candidate two-phase workflow (`CANDIDATE_PROCESSING` `ProcessingExecution`: `CandidateSourcePreparationGraph` collects source contents (no LLM) → `CandidateProcessingGraph` runs one `candidate.extract` call per new source and merges everything into the canonical profile with a `CandidateProfileVersion` snapshot).
+- **Candidate events (EDD)** — the Candidates context emits domain events (`candidate.*`) through the `CandidateEventPublisher` port; the default implementation is an in-memory collector (`InMemoryEventCollector`). Pub/sub / SSE / outbox transport is deferred to a dedicated phase (AGENTS.md rule 16). Catalog: `docs/domain/candidates/events.md`.
 - **Job Analysis prompt** — the `job.analyze` prompt and its output JSON schema are versioned and self-contained in `processing/application/services/job_analysis_prompt.py`; called via `LLMService.generate_structured`. The obsolete `ai/infrastructure/prompts/` package and unused `jobs/infrastructure/ai/prompts/*.py`/`.md` prompt modules were removed.
 
 ---
@@ -93,7 +95,7 @@ API → ProcessingExecution → TaskIQ task → TaskIQ worker → LangGraph work
 
 - TaskIQ owns background execution and retries.
 - LangGraph owns workflow state and node execution.
-- The `ProcessingExecutionRunner` runs both graphs for `JOB_PROCESSING`: context preparation first, then the analysis graph reusing the same state.
+- The `ProcessingExecutionRunner` runs both graphs for `JOB_PROCESSING` (and `COMPANY_PROCESSING` / `CANDIDATE_PROCESSING`): context preparation first, then the analysis/merge graph reusing the same state.
 - Progress is exposed to the frontend through SSE events.
 
 ---

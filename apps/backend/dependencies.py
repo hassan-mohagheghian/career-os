@@ -81,6 +81,36 @@ def get_rule_repo(session: Session = Depends(get_session)):
     return SQLAlchemyRuleRepository(session)
 
 
+# ── Candidates Context Dependencies ──────────────────────────────
+
+def get_candidate_repo(session: Session = Depends(get_session)):
+    from candidates.infrastructure import SQLAlchemyCandidateRepository
+    return SQLAlchemyCandidateRepository(session)
+
+
+def get_candidate_profile_repo(session: Session = Depends(get_session)):
+    from candidates.infrastructure import SQLAlchemyCandidateProfileRepository
+    return SQLAlchemyCandidateProfileRepository(session)
+
+
+def get_candidate_source_repo(session: Session = Depends(get_session)):
+    from candidates.infrastructure import SQLAlchemyCandidateSourceRepository
+    return SQLAlchemyCandidateSourceRepository(session)
+
+
+def get_candidate_extract_service(
+    profile_repo=Depends(get_candidate_profile_repo),
+    source_repo=Depends(get_candidate_source_repo),
+    skill_repo=Depends(get_skill_repo),
+):
+    from candidates.application.services.candidate_extract_service import CandidateExtractService
+    return CandidateExtractService(
+        profile_repo=profile_repo,
+        source_repo=source_repo,
+        skill_repo=skill_repo,
+    )
+
+
 # ── Resume Context Dependencies ───────────────────────────────────
 
 def get_resume_repo(session: Session = Depends(get_session)):
