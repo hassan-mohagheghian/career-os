@@ -57,6 +57,12 @@ Every time the drawer opens, if the clipboard holds a URL (matching
 the field is already populated — matching the Add Job drawer behavior. An empty
 or non-URL clipboard is ignored silently.
 
+After a successful **Add** / **Add & Process**, the very next open of the drawer
+**skips** the clipboard prefill so the Primary Link field opens empty — the
+clipboard still holds the just-inserted link, so re-reading it would only
+re-show the already added URL. Prefill resumes as normal on the open after that
+(one-shot suppression, same as the Add Job drawer).
+
 A title can be selected from the preset chips **Website** and **LinkedIn**.
 Clicking a chip toggles it on/off. Only one primary title can be active.
 

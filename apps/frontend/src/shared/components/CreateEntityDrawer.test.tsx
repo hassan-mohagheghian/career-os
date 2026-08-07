@@ -211,4 +211,54 @@ describe('CreateEntityDrawer — clipboard prefill', () => {
     await waitFor(() => expect(readClipboardUrlMock).toHaveBeenCalled())
     expect(urlInput.value).toBe('')
   })
+
+  it('skips the clipboard prefill on the reopen right after a successful Add', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
+    const onSubmit = vi.fn()
+    const onOpenChange = vi.fn()
+    const { rerender } = render(
+      <CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />
+    )
+
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    const urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/123'))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByText('Add'))
+    expect(onSubmit).toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+
+    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    const reopenedInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(reopenedInput.value).toBe(''))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('resumes the clipboard prefill on the open after the skipped one', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
+    const onSubmit = vi.fn()
+    const onOpenChange = vi.fn()
+    const { rerender } = render(
+      <CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />
+    )
+
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe('https://linkedin.com/jobs/view/123'))
+
+    fireEvent.click(screen.getByText('Add'))
+    fireEvent.click(screen.getByText('Cancel'))
+    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe(''))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByText('Cancel'))
+    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+    await waitFor(() => expect(readClipboardUrlMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe('https://linkedin.com/jobs/view/123'))
+  })
 })

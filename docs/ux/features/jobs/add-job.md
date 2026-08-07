@@ -154,6 +154,12 @@ Tip: a copied link is auto-filled from your clipboard.
 This makes the common "copy a job posting → press N → Add" flow effectively
 three steps. An empty or non-URL clipboard is ignored silently.
 
+After a successful **Add** / **Add & Queue**, the very next open of the drawer
+**skips** the clipboard prefill so the URL field opens empty — the clipboard
+still holds the just-inserted link, so re-reading it would only re-show the
+already added URL. Prefill resumes as normal on the open after that (one-shot
+suppression).
+
 ---
 
 # Job Title

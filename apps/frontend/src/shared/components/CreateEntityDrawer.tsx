@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Button } from '@/shared/ui/button'
@@ -81,8 +81,14 @@ export default function CreateEntityDrawer({
   const [newNoteTitle, setNewNoteTitle] = useState('')
   const [newNoteContent, setNewNoteContent] = useState('')
 
+  const skipClipboardPrefill = useRef(false)
+
   useEffect(() => {
     if (!open) return
+    if (skipClipboardPrefill.current) {
+      skipClipboardPrefill.current = false
+      return
+    }
     let cancelled = false
     readClipboardUrl().then((url) => {
       if (cancelled || !url) return
@@ -150,6 +156,7 @@ export default function CreateEntityDrawer({
 
   const handleSubmit = (queue: boolean) => {
     if (!canSubmit || submitting) return
+    skipClipboardPrefill.current = true
     onSubmit(buildData(queue))
   }
 
