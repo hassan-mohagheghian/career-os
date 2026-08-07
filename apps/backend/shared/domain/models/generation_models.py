@@ -27,10 +27,6 @@ class GenerationSource(str, Enum):
     JOB_PROCESS = 'job_process'
     COMPANY_PROCESS = 'company_process'
 
-    # Document generation sources
-    RESUME = 'resume'
-    COVER_LETTER = 'cover_letter'
-
     # Skill roadmap sources
     SKILL_ROADMAP_GENERATE = 'skill_roadmap_generate'
     SKILL_ROADMAP_EXTEND = 'skill_roadmap_extend'
@@ -43,8 +39,6 @@ class GenerationSource(str, Enum):
             return 'processing'
         if self.value.startswith('company_'):
             return 'processing'
-        if self.value in ('resume', 'cover_letter'):
-            return 'generation'
         if self.value.startswith('skill_roadmap_'):
             return 'roadmap'
         return 'other'
@@ -55,8 +49,6 @@ class GenerationSource(str, Enum):
         _DISPLAY = {
             'job_process': 'Job Processing',
             'company_process': 'Company Processing',
-            'resume': 'Resume Generation',
-            'cover_letter': 'Cover Letter Generation',
 
             'skill_roadmap_generate': 'Skill Roadmap: Generate',
             'skill_roadmap_extend': 'Skill Roadmap: Extend',
@@ -120,30 +112,6 @@ SOURCE_STEP_CONFIG: Dict[GenerationSource, Dict[str, Any]] = {
             {'key': 'step_fetch', 'label': 'Fetching'},
             {'key': 'step_extract', 'label': 'Extracting'},
             {'key': 'step_analyze', 'label': 'Analyzing'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    # Resume Generation: 5 steps
-    GenerationSource.RESUME: {
-        'label': 'Resume Generation',
-        'total_steps': 5,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_context', 'label': 'Context'},
-            {'key': 'step_generate', 'label': 'Generating'},
-            {'key': 'step_save', 'label': 'Saving'},
-            {'key': 'step_done', 'label': 'Done'},
-        ],
-    },
-    # Cover Letter Generation: 5 steps
-    GenerationSource.COVER_LETTER: {
-        'label': 'Cover Letter Generation',
-        'total_steps': 5,
-        'steps': [
-            {'key': 'step_prepare', 'label': 'Preparing'},
-            {'key': 'step_context', 'label': 'Context'},
-            {'key': 'step_generate', 'label': 'Generating'},
             {'key': 'step_save', 'label': 'Saving'},
             {'key': 'step_done', 'label': 'Done'},
         ],
@@ -235,7 +203,6 @@ class GenerationRun:
         source_group = self.source.group
         source_label_map = {
             'processing': 'job-processing' if 'job' in self.source.value else 'company-processing',
-            'generation': 'generation',
             'roadmap': 'roadmap',
         }
         normalized_source = source_label_map.get(source_group, source_group)

@@ -9,6 +9,7 @@ import json
 from types import SimpleNamespace
 
 from candidates.application.adapters.resume_adapter import ResumeAdapter
+from candidates.application.adapters.linkedin_adapter import LinkedInAdapter
 from candidates.application.services.candidate_extract_service import (
     CandidateExtractService,
 )
@@ -16,7 +17,6 @@ from candidates.infrastructure import (
     SQLAlchemyCandidateProfileRepository,
     SQLAlchemyCandidateSourceRepository,
 )
-from jobs.infrastructure import SQLAlchemyResumeRepository
 from skills.infrastructure import SQLAlchemySkillRepository
 
 
@@ -54,14 +54,33 @@ def _payload():
     }
 
 
+def _seed_sources(sa_session, source_repo, profile_repo, rows):
+    """Create the current profile and pending source rows to extract."""
+    profile = profile_repo.get_or_create_current()
+    for source_type, version, raw_text in rows:
+        source_repo.create(
+            {
+                "profile_id": profile["id"],
+                "source_type": source_type,
+                "version": version,
+                "raw_text": raw_text,
+                "status": "pending",
+            }
+        )
+    return profile
+
+
+def _resume_adapter(source_repo, profile_id):
+    return ResumeAdapter(source_repo, profile_id)
+
+
 class TestExtractServiceIntegration:
     def test_full_round_trip(self, sa_session):
-        resume_repo = SQLAlchemyResumeRepository(sa_session)
-        resume_repo.upsert({"id": "original_1", "raw_text": "My resume text", "version": 1})
-
-        skill_repo = SQLAlchemySkillRepository(sa_session)
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session)
+
+        profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
         service = CandidateExtractService(
             profile_repo=profile_repo,
@@ -69,7 +88,7 @@ class TestExtractServiceIntegration:
             skill_repo=skill_repo,
             llm=FakeLLM(content=json.dumps(_payload())),
         )
-        result = service.process(ResumeAdapter(resume_repo))
+        result = service.process(_resume_adapter(source_repo, profile["id"]))
 
         assert result["status"] == "processed"
         assert result["source_type"] == "resume"
@@ -106,12 +125,11 @@ class TestExtractServiceIntegration:
         assert source["processed_at"]
 
     def test_reprocess_same_version_skipped(self, sa_session):
-        resume_repo = SQLAlchemyResumeRepository(sa_session)
-        resume_repo.upsert({"id": "original_1", "raw_text": "My resume text", "version": 1})
-
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         skill_repo = SQLAlchemySkillRepository(sa_session)
+
+        profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
         service = CandidateExtractService(
             profile_repo=profile_repo,
@@ -119,20 +137,19 @@ class TestExtractServiceIntegration:
             skill_repo=skill_repo,
             llm=FakeLLM(content=json.dumps(_payload())),
         )
-        first = service.process(ResumeAdapter(resume_repo))
-        second = service.process(ResumeAdapter(resume_repo))
+        first = service.process(_resume_adapter(source_repo, profile["id"]))
+        second = service.process(_resume_adapter(source_repo, profile["id"]))
 
         assert first["status"] == "processed"
         assert second["status"] == "skipped"
         assert second["reason"] == "already_processed"
 
     def test_first_merge_persists_version_v1_snapshot(self, sa_session):
-        resume_repo = SQLAlchemyResumeRepository(sa_session)
-        resume_repo.upsert({"id": "original_1", "raw_text": "My resume text", "version": 1})
-
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         skill_repo = SQLAlchemySkillRepository(sa_session)
+
+        profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
         service = CandidateExtractService(
             profile_repo=profile_repo,
@@ -140,7 +157,7 @@ class TestExtractServiceIntegration:
             skill_repo=skill_repo,
             llm=FakeLLM(content=json.dumps(_payload())),
         )
-        service.process(ResumeAdapter(resume_repo))
+        service.process(_resume_adapter(source_repo, profile["id"]))
 
         profile = profile_repo.get_current_profile()
         versions = profile_repo.list_versions(profile["id"])
@@ -151,13 +168,16 @@ class TestExtractServiceIntegration:
         assert profile["version"] == 1
 
     def test_second_source_bumps_version_to_v2(self, sa_session):
-        resume_repo = SQLAlchemyResumeRepository(sa_session)
-        resume_repo.upsert({"id": "original_1", "raw_text": "My resume text", "version": 1})
-        resume_repo.upsert({"id": "linkedin_1", "raw_text": "LinkedIn profile", "version": 1})
-
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         skill_repo = SQLAlchemySkillRepository(sa_session)
+
+        profile = _seed_sources(
+            sa_session,
+            source_repo,
+            profile_repo,
+            [("resume", 1, "My resume text"), ("linkedin", 1, "LinkedIn profile")],
+        )
 
         service = CandidateExtractService(
             profile_repo=profile_repo,
@@ -165,10 +185,8 @@ class TestExtractServiceIntegration:
             skill_repo=skill_repo,
             llm=FakeLLM(content=json.dumps(_payload())),
         )
-        service.process(ResumeAdapter(resume_repo))
-        from candidates.application.adapters.linkedin_adapter import LinkedInAdapter
-
-        service.process(LinkedInAdapter(resume_repo))
+        service.process(_resume_adapter(source_repo, profile["id"]))
+        service.process(LinkedInAdapter(source_repo, profile["id"]))
 
         profile = profile_repo.get_current_profile()
         versions = profile_repo.list_versions(profile["id"])
@@ -178,12 +196,11 @@ class TestExtractServiceIntegration:
         assert profile["version"] == 2
 
     def test_domain_events_collected_integration(self, sa_session):
-        resume_repo = SQLAlchemyResumeRepository(sa_session)
-        resume_repo.upsert({"id": "original_1", "raw_text": "My resume text", "version": 1})
-
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         skill_repo = SQLAlchemySkillRepository(sa_session)
+
+        profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
         service = CandidateExtractService(
             profile_repo=profile_repo,
@@ -191,11 +208,11 @@ class TestExtractServiceIntegration:
             skill_repo=skill_repo,
             llm=FakeLLM(content=json.dumps(_payload())),
         )
-        service.process(ResumeAdapter(resume_repo))
+        service.process(_resume_adapter(source_repo, profile["id"]))
 
         types = {e.event_type for e in service.event_publisher.events}
-        assert "candidate.profile.created" in types
-        assert "candidate.source.added" in types
+        assert "candidate.profile.updated" in types
+        assert "candidate.source.updated" in types
         assert "candidate.merge.completed" in types
         assert "candidate.version.created" in types
         assert "candidate.skill.inferred" in types

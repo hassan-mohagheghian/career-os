@@ -97,6 +97,50 @@ class TestGetVersions:
         assert items[0]["source_versions"] == {"resume": 1}
 
 
+class TestUploadSource:
+    def test_upload_resume_creates_pending_masked_source(self, client, sa_session):
+        response = client.post(
+            "/api/candidates/sources",
+            json={"source_type": "resume", "raw_text": "Jane Doe\nSenior backend\nada@example.com"},
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["source_type"] == "resume"
+        assert data["version"] == 1
+        assert data["status"] == "pending"
+        assert data["id"]
+
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        profile = SQLAlchemyCandidateProfileRepository(sa_session).get_current_profile()
+        row = source_repo.get_by_type_and_version(profile["id"], "resume", 1)
+        assert row is not None
+        assert row["status"] == "pending"
+        assert "[EMAIL]" in row["raw_text"]
+        assert "[NAME]" in row["raw_text"]
+
+    def test_upload_increments_version_per_type(self, client, sa_session):
+        first = client.post("/api/candidates/sources", json={"source_type": "resume", "raw_text": "Resume one"})
+        assert first.json()["version"] == 1
+        second = client.post("/api/candidates/sources", json={"source_type": "resume", "raw_text": "Resume two"})
+        assert second.json()["version"] == 2
+        li = client.post("/api/candidates/sources", json={"source_type": "linkedin", "raw_text": "Profile one"})
+        assert li.json()["version"] == 1
+
+    def test_upload_rejects_unknown_source_type(self, client):
+        response = client.post("/api/candidates/sources", json={"source_type": "github", "raw_text": "x"})
+        assert response.status_code == 400
+
+    def test_upload_rejects_empty_raw_text(self, client):
+        response = client.post("/api/candidates/sources", json={"source_type": "resume", "raw_text": "  "})
+        assert response.status_code == 400
+
+    def test_upload_creates_profile_when_missing(self, client, sa_session):
+        assert SQLAlchemyCandidateProfileRepository(sa_session).get_current_profile() is None
+        response = client.post("/api/candidates/sources", json={"source_type": "resume", "raw_text": "New profile"})
+        assert response.status_code == 201
+        assert SQLAlchemyCandidateProfileRepository(sa_session).get_current_profile() is not None
+
+
 class TestAnalyze:
     def test_dispatches_candidate_processing(self, client):
         with (

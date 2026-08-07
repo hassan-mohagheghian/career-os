@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from jobs.infrastructure.models.job_model import JobModel
-from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+from jobs.infrastructure.models.misc_models import SummaryModel
 from rules.infrastructure.models.rule_model import RuleModel
 
 
@@ -254,13 +254,6 @@ class TestDbHelpers:
         row = mock_get_session_worker.query(SummaryModel).filter(SummaryModel.job_id == 'job-7').first()
         assert row.company == 'Acme'
         assert row.summary == 'sum'
-
-    def test_insert_resume(self, mock_get_session_worker):
-        from jobs.infrastructure.workers.worker import _insert_resume
-        _insert_resume({'id': 'rescore_7', 'title': 'T', 'company': 'Acme', 'role': 'R',
-                        'job_id': 'job-7', 'content': '<p>x</p>'})
-        row = mock_get_session_worker.query(ResumeModel).filter(ResumeModel.id == 'rescore_7').first()
-        assert row.content == '<p>x</p>'
 
     def test_check_result_file_exists(self, tmp_path):
         from jobs.infrastructure.workers.worker import _check_result_file

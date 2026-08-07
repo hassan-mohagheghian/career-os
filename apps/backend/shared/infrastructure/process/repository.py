@@ -19,7 +19,7 @@ from .models import ItemStatus, WorkflowLogEntry
 
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
-from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+from jobs.infrastructure.models.misc_models import SummaryModel
 
 
 # ── Pending Jobs Repository (backed by JobModel) ─────────────────
@@ -365,27 +365,6 @@ class JobRepository(IJobRepository):
                 job_id=d['job_id'], company=d.get('company'), match=d.get('match'),
                 score=d.get('score'), summary=d.get('summary'), stack=d.get('stack'),
                 resume_fit=d.get('resumeFit'), note=d.get('note'), url=d.get('url'),
-            )
-            self._session.add(m)
-        self._session.commit()
-
-    def insert_resume(self, d: dict) -> None:
-        existing = self._session.query(ResumeModel).filter(ResumeModel.id == d['id']).first()
-        if existing:
-            existing.title = d.get('title')
-            existing.company = d.get('company')
-            existing.role = d.get('role')
-            existing.content = d.get('content')
-            existing.version = d.get('version', 1)
-            existing.raw_text = d.get('raw_text')
-            existing.created_at = d.get('created_at')
-            existing.job_id = d.get('job_id')
-        else:
-            m = ResumeModel(
-                id=d['id'], title=d.get('title'), company=d.get('company'),
-                role=d.get('role'), content=d.get('content'),
-                version=d.get('version', 1), raw_text=d.get('raw_text'),
-                created_at=d.get('created_at'), job_id=d.get('job_id'),
             )
             self._session.add(m)
         self._session.commit()

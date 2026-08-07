@@ -139,20 +139,6 @@ class JobAnalysisOutput(BaseModel):
     summary: str = ""
 
 
-class ResumeOutput(BaseModel):
-    resume_text: str = ""
-    tailored_sections: list[dict[str, Any]] = Field(default_factory=list)
-    match_score: Optional[float] = None
-    suggestions: list[str] = Field(default_factory=list)
-
-
-class CoverLetterOutput(BaseModel):
-    cover_letter: str = ""
-    paragraphs: list[str] = Field(default_factory=list)
-    tone: str = "professional"
-    key_highlights: list[str] = Field(default_factory=list)
-
-
 class SkillExtractionOutput(BaseModel):
     skills: list[dict[str, Any]] = Field(default_factory=list)
     categories: dict[str, list[str]] = Field(default_factory=dict)

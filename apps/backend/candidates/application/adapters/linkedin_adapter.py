@@ -1,21 +1,17 @@
-"""LinkedIn source adapter — reads the latest LinkedIn profile from ``job.resumes``.
+"""LinkedIn source adapter — reads the latest LinkedIn profile from candidate_sources.
 
-LinkedIn rows are stored with ids like ``linkedin_1``, ``linkedin_2`` in the
-jobs context (same table the ``/api/linkedin`` endpoint uses). Cross-context
-read only.
+LinkedIn rows are stored with ``source_type="linkedin"`` in the candidate
+context. This adapter reads through the candidate source repository only.
 """
 
 from __future__ import annotations
 
-from jobs.domain.repositories.resume_repository import IResumeRepository
+from typing import Any
 
 from candidates.application.adapters.base import (
     CandidateSourceAdapter,
     SourceContent,
-    latest_for_prefix,
 )
-
-PREFIX = "linkedin"
 
 
 class LinkedInAdapter(CandidateSourceAdapter):
@@ -23,13 +19,14 @@ class LinkedInAdapter(CandidateSourceAdapter):
 
     source_type = "linkedin"
 
-    def __init__(self, resume_repo: IResumeRepository | None = None):
-        self._resume_repo = resume_repo
+    def __init__(self, source_repo: Any | None = None, profile_id: str | None = None):
+        self._source_repo = source_repo
+        self._profile_id = profile_id
 
     def fetch(self) -> SourceContent | None:
-        if self._resume_repo is None:
+        if self._source_repo is None or not self._profile_id:
             return None
-        latest = latest_for_prefix(self._resume_repo.get_all(), PREFIX)
+        latest = self._source_repo.get_latest_by_type(self._profile_id, self.source_type)
         if latest is None:
             return None
         raw_text = latest.get("raw_text")

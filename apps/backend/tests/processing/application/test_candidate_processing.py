@@ -82,6 +82,10 @@ class FakeSourceRepo:
     def list_for_profile(self, profile_id):
         return list(self.rows.values())
 
+    def get_latest_by_type(self, profile_id, source_type):
+        row = self.rows.get(source_type)
+        return dict(row) if row else None
+
     def get_by_type_and_version(self, profile_id, source_type, version):
         row = self.rows.get(source_type)
         return row if row and row["version"] == version else None
@@ -106,14 +110,6 @@ class FakeSkillRepo:
         if name not in self.ids:
             self.ids[name] = len(self.ids) + 1
         return self.ids[name]
-
-
-class FakeResumeRepo:
-    def __init__(self, rows=None):
-        self._rows = list(rows or [])
-
-    def get_all(self):
-        return list(self._rows)
 
 
 class FakeLLM:
@@ -144,8 +140,8 @@ def _payload():
 
 def _resume_rows():
     return [
-        {"id": "original_1", "raw_text": "My resume text", "version": 1},
-        {"id": "linkedin_1", "raw_text": "LinkedIn profile", "version": 1},
+        {"id": "src-1", "source_type": "resume", "version": 1, "raw_text": "My resume text", "status": "pending"},
+        {"id": "src-2", "source_type": "linkedin", "version": 1, "raw_text": "LinkedIn profile", "status": "pending"},
     ]
 
 
@@ -173,8 +169,7 @@ class TestCandidateSourcePreparation:
     def test_prep_collects_pending_sources(self):
         graph = CandidateSourcePreparationGraph(
             profile_repo=FakeProfileRepo(),
-            source_repo=FakeSourceRepo(),
-            resume_repo=FakeResumeRepo(_resume_rows()),
+            source_repo=FakeSourceRepo(_resume_rows()),
         )
         final = graph.invoke(_state())
 
@@ -185,12 +180,14 @@ class TestCandidateSourcePreparation:
 
     def test_prep_skips_already_known_source_versions(self):
         source_repo = FakeSourceRepo(
-            [{"id": "s1", "profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed"}]
+            [
+                {"id": "s1", "profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed"},
+                {"source_type": "linkedin", "version": 1, "raw_text": "LinkedIn profile", "status": "pending"},
+            ]
         )
         graph = CandidateSourcePreparationGraph(
             profile_repo=FakeProfileRepo(),
             source_repo=source_repo,
-            resume_repo=FakeResumeRepo(_resume_rows()),
         )
         final = graph.invoke(_state())
 
@@ -198,11 +195,27 @@ class TestCandidateSourcePreparation:
         assert "resume" not in types
         assert "linkedin" in types
 
+    def test_prep_processes_pending_sources_even_if_version_known(self):
+        source_repo = FakeSourceRepo(
+            [
+                {"id": "s1", "profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "pending", "raw_text": "My resume text"},
+                {"source_type": "linkedin", "version": 1, "raw_text": "LinkedIn profile", "status": "pending"},
+            ]
+        )
+        graph = CandidateSourcePreparationGraph(
+            profile_repo=FakeProfileRepo(),
+            source_repo=source_repo,
+        )
+        final = graph.invoke(_state())
+
+        types = {s["source_type"] for s in final.pending_sources}
+        assert "resume" in types
+        assert "linkedin" in types
+
     def test_prep_no_content_yields_no_pending_sources(self):
         graph = CandidateSourcePreparationGraph(
             profile_repo=FakeProfileRepo(),
             source_repo=FakeSourceRepo(),
-            resume_repo=FakeResumeRepo([]),
         )
         final = graph.invoke(_state())
         assert final.status == ExecutionStatus.COMPLETED
@@ -216,7 +229,6 @@ class TestCandidateSourcePreparation:
         graph = CandidateSourcePreparationGraph(
             profile_repo=Boom(),
             source_repo=FakeSourceRepo(),
-            resume_repo=FakeResumeRepo(_resume_rows()),
         )
         final = graph.invoke(_state())
         assert final.status == ExecutionStatus.FAILED
@@ -229,14 +241,13 @@ class TestCandidateSourcePreparation:
 class TestCandidateProcessing:
     def _run_full(self, profile_repo=None, source_repo=None, llm_content=None, llm_fail=False):
         profile_repo = profile_repo or FakeProfileRepo()
-        source_repo = source_repo or FakeSourceRepo()
+        source_repo = source_repo or FakeSourceRepo(_resume_rows())
         skill_repo = FakeSkillRepo()
         service = _make_service(profile_repo, source_repo, skill_repo, llm_content or json.dumps(_payload()), llm_fail)
 
         prep = CandidateSourcePreparationGraph(
             profile_repo=profile_repo,
             source_repo=source_repo,
-            resume_repo=FakeResumeRepo(_resume_rows()),
         )
         state = prep.invoke(_state())
         processing = CandidateProcessingGraph(extract_service=service)

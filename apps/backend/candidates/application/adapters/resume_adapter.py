@@ -1,21 +1,18 @@
-"""Resume source adapter — reads the latest master resume from ``job.resumes``.
+"""Resume source adapter — reads the latest master resume from candidate_sources.
 
-Resume rows are stored with ids like ``original_1``, ``original_2`` in the jobs
-context (same table the ``/api/resumes`` endpoint uses). This adapter is a
-cross-context read: it depends on ``IResumeRepository`` and never writes.
+Resume rows are stored with ``source_type="resume"`` in the candidate context.
+This adapter reads through the candidate source repository only (no cross-context
+dependency on ``job.resumes``).
 """
 
 from __future__ import annotations
 
-from jobs.domain.repositories.resume_repository import IResumeRepository
+from typing import Any
 
 from candidates.application.adapters.base import (
     CandidateSourceAdapter,
     SourceContent,
-    latest_for_prefix,
 )
-
-PREFIX = "original"
 
 
 class ResumeAdapter(CandidateSourceAdapter):
@@ -23,13 +20,14 @@ class ResumeAdapter(CandidateSourceAdapter):
 
     source_type = "resume"
 
-    def __init__(self, resume_repo: IResumeRepository | None = None):
-        self._resume_repo = resume_repo
+    def __init__(self, source_repo: Any | None = None, profile_id: str | None = None):
+        self._source_repo = source_repo
+        self._profile_id = profile_id
 
     def fetch(self) -> SourceContent | None:
-        if self._resume_repo is None:
+        if self._source_repo is None or not self._profile_id:
             return None
-        latest = latest_for_prefix(self._resume_repo.get_all(), PREFIX)
+        latest = self._source_repo.get_latest_by_type(self._profile_id, self.source_type)
         if latest is None:
             return None
         raw_text = latest.get("raw_text")

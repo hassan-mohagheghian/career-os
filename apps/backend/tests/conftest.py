@@ -112,8 +112,7 @@ def client(sa_session):
     from dependencies import (
         get_session, get_session_sync, get_job_repo, get_skill_repo,
         get_company_repo, get_pending_repo, get_rule_repo,
-        get_summary_repo, get_resume_repo, get_company_link_repo, get_company_intelligence_repo,
-        get_pending_generation_repo,
+        get_summary_repo, get_company_link_repo, get_company_intelligence_repo,
         get_skill_roadmap_repo, get_skill_roadmap_progress_repo, get_skill_roadmap_job_repo,
         get_processing_execution_repo,
         get_candidate_repo, get_candidate_profile_repo, get_candidate_source_repo,
@@ -124,10 +123,8 @@ def client(sa_session):
     from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
     from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-    from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
     from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
     from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
-    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_repository import SQLAlchemySkillRoadmapRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_progress_repository import SQLAlchemySkillRoadmapProgressRepository
     from skills.infrastructure.repositories.sa_skill_roadmap_job_repository import SQLAlchemySkillRoadmapJobRepository
@@ -160,10 +157,8 @@ def client(sa_session):
     app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyJobRepository(sa_session)
     app.dependency_overrides[get_rule_repo] = lambda: SQLAlchemyRuleRepository(sa_session)
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
-    app.dependency_overrides[get_resume_repo] = lambda: SQLAlchemyResumeRepository(sa_session)
     app.dependency_overrides[get_company_link_repo] = lambda: SQLAlchemyCompanyLinkRepository(sa_session)
     app.dependency_overrides[get_company_intelligence_repo] = lambda: SQLAlchemyCompanyIntelligenceRepository(sa_session)
-    app.dependency_overrides[get_pending_generation_repo] = lambda: SQLAlchemyPendingGenerationRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_repo] = lambda: SQLAlchemySkillRoadmapRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_progress_repo] = lambda: SQLAlchemySkillRoadmapProgressRepository(sa_session)
     app.dependency_overrides[get_skill_roadmap_job_repo] = lambda: SQLAlchemySkillRoadmapJobRepository(sa_session)

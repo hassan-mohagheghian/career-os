@@ -14,7 +14,6 @@ from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.taskiq.config import build_broker
 from shared.infrastructure.taskiq.tasks import (
     process_execution_task,
-    process_generation_task,
 )
 
 log = get_logger("taskiq.client")
@@ -34,18 +33,9 @@ async def _enqueue(task, *args, **kwargs) -> str | None:
         await broker.shutdown()
 
 
-async def enqueue_generation(gen_id: str) -> str | None:
-    """Dispatch a resume / cover letter generation task."""
-    return await _enqueue(process_generation_task, gen_id)
-
-
 async def enqueue_execution(execution_id: str) -> str | None:
     """Dispatch a ProcessingExecution task."""
     return await _enqueue(process_execution_task, execution_id)
-
-
-def enqueue_generation_sync(gen_id: str) -> str | None:
-    return asyncio.run(enqueue_generation(gen_id))
 
 
 def enqueue_execution_sync(execution_id: str) -> str | None:

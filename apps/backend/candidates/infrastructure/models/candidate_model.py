@@ -56,10 +56,11 @@ class CandidateSourceModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     profile_id: Mapped[str] = mapped_column(
-        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False
+        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False, index=True
     )
     source_type: Mapped[str] = mapped_column(String, default="")
     version: Mapped[int] = mapped_column(Integer, default=1)
+    raw_text: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String, default="pending")
     error: Mapped[str] = mapped_column(Text, default="")
     processed_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -73,7 +74,7 @@ class CandidateSkillModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     profile_id: Mapped[str] = mapped_column(
-        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False
+        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False, index=True
     )
     skill_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     name: Mapped[str] = mapped_column(String, default="")
@@ -94,7 +95,7 @@ class CandidateExperienceModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     profile_id: Mapped[str] = mapped_column(
-        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False
+        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False, index=True
     )
     company: Mapped[str] = mapped_column(String, default="")
     role: Mapped[str] = mapped_column(String, default="")
@@ -195,7 +196,7 @@ class CandidateProfileVersionModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     profile_id: Mapped[str] = mapped_column(
-        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False
+        String, ForeignKey("candidate.candidate_profiles.id"), nullable=False, index=True
     )
     version: Mapped[int] = mapped_column(Integer, default=1)
     snapshot: Mapped[str] = mapped_column(Text, default="{}")

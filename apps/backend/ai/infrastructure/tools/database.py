@@ -36,8 +36,6 @@ class DatabaseTool(BaseTool):
             "get_skill": self._get_skill,
             "get_skill_stats": self._get_skill_stats,
             "get_skill_relationships": self._get_skill_relationships,
-            "list_resumes": self._list_resumes,
-            "get_resume": self._get_resume,
             "list_pending_jobs": self._list_pending_jobs,
             "list_pending_companies": self._list_pending_companies,
             "get_rules": self._get_rules,
@@ -315,48 +313,6 @@ class DatabaseTool(BaseTool):
             "relation_type": row.relation_type,
             "confidence": row.confidence,
         } for row in rows]
-
-    def _list_resumes(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from jobs.infrastructure.models.misc_models import ResumeModel
-
-        query = select(ResumeModel)
-        if "job_id" in params:
-            query = query.where(ResumeModel.job_id == params["job_id"])
-        if "limit" in params:
-            query = query.limit(params["limit"])
-        else:
-            query = query.limit(20)
-
-        rows = session.execute(query).scalars().all()
-        return [{
-            "id": row.id,
-            "title": row.title,
-            "company": row.company,
-            "role": row.role,
-            "job_id": row.job_id,
-            "version": row.version,
-        } for row in rows]
-
-    def _get_resume(self, session: Session, params: dict) -> list[dict[str, Any]]:
-        from jobs.infrastructure.models.misc_models import ResumeModel
-
-        resume_id = params.get("resume_id")
-        if not resume_id:
-            return [{"error": "resume_id parameter is required"}]
-
-        row = session.execute(
-            select(ResumeModel).where(ResumeModel.id == resume_id)
-        ).scalars().first()
-        if not row:
-            return []
-        return [{
-            "id": row.id,
-            "title": row.title,
-            "company": row.company,
-            "role": row.role,
-            "job_id": row.job_id,
-            "version": row.version,
-        }]
 
     def _list_pending_jobs(self, session: Session, params: dict) -> list[dict[str, Any]]:
         from jobs.infrastructure.models.job_model import JobModel

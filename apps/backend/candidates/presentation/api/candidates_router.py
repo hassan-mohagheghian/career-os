@@ -27,12 +27,18 @@ from dependencies import (
     get_candidate_source_repo,
     get_processing_execution_repo,
 )
-from shared.application.exceptions import NotFoundError
+from shared.application.exceptions import BadRequestError, NotFoundError
 
+from candidates.application.services.candidate_source_upload_service import (
+    SUPPORTED_SOURCE_TYPES,
+    CandidateSourceUploadService,
+)
 from candidates.presentation.api.schemas.candidates import (
     CandidateAnalyzeResponse,
     CandidateProfileResponse,
     CandidateSourceListResponse,
+    CandidateSourceUploadRequest,
+    CandidateSourceUploadResponse,
     CandidateVersionListResponse,
 )
 
@@ -58,6 +64,35 @@ def list_sources(
     if not profile:
         return CandidateSourceListResponse(items=[])
     return CandidateSourceListResponse(items=source_repo.list_for_profile(profile["id"]))
+
+
+@router.post("/sources", status_code=http_status.HTTP_201_CREATED, response_model=CandidateSourceUploadResponse)
+def upload_source(
+    body: CandidateSourceUploadRequest,
+    profile_repo: SQLAlchemyCandidateProfileRepository = Depends(get_candidate_profile_repo),
+    source_repo: SQLAlchemyCandidateSourceRepository = Depends(get_candidate_source_repo),
+):
+    """Store raw profile text (resume / LinkedIn) as the next candidate source version.
+
+    PII is masked on save and the source is left ``pending`` so the next
+    candidate processing run extracts and marks it ``processed``.
+    """
+    if body.source_type not in SUPPORTED_SOURCE_TYPES:
+        raise BadRequestError(
+            f"Unsupported source type '{body.source_type}'; supported: {', '.join(SUPPORTED_SOURCE_TYPES)}"
+        )
+    if not body.raw_text.strip():
+        raise BadRequestError("raw_text must not be empty")
+
+    service = CandidateSourceUploadService(profile_repo, source_repo)
+    stored = service.upload(body.source_type, body.raw_text)
+    return CandidateSourceUploadResponse(
+        id=stored["id"],
+        source_type=stored["source_type"],
+        version=stored["version"],
+        status=stored["status"],
+        raw_text=stored.get("raw_text", ""),
+    )
 
 
 @router.get("/versions", response_model=CandidateVersionListResponse)

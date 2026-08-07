@@ -20,7 +20,6 @@ from shared.infrastructure.taskiq.config import broker
 from shared.infrastructure.taskiq.tasks import (  # noqa: F401  (register tasks on broker)
     periodic_db_backup,
     process_execution_task,
-    process_generation_task,
 )
 
 

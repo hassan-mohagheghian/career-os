@@ -25,11 +25,9 @@ class PrepareSourcesNode:
     def __init__(
         self,
         source_repo: Any,
-        resume_repo: Any | None = None,
         event_publisher: Any | None = None,
     ):
         self._source_repo = source_repo
-        self._resume_repo = resume_repo
         self._events = event_publisher
 
     def __call__(self, state: CandidateProcessingState) -> CandidateProcessingState:
@@ -38,7 +36,7 @@ class PrepareSourcesNode:
         known = self._known_source_versions(state.profile_id)
 
         for source_type in SOURCE_TYPES:
-            adapter = build_adapter(source_type, self._resume_repo)
+            adapter = build_adapter(source_type, self._source_repo, state.profile_id)
             if adapter is None:
                 continue
             try:
@@ -69,4 +67,10 @@ class PrepareSourcesNode:
             rows = self._source_repo.list_for_profile(profile_id)
         except Exception:  # noqa: BLE001 — best-effort lookup
             return set()
-        return {(str(r.get("source_type")), int(r.get("version") or 0)) for r in rows}
+        # Only processed sources count as "known". Pending sources (e.g. just
+        # uploaded via POST /candidates/sources) must still be fetched/extracted.
+        return {
+            (str(r.get("source_type")), int(r.get("version") or 0))
+            for r in rows
+            if r.get("status") == "processed"
+        }

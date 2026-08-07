@@ -10,18 +10,21 @@ from candidates.application.adapters import (
 )
 
 
-class FakeResumeRepository:
-    """Minimal IResumeRepository fake exposing get_all() with versioned rows."""
+class FakeSourceRepository:
+    """Minimal ICandidateSourceRepository fake exposing get_latest_by_type."""
 
     def __init__(self, rows=None):
         self.rows = list(rows or [])
 
-    def get_all(self):
-        return list(self.rows)
+    def get_latest_by_type(self, profile_id, source_type):
+        matched = [r for r in self.rows if r.get("source_type") == source_type]
+        if not matched:
+            return None
+        return max(matched, key=lambda r: r.get("version") or 0)
 
 
-def _row(prefix, version, raw_text):
-    return {"id": f"{prefix}_{version}", "version": version, "raw_text": raw_text}
+def _row(source_type, version, raw_text):
+    return {"source_type": source_type, "version": version, "raw_text": raw_text}
 
 
 class TestSourceContent:
@@ -33,25 +36,28 @@ class TestSourceContent:
 
 
 class TestResumeAdapter:
-    def test_fetch_returns_latest_original(self):
-        repo = FakeResumeRepository(
+    def test_fetch_returns_latest_resume(self):
+        repo = FakeSourceRepository(
             [
-                _row("original", 1, "v1"),
-                _row("original", 2, "v2"),
+                _row("resume", 1, "v1"),
+                _row("resume", 2, "v2"),
                 _row("linkedin", 5, "li"),
-                _row("cover", 1, "cover"),
             ]
         )
-        adapter = ResumeAdapter(repo)
+        adapter = ResumeAdapter(repo, profile_id="p1")
         content = adapter.fetch()
         assert content == SourceContent("resume", "v2", 2)
 
-    def test_fetch_none_when_no_original(self):
-        adapter = ResumeAdapter(FakeResumeRepository([_row("linkedin", 1, "li")]))
+    def test_fetch_none_when_no_resume(self):
+        adapter = ResumeAdapter(FakeSourceRepository([_row("linkedin", 1, "li")]), profile_id="p1")
         assert adapter.fetch() is None
 
     def test_fetch_none_when_empty_rows(self):
-        adapter = ResumeAdapter(FakeResumeRepository())
+        adapter = ResumeAdapter(FakeSourceRepository(), profile_id="p1")
+        assert adapter.fetch() is None
+
+    def test_fetch_none_without_profile_id(self):
+        adapter = ResumeAdapter(FakeSourceRepository([_row("resume", 1, "r")]))
         assert adapter.fetch() is None
 
     def test_source_type_attribute(self):
@@ -60,19 +66,19 @@ class TestResumeAdapter:
 
 class TestLinkedInAdapter:
     def test_fetch_returns_latest_linkedin(self):
-        repo = FakeResumeRepository(
+        repo = FakeSourceRepository(
             [
                 _row("linkedin", 1, "li1"),
                 _row("linkedin", 3, "li3"),
-                _row("original", 2, "orig"),
+                _row("resume", 2, "orig"),
             ]
         )
-        adapter = LinkedInAdapter(repo)
+        adapter = LinkedInAdapter(repo, profile_id="p1")
         content = adapter.fetch()
         assert content == SourceContent("linkedin", "li3", 3)
 
     def test_fetch_none_when_no_linkedin(self):
-        adapter = LinkedInAdapter(FakeResumeRepository([_row("original", 1, "r")]))
+        adapter = LinkedInAdapter(FakeSourceRepository([_row("resume", 1, "r")]), profile_id="p1")
         assert adapter.fetch() is None
 
     def test_source_type_attribute(self):
@@ -91,11 +97,11 @@ class TestStubAdapters:
 
 class TestBuildAdapter:
     def test_resume_adapter_built(self):
-        adapter = build_adapter("resume", FakeResumeRepository([_row("original", 1, "r")]))
+        adapter = build_adapter("resume", FakeSourceRepository([_row("resume", 1, "r")]), "p1")
         assert isinstance(adapter, ResumeAdapter)
 
     def test_linkedin_adapter_built(self):
-        adapter = build_adapter("linkedin", FakeResumeRepository([_row("linkedin", 1, "l")]))
+        adapter = build_adapter("linkedin", FakeSourceRepository([_row("linkedin", 1, "l")]), "p1")
         assert isinstance(adapter, LinkedInAdapter)
 
     def test_github_stub_built_without_repo(self):
@@ -105,4 +111,4 @@ class TestBuildAdapter:
         assert isinstance(build_adapter("portfolio"), PortfolioAdapter)
 
     def test_unknown_source_returns_none(self):
-        assert build_adapter("unknown", FakeResumeRepository()) is None
+        assert build_adapter("unknown", FakeSourceRepository(), "p1") is None

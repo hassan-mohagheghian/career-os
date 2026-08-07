@@ -181,3 +181,60 @@ class TestCandidateSourceRepository:
     def test_update_missing_returns_none(self, sa_session):
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         assert source_repo.update("missing", {"status": "failed"}) is None
+
+    def test_create_persists_raw_text(self, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+
+        created = source_repo.create({
+            "profile_id": profile["id"],
+            "source_type": "resume",
+            "version": 1,
+            "raw_text": "Some resume body",
+            "status": "pending",
+        })
+        assert created["raw_text"] == "Some resume body"
+        fetched = source_repo.get_by_type_and_version(profile["id"], "resume", 1)
+        assert fetched["raw_text"] == "Some resume body"
+
+    def test_update_can_change_raw_text(self, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+
+        created = source_repo.create({
+            "profile_id": profile["id"], "source_type": "linkedin", "version": 1, "raw_text": "old",
+        })
+        updated = source_repo.update(created["id"], {"raw_text": "new", "status": "processed"})
+        assert updated["raw_text"] == "new"
+        assert updated["status"] == "processed"
+
+    def test_get_latest_by_type_returns_highest_version(self, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        source_repo.create({"profile_id": profile["id"], "source_type": "resume", "version": 1, "raw_text": "v1"})
+        source_repo.create({"profile_id": profile["id"], "source_type": "resume", "version": 2, "raw_text": "v2"})
+        source_repo.create({"profile_id": profile["id"], "source_type": "linkedin", "version": 3, "raw_text": "li"})
+
+        latest = source_repo.get_latest_by_type(profile["id"], "resume")
+        assert latest["version"] == 2
+        assert latest["raw_text"] == "v2"
+
+    def test_get_latest_by_type_none_when_missing(self, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        assert source_repo.get_latest_by_type(profile["id"], "github") is None
+
+    def test_get_next_version(self, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+
+        assert source_repo.get_next_version(profile["id"], "resume") == 1
+        source_repo.create({"profile_id": profile["id"], "source_type": "resume", "version": 1})
+        source_repo.create({"profile_id": profile["id"], "source_type": "resume", "version": 2})
+        assert source_repo.get_next_version(profile["id"], "resume") == 3
+        assert source_repo.get_next_version(profile["id"], "linkedin") == 1

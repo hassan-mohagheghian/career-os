@@ -111,17 +111,7 @@ def get_candidate_extract_service(
     )
 
 
-# ── Resume Context Dependencies ───────────────────────────────────
-
-def get_resume_repo(session: Session = Depends(get_session)):
-    from jobs.infrastructure import SQLAlchemyResumeRepository
-    return SQLAlchemyResumeRepository(session)
-
-
-def get_resume_service(repo: Session = Depends(get_resume_repo)):
-    from jobs.application.services.resume_service import ResumeService
-    return ResumeService(repo)
-
+# ── Jobs Context Dependencies ─────────────────────────────────────
 
 def get_summary_repo(session: Session = Depends(get_session)):
     from jobs.infrastructure import SQLAlchemyJobRepository
@@ -140,13 +130,6 @@ def get_job_company_repo(session: Session = Depends(get_session)):
     return SQLAlchemyJobCompanyRepository(session)
 
 
-# ── Jobs Tailored Document Dependencies ─────────────────────────
-
-def get_tailored_document_repo(session: Session = Depends(get_session)):
-    from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
-    return SQLAlchemyTailoredDocumentRepository(session)
-
-
 # ── Processing Context Dependencies ──────────────────────────────
 
 def get_processing_execution_repo(session: Session = Depends(get_session)):
@@ -159,8 +142,3 @@ def get_processing_execution_repo(session: Session = Depends(get_session)):
 def get_pending_repo(session: Session = Depends(get_session)):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
     return SQLAlchemyJobRepository(session)
-
-
-def get_pending_generation_repo(session: Session = Depends(get_session)):
-    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    return SQLAlchemyPendingGenerationRepository(session)

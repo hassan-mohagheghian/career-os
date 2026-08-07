@@ -25,7 +25,6 @@ from jobs.application.services.job_service import JobService
 from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
 from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
 from processing.application.workflows.candidate_processing import CandidateProcessingGraph
 from processing.application.workflows.candidate_source_preparation import CandidateSourcePreparationGraph
@@ -76,7 +75,7 @@ def build_job_analysis_graph(session: Any) -> JobAnalysisGraph:
     return JobAnalysisGraph(
         job_service=job_service,
         skill_repo=SQLAlchemySkillRepository(session),
-        resume_repo=SQLAlchemyResumeRepository(session),
+        source_repo=SQLAlchemyCandidateSourceRepository(session),
         rule_repo=SQLAlchemyRuleRepository(session),
         job_repo=job_repo,
         summary_repo=SQLAlchemySummaryRepository(session),
@@ -129,7 +128,6 @@ def build_candidate_source_preparation_graph(session: Any) -> CandidateSourcePre
     return CandidateSourcePreparationGraph(
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
-        resume_repo=SQLAlchemyResumeRepository(session),
         event_publisher=RedisProcessingEventPublisher(),
     )
 

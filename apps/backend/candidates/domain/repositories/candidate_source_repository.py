@@ -26,3 +26,13 @@ class ICandidateSourceRepository(ABC):
     def update(self, source_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """Update source fields (status, error, processed_at, version)."""
         ...
+
+    @abstractmethod
+    def get_latest_by_type(self, profile_id: str, source_type: str) -> dict[str, Any] | None:
+        """Get the latest (highest-version) source row of a type, or None."""
+        ...
+
+    @abstractmethod
+    def get_next_version(self, profile_id: str, source_type: str) -> int:
+        """Return the next version number for a source type on a profile."""
+        ...

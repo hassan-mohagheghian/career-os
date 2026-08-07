@@ -1,7 +1,7 @@
 """Source adapter registry — build an adapter for a source type.
 
-``resume`` and ``linkedin`` adapters read ``job.resumes`` through an
-``IResumeRepository``; ``github`` / ``portfolio`` are stubs.
+``resume`` and ``linkedin`` adapters read ``candidate.candidate_sources`` through
+the candidate source repository; ``github`` / ``portfolio`` are stubs.
 """
 
 from __future__ import annotations
@@ -22,12 +22,14 @@ _ADAPTERS: dict[str, type[CandidateSourceAdapter]] = {
 }
 
 
-def build_adapter(source_type: str, resume_repo: Any | None = None) -> CandidateSourceAdapter | None:
+def build_adapter(
+    source_type: str, source_repo: Any | None = None, profile_id: str | None = None
+) -> CandidateSourceAdapter | None:
     """Build the adapter for ``source_type``, or None when unknown."""
     adapter_cls = _ADAPTERS.get(source_type)
     if adapter_cls is None:
         return None
-    return adapter_cls(resume_repo)
+    return adapter_cls(source_repo, profile_id)
 
 
 __all__ = [

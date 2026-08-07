@@ -43,11 +43,27 @@ class SQLAlchemyCandidateSourceRepository(ICandidateSourceRepository):
         )
         return source_model_to_dict(model) if model else None
 
+    def get_latest_by_type(self, profile_id: str, source_type: str) -> dict[str, Any] | None:
+        model = (
+            self._session.query(CandidateSourceModel)
+            .filter(
+                CandidateSourceModel.profile_id == profile_id,
+                CandidateSourceModel.source_type == source_type,
+            )
+            .order_by(CandidateSourceModel.version.desc())
+            .first()
+        )
+        return source_model_to_dict(model) if model else None
+
+    def get_next_version(self, profile_id: str, source_type: str) -> int:
+        latest = self.get_latest_by_type(profile_id, source_type)
+        return int(latest.get("version") or 0) + 1 if latest else 1
+
     def update(self, source_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         model = self._session.query(CandidateSourceModel).filter(CandidateSourceModel.id == source_id).first()
         if not model:
             return None
-        for field in ["profile_id", "source_type", "version", "status", "error", "processed_at"]:
+        for field in ["profile_id", "source_type", "version", "status", "error", "processed_at", "raw_text"]:
             if field in data:
                 setattr(model, field, data[field])
         model.updated_at = _now_iso()

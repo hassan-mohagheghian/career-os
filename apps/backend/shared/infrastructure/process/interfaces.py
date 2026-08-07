@@ -74,10 +74,6 @@ class IJobRepository(abc.ABC):
         """Insert or replace a summary."""
 
     @abc.abstractmethod
-    def insert_resume(self, resume_data: dict) -> None:
-        """Insert or replace a resume."""
-
-    @abc.abstractmethod
     def save_workflow_log(self, job_id: str, log_json: str) -> None:
         """Save workflow log to the jobs table."""
 

@@ -15,8 +15,6 @@ from jobs.presentation.api.jobs_router import router as jobs_router
 from skills.presentation.api.skills_router import router as skills_router
 from companies.presentation.api.companies_router import router as companies_router
 
-from jobs.presentation.api.resumes_router import router as resumes_router
-from jobs.presentation.api.linkedin_router import router as linkedin_router
 from skills.presentation.api.skill_roadmaps_router import router as skill_roadmaps_router
 from rules.presentation.api.rules_router import router as rules_router
 from shared.presentation.api.dashboard_router import router as dashboard_router
@@ -49,8 +47,6 @@ api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 
-api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
-api_router.include_router(linkedin_router, prefix="/linkedin", tags=["linkedin"])
 api_router.include_router(skill_roadmaps_router, prefix="/skill-roadmaps", tags=["skill-roadmaps"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
@@ -234,11 +230,4 @@ def reprocess_company(id: str, session: Session = Depends(get_session_sync)):
     return {"status": "queued", "execution_id": response.execution_id}
 
 
-# ── Resume compat routes ────────────────────────────────────────
 
-@api_router.get("/resumes/active-generations")
-def active_generations_compat(session: Session = Depends(get_session_sync)):
-    from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
-    from jobs.infrastructure.repositories.sa_pending_generation_repository import SQLAlchemyPendingGenerationRepository
-    repo = SQLAlchemyPendingGenerationRepository(session)
-    return repo.get_all_active()

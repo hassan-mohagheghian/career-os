@@ -6,8 +6,6 @@ application services / workers which own the LangGraph workflow execution.
 
 Each task mirrors the previous ARQ task it replaces:
 
-- process_job_task       → replaces ARQ ``process_job``
-- process_generation_task→ replaces ARQ ``process_generation``
 - process_execution_task → drives the ProcessingExecution lifecycle through
   the TaskIQ worker → LangGraph workflow flow.
 - periodic_db_backup     → scheduled PostgreSQL backup during dev (see
@@ -47,21 +45,6 @@ async def periodic_db_backup() -> dict:
         return {"status": "completed", **result}
     except Exception as e:
         log.error("taskiq.task.db_backup.failed", error=str(e))
-        raise
-
-
-@broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
-async def process_generation_task(gen_id: str) -> dict:
-    """Generate a resume / cover letter in the background."""
-    log.info("taskiq.task.generation.start", gen_id=gen_id)
-    try:
-        from jobs.infrastructure.workers.generation_worker import process_generation
-
-        await asyncio.to_thread(process_generation, gen_id)
-        log.info("taskiq.task.generation.complete", gen_id=gen_id)
-        return {"status": "completed", "gen_id": gen_id}
-    except Exception as e:
-        log.error("taskiq.task.generation.failed", gen_id=gen_id, error=str(e))
         raise
 
 

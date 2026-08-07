@@ -4,8 +4,6 @@ from .state import BaseState, create_initial_state
 from .state import (
     JobExtractionOutput,
     JobAnalysisOutput,
-    ResumeOutput,
-    CoverLetterOutput,
     SkillExtractionOutput,
     SkillRoadmapOutput,
 )
@@ -18,8 +16,6 @@ __all__ = [
     "create_initial_state",
     "JobExtractionOutput",
     "JobAnalysisOutput",
-    "ResumeOutput",
-    "CoverLetterOutput",
     "SkillExtractionOutput",
     "SkillRoadmapOutput",
     "AgentRegistry",

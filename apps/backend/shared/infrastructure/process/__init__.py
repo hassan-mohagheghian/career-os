@@ -14,7 +14,6 @@ Architecture:
   worker_base.py       → Abstract worker pipeline (Template Method pattern)
   job_worker.py        → Job processing implementation
   company_worker.py    → Company processing implementation
-  generation_worker.py → Resume/cover letter generation implementation
   insights_service.py  → Career intelligence service (OOP wrapper)
   skill_roadmap_service.py → Skill roadmap service (OOP wrapper)
 """

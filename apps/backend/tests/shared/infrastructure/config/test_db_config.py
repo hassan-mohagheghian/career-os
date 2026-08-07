@@ -10,7 +10,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..
 
 import shared.infrastructure.config.db as db_module
 from rules.infrastructure.models.rule_model import RuleModel
-from jobs.infrastructure.models.misc_models import ResumeModel
 
 
 # ── _text_to_html (pure) ──────────────────────────────────────────
@@ -106,137 +105,26 @@ class TestInitDb:
         m_seed.assert_not_called()
 
 
-# ── migrate_resume_files_to_db ────────────────────────────────────
+# ── main block ────────────────────────────────────────────────────
 
-class TestMigrateResumeFilesToDb:
-    def test_migrate_master(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=True), \
-                patch('os.path.isdir', return_value=False), \
-                patch('builtins.open', mock_open(read_data='My resume text\nsecond line')), \
-                patch('os.remove') as m_remove:
-            db_module.migrate_resume_files_to_db()
-        row = sa_session.query(ResumeModel).filter(ResumeModel.id == 'original_1').first()
-        assert row is not None
-        assert row.raw_text == 'My resume text\nsecond line'
-        assert '<p ' in row.content
-        m_remove.assert_called_once()
-
-    def test_migrate_master_empty_file(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=True), \
-                patch('os.path.isdir', return_value=False), \
-                patch('builtins.open', mock_open(read_data='   ')), \
-                patch('os.remove'):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'original_1').count() == 0
-
-    def test_migrate_master_already_exists(self, sa_session):
-        sa_session.add(ResumeModel(id='original_0', title='x'))
-        sa_session.commit()
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=True), \
-                patch('os.path.isdir', return_value=False), \
-                patch('builtins.open', mock_open(read_data='content')), \
-                patch('os.remove') as m_remove:
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'original_1').count() == 0
-        m_remove.assert_called_once()
-
-    def test_migrate_master_missing(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=False), \
-                patch('os.path.isdir', return_value=False):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).count() == 0
-
-    def test_migrate_by_job(self, sa_session):
-        files = [
-            '/x/resumes/by_job/acme_engineer_abc.txt',
-            '/x/resumes/by_job/bigco.txt',
-        ]
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=False), \
-                patch('os.path.isdir', return_value=True), \
-                patch('glob.glob', return_value=files), \
-                patch('builtins.open', mock_open(read_data='Tailored content')), \
-                patch('os.remove'), \
-                patch('os.rmdir') as m_rmdir:
-            db_module.migrate_resume_files_to_db()
-        ids = {r.id for r in sa_session.query(ResumeModel).all()}
-        assert 'file_acme_engineer_abc' in ids
-        assert 'file_bigco' in ids
-        m_rmdir.assert_called_once()
-
-    def test_migrate_by_job_dir_missing(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=False), \
-                patch('os.path.isdir', return_value=False):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).count() == 0
-
-    def test_migrate_master_remove_error(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=True), \
-                patch('os.path.isdir', return_value=False), \
-                patch('builtins.open', mock_open(read_data='content')), \
-                patch('os.remove', side_effect=OSError('nope')):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'original_1').count() == 1
-
-    def test_migrate_master_exists_remove_error(self, sa_session):
-        sa_session.add(ResumeModel(id='original_0', title='x'))
-        sa_session.commit()
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=True), \
-                patch('os.path.isdir', return_value=False), \
-                patch('builtins.open', mock_open(read_data='content')), \
-                patch('os.remove', side_effect=OSError('nope')):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'original_1').count() == 0
-
-    def test_migrate_by_job_skips_empty(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=False), \
-                patch('os.path.isdir', return_value=True), \
-                patch('glob.glob', return_value=['/x/resumes/by_job/bigco.txt']), \
-                patch('builtins.open', mock_open(read_data='   ')), \
-                patch('os.remove'), \
-                patch('os.rmdir'):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'file_bigco').count() == 0
-
-    def test_migrate_by_job_remove_error(self, sa_session):
-        with patch('shared.infrastructure.database.sqlalchemy_config.SessionLocal', return_value=sa_session), \
-                patch('os.path.exists', return_value=False), \
-                patch('os.path.isdir', return_value=True), \
-                patch('glob.glob', return_value=['/x/resumes/by_job/acme_engineer_abc.txt']), \
-                patch('builtins.open', mock_open(read_data='content')), \
-                patch('os.remove', side_effect=OSError('nope')), \
-                patch('os.rmdir', side_effect=OSError('nope')):
-            db_module.migrate_resume_files_to_db()
-        assert sa_session.query(ResumeModel).filter(ResumeModel.id == 'file_acme_engineer_abc').count() == 1
-
-    def test_main_block(self):
-        with open(db_module.__file__) as f:
-            source = f.read()
-        lines = source.splitlines(keepends=True)
-        main_idx = next(
-            i for i, l in enumerate(lines)
-            if l.startswith('if __name__ == "__main__":')
-        )
-        head = "".join(lines[:main_idx])
-        tail = "".join(lines[main_idx:])
-        ns = {
-            '__name__': '__main__',
-            '__file__': db_module.__file__,
-        }
-        exec(compile(head, db_module.__file__, 'exec'), ns)
-        ns['init_db'] = MagicMock()
-        ns['load_json_to_db'] = MagicMock()
-        ns['migrate_resume_files_to_db'] = MagicMock()
-        ns['log'] = MagicMock()
-        exec(compile(tail, db_module.__file__, 'exec'), ns)
-        ns['init_db'].assert_called_once()
-        ns['load_json_to_db'].assert_called_once()
-        ns['migrate_resume_files_to_db'].assert_called_once()
+def test_main_block():
+    with open(db_module.__file__) as f:
+        source = f.read()
+    lines = source.splitlines(keepends=True)
+    main_idx = next(
+        i for i, l in enumerate(lines)
+        if l.startswith('if __name__ == "__main__":')
+    )
+    head = "".join(lines[:main_idx])
+    tail = "".join(lines[main_idx:])
+    ns = {
+        '__name__': '__main__',
+        '__file__': db_module.__file__,
+    }
+    exec(compile(head, db_module.__file__, 'exec'), ns)
+    ns['init_db'] = MagicMock()
+    ns['load_json_to_db'] = MagicMock()
+    ns['log'] = MagicMock()
+    exec(compile(tail, db_module.__file__, 'exec'), ns)
+    ns['init_db'].assert_called_once()
+    ns['load_json_to_db'].assert_called_once()

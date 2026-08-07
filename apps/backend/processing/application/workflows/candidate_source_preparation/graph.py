@@ -38,12 +38,10 @@ class CandidateSourcePreparationGraph:
         self,
         profile_repo: Any,
         source_repo: Any,
-        resume_repo: Any | None = None,
         event_publisher: Any | None = None,
     ):
         self._profile_repo = profile_repo
         self._source_repo = source_repo
-        self._resume_repo = resume_repo
         self._events = event_publisher
         self._graph = self._build()
 
@@ -53,7 +51,7 @@ class CandidateSourcePreparationGraph:
         graph.add_node(NODE_LOAD_PROFILE, LoadProfileNode(self._profile_repo, self._events))
         graph.add_node(
             NODE_PREPARE_SOURCES,
-            PrepareSourcesNode(self._source_repo, self._resume_repo, self._events),
+            PrepareSourcesNode(self._source_repo, self._events),
         )
         graph.add_node(NODE_SOURCES_READY, SourcesReadyNode(self._events))
         graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._events))

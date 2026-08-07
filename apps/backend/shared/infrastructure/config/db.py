@@ -9,7 +9,6 @@ import os
 
 from dotenv import load_dotenv
 from shared.infrastructure.process.logging_config import get_logger
-from shared.infrastructure.utils import text_to_html
 load_dotenv()
 
 log = get_logger('db')
@@ -121,89 +120,6 @@ def load_json_to_db():
     pass
 
 
-def migrate_resume_files_to_db():
-    """Migrate existing resume files from inputs/ and resumes/ to the DB."""
-    import glob as globmod
-    project_root = os.path.join(os.path.dirname(__file__), "..", "..")
-    from shared.infrastructure.database.sqlalchemy_config import SessionLocal
-    from jobs.infrastructure.models.misc_models import ResumeModel
-
-    session = SessionLocal()
-    try:
-        # 1. Migrate master resume from inputs/original/resume.txt
-        master_path = os.path.join(project_root, "inputs", "original", "resume.txt")
-        if os.path.exists(master_path):
-            existing = session.query(ResumeModel).filter(ResumeModel.id.like("original_%")).count()
-            if existing == 0:
-                with open(master_path) as f:
-                    raw_text = f.read().strip()
-                if raw_text:
-                    content_html = text_to_html(raw_text)
-                    from datetime import datetime
-                    session.add(ResumeModel(
-                        id="original_1", title="Resume v1", company="", role="",
-                        content=content_html, version=1, raw_text=raw_text,
-                        created_at=datetime.now().isoformat(),
-                    ))
-                    session.commit()
-                    log.info("Imported master resume", path=master_path)
-                    try:
-                        os.remove(master_path)
-                    except OSError:
-                        pass
-            else:
-                try:
-                    os.remove(master_path)
-                except OSError:
-                    pass
-
-        # 2. Migrate tailored resumes from resumes/by_job/
-        by_job_dir = os.path.join(project_root, "resumes", "by_job")
-        if os.path.isdir(by_job_dir):
-            txt_files = sorted(globmod.glob(os.path.join(by_job_dir, "*.txt")))
-            migrated_count = 0
-            for filepath in txt_files:
-                basename = os.path.basename(filepath)
-                parts = basename.replace('.txt', '').split('_', 2)
-                company = parts[1] if len(parts) > 1 else basename
-                role = parts[2].replace('_', ' ') if len(parts) > 2 else ''
-
-                with open(filepath) as f:
-                    raw_text = f.read().strip()
-                if not raw_text:
-                    continue
-
-                resume_id = f"file_{basename.replace('.txt', '')}"
-                existing = session.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
-                if not existing:
-                    from datetime import datetime
-                    content_html = text_to_html(raw_text)
-                    session.add(ResumeModel(
-                        id=resume_id, title=f"{company} (File Import)",
-                        company=company, role=role, content=content_html,
-                        version=1, raw_text=raw_text,
-                        created_at=datetime.now().isoformat(),
-                    ))
-                    migrated_count += 1
-
-            session.commit()
-            if migrated_count > 0:
-                log.info("Imported tailored resumes", count=migrated_count, path=str(by_job_dir))
-
-            for filepath in txt_files:
-                try:
-                    os.remove(filepath)
-                except OSError:
-                    pass
-            try:
-                os.rmdir(by_job_dir)
-            except OSError:
-                pass
-
-    finally:
-        session.close()
-
-
 def _text_to_html(text):
     """Convert plain text resume to simple HTML (shared helper).
 
@@ -216,5 +132,4 @@ def _text_to_html(text):
 if __name__ == "__main__":
     init_db()
     load_json_to_db()
-    migrate_resume_files_to_db()
     log.info("Database initialized", path=DB_PATH)

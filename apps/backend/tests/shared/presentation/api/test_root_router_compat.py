@@ -15,7 +15,7 @@ import pytest
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillRelationshipModel
-from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+from jobs.infrastructure.models.misc_models import SummaryModel
 from skills.infrastructure.models.skill_roadmap_models import (
     SkillRoadmapModel,
     SkillRoadmapProgressModel,
@@ -62,7 +62,7 @@ def _seed_roadmap(sa_session, skill_name, completed=0, title="Basics"):
     return rm.id
 
 
-# ── summaries / linkedin / tech-stack ───────────────────────────
+# ── summaries / tech-stack ──────────────────────────────────────
 
 
 def test_summaries_compat(client, sa_session):
@@ -71,20 +71,6 @@ def test_summaries_compat(client, sa_session):
     resp = client.get("/api/summaries")
     assert resp.status_code == 200
     assert any(r["job_id"] == "job-901" and r["company"] == "SummaryCo" for r in resp.json())
-
-
-def test_linkedin_compat(client, sa_session):
-    sa_session.add_all(
-        [
-            ResumeModel(id="original", title="Original"),
-            ResumeModel(id="linkedin_1", title="LinkedIn"),
-            ResumeModel(id="cover_2", title="Cover"),
-        ]
-    )
-    sa_session.commit()
-    resp = client.get("/api/linkedin")
-    assert resp.status_code == 200
-    assert {r["id"] for r in resp.json()} == {"linkedin_1"}
 
 
 def test_tech_stack_compat(client, sa_session):
@@ -305,12 +291,3 @@ def test_create_company_empty_body(client, sa_session):
     assert resp.status_code == 201
     assert resp.json()["status"] == "queued"
     enqueue.assert_called_once()
-
-
-# ── resumes ─────────────────────────────────────────────────────
-
-
-def test_active_generations_compat(client, sa_session):
-    # The /api/resumes/active-generations path is shadowed by resumes_router's
-    # GET /active-generations, so call the compat route function directly.
-    assert root_router_module.active_generations_compat(sa_session) == []

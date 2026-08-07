@@ -38,3 +38,16 @@ class CandidateVersionListResponse(BaseModel):
 class CandidateAnalyzeResponse(BaseModel):
     execution_id: str
     status: str
+
+
+class CandidateSourceUploadRequest(BaseModel):
+    source_type: str
+    raw_text: str
+
+
+class CandidateSourceUploadResponse(BaseModel):
+    id: str
+    source_type: str
+    version: int
+    status: str
+    raw_text: str = ""

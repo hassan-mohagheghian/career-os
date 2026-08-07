@@ -242,14 +242,4 @@ class ProcessingExecutionRunner:
                 if owns_session:
                     graph_session.close()
 
-        if execution.execution_type in (
-            ExecutionType.RESUME_GENERATION,
-            ExecutionType.COVER_LETTER_GENERATION,
-            ExecutionType.RESUME_OPTIMIZATION,
-        ):
-            from jobs.infrastructure.workers.generation_worker import process_generation
-
-            process_generation(execution.target_id)
-            return {"gen_id": execution.target_id}
-
         raise RuntimeError(f"Unsupported execution type: {execution.execution_type}")

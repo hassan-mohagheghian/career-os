@@ -45,7 +45,7 @@ SCHEMAS = {
         "candidate_languages",
         "candidate_profile_versions",
     ],
-    "shared": ["rules", "cities", "resumes", "metadata", "generation_history", "alembic_version"],
+    "shared": ["rules", "cities", "metadata", "generation_history", "alembic_version"],
 }
 
 

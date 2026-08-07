@@ -343,15 +343,6 @@ def _insert_summary(d):
     finally:
         session.close()
 
-def _insert_resume(d):
-    session = get_session_sync()
-    try:
-        from jobs.infrastructure.repositories.sa_tailored_document_repository import SQLAlchemyTailoredDocumentRepository
-        doc_repo = SQLAlchemyTailoredDocumentRepository(session)
-        doc_repo.upsert(d)
-    finally:
-        session.close()
-
 def _check_result_file(result_path):
     if not os.path.exists(result_path):
         tmp_dir = os.path.dirname(result_path)
@@ -421,20 +412,7 @@ def rescore(job_id):
             f.write(raw_desc)
 
         rules = _load_rules()
-        resume_file = os.path.join(TMP_DIR, f'rescore_resume_{job_id}.txt')
-        session = get_session_sync()
-        try:
-            from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-            resume_repo = SQLAlchemyResumeRepository(session)
-            raw_text = resume_repo.get_latest_original_raw_text()
-        finally:
-            session.close()
-        if raw_text:
-            with open(resume_file, 'w') as f:
-                f.write(raw_text)
-            resume_path = resume_file
-        else:
-            resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
+        resume_path = os.path.join(PROJECT_ROOT, 'inputs', 'original', 'resume.txt')
 
         # Use a unique pid per rescore run to avoid file conflicts
         rescore_pid = f'rescore_{job_id}_{int(datetime.now().timestamp()*1000)}'
@@ -528,15 +506,6 @@ def rescore(job_id):
             'note': data.get('summary', {}).get('note', ''),
             'url': url,
         })
-
-        resume_data = {
-            'id': f"rescore_{job_id}",
-            'title': f"{job_data['company']} (Score {job_data['score']})",
-            'company': job_data['company'], 'role': job_data['role'],
-            'job_id': job_id,
-            'content': data.get('resume_html', ''),
-        }
-        _insert_resume(resume_data)
 
         # Clear rescoring flag
         session = get_session_sync()

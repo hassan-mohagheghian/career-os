@@ -125,20 +125,29 @@ class FakeSkillRepo:
 
 
 class FakeResumeRepo:
+    """Fake candidate source repository exposing get_latest_by_type.
+
+    Built from ``original``/``linkedin`` raw text strings to keep the
+    TestPrepareProfileNode assertions readable.
+    """
+
     def __init__(self, original=None, linkedin=None, error=None):
         self._original = original
         self._linkedin = linkedin
         self._error = error
 
-    def get_latest_original_raw_text(self):
+    def get_latest_by_type(self, profile_id, source_type):
         if self._error is not None:
             raise self._error
-        return self._original
-
-    def get_latest_linkedin_raw_text(self):
-        if self._error is not None:
-            raise self._error
-        return self._linkedin
+        if source_type == "resume":
+            raw = self._original
+        elif source_type == "linkedin":
+            raw = self._linkedin
+        else:
+            return None
+        if not raw:
+            return None
+        return {"source_type": source_type, "version": 1, "raw_text": raw, "status": "processed"}
 
 
 class FakeRuleRepo:
@@ -161,6 +170,11 @@ class FakeCandidateProfileRepo:
         if self._error is not None:
             raise self._error
         return self._profile
+
+    def get_or_create_current(self):
+        if self._error is not None:
+            raise self._error
+        return self._profile or {"id": "profile-1", "skills": []}
 
 
 def _candidate_profile(**overrides) -> dict:
@@ -627,6 +641,7 @@ class TestPrepareProfileNode:
             FakeSkillRepo(skills),
             FakeResumeRepo(original="Resume text here", linkedin="LinkedIn raw here"),
             FakeRuleRepo(rules),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
         state = _state()
         state.processing_context = type("Ctx", (), {"combined_text": "job text"})()
@@ -641,7 +656,8 @@ class TestPrepareProfileNode:
 
     def test_keeps_linkedin_as_separate_supplement(self):
         node = PrepareProfileNode(
-            FakeSkillRepo(), FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"), FakeRuleRepo()
+            FakeSkillRepo(), FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"), FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
         state = node(_state())
         assert state.analysis_context["resume_text"] == "Resume raw"
@@ -650,7 +666,8 @@ class TestPrepareProfileNode:
 
     def test_linkedin_only_yields_empty_resume_text(self):
         node = PrepareProfileNode(
-            FakeSkillRepo(), FakeResumeRepo(original=None, linkedin="LinkedIn raw"), FakeRuleRepo()
+            FakeSkillRepo(), FakeResumeRepo(original=None, linkedin="LinkedIn raw"), FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
         state = node(_state())
         assert state.analysis_context["resume_text"] == "(no resume available)"
@@ -658,7 +675,8 @@ class TestPrepareProfileNode:
 
     def test_profile_failure_degrades(self):
         node = PrepareProfileNode(
-            FakeSkillRepo(error=RuntimeError("boom")), FakeResumeRepo(), FakeRuleRepo()
+            FakeSkillRepo(error=RuntimeError("boom")), FakeResumeRepo(), FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
         state = node(_state())
         assert state.analysis_context["profile_text"] == "(no skills registered)"
@@ -706,7 +724,7 @@ class TestPrepareProfileNode:
         assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
         assert "LinkedIn raw" in state.analysis_context["profile_documents"]
 
-    def test_profile_repo_failure_degrades_to_raw(self):
+    def test_profile_repo_failure_degrades(self):
         node = PrepareProfileNode(
             FakeSkillRepo(),
             FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"),
@@ -714,7 +732,7 @@ class TestPrepareProfileNode:
             candidate_profile_repo=FakeCandidateProfileRepo(error=RuntimeError("profile db down")),
         )
         state = node(_state())
-        assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
+        assert state.analysis_context["resume_text"] == "(no resume available)"
         assert any("profile db down" in e for e in state.errors)
 
     def test_no_profile_repo_keeps_legacy_behavior(self):
@@ -722,6 +740,7 @@ class TestPrepareProfileNode:
             FakeSkillRepo(),
             FakeResumeRepo(original="Resume raw", linkedin="LinkedIn raw"),
             FakeRuleRepo(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
         state = node(_state())
         assert "RESUME TEXT (latest):" in state.analysis_context["profile_documents"]
@@ -1045,13 +1064,14 @@ class TestJobAnalysisGraph:
         return JobAnalysisGraph(
             job_service=job_service,
             skill_repo=FakeSkillRepo([{"name": "Python", "level": 4, "category": "Language"}]),
-            resume_repo=FakeResumeRepo(original="My resume"),
+            source_repo=FakeResumeRepo(original="My resume"),
             rule_repo=FakeRuleRepo([{"key": "VISA_OK", "value": "sponsor", "priority": 1}]),
             job_repo=FailingJobRepo() if persist_error else FakeJobRepo(),
             summary_repo=FakeSummaryRepo(),
             analysis_repo=FakeAnalysisRepo(),
             llm_service=llm or FakeLLM(_payload()),
             event_publisher=RecordingEventPublisher(),
+            candidate_profile_repo=FakeCandidateProfileRepo(None),
         )
 
     def test_successful_execution(self):

@@ -14,8 +14,9 @@ class PortfolioAdapter(CandidateSourceAdapter):
 
     source_type = "portfolio"
 
-    def __init__(self, resume_repo=None):
-        self._resume_repo = resume_repo
+    def __init__(self, source_repo=None, profile_id=None):
+        self._source_repo = source_repo
+        self._profile_id = profile_id
 
     def fetch(self) -> SourceContent | None:
         return None

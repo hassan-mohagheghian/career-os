@@ -49,34 +49,6 @@ def build_job_processing_graph() -> GraphBuilder:
         linkedin_text = state["context"].get("linkedin_text", "")
         rules = state["context"].get("rules", "")
 
-        if not resume_text:
-            try:
-                from dependencies import get_session_sync
-                from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-                session = get_session_sync()
-                try:
-                    resume_repo = SQLAlchemyResumeRepository(session)
-                    resume_text = resume_repo.get_latest_original_raw_text() or ""
-                finally:
-                    session.close()
-            except Exception:
-                resume_text = ""
-            state["context"]["resume_text"] = resume_text
-
-        if not linkedin_text:
-            try:
-                from dependencies import get_session_sync
-                from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
-                session = get_session_sync()
-                try:
-                    resume_repo = SQLAlchemyResumeRepository(session)
-                    linkedin_text = resume_repo.get_latest_linkedin_raw_text() or ""
-                finally:
-                    session.close()
-            except Exception:
-                linkedin_text = ""
-            state["context"]["linkedin_text"] = linkedin_text
-
         if not rules:
             try:
                 from dependencies import get_session_sync
@@ -510,7 +482,6 @@ def build_job_processing_graph() -> GraphBuilder:
             from dependencies import get_session_sync
             from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
             from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-            from jobs.infrastructure.repositories.sa_resume_repository import SQLAlchemyResumeRepository
 
             pid = state["context"].get("pid")
             url = state["context"].get("url", state["input"])
@@ -519,7 +490,6 @@ def build_job_processing_graph() -> GraphBuilder:
             try:
                 job_repo = SQLAlchemyJobRepository(session)
                 summary_repo = SQLAlchemySummaryRepository(session)
-                resume_repo = SQLAlchemyResumeRepository(session)
 
                 job_id = state["context"].get("job_id")
                 if not job_id and url:

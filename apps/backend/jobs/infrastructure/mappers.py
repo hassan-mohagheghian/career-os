@@ -77,18 +77,3 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
 def dict_to_job_model(data: dict[str, Any]) -> JobModel:
     """Convert a domain dictionary to a JobModel."""
     return JobModel(**{k: v for k, v in data.items() if hasattr(JobModel, k)})
-
-
-def resume_model_to_dict(model: Any) -> dict[str, Any]:
-    """Convert a ResumeModel to a domain dictionary."""
-    return {
-        "id": model.id,
-        "title": model.title,
-        "company": model.company,
-        "role": model.role,
-        "content": model.content,
-        "version": model.version,
-        "raw_text": model.raw_text,
-        "created_at": _to_str(model.created_at),
-        "job_id": model.job_id,
-    }

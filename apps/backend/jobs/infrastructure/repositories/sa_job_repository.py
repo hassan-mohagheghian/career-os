@@ -160,11 +160,11 @@ class SQLAlchemyJobRepository(IJobRepository):
     def delete_by_id(self, uuid: str) -> bool:
         """Hard-delete a job by UUID and its related tables.
 
-        Deletes the job row plus related records that reference it (summaries,
-        resumes, tailored documents). Processing executions are handled by the
-        caller via the processing execution repository.
+        Deletes the job row plus related records that reference it (summaries).
+        Processing executions are handled by the caller via the processing
+        execution repository.
         """
-        from jobs.infrastructure.models.misc_models import SummaryModel, ResumeModel
+        from jobs.infrastructure.models.misc_models import SummaryModel
         from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
         model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
         if not model:
@@ -172,7 +172,6 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.query(JobModel).filter(JobModel.id == uuid).delete()
         self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == uuid).delete(synchronize_session=False)
         self._session.query(SummaryModel).filter(SummaryModel.job_id == uuid).delete(synchronize_session=False)
-        self._session.query(ResumeModel).filter(ResumeModel.job_id == uuid).delete(synchronize_session=False)
         self._session.commit()
         return True
 

@@ -43,8 +43,6 @@ class GenerationHistoryRepository:
             all_items.extend(self._query_pending_jobs())
         if source_filter is None or source_filter == 'company-processing':
             all_items.extend(self._query_pending_companies())
-        if source_filter is None or source_filter == 'generation':
-            all_items.extend(self._query_pending_generations())
         if source_filter is None or source_filter == 'roadmap':
             all_items.extend(self._query_roadmap_jobs())
         def sort_key(item: GenerationHistoryItem) -> str:
@@ -107,9 +105,6 @@ class GenerationHistoryRepository:
             pass
         return items
 
-    def _query_pending_generations(self) -> List[GenerationHistoryItem]:
-        return []
-
     def _query_roadmap_jobs(self) -> List[GenerationHistoryItem]:
         items = []
         try:
@@ -140,9 +135,8 @@ class GenerationHistoryRepository:
     # ── Context-filtered queries for local history ────────────────────
 
     def get_for_job(self, job_id: str, limit: int = 50) -> Dict[str, any]:
-        """Get generation history for a specific job (resume + cover + processing)."""
+        """Get generation history for a specific job (processing only)."""
         all_items: List[GenerationHistoryItem] = []
-        all_items.extend(self._query_pending_generations_for_job(job_id))
         all_items.extend(self._query_pending_jobs_for_job(job_id))
         all_items.sort(key=lambda i: i.started_at or i.completed_at or '', reverse=True)
         return {'items': all_items[:limit], 'total': len(all_items)}
@@ -198,9 +192,6 @@ class GenerationHistoryRepository:
         except Exception:
             pass
         return count
-
-    def _query_pending_generations_for_job(self, job_id: str) -> List[GenerationHistoryItem]:
-        return []
 
     def _query_pending_jobs_for_job(self, job_id: str) -> List[GenerationHistoryItem]:
         items = []

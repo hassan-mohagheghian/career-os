@@ -1,10 +1,9 @@
 """Extra tests for shared.infrastructure.process.repository.
 
-Covers PendingJobRepository / PendingCompanyRepository / JobRepository
-branches not exercised by the existing suite: not-found paths, ItemStatus
-and string statuses, update_fields, append_log/get_logs on companies,
-reset_orphans (both branches), insert/insert_summary/insert_resume
-(new + existing), save_workflow_log, and the dict helpers.
+Covers PendingJobRepository / PendingCompanyRepository branches not
+exercised by the existing suite: not-found paths, ItemStatus and string
+statuses, update_fields, append_log/get_logs on companies, reset_orphans
+(both branches), and the dict helpers.
 """
 
 import json

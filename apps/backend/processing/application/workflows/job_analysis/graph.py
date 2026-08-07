@@ -58,7 +58,7 @@ class JobAnalysisGraph:
         self,
         job_service: Any,
         skill_repo: Any,
-        resume_repo: Any,
+        source_repo: Any,
         rule_repo: Any,
         job_repo: Any,
         summary_repo: Any,
@@ -71,7 +71,7 @@ class JobAnalysisGraph:
     ):
         self._job_service = job_service
         self._skills = skill_repo
-        self._resumes = resume_repo
+        self._sources = source_repo
         self._rules = rule_repo
         self._jobs = job_repo
         self._summaries = summary_repo
@@ -89,7 +89,7 @@ class JobAnalysisGraph:
         graph.add_node(NODE_LOAD_CONTEXT, LoadContextNode(self._job_service, self._events))
         graph.add_node(
             NODE_PREPARE_PROFILE,
-            PrepareProfileNode(self._skills, self._resumes, self._rules, self._events, self._profiles),
+            PrepareProfileNode(self._skills, self._sources, self._rules, self._events, self._profiles),
         )
         graph.add_node(NODE_ANALYZE, AnalyzeNode(self._llm, self._events))
         graph.add_node(NODE_EXTRACT_SKILLS, ExtractSkillsNode(self._events))
