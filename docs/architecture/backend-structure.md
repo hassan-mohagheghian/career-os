@@ -125,7 +125,7 @@ app/
 │   │   ├── __init__.py
 │   │   ├── database/             # Database implementations
 │   │   │   ├── __init__.py
-│   │   │   ├── connection.py     # SQLite connection management
+│   │   │   ├── connection.py     # PostgreSQL connection management
 │   │   │   ├── migrations.py     # Schema migrations
 │   │   │   ├── job_repository.py # JobRepository implementation
 │   │   │   ├── company_repository.py

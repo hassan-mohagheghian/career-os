@@ -10,9 +10,8 @@ The database uses a **schema-per-bounded-context** architecture, isolating each 
 
 ### Engine & Session
 
-- **Engine**: `shared/infrastructure/database/sqlalchemy_config.py` — auto-detects SQLite vs PostgreSQL from the `DATABASE_URL` environment variable
-  - **SQLite**: Applies WAL mode, busy_timeout, foreign_keys PRAGMAs. Uses `schema_translate_map` to strip schema qualifiers (PostgreSQL-only concept)
-  - **PostgreSQL**: Uses psycopg as the driver, creates schemas via `ensure_schemas()`, no schema translation needed
+- **Engine**: `shared/infrastructure/database/sqlalchemy_config.py` — PostgreSQL-only engine created from the `DATABASE_URL` environment variable
+  - Uses psycopg as the driver, `NullPool` for connection pooling, and `ensure_schemas()` to create the per-context schemas
 - **SessionLocal**: Session factory bound to the engine, creates request-scoped sessions
 - **get_session()**: FastAPI dependency that yields a session with auto-commit/rollback
 
@@ -20,26 +19,26 @@ The database uses a **schema-per-bounded-context** architecture, isolating each 
 
 ```python
 # shared/infrastructure/config/app_config.py
-DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required.")
 ```
 
-- Local dev: defaults to SQLite (no config needed)
-- Production/CI: set `DATABASE_URL=postgresql+psycopg://user:pass@host/dbname`
+- `DATABASE_URL` is **required** — a PostgreSQL connection string
+  (`postgresql+psycopg://user:pass@host/dbname`). Plain `postgresql://` URLs
+  are normalized to the psycopg v3 dialect automatically.
 
-### Schema Auto-Detection
+### Engine Creation
 
 ```python
 # shared/infrastructure/database/sqlalchemy_config.py
-if url.startswith("postgresql"):
-    # PostgreSQL: create schemas, no translation needed
-    engine = create_engine(url, pool_size=10, max_overflow=20)
-    ensure_schemas(engine)
-else:
-    # SQLite: strip schema qualifiers via translate map
-    engine = create_engine(url, connect_args=connect_args)
-    engine = engine.execution_options(schema_translate_map={
-        "job": None, "company": None, "skill": None, "shared": None
-    })
+engine = create_engine(DATABASE_URL, echo=False, connect_args={}, poolclass=NullPool)
+
+def ensure_schemas():
+    with engine.connect() as conn:
+        for schema in SCHEMAS:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        conn.commit()
 ```
 
 ### Declarative Base
@@ -130,18 +129,22 @@ Request arrives
 
 ## Testing
 
-Tests use in-memory SQLite databases by default. For PostgreSQL testing, set `DATABASE_URL`:
+Tests use PostgreSQL exclusively. The test database is derived from
+`DATABASE_URL` by appending a `_test` suffix to the database name and is
+created automatically if it does not exist (`apps/backend/tests/conftest.py`):
 
 ```python
-@pytest.fixture
-def sa_session():
-    engine = create_engine("sqlite:///:memory:")
-    engine = engine.execution_options(schema_translate_map=schema_translate_map())
+@pytest.fixture(scope="session")
+def _engine():
+    engine = create_engine(TEST_DB_URL)
+    with engine.connect() as conn:
+        for schema in SCHEMAS:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        conn.commit()
     Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-    session.close()
+    yield engine
+    engine.dispose()
 ```
 
-The `schema_translate_map` strips PostgreSQL schema qualifiers when running against SQLite, allowing the same model definitions to work with both databases. CI runs tests with both SQLite (default) and PostgreSQL (via service container + `DATABASE_URL` env).
+CI runs the test suite against a PostgreSQL service container (see
+`.github/workflows/ci.yml`).

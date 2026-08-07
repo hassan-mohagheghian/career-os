@@ -196,7 +196,5 @@ apps/backend/
 │
 ├── services/                        # Legacy services (re-export shims)
 │
-├── scripts/                         # Legacy scripts (re-export shims)
-│
 └── prompts/                         # Legacy prompts (re-export shims)
 ```

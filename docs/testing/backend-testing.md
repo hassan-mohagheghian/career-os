@@ -133,7 +133,7 @@ async def test_get_job_by_id(test_db):
 
 **Purpose:** Test component interactions.
 **Speed:** Medium (< 1s per test)
-**Dependencies:** Database (in-memory SQLite)
+**Dependencies:** Database (PostgreSQL, test DB derived from `DATABASE_URL` with a `_test` suffix)
 
 #### API Endpoint Tests
 
@@ -229,7 +229,7 @@ async def test_migration_runs(test_db):
     
     # Verify tables exist
     tables = await test_db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'"
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
     )
     table_names = [row[0] for row in tables.fetchall()]
     assert "jobs" in table_names
@@ -286,8 +286,8 @@ from apps.backend.infrastructure.database.models import Base
 
 @pytest.fixture
 def test_db():
-    """Create in-memory test database."""
-    engine = create_engine("sqlite:///:memory:")
+    """Create a test database session (PostgreSQL)."""
+    engine = create_engine(TEST_DB_URL)
     Base.metadata.create_all(engine)
     TestSession = sessionmaker(bind=engine)
     session = TestSession()

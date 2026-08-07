@@ -20,7 +20,7 @@ The refactoring follows a **test-after** strategy for structural migration:
 ### Integration Tests (Infrastructure)
 
 - Test SQLAlchemy repository implementations
-- Test database queries against in-memory SQLite
+- Test database queries against PostgreSQL (test DB derived from `DATABASE_URL` with a `_test` suffix)
 
 ### API Tests (Presentation)
 
@@ -42,6 +42,6 @@ python -m pytest apps/backend/tests/ -q
 
 ## Test Fixtures
 
-- `conftest.py` provides in-memory SQLite session
+- `conftest.py` provides a PostgreSQL session (test DB derived from `DATABASE_URL`)
 - `TestClient` for API endpoint testing
 - `sa_session` for repository testing

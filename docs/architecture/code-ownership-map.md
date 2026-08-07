@@ -103,5 +103,4 @@ These modules exist at their old locations for backward compatibility. All new c
 | `services/insights.py` | `rules/application/services/insights.py` |
 | `services/process_utils.py` | `shared/infrastructure/process_utils.py` |
 | `services/process/*.py` | `shared/infrastructure/process/*.py` |
-| `scripts/*.py` | `jobs/application/commands/*.py` |
 | `config.py` | `shared/infrastructure/config/app_config.py` |

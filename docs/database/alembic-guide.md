@@ -234,10 +234,5 @@ Ensure all models are imported in `apps/alembic/env.py` (one import per context
 model package). If the new models aren't registered with `Base.metadata`,
 autogenerate cannot see them — and this must be done **before** generating.
 
-### SQLite-specific issues
-- SQLite doesn't support `CREATE SCHEMA` — migrations must be run against PostgreSQL
-- Test migrations locally using Docker Compose's postgres service
-- For SQLite development, the `schema_translate_map` handles schema qualifiers at runtime
-
 ### Cross-schema foreign key confusion
 Alembic may reorder migration creation. If a migration references a table from another schema created in a different migration file, ensure the referenced migration runs first by specifying `depends_on` in the revision header.

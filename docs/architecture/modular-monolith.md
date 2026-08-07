@@ -141,7 +141,6 @@ apps/backend/
 ├── services/                        # LEGACY (still exists)
 ├── schemas/                         # LEGACY (still exists)
 ├── prompts/
-├── scripts/
 ├── tests/
 ├── static/
 └── logs/

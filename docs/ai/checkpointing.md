@@ -53,12 +53,3 @@ For PostgreSQL:
 from langgraph.checkpoint.postgres import PostgresSaver
 checkpointer = PostgresSaver.from_conn_string(DB_URL)
 ```
-
-For SQLite:
-
-```python
-from langgraph.checkpoint.sqlite import SqliteSaver
-import sqlite3
-conn = sqlite3.connect("checkpoints.db")
-checkpointer = SqliteSaver(conn)
-```

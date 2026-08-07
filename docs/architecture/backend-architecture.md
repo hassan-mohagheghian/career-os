@@ -9,7 +9,7 @@ This document defines the target FastAPI backend architecture for the Job Search
 - Type-safe request/response validation via Pydantic v2
 - Scalable dependency injection replacing global mutable state
 - Unified WebSocket support replacing dual SocketIO systems
-- Foundation for future PostgreSQL migration and ORM adoption
+- PostgreSQL persistence via SQLAlchemy ORM + Alembic migrations
 
 ## Target Stack
 
@@ -17,7 +17,7 @@ This document defines the target FastAPI backend architecture for the Job Search
 |-------|-----------|---------|
 | HTTP | FastAPI + Uvicorn | ASGI server with async support |
 | Validation | Pydantic v2 | Request/response schemas, settings |
-| Database | SQLite → PostgreSQL (future) | Raw SQL preserved, async via aiosqlite |
+| Database | PostgreSQL | SQLAlchemy ORM + Alembic migrations |
 | Logging | structlog | Structured JSON logging |
 | Testing | pytest + httpx | Async API testing |
 | Config | pydantic-settings | Environment-based configuration |
@@ -153,9 +153,10 @@ HTTP Request
 └──────┬──────┘
        │
        ▼
-┌─────────────┐
-│  Database   │  SQLite / PostgreSQL
-└─────────────┘
+┌─────────────────────────────┐
+│        Database             │
+│        PostgreSQL           │
+└─────────────────────────────┘
 ```
 
 ## Error Handling Strategy
@@ -374,7 +375,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    db_path: str = "db/jobs.db"
+    db_url: str = "postgresql+psycopg://user:pass@localhost:5432/jobsearch"
     
     # AI
     ai_provider: str = "mimo"
@@ -402,7 +403,7 @@ class Settings(BaseSettings):
 
 | Variable | Development | Production | Testing |
 |----------|-------------|------------|---------|
-| `DB_PATH` | `db/jobs.db` | `/data/jobs.db` | `:memory:` |
+| `DATABASE_URL` | `postgresql+psycopg://user:pass@localhost:5432/jobsearch` | `postgresql+psycopg://user:pass@host/dbname` | `postgresql+psycopg://user:pass@localhost:5432/jobsearch_test` |
 | `DEBUG` | `true` | `false` | `false` |
 | `LOG_LEVEL` | `DEBUG` | `INFO` | `WARNING` |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | `["https://app.example.com"]` | `["*"]` |
@@ -433,9 +434,9 @@ app.add_middleware(
 
 ## Performance Considerations
 
-### Async Database Access
-- `aiosqlite` for async SQLite operations
-- Connection pooling via `asyncpg` (future PostgreSQL)
+### Database Access
+- SQLAlchemy ORM over PostgreSQL with `psycopg` v3 driver
+- Connection pooling via SQLAlchemy's pool (NullPool for request-scoped sessions)
 - Read replicas for read-heavy endpoints (future)
 
 ### Caching Strategy
@@ -444,9 +445,9 @@ app.add_middleware(
 - Cache invalidation on data mutation
 
 ### Connection Limits
-- Uvicorn workers: 1 (SQLite single-writer)
+- Uvicorn workers: configurable (PostgreSQL supports multi-worker access)
 - WebSocket connections: unbounded (in-memory)
-- Database connections: 1 per request (no pooling for SQLite)
+- Database connections: pooled per engine (NullPool for request-scoped sessions)
 
 ## Static Frontend Serving
 

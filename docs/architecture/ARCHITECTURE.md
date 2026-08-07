@@ -19,8 +19,8 @@
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘  │
 │       └────────────┴────────────┴────────────┘         │
 │            ┌────────────▼────────────┐                  │
-│            │      SQLite DB          │                  │
-│            │      (jobs.db)          │                  │
+│            │      PostgreSQL DB      │                  │
+│            │      (schema-per-ctx)   │                  │
 │            └─────────────────────────┘                  │
 └─────────────────────────┬───────────────────────────────┘
                           │
@@ -37,7 +37,7 @@
               └───────────────────────┘
 ```
 
-**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | FastAPI + Python 3.14 + SQLite + SQLAlchemy ORM | Pydantic v2 | AI Agent Layer (LLMService + LangGraph) | WebSocket (native FastAPI)
+**Stack**: React 18 + TypeScript + Vite 6 + shadcn/ui + Tailwind CSS | FastAPI + Python 3.14 + PostgreSQL + SQLAlchemy ORM | Pydantic v2 | AI Agent Layer (LLMService + LangGraph) | WebSocket (native FastAPI)
 
 ## Architecture Layers
 

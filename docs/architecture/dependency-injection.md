@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 
 def get_db():
     """Yield a database session for the request lifetime."""
-    engine = create_engine(f"sqlite:///{settings.db_path}")
+    engine = create_engine("postgresql+psycopg://user:pass@localhost:5432/jobsearch")
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
     try:
