@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import { Providers } from '@/app/providers'
 import './globals.css'
-import { JetBrains_Mono, Merriweather } from "next/font/google";
+import { JetBrains_Mono, Merriweather, Inter, Oxanium } from "next/font/google";
 import { cn } from "@/shared/lib/utils";
 
-const merriweatherHeading = Merriweather({subsets:['latin'],variable:'--font-heading'});
+const oxanium = Oxanium({subsets:['latin'],variable:'--font-sans'});
+
+const interHeading = Inter({subsets:['latin'],variable:'--font-heading'});
 
 const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'});
 
@@ -19,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-mono", jetbrainsMono.variable, merriweatherHeading.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn( jetbrainsMono.variable, interHeading.variable, "font-sans", oxanium.variable)}>
       <body>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
