@@ -21,6 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={cn("font-mono", jetbrainsMono.variable, merriweatherHeading.variable)}>
       <body>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&family=Merriweather:wght@400;700;900&display=swap"
+          rel="stylesheet"
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

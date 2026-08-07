@@ -196,8 +196,21 @@ component-level color literals. The sidebar uses only theme tokens
   `./start theme [code]` (runs `npx shadcn@latest apply <code> -y` in
   `apps/frontend`; defaults to `b4ZVZIPi9h`), or the equivalent one-liner
   `cd apps/frontend && npx shadcn@latest apply --preset b4ZVZIPi9h`
-  (radix-lyra style, taupe base, remixicon icons, Merriweather heading +
-  JetBrains Mono fonts; body copy stays Inter).
+  (radix-lyra style, taupe base, remixicon icons, JetBrains Mono base font +
+  Merriweather heading font).
+- **Fonts** — the preset defines two font tokens, both honored app-wide:
+  `--font-mono`/`--font-sans` → JetBrains Mono (the base font; `html` is
+  `@apply font-mono` and the body inherits it, and `--font-sans` maps to the
+  same token so `font-sans` can never fall back to the system stack) and
+  `--font-heading` → Merriweather (used by `font-heading` component titles).
+  Both load from the Google Fonts CDN via `<link>` tags rendered in
+  `app/layout.tsx` (`<body>`; React hoists them into `<head>`). The
+  `next/font/google` setup in the same file stays in place as the shadcn-managed
+  build-time source. The CDN `<link>` tags are preserved by `./start theme`
+  (the apply pipeline only rewrites the `next/font` imports and the `<html>`
+  className, never body-level `<link>` elements), so the fonts keep working
+  after any theme re-apply — and re-applying this preset regenerates the exact
+  same `--font-mono`/`--font-heading` tokens.
 
 ---
 
