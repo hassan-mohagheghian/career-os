@@ -118,11 +118,12 @@ flowchart TD
 
 | Element                  | Behavior                                                       |
 | ------------------------ | -------------------------------------------------------------- |
-| Brand (rail / drawer)    | Navigates to `/jobs`.                                          |
+| Brand (rail / drawer)    | Navigates to `/jobs`; monochrome `bg-primary` mark + `text-primary` wordmark. |
 | Top-level items          | Navigate to `/{id}` (`jobs`, `companies`, `candidate`, `skills`, `rules`). |
 | `AI ▾` (expanded rail)   | Inline expandable group; chevron rotates; children indented under a left border. |
 | `AI` (collapsed rail)    | Expands the sidebar and opens the AI group.                    |
 | Active item              | `bg-primary/10` + `text-primary` + left accent bar (desktop, expanded only). |
+| Nav icons                | **Monochrome** — icons inherit the row's text color (`text-primary` active, `text-muted-foreground` idle); no per-item colors. |
 | Theme toggle             | Switches light/dark.                                           |
 | History button           | Opens the Generation History drawer.                           |
 | Collapse toggle          | Narrowed to `w-[68px]` icon-only rail; labels become tooltips; state persisted in `localStorage`. |
@@ -167,6 +168,37 @@ item navigates and closes the sheet.
 - Page content sits in a `flex` column beside the rail; there is **no** fixed
   header offset (`pt-16` is gone). Page widgets fill `h-full`.
 - `GenerationHistoryDrawer` is dynamically imported (`ssr: false`).
+
+---
+
+# Theming
+
+The app theme is driven **entirely from `app/globals.css`** — one file, no
+component-level color literals. The sidebar uses only theme tokens
+(`bg-card`, `text-primary`, `text-muted-foreground`, `bg-primary`,
+`text-primary-foreground`, `border-border`), so re-theming the whole app
+(including the sidebar) is a single-file change:
+
+- **Light theme** = the `:root { … }` block in `app/globals.css`, e.g.
+  `--primary: oklch(0.214 0.009 43.1)` (warm taupe, from the
+  `b4ZVZIPi9h` preset).
+- **Dark theme** = the `.dark { … }` block in the same file.
+- `@theme inline` maps those CSS variables to Tailwind utilities
+  (`--color-primary: var(--primary)`, …), so `text-primary`, `bg-card`, etc.
+  resolve to the tokens above.
+- The tokens live in the **unlayered** `:root` / `.dark` blocks (which also
+  carry the project's semantic extras `--bg`, `--surface`, `--green`, …). The
+  preset's `@layer base` duplicate token block is removed — it is overridden by
+  the unlayered blocks in the cascade.
+- Example: to switch the accent color, change `--primary` (and its
+  `-foreground`) in both `:root` and `.dark` — no component edits needed.
+- To re-apply the saved theme preset:
+  `cd apps/frontend && npx shadcn@latest apply --preset b4ZVZIPi9h`
+  (radix-lyra style, taupe base, remixicon icons, Merriweather heading +
+  JetBrains Mono fonts; body copy stays Inter).
+- To get/decode a preset code (read-only, prints the preset config):
+  `./start theme [code]` (runs `npx shadcn@latest preset decode <code> --json`;
+  defaults to `b4ZVZIPi9h`).
 
 ---
 

@@ -57,7 +57,7 @@ export function CompaniesToolbar({
         </div>
         <div className="flex items-center gap-1.5">
           <Select value={filterIndustry} onValueChange={onFilterIndustryChange}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <Buildings className="w-3 h-3" />
               <span>{filterIndustry || 'Industry'}</span>
             </SelectTrigger>

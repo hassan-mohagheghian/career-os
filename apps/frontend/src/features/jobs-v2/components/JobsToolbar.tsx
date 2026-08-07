@@ -74,7 +74,7 @@ export function JobsToolbar({
         </div>
         <div className="flex items-center gap-1.5">
           <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatusFilter)}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <Funnel className="w-3 h-3" />
               <span>{filterProcessingStatus ? STATUS_FILTER_LABELS[filterProcessingStatus] ?? filterProcessingStatus : 'Status'}</span>
             </SelectTrigger>
@@ -103,7 +103,7 @@ export function JobsToolbar({
             />
           </div>
           <Select value={filterRemote !== '' ? String(filterRemote) : ''} onValueChange={(v) => onFilterRemoteChange(v === '' ? '' : v === 'true')}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterRemote !== '' ? (filterRemote ? 'Remote' : 'On-site') : 'Remote'}</span>
             </SelectTrigger>
             <SelectContent>
@@ -113,7 +113,7 @@ export function JobsToolbar({
             </SelectContent>
           </Select>
           <Select value={filterVisa !== '' ? String(filterVisa) : ''} onValueChange={(v) => onFilterVisaChange(v === '' ? '' : v === 'true')}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterVisa !== '' ? (filterVisa ? 'Visa' : 'No Visa') : 'Visa'}</span>
             </SelectTrigger>
             <SelectContent>
@@ -123,7 +123,7 @@ export function JobsToolbar({
             </SelectContent>
           </Select>
           <Select value={filterRecommendation} onValueChange={(v) => onFilterRecommendationChange(v as RecommendationFilter)}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <span>{filterRecommendation ? RECOMMENDATION_LABELS[filterRecommendation] ?? filterRecommendation : 'Recommendation'}</span>
             </SelectTrigger>
             <SelectContent>

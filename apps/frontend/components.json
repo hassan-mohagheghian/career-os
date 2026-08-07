@@ -1,16 +1,21 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "new-york",
+  "style": "radix-lyra",
   "rsc": false,
   "tsx": true,
   "tailwind": {
     "config": "tailwind.config.js",
-    "css": "src/global.css",
-    "baseColor": "neutral",
+    "css": "app/globals.css",
+    "baseColor": "taupe",
     "cssVariables": true
   },
   "aliases": {
     "components": "@/shared",
     "utils": "@/shared/lib/utils"
-  }
+  },
+  "iconLibrary": "remixicon",
+  "rtl": false,
+  "menuColor": "inverted",
+  "menuAccent": "subtle",
+  "registries": {}
 }

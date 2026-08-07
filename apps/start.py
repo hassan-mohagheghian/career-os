@@ -399,6 +399,25 @@ def frontend(
 
 
 @app.command()
+def theme(
+    code: str = typer.Argument(
+        "b4ZVZIPi9h", help="Shadcn preset code to decode (default: b4ZVZIPi9h)"
+    ),
+):
+    """Get a shadcn preset code — decode and print it, no file changes"""
+    _log(f"Fetching shadcn preset code ({code})...")
+    result = subprocess.run(
+        ["npx", "shadcn@latest", "preset", "decode", code, "--json"],
+        cwd=str(CLIENT_DIR),
+    )
+    if result.returncode == 0:
+        _ok("Preset code retrieved.")
+    else:
+        _err("Failed to retrieve preset code.")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def background():
     """Start only the background worker + scheduler"""
     _log("Starting background worker...")

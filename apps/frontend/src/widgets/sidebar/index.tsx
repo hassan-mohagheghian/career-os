@@ -35,7 +35,7 @@ const COLLAPSE_KEY = 'job-search.sidebar.collapsed'
 
 function BrandMark() {
   return (
-    <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-purple-500 text-white shrink-0">
+    <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-primary-foreground shrink-0">
       <Briefcase className="w-4 h-4" weight="fill" />
     </span>
   )
@@ -88,7 +88,7 @@ function NavRow({
       {isActive && !collapsed && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-full bg-primary" aria-hidden />
       )}
-      <Icon className={cn("w-[18px] h-[18px] shrink-0", isActive ? "text-primary" : item.color)} />
+      <Icon className="w-[18px] h-[18px] shrink-0" />
       {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
       {hasChildren && !collapsed && (
         <CaretDown
@@ -206,7 +206,7 @@ export default function Sidebar({ children }: { children: ReactNode }) {
           <BrandMark />
           {!collapsed && (
             <span
-              className="font-extrabold text-sm bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
+              className="font-extrabold text-sm text-primary whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => router.push('/jobs')}
             >
               Job Search
@@ -292,7 +292,7 @@ export default function Sidebar({ children }: { children: ReactNode }) {
             <TextAlignLeft className="w-4 h-4" />
           </button>
           <span
-            className="font-extrabold text-sm bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
+            className="font-extrabold text-sm text-primary whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => router.push('/jobs')}
           >
             Job Search
@@ -317,9 +317,7 @@ export default function Sidebar({ children }: { children: ReactNode }) {
           <SheetHeader className="border-b px-4 py-3 shrink-0">
             <SheetTitle className="flex items-center gap-2 font-extrabold text-sm">
               <BrandMark />
-              <span className="bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-                Job Search
-              </span>
+              <span className="text-primary font-extrabold">Job Search</span>
             </SheetTitle>
           </SheetHeader>
           <nav aria-label="Mobile navigation" className="flex-1 overflow-y-auto p-2 space-y-0.5">

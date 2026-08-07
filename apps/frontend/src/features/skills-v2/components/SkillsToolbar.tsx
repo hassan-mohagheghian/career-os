@@ -52,7 +52,7 @@ export function SkillsToolbar({
         </div>
         <div className="flex items-center gap-1.5">
           <Select value={filterCategory} onValueChange={onFilterCategoryChange}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1">
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
               <FunnelSimple className="w-3 h-3" />
               <span>{filterCategory || 'Category'}</span>
             </SelectTrigger>
