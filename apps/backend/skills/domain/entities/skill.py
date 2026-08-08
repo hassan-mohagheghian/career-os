@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from shared.domain.entity import BaseEntity
+from skills.domain.slug_utils import slugify
 
 
 class Skill(BaseEntity):
@@ -15,6 +16,7 @@ class Skill(BaseEntity):
         self,
         id: int | None = None,
         name: str = "",
+        slug: str = "",
         level: int = 1,
         ml: str | None = None,
         mc: str | None = None,
@@ -34,6 +36,7 @@ class Skill(BaseEntity):
     ):
         super().__init__(id=id, created_at=created_at)
         self.name = name
+        self.slug = slug or slugify(name)
         self.level = level
         self.ml = ml
         self.mc = mc
@@ -54,6 +57,7 @@ class Skill(BaseEntity):
         return {
             "id": self.id,
             "name": self.name,
+            "slug": self.slug,
             "level": self.level,
             "ml": self.ml,
             "mc": self.mc,
@@ -77,6 +81,7 @@ class Skill(BaseEntity):
         return cls(
             id=data.get("id"),
             name=data.get("name", ""),
+            slug=data.get("slug", ""),
             level=data.get("level", 1),
             ml=data.get("ml"),
             mc=data.get("mc"),

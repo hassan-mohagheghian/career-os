@@ -3,7 +3,7 @@ import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
 import { Checkbox } from '@/shared/ui/checkbox'
 import DateTime from '@/shared/components/DateTime'
-import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN, SKILL_GRID_TEMPLATE_WITH_SELECT, SKILL_GRID_TEMPLATE_WITH_PIN_SELECT } from './skillsColumns'
+import { buildSkillGridTemplate } from './skillsColumns'
 import { SkillActions } from './SkillActions'
 import { PinButton } from '@/shared/components/PinButton'
 import { categoryColorClass } from '@/entities/skill/categoryColors'
@@ -53,21 +53,29 @@ export function SkillRow({
   onViewDetails,
   onEdit,
   onDelete,
+  onBreakDown,
+  onMerge,
   showPinnedColumn = true,
   onTogglePinned,
   showSelectColumn = false,
   selected = false,
   onToggleSelect,
+  showRowNumberColumn = false,
+  rowNumber,
 }: {
   skill: SkillListItem
   onViewDetails: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  onBreakDown: (id: number) => void
+  onMerge: (id: number) => void
   showPinnedColumn?: boolean
   onTogglePinned?: (id: number, pinned: boolean) => void
   showSelectColumn?: boolean
   selected?: boolean
   onToggleSelect?: (id: number) => void
+  showRowNumberColumn?: boolean
+  rowNumber?: number
 }) {
   const confidence = skill.confidence != null ? Math.round(skill.confidence * 100) : null
   const demand = skill.market_relevance != null ? Math.round(skill.market_relevance * 100) : null
@@ -75,20 +83,19 @@ export function SkillRow({
   const confidenceColor = confidence == null ? 'text-muted-foreground' : confidence >= 80 ? 'text-green-500' : confidence >= 50 ? 'text-yellow-500' : 'text-orange-500'
   const demandColor = demand == null ? 'text-muted-foreground' : demand >= 80 ? 'text-green-500' : demand >= 50 ? 'text-yellow-500' : 'text-orange-500'
 
-  const gridTemplateColumns = showSelectColumn && showPinnedColumn
-    ? SKILL_GRID_TEMPLATE_WITH_PIN_SELECT
-    : showSelectColumn
-      ? SKILL_GRID_TEMPLATE_WITH_SELECT
-      : showPinnedColumn
-        ? SKILL_GRID_TEMPLATE_WITH_PIN
-        : SKILL_GRID_TEMPLATE
+  const gridTemplateColumns = buildSkillGridTemplate(showRowNumberColumn, showSelectColumn, showPinnedColumn)
 
   return (
     <div
-      className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
+      className="grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
       style={{ gridTemplateColumns }}
       onClick={() => onViewDetails(skill.id)}
     >
+      {showRowNumberColumn && (
+        <div className="py-2 px-3 flex items-center justify-center">
+          <span className="text-2xs text-muted-foreground tabular-nums">{rowNumber ?? ''}</span>
+        </div>
+      )}
       {showSelectColumn && (
         <div className="py-2 px-2 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
           <Checkbox
@@ -140,6 +147,8 @@ export function SkillRow({
       <div className="py-2 px-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
         <SkillActions
           onViewDetails={() => onViewDetails(skill.id)}
+          onBreakDown={() => onBreakDown(skill.id)}
+          onMerge={() => onMerge(skill.id)}
           onEdit={() => onEdit(skill.id)}
           onDelete={() => onDelete(skill.id)}
         />

@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { JobListItem } from '@/entities/job/types'
 import { JobRow } from './JobRow'
 import { SortableHeader, type ScoreSortOption } from './SortableHeader'
-import { COLUMN_GRID_TEMPLATE, COLUMN_GRID_TEMPLATE_NO_PIN } from './jobsColumns'
+import { buildJobGridTemplate } from './jobsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -23,6 +23,7 @@ interface JobsTableProps {
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   showPinnedColumn?: boolean
+  showRowNumberColumn?: boolean
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -40,8 +41,10 @@ interface ColumnDef {
   scoreOptions?: ScoreSortOption[]
 }
 
+const PIN_COLUMN: ColumnDef = { label: 'Pin' }
+const ROW_NUMBER_COLUMN: ColumnDef = { label: '#' }
+
 const COLUMN_DEFS: ColumnDef[] = [
-  { label: 'Pin' },
   { label: 'Title', field: 'title' },
   { label: 'Company', field: 'company' },
   { label: 'Location' },
@@ -56,15 +59,19 @@ const COLUMN_DEFS: ColumnDef[] = [
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
   onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
-  showPinnedColumn = true,
+  showPinnedColumn = true, showRowNumberColumn = false,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
 
-  const visibleColumnDefs = showPinnedColumn ? COLUMN_DEFS : COLUMN_DEFS.filter((col) => col.label !== 'Pin')
-  const gridStyle = { gridTemplateColumns: showPinnedColumn ? COLUMN_GRID_TEMPLATE : COLUMN_GRID_TEMPLATE_NO_PIN }
+  const visibleColumnDefs = [
+    ...(showRowNumberColumn ? [ROW_NUMBER_COLUMN] : []),
+    ...(showPinnedColumn ? [PIN_COLUMN] : []),
+    ...COLUMN_DEFS,
+  ]
+  const gridStyle = { gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -191,6 +198,8 @@ export function JobsTable({
                   onRetry={onRetry}
                   onCancel={onCancel}
                   showPinnedColumn={showPinnedColumn}
+                  showRowNumberColumn={showRowNumberColumn}
+                  rowNumber={virtualItem.index + 1}
                 />
               </div>
             )

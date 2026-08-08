@@ -7,8 +7,9 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_skill_repo, get_skill_category_service
+from dependencies import get_skill_repo, get_skill_category_service, get_skill_normalization_service
 from skills.application.use_cases.skill_category_service import SkillCategoryService
+from skills.application.use_cases.skill_normalization_service import SkillNormalizationService
 from skills.infrastructure import SQLAlchemySkillRepository
 from skills.presentation.api.schemas.skills import (
     SkillCreate,
@@ -19,6 +20,8 @@ from skills.presentation.api.schemas.skills import (
     SkillAliasAdd,
     SkillAliasRemove,
     SkillMerge,
+    SkillBreakdown,
+    SkillCanonicalChange,
     SkillBulkHide,
     SkillBulkCategorize,
     SkillCategoryUpdate,
@@ -201,6 +204,23 @@ def get_stats(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     return repo.get_stats()
 
 
+@router.get("/breakdowns")
+def list_breakdowns(
+    service: SkillNormalizationService = Depends(get_skill_normalization_service),
+):
+    """Return the full origin→children decomposition map for skill extraction."""
+    return {"breakdowns": service.get_breakdown_map()}
+
+
+@router.get("/{id}/breakdowns")
+def get_skill_breakdowns(
+    id: int,
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+):
+    """Return a skill's children (and origin) after a breakdown."""
+    return repo.list_breakdowns(id)
+
+
 @router.get("/{id}")
 def get_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Get a single skill with aliases and tags."""
@@ -294,8 +314,8 @@ def add_skill_alias(id: int, data: SkillAliasAdd, repo: SQLAlchemySkillRepositor
     return result
 
 
-@router.delete("/{id}/aliases/{alias_name}")
-def remove_skill_alias(id: int, alias_name: str, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+@router.delete("/{id}/aliases")
+def remove_skill_alias(id: int, alias_name: str = Query(...), repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Remove an alias from a skill."""
     result = repo.remove_alias(id, alias_name)
     if not result:
@@ -313,6 +333,47 @@ def merge_skills(data: SkillMerge, repo: SQLAlchemySkillRepository = Depends(get
     result = repo.merge(data.target_id, data.source_ids)
     if "error" in result:
         raise NotFoundError(result["error"])
+    return result
+
+
+@router.post("/{id}/breakdown")
+def break_down_skill(
+    id: int,
+    data: SkillBreakdown,
+    service: SkillNormalizationService = Depends(get_skill_normalization_service),
+):
+    """Break a composite skill into atomic child skills.
+
+    Children are resolved by name/alias/canonical slug and created only when
+    missing. The origin's job mentions are duplicated onto every child and the
+    origin is soft-hidden. The origin→children map feeds skill extraction.
+    """
+    result = service.break_down(id, data.child_names)
+    if "error" in result:
+        if "not found" in result["error"]:
+            raise NotFoundError(result["error"])
+        raise BadRequestError(result["error"])
+    return result
+
+
+@router.patch("/{id}/canonical")
+def promote_alias_to_canonical(
+    id: int,
+    data: SkillCanonicalChange,
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+    service: SkillNormalizationService = Depends(get_skill_normalization_service),
+):
+    """Promote an alias to be the canonical name of a skill; the old canonical
+    name becomes an alias of the same skill."""
+    result = service.promote_alias_to_canonical(id, data.alias_name)
+    if not result:
+        skill = repo.get_by_id(id)
+        if not skill:
+            raise NotFoundError(f"Skill {id} not found")
+        aliases = skill.get("aliases", [])
+        if data.alias_name not in aliases:
+            raise BadRequestError(f'"{data.alias_name}" is not an alias of "{skill["name"]}"')
+        raise ConflictError(f'"{data.alias_name}" is already the canonical name of another skill')
     return result
 
 

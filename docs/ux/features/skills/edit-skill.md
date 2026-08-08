@@ -32,6 +32,9 @@ The Edit Skill drawer updates the core data of an existing skill via
 │ [K8s] ×  [Kube] ×                             │
 │ [Add alias...                    ] [+]       │
 │                                               │
+│ Make an alias the canonical name              │
+│ [Choose alias... ▾]  [♛ Make canonical]       │
+│                                               │
 │ [⟳ Merge into another skill]                  │
 │                                               │
 │ [Cancel]                          [Save]      │
@@ -50,6 +53,7 @@ The Edit Skill drawer updates the core data of an existing skill via
 | Relevant Roles | text     | No       | Comma-separated roles.                |
 | Tags           | text     | No       | Comma-separated tags.                 |
 | Aliases        | badges + text | No | Add via `+`, remove via `×`.        |
+| Make canonical | select + button | No | Promote an alias to the canonical name. |
 | Merge          | button   | No       | Opens Merge Skill dialog.             |
 
 ---
@@ -78,8 +82,13 @@ Submit (PUT /api/skills/{id})
 
 - Fields are pre-filled from the existing skill.
 - **Aliases** — `+` adds via `POST /api/skills/{id}/aliases`; `×` removes via
-  `DELETE /api/skills/{id}/aliases/{name}`. The alias list refreshes from the
+  `DELETE /api/skills/{id}/aliases?alias_name={name}` (query param, so alias
+  names containing `/` like `AI / NLP` work). The alias list refreshes from the
   response and the list query is invalidated.
+- **Make canonical** — pick an alias and click **Make canonical**; calls
+  `PATCH /api/skills/{id}/canonical`, promoting the alias to the skill's name
+  (the old canonical name becomes an alias). The name and alias fields refresh
+  from the response.
 - **Merge** — opens the Merge Skill dialog; merging calls
   `POST /api/skills/merge` and closes the drawer.
 - On success the list query is invalidated.

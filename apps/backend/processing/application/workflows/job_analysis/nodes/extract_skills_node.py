@@ -23,6 +23,7 @@ class ExtractSkillsNode:
     def __call__(self, state: JobProcessingState) -> JobProcessingState:
         progress_ops.start_step(self._events, state, NODE_ID)
         raw_skills = (state.analysis_context.get("raw_payload") or {}).get("skills")
-        state.analysis_context["normalized_skills"] = normalize_skills(raw_skills)
+        breakdown_map = state.analysis_context.get("breakdown_map") or []
+        state.analysis_context["normalized_skills"] = normalize_skills(raw_skills, breakdown_map=breakdown_map)
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state

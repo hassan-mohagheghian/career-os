@@ -1,5 +1,10 @@
-export const COLUMN_GRID_TEMPLATE = '44px minmax(200px, 2fr) minmax(140px, 1.4fr) minmax(140px, 1.4fr) 160px 80px 120px 90px 90px 130px'
+export const COLUMN_GRID_TEMPLATE = 'minmax(200px, 2fr) minmax(140px, 1.4fr) minmax(140px, 1.4fr) 160px 80px 120px 90px 90px 130px'
 
-export const COLUMN_GRID_TEMPLATE_NO_PIN = 'minmax(200px, 2fr) minmax(140px, 1.4fr) minmax(140px, 1.4fr) 160px 80px 120px 90px 90px 130px'
+export const LEADING_COLUMN_WIDTH = '44px'
 
-export const COLUMN_GRID_CLASS = 'grid items-stretch border-b border-border/40'
+export function buildJobGridTemplate(showRowNumber: boolean, showPinned: boolean): string {
+  const leading: string[] = []
+  if (showRowNumber) leading.push(LEADING_COLUMN_WIDTH)
+  if (showPinned) leading.push(LEADING_COLUMN_WIDTH)
+  return leading.length ? `${leading.join(' ')} ${COLUMN_GRID_TEMPLATE}` : COLUMN_GRID_TEMPLATE
+}

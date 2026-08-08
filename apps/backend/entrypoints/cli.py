@@ -542,5 +542,36 @@ def cleanup(
     console.print("\n[green]Done.[/green]")
 
 
+@app.command()
+def normalize_skills_and_categories(
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Report what would change without writing"),
+):
+    """Normalize all skills and categories: recompute canonical slugs and merge
+    collisions (re-point mentions/category links, alias duplicates, hide dupes).
+    Run once after the slug migration to clean up pre-existing data."""
+    from dependencies import get_session_sync
+    from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
+
+    session = get_session_sync()
+    repo = SQLAlchemySkillRepository(session)
+    if dry_run:
+        console.print("[yellow]Dry run — not writing. Run without --dry-run to apply.[/yellow]")
+        from collections import Counter
+        from skills.domain.slug_utils import slugify
+        from skills.infrastructure.models.skill_model import SkillModel, SkillCategoryModel
+        skills = session.query(SkillModel).all()
+        cat = session.query(SkillCategoryModel).all()
+        skill_slugs = Counter(slugify(s.name) for s in skills)
+        cat_slugs = Counter(slugify(c.name) for c in cat)
+        console.print(f"  skills: {len(skills)} rows, {sum(1 for v in skill_slugs.values() if v > 1)} slug collisions")
+        console.print(f"  categories: {len(cat)} rows, {sum(1 for v in cat_slugs.values() if v > 1)} slug collisions")
+        return
+    result = repo.normalize_all()
+    console.print(f"  [green]Normalized {result['skills_processed']} skills "
+                  f"({result['skills_hidden']} duplicate rows hidden), "
+                  f"{result['categories_processed']} categories "
+                  f"({result['categories_removed']} duplicate rows removed).[/green]")
+
+
 if __name__ == '__main__':
     app()

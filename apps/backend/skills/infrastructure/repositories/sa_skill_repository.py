@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.types import Numeric
 
 from skills.domain.repositories.skill_repository import ISkillRepository
+from skills.domain.slug_utils import slugify
 from skills.infrastructure.models.skill_model import (
     SkillModel,
     SkillAliasModel,
@@ -16,6 +17,7 @@ from skills.infrastructure.models.skill_model import (
     SkillMentionModel,
     SkillCategoryModel,
     SkillCategoryLinkModel,
+    SkillBreakdownModel,
 )
 from skills.infrastructure.mappers import skill_model_to_dict
 
@@ -45,13 +47,28 @@ class SQLAlchemySkillRepository(ISkillRepository):
         return seen
 
     def _ensure_category(self, name: str) -> int:
-        """Return the category id for ``name``, creating the catalog row if needed."""
+        """Return the category id for ``name``, resolving by canonical slug.
+
+        Existing categories are matched by exact name first, then by slug, so
+        "Data Engineering" and "data engineering" resolve to one category.
+        A missing category is created with the slugified canonical name.
+        """
+        cleaned = (name or "").strip()
+        if not cleaned:
+            raise ValueError("Category name is required")
         cat = self._session.query(SkillCategoryModel).filter(
-            SkillCategoryModel.name == name
+            SkillCategoryModel.name == cleaned
         ).first()
         if cat:
             return cat.id
-        cat = SkillCategoryModel(name=name)
+        slug = slugify(cleaned)
+        if slug:
+            cat = self._session.query(SkillCategoryModel).filter(
+                SkillCategoryModel.slug == slug
+            ).first()
+            if cat:
+                return cat.id
+        cat = SkillCategoryModel(name=cleaned, slug=slug or f"category-{id(cleaned)}")
         self._session.add(cat)
         self._session.flush()
         return cat.id
@@ -182,7 +199,14 @@ class SQLAlchemySkillRepository(ISkillRepository):
         ).first()
         if existing:
             return {"id": existing.id, "name": existing.name, "created": False}
-        cat = SkillCategoryModel(name=name)
+        slug = slugify(name)
+        if slug:
+            existing = self._session.query(SkillCategoryModel).filter(
+                SkillCategoryModel.slug == slug
+            ).first()
+            if existing:
+                return {"id": existing.id, "name": existing.name, "created": False}
+        cat = SkillCategoryModel(name=name, slug=slug or f"category-{id(name)}")
         self._session.add(cat)
         self._session.commit()
         self._session.refresh(cat)
@@ -258,6 +282,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         )
         model = SkillModel(
             name=data["name"],
+            slug=slugify(data["name"]) or f"skill-{id(data)}",
             level=data.get("level", 1),
             roles=data.get("roles", ""),
             path=data.get("path", ""),
@@ -281,6 +306,9 @@ class SQLAlchemySkillRepository(ISkillRepository):
         for field in ["name", "level", "roles", "path", "source", "source_type", "category", "confidence", "market_relevance", "evidence"]:
             if field in data:
                 setattr(model, field, data[field])
+
+        if "name" in data:
+            model.slug = slugify(model.name) or f"skill-{model.id}"
 
         if "tags" in data:
             model.tags = json.dumps(data["tags"]) if isinstance(data["tags"], list) else data["tags"]
@@ -339,10 +367,17 @@ class SQLAlchemySkillRepository(ISkillRepository):
         exists = self._session.query(SkillModel).filter(
             SkillModel.name == new_name, SkillModel.id != skill_id
         ).first()
-        if exists:
+        new_slug = slugify(new_name)
+        slug_collision = None
+        if new_slug:
+            slug_collision = self._session.query(SkillModel).filter(
+                SkillModel.slug == new_slug, SkillModel.id != skill_id
+            ).first()
+        if exists or slug_collision:
             return None
 
         model.name = new_name
+        model.slug = new_slug or f"skill-{skill_id}"
 
         # Update references in other tables
         self._session.query(SkillAliasModel).filter(
@@ -492,8 +527,8 @@ class SQLAlchemySkillRepository(ISkillRepository):
     # ── Skill mentions (job/company demand links) ───────────────────
 
     def resolve_skill(self, data: dict[str, Any]) -> int:
-        """Resolve a skill row by exact name, then by alias. Creates the row
-        (source_type="ai_generated") when neither matches."""
+        """Resolve a skill row by exact name, then alias, then canonical slug.
+        Creates the row (source_type="ai_generated") when neither matches."""
         name = (data.get("name") or "").strip()
         if not name:
             raise ValueError("Skill name is required")
@@ -503,12 +538,26 @@ class SQLAlchemySkillRepository(ISkillRepository):
             existing = self._session.query(SkillModel).join(
                 SkillAliasModel, SkillAliasModel.skill_id == SkillModel.id
             ).filter(SkillAliasModel.alias_name == name).first()
+        if not existing:
+            slug = slugify(name)
+            if slug:
+                existing = self._session.query(SkillModel).filter(
+                    SkillModel.slug == slug
+                ).first()
+        if not existing:
+            slug = slugify(name)
+            if slug:
+                existing = self._session.query(SkillModel).join(
+                    SkillAliasModel, SkillAliasModel.skill_id == SkillModel.id
+                ).filter(SkillAliasModel.normalized_name == slug).first()
 
         if existing:
             return existing.id
 
+        slug = slugify(name)
         m = SkillModel(
             name=name,
+            slug=slug or f"skill-{id(data)}",
             level=data.get("level", 1),
             roles=data.get("roles", ""),
             path=data.get("path", ""),
@@ -643,6 +692,291 @@ class SQLAlchemySkillRepository(ISkillRepository):
         self._session.commit()
         return self.get_by_id(skill_id)
 
+    # ── Break-down ──────────────────────────────────────────────────
+
+    def break_down(self, origin_id: int, child_names: list[str]) -> dict[str, Any]:
+        """Break a composite skill into atomic children.
+
+        Children are resolved by name/alias/canonical slug and created only
+        when missing. The origin's job mentions are duplicated onto every
+        child (deduped) and the origin is soft-hidden. The origin→children
+        links are stored in ``skill.skill_breakdowns`` and feed extraction.
+        """
+        origin = self._session.query(SkillModel).filter(SkillModel.id == origin_id).first()
+        if not origin:
+            return {"error": "Origin skill not found"}
+        if origin.hidden == 1:
+            return {"error": "Origin skill is hidden"}
+
+        # Normalize child names: trim, dedupe, drop empties and self.
+        seen: list[str] = []
+        for name in child_names or []:
+            cleaned = (name or "").strip()
+            if not cleaned or cleaned.lower() == origin.name.lower():
+                continue
+            if cleaned not in seen:
+                seen.append(cleaned)
+        if len(seen) < 2:
+            return {"error": "Provide at least two distinct child skill names"}
+
+        children: list[dict[str, Any]] = []
+        for name in seen:
+            child_id = self.resolve_skill({
+                "name": name,
+                "category": origin.category,
+                "source_type": "ai_generated",
+            })
+            child = self.get_by_id(child_id)
+            if child:
+                children.append({"id": child_id, "name": child["name"]})
+
+        # Record the origin→children map (idempotent).
+        for child in children:
+            existing = self._session.query(SkillBreakdownModel).filter(
+                SkillBreakdownModel.origin_skill_id == origin_id,
+                SkillBreakdownModel.child_skill_id == child["id"],
+            ).first()
+            if not existing:
+                self._session.add(SkillBreakdownModel(
+                    origin_skill_id=origin_id,
+                    child_skill_id=child["id"],
+                ))
+
+        # Duplicate the origin's mentions onto every child (skip existing keys).
+        for child in children:
+            self._duplicate_mentions(origin_id, child["id"])
+
+        origin.hidden = 1
+        self._session.commit()
+        self._session.refresh(origin)
+
+        return {
+            "status": "broken_down",
+            "origin": self.get_by_id(origin_id),
+            "children": children,
+            "hidden": True,
+        }
+
+    def _duplicate_mentions(self, source_skill_id: int, target_skill_id: int) -> None:
+        """Copy all mention rows from one skill onto another, deduping by
+        (skill_id, source_type, source_id) so the unique constraint holds."""
+        existing_keys = {
+            (row[0], row[1])
+            for row in self._session.query(
+                SkillMentionModel.source_type, SkillMentionModel.source_id
+            ).filter(SkillMentionModel.skill_id == target_skill_id).all()
+        }
+        for row in self._session.query(SkillMentionModel).filter(
+            SkillMentionModel.skill_id == source_skill_id
+        ).all():
+            key = (row.source_type, row.source_id)
+            if key in existing_keys:
+                continue
+            self._session.add(SkillMentionModel(
+                skill_id=target_skill_id,
+                source_type=row.source_type,
+                source_id=row.source_id,
+                status=row.status,
+                evidence=row.evidence,
+            ))
+            existing_keys.add(key)
+
+    def get_breakdown_map(self) -> list[dict[str, Any]]:
+        """Return the origin→children decomposition map for extraction."""
+        rows = self._session.query(SkillBreakdownModel).order_by(
+            SkillBreakdownModel.origin_skill_id, SkillBreakdownModel.child_skill_id
+        ).all()
+        by_origin: dict[int, list[int]] = {}
+        for row in rows:
+            by_origin.setdefault(row.origin_skill_id, []).append(row.child_skill_id)
+
+        result: list[dict[str, Any]] = []
+        origin_ids = list(by_origin.keys())
+        if not origin_ids:
+            return result
+        origins = {
+            m.id: m
+            for m in self._session.query(SkillModel).filter(SkillModel.id.in_(origin_ids)).all()
+        }
+        child_ids = sorted({cid for ids in by_origin.values() for cid in ids})
+        children = {
+            m.id: m
+            for m in self._session.query(SkillModel).filter(SkillModel.id.in_(child_ids)).all()
+        }
+        for oid in origin_ids:
+            origin = origins.get(oid)
+            if not origin:
+                continue
+            result.append({
+                "origin": {"id": origin.id, "name": origin.name},
+                "children": [
+                    {"id": children[cid].id, "name": children[cid].name}
+                    for cid in by_origin[oid] if cid in children
+                ],
+            })
+        return result
+
+    def list_breakdowns(self, skill_id: int) -> dict[str, Any]:
+        """Children (and origin) for a skill, used by the skill drawer."""
+        child_rows = self._session.query(
+            SkillBreakdownModel, SkillModel
+        ).join(
+            SkillModel, SkillModel.id == SkillBreakdownModel.child_skill_id
+        ).filter(SkillBreakdownModel.origin_skill_id == skill_id).order_by(
+            SkillModel.name
+        ).all()
+        children = [{"id": m.id, "name": m.name} for _, m in child_rows]
+
+        origin_row = self._session.query(
+            SkillBreakdownModel, SkillModel
+        ).join(
+            SkillModel, SkillModel.id == SkillBreakdownModel.origin_skill_id
+        ).filter(SkillBreakdownModel.child_skill_id == skill_id).first()
+        origin = {"id": origin_row[1].id, "name": origin_row[1].name} if origin_row else None
+
+        return {"children": children, "origin": origin}
+
+    # ── Promote alias to canonical ──────────────────────────────────
+
+    def promote_alias_to_canonical(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Make an existing alias the canonical name; the old canonical becomes
+        an alias. Returns None when the skill or alias is missing or the
+        alias's slug collides with another skill's canonical slug."""
+        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        if not model:
+            return None
+        alias = (alias_name or "").strip()
+        if not alias:
+            return None
+
+        alias_row = self._session.query(SkillAliasModel).filter(
+            SkillAliasModel.skill_id == skill_id,
+            SkillAliasModel.alias_name == alias,
+        ).first()
+        if not alias_row:
+            return None
+
+        new_slug = slugify(alias)
+        if new_slug:
+            collision = self._session.query(SkillModel).filter(
+                SkillModel.slug == new_slug, SkillModel.id != skill_id
+            ).first()
+            if collision:
+                return None
+
+        old_name = model.name
+        self._session.delete(alias_row)
+        model.name = alias
+        model.slug = new_slug or f"skill-{skill_id}"
+
+        # Old canonical becomes an alias (only if it isn't already one).
+        if not self._session.query(SkillAliasModel).filter(
+            SkillAliasModel.skill_id == skill_id,
+            SkillAliasModel.alias_name == old_name,
+        ).first():
+            self._session.add(SkillAliasModel(
+                skill_id=skill_id,
+                alias_name=old_name,
+                normalized_name=old_name.lower(),
+            ))
+
+        self._session.commit()
+        self._session.refresh(model)
+        return self.get_by_id(skill_id)
+
+    # ── Normalize all (one-time cleanup) ────────────────────────────
+
+    def normalize_all(self) -> dict[str, Any]:
+        """Recompute slugs and merge collisions across all skills/categories.
+
+        Idempotent cleanup pass: each skill/category gets its canonical slug,
+        slug collisions are merged (mentions/category links re-pointed, the
+        duplicate name aliased and hidden). Returns a summary dict.
+        """
+        stats = {
+            "skills_processed": 0,
+            "skills_hidden": 0,
+            "categories_processed": 0,
+            "categories_removed": 0,
+        }
+
+        # Skills: free every slug first so recomputation cannot collide
+        # (two pre-existing rows may already share the same target slug).
+        skills = self._session.query(SkillModel).order_by(SkillModel.id).all()
+        for m in skills:
+            m.slug = f"skill-norm-{m.id}"
+        self._session.flush()
+
+        groups: dict[str, list[SkillModel]] = {}
+        for m in skills:
+            slug = slugify(m.name) or f"skill-{m.id}"
+            groups.setdefault(slug, []).append(m)
+        for slug, members in groups.items():
+            if len(members) == 1:
+                members[0].slug = slug
+                stats["skills_processed"] += 1
+                continue
+            canonical = members[0]
+            canonical.slug = slug
+            for dup in members[1:]:
+                self._duplicate_mentions(dup.id, canonical.id)
+                self._session.query(SkillMentionModel).filter(
+                    SkillMentionModel.skill_id == dup.id
+                ).delete()
+                if not self._session.query(SkillAliasModel).filter(
+                    SkillAliasModel.skill_id == canonical.id,
+                    SkillAliasModel.alias_name == dup.name,
+                ).first():
+                    self._session.add(SkillAliasModel(
+                        skill_id=canonical.id,
+                        alias_name=dup.name,
+                        normalized_name=slugify(dup.name),
+                    ))
+                dup.hidden = 1
+                dup.slug = f"{slug}-{dup.id}"
+                stats["skills_hidden"] += 1
+            stats["skills_processed"] += 1
+        self._session.flush()
+
+        # Categories: free slugs, merge collisions, drop the duplicates.
+        cats = self._session.query(SkillCategoryModel).order_by(SkillCategoryModel.id).all()
+        for c in cats:
+            c.slug = f"category-norm-{c.id}"
+        self._session.flush()
+
+        cat_groups: dict[str, list[SkillCategoryModel]] = {}
+        for c in cats:
+            cat_groups.setdefault(slugify(c.name) or f"category-{c.id}", []).append(c)
+        for slug, members in cat_groups.items():
+            if len(members) == 1:
+                members[0].slug = slug
+                stats["categories_processed"] += 1
+                continue
+            canonical = members[0]
+            canonical.slug = slug
+            for dup in members[1:]:
+                for link in self._session.query(SkillCategoryLinkModel).filter(
+                    SkillCategoryLinkModel.category_id == dup.id
+                ).all():
+                    if not self._session.query(SkillCategoryLinkModel).filter(
+                        SkillCategoryLinkModel.skill_id == link.skill_id,
+                        SkillCategoryLinkModel.category_id == canonical.id,
+                    ).first():
+                        self._session.add(SkillCategoryLinkModel(
+                            skill_id=link.skill_id,
+                            category_id=canonical.id,
+                        ))
+                    self._session.delete(link)
+                self._session.query(SkillModel).filter(
+                    SkillModel.category == dup.name
+                ).update({"category": canonical.name}, synchronize_session=False)
+                self._session.delete(dup)
+                stats["categories_removed"] += 1
+            stats["categories_processed"] += 1
+
+        self._session.commit()
+        return stats
+
     # ── Extended methods for services ───────────────────────────────
 
     def get_all(self) -> list[dict[str, Any]]:
@@ -665,8 +999,10 @@ class SQLAlchemySkillRepository(ISkillRepository):
 
     def create_from_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         categories = self._normalize_categories(data.get("categories"))
+        name = str(data.get("name") or "").strip()
         m = SkillModel(
-            name=data.get("name", ""),
+            name=name,
+            slug=slugify(name) or f"skill-{id(data)}",
             level=data.get("level", 1),
             roles=data.get("roles", ""),
             path=data.get("path", ""),

@@ -4,7 +4,7 @@ import type { SkillListItem } from '@/entities/skill/types'
 import { SkillRow } from './SkillRow'
 import { SortableHeader } from '@/features/jobs-v2/components/SortableHeader'
 import { Checkbox } from '@/shared/ui/checkbox'
-import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN, SKILL_GRID_TEMPLATE_WITH_SELECT, SKILL_GRID_TEMPLATE_WITH_PIN_SELECT } from './skillsColumns'
+import { buildSkillGridTemplate } from './skillsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -15,6 +15,7 @@ interface ColumnDef {
 
 const PIN_COLUMN: ColumnDef = { label: 'Pin' }
 const SELECT_COLUMN: ColumnDef = { label: 'Select' }
+const ROW_NUMBER_COLUMN: ColumnDef = { label: '#' }
 
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
@@ -28,8 +29,6 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Actions' },
 ]
 
-const gridStyle = { gridTemplateColumns: SKILL_GRID_TEMPLATE }
-
 interface SkillsTableProps {
   items: SkillListItem[]
   total: number
@@ -41,9 +40,12 @@ interface SkillsTableProps {
   onViewDetails: (id: number) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  onBreakDown: (id: number) => void
+  onMerge: (id: number) => void
   onTogglePinned?: (id: number, pinned: boolean) => void
   showPinnedColumn?: boolean
   showSelectColumn?: boolean
+  showRowNumberColumn?: boolean
   selectedIds?: Set<number>
   onToggleSelect?: (id: number) => void
   onToggleSelectAll?: (selectAll: boolean) => void
@@ -54,8 +56,8 @@ interface SkillsTableProps {
 
 export function SkillsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onViewDetails, onEdit, onDelete, onTogglePinned, showPinnedColumn = true,
-  showSelectColumn = false, selectedIds = new Set<number>(), onToggleSelect, onToggleSelectAll,
+  onViewDetails, onEdit, onDelete, onBreakDown, onMerge, onTogglePinned, showPinnedColumn = true,
+  showSelectColumn = false, showRowNumberColumn = false, selectedIds = new Set<number>(), onToggleSelect, onToggleSelectAll,
   sort = 'created_at', order = 'desc', onSortChange = () => {},
 }: SkillsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -63,14 +65,13 @@ export function SkillsTable({
   const rowCount = isLoading ? 8 : items.length
 
   const visibleColumnDefs = [
+    ...(showRowNumberColumn ? [ROW_NUMBER_COLUMN] : []),
     ...(showSelectColumn ? [SELECT_COLUMN] : []),
     ...(showPinnedColumn ? [PIN_COLUMN] : []),
     ...COLUMN_DEFS,
   ]
   const gridStyle = {
-    gridTemplateColumns: showSelectColumn
-      ? showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN_SELECT : SKILL_GRID_TEMPLATE_WITH_SELECT
-      : showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE,
+    gridTemplateColumns: buildSkillGridTemplate(showRowNumberColumn, showSelectColumn, showPinnedColumn),
   }
 
   const selectedCount = items.filter((s) => selectedIds.has(s.id)).length
@@ -203,9 +204,13 @@ export function SkillsTable({
                   onViewDetails={onViewDetails}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onBreakDown={onBreakDown}
+                  onMerge={onMerge}
                   onTogglePinned={onTogglePinned}
                   showPinnedColumn={showPinnedColumn}
                   showSelectColumn={showSelectColumn}
+                  showRowNumberColumn={showRowNumberColumn}
+                  rowNumber={virtualItem.index + 1}
                   selected={selectedIds.has(skill.id)}
                   onToggleSelect={onToggleSelect}
                 />

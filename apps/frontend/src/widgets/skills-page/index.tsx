@@ -19,6 +19,7 @@ function SkillsPageAdapter() {
   const [editSkillId, setEditSkillId] = useState<number | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(false)
   const [showSelectColumn, setShowSelectColumn] = useState(false)
+  const [showRowNumberColumn, setShowRowNumberColumn] = useState(false)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
@@ -116,6 +117,8 @@ function SkillsPageAdapter() {
         onTogglePinnedColumn={setShowPinnedColumn}
         showSelectColumn={showSelectColumn}
         onToggleSelectColumn={setShowSelectColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={setShowRowNumberColumn}
         addSkillDrawerOpen={addSkillDrawerOpen}
         onAddSkillDrawerOpenChange={setAddSkillDrawerOpen}
         detailSkillId={detailSkillId}

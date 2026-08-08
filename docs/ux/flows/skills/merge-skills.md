@@ -31,6 +31,24 @@ Confirm → POST /api/skills/merge {target_id, source_ids: [current]}
         └── Error   → inline error, dialog stays open
 ```
 
+## Single merge from the row actions
+
+```text
+Skill row → "Merge" action (GitMerge icon)
+        │
+        ▼
+Merge Skill dialog (search skills, exclude current)
+        │
+        ▼
+Pick a target skill
+        │
+        ▼
+Confirm → POST /api/skills/merge {target_id, source_ids: [current]}
+        │
+        ├── Success → dialog closes, list refreshes, toast "Merged <name>"
+        └── Error   → toast error, dialog closes
+```
+
 ## Bulk merge
 
 ```text
@@ -72,9 +90,10 @@ flowchart TD
 
 ## 1. Open the merge dialog
 
-From the Skill Edit drawer, click **Merge into another skill**. The Merge Skill
-dialog opens with a debounced search over visible skills (page_size=20, sorted
-by name asc). The current skill is excluded from the candidate list.
+From the Skill Edit drawer, click **Merge into another skill**, or from the row
+actions click the **Merge** (GitMerge) icon. The Merge Skill dialog opens with a
+debounced search over visible skills (page_size=20, sorted by name asc). The
+current skill is excluded from the candidate list.
 
 ## 2. Pick a target
 

@@ -23,6 +23,7 @@ function JobsPageV2Adapter() {
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
+  const [showRowNumberColumn, setShowRowNumberColumn] = useState(false)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
@@ -163,6 +164,8 @@ function JobsPageV2Adapter() {
         onCancel={handleCancel}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={setShowPinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={setShowRowNumberColumn}
         isProcessing={processMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}
         onQueueDrawerOpenChange={setQueueDrawerOpen}

@@ -60,10 +60,11 @@ Consumers (SSE, analytics, notifications, other contexts)
 
 ## Event Categories
 
-All skills events are prefixed `skill.`. They fall into one group:
+All skills events are prefixed `skill.`. They fall into two groups:
 
 1. Category lifecycle: `skill.category.created`, `skill.category.deleted`,
    `skill.categories.changed`.
+2. Normalization: `skill.breakdown.created`, `skill.canonical.changed`.
 
 ## Event Catalog
 
@@ -102,3 +103,25 @@ Every event carries the base `DomainEvent` fields (`event_id`, `occurred_at`,
 | Payload  | `aggregate_id`, `skill_id`, `skill_name`, `categories`       |
 | When     | `set_skill_categories`, `categorize`, `bulk_categorize`, or `update_skill` result in a category-set diff vs. the pre-change snapshot. Not emitted when the set is unchanged. |
 | Consumers| (none yet) — search indexing, cached skill rows, downstream analytics. |
+
+---
+
+### skill.breakdown.created
+
+| Aspect   | Value                                                        |
+| -------- | ------------------------------------------------------------ |
+| Trigger  | A composite skill was broken into atomic children via `POST /api/skills/{id}/breakdown`. |
+| Payload  | `aggregate_id`, `skill_id` (origin), `skill_name`, `children` (tuple of child names) |
+| When     | `SkillNormalizationService.break_down` succeeds (origin soft-hidden, mentions duplicated, `skill_breakdowns` rows recorded). |
+| Consumers| (none yet) — extraction map invalidation, search re-indexing. |
+
+---
+
+### skill.canonical.changed
+
+| Aspect   | Value                                                        |
+| -------- | ------------------------------------------------------------ |
+| Trigger  | An alias was promoted to be a skill's canonical name via `PATCH /api/skills/{id}/canonical`. |
+| Payload  | `aggregate_id`, `skill_id`, `previous_name`, `new_name`      |
+| When     | `SkillNormalizationService.promote_alias_to_canonical` succeeds (old canonical name becomes an alias). |
+| Consumers| (none yet) — search indexing, downstream analytics.          |

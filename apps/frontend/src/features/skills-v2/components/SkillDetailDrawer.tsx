@@ -5,7 +5,7 @@ import { ScrollArea } from '@/shared/ui/scroll-area'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import {
-  Star, PencilSimple, Trash, Code,
+  Star, PencilSimple, Trash, Code, Scissors,
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import type { SkillListItem } from '@/entities/skill/types'
@@ -17,6 +17,7 @@ interface SkillDetailDrawerProps {
   onOpenChange: (id: number | null) => void
   onEdit: (id: number) => void
   onDelete: (id: number) => void
+  onBreakDown: (id: number) => void
 }
 
 export function SkillDetailDrawer({
@@ -25,6 +26,7 @@ export function SkillDetailDrawer({
   onOpenChange,
   onEdit,
   onDelete,
+  onBreakDown,
 }: SkillDetailDrawerProps) {
   const open = !!skill && !!skillId
 
@@ -137,6 +139,9 @@ export function SkillDetailDrawer({
           </div>
         </ScrollArea>
         <div className="flex items-center justify-end gap-2 border-t border-border/40 px-4 py-3 shrink-0">
+          <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs text-muted-foreground" onClick={() => skillId != null && onBreakDown(skillId)}>
+            <Scissors className="w-3 h-3" /> Break down
+          </Button>
           <Button variant="ghost" size="sm" className="gap-1 h-7 text-2xs text-destructive" onClick={() => skillId != null && onDelete(skillId)}>
             <Trash className="w-3 h-3" /> Delete
           </Button>

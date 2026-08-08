@@ -60,6 +60,18 @@ describe('JobRow pinned', () => {
   })
 })
 
+describe('JobRow row-number column', () => {
+  it('renders no row number when the column is off', () => {
+    renderRow(makeJob())
+    expect(screen.queryByText('3')).not.toBeInTheDocument()
+  })
+
+  it('renders the row number when the column is shown', () => {
+    renderRow(makeJob(), { showRowNumberColumn: true, rowNumber: 3 })
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+})
+
 describe('JobRow recommendation', () => {
   it('renders the recommendation badge', () => {
     renderRow(makeJob({ recommendation: 'apply' }))

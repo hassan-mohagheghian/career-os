@@ -21,6 +21,8 @@ interface SkillsToolbarProps {
   onTogglePinnedColumn?: (value: boolean) => void
   showSelectColumn?: boolean
   onToggleSelectColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
   selectedCount?: number
   onMergeSelected?: () => void
   onClearSelection?: () => void
@@ -41,6 +43,8 @@ export function SkillsToolbar({
   onTogglePinnedColumn,
   showSelectColumn = false,
   onToggleSelectColumn,
+  showRowNumberColumn = false,
+  onToggleRowNumberColumn,
   selectedCount = 0,
   onMergeSelected,
   onClearSelection,
@@ -86,14 +90,16 @@ export function SkillsToolbar({
               Pinned
             </Button>
           )}
-          {(onToggleSelectColumn || onTogglePinnedColumn) && (
+          {(onToggleSelectColumn || onTogglePinnedColumn || onToggleRowNumberColumn) && (
             <ColumnsDropdown
               options={[
+                ...(onToggleRowNumberColumn ? [{ key: 'rowNumber', label: 'Row number', checked: showRowNumberColumn }] : []),
                 ...(onToggleSelectColumn ? [{ key: 'select', label: 'Select', checked: showSelectColumn }] : []),
                 ...(onTogglePinnedColumn ? [{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }] : []),
               ]}
               onToggle={(key, checked) => {
-                if (key === 'pinned') onTogglePinnedColumn?.(checked)
+                if (key === 'rowNumber') onToggleRowNumberColumn?.(checked)
+                else if (key === 'pinned') onTogglePinnedColumn?.(checked)
                 else onToggleSelectColumn?.(checked)
               }}
             />

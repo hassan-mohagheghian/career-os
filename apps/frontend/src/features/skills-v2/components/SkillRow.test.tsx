@@ -109,6 +109,8 @@ describe('SkillRow', () => {
         onViewDetails={onViewDetails}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onBreakDown={vi.fn()}
+        onMerge={vi.fn()}
       />
     )
     screen.getByText('Kubernetes').click()
@@ -167,5 +169,22 @@ describe('SkillRow select column', () => {
 
     expect(onToggleSelect).toHaveBeenCalledWith(1)
     expect(onViewDetails).not.toHaveBeenCalled()
+  })
+})
+
+describe('SkillRow row-number column', () => {
+  it('renders no row number when the column is off', () => {
+    renderRow(makeSkill())
+    expect(screen.queryByText('7')).not.toBeInTheDocument()
+  })
+
+  it('renders the row number when the column is shown', () => {
+    renderRow(makeSkill(), { showRowNumberColumn: true, rowNumber: 7 })
+    expect(screen.getByText('7')).toBeInTheDocument()
+  })
+
+  it('renders nothing for an absent row number', () => {
+    renderRow(makeSkill(), { showRowNumberColumn: true })
+    expect(screen.queryByText('1')).not.toBeInTheDocument()
   })
 })

@@ -65,11 +65,11 @@ Companies Page
 │ Search .........................                            [Industry ▾] [Pinned] [Columns] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                               │
-│ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
-│─────│─────────────────────────────────────────────────────────────────────────────────────────│
-│ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
-│ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
+│ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
+│───│─────│─────────────────────────────────────────────────────────────────────────────────────│
+│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
+│ 2 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ 3 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
 │                                                                                               │
 │                                        Loading more companies...                              │
 │                                                                                               │
@@ -132,7 +132,7 @@ Controls
 | Search   | Search by name, industry, city or description. |
 | Industry | Filter by exact industry.                      |
 | Pinned   | Toggle pinned-only view.                       |
-| Columns  | Show / hide the Pin column.                    |
+| Columns  | Show / hide the Row number and Pin columns.    |
 | Clear    | Clears all active filters.                     |
 
 Changing filters never reloads the entire page.
@@ -214,6 +214,7 @@ Configuration
 
 | Column   | Description                                            |
 | -------- | ------------------------------------------------------ |
+| #        | Row number within the loaded result set (toggleable)   |
 | Pin      | Pushpin toggle for pinned companies                    |
 | Name     | Company logo and name                                  |
 | Industry | Industry classification                                |
@@ -226,8 +227,12 @@ Configuration
 | Created  | Relative creation time                                 |
 | Actions  | Row actions (Details, Reprocess, Edit, Delete)         |
 
-The Pin column is shown by default and can be hidden via the toolbar Columns
-dropdown.
+The Row number column is hidden by default; the Pin column is shown by default.
+Both can be toggled via the toolbar Columns dropdown.
+
+Rows highlight on hover (and while any inner control has focus) with a muted
+background and an inset ring, so the focused row is always visually identifiable
+in a long list.
 
 ---
 

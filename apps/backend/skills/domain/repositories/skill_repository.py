@@ -154,3 +154,44 @@ class ISkillRepository(ABC):
     def remove_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
         """Remove an alias from a skill. Returns the updated skill or None."""
         ...
+
+    @abstractmethod
+    def break_down(self, origin_id: int, child_names: list[str]) -> dict[str, Any]:
+        """Break a composite skill into atomic children.
+
+        Each child is resolved (name/alias/slug) and created only when missing.
+        The origin's job mentions are duplicated onto every child and the
+        origin is soft-hidden. Returns
+        ``{"status", "origin": {...}, "children": [{"id", "name"}], "hidden": true}``
+        or ``{"error": ...}``.
+        """
+        ...
+
+    @abstractmethod
+    def get_breakdown_map(self) -> list[dict[str, Any]]:
+        """Return ``[{origin: {id, name}, children: [{id, name}, ...]}, ...]``
+        for every composite skill with a recorded breakdown. Used to steer
+        skill extraction."""
+        ...
+
+    @abstractmethod
+    def list_breakdowns(self, skill_id: int) -> dict[str, Any]:
+        """Return ``{"children": [...], "origin": {...} | None}`` for a skill."""
+        ...
+
+    @abstractmethod
+    def promote_alias_to_canonical(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
+        """Make an existing alias the canonical name of a skill.
+
+        The previous canonical name becomes an alias. Returns the updated
+        skill or None when the skill/alias is missing or the alias's slug
+        collides with another skill's canonical slug.
+        """
+        ...
+
+    @abstractmethod
+    def normalize_all(self) -> dict[str, Any]:
+        """Normalize every skill and category: recompute slugs, merge slug
+        collisions (re-pointing mentions/category links and aliasing dupes).
+        Returns a summary dict with counts."""
+        ...

@@ -8,8 +8,9 @@ import { SkillsToolbar } from './SkillsToolbar'
 import { SkillsTable } from './SkillsTable'
 import { SkillDetailDrawer } from './SkillDetailDrawer'
 import { SkillEditDrawer } from './SkillEditDrawer'
+import { BreakdownSkillDialog } from './BreakdownSkillDialog'
 import AddSkillDrawer from './AddSkillDrawer'
-import { useCreateSkill, useMergeSkills } from '@/entities/skill/hooks'
+import { useBreakdownSkill, useCreateSkill, useMergeSkills } from '@/entities/skill/hooks'
 import { toast } from 'sonner'
 import { MergeSkillDialog } from './MergeSkillDialog'
 
@@ -45,6 +46,8 @@ interface SkillsPageProps {
   onTogglePinnedColumn?: (value: boolean) => void
   showSelectColumn?: boolean
   onToggleSelectColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
   addSkillDrawerOpen: boolean
   onAddSkillDrawerOpenChange: (open: boolean) => void
   detailSkillId: number | null
@@ -64,15 +67,19 @@ export function SkillsPage({
   onViewDetails, onEdit, onDelete, onTogglePinned,
   showPinnedColumn = true, onTogglePinnedColumn,
   showSelectColumn = false, onToggleSelectColumn,
+  showRowNumberColumn = false, onToggleRowNumberColumn,
   addSkillDrawerOpen, onAddSkillDrawerOpenChange,
   detailSkillId, onDetailSkillIdChange,
   editSkillId, onEditSkillIdChange,
 }: SkillsPageProps) {
   const { createSkill, submitting, error: createError, clearError } = useCreateSkill()
   const mergeMutation = useMergeSkills()
+  const breakdownMutation = useBreakdownSkill()
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [mergeOpen, setMergeOpen] = useState(false)
+  const [rowMergeSkill, setRowMergeSkill] = useState<{ id: number; name: string } | null>(null)
+  const [breakdownSkill, setBreakdownSkill] = useState<{ id: number; name: string } | null>(null)
 
   useEffect(() => {
     setSelectedIds(new Set())
@@ -119,6 +126,34 @@ export function SkillsPage({
       toast.error('Failed to merge skills')
     }
   }, [selectedIds, mergeMutation, editSkillId, onEditSkillIdChange])
+
+  const handleRowMerge = useCallback(async (targetId: number) => {
+    const skill = rowMergeSkill
+    if (!skill) return
+    setRowMergeSkill(null)
+    try {
+      await mergeMutation.mutateAsync({ targetId, sourceIds: [skill.id] })
+      toast.success(`Merged "${skill.name}"`)
+      if (detailSkillId === skill.id) onDetailSkillIdChange(null)
+      if (editSkillId === skill.id) onEditSkillIdChange(null)
+    } catch {
+      toast.error('Failed to merge skill')
+    }
+  }, [rowMergeSkill, mergeMutation, detailSkillId, editSkillId, onDetailSkillIdChange, onEditSkillIdChange])
+
+  const handleBreakDown = useCallback(async (childNames: string[]) => {
+    const skill = breakdownSkill
+    if (!skill) return
+    setBreakdownSkill(null)
+    try {
+      await breakdownMutation.mutateAsync({ id: skill.id, childNames })
+      toast.success(`Broke "${skill.name}" down into ${childNames.length} skills`)
+      if (detailSkillId === skill.id) onDetailSkillIdChange(null)
+      if (editSkillId === skill.id) onEditSkillIdChange(null)
+    } catch {
+      toast.error('Failed to break down skill')
+    }
+  }, [breakdownSkill, breakdownMutation, detailSkillId, editSkillId, onDetailSkillIdChange, onEditSkillIdChange])
 
   const handleCreateSkill = useCallback(async (data: { name: string; level: number; roles: string; path: string; category: string; categories: string[] }) => {
     const ok = await createSkill({
@@ -183,6 +218,8 @@ export function SkillsPage({
         onTogglePinnedColumn={onTogglePinnedColumn}
         showSelectColumn={showSelectColumn}
         onToggleSelectColumn={onToggleSelectColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={onToggleRowNumberColumn}
         selectedCount={selectedIds.size}
         onMergeSelected={() => setMergeOpen(true)}
         onClearSelection={handleClearSelection}
@@ -199,9 +236,18 @@ export function SkillsPage({
         onViewDetails={onViewDetails}
         onEdit={onEdit}
         onDelete={onDelete}
+        onBreakDown={(id) => {
+          const skill = items.find((s) => s.id === id)
+          if (skill) setBreakdownSkill({ id: skill.id, name: skill.name })
+        }}
+        onMerge={(id) => {
+          const skill = items.find((s) => s.id === id)
+          if (skill) setRowMergeSkill({ id: skill.id, name: skill.name })
+        }}
         onTogglePinned={onTogglePinned}
         showPinnedColumn={showPinnedColumn}
         showSelectColumn={showSelectColumn}
+        showRowNumberColumn={showRowNumberColumn}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onToggleSelectAll={handleToggleSelectAll}
@@ -215,16 +261,34 @@ export function SkillsPage({
         onOpenChange={onDetailSkillIdChange}
         onEdit={onEdit}
         onDelete={onDelete}
+        onBreakDown={(id) => {
+          const skill = items.find((s) => s.id === id)
+          if (skill) setBreakdownSkill({ id: skill.id, name: skill.name })
+        }}
       />
       <SkillEditDrawer
         skillId={editSkillId}
         onOpenChange={onEditSkillIdChange}
+      />
+      <BreakdownSkillDialog
+        skill={breakdownSkill}
+        open={breakdownSkill != null}
+        onOpenChange={(open) => { if (!open) setBreakdownSkill(null) }}
+        onBreakDown={handleBreakDown}
+        pending={breakdownMutation.isPending}
       />
       <MergeSkillDialog
         sources={selectedSkills.map((s) => ({ id: s.id, name: s.name }))}
         open={mergeOpen}
         onOpenChange={setMergeOpen}
         onMerge={handleBulkMerge}
+        pending={mergeMutation.isPending}
+      />
+      <MergeSkillDialog
+        sources={rowMergeSkill ? [{ id: rowMergeSkill.id, name: rowMergeSkill.name }] : []}
+        open={rowMergeSkill != null}
+        onOpenChange={(open) => { if (!open) setRowMergeSkill(null) }}
+        onMerge={handleRowMerge}
         pending={mergeMutation.isPending}
       />
       <AddSkillDrawer

@@ -1,11 +1,13 @@
 import { Button } from '@/shared/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/shared/ui/tooltip'
-import { Eye, PencilSimple, Trash } from '@phosphor-icons/react'
+import { Eye, GitMerge, PencilSimple, Scissors, Trash } from '@phosphor-icons/react'
 
 interface SkillActionsProps {
   onViewDetails: () => void
   onEdit: () => void
   onDelete: () => void
+  onBreakDown: () => void
+  onMerge: () => void
 }
 
 function IconButton({
@@ -31,11 +33,13 @@ function IconButton({
   )
 }
 
-export function SkillActions({ onViewDetails, onEdit, onDelete }: SkillActionsProps) {
+export function SkillActions({ onViewDetails, onEdit, onDelete, onBreakDown, onMerge }: SkillActionsProps) {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex items-center gap-1">
         <IconButton icon={<Eye className="w-3 h-3" />} label="Details" onClick={onViewDetails} />
+        <IconButton icon={<Scissors className="w-3 h-3" />} label="Break down" onClick={onBreakDown} />
+        <IconButton icon={<GitMerge className="w-3 h-3" />} label="Merge" onClick={onMerge} />
         <IconButton icon={<PencilSimple className="w-3 h-3" />} label="Edit" onClick={onEdit} />
         <IconButton icon={<Trash className="w-3 h-3 text-red-500" />} label="Delete" onClick={onDelete} />
       </div>

@@ -101,4 +101,14 @@ describe('CompaniesToolbar columns toggle', () => {
     await user.click(option)
     expect(onTogglePinnedColumn).toHaveBeenCalledWith(true)
   })
+
+  it('shows the Row number option and reports its toggle', async () => {
+    const user = userEvent.setup()
+    const onToggleRowNumberColumn = vi.fn()
+    renderToolbar({ showRowNumberColumn: false, onToggleRowNumberColumn, onTogglePinnedColumn: vi.fn() })
+    await user.click(screen.getByText('Columns'))
+    const option = within(await screen.findByRole('menu')).getByText('Row number')
+    await user.click(option)
+    expect(onToggleRowNumberColumn).toHaveBeenCalledWith(true)
+  })
 })

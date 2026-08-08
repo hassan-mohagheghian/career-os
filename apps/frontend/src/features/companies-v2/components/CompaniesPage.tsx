@@ -43,6 +43,8 @@ interface CompaniesPageProps {
   onTogglePinned: (id: string, pinned: boolean) => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
   onRelate: (companyId: string, mainCompanyId: string | null) => void
   relatePending: boolean
   queueDrawerOpen: boolean
@@ -68,6 +70,7 @@ export function CompaniesPage({
   activeFilterCount, onClearFilters,
   onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned,
   showPinnedColumn = true, onTogglePinnedColumn,
+  showRowNumberColumn = false, onToggleRowNumberColumn,
   onRelate, relatePending,
   queueDrawerOpen, onQueueDrawerOpenChange,
   addCompanyDrawerOpen, onAddCompanyDrawerOpenChange,
@@ -138,6 +141,8 @@ export function CompaniesPage({
         onClearFilters={onClearFilters}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={onTogglePinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={onToggleRowNumberColumn}
       />
       <CompaniesTable
         items={items}
@@ -153,6 +158,7 @@ export function CompaniesPage({
         onDelete={onDelete}
         onTogglePinned={onTogglePinned}
         showPinnedColumn={showPinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
         sort={sort}
         order={order}
         onSortChange={onSortChange}

@@ -7,14 +7,22 @@ from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstrain
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.infrastructure.database.sqlalchemy_config import Base
+from skills.domain.slug_utils import slugify
 
 
 class SkillModel(Base):
     __tablename__ = "skills"
     __table_args__ = {"schema": "skill"}
 
+    def __init__(self, **kwargs):
+        name = kwargs.get("name")
+        if "slug" not in kwargs and name:
+            kwargs["slug"] = slugify(name)
+        super().__init__(**kwargs)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
     level: Mapped[int] = mapped_column(Integer, default=1)
     ml: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     mc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -64,8 +72,15 @@ class SkillCategoryModel(Base):
     __tablename__ = "skill_categories"
     __table_args__ = {"schema": "skill"}
 
+    def __init__(self, **kwargs):
+        name = kwargs.get("name")
+        if "slug" not in kwargs and name:
+            kwargs["slug"] = slugify(name)
+        super().__init__(**kwargs)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
 
@@ -86,6 +101,30 @@ class SkillCategoryLinkModel(Base):
     skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
     category_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skill_categories.id"), nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+
+class SkillBreakdownModel(Base):
+    """A composite skill broken into atomic child skills.
+
+    Records that ``origin_skill_id`` decomposes into ``child_skill_id``. The
+    map feeds skill extraction so jobs mentioning the composite also surface
+    its children. The origin is soft-hidden after a breakdown; this table
+    keeps the lineage. Both FKs stay inside the skill schema (rule 15).
+    """
+
+    __tablename__ = "skill_breakdowns"
+    __table_args__ = (
+        UniqueConstraint("origin_skill_id", "child_skill_id"),
+        {"schema": "skill"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    origin_skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
+    child_skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+    origin_skill: Mapped["SkillModel"] = relationship(foreign_keys=[origin_skill_id])
+    child_skill: Mapped["SkillModel"] = relationship(foreign_keys=[child_skill_id])
 
 
 class SkillRelationshipModel(Base):

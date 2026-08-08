@@ -57,6 +57,16 @@ class SkillMerge(BaseModel):
     source_ids: list[int]
 
 
+class SkillBreakdown(BaseModel):
+    """Break a composite skill into atomic child skills."""
+    child_names: list[str] = Field(..., min_length=2)
+
+
+class SkillCanonicalChange(BaseModel):
+    """Promote an alias to be the canonical name of a skill."""
+    alias_name: str = Field(..., min_length=1)
+
+
 class SkillBulkHide(BaseModel):
     ids: list[int]
 

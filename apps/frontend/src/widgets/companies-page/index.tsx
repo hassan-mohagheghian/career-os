@@ -19,6 +19,7 @@ function CompaniesPageAdapter() {
   const [detailCompanyId, setDetailCompanyId] = useState<string | null>(null)
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
+  const [showRowNumberColumn, setShowRowNumberColumn] = useState(false)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
@@ -143,6 +144,8 @@ function CompaniesPageAdapter() {
         onTogglePinned={handleTogglePinned}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={setShowPinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={setShowRowNumberColumn}
         onRelate={handleRelate}
         relatePending={setMainMutation.isPending}
         queueDrawerOpen={queueDrawerOpen}

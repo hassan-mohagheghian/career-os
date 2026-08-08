@@ -17,6 +17,14 @@ vi.mock('@/entities/skill/hooks', () => ({
     mutateAsync: vi.fn().mockResolvedValue({ status: 'merged' }),
     isPending: false,
   }),
+  useBreakdownSkill: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ status: 'broken_down' }),
+    isPending: false,
+  }),
+  usePromoteAliasToCanonical: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ status: 'promoted' }),
+    isPending: false,
+  }),
   useSkillCategories: () => ({
     categories: [],
     isLoading: false,
@@ -178,6 +186,27 @@ describe('SkillsPage', () => {
     const option = await screen.findByText('Select')
     await user.click(option)
     expect(onToggleSelectColumn).toHaveBeenCalledWith(true)
+  })
+
+  it('renders the row-number header when the row-number column is shown', () => {
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes')],
+      total: 1,
+      loadedCount: 1,
+      showRowNumberColumn: true,
+      onToggleRowNumberColumn: vi.fn(),
+    }))
+    expect(screen.getByText('#')).toBeInTheDocument()
+  })
+
+  it('reports a column toggle when the Row number option is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleRowNumberColumn = vi.fn()
+    renderPage(baseProps({ showRowNumberColumn: false, onToggleRowNumberColumn }))
+    await user.click(screen.getByText('Columns'))
+    const option = await screen.findByText('Row number')
+    await user.click(option)
+    expect(onToggleRowNumberColumn).toHaveBeenCalledWith(true)
   })
 
   it('renders the pinned filter button', () => {

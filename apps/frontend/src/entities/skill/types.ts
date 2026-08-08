@@ -76,6 +76,23 @@ export interface SkillUpdateInput {
 
 export type SkillSortField = 'created_at' | 'name' | 'level' | 'confidence' | 'market_relevance' | 'mention_count'
 
+export interface SkillBreakdownChild {
+  id: number
+  name: string
+}
+
+export interface SkillBreakdownResult {
+  status: string
+  origin: SkillListItem
+  children: SkillBreakdownChild[]
+  hidden: boolean
+}
+
+export interface SkillBreakdownInfo {
+  children: SkillBreakdownChild[]
+  origin: { id: number; name: string } | null
+}
+
 export interface SkillCategoryInfo {
   category: string
   count: number

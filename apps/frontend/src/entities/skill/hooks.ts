@@ -217,3 +217,23 @@ export function useMergeSkills() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
   })
 }
+
+export function useBreakdownSkill() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, childNames }: { id: number; childNames: string[] }) =>
+      skillApi.breakDown(id, childNames),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}
+
+export function usePromoteAliasToCanonical() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, aliasName }: { id: number; aliasName: string }) =>
+      skillApi.promoteAliasToCanonical(id, aliasName),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}

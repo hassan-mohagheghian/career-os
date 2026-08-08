@@ -69,7 +69,11 @@ The updated skill object (`SkillResponse`), including the new `aliases` array.
 
 ## Endpoint
 
-DELETE /api/skills/{id}/aliases/{alias_name}
+DELETE /api/skills/{id}/aliases?alias_name={alias_name}
+
+The alias name travels as a **query parameter** (not a path segment) so aliases
+containing `/` (e.g. `AI / NLP`) do not break route matching. Callers should URL-
+encode the value.
 
 ## Response
 

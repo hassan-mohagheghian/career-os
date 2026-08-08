@@ -158,3 +158,26 @@ describe('CompanyRow jobs column', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 })
+
+describe('CompanyRow row-number column', () => {
+  it('renders no row number when the column is off', () => {
+    renderRow(makeCompany())
+    expect(screen.queryByText('5')).not.toBeInTheDocument()
+  })
+
+  it('renders the row number when the column is shown', () => {
+    render(
+      <CompanyRow
+        company={makeCompany()}
+        onViewDetails={vi.fn()}
+        onReprocess={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onTogglePinned={vi.fn()}
+        showRowNumberColumn
+        rowNumber={5}
+      />
+    )
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+})

@@ -34,6 +34,7 @@ function renderDrawer(skill: SkillListItem) {
       onOpenChange={vi.fn()}
       onEdit={vi.fn()}
       onDelete={vi.fn()}
+      onBreakDown={vi.fn()}
     />
   )
 }

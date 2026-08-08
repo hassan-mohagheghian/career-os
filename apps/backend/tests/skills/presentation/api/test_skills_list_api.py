@@ -343,9 +343,17 @@ def test_add_alias_api(client, sa_session):
 def test_remove_alias_api(client, sa_session):
     skill = _create_skill(sa_session, name="React")
     _create_alias(sa_session, skill.id, "ReactJS")
-    resp = client.delete(f"/api/skills/{skill.id}/aliases/ReactJS")
+    resp = client.delete(f"/api/skills/{skill.id}/aliases", params={"alias_name": "ReactJS"})
     assert resp.status_code == 200
     assert "ReactJS" not in resp.json()["aliases"]
+
+
+def test_remove_alias_with_slash_in_name_api(client, sa_session):
+    skill = _create_skill(sa_session, name="AI")
+    _create_alias(sa_session, skill.id, "AI / NLP")
+    resp = client.delete(f"/api/skills/{skill.id}/aliases", params={"alias_name": "AI / NLP"})
+    assert resp.status_code == 200
+    assert "AI / NLP" not in resp.json()["aliases"]
 
 
 def test_add_alias_missing_skill_404(client, sa_session):

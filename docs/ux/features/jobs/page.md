@@ -137,6 +137,7 @@ Controls
 | Pinned         | Toggle pinned-only view.                 |
 | Recommendation | Filter by apply / consider / skip.       |
 | Sort           | Sort current result set.                 |
+| Columns        | Show / hide the Row number and Pin columns. |
 | Clear          | Clears all active filters.               |
 | Refresh        | Reload current query.                    |
 
@@ -295,7 +296,7 @@ Selecting a row opens the Job Details Drawer.
 
 | Column         | Description                                         |
 | -------------- | --------------------------------------------------- |
-| Select         | Multi-selection checkbox for future bulk operations |
+| #              | Row number within the loaded result set (toggleable) |
 | Pin            | Pushpin toggle for pinned jobs                     |
 | Job            | Job title and employment type                       |
 | Company        | Company logo and company name                       |
@@ -307,6 +308,13 @@ Selecting a row opens the Job Details Drawer.
 | Processing     | Current Processing Execution state                  |
 | Updated        | Relative update time                                |
 | Actions        | Row actions                                         |
+
+The Row number column is hidden by default; the Pin column is shown by default.
+Both can be toggled via the toolbar Columns dropdown.
+
+Rows highlight on hover (and while any inner control has focus) with a muted
+background and an inset ring, so the focused row is always visually identifiable
+in a long list.
 
 ---
 

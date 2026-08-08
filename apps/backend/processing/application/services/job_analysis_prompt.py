@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-JOB_ANALYSIS_PROMPT_VERSION = "1.4.0"
+JOB_ANALYSIS_PROMPT_VERSION = "1.5.0"
 JOB_ANALYSIS_SCHEMA_VERSION = "1.1.0"
 
 COMPANY_TYPE_VALUES = [
@@ -117,14 +117,36 @@ def build_job_analysis_prompt(
     scoring_rules: str,
     resume_text: str,
     profile_documents: str = "",
+    skill_breakdowns: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build the single combined analysis prompt for a job.
 
     profile_documents carries the latest resume and LinkedIn profile as labeled
     extra context. The resume is the authoritative source for skills and
     seniority; LinkedIn supplements it (e.g. current company, title, tenure).
+
+    skill_breakdowns is the origin→children decomposition map (see
+    ``get_breakdown_map``): composite skills that must be emitted as their
+    atomic children when a posting requires them.
     """
     schema = json.dumps(build_job_analysis_output_schema(), indent=2)
+
+    breakdown_section = ""
+    if skill_breakdowns:
+        lines = []
+        for entry in skill_breakdowns:
+            origin = (entry.get("origin") or {}).get("name")
+            children = [c.get("name") for c in entry.get("children", [])]
+            if origin and children:
+                lines.append(f"  - '{origin}' → {', '.join(children)}")
+        if lines:
+            breakdown_section = (
+                "\nKNOWN SKILL DECOMPOSITIONS (when a posting requires one of these composite "
+                "skills, list its components as separate skills instead):\n"
+                + "\n".join(lines)
+                + "\n"
+            )
+
     return f"""You are a senior career advisor for a software engineer seeking a visa-sponsored role in Europe (Germany, Netherlands).
 
 Analyze the job posting below and the user's profile, then produce a complete structured analysis.
@@ -152,8 +174,14 @@ Your analysis must:
 4. Explain fit and success with concrete factors and list concerns (gaps, mismatches, risks).
 5. Recommend apply / consider / skip based on the scores, and write a short apply_reason justifying it.
 6. Summarize the job, the user's fit, and add a practical note.
- 7. List the skills the job requires and tag each as "matched" (user already has it), "missing" (user lacks it), or "low" (user has it but below the required level). Include the user's level (1-5), the category, and brief evidence from the posting.
- 8. Add 2-4 short insights (what to highlight in the application, salary/visa notes, etc.).
+7. List the skills the job requires and tag each as "matched" (user already has it), "missing" (user lacks it), or "low" (user has it but below the required level). Include the user's level (1-5), the category, and brief evidence from the posting.
+
+   SKILL EXTRACTION RULES:
+   - Emit each skill as a SINGLE ATOMIC technology. Split composite entries into separate skills: "NoSQL / SQL" must become two skills named "sql" and "nosql"; likewise split on ",", " and ", "&" and " or ".
+   - Use lowercase names only, without versions or levels ("python 3.12" → "python", "reactjs" → "reactjs").
+   - Use consistent lowercase category names (e.g. "backend", "database", "devops").{""
+    f"{breakdown_section}"
+   }8. Add 2-4 short insights (what to highlight in the application, salary/visa notes, etc.).
 
 OUTPUT SIZE LIMITS (critical — keep the response short so it is never truncated):
  1. description: a concise 1-2 sentence overview, at most 120 words. Do NOT copy the full posting.

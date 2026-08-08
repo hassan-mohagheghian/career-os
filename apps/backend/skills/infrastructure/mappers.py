@@ -27,6 +27,7 @@ def skill_model_to_dict(
     result = {
         "id": model.id,
         "name": model.name,
+        "slug": model.slug,
         "level": model.level,
         "roles": model.roles,
         "path": model.path,

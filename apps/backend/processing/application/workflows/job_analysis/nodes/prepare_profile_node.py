@@ -57,6 +57,12 @@ class PrepareProfileNode:
             state.errors.append(f"[{NODE_ID}] Failed to load user profile: {e}")
             skills, rule_rows, resume_raw, linkedin_raw = [], [], None, None
 
+        try:
+            breakdown_map = self._skills.get_breakdown_map()
+        except Exception:
+            breakdown_map = []
+        state.analysis_context["breakdown_map"] = breakdown_map
+
         state.analysis_context["job_text"] = (
             state.processing_context.combined_text if state.processing_context else ""
         )

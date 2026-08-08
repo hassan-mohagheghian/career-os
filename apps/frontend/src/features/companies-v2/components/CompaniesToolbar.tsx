@@ -21,6 +21,8 @@ interface CompaniesToolbarProps {
   onClearFilters: () => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
 }
 
 export function CompaniesToolbar({
@@ -29,6 +31,7 @@ export function CompaniesToolbar({
   filterPinned, onFilterPinnedChange,
   items, activeFilterCount, onClearFilters,
   showPinnedColumn = true, onTogglePinnedColumn,
+  showRowNumberColumn = false, onToggleRowNumberColumn,
 }: CompaniesToolbarProps) {
   const industries = useMemo(() => {
     const set = new Set<string>()
@@ -80,10 +83,16 @@ export function CompaniesToolbar({
             <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
             Pinned
           </Button>
-          {onTogglePinnedColumn && (
+          {(onTogglePinnedColumn || onToggleRowNumberColumn) && (
             <ColumnsDropdown
-              options={[{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }]}
-              onToggle={(key, checked) => onTogglePinnedColumn(checked)}
+              options={[
+                ...(onToggleRowNumberColumn ? [{ key: 'rowNumber', label: 'Row number', checked: showRowNumberColumn }] : []),
+                ...(onTogglePinnedColumn ? [{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }] : []),
+              ]}
+              onToggle={(key, checked) => {
+                if (key === 'rowNumber') onToggleRowNumberColumn?.(checked)
+                else onTogglePinnedColumn(checked)
+              }}
             />
           )}
           {activeFilterCount > 0 && (

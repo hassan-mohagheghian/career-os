@@ -321,12 +321,12 @@ Full specs: `docs/ux/features/rules/`.
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │ Search ............................................        [Industry ▾] [Pinned] [Columns] [Clear]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
-│─────┼──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
-│ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
-│ ○  │ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
-│ ○  │ Inc  │          │          │      │      │ alias            │           │     │     │   │
-│ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
+│ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
+│───│─────┼──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
+│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
+│ 2 │ ○  │ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
+│ 3 │ ○  │ Inc  │          │          │      │      │ alias            │           │     │     │   │
+│ 4 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
 │ ○  │ Head │ Recruit  │ Berlin   │ 1-50 │ 7¹  │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
 │                                                                                          │
@@ -482,11 +482,11 @@ infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
 │ </> Skills (128)                     Loaded 25 of 128           + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Search .........................                     [Category ▾] [Pinned] [Columns] │
-│ Select │ Pin │ Name              │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
-│─────── │─────│───────────────────│────────────│────│───────────│────────│──────│─────────│
-│ ☐      │ ●  │ Kubernetes 2 aliases│ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
-│ ☐      │ ○  │ Kafka             │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
-│ ☐      │ ○  │ DDD               │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
+│ # │ Select │ Pin │ Name              │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
+│───│─────── │─────│───────────────────│────────────│────│───────────│────────│──────│─────────│
+│ 1 │ ☐      │ ●  │ Kubernetes 2 aliases│ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
+│ 2 │ ☐      │ ○  │ Kafka             │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
+│ 3 │ ☐      │ ○  │ DDD               │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
 │                                                                               │
 │                                        Loading more skills...                 │
 └───────────────────────────────────────────────────────────────────────────────┘
@@ -499,8 +499,10 @@ When rows are selected the toolbar shows a bulk action bar:
 │ 2 selected   [⟳ Merge 2 into...]   [Clear]                                       │
 ```
 
-The Select column is toggled via the Columns dropdown; merging selected skills
-into one target reuses the single-merge target picker dialog.
+The Row number, Select and Pin columns are toggled via the Columns dropdown;
+merging selected skills into one target reuses the single-merge target picker
+dialog. Rows highlight on hover (and while any inner control has focus) with a
+muted background and inset ring.
 ```
 
 ### Skill Detail Drawer
@@ -523,7 +525,7 @@ into one target reuses the single-merge target picker dialog.
 │ │ [k8s]                                                  │  │
 │ └────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────┤
-│                                          [🗑 Delete]       │
+│          [✂ Break down]                    [🗑 Delete]     │
 └────────────────────────────────────────────────────────────┘
 ```
 

@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.12.0] — 2026-08-08
+
+### Added
+
+- **Skill normalization: slug-based equality, breakdown, promote-to-canonical.**
+  Skill and category names now carry a canonical `slug` (case/format-insensitive
+  matching, unique index) via migration `20fc9eceffce`. A one-time
+  `normalize-skills-and-categories` CLI command (with `--dry-run`) merges
+  pre-existing collisions. Skills list gains a row **Merge** action (single
+  source) alongside the existing bulk merge.
+- **Break down composite skills.** `POST /api/skills/{id}/breakdown` splits a
+  composite skill (e.g. "Data Engineering") into atomic children — origin is
+  soft-hidden, its mentions are duplicated to each child, and the origin→child
+  map (served by `GET /api/skills/breakdowns` and `GET /api/skills/{id}/breakdowns`)
+  feeds job-analysis extraction. UI: Break Down action on skill rows and in the
+  detail drawer, with a `BreakdownSkillDialog`.
+- **Promote alias to canonical.** `PATCH /api/skills/{id}/canonical` promotes an
+  alias to the skill's canonical name (the old canonical name becomes an alias).
+  UI: "Make canonical" per-alias control in the edit drawer.
+- **Extraction upgrades.** `JOB_ANALYSIS_PROMPT_VERSION` → 1.5.0 with a known
+  skill-decomposition section; `normalize_skills` splits compound entries on
+  `/`, `,`, `and`, `&`, `or`, dedupes by slug, and expands breakdown-map matches.
+- **Domain events.** `skill.breakdown.created` and `skill.canonical.changed`
+  emitted via the in-memory collector and documented in
+  `docs/domain/skills/events.md`.
+
+### Changed
+
+- New API docs: `docs/api/skills/normalization.md`. UX docs: breakdown dialog +
+  flow, edit-skill make-canonical, skill-row/merge actions.
+
 ## [3.11.0] — 2026-08-08
 
 ### Added

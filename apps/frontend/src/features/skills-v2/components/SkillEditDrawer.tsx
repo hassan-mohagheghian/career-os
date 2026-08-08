@@ -7,9 +7,9 @@ import { Input } from '@/shared/ui/input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import { Badge } from '@/shared/ui/badge'
-import { PencilSimple, Warning, Check, TagSimple, CircleNotch, Plus, X, GitMerge } from '@phosphor-icons/react'
+import { PencilSimple, Warning, Check, TagSimple, CircleNotch, Plus, X, GitMerge, Crown } from '@phosphor-icons/react'
 import { skillApi } from '@/entities/skill/api'
-import { useMergeSkills, useSkillCategories } from '@/entities/skill/hooks'
+import { useMergeSkills, usePromoteAliasToCanonical, useSkillCategories } from '@/entities/skill/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { MergeSkillDialog } from './MergeSkillDialog'
 import { CategoryMultiSelect } from './CategoryMultiSelect'
@@ -63,6 +63,9 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
   const [aliasBusy, setAliasBusy] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
   const [mergePending, setMergePending] = useState(false)
+  const [canonicalAlias, setCanonicalAlias] = useState<string | null>(null)
+  const [canonicalPending, setCanonicalPending] = useState(false)
+  const promoteMutation = usePromoteAliasToCanonical()
 
   const open = skillId != null
 
@@ -150,6 +153,23 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
   const handleAddCategory = async (name: string) => {
     await createMutation.mutateAsync(name)
     return { name }
+  }
+
+  const handlePromoteAlias = async () => {
+    if (skillId == null || canonicalAlias == null) return
+    setCanonicalPending(true)
+    setError(null)
+    try {
+      const updated = await promoteMutation.mutateAsync({ id: skillId, aliasName: canonicalAlias })
+      setName(updated.name ?? canonicalAlias)
+      setAliases(updated.aliases ?? [])
+      setCanonicalAlias(null)
+      queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] })
+    } catch {
+      setError('Failed to promote alias. Make sure it does not clash with another skill.')
+    } finally {
+      setCanonicalPending(false)
+    }
   }
 
   const handleMerge = async (targetId: number) => {
@@ -257,6 +277,37 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
                       {aliasBusy ? <CircleNotch className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                     </Button>
                   </div>
+                  {aliases.length > 0 && (
+                    <div className="pt-1 border-t border-border/40">
+                      <label className="text-2xs text-muted-foreground mb-1 block">
+                        Make an alias the canonical name
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={canonicalAlias ?? ''}
+                          onChange={(e) => setCanonicalAlias(e.target.value || null)}
+                          className="h-7 flex-1 rounded-md border border-input bg-transparent px-2 text-xs"
+                          aria-label="Alias to promote to canonical"
+                        >
+                          <option value="">Choose alias...</option>
+                          {aliases.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1 text-2xs shrink-0"
+                          onClick={handlePromoteAlias}
+                          disabled={canonicalAlias == null || canonicalPending}
+                        >
+                          {canonicalPending ? <CircleNotch className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
+                          Make canonical
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Field>
 

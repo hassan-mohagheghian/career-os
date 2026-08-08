@@ -53,6 +53,8 @@ interface JobsPageProps {
   onCancel?: (id: string) => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
   isProcessing: boolean
   queueDrawerOpen: boolean
   onQueueDrawerOpenChange: (open: boolean) => void
@@ -81,6 +83,7 @@ export function JobsPage({
   activeFilterCount, onClearFilters,
   onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, isProcessing,
   showPinnedColumn = true, onTogglePinnedColumn,
+  showRowNumberColumn = false, onToggleRowNumberColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
   addJobDrawerOpen, onAddJobDrawerOpenChange, onJobQueued,
   detailJobId, onDetailJobIdChange,
@@ -163,6 +166,8 @@ export function JobsPage({
         onClearFilters={onClearFilters}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={onTogglePinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
+        onToggleRowNumberColumn={onToggleRowNumberColumn}
       />
       <JobsTable
         items={items}
@@ -180,6 +185,7 @@ export function JobsPage({
         onRetry={onRetry}
         onCancel={onCancel}
         showPinnedColumn={showPinnedColumn}
+        showRowNumberColumn={showRowNumberColumn}
         sort={sort}
         order={order}
         onSortChange={onSortChange}

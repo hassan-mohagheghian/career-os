@@ -8,7 +8,7 @@ import { RecommendationBadge } from './RecommendationBadge'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
-import { COLUMN_GRID_TEMPLATE, COLUMN_GRID_TEMPLATE_NO_PIN } from './jobsColumns'
+import { buildJobGridTemplate } from './jobsColumns'
 
 interface JobRowProps {
   job: JobListItem
@@ -20,20 +20,27 @@ interface JobRowProps {
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   showPinnedColumn?: boolean
+  showRowNumberColumn?: boolean
+  rowNumber?: number
 }
 
 export function JobRow({
   job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
-  showPinnedColumn = true,
+  showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
   return (
     <div
-      className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
-      style={{ gridTemplateColumns: showPinnedColumn ? COLUMN_GRID_TEMPLATE : COLUMN_GRID_TEMPLATE_NO_PIN }}
+      className="grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
+      style={{ gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }}
       onClick={() => onViewDetails(job.id)}
     >
+      {showRowNumberColumn && (
+        <div className="py-2 px-3 flex items-center justify-center">
+          <span className="text-2xs text-muted-foreground tabular-nums">{rowNumber ?? ''}</span>
+        </div>
+      )}
       {showPinnedColumn && (
         <div className="py-2 px-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
           <PinButton pinned={job.pinned} onToggle={() => onTogglePinned(job.id, !job.pinned)} entityLabel="job" />

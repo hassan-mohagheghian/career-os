@@ -10,6 +10,7 @@ verify behavior without an LLM:
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 VALID_RECOMMENDATIONS = ("apply", "consider", "skip")
@@ -18,6 +19,8 @@ VALID_RECOMMENDATIONS = ("apply", "consider", "skip")
 _GRADE_BUCKETS = (
     (90, "A++"), (80, "A+"), (70, "A"), (50, "B"), (30, "C"), (0, "D"),
 )
+
+_SEPARATORS = re.compile(r"[^\w+#.\-]+", flags=re.UNICODE)
 
 
 def grade_for_overall(overall: int | None) -> str:
@@ -210,25 +213,85 @@ def build_analysis_result(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def normalize_skills(raw_skills: Any) -> list[dict[str, Any]]:
-    """Normalize the LLM skills list: drop empties, default missing fields."""
+def normalize_skills(
+    raw_skills: Any,
+    breakdown_map: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Normalize the LLM skills list: drop empties, default missing fields.
+
+    Deterministic cleanup applied on top of the LLM output:
+      - composite entries are split on separators (``/``, ``,``, `` and ``, ``&``, `` or ``)
+      - names are slugified (case/format-insensitive) and deduplicated
+      - composite skills listed in ``breakdown_map`` are expanded to their children
+      - category names are slugified for consistency
+    """
     if not isinstance(raw_skills, list):
         return []
-    result: list[dict[str, Any]] = []
+    breakdowns = _breakdown_lookup(breakdown_map)
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
     for item in raw_skills:
         if not isinstance(item, dict):
             continue
         name = str(item.get("name") or "").strip()
         if not name:
             continue
-        result.append({
-            "name": name,
-            "category": str(item.get("category") or "").strip(),
+        base = {
+            "category": _slugify(str(item.get("category") or "").strip()),
             "level": normalize_score_100(item.get("level")),
             "status": coerce_status(item.get("status")),
             "evidence": str(item.get("evidence") or "").strip(),
-        })
+        }
+        for piece in _split_skill_names(name):
+            slug = _slugify(piece)
+            if not slug or slug in seen:
+                continue
+            seen.add(slug)
+            children = breakdowns.get(slug)
+            if children:
+                for child in children:
+                    child_slug = _slugify(child)
+                    if child_slug and child_slug not in seen:
+                        seen.add(child_slug)
+                        result.append({**base, "name": child})
+            else:
+                result.append({**base, "name": piece})
     return result
+
+
+_SKILL_SPLITTER = re.compile(r"(?:\s+(?:and|&|or)\s+|/|,|\sor\s)", flags=re.IGNORECASE)
+
+
+def _split_skill_names(name: str) -> list[str]:
+    """Split a composite skill name into atomic pieces.
+
+    ``"NoSQL / SQL"`` -> ``["NoSQL", "SQL"]``; ``"React and TypeScript"`` ->
+    ``["React", "TypeScript"]``. ``C#`` is untouched (the splitter only fires
+    on the separator tokens).
+    """
+    pieces = [p.strip() for p in _SKILL_SPLITTER.split(name) if p and p.strip()]
+    return pieces or ([name.strip()] if name.strip() else [])
+
+
+def _breakdown_lookup(breakdown_map: list[dict[str, Any]] | None) -> dict[str, list[str]]:
+    """Index the origin→children map by the origin's slug."""
+    if not breakdown_map:
+        return {}
+    lookup: dict[str, list[str]] = {}
+    for entry in breakdown_map:
+        origin = (entry.get("origin") or {}).get("name")
+        children = [c.get("name") for c in entry.get("children", []) if c.get("name")]
+        if origin and children:
+            lookup[_slugify(origin)] = children
+    return lookup
+
+
+def _slugify(name: str) -> str:
+    """Local lowercase slug (mirrors ``skills.domain.slug_utils.slugify``)."""
+    if not name:
+        return ""
+    cleaned = _SEPARATORS.sub("-", name.strip().lower())
+    return re.sub(r"-+", "-", cleaned).strip("-")
 
 
 def coerce_status(value: Any) -> str:

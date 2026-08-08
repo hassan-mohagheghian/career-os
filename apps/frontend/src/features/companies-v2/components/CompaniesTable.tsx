@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { CompanyListItem } from '@/entities/company/types'
 import { CompanyRow } from './CompanyRow'
 import { SortableHeader, type ScoreSortOption } from '@/features/jobs-v2/components/SortableHeader'
-import { COMPANY_GRID_TEMPLATE, COMPANY_GRID_TEMPLATE_WITH_PIN } from './companiesColumns'
+import { buildCompanyGridTemplate } from './companiesColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -21,6 +21,7 @@ interface CompaniesTableProps {
   onDelete: (id: string) => void
   onTogglePinned: (id: string, pinned: boolean) => void
   showPinnedColumn?: boolean
+  showRowNumberColumn?: boolean
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -39,6 +40,7 @@ interface ColumnDef {
 }
 
 const PIN_COLUMN: ColumnDef = { label: 'Pin' }
+const ROW_NUMBER_COLUMN: ColumnDef = { label: '#' }
 
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
@@ -56,14 +58,19 @@ const COLUMN_DEFS: ColumnDef[] = [
 export function CompaniesTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
   onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned, showPinnedColumn = true,
+  showRowNumberColumn = false,
   sort = 'created_at', order = 'desc', onSortChange = () => {},
 }: CompaniesTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
 
-  const visibleColumnDefs = showPinnedColumn ? [PIN_COLUMN, ...COLUMN_DEFS] : COLUMN_DEFS
-  const gridStyle = { gridTemplateColumns: showPinnedColumn ? COMPANY_GRID_TEMPLATE_WITH_PIN : COMPANY_GRID_TEMPLATE }
+  const visibleColumnDefs = [
+    ...(showRowNumberColumn ? [ROW_NUMBER_COLUMN] : []),
+    ...(showPinnedColumn ? [PIN_COLUMN] : []),
+    ...COLUMN_DEFS,
+  ]
+  const gridStyle = { gridTemplateColumns: buildCompanyGridTemplate(showRowNumberColumn, showPinnedColumn) }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -179,6 +186,8 @@ export function CompaniesTable({
                   onDelete={onDelete}
                   onTogglePinned={onTogglePinned}
                   showPinnedColumn={showPinnedColumn}
+                  showRowNumberColumn={showRowNumberColumn}
+                  rowNumber={virtualItem.index + 1}
                 />
               </div>
             )

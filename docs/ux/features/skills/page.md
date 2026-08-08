@@ -54,11 +54,11 @@ Skills Page
 │ ⛭ Skills (128)                    Loaded 25 of 128          ↻  + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Search .........................            [Category ▾⌕] [Pinned] [Columns] [Clear]│
-│ Select │ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
-│───────│─────│─────────────────────────────────────────────────────────────────│
-│       │ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
-│       │ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
-│       │ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
+│ # │ Select │ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
+│───│───────│─────│─────────────────────────────────────────────────────────────│
+│ 1 │       │ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
+│ 2 │       │ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
+│ 3 │       │ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
 │                                                                               │
 │                                        Loading more skills...                 │
 │                                                                               │
@@ -113,7 +113,7 @@ Controls
 | Search   | Search by name, role, path, or alias.           |
 | Category | Multi-select category filter (searchable dropdown; OR across selected categories). |
 | Pinned   | Toggle pinned-only view.                        |
-| Columns  | Show / hide the Select and Pin columns.         |
+| Columns  | Show / hide the Row number, Select and Pin columns. |
 | Clear    | Clears all active filters.                      |
 
 Search is debounced (300ms) via the shared `DebouncedInput` primitive.
@@ -245,6 +245,7 @@ Configuration
 
 | Column     | Description                                        |
 | ---------- | -------------------------------------------------- |
+| #          | Row number within the loaded result set (toggleable) |
 | Select     | Checkbox toggling row selection (multi-select)     |
 | Pin        | Pushpin toggle for pinned skills                   |
 | Name       | Skill name + origin badge (AI/Manual) + alias count badge |
@@ -257,8 +258,12 @@ Configuration
 | Mentions   | Total job/company mentions referencing this skill (sortable) |
 | Actions    | Row actions (Details, Edit, Delete)                |
 
-The Select and Pin columns are hidden by default; both can be toggled via the
-toolbar Columns dropdown.
+The Row number, Select and Pin columns are hidden by default; each can be toggled
+via the toolbar Columns dropdown.
+
+Rows highlight on hover (and while any inner control has focus) with a muted
+background and an inset ring, so the focused row is always visually identifiable
+in a long list.
 
 ---
 

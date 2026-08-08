@@ -33,7 +33,7 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 │ │ Critical for cloud-native platform engineering.         │  │
 │ └────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────┤
-│                                          [🗑 Delete]       │
+│          [✂ Break down]                    [🗑 Delete]     │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -78,10 +78,11 @@ Sections with no data are omitted (no empty boxes).
 
 # Footer
 
-| Action | Behavior                                         |
-| ------ | ------------------------------------------------ |
-| Delete | Opens the ConfirmDialog; deletes the skill,      |
-|        | closes drawer, clears `?skill=`.                 |
+| Action     | Behavior                                         |
+| ---------- | ------------------------------------------------ |
+| Break down | Opens the Break down dialog for this skill.      |
+| Delete     | Opens the ConfirmDialog; deletes the skill,      |
+|            | closes drawer, clears `?skill=`.                 |
 
 ---
 

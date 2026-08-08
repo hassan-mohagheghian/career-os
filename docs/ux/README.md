@@ -40,7 +40,7 @@ docs/ux/
 │   │   ├── disable-llm-configuration.md
 │   │   └── delete-llm-configuration.md
 │   ├── companies/
-│   │   ├── page.md            Companies page (list, toolbar, infinite scroll, drawers)
+│   │   ├── page.md            Companies page (list, toolbar, column toggles, infinite scroll, drawers)
 │   │   ├── company-row.md     Company row columns, grades, scores, status, actions
 │   │   ├── company-detail.md  Company Detail drawer (single page, scores, recommendation)
 │   │   ├── relate-company.md  Related companies: main/alias relations, Relate Company dialog
@@ -49,7 +49,7 @@ docs/ux/
 │   ├── candidate/
 │   │   └── profile-import.md  Candidate Profile Import page (sources, analyze, review)
 │   └── jobs/
-│       ├── page.md            Jobs page (list, toolbar, infinite scroll)
+│       ├── page.md            Jobs page (list, toolbar, column toggles, infinite scroll)
 │       ├── job-row.md         Job row columns and scores
 │       ├── pinned-job.md      Pin a job for attention (replaces favorite)
 │       ├── add-job.md         Add Job drawer (shared Create Entity, job mode)
@@ -61,11 +61,12 @@ docs/ux/
 │       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
 │       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
 │   └── skills/
-│       ├── page.md            Skills page (list, toolbar, multi-select, infinite scroll, drawers)
+│       ├── page.md            Skills page (list, toolbar, multi-select, column toggles, infinite scroll, drawers)
 │       ├── skill-row.md       Skill row columns, select checkbox, origin/alias badges, mentions, actions
 │       ├── skill-detail.md    Skill Detail drawer (level, roles, tags, aliases)
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
-│       └── edit-skill.md      Edit Skill drawer (aliases, merge)
+│       ├── edit-skill.md      Edit Skill drawer (aliases, merge, make canonical)
+│       └── breakdown-skill-dialog.md  Break down a composite skill into atomic children
 └── flows/
     ├── candidate/
     │   └── import-profile.md  Import resume/LinkedIn, analyze, review profile
@@ -86,7 +87,8 @@ docs/ux/
         └── reorder-rules.md   Move up/down + drag reorder, priority math, clamping
     └── skills/
         ├── browse-skills.md   Browse, search, filter, sort, open details
-        └── merge-skills.md    Merge skill(s) into a canonical one (single or bulk)
+        ├── merge-skills.md    Merge skill(s) into a canonical one (single or bulk)
+        └── breakdown-skill.md Break a composite skill into atomic children
 ```
 
 ## Current Focus

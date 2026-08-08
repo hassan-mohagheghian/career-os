@@ -42,6 +42,8 @@ interface JobsToolbarProps {
   onClearFilters: () => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
+  showRowNumberColumn?: boolean
+  onToggleRowNumberColumn?: (value: boolean) => void
 }
 
 export function JobsToolbar({
@@ -54,6 +56,7 @@ export function JobsToolbar({
   filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
   showPinnedColumn = true, onTogglePinnedColumn,
+  showRowNumberColumn = false, onToggleRowNumberColumn,
 }: JobsToolbarProps) {
   return (
     <div className="px-3 py-2 border-b border-border/40">
@@ -145,10 +148,16 @@ export function JobsToolbar({
             <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
             Pinned
           </Button>
-          {onTogglePinnedColumn && (
+          {(onTogglePinnedColumn || onToggleRowNumberColumn) && (
             <ColumnsDropdown
-              options={[{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }]}
-              onToggle={(key, checked) => onTogglePinnedColumn(checked)}
+              options={[
+                ...(onToggleRowNumberColumn ? [{ key: 'rowNumber', label: 'Row number', checked: showRowNumberColumn }] : []),
+                ...(onTogglePinnedColumn ? [{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }] : []),
+              ]}
+              onToggle={(key, checked) => {
+                if (key === 'rowNumber') onToggleRowNumberColumn?.(checked)
+                else onTogglePinnedColumn(checked)
+              }}
             />
           )}
           {activeFilterCount > 0 && (

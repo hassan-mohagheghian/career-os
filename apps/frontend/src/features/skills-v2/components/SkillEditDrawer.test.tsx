@@ -138,7 +138,7 @@ describe('SkillEditDrawer', () => {
     } as never)
     renderDrawer(1)
     await waitFor(() => {
-      expect(screen.getByText('K8s')).toBeInTheDocument()
+      expect(screen.getByLabelText('Remove alias K8s')).toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByLabelText('Remove alias K8s'))

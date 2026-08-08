@@ -30,7 +30,7 @@ row's columns and inline row actions.
 | Confidence | `confidence`             | Percentage or `—` when null               |
 | Created    | `created_at`             | Relative time via `formatTimeAgo`         |
 | Mentions   | `mention_count`          | Sortable count of job/company mentions    |
-| Actions    | —                        | Details / Edit / Delete icon buttons      |
+    | Actions    | —                        | Details / Break down / Merge / Edit / Delete icon buttons      |
 
 ---
 
@@ -54,13 +54,15 @@ The level renders as `Lv.{level}` (e.g. `Lv.4`).
 
 # Actions
 
-Each row exposes three icon (tooltip) buttons:
+Each row exposes five icon (tooltip) buttons:
 
-| Action  | Icon     | Behavior                                     |
-| ------- | -------- | -------------------------------------------- |
-| Details | Eye      | Opens the Skill Detail drawer (`?skill=<id>`).|
-| Edit    | Pencil   | Opens the Skill Edit drawer.                 |
-| Delete  | Trash    | Opens the ConfirmDialog; deletes the skill.  |
+| Action     | Icon     | Behavior                                         |
+| ---------- | -------- | ------------------------------------------------ |
+| Details    | Eye      | Opens the Skill Detail drawer (`?skill=<id>`).   |
+| Break down | Scissors | Opens the Break down dialog for a composite skill.|
+| Merge      | GitMerge | Opens the Merge dialog with this skill as the source. |
+| Edit       | Pencil   | Opens the Skill Edit drawer.                     |
+| Delete     | Trash    | Opens the ConfirmDialog; deletes the skill.      |
 
 All action clicks `stopPropagation` so a click on an action never opens the
 Detail drawer. The Select checkbox also stops propagation so selecting a row
