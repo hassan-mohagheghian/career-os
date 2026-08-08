@@ -18,7 +18,7 @@ Users can:
 - Multi-select skills and merge all selected into one target
 
 The Skills page mirrors the Jobs/Companies v2 UX: virtualized table,
-server-side pagination, infinite scroll, and Sheet-based drawers.
+server-side pagination, infinite scroll, and vaul-based drawers (shared `Drawer`).
 
 ---
 
@@ -399,7 +399,7 @@ drawer.
 
 # Skill Detail Drawer
 
-Selecting a row opens the Skill Detail drawer (Sheet from the right) showing the
+Selecting a row opens the Skill Detail drawer (shared `Drawer` from the right) showing the
 skill's data directly (no tabs):
 
 - **Categories** — a dedicated section right below the stats row showing one
@@ -415,7 +415,7 @@ badges live in the dedicated body section, not the header — see
 
 # Skill Edit Drawer
 
-The Edit drawer (Sheet) edits:
+The Edit drawer (shared `Drawer`) edits:
 
 - Name (required)
 - Level (1–10 select)
@@ -476,7 +476,7 @@ involved, the description lists them and the footer button reads
 
 # Add Skill Drawer
 
-The Add Skill drawer (Sheet) collects:
+The Add Skill drawer (shared `Drawer`) collects:
 
 - Name (required)
 - Level (1–10 select)

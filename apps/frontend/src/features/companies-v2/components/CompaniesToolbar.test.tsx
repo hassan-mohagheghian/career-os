@@ -38,6 +38,8 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onQueryChange: vi.fn(),
     filterIndustry: '',
     onFilterIndustryChange: vi.fn(),
+    filterStatus: '',
+    onFilterStatusChange: vi.fn(),
     filterPinned: false,
     onFilterPinnedChange: vi.fn(),
     items: [makeCompany('company-1'), makeCompany('company-2')],
@@ -47,6 +49,26 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
   }
   return render(<CompaniesToolbar {...(props as any)} />)
 }
+
+describe('CompaniesToolbar status filter', () => {
+  it('renders a Status dropdown', () => {
+    renderToolbar()
+    expect(screen.getByText('Status')).toBeInTheDocument()
+  })
+
+  it('reports a selected status', () => {
+    const onFilterStatusChange = vi.fn()
+    renderToolbar({ onFilterStatusChange })
+    fireEvent.click(screen.getByText('Status'))
+    fireEvent.click(screen.getByText('Processed'))
+    expect(onFilterStatusChange).toHaveBeenCalledWith('processed')
+  })
+
+  it('shows the active status label', () => {
+    renderToolbar({ filterStatus: 'failed' })
+    expect(screen.getByText('Failed')).toBeInTheDocument()
+  })
+})
 
 describe('CompaniesToolbar pinned filter', () => {
   it('renders the pinned toggle', () => {

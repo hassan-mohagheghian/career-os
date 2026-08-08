@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import CreateEntityDrawer, { type CreateEntityFormData } from './CreateEntityDrawer'
 
-vi.mock('@/shared/ui/sheet', () => ({
-  Sheet: ({ children }: any) => <div>{children}</div>,
-  SheetContent: ({ children }: any) => <div>{children}</div>,
-  SheetHeader: ({ children }: any) => <div>{children}</div>,
-  SheetTitle: ({ children }: any) => <div>{children}</div>,
+vi.mock('@/shared/components/Drawer', () => ({
+  Drawer: ({ open, children }: any) => (open ? <div>{children}</div> : null),
+  DrawerHeader: ({ title, actions, children }: any) => <div>{title}{actions}{children}</div>,
+  DrawerContent: ({ children }: any) => <div>{children}</div>,
+  DrawerFooter: ({ children }: any) => <div>{children}</div>,
 }))
 
 const readClipboardUrlMock = vi.fn()

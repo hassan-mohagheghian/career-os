@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { List, Spinner, Funnel } from '@phosphor-icons/react'
-import { AppDrawer } from './DrawerComponents'
+import { Drawer, DrawerHeader } from '@/shared/components/Drawer'
 import { Badge } from '@/shared/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import GenerationHistoryItem from './GenerationHistoryItem'
@@ -101,21 +101,12 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
   }, [items, filter, sortDir])
 
   return (
-    <AppDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <div className="p-6 pb-3">
-        <div className="flex items-center gap-2 text-lg font-semibold">
-          <List className="w-5 h-5" />
-          Generation History
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {sortedAndFiltered.length}{filter !== 'all' ? ` of ${total}` : ''} runs
-        </div>
-      </div>
-
-      {/* Sort + Filter controls */}
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerHeader
+        title={<span className="flex items-center gap-2 text-lg font-semibold"><List className="w-5 h-5" /> Generation History</span>}
+        description={`${sortedAndFiltered.length}${filter !== 'all' ? ` of ${total}` : ''} runs`}
+        onClose={() => onOpenChange(false)}
+      />
       <div className="px-5 pb-3 flex items-center gap-2">
         <Select value={sortDir} onValueChange={(v) => setSortDir(v as 'desc' | 'asc')}>
           <SelectTrigger className="h-7 text-2xs w-[100px]">
@@ -170,6 +161,6 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
           </div>
         )}
       </div>
-    </AppDrawer>
+    </Drawer>
   )
 }

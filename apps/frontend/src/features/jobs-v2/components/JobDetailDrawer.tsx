@@ -1,62 +1,119 @@
-'use client'
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
-import { ScrollArea } from '@/shared/ui/scroll-area'
-import { CircleNotch, Clock, CheckCircle, XCircle, LinkSimple, MapPin, Briefcase, Clock as ClockIcon, PencilSimple } from '@phosphor-icons/react'
-import { jobApi } from '@/entities/job/api'
-import type { JobDetail, JobDetailWorkflowStep } from '@/entities/job/types'
-import DateTime from '@/shared/components/DateTime'
-import NotesLinksReadOnly from '@/shared/components/NotesLinksReadOnly'
-import { GradeBadge } from '@/shared/components/GradeBadge'
-import { gradeForScore } from '@/shared/lib/grade'
-import { RecommendationBadge } from './RecommendationBadge'
-import { CompanyPicker } from './CompanyPicker'
-import { Button } from '@/shared/ui/button'
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Drawer,
+  DrawerHeader,
+  DrawerContent,
+} from "@/shared/components/Drawer";
+import {
+  CircleNotch,
+  Clock,
+  CheckCircle,
+  XCircle,
+  LinkSimple,
+  MapPin,
+  Briefcase,
+  Clock as ClockIcon,
+  PencilSimple,
+  CaretDown,
+  CaretRight,
+} from "@phosphor-icons/react";
+import { jobApi } from "@/entities/job/api";
+import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
+import DateTime from "@/shared/components/DateTime";
+import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
+import { GradeBadge } from "@/shared/components/GradeBadge";
+import { gradeForScore } from "@/shared/lib/grade";
+import { RecommendationBadge } from "./RecommendationBadge";
+import { CompanyPicker } from "./CompanyPicker";
+import { Button } from "@/shared/ui/button";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/shared/ui/collapsible";
 
 interface JobDetailDrawerProps {
-  jobId: string | null
-  onOpenChange: (jobId: string | null) => void
-  onEdit?: (id: string) => void
+  jobId: string | null;
+  onOpenChange: (jobId: string | null) => void;
+  onEdit?: (id: string) => void;
 }
 
-function stepIcon(status: JobDetailWorkflowStep['status']) {
+function stepIcon(status: JobDetailWorkflowStep["status"]) {
   switch (status) {
-    case 'processing': return <CircleNotch className="w-3.5 h-3.5 text-emerald-500 animate-spin shrink-0" />
-    case 'completed': return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
-    case 'failed': return <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-    case 'skipped': return <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-    default: return <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+    case "processing":
+      return (
+        <CircleNotch className="w-3.5 h-3.5 text-emerald-500 animate-spin shrink-0" />
+      );
+    case "completed":
+      return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />;
+    case "failed":
+      return <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />;
+    case "skipped":
+      return (
+        <Clock className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+      );
+    default:
+      return <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />;
   }
 }
 
-function StepItem({ step, depth }: { step: JobDetailWorkflowStep; depth: number }) {
+function StepItem({
+  step,
+  depth,
+}: {
+  step: JobDetailWorkflowStep;
+  depth: number;
+}) {
   return (
     <div className="min-w-0">
-      <div className="flex items-start gap-2 p-1 min-w-0" style={{ paddingLeft: `${depth * 16}px` }}>
+      <div
+        className="flex items-start gap-2 p-1 min-w-0"
+        style={{ paddingLeft: `${depth * 16}px` }}
+      >
         {stepIcon(step.status)}
         <div className="flex-1 min-w-0 overflow-hidden">
-          <p className="text-2xs font-medium text-foreground min-w-0 break-words">{step.title}</p>
-          {step.error && <p className="text-2xs text-red-500 break-words">{step.error.message}</p>}
+          <p className="text-2xs font-medium text-foreground min-w-0 break-words">
+            {step.title}
+          </p>
+          {step.error && (
+            <p className="text-2xs text-red-500 break-words">
+              {step.error.message}
+            </p>
+          )}
         </div>
         {step.progress !== null && step.progress !== undefined && (
-          <span className="text-2xs text-muted-foreground shrink-0">{Math.round(step.progress)}%</span>
+          <span className="text-2xs text-muted-foreground shrink-0">
+            {Math.round(step.progress)}%
+          </span>
         )}
       </div>
-      {step.children.map(child => (
+      {step.children.map((child) => (
         <StepItem key={child.id} step={child} depth={depth + 1} />
       ))}
     </div>
-  )
+  );
 }
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 py-1.5">
-      <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">{label}</span>
-      <span className="text-xs text-foreground text-right break-words">{value ?? '—'}</span>
+      <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">
+        {label}
+      </span>
+      <span className="text-xs text-foreground text-right break-words">
+        {value ?? "—"}
+      </span>
     </div>
-  )
+  );
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
@@ -64,19 +121,49 @@ function Badge({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center rounded-md border border-border/60 px-2 py-0.5 text-2xs font-medium text-foreground">
       {children}
     </span>
-  )
+  );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function scoreColor(value: number): string {
+  if (value >= 80) return "text-emerald-500";
+  if (value >= 60) return "text-blue-500";
+  if (value >= 40) return "text-yellow-500";
+  return "text-red-500";
+}
+
+function JobScoreCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`text-lg font-bold ${scoreColor(value)}`}>{value}</div>
+      <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-      <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{title}</p>
+      <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+        {title}
+      </p>
       {children}
     </div>
-  )
+  );
 }
 
-function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analysis']> }) {
+function AnalysisSection({
+  analysis,
+}: {
+  analysis: NonNullable<JobDetail["analysis"]>;
+}) {
   return (
     <div className="space-y-4">
       <Section title="AI Analysis">
@@ -88,7 +175,10 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
         {analysis.insights && analysis.insights.length > 0 && (
           <ul className="mt-2 space-y-1">
             {analysis.insights.map((insight, i) => (
-              <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
+              <li
+                key={i}
+                className="text-xs text-muted-foreground flex gap-1.5"
+              >
                 <span className="shrink-0">•</span>
                 <span className="break-words">{insight}</span>
               </li>
@@ -100,7 +190,9 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
       {analysis.scores_explanation && (
         <Section title="Scores Explanation">
           {analysis.scores_explanation.fit_factors.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Why it fits</p>
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+              Why it fits
+            </p>
           )}
           <ul className="mb-2 space-y-1">
             {analysis.scores_explanation.fit_factors.map((f, i) => (
@@ -111,7 +203,9 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
             ))}
           </ul>
           {analysis.scores_explanation.success_factors.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Chance of success</p>
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+              Chance of success
+            </p>
           )}
           <ul className="mb-2 space-y-1">
             {analysis.scores_explanation.success_factors.map((f, i) => (
@@ -122,7 +216,9 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
             ))}
           </ul>
           {analysis.scores_explanation.concerns.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">Concerns</p>
+            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+              Concerns
+            </p>
           )}
           <ul className="space-y-1">
             {analysis.scores_explanation.concerns.map((c, i) => (
@@ -135,70 +231,138 @@ function AnalysisSection({ analysis }: { analysis: NonNullable<JobDetail['analys
         </Section>
       )}
 
-      {analysis.summary && (analysis.summary.summary || analysis.summary.resume_fit || analysis.summary.note) && (
-        <Section title="Summary">
-          {analysis.summary.summary && (
-            <p className="text-xs text-foreground whitespace-pre-wrap mb-2">{analysis.summary.summary}</p>
-          )}
-          {analysis.summary.resume_fit && (
-            <p className="text-xs text-muted-foreground whitespace-pre-wrap mb-2">
-              <span className="font-medium text-foreground">Resume fit: </span>{analysis.summary.resume_fit}
-            </p>
-          )}
-          {analysis.summary.note && (
-            <p className="text-xs text-muted-foreground whitespace-pre-wrap">{analysis.summary.note}</p>
-          )}
-        </Section>
-      )}
-
-      {analysis.skills && analysis.skills.length > 0 && (
-        <Section title="Tagged Skills">
-          <div className="flex flex-wrap gap-1.5">
-            {analysis.skills.map((skill, i) => (
-              <Badge key={i}>
-                {skill.name}
-                {skill.level != null && <span className="text-muted-foreground"> · L{skill.level}</span>}
-                {skill.category && <span className="text-muted-foreground"> · {skill.category}</span>}
-              </Badge>
-            ))}
-          </div>
-        </Section>
-      )}
+      {analysis.summary &&
+        (analysis.summary.summary ||
+          analysis.summary.resume_fit ||
+          analysis.summary.note) && (
+          <Section title="Summary">
+            {analysis.summary.summary && (
+              <p className="text-xs text-foreground whitespace-pre-wrap mb-2">
+                {analysis.summary.summary}
+              </p>
+            )}
+            {analysis.summary.resume_fit && (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap mb-2">
+                <span className="font-medium text-foreground">
+                  Resume fit:{" "}
+                </span>
+                {analysis.summary.resume_fit}
+              </p>
+            )}
+            {analysis.summary.note && (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                {analysis.summary.note}
+              </p>
+            )}
+          </Section>
+        )}
     </div>
-  )
+  );
+}
+
+function ProcessingSection({ exec }: { exec: JobDetail["latest_processing_execution"] }) {
+  const [open, setOpen] = useState(false);
+  const steps = exec?.workflow?.steps ?? [];
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger className="flex items-center gap-1.5 w-full">
+          {open ? (
+            <CaretDown className="w-3.5 h-3.5 text-muted-foreground" />
+          ) : (
+            <CaretRight className="w-3.5 h-3.5 text-muted-foreground" />
+          )}
+          <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
+            Processing
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <DetailRow label="Execution" value={exec?.execution_id} />
+          <DetailRow label="Status" value={exec?.status} />
+          <DetailRow label="Current Step" value={exec?.current_step} />
+          {exec?.error && (
+            <p className="text-2xs text-red-500 pt-1">{exec.error.message}</p>
+          )}
+          {steps.length > 0 && (
+            <div className="mt-2">
+              {steps.map((step) => (
+                <StepItem key={step.id} step={step} depth={0} />
+              ))}
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
 }
 
 function JobDetailContent({ detail }: { detail: JobDetail }) {
-  const exec = detail.latest_processing_execution
-  const steps = exec?.workflow?.steps ?? []
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   const setCompany = useMutation({
-    mutationFn: (companyId: string | null) => jobApi.setCompany(detail.id, companyId),
+    mutationFn: (companyId: string | null) =>
+      jobApi.setCompany(detail.id, companyId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-detail', detail.id] })
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ["job-detail", detail.id] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },
-  })
-  const recruiters = (detail.related_companies ?? []).filter(c => c.role === 'recruiter')
+  });
+  const recruiters = (detail.related_companies ?? []).filter(
+    (c) => c.role === "recruiter",
+  );
 
   return (
-    <div className="space-y-4 px-4 py-4 min-w-0">
+    <div className="space-y-4 min-w-0">
+      <div className="flex items-center gap-3 mb-1">
+        <GradeBadge
+          grade={gradeForScore(detail.scores?.overall ?? null)}
+          className="w-10 h-8 text-sm"
+        />
+        {detail.scores?.fit != null && (
+          <JobScoreCard label="Fit" value={detail.scores.fit} />
+        )}
+        {detail.scores?.success != null && (
+          <JobScoreCard label="Success" value={detail.scores.success} />
+        )}
+        {detail.scores?.overall != null && (
+          <JobScoreCard label="Overall" value={detail.scores.overall} />
+        )}
+      </div>
       <div>
-        <h2 className="text-base font-semibold text-foreground">{detail.title || detail.role || 'Untitled'}</h2>
+        <h2 className="text-base font-semibold text-foreground">
+          {detail.title || detail.role || "Untitled"}
+        </h2>
         {detail.company_id ? (
           <a
             href={`/companies?company=${detail.company_id}`}
             className="text-sm text-primary hover:underline"
           >
-            {detail.company_name || 'Linked Company'}
+            {detail.company_name || "Linked Company"}
           </a>
         ) : (
-          <p className="text-sm text-muted-foreground">{detail.company_name || 'Unknown'}</p>
+          <p className="text-sm text-muted-foreground">
+            {detail.company_name || "Unknown"}
+          </p>
         )}
         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-          {detail.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{detail.location}</span>}
-          {detail.work_types && detail.work_types.length > 0 && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" />{detail.work_types.join(', ')}</span>}
-          {detail.employment_types && detail.employment_types.length > 0 && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{detail.employment_types.join(', ')}</span>}
+          {detail.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />
+              {detail.location}
+            </span>
+          )}
+          {detail.work_types && detail.work_types.length > 0 && (
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3.5 h-3.5" />
+              {detail.work_types.join(", ")}
+            </span>
+          )}
+          {detail.employment_types && detail.employment_types.length > 0 && (
+            <span className="flex items-center gap-1">
+              <ClockIcon className="w-3.5 h-3.5" />
+              {detail.employment_types.join(", ")}
+            </span>
+          )}
         </div>
         {detail.url && (
           <a
@@ -212,32 +376,15 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
-          <p className="text-lg font-semibold text-foreground">{detail.scores?.overall ?? '—'}</p>
-          <p className="text-2xs text-muted-foreground">Overall</p>
-        </div>
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
-          <p className="text-lg font-semibold text-foreground">{detail.scores?.fit ?? '—'}</p>
-          <p className="text-2xs text-muted-foreground">Fit</p>
-        </div>
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
-          <p className="text-lg font-semibold text-foreground">{detail.scores?.success ?? '—'}</p>
-          <p className="text-2xs text-muted-foreground">Success</p>
-        </div>
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
-          <div className="flex items-center justify-center min-h-6">
-            <GradeBadge grade={gradeForScore(detail.scores?.overall ?? null)} />
-          </div>
-          <p className="text-2xs text-muted-foreground">Grade</p>
-        </div>
-      </div>
-
       {detail.analysis?.recommendation && (
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Recommendation</p>
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Recommendation
+          </p>
           <div className="flex items-center gap-2 mb-2">
-            <RecommendationBadge recommendation={detail.analysis.recommendation} />
+            <RecommendationBadge
+              recommendation={detail.analysis.recommendation}
+            />
             {detail.analysis.generated_at && (
               <span className="text-2xs text-muted-foreground">
                 <DateTime value={detail.analysis.generated_at} />
@@ -245,16 +392,22 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
             )}
           </div>
           {detail.analysis.apply_reason && (
-            <p className="text-xs text-foreground whitespace-pre-wrap">{detail.analysis.apply_reason}</p>
+            <p className="text-xs text-foreground whitespace-pre-wrap">
+              {detail.analysis.apply_reason}
+            </p>
           )}
         </div>
       )}
 
       <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Details</p>
+        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+          Details
+        </p>
         <DetailRow label="Role" value={detail.role} />
         <div className="flex items-start justify-between gap-4 py-1.5">
-          <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">Company</span>
+          <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">
+            Company
+          </span>
           <CompanyPicker
             companyId={detail.company_id ?? null}
             companyName={detail.company_name ?? null}
@@ -265,57 +418,87 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
         <DetailRow label="Status" value={detail.status} />
         <DetailRow label="Salary" value={detail.salary} />
         <DetailRow label="Visa" value={detail.visa} />
-        <DetailRow label="Created" value={<DateTime value={detail.created_at} />} />
+        <DetailRow
+          label="Created"
+          value={<DateTime value={detail.created_at} />}
+        />
       </div>
 
       {recruiters.length > 0 && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Published by</p>
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+            Published by
+          </p>
           <ul className="space-y-1.5">
-            {recruiters.map(c => (
-              <li key={c.company_id} className="flex items-center justify-between gap-3">
+            {recruiters.map((c) => (
+              <li
+                key={c.company_id}
+                className="flex items-center justify-between gap-3"
+              >
                 <a
                   href={`/companies?company=${c.company_id}`}
                   className="text-xs text-primary hover:underline break-words"
                 >
-                  {c.name || 'Recruiting company'}
+                  {c.name || "Recruiting company"}
                 </a>
-                {c.company_type && <Badge>{c.company_type.replace(/_/g, ' ')}</Badge>}
+                {c.company_type && (
+                  <Badge>{c.company_type.replace(/_/g, " ")}</Badge>
+                )}
               </li>
             ))}
           </ul>
-          {recruiters.some(c => c.reason) && (
+          {recruiters.some((c) => c.reason) && (
             <ul className="mt-2 space-y-1">
-              {recruiters.filter(c => c.reason).map(c => (
-                <li key={c.company_id} className="text-2xs text-muted-foreground flex gap-1.5">
-                  <span className="shrink-0">•</span>
-                  <span className="break-words">{c.reason}</span>
-                </li>
-              ))}
+              {recruiters
+                .filter((c) => c.reason)
+                .map((c) => (
+                  <li
+                    key={c.company_id}
+                    className="text-2xs text-muted-foreground flex gap-1.5"
+                  >
+                    <span className="shrink-0">•</span>
+                    <span className="break-words">{c.reason}</span>
+                  </li>
+                ))}
             </ul>
           )}
         </div>
       )}
 
-      <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Processing</p>
-        <DetailRow label="Execution" value={exec?.execution_id} />
-        <DetailRow label="Status" value={exec?.status} />
-        <DetailRow label="Current Step" value={exec?.current_step} />
-        {exec?.error && <p className="text-2xs text-red-500 pt-1">{exec.error.message}</p>}
-        {steps.length > 0 && (
-          <div className="mt-2">
-            {steps.map(step => <StepItem key={step.id} step={step} depth={0} />)}
+      {detail.analysis?.skills && detail.analysis.skills.length > 0 && (
+        <Section title="Tagged Skills">
+          <div className="flex flex-wrap gap-1.5">
+            {detail.analysis.skills.map((skill, i) => (
+              <Badge key={i}>
+                {skill.name}
+                {skill.level != null && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · L{skill.level}
+                  </span>
+                )}
+                {skill.category && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {skill.category}
+                  </span>
+                )}
+              </Badge>
+            ))}
           </div>
-        )}
-      </div>
+        </Section>
+      )}
 
       {detail.analysis && <AnalysisSection analysis={detail.analysis} />}
 
       {detail.description && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
-          <p className="text-xs text-foreground whitespace-pre-wrap">{detail.description}</p>
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+            Description
+          </p>
+          <p className="text-xs text-foreground whitespace-pre-wrap">
+            {detail.description}
+          </p>
         </div>
       )}
       {detail.notes && detail.notes.length > 0 && (
@@ -324,23 +507,39 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
       {detail.links && detail.links.length > 0 && (
         <NotesLinksReadOnly notes={[]} links={detail.links} heading="Links" />
       )}
+
+      <ProcessingSection exec={detail.latest_processing_execution} />
     </div>
-  )
+  );
 }
 
-export function JobDetailDrawer({ jobId, onOpenChange, onEdit }: JobDetailDrawerProps) {
-  const { data: detail, isLoading, isError } = useQuery<JobDetail>({
-    queryKey: ['job-detail', jobId],
+export function JobDetailDrawer({
+  jobId,
+  onOpenChange,
+  onEdit,
+}: JobDetailDrawerProps) {
+  const {
+    data: detail,
+    isLoading,
+    isError,
+  } = useQuery<JobDetail>({
+    queryKey: ["job-detail", jobId],
     queryFn: () => jobApi.getDetail(jobId!),
     enabled: !!jobId,
-  })
+  });
 
   return (
-    <Sheet open={!!jobId} onOpenChange={(open) => { if (!open) onOpenChange(null) }}>
-      <SheetContent side="right" className="job-drawer w-[400px] sm:w-[480px] p-0 flex flex-col">
-        <SheetHeader className="flex flex-row items-center justify-between pl-4 pr-14 py-3 border-b border-border/40 shrink-0">
-          <SheetTitle className="text-sm font-semibold">Job Details</SheetTitle>
-          {onEdit && jobId && (
+    <Drawer
+      open={!!jobId}
+      onOpenChange={(open) => {
+        if (!open) onOpenChange(null);
+      }}
+    >
+      <DrawerHeader
+        title="Job Details"
+        onClose={() => onOpenChange(null)}
+        actions={
+          onEdit && jobId ? (
             <Button
               variant="ghost"
               size="sm"
@@ -350,22 +549,22 @@ export function JobDetailDrawer({ jobId, onOpenChange, onEdit }: JobDetailDrawer
             >
               <PencilSimple className="w-3.5 h-3.5" /> Edit
             </Button>
-          )}
-        </SheetHeader>
-        <ScrollArea className="flex-1 min-h-0 min-w-0">
-          {isLoading && (
-            <div className="flex items-center justify-center h-40">
-              <CircleNotch className="w-6 h-6 text-muted-foreground animate-spin" />
-            </div>
-          )}
-          {isError && (
-            <div className="flex items-center justify-center h-40">
-              <p className="text-sm text-red-500">Unable to load job details.</p>
-            </div>
-          )}
-          {detail && !isLoading && <JobDetailContent detail={detail} />}
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
-  )
+          ) : undefined
+        }
+      />
+      <DrawerContent>
+        {isLoading && (
+          <div className="flex items-center justify-center h-40">
+            <CircleNotch className="w-6 h-6 text-muted-foreground animate-spin" />
+          </div>
+        )}
+        {isError && (
+          <div className="flex items-center justify-center h-40">
+            <p className="text-sm text-red-500">Unable to load job details.</p>
+          </div>
+        )}
+        {detail && !isLoading && <JobDetailContent detail={detail} />}
+      </DrawerContent>
+    </Drawer>
+  );
 }

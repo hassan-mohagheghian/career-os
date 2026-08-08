@@ -75,9 +75,12 @@ def _cursor_encode(offset: int) -> str:
     return base64.b64encode(str(offset).encode()).decode()
 
 
-def _matches(row: dict[str, Any], query: str, industry: str, pinned: bool | None = None) -> bool:
+def _matches(row: dict[str, Any], query: str, industry: str, pinned: bool | None = None, status: str | None = None) -> bool:
     if pinned is not None and bool(row.get("pinned")) != pinned:
         return False
+    if status:
+        if (row.get("status") or "") != status:
+            return False
     if query:
         q = query.lower()
         haystacks = [
@@ -173,6 +176,7 @@ def list_companies_v2(
     query: str = Query("", description="Substring search over name, industry, city, country, description"),
     industry: str = Query("", description="Exact industry filter"),
     pinned: bool | None = Query(None, description="Only include pinned companies"),
+    status: str | None = Query(None, description="Exact company processing status filter"),
     sort: str = Query("created_at", description="Sort field"),
     order: str = Query("desc", description="asc or desc"),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=200),
@@ -182,7 +186,7 @@ def list_companies_v2(
     job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
-    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned)]
+    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status)]
 
     key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort)
     with_value = [r for r in rows if key(r) is not None]

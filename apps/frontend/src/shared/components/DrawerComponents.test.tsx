@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { Section, TabHeader, Field, TagList, ScoreBadge, DRAWER_WIDTH } from './DrawerComponents'
+import { Section, TabHeader, Field, TagList, ScoreBadge } from './DrawerComponents'
 
 describe('Section', () => {
   it('renders title and children', () => {
@@ -99,12 +99,5 @@ describe('ScoreBadge', () => {
     render(<ScoreBadge value={85} label="Score" color="blue" />)
     const valueEl = screen.getByText('85')
     expect(valueEl.className).toContain('text-blue-400')
-  })
-})
-
-describe('DRAWER_WIDTH', () => {
-  it('exports a valid width class', () => {
-    expect(DRAWER_WIDTH).toBeTruthy()
-    expect(typeof DRAWER_WIDTH).toBe('string')
   })
 })

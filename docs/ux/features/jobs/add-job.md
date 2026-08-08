@@ -32,7 +32,7 @@ Uses:
 
 # Drawer
 
-- Sheet (right side), width `400px` desktop / `480px` larger screens — same reference layout as Job Details and Edit Job drawers
+- Drawer (right side, vaul), default `lg` width — same reference layout as Job Details and Edit Job drawers
 - Placement: `right`
 
 ---
@@ -502,16 +502,15 @@ Live progress streamed over SSE
 
 ## Desktop
 
-- Right Sheet (`400px`)
+- Right Drawer, default `lg` width (`720px`)
 
 ## Tablet
 
-- Right Sheet (`400px`)
+- Right Drawer, default `lg` width (`720px`)
 
 ## Mobile
 
-- Right Sheet (`480px`)
-- Full-height sheet
+- Right Drawer, default `lg` width, full-height
 
 ---
 

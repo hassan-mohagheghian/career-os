@@ -36,7 +36,7 @@ describe('GenerationHistoryDrawer', () => {
   it('calls onOpenChange when drawer closes', async () => {
     const onOpenChange = vi.fn()
     render(<GenerationHistoryDrawer open={true} onOpenChange={onOpenChange} />)
-    // Drawer open state is managed by Sheet
+    // Drawer open state is managed by vaul Drawer
     expect(screen.getByText('Generation History')).toBeInTheDocument()
   })
 

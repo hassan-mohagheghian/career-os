@@ -3,17 +3,16 @@ import { Check, Spinner, Confetti } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
 import { ScrollArea } from '@/shared/ui/scroll-area'
-import { AppDrawer } from './DrawerComponents'
+import { Drawer } from './Drawer'
 
 export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflowEndRef, onClose }) {
   useEffect(() => { workflowEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [workflowLogs])
 
   return (
-    <AppDrawer
+    <Drawer
       open={!!workflowDrawer}
       onOpenChange={(open) => !open && onClose()}
       contentClassName="bg-[#0d1117]"
-      className="p-0"
     >
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#21262d]">
         <span className="text-sm">💻</span>
@@ -84,6 +83,6 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
           )}
         </div>
       </ScrollArea>
-    </AppDrawer>
+    </Drawer>
   )
 }

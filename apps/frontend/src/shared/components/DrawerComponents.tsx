@@ -1,34 +1,4 @@
 import { cn } from '@/shared/lib/utils'
-import { Sheet, SheetContent } from '@/shared/ui/sheet'
-
-export const DRAWER_WIDTH = 'w-[min(calc(100vw/2),92vw)]'
-
-export function AppDrawer({
-  open,
-  onOpenChange,
-  side = 'right',
-  children,
-  className,
-  contentClassName,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  side?: 'left' | 'right' | 'top' | 'bottom'
-  children: React.ReactNode
-  className?: string
-  contentClassName?: string
-}) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side={side}
-        className={cn(DRAWER_WIDTH, 'p-0 flex flex-col overflow-y-auto', contentClassName)}
-      >
-        {children}
-      </SheetContent>
-    </Sheet>
-  )
-}
 
 export function Section({ title, icon, children }) {
   return (

@@ -26,6 +26,7 @@ interface DrawerProps {
   onOpenChange: (open: boolean) => void;
   variant?: DrawerVariant;
   placement?: DrawerPlacement;
+  contentClassName?: string;
   children: React.ReactNode;
 }
 
@@ -34,6 +35,7 @@ function Drawer({
   onOpenChange,
   variant = "lg",
   placement = "right",
+  contentClassName,
   children,
 }: DrawerProps) {
   return (
@@ -51,6 +53,7 @@ function Drawer({
             "!fixed !inset-y-0 !right-0 !left-auto h-full rounded-l-[10px] w-screen !mt-0",
           placement === "left" &&
             "!fixed !inset-y-0 !left-0 !right-auto h-full rounded-r-[10px] w-screen !mt-0",
+          contentClassName,
         )}
       >
         {children}
@@ -60,9 +63,10 @@ function Drawer({
 }
 
 interface DrawerHeaderProps {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   onClose?: () => void;
+  actions?: React.ReactNode;
   className?: string;
 }
 
@@ -70,6 +74,7 @@ function DrawerHeader({
   title,
   description,
   onClose,
+  actions,
   className,
 }: DrawerHeaderProps) {
   return (
@@ -89,13 +94,18 @@ function DrawerHeader({
           </DrawerDescription>
         )}
       </div>
-      {onClose && (
-        <DrawerClose asChild onClick={onClose}>
-          <button className="shrink-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </button>
-        </DrawerClose>
+      {(actions || onClose) && (
+        <div className="flex items-center gap-1 shrink-0">
+          {actions}
+          {onClose && (
+            <DrawerClose asChild onClick={onClose}>
+              <button className="shrink-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
+            </DrawerClose>
+          )}
+        </div>
       )}
     </div>
   );

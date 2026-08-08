@@ -162,6 +162,25 @@ class TestCompanyListV2API:
         assert data["total_items"] == 1
         assert data["items"][0]["name"] == "B"
 
+    def test_status_filter(self, client, sa_session):
+        _create_company(sa_session, name="Pending Co", status="pending")
+        _create_company(sa_session, name="Queued Co", status="queued")
+        _create_company(sa_session, name="Processed Co", status="processed")
+
+        data = client.get("/api/companies/list?status=processed").json()
+        assert data["total_items"] == 1
+        assert data["items"][0]["name"] == "Processed Co"
+
+        data = client.get("/api/companies/list?status=pending").json()
+        assert data["total_items"] == 1
+        assert data["items"][0]["name"] == "Pending Co"
+
+        data = client.get("/api/companies/list?status=missing").json()
+        assert data["total_items"] == 0
+
+        data = client.get("/api/companies/list").json()
+        assert data["total_items"] == 3
+
     def test_sort_by_fit_score_nulls_last(self, client, sa_session):
         c1 = _create_company(sa_session, name="No Score")
         _create_intel(sa_session, c1.id, {"fit": None})

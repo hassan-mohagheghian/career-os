@@ -36,16 +36,18 @@ A Drawer should never replace the primary page content.
 | ------- | ----: | -------------------------- |
 | xs      | 320px | Confirmations, small forms |
 | sm      | 420px | Filters, simple forms      |
-| md      | 560px | Processing Queue           |
-| lg      | 720px | Company Details            |
-| xl      | 960px | Job Details, Editors       |
+| md      | 560px | —                          |
+| lg      | 720px | Entity detail/edit panels  |
+| xl      | 960px | —                          |
 | full    |  100% | Mobile or full workspace   |
 
 Widths are design tokens and may change globally.
 
 Pages should reference only the variant name.
 
-Default is lg.
+**Default is `lg`.** Consumers must not override the variant — only the
+default (`lg`) is used across the application, so all drawers share a
+consistent width.
 
 ---
 
@@ -119,34 +121,27 @@ Drawer
 
 # Header Close Button Clearance
 
-The `Sheet`-based drawers render the close button at a **fixed position** in the
-top-right corner (`absolute top-4 right-4`), independent of the header layout.
-
-A header that also renders an action button on the right (for example the
-**Edit** button in the Job / Company / Skill detail drawers) must reserve space
-for the close button so the two never overlap:
-
-- Header actions must leave at least `pr-14` right padding
-  (`pl-4 pr-14 py-3`).
-- Title-only headers keep the default `px-4 py-3` — there is nothing in the
-  corner to collide with.
-
 The vaul-based `Drawer` shell lays its close button out in normal flex flow, so
-it never overlaps header content.
+it never overlaps header content. The legacy `Sheet`-based drawers were
+deprecated in favor of the unified vaul `Drawer`; any header action button
+(rendered via the `actions` slot) sits to the left of the close button without
+reserving extra space.
 
 ---
 
 # Properties
 
-| Property     | Description              |
-| ------------ | ------------------------ |
-| Variant      | xs, sm, md, lg, xl, full |
-| Placement    | right, left, bottom      |
-| Title        | Drawer title             |
-| Description  | Optional subtitle        |
-| Footer       | Optional action area     |
-| Close Button | Optional                 |
-| Scrollable   | Yes                      |
+| Property          | Description              |
+| ----------------- | ------------------------ |
+| Variant           | xs, sm, md, lg, xl, full |
+| Placement         | right, left, bottom      |
+| Title             | Drawer title (ReactNode) |
+| Description       | Optional subtitle        |
+| Actions           | Optional header action area |
+| Footer            | Optional action area     |
+| Close Button      | Optional                 |
+| Scrollable        | Yes                      |
+| contentClassName  | Optional content styling |
 
 ---
 
@@ -176,12 +171,15 @@ The Drawer should:
 
 # Usage
 
+Every drawer in the application uses the **default `lg` variant** and does not
+override it. Only placement may vary where the design calls for it.
+
 ## Processing Queue
 
 Variant
 
 ```
-md
+lg (default)
 ```
 
 Placement
@@ -192,12 +190,12 @@ right
 
 ---
 
-## Job Details
+## Job Details / Job Edit
 
 Variant
 
 ```
-xl
+lg (default)
 ```
 
 Placement
@@ -208,18 +206,82 @@ right
 
 ---
 
-## Company Details
+## Company Details / Company Edit
 
 Variant
 
 ```
-lg
+lg (default)
 ```
 
 Placement
 
 ```
 right
+```
+
+---
+
+## Skill Detail / Add / Edit Skill
+
+Variant
+
+```
+lg (default)
+```
+
+Placement
+
+```
+right
+```
+
+---
+
+## Generation History
+
+Variant
+
+```
+lg (default)
+```
+
+Placement
+
+```
+right
+```
+
+---
+
+## Mobile Navigation
+
+Variant
+
+```
+lg (default)
+```
+
+Placement
+
+```
+left
+```
+
+---
+
+## Rule Form (Add / Edit Rule)
+
+Variant
+
+```
+lg (default)
+```
+
+Placement
+
+```
+bottom
 ```
 
 ---
@@ -229,7 +291,7 @@ right
 Variant
 
 ```
-full
+lg (default)
 ```
 
 Placement
@@ -253,10 +315,12 @@ UI Library
 
 Underlying Component
 
-- `Sheet` (recommended for desktop side panels)
-- `Drawer` (recommended for mobile bottom sheets)
+- `Drawer` (vaul, via `@/shared/ui/drawer`)
 
-The application should expose a single reusable `Drawer` component that wraps the appropriate shadcn/ui primitives and provides a consistent API across the project.
+The application exposes a single reusable `Drawer` component
+(`@/shared/components/Drawer`) that wraps the vaul primitives and provides a
+consistent API across the project. The legacy `Sheet`-based drawers
+(`@/shared/ui/sheet`, `DrawerComponents`) are deprecated and removed.
 
 ---
 

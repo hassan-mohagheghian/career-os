@@ -2,9 +2,9 @@
 
 ## Purpose
 
-A **bottom drawer** (placement `bottom`, variant `full`) used for both adding a
-new rule and editing an existing one. It opens over the Rules page without
-leaving it. The title switches between `Add Rule` and `Edit Rule`.
+A **bottom drawer** (placement `bottom`, default `lg` variant) used for both
+adding a new rule and editing an existing one. It opens over the Rules page
+without leaving it. The title switches between `Add Rule` and `Edit Rule`.
 
 The drawer is implemented in
 `apps/frontend/src/features/rules/components/RuleFormDrawer.tsx`, built on the

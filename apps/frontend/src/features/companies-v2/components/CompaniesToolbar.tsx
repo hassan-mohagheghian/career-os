@@ -5,15 +5,29 @@ import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import type { CompanyListItem } from '@/entities/company/types'
-import { MagnifyingGlass, Buildings, PushPin } from '@phosphor-icons/react'
+import { MagnifyingGlass, Buildings, PushPin, Funnel } from '@phosphor-icons/react'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
 import { cn } from '@/shared/lib/utils'
+
+const STATUS_LABELS: Record<string, string> = {
+  created: 'Created',
+  pending: 'Pending',
+  queued: 'Queued',
+  processing: 'Processing',
+  running: 'Running',
+  completed: 'Completed',
+  processed: 'Processed',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+}
 
 interface CompaniesToolbarProps {
   query: string
   onQueryChange: (value: string) => void
   filterIndustry: string
   onFilterIndustryChange: (value: string) => void
+  filterStatus: string
+  onFilterStatusChange: (value: string) => void
   filterPinned: boolean
   onFilterPinnedChange: (value: boolean) => void
   items: CompanyListItem[]
@@ -28,6 +42,7 @@ interface CompaniesToolbarProps {
 export function CompaniesToolbar({
   query, onQueryChange,
   filterIndustry, onFilterIndustryChange,
+  filterStatus, onFilterStatusChange,
   filterPinned, onFilterPinnedChange,
   items, activeFilterCount, onClearFilters,
   showPinnedColumn = true, onTogglePinnedColumn,
@@ -69,6 +84,24 @@ export function CompaniesToolbar({
               {industries.map(ind => (
                 <SelectItem key={ind} value={ind}>{ind}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={onFilterStatusChange}>
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
+              <Funnel className="w-3 h-3" />
+              <span>{filterStatus ? STATUS_LABELS[filterStatus] ?? filterStatus : 'Status'}</span>
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="created">Created</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="queued">Queued</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="running">Running</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="processed">Processed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           <Button

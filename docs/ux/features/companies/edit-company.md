@@ -3,7 +3,7 @@
 ## Purpose
 
 The Company Edit drawer edits a company's core profile data and its notes and
-links. It is the Sheet successor to the legacy edit flow. Notes and links CRUD
+links. Notes and links CRUD
 moved here from the Company Detail drawer so the detail drawer can stay
 read-only.
 

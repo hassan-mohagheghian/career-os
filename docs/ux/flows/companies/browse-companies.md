@@ -26,7 +26,7 @@ Load first page (GET /api/companies/list, page_size=25)
              ▼
    ┌──────────────────┐   ┌──────────────────────────────┐
    │  Detail Drawer   │   │  Processing Drawer (shared,  │
-   │  (Sheet)         │   │  targetType=company, live SSE)│
+   │  (Drawer)        │   │  targetType=company, live SSE)│
    │  Edit / Reprocess│   │  Start / Retry / Remove /     │
    │  Delete / Jobs   │   │  Cancel                       │
    └──────────────────┘   └──────────────────────────────┘
@@ -50,6 +50,12 @@ parameter. Supported fields: name, industry, city, country, description.
 
 Selecting an industry in the toolbar refetches the list with the `industry`
 parameter.
+
+## 3b. Filter by status
+
+Selecting a processing status in the toolbar refetches the list with the
+`status` parameter (exact match on the company's processing status, shared
+`JobStatus` vocabulary).
 
 ## 4. Sort
 

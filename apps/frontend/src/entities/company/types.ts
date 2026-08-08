@@ -51,6 +51,7 @@ export interface CompanySearchQuery {
   cursor?: string
   query?: string
   industry?: string
+  status?: string
   pinned?: boolean
   sort?: string
   order?: 'asc' | 'desc'

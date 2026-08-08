@@ -72,6 +72,16 @@ industry=Software Development
 
 Exact match on the company's industry value.
 
+### Status
+
+```text
+status=processed
+```
+
+Exact match on the company's processing status (shared `JobStatus`
+vocabulary): `created`, `pending`, `queued`, `processing`, `running`,
+`completed`, `processed`, `failed`, `cancelled`.
+
 ---
 
 ## Sorting

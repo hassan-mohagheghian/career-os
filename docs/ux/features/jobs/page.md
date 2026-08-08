@@ -945,6 +945,67 @@ The Processing Queue drawer automatically closes.
 
 The user always has only one drawer open.
 
+## Job Details Drawer layout
+
+The Job Details drawer (shared `Drawer`, default `lg`, placement `right`)
+shows a single scrollable page:
+
+```text
+┌─ Job Details ──────────────────────────────────────── ✕ ┐
+│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78       │ ← score strip
+│                                                         │
+│ Software Engineer (Senior)                              │
+│ Acme GmbH                        {MapPin} Berlin, DE     │
+│ {Briefcase} Full-time, Remote  {Clock} Permanent         │
+│ 🔗 Open job posting                                     │
+│                                                         │
+│ ┌─ Recommendation ─────────────────────────────┐        │
+│ │ [Apply]  analyzed 2h ago                     │        │
+│ │ Strong match for your visa profile...        │        │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Details ────────────────────────────────────┐        │
+│ │ Role     Senior Software Engineer            │        │
+│ │ Company  Acme GmbH [Change company]          │        │
+│ │ Status   processed                           │        │
+│ │ Salary   €90k–€110k                          │        │
+│ │ Visa     EU Blue Card eligible               │        │
+│ │ Created  2026-01-15                          │        │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Published by ───────────────────────────────┐        │
+│ │ RecruitCo                        [recruiting │        │
+│ │                                  agency]     │        │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Tagged Skills ──────────────────────────────┐        │
+│ │ [TypeScript] [React] [Kubernetes] ...        │        │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Analysis (Summary / Fit / Success / Concerns)┐       │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Description ────────────────────────────────┐        │
+│ └──────────────────────────────────────────────┘        │
+│                                                         │
+│ ┌─ Processing  ▾ ──────────────────────────────┐        │
+│ │ Execution exec-123   Status completed         │        │
+│ │ Current Step extract_analysis                 │        │
+│ │  ✓ extract_details 100%                      │        │
+│ │  ✓ analyze         100%                      │        │
+│ └──────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Score strip**: a `GradeBadge` for the overall grade plus colored
+  Fit / Success / Overall score cards at the top (green ≥80, blue ≥60,
+  yellow ≥40, red below). Replaces the old 4-column muted grid.
+- **Recommendation** is highlighted with `border-primary/20 bg-primary/5`
+  (matching the Company Detail).
+- **Processing** sits at the end of the drawer inside a `Collapsible` that
+  is **collapsed by default**; the caret reveals execution id, status,
+  current step, any error, and the workflow steps.
+
 ## Job Details — Set Company
 
 The **Details** section has a `Company` row with a picker (`Change company`
@@ -1197,7 +1258,7 @@ Changes
 
 - Rows become stacked cards.
 - Toolbar collapses.
-- Filters open in a bottom sheet.
+- Filters open in a bottom Drawer (vaul, default `lg`).
 - Processing Queue opens as a full-screen modal.
 - Infinite scrolling remains enabled.
 

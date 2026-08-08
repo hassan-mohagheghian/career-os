@@ -21,12 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/shared/ui/tooltip'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/shared/ui/sheet'
+import { Drawer, DrawerHeader } from '@/shared/components/Drawer'
 import { NAV_ITEMS, type NavItem } from './nav-items'
 
 const GenerationHistoryDrawer = dynamic(() => import('@/shared/components/GenerationHistoryDrawer'), { ssr: false })
@@ -312,35 +307,31 @@ export default function Sidebar({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="w-72 p-0 flex flex-col">
-          <SheetHeader className="border-b px-4 py-3 shrink-0">
-            <SheetTitle className="flex items-center gap-2 font-extrabold text-sm">
-              <BrandMark />
-              <span className="text-primary font-extrabold">Job Search</span>
-            </SheetTitle>
-          </SheetHeader>
-          <nav aria-label="Mobile navigation" className="flex-1 overflow-y-auto p-2 space-y-0.5">
-            {NAV_ITEMS.map(item => (
-              <NavRow
-                key={item.id}
-                item={item}
-                aiOpen={mobileAiOpen}
-                collapsed={false}
-                onToggleAI={() => setMobileAiOpen(o => !o)}
-                onExpand={() => setMobileAiOpen(true)}
-                {...navProps}
-              />
-            ))}
-          </nav>
-          <div className="border-t p-2 flex items-center justify-center gap-1 shrink-0">
-            {mounted && <ThemeToggle className="h-9 w-9" />}
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setHistoryOpen(true)} title="Generation History">
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <Drawer open={mobileNavOpen} onOpenChange={setMobileNavOpen} placement="left">
+        <DrawerHeader
+          title={<span className="flex items-center gap-2 font-extrabold text-sm"><BrandMark /><span className="text-primary font-extrabold">Job Search</span></span>}
+          onClose={() => setMobileNavOpen(false)}
+        />
+        <nav aria-label="Mobile navigation" className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {NAV_ITEMS.map(item => (
+            <NavRow
+              key={item.id}
+              item={item}
+              aiOpen={mobileAiOpen}
+              collapsed={false}
+              onToggleAI={() => setMobileAiOpen(o => !o)}
+              onExpand={() => setMobileAiOpen(true)}
+              {...navProps}
+            />
+          ))}
+        </nav>
+        <div className="border-t p-2 flex items-center justify-center gap-1 shrink-0">
+          {mounted && <ThemeToggle className="h-9 w-9" />}
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setHistoryOpen(true)} title="Generation History">
+            <List className="w-4 h-4" />
+          </Button>
+        </div>
+      </Drawer>
 
       <GenerationHistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} />
     </div>

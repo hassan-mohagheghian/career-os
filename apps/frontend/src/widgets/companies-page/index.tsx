@@ -28,6 +28,7 @@ function CompaniesPageAdapter() {
     query, setQuery,
     sort, order, handleHeaderSort,
     filterIndustry, setFilterIndustry,
+    filterStatus, setFilterStatus,
     filterPinned, setFilterPinned,
     activeFilterCount, clearFilters,
     deleteMutation, reprocessMutation, setMainMutation, pinnedMutation,
@@ -133,6 +134,8 @@ function CompaniesPageAdapter() {
         order={order}
         filterIndustry={filterIndustry}
         onFilterIndustryChange={setFilterIndustry}
+        filterStatus={filterStatus}
+        onFilterStatusChange={setFilterStatus}
         filterPinned={filterPinned}
         onFilterPinnedChange={setFilterPinned}
         activeFilterCount={activeFilterCount}

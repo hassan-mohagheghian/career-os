@@ -22,6 +22,7 @@ export function useCompaniesInfiniteQuery() {
   })
   const { sort, order } = sortState
   const [filterIndustry, setFilterIndustry] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const [filterPinned, setFilterPinned] = useState(false)
 
   const filterKey = useMemo(
@@ -30,9 +31,10 @@ export function useCompaniesInfiniteQuery() {
       sort,
       order,
       industry: filterIndustry || undefined,
+      status: filterStatus || undefined,
       pinned: filterPinned || undefined,
     }),
-    [query, sort, order, filterIndustry, filterPinned]
+    [query, sort, order, filterIndustry, filterStatus, filterPinned]
   )
 
   const {
@@ -53,6 +55,7 @@ export function useCompaniesInfiniteQuery() {
         cursor: pageParam as string | undefined,
         query: filterKey.query || undefined,
         industry: filterKey.industry,
+        status: filterKey.status,
         pinned: filterKey.pinned,
         sort: filterKey.sort,
         order: filterKey.order as 'asc' | 'desc',
@@ -65,11 +68,12 @@ export function useCompaniesInfiniteQuery() {
   const total = data?.pages[0]?.total_items ?? 0
   const loadedCount = items.length
 
-  const activeFilterCount = [query, filterIndustry, filterPinned].filter(Boolean).length
+  const activeFilterCount = [query, filterIndustry, filterStatus, filterPinned].filter(Boolean).length
 
   const clearFilters = useCallback(() => {
     setQuery('')
     setFilterIndustry('')
+    setFilterStatus('')
     setFilterPinned(false)
   }, [])
 
@@ -158,6 +162,8 @@ export function useCompaniesInfiniteQuery() {
     handleHeaderSort,
     filterIndustry,
     setFilterIndustry: useCallback((v: string) => setFilterIndustry(v), []),
+    filterStatus,
+    setFilterStatus: useCallback((v: string) => setFilterStatus(v), []),
     filterPinned,
     setFilterPinned: useCallback((v: boolean) => setFilterPinned(v), []),
     activeFilterCount,

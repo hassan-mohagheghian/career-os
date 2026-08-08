@@ -6,7 +6,7 @@ The app shell provides the top-level navigation via a **left sidebar** rail.
 On desktop (`lg+`) a fixed rail holds the brand, the primary nav items, and a
 bottom action cluster (theme toggle, Generation History, collapse toggle). On
 mobile (`<lg`) the rail is hidden; a slim top bar with a hamburger opens the
-same content as a left `Sheet` drawer.
+same content as a left Drawer (vaul, default `lg` width).
 
 ---
 
@@ -64,7 +64,7 @@ AI submenu (expanded rail):
 │   └ LLM Configurations   │                                         │
 └──────────────────────────┴─────────────────────────────────────────┘
 
-Hamburger (☰) opens left Sheet (w-72):
+Hamburger (☰) opens left Drawer (default `lg`):
 ┌────────────────┐
 │ ◪ Job Search   │
 ├────────────────┤
@@ -87,7 +87,7 @@ Hamburger (☰) opens left Sheet (w-72):
 flowchart TD
     A[App Shell] --> B[Desktop rail lg+]
     A --> C[Mobile top bar <lg]
-    C -->|hamburger| D[Left Sheet drawer]
+    C -->|hamburger| D[Left Drawer]
     B --> E[Brand → /jobs]
     B --> F[Jobs → /jobs]
     B --> G[Companies → /companies]
@@ -153,18 +153,18 @@ collapse state persists across reloads.
 ## Mobile
 
 The rail is hidden below `lg`; a hamburger in the slim top bar opens a left
-sheet with the same items and the `AI` submenu expanded inline. Selecting any
-item navigates and closes the sheet.
+Drawer with the same items and the `AI` submenu expanded inline. Selecting any
+item navigates and closes the Drawer.
 
 ---
 
 # Behavior Rules
 
 - `go(id, childId?)` → `router.push(childId ? /{id}/{childId} : /{id})`; on
-  mobile it also closes the sheet.
+  mobile it also closes the Drawer.
 - The desktop rail is `hidden lg:flex`; the top bar is `lg:hidden`.
 - Rail widths: `w-60` expanded, `w-[68px]` collapsed (transition-all 150ms).
-- The rail and sheet share the same `NAV_ITEMS` data and `NavRow` rendering.
+- The rail and Drawer share the same `NAV_ITEMS` data and `NavRow` rendering.
 - Page content sits in a `flex` column beside the rail; there is **no** fixed
   header offset (`pt-16` is gone). Page widgets fill `h-full`.
 - `GenerationHistoryDrawer` is dynamically imported (`ssr: false`).

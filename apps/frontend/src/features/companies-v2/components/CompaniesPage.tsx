@@ -32,6 +32,8 @@ interface CompaniesPageProps {
   order: 'asc' | 'desc'
   filterIndustry: string
   onFilterIndustryChange: (value: string) => void
+  filterStatus: string
+  onFilterStatusChange: (value: string) => void
   filterPinned: boolean
   onFilterPinnedChange: (value: boolean) => void
   activeFilterCount: number
@@ -66,6 +68,7 @@ export function CompaniesPage({
   query, onQueryChange,
   sort, onSortChange, order,
   filterIndustry, onFilterIndustryChange,
+  filterStatus, onFilterStatusChange,
   filterPinned, onFilterPinnedChange,
   activeFilterCount, onClearFilters,
   onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned,
@@ -134,6 +137,8 @@ export function CompaniesPage({
         onQueryChange={onQueryChange}
         filterIndustry={filterIndustry}
         onFilterIndustryChange={onFilterIndustryChange}
+        filterStatus={filterStatus}
+        onFilterStatusChange={onFilterStatusChange}
         filterPinned={filterPinned}
         onFilterPinnedChange={onFilterPinnedChange}
         items={items}

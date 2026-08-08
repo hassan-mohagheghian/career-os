@@ -10,6 +10,7 @@ Users can:
 - Browse processed companies
 - Search companies
 - Filter companies by industry
+- Filter companies by processing status
 - Pin companies for attention
 - Sort companies
 - View company details (intelligence, scores, notes, jobs)
@@ -20,7 +21,7 @@ Users can:
 - Open the shared Processing Drawer (filtered to companies)
 
 The Companies page mirrors the Jobs v2 page UX: virtualized table, server-side
-pagination, infinite scroll, and Sheet-based drawers.
+pagination, infinite scroll, and vaul-based drawers (shared `Drawer`).
 
 ---
 
@@ -62,7 +63,7 @@ Companies Page
 ┌───────────────────────────────────────────────────────────────────────────────────────────────┐
 │ ⛭ Companies (128)                    Loaded 25 of 128          Queue (3)   ↻  + Add Company │
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................                            [Industry ▾] [Pinned] [Columns] [Clear]│
+│ Search .........................        [Industry ▾] [Status ▾] [Pinned] [Columns] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                               │
 │ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
@@ -121,6 +122,7 @@ Responsibilities
 
 - Search companies.
 - Filter companies by industry.
+- Filter companies by processing status.
 - Filter companies by pinned state.
 - Toggle the Pin column.
 - Clear active filters.
@@ -131,6 +133,7 @@ Controls
 | -------- | ---------------------------------------------- |
 | Search   | Search by name, industry, city or description. |
 | Industry | Filter by exact industry.                      |
+| Status   | Filter by exact processing status.             |
 | Pinned   | Toggle pinned-only view.                       |
 | Columns  | Show / hide the Row number and Pin columns.    |
 | Clear    | Clears all active filters.                     |
@@ -156,6 +159,7 @@ The Company List preserves:
 
 - Search
 - Industry filter
+- Status filter
 - Sorting
 - Scroll position
 
@@ -392,7 +396,7 @@ drawer.
 
 # Company Detail Drawer
 
-Selecting a row opens the Company Detail drawer (Sheet from the right).
+Selecting a row opens the Company Detail drawer (shared `Drawer` from the right).
 
 The drawer shows a single scrollable page (no tabs), mirroring the Job Detail
 drawer:
@@ -416,7 +420,7 @@ separate `/links`, `/jobs` or local-history calls are made.
 
 # Company Edit Drawer
 
-The Edit drawer (Sheet) edits core company fields plus notes and links:
+The Edit drawer (shared `Drawer`) edits core company fields plus notes and links:
 
 - Name (required)
 - Industry
@@ -433,7 +437,7 @@ queries.
 
 # Add Company Drawer
 
-The Add Company drawer (Sheet) collects:
+The Add Company drawer (shared `Drawer`) collects:
 
 - Free-text notes (company name, description, observations)
 - Links (LinkedIn, Website, Careers, GitHub, custom)
@@ -489,6 +493,31 @@ pinned Pinned only
 When active it counts as an active filter and is cleared by the toolbar's Clear
 action alongside the others. Pinning or unpinning a company while the filter is
 active refetches the list so rows update immediately.
+
+---
+
+# Status Filter
+
+A dropdown in the toolbar restricts the list to companies whose processing
+status matches exactly (server-side filter on `GET /api/companies/list?status=`).
+
+```text
+Status ▾
+├── All
+├── Created
+├── Pending
+├── Queued
+├── Processing
+├── Running
+├── Completed
+├── Processed
+├── Failed
+└── Cancelled
+```
+
+The company status mirrors the shared `JobStatus` vocabulary. When active it
+counts as an active filter and is cleared by the toolbar's Clear action
+alongside the others.
 
 ---
 

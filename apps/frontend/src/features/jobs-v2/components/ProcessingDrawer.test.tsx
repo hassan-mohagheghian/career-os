@@ -7,11 +7,10 @@ import { processingApi } from '@/entities/processing/api'
 import { subscribeProcessingEvents } from '@/shared/api/processingEvents'
 import type { SSEEventEnvelope, WorkflowProgress } from '@/entities/processing/types'
 
-vi.mock('@/shared/ui/sheet', () => ({
-  Sheet: ({ children }: any) => <div>{children}</div>,
-  SheetContent: ({ children }: any) => <div>{children}</div>,
-  SheetHeader: ({ children }: any) => <div>{children}</div>,
-  SheetTitle: ({ children }: any) => <div>{children}</div>,
+vi.mock('@/shared/components/Drawer', () => ({
+  Drawer: ({ open, children }: any) => (open ? <div>{children}</div> : null),
+  DrawerHeader: ({ title, children }: any) => <div>{title}{children}</div>,
+  DrawerContent: ({ children }: any) => <div>{children}</div>,
 }))
 vi.mock('@/shared/ui/scroll-area', () => ({
   ScrollArea: ({ children }: any) => <div>{children}</div>,

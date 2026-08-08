@@ -21,6 +21,7 @@ export const companyApi = {
     if (query.cursor) params.set('cursor', query.cursor)
     if (query.query) params.set('query', query.query)
     if (query.industry) params.set('industry', query.industry)
+    if (query.status) params.set('status', query.status)
     if (query.pinned !== undefined) params.set('pinned', String(query.pinned))
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
