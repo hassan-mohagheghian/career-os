@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
-const interHeading = Inter({subsets:['latin'],variable:'--font-heading'});
+const merriweatherHeading = Merriweather({subsets:['latin'],variable:'--font-heading'});
 
 const jetbrainsMono = JetBrains_Mono({subsets:['latin'],variable:'--font-mono'});
 
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn( jetbrainsMono.variable, interHeading.variable, "font-sans", inter.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn( inter.variable, "font-mono", jetbrainsMono.variable, merriweatherHeading.variable)}>
       <body>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
