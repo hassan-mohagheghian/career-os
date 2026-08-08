@@ -9,16 +9,18 @@ import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { skillApi } from '@/entities/skill/api'
 
 interface MergeSkillDialogProps {
-  skill: { id: number; name: string } | null
+  sources: { id: number; name: string }[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onMerge: (targetId: number) => void
   pending: boolean
 }
 
-export function MergeSkillDialog({ skill, open, onOpenChange, onMerge, pending }: MergeSkillDialogProps) {
+export function MergeSkillDialog({ sources, open, onOpenChange, onMerge, pending }: MergeSkillDialogProps) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+
+  const sourceIds = sources.map((s) => s.id)
 
   const { data, isLoading } = useQuery({
     queryKey: ['skills-merge-picker', query],
@@ -26,14 +28,19 @@ export function MergeSkillDialog({ skill, open, onOpenChange, onMerge, pending }
     enabled: open,
   })
 
-  const candidates = (data?.items ?? []).filter((c) => c.id !== skill?.id)
+  const candidates = (data?.items ?? []).filter((c) => !sourceIds.includes(c.id))
 
   const handleMerge = () => {
-    if (!skill || !selectedId) return
+    if (sources.length === 0 || !selectedId) return
     onMerge(selectedId)
     setSelectedId(null)
     onOpenChange(false)
   }
+
+  const sourceLabel =
+    sources.length === 1
+      ? sources[0]?.name ?? 'this skill'
+      : `${sources.length} skills`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,11 +48,15 @@ export function MergeSkillDialog({ skill, open, onOpenChange, onMerge, pending }
         <DialogHeader className="space-y-1.5">
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="w-5 h-5 text-primary" />
-            Merge Skill
+            Merge Skill{sources.length !== 1 ? 's' : ''}
           </DialogTitle>
           <DialogDescription>
-            Merge <span className="font-semibold text-foreground">{skill?.name || 'this skill'}</span> into another skill.
-            Mentions are re-pointed; the skill becomes an alias of the target.
+            Merge <span className="font-semibold text-foreground">{sourceLabel}</span>
+            {sources.length > 1 && (
+              <span className="text-muted-foreground"> ({sources.map((s) => s.name).join(', ')})</span>
+            )}{' '}
+            into another skill. Mentions are re-pointed; the skill
+            {sources.length !== 1 ? 's become' : ' becomes'} aliases of the target.
           </DialogDescription>
         </DialogHeader>
 
@@ -92,7 +103,7 @@ export function MergeSkillDialog({ skill, open, onOpenChange, onMerge, pending }
         <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleMerge} disabled={!selectedId || pending} className="gap-1">
-            <GitMerge className="w-3.5 h-3.5" /> Merge into selected
+            <GitMerge className="w-3.5 h-3.5" /> Merge {sources.length > 1 ? `${sources.length} into selected` : 'into selected'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,12 +1,37 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { skillApi } from './api'
 import type { InfiniteSkillSearchResult, SkillCreateInput, SkillUpdateInput, SkillListItem } from './types'
 
 const PAGE_SIZE = 25
 const SKILLS_KEY = 'skills-v2-infinite'
+const CATEGORIES_KEY = 'skills-categories'
+
+export function useSkillCategories() {
+  const queryClient = useQueryClient()
+
+  const query = useQuery({
+    queryKey: [CATEGORIES_KEY],
+    queryFn: () => skillApi.getCategories(),
+    staleTime: 30_000,
+  })
+
+  const categories = useMemo(() => query.data ?? [], [query.data])
+
+  const createMutation = useMutation({
+    mutationFn: (name: string) => skillApi.createCategory(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CATEGORIES_KEY] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (name: string) => skillApi.deleteCategory(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CATEGORIES_KEY] }),
+  })
+
+  return { categories, isLoading: query.isLoading, createMutation, deleteMutation }
+}
 
 export function useSkillsInfiniteQuery() {
   const queryClient = useQueryClient()
@@ -16,7 +41,7 @@ export function useSkillsInfiniteQuery() {
     order: 'desc',
   })
   const { sort, order } = sortState
-  const [filterCategory, setFilterCategory] = useState('')
+  const [filterCategories, setFilterCategories] = useState<string[]>([])
   const [filterPinned, setFilterPinned] = useState(false)
 
   const filterKey = useMemo(
@@ -24,10 +49,10 @@ export function useSkillsInfiniteQuery() {
       query,
       sort,
       order,
-      category: filterCategory || undefined,
+      categories: filterCategories.length > 0 ? [...filterCategories].sort() : undefined,
       pinned: filterPinned || undefined,
     }),
-    [query, sort, order, filterCategory, filterPinned]
+    [query, sort, order, filterCategories, filterPinned]
   )
 
   const {
@@ -47,7 +72,7 @@ export function useSkillsInfiniteQuery() {
         page_size: PAGE_SIZE,
         cursor: pageParam as string | undefined,
         query: filterKey.query || undefined,
-        category: filterKey.category,
+        categories: filterKey.categories,
         pinned: filterKey.pinned,
         sort: filterKey.sort,
         order: filterKey.order as 'asc' | 'desc',
@@ -60,11 +85,11 @@ export function useSkillsInfiniteQuery() {
   const total = data?.pages[0]?.total_items ?? 0
   const loadedCount = items.length
 
-  const activeFilterCount = [query, filterCategory, filterPinned ? 'pinned' : ''].filter(Boolean).length
+  const activeFilterCount = [query, filterCategories.length > 0 ? filterCategories.length : '', filterPinned ? 'pinned' : ''].filter(Boolean).length
 
   const clearFilters = useCallback(() => {
     setQuery('')
-    setFilterCategory('')
+    setFilterCategories([])
     setFilterPinned(false)
   }, [])
 
@@ -138,8 +163,8 @@ export function useSkillsInfiniteQuery() {
     sort,
     order,
     handleHeaderSort,
-    filterCategory,
-    setFilterCategory: useCallback((v: string) => setFilterCategory(v), []),
+    filterCategories,
+    setFilterCategories: useCallback((v: string[]) => setFilterCategories(v), []),
     filterPinned,
     setFilterPinned: useCallback((v: boolean) => setFilterPinned(v), []),
     activeFilterCount,
@@ -181,4 +206,14 @@ export function useCreateSkill() {
   const clearError = () => setError(null)
 
   return { createSkill, submitting, error, clearError }
+}
+
+export function useMergeSkills() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ targetId, sourceIds }: { targetId: number; sourceIds: number[] }) =>
+      skillApi.merge(targetId, sourceIds),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
 }

@@ -1,6 +1,7 @@
 import { api } from '@/shared/api'
 import type {
   Skill,
+  SkillCategoryInfo,
   SkillCreateInput,
   SkillListItem,
   SkillSearchQuery,
@@ -15,6 +16,9 @@ export const skillApi = {
     if (query.cursor) params.set('cursor', query.cursor)
     if (query.query) params.set('query', query.query)
     if (query.category) params.set('category', query.category)
+    if (query.categories && query.categories.length > 0) {
+      query.categories.forEach((c) => params.append('categories', c))
+    }
     if (query.pinned) params.set('pinned', 'true')
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
@@ -30,4 +34,7 @@ export const skillApi = {
   addAlias: (id: number | string, aliasName: string) => api.post<SkillListItem>(`/skills/${id}/aliases`, { alias_name: aliasName }),
   removeAlias: (id: number | string, aliasName: string) => api.delete<SkillListItem>(`/skills/${id}/aliases/${encodeURIComponent(aliasName)}`),
   merge: (targetId: number, sourceIds: number[]) => api.post<{ status: string; target: SkillListItem; merged: string[]; aliases: string[] }>('/skills/merge', { target_id: targetId, source_ids: sourceIds }),
+  getCategories: () => api.get<SkillCategoryInfo[]>('/skills/categories'),
+  createCategory: (name: string) => api.post<{ id: number; name: string; created: boolean }>('/skills/categories', { name }),
+  deleteCategory: (name: string) => api.delete<{ status: string; name: string }>(`/skills/categories/${encodeURIComponent(name)}`),
 }

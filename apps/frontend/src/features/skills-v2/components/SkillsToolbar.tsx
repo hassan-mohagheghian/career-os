@@ -2,36 +2,49 @@
 
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import { SKILL_CATEGORIES } from '@/entities/skill/types'
-import { MagnifyingGlass, FunnelSimple, PushPin } from '@phosphor-icons/react'
+import { MagnifyingGlass, FunnelSimple, PushPin, GitMerge, X } from '@phosphor-icons/react'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
 import { cn } from '@/shared/lib/utils'
+import { CategoryMultiSelect } from './CategoryMultiSelect'
 
 interface SkillsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
-  filterCategory: string
-  onFilterCategoryChange: (value: string) => void
+  filterCategories: string[]
+  onFilterCategoriesChange: (value: string[]) => void
+  categoryOptions: string[]
   filterPinned?: boolean
   onFilterPinnedChange?: (value: boolean) => void
   activeFilterCount: number
   onClearFilters: () => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
+  showSelectColumn?: boolean
+  onToggleSelectColumn?: (value: boolean) => void
+  selectedCount?: number
+  onMergeSelected?: () => void
+  onClearSelection?: () => void
+  mergePending?: boolean
 }
 
 export function SkillsToolbar({
   query,
   onQueryChange,
-  filterCategory,
-  onFilterCategoryChange,
+  filterCategories,
+  onFilterCategoriesChange,
+  categoryOptions,
   filterPinned = false,
   onFilterPinnedChange,
   activeFilterCount,
   onClearFilters,
   showPinnedColumn = true,
   onTogglePinnedColumn,
+  showSelectColumn = false,
+  onToggleSelectColumn,
+  selectedCount = 0,
+  onMergeSelected,
+  onClearSelection,
+  mergePending = false,
 }: SkillsToolbarProps) {
   return (
     <div className="px-3 py-2 border-b border-border/40">
@@ -51,18 +64,14 @@ export function SkillsToolbar({
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <Select value={filterCategory} onValueChange={onFilterCategoryChange}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <FunnelSimple className="w-3 h-3" />
-              <span>{filterCategory || 'Category'}</span>
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectItem value="">All</SelectItem>
-              {SKILL_CATEGORIES.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CategoryMultiSelect
+            value={filterCategories}
+            onChange={onFilterCategoriesChange}
+            options={categoryOptions}
+            placeholder="Category"
+            icon={<FunnelSimple className="w-3 h-3" />}
+            align="end"
+          />
           {onFilterPinnedChange && (
             <Button
               variant="ghost"
@@ -77,10 +86,16 @@ export function SkillsToolbar({
               Pinned
             </Button>
           )}
-          {onTogglePinnedColumn && (
+          {(onToggleSelectColumn || onTogglePinnedColumn) && (
             <ColumnsDropdown
-              options={[{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }]}
-              onToggle={(key, checked) => onTogglePinnedColumn(checked)}
+              options={[
+                ...(onToggleSelectColumn ? [{ key: 'select', label: 'Select', checked: showSelectColumn }] : []),
+                ...(onTogglePinnedColumn ? [{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }] : []),
+              ]}
+              onToggle={(key, checked) => {
+                if (key === 'pinned') onTogglePinnedColumn?.(checked)
+                else onToggleSelectColumn?.(checked)
+              }}
             />
           )}
           {activeFilterCount > 0 && (
@@ -90,6 +105,21 @@ export function SkillsToolbar({
           )}
         </div>
       </div>
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-2xs text-muted-foreground">
+            {selectedCount} selected
+          </span>
+          <Button variant="default" size="sm" className="h-7 text-2xs gap-1" onClick={onMergeSelected} disabled={mergePending}>
+            <GitMerge className="w-3 h-3" />
+            Merge {selectedCount} into...
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 text-2xs gap-1" onClick={onClearSelection}>
+            <X className="w-3 h-3" />
+            Clear
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,7 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import type { SkillListItem } from '@/entities/skill/types'
-import { CategoryBadge, OriginBadge } from './SkillRow'
+import { CategoryBadges, OriginBadge } from './SkillRow'
 
 interface SkillDetailDrawerProps {
   skillId: number | null
@@ -40,7 +40,6 @@ export function SkillDetailDrawer({
           <SheetTitle className="text-sm font-semibold flex items-center gap-1.5">
             <Code className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="truncate">{skill.name}</span>
-            <CategoryBadge category={skill.category} />
             <OriginBadge sourceType={skill.source_type} />
           </SheetTitle>
           {onEdit && skillId != null && (
@@ -85,6 +84,13 @@ export function SkillDetailDrawer({
                 </div>
               )}
             </div>
+
+            {(skill.categories?.length > 0 || skill.category) && (
+              <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+                <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Categories</p>
+                <CategoryBadges categories={skill.categories} fallback={skill.category} />
+              </div>
+            )}
 
             {skill.roles && (
               <div className="rounded-lg border border-border/40 bg-muted/10 p-3">

@@ -8,12 +8,13 @@ import { Textarea } from '@/shared/ui/textarea'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
 import { Plus, Warning, CircleNotch, TagSimple } from '@phosphor-icons/react'
-import { SKILL_CATEGORIES } from '@/entities/skill/types'
+import { useSkillCategories } from '@/entities/skill/hooks'
+import { CategoryMultiSelect } from './CategoryMultiSelect'
 
 interface AddSkillDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: { name: string; level: number; roles: string; path: string; category: string }) => void
+  onSubmit: (data: { name: string; level: number; roles: string; path: string; category: string; categories: string[] }) => void
   submitting?: boolean
   error?: string | null
 }
@@ -48,9 +49,10 @@ export default function AddSkillDrawer({
 }: AddSkillDrawerProps) {
   const [name, setName] = useState('')
   const [level, setLevel] = useState(1)
-  const [category, setCategory] = useState('')
+  const [categories, setCategories] = useState<string[]>([])
   const [roles, setRoles] = useState('')
   const [path, setPath] = useState('')
+  const { categories: categoryOptions, createMutation } = useSkillCategories()
 
   const canSubmit = name.trim().length > 0
 
@@ -59,7 +61,7 @@ export default function AddSkillDrawer({
     if (!next) {
       setName('')
       setLevel(1)
-      setCategory('')
+      setCategories([])
       setRoles('')
       setPath('')
     }
@@ -72,8 +74,14 @@ export default function AddSkillDrawer({
       level,
       roles: roles.trim(),
       path: path.trim(),
-      category,
+      category: categories[0] ?? '',
+      categories,
     })
+  }
+
+  const handleAddCategory = async (name: string) => {
+    await createMutation.mutateAsync(name)
+    return { name }
   }
 
   return (
@@ -101,17 +109,14 @@ export default function AddSkillDrawer({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Category">
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <span className="truncate">{category || 'Select'}</span>
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {SKILL_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field label="Categories">
+                  <CategoryMultiSelect
+                    value={categories}
+                    onChange={setCategories}
+                    options={categoryOptions.map((c) => c.category)}
+                    onCreate={handleAddCategory}
+                    size="md"
+                  />
                 </Field>
               </div>
               <Field label="Relevant Roles">

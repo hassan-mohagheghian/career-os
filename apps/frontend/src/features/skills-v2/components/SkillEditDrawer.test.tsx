@@ -13,6 +13,8 @@ vi.mock('@/entities/skill/api', () => ({
     removeAlias: vi.fn(),
     merge: vi.fn(),
     listInfinite: vi.fn(),
+    getCategories: vi.fn(),
+    createCategory: vi.fn(),
   },
 }))
 
@@ -35,6 +37,7 @@ describe('SkillEditDrawer', () => {
     roles: 'DevOps',
     path: '',
     category: 'engineering',
+    categories: ['engineering'],
     confidence: 0.85,
     market_relevance: 0.9,
     evidence: null,
@@ -50,6 +53,11 @@ describe('SkillEditDrawer', () => {
     vi.mocked(skillApi.addAlias).mockResolvedValue({ ...base, aliases: ['K8s'] } as never)
     vi.mocked(skillApi.removeAlias).mockResolvedValue({ ...base, aliases: [] } as never)
     vi.mocked(skillApi.merge).mockResolvedValue({ status: 'merged' } as never)
+    vi.mocked(skillApi.getCategories).mockResolvedValue([
+      { category: 'technical', count: 10, avg_demand: 0.5, avg_level: 3 },
+      { category: 'engineering', count: 8, avg_demand: 0.4, avg_level: 2 },
+    ] as never)
+    vi.mocked(skillApi.createCategory).mockResolvedValue({ id: 9, name: 'data', created: true } as never)
   })
 
   it('prefills the form from the loaded skill', async () => {
@@ -59,6 +67,33 @@ describe('SkillEditDrawer', () => {
     })
     expect(screen.getByDisplayValue('DevOps')).toBeInTheDocument()
     expect(screen.getByDisplayValue('containers, k8s')).toBeInTheDocument()
+  })
+
+  it('shows the loaded category badge in the categories control', async () => {
+    renderDrawer(1)
+    await waitFor(() => {
+      expect(screen.getByText('engineering')).toBeInTheDocument()
+    })
+  })
+
+  it('saves the multi-category set via PUT', async () => {
+    const onOpenChange = vi.fn()
+    renderDrawer(1, onOpenChange)
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Kubernetes')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByLabelText('Filter by category'))
+    fireEvent.click(screen.getByText('technical'))
+    fireEvent.click(screen.getByText('Save'))
+
+    await waitFor(() => {
+      expect(skillApi.update).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ categories: ['engineering', 'technical'] })
+      )
+    })
+    expect(onOpenChange).toHaveBeenCalledWith(null)
   })
 
   it('saves the updated skill via PUT and closes', async () => {

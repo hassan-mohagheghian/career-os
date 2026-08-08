@@ -11,14 +11,14 @@ vi.mock('@/entities/skill/api', () => ({
   },
 }))
 
-function renderDialog(open: boolean) {
+function renderDialog(open: boolean, sources: { id: number; name: string }[] = [{ id: 1, name: 'ReactJS' }]) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={qc}>
       <MergeSkillDialog
-        skill={{ id: 1, name: 'ReactJS' }}
+        sources={sources}
         open={open}
         onOpenChange={vi.fn()}
         onMerge={vi.fn()}
@@ -29,7 +29,7 @@ function renderDialog(open: boolean) {
 }
 
 describe('MergeSkillDialog', () => {
-  it('lists candidate skills and excludes the source skill', async () => {
+  it('lists candidate skills and excludes all source skills', async () => {
     vi.mocked(skillApi.listInfinite).mockResolvedValue({
       items: [
         { id: 1, name: 'ReactJS', mention_count: 0 },
@@ -50,6 +50,31 @@ describe('MergeSkillDialog', () => {
     expect(screen.getByText('3 mentions')).toBeInTheDocument()
   })
 
+  it('excludes every source when merging multiple skills', async () => {
+    vi.mocked(skillApi.listInfinite).mockResolvedValue({
+      items: [
+        { id: 1, name: 'ReactJS', mention_count: 0 },
+        { id: 2, name: 'React Native', mention_count: 0 },
+        { id: 3, name: 'React', mention_count: 3 },
+      ],
+      next_cursor: null,
+      has_more: false,
+      total_items: 3,
+    } as never)
+
+    renderDialog(true, [
+      { id: 1, name: 'ReactJS' },
+      { id: 2, name: 'React Native' },
+    ])
+
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeInTheDocument()
+    })
+    const candidateRows = screen.getAllByRole('button').filter((b) => b.textContent?.includes('React'))
+    expect(candidateRows).toHaveLength(1)
+    expect(screen.getByText(/Merge 2 into selected/)).toBeInTheDocument()
+  })
+
   it('calls onMerge with the selected target', async () => {
     const onMerge = vi.fn()
     vi.mocked(skillApi.listInfinite).mockResolvedValue({
@@ -63,7 +88,7 @@ describe('MergeSkillDialog', () => {
     render(
       <QueryClientProvider client={qc}>
         <MergeSkillDialog
-          skill={{ id: 1, name: 'ReactJS' }}
+          sources={[{ id: 1, name: 'ReactJS' }]}
           open={true}
           onOpenChange={vi.fn()}
           onMerge={onMerge}
@@ -76,7 +101,7 @@ describe('MergeSkillDialog', () => {
       expect(screen.getByText('React')).toBeInTheDocument()
     })
     fireEvent.click(screen.getByText('React'))
-    fireEvent.click(screen.getByText('Merge into selected'))
+    fireEvent.click(screen.getByText(/Merge into selected/))
 
     await waitFor(() => {
       expect(onMerge).toHaveBeenCalledWith(2)

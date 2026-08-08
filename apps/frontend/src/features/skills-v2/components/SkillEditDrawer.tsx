@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/se
 import { Badge } from '@/shared/ui/badge'
 import { PencilSimple, Warning, Check, TagSimple, CircleNotch, Plus, X, GitMerge } from '@phosphor-icons/react'
 import { skillApi } from '@/entities/skill/api'
-import { SKILL_CATEGORIES } from '@/entities/skill/types'
+import { useMergeSkills, useSkillCategories } from '@/entities/skill/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { MergeSkillDialog } from './MergeSkillDialog'
+import { CategoryMultiSelect } from './CategoryMultiSelect'
 
 const SKILLS_KEY = 'skills-v2-infinite'
 
@@ -46,13 +47,15 @@ function Field({
 
 export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps) {
   const queryClient = useQueryClient()
+  const mergeMutation = useMergeSkills()
+  const { categories, createMutation } = useSkillCategories()
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
   const [level, setLevel] = useState(1)
-  const [category, setCategory] = useState('')
+  const [categoriesState, setCategoriesState] = useState<string[]>([])
   const [roles, setRoles] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [aliases, setAliases] = useState<string[]>([])
@@ -73,7 +76,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
         if (!active) return
         setName(d.name ?? '')
         setLevel(d.level ?? 1)
-        setCategory(d.category ?? '')
+        setCategoriesState(d.categories ?? (d.category ? [d.category] : []))
         setRoles(d.roles ?? '')
         setTagsInput((d.tags ?? []).join(', '))
         setAliases(d.aliases ?? [])
@@ -96,7 +99,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
     const payload = {
       name: name.trim(),
       level,
-      category,
+      categories: categoriesState,
       roles: roles.trim(),
       tags: tagsInput.split(',').map((t) => t.trim()).filter(Boolean),
     }
@@ -144,13 +147,17 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
     }
   }
 
+  const handleAddCategory = async (name: string) => {
+    await createMutation.mutateAsync(name)
+    return { name }
+  }
+
   const handleMerge = async (targetId: number) => {
     if (skillId == null) return
     setMergePending(true)
     setError(null)
     try {
-      await skillApi.merge(targetId, [skillId])
-      queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] })
+      await mergeMutation.mutateAsync({ targetId, sourceIds: [skillId] })
       onOpenChange(null)
     } catch {
       setError('Failed to merge skill.')
@@ -197,17 +204,14 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Category">
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <span className="truncate">{category || 'Select'}</span>
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      {SKILL_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Field label="Categories">
+                  <CategoryMultiSelect
+                    value={categoriesState}
+                    onChange={setCategoriesState}
+                    options={categories.map((c) => c.category)}
+                    onCreate={handleAddCategory}
+                    size="md"
+                  />
                 </Field>
               </div>
               <Field label="Relevant Roles">
@@ -285,7 +289,7 @@ export function SkillEditDrawer({ skillId, onOpenChange }: SkillEditDrawerProps)
         )}
       </SheetContent>
       <MergeSkillDialog
-        skill={skillId != null ? { id: skillId, name } : null}
+        sources={skillId != null ? [{ id: skillId, name }] : []}
         open={mergeOpen}
         onOpenChange={setMergeOpen}
         onMerge={handleMerge}

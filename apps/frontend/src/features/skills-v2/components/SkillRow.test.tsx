@@ -12,6 +12,7 @@ function makeSkill(overrides: Partial<SkillListItem> = {}): SkillListItem {
     roles: 'DevOps engineer, Platform engineer',
     path: '',
     category: 'engineering',
+    categories: ['engineering'],
     confidence: 0.85,
     market_relevance: 0.9,
     evidence: null,
@@ -44,6 +45,24 @@ describe('SkillRow', () => {
     expect(screen.getByText('engineering')).toBeInTheDocument()
     expect(screen.getByText('Lv.4')).toBeInTheDocument()
     expect(screen.getByText(/DevOps engineer/)).toBeInTheDocument()
+  })
+
+  it('renders every category badge for a multi-category skill', () => {
+    renderRow(makeSkill({ categories: ['technical', 'engineering', 'domain'] }))
+
+    expect(screen.getByText('technical')).toBeInTheDocument()
+    expect(screen.getByText('engineering')).toBeInTheDocument()
+    expect(screen.getByText('domain')).toBeInTheDocument()
+  })
+
+  it('falls back to the primary category when categories is empty', () => {
+    renderRow(makeSkill({ category: 'career', categories: [] }))
+    expect(screen.getByText('career')).toBeInTheDocument()
+  })
+
+  it('renders no category badges when neither category nor categories exist', () => {
+    renderRow(makeSkill({ category: '', categories: [] }))
+    expect(screen.queryByText('engineering')).not.toBeInTheDocument()
   })
 
   it('renders confidence and demand percentages', () => {
@@ -117,6 +136,36 @@ describe('SkillRow pinned column', () => {
     fireEvent.click(screen.getByLabelText('Pin skill for attention'))
 
     expect(onTogglePinned).toHaveBeenCalledWith(1, true)
+    expect(onViewDetails).not.toHaveBeenCalled()
+  })
+})
+
+describe('SkillRow select column', () => {
+  it('renders no checkbox when the select column is off', () => {
+    renderRow(makeSkill())
+    expect(screen.queryByLabelText('Select Kubernetes')).not.toBeInTheDocument()
+  })
+
+  it('renders an unchecked checkbox when the select column is shown', () => {
+    renderRow(makeSkill(), { showSelectColumn: true })
+    const checkbox = screen.getByLabelText('Select Kubernetes')
+    expect(checkbox).toBeInTheDocument()
+    expect(checkbox).not.toBeChecked()
+  })
+
+  it('renders a checked checkbox when selected', () => {
+    renderRow(makeSkill(), { showSelectColumn: true, selected: true })
+    expect(screen.getByLabelText('Select Kubernetes')).toBeChecked()
+  })
+
+  it('toggles selection and stops row navigation', () => {
+    const onToggleSelect = vi.fn()
+    const onViewDetails = vi.fn()
+    renderRow(makeSkill(), { showSelectColumn: true, onToggleSelect, onViewDetails })
+
+    fireEvent.click(screen.getByLabelText('Select Kubernetes'))
+
+    expect(onToggleSelect).toHaveBeenCalledWith(1)
     expect(onViewDetails).not.toHaveBeenCalled()
   })
 })

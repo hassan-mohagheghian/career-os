@@ -1,26 +1,33 @@
 import type { SkillListItem } from '@/entities/skill/types'
 import { cn } from '@/shared/lib/utils'
 import { Badge } from '@/shared/ui/badge'
+import { Checkbox } from '@/shared/ui/checkbox'
 import DateTime from '@/shared/components/DateTime'
-import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN } from './skillsColumns'
+import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN, SKILL_GRID_TEMPLATE_WITH_SELECT, SKILL_GRID_TEMPLATE_WITH_PIN_SELECT } from './skillsColumns'
 import { SkillActions } from './SkillActions'
 import { PinButton } from '@/shared/components/PinButton'
-
-export const CATEGORY_COLORS: Record<string, string> = {
-  technical: 'text-blue-500 bg-blue-500/10',
-  engineering: 'text-green-500 bg-green-500/10',
-  professional: 'text-purple-500 bg-purple-500/10',
-  domain: 'text-orange-500 bg-orange-500/10',
-  career: 'text-cyan-500 bg-cyan-500/10',
-}
+import { categoryColorClass } from '@/entities/skill/categoryColors'
 
 export function CategoryBadge({ category }: { category?: string }) {
   if (!category) return null
-  const colors = CATEGORY_COLORS[category.toLowerCase()] || 'text-muted-foreground bg-muted'
   return (
-    <Badge variant="outline" className={cn('text-2xs border-transparent', colors)}>
+    <Badge variant="outline" className={cn('text-2xs border-transparent', categoryColorClass(category))}>
       {category}
     </Badge>
+  )
+}
+
+export function CategoryBadges({ categories, fallback }: { categories?: string[]; fallback?: string }) {
+  const list = categories && categories.length > 0 ? categories.filter(Boolean) : (fallback ? [fallback] : [])
+  if (list.length === 0) return null
+  return (
+    <span className="flex flex-wrap gap-1 min-w-0">
+      {list.map((cat) => (
+        <Badge key={cat} variant="outline" className={cn('text-2xs border-transparent', categoryColorClass(cat))}>
+          {cat}
+        </Badge>
+      ))}
+    </span>
   )
 }
 
@@ -48,6 +55,9 @@ export function SkillRow({
   onDelete,
   showPinnedColumn = true,
   onTogglePinned,
+  showSelectColumn = false,
+  selected = false,
+  onToggleSelect,
 }: {
   skill: SkillListItem
   onViewDetails: (id: number) => void
@@ -55,6 +65,9 @@ export function SkillRow({
   onDelete: (id: number) => void
   showPinnedColumn?: boolean
   onTogglePinned?: (id: number, pinned: boolean) => void
+  showSelectColumn?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: number) => void
 }) {
   const confidence = skill.confidence != null ? Math.round(skill.confidence * 100) : null
   const demand = skill.market_relevance != null ? Math.round(skill.market_relevance * 100) : null
@@ -62,12 +75,29 @@ export function SkillRow({
   const confidenceColor = confidence == null ? 'text-muted-foreground' : confidence >= 80 ? 'text-green-500' : confidence >= 50 ? 'text-yellow-500' : 'text-orange-500'
   const demandColor = demand == null ? 'text-muted-foreground' : demand >= 80 ? 'text-green-500' : demand >= 50 ? 'text-yellow-500' : 'text-orange-500'
 
+  const gridTemplateColumns = showSelectColumn && showPinnedColumn
+    ? SKILL_GRID_TEMPLATE_WITH_PIN_SELECT
+    : showSelectColumn
+      ? SKILL_GRID_TEMPLATE_WITH_SELECT
+      : showPinnedColumn
+        ? SKILL_GRID_TEMPLATE_WITH_PIN
+        : SKILL_GRID_TEMPLATE
+
   return (
     <div
       className="grid border-b border-border/40 hover:bg-muted/30 cursor-pointer transition-colors items-center"
-      style={{ gridTemplateColumns: showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE }}
+      style={{ gridTemplateColumns }}
       onClick={() => onViewDetails(skill.id)}
     >
+      {showSelectColumn && (
+        <div className="py-2 px-2 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect?.(skill.id)}
+            aria-label={`Select ${skill.name}`}
+          />
+        </div>
+      )}
       {showPinnedColumn && (
         <div className="py-2 px-2 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
           <PinButton pinned={skill.pinned} onToggle={() => onTogglePinned?.(skill.id, !skill.pinned)} entityLabel="skill" />
@@ -85,7 +115,7 @@ export function SkillRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">
-        <CategoryBadge category={skill.category} />
+        <CategoryBadges categories={skill.categories} fallback={skill.category} />
       </div>
       <div className="py-2 px-3 flex items-center">
         <span className="text-xs font-semibold text-foreground">Lv.{skill.level}</span>

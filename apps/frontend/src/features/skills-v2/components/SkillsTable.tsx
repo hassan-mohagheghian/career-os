@@ -3,7 +3,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { SkillListItem } from '@/entities/skill/types'
 import { SkillRow } from './SkillRow'
 import { SortableHeader } from '@/features/jobs-v2/components/SortableHeader'
-import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN } from './skillsColumns'
+import { Checkbox } from '@/shared/ui/checkbox'
+import { SKILL_GRID_TEMPLATE, SKILL_GRID_TEMPLATE_WITH_PIN, SKILL_GRID_TEMPLATE_WITH_SELECT, SKILL_GRID_TEMPLATE_WITH_PIN_SELECT } from './skillsColumns'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -13,6 +14,7 @@ interface ColumnDef {
 }
 
 const PIN_COLUMN: ColumnDef = { label: 'Pin' }
+const SELECT_COLUMN: ColumnDef = { label: 'Select' }
 
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
@@ -41,6 +43,10 @@ interface SkillsTableProps {
   onDelete: (id: number) => void
   onTogglePinned?: (id: number, pinned: boolean) => void
   showPinnedColumn?: boolean
+  showSelectColumn?: boolean
+  selectedIds?: Set<number>
+  onToggleSelect?: (id: number) => void
+  onToggleSelectAll?: (selectAll: boolean) => void
   sort?: string
   order?: 'asc' | 'desc'
   onSortChange?: (field: string) => void
@@ -49,14 +55,35 @@ interface SkillsTableProps {
 export function SkillsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
   onViewDetails, onEdit, onDelete, onTogglePinned, showPinnedColumn = true,
+  showSelectColumn = false, selectedIds = new Set<number>(), onToggleSelect, onToggleSelectAll,
   sort = 'created_at', order = 'desc', onSortChange = () => {},
 }: SkillsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const rowCount = isLoading ? 8 : items.length
 
-  const visibleColumnDefs = showPinnedColumn ? [PIN_COLUMN, ...COLUMN_DEFS] : COLUMN_DEFS
-  const gridStyle = { gridTemplateColumns: showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE }
+  const visibleColumnDefs = [
+    ...(showSelectColumn ? [SELECT_COLUMN] : []),
+    ...(showPinnedColumn ? [PIN_COLUMN] : []),
+    ...COLUMN_DEFS,
+  ]
+  const gridStyle = {
+    gridTemplateColumns: showSelectColumn
+      ? showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN_SELECT : SKILL_GRID_TEMPLATE_WITH_SELECT
+      : showPinnedColumn ? SKILL_GRID_TEMPLATE_WITH_PIN : SKILL_GRID_TEMPLATE,
+  }
+
+  const selectedCount = items.filter((s) => selectedIds.has(s.id)).length
+  const allVisibleSelected = items.length > 0 && selectedCount === items.length
+  const indeterminate = selectedCount > 0 && !allVisibleSelected
+
+  const handleSelectAll = () => {
+    if (allVisibleSelected) {
+      onToggleSelectAll?.(false)
+    } else {
+      onToggleSelectAll?.(true)
+    }
+  }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -88,13 +115,21 @@ export function SkillsTable({
     <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
       {visibleColumnDefs.map((col, i) => (
         <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
-          <SortableHeader
-            label={col.label}
-            field={col.field}
-            sort={sort}
-            order={order}
-            onSortChange={onSortChange}
-          />
+          {col.label === 'Select' ? (
+            <Checkbox
+              checked={indeterminate ? 'indeterminate' : allVisibleSelected}
+              onCheckedChange={handleSelectAll}
+              aria-label="Select all skills"
+            />
+          ) : (
+            <SortableHeader
+              label={col.label}
+              field={col.field}
+              sort={sort}
+              order={order}
+              onSortChange={onSortChange}
+            />
+          )}
         </div>
       ))}
     </div>
@@ -170,6 +205,9 @@ export function SkillsTable({
                   onDelete={onDelete}
                   onTogglePinned={onTogglePinned}
                   showPinnedColumn={showPinnedColumn}
+                  showSelectColumn={showSelectColumn}
+                  selected={selectedIds.has(skill.id)}
+                  onToggleSelect={onToggleSelect}
                 />
               </div>
             )

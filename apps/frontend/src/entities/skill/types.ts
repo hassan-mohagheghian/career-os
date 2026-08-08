@@ -5,6 +5,7 @@ export interface SkillListItem {
   roles: string
   path: string
   category: string
+  categories: string[]
   confidence: number | null
   market_relevance: number | null
   evidence: string | null
@@ -23,6 +24,7 @@ export interface Skill {
   roles: string
   path: string
   category: string
+  categories: string[]
   confidence: number | null
   market_relevance: number | null
   evidence: string | null
@@ -40,6 +42,7 @@ export interface SkillSearchQuery {
   cursor?: string
   query?: string
   category?: string
+  categories?: string[]
   pinned?: boolean
   sort?: string
   order?: 'asc' | 'desc'
@@ -58,6 +61,7 @@ export interface SkillCreateInput {
   roles?: string
   path?: string
   category?: string
+  categories?: string[]
 }
 
 export interface SkillUpdateInput {
@@ -66,10 +70,18 @@ export interface SkillUpdateInput {
   roles?: string
   path?: string
   category?: string
+  categories?: string[]
   tags?: string[]
 }
 
 export type SkillSortField = 'created_at' | 'name' | 'level' | 'confidence' | 'market_relevance' | 'mention_count'
+
+export interface SkillCategoryInfo {
+  category: string
+  count: number
+  avg_demand: number | null
+  avg_level: number | null
+}
 
 export const SKILL_CATEGORIES = ['technical', 'engineering', 'professional', 'domain', 'career'] as const
 

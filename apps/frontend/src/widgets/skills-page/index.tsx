@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
-import { useState, useCallback, useEffect } from 'react'
-import { useSkillsInfiniteQuery } from '@/entities/skill/hooks'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useSkillsInfiniteQuery, useSkillCategories } from '@/entities/skill/hooks'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
 import { setSearchParam, getSearchParam } from '@/shared/lib/url'
@@ -17,7 +17,8 @@ function SkillsPageAdapter() {
   const [addSkillDrawerOpen, setAddSkillDrawerOpen] = useState(false)
   const [detailSkillId, setDetailSkillId] = useState<number | null>(null)
   const [editSkillId, setEditSkillId] = useState<number | null>(null)
-  const [showPinnedColumn, setShowPinnedColumn] = useState(true)
+  const [showPinnedColumn, setShowPinnedColumn] = useState(false)
+  const [showSelectColumn, setShowSelectColumn] = useState(false)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {
@@ -25,11 +26,15 @@ function SkillsPageAdapter() {
     isError, error, refetch, isRefetching,
     query, setQuery,
     sort, order, handleHeaderSort,
-    filterCategory, setFilterCategory,
+    filterCategories, setFilterCategories,
     filterPinned, setFilterPinned,
     activeFilterCount, clearFilters,
     deleteMutation, pinnedMutation,
   } = useSkillsInfiniteQuery()
+
+  const { categories } = useSkillCategories()
+
+  const categoryOptions = useMemo(() => categories.map((c) => c.category), [categories])
 
   const handleViewDetails = useCallback((id: number) => {
     setDetailSkillId(id)
@@ -96,8 +101,9 @@ function SkillsPageAdapter() {
         sort={sort}
         onSortChange={handleHeaderSort}
         order={order}
-        filterCategory={filterCategory}
-        onFilterCategoryChange={setFilterCategory}
+        filterCategories={filterCategories}
+        onFilterCategoriesChange={setFilterCategories}
+        categoryOptions={categoryOptions}
         filterPinned={filterPinned}
         onFilterPinnedChange={setFilterPinned}
         activeFilterCount={activeFilterCount}
@@ -108,6 +114,8 @@ function SkillsPageAdapter() {
         onTogglePinned={handleTogglePinned}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={setShowPinnedColumn}
+        showSelectColumn={showSelectColumn}
+        onToggleSelectColumn={setShowSelectColumn}
         addSkillDrawerOpen={addSkillDrawerOpen}
         onAddSkillDrawerOpenChange={setAddSkillDrawerOpen}
         detailSkillId={detailSkillId}

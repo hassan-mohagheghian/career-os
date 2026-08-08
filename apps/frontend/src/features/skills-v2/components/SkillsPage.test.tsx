@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -13,6 +13,28 @@ vi.mock('@/entities/skill/hooks', () => ({
     error: null,
     clearError: vi.fn(),
   }),
+  useMergeSkills: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ status: 'merged' }),
+    isPending: false,
+  }),
+  useSkillCategories: () => ({
+    categories: [],
+    isLoading: false,
+    createMutation: { mutateAsync: vi.fn().mockResolvedValue({ id: 9, name: 'data', created: true }) },
+    deleteMutation: { mutateAsync: vi.fn() },
+  }),
+}))
+
+vi.mock('@/entities/skill/api', () => ({
+  skillApi: {
+    listInfinite: vi.fn().mockResolvedValue({
+      items: [{ id: 9, name: 'React', mention_count: 3, categories: [] }],
+      next_cursor: null,
+      has_more: false,
+      total_items: 1,
+    }),
+    merge: vi.fn().mockResolvedValue({ status: 'merged' }),
+  },
 }))
 
 vi.mock('sonner', () => ({
@@ -27,6 +49,7 @@ function makeSkill(id: number, name: string): SkillListItem {
     roles: '',
     path: '',
     category: 'technical',
+    categories: ['technical'],
     confidence: 0.8,
     market_relevance: 0.9,
     evidence: null,
@@ -56,8 +79,9 @@ function baseProps(overrides: Partial<Parameters<typeof SkillsPage>[0]> = {}): P
     sort: 'mention_count',
     onSortChange: vi.fn(),
     order: 'desc',
-    filterCategory: '',
-    onFilterCategoryChange: vi.fn(),
+    filterCategories: [],
+    onFilterCategoriesChange: vi.fn(),
+    categoryOptions: [],
     activeFilterCount: 0,
     onClearFilters: vi.fn(),
     onViewDetails: vi.fn(),
@@ -146,6 +170,16 @@ describe('SkillsPage', () => {
     expect(onTogglePinnedColumn).toHaveBeenCalledWith(true)
   })
 
+  it('reports a column toggle when the Select option is clicked', async () => {
+    const user = userEvent.setup()
+    const onToggleSelectColumn = vi.fn()
+    renderPage(baseProps({ showSelectColumn: false, onToggleSelectColumn }))
+    await user.click(screen.getByText('Columns'))
+    const option = await screen.findByText('Select')
+    await user.click(option)
+    expect(onToggleSelectColumn).toHaveBeenCalledWith(true)
+  })
+
   it('renders the pinned filter button', () => {
     renderPage(baseProps({ onFilterPinnedChange: vi.fn() }))
     expect(screen.getByLabelText('Show pinned skills only')).toBeInTheDocument()
@@ -163,5 +197,70 @@ describe('SkillsPage', () => {
     renderPage(baseProps({ filterPinned: true, onFilterPinnedChange }))
     fireEvent.click(screen.getByLabelText('Show pinned skills only'))
     expect(onFilterPinnedChange).toHaveBeenCalledWith(false)
+  })
+
+  it('does not show the bulk bar when nothing is selected', () => {
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes'), makeSkill(2, 'Python')],
+      total: 2,
+      loadedCount: 2,
+      showSelectColumn: true,
+    }))
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Merge/ })).not.toBeInTheDocument()
+  })
+
+  it('selects all loaded skills via the header checkbox and shows the bulk bar', async () => {
+    const user = userEvent.setup()
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes'), makeSkill(2, 'Python')],
+      total: 2,
+      loadedCount: 2,
+      showSelectColumn: true,
+    }))
+
+    await user.click(screen.getByLabelText('Select all skills'))
+
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Merge 2 into/ })).toBeInTheDocument()
+  })
+
+  it('clears the selection with the bulk bar Clear button', async () => {
+    const user = userEvent.setup()
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes')],
+      total: 1,
+      loadedCount: 1,
+      showSelectColumn: true,
+    }))
+
+    await user.click(screen.getByLabelText('Select all skills'))
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Clear/ }))
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+  })
+
+  it('merges all selected skills into the picked target', async () => {
+    const user = userEvent.setup()
+    renderPage(baseProps({
+      items: [makeSkill(1, 'Kubernetes'), makeSkill(2, 'Python')],
+      total: 2,
+      loadedCount: 2,
+      showSelectColumn: true,
+    }))
+
+    await user.click(screen.getByLabelText('Select all skills'))
+    await user.click(screen.getByRole('button', { name: /Merge 2 into/ }))
+
+    const target = await screen.findByText('React')
+    await user.click(target)
+    await user.click(screen.getByRole('button', { name: /Merge 2 into selected/ }))
+
+    const { toast } = await import('sonner')
+    expect(toast.success).toHaveBeenCalledWith('Merged 2 skills')
+    await waitFor(() => {
+      expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    })
   })
 })
