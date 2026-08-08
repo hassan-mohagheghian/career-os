@@ -18,7 +18,11 @@ def _to_str(value: Any) -> Any:
     return value
 
 
-def skill_model_to_dict(model: SkillModel, aliases: list[str] | None = None) -> dict[str, Any]:
+def skill_model_to_dict(
+    model: SkillModel,
+    aliases: list[str] | None = None,
+    categories: list[str] | None = None,
+) -> dict[str, Any]:
     """Convert a SkillModel to a domain dictionary."""
     result = {
         "id": model.id,
@@ -31,6 +35,7 @@ def skill_model_to_dict(model: SkillModel, aliases: list[str] | None = None) -> 
         "pinned": bool(model.pinned),
         "merged_into": model.merged_into,
         "category": model.category,
+        "categories": list(categories) if categories is not None else [],
         "confidence": model.confidence,
         "market_relevance": model.market_relevance,
         "evidence": model.evidence,

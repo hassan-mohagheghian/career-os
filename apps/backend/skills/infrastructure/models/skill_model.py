@@ -54,6 +54,40 @@ class SkillAliasModel(Base):
     skill: Mapped["SkillModel"] = relationship(back_populates="aliases")
 
 
+class SkillCategoryModel(Base):
+    """Category catalog for the skill taxonomy.
+
+    Seeded with the canonical categories; users can add new ones. Each skill may
+    belong to many categories via SkillCategoryLinkModel.
+    """
+
+    __tablename__ = "skill_categories"
+    __table_args__ = {"schema": "skill"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+
+class SkillCategoryLinkModel(Base):
+    """Many-to-many association between skills and categories.
+
+    Both FKs stay inside the skill schema (same bounded context), so real
+    foreign keys are allowed (AGENTS.md rule 15).
+    """
+
+    __tablename__ = "skill_category_links"
+    __table_args__ = (
+        UniqueConstraint("skill_id", "category_id"),
+        {"schema": "skill"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
+    category_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skill_categories.id"), nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+
 class SkillRelationshipModel(Base):
     __tablename__ = "skill_relationships"
     __table_args__ = (

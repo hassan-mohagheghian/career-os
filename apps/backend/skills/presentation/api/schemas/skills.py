@@ -12,6 +12,7 @@ class SkillCreate(BaseModel):
     source: str = "user"
     source_type: str = "user_input"
     category: str = ""
+    categories: list[str] = []
 
 
 class SkillUpdate(BaseModel):
@@ -23,6 +24,7 @@ class SkillUpdate(BaseModel):
     source: str | None = None
     source_type: str | None = None
     category: str | None = None
+    categories: list[str] | None = None
     confidence: float | None = None
     market_relevance: float | None = None
     evidence: str | None = None
@@ -68,6 +70,10 @@ class SkillCategoryUpdate(BaseModel):
     category: str
 
 
+class SkillCategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
 class SkillResponse(BaseModel):
     """Schema for skill response."""
     id: int
@@ -78,6 +84,7 @@ class SkillResponse(BaseModel):
     source: str = ""
     source_type: str = ""
     category: str = ""
+    categories: list[str] = []
     confidence: float | None = None
     market_relevance: float | None = None
     evidence: str | None = None
@@ -102,6 +109,7 @@ class SkillListItemSchema(BaseModel):
     roles: str = ""
     path: str = ""
     category: str = ""
+    categories: list[str] = []
     confidence: float | None = None
     market_relevance: float | None = None
     evidence: str | None = None

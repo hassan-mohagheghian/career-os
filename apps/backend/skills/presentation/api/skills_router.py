@@ -7,7 +7,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_skill_repo
+from dependencies import get_skill_repo, get_skill_category_service
+from skills.application.use_cases.skill_category_service import SkillCategoryService
 from skills.infrastructure import SQLAlchemySkillRepository
 from skills.presentation.api.schemas.skills import (
     SkillCreate,
@@ -21,6 +22,7 @@ from skills.presentation.api.schemas.skills import (
     SkillBulkHide,
     SkillBulkCategorize,
     SkillCategoryUpdate,
+    SkillCategoryCreate,
     SkillListItemSchema,
     SkillListResponseSchema,
 )
@@ -29,8 +31,6 @@ from shared.application.exceptions import NotFoundError, BadRequestError, Confli
 router = APIRouter()
 
 DEFAULT_PAGE_SIZE = 25
-
-SKILL_CATEGORIES = ("technical", "engineering", "professional", "domain", "career")
 
 SORTABLE_SKILL_FIELDS = ("name", "level", "confidence", "market_relevance", "mention_count")
 
@@ -49,11 +49,18 @@ def _cursor_encode(offset: int) -> str:
     return base64.b64encode(str(offset).encode()).decode()
 
 
-def _skill_matches(row: dict[str, Any], query: str, category: str, pinned: bool = False) -> bool:
+def _skill_matches(
+    row: dict[str, Any],
+    query: str,
+    categories: list[str],
+    pinned: bool = False,
+) -> bool:
     if pinned and not bool(row.get("pinned")):
         return False
-    if category:
-        if (row.get("category") or "") != category:
+    if categories:
+        skill_cats = row.get("categories") or []
+        primary = row.get("category") or ""
+        if not any(c in skill_cats or c == primary for c in categories):
             return False
     if query:
         q = query.lower()
@@ -73,7 +80,11 @@ def _skill_sort_key(row: dict[str, Any], sort: str) -> Any:
 @router.get("/list")
 def list_skills_v2(
     query: str = Query("", description="Substring search over name, roles, path, aliases"),
-    category: str = Query("", description="Exact category filter"),
+    categories: list[str] = Query(
+        default=[],
+        description="Exact category filter; OR semantics — repeat the param for multiple categories",
+    ),
+    category: str = Query("", description="Legacy single category filter (use `categories` instead)"),
     pinned: bool = Query(False, description="Only include pinned skills"),
     sort: str = Query("mention_count", description="Sort field"),
     order: str = Query("desc", description="asc or desc"),
@@ -82,7 +93,12 @@ def list_skills_v2(
     repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
 ) -> SkillListResponseSchema:
     """List visible skills with server-side search, category/pinned filter, sort and cursor pagination."""
-    rows = [r for r in repo.list_visible() if _skill_matches(r, query, category, pinned)]
+    if categories:
+        pass
+    elif category:
+        categories = [category]
+    categories = [c for c in categories if c]
+    rows = [r for r in repo.list_visible() if _skill_matches(r, query, categories, pinned)]
 
     if rows:
         mention_counts = repo.get_mention_counts([r["id"] for r in rows])
@@ -110,6 +126,7 @@ def list_skills_v2(
                 roles=r.get("roles") or "",
                 path=r.get("path") or "",
                 category=r.get("category") or "",
+                categories=r.get("categories") or [],
                 confidence=r.get("confidence"),
                 market_relevance=r.get("market_relevance"),
                 evidence=r.get("evidence"),
@@ -145,8 +162,37 @@ def list_hidden_skills(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)
 
 @router.get("/categories")
 def get_categories(repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
-    """Get all skill categories with counts."""
+    """Get the full category catalog with per-category counts."""
     return repo.get_categories()
+
+
+@router.post("/categories")
+def create_category(
+    data: SkillCategoryCreate,
+    service: SkillCategoryService = Depends(get_skill_category_service),
+):
+    """Create a new category in the catalog (idempotent)."""
+    name = data.name.strip()
+    if not name:
+        raise BadRequestError("Category name is required")
+    result = service.create_category(name)
+    return result
+
+
+@router.delete("/categories/{name}")
+def delete_category(
+    name: str,
+    service: SkillCategoryService = Depends(get_skill_category_service),
+):
+    """Delete an unused category from the catalog."""
+    result = service.delete_category(name)
+    if result["status"] == "not_found":
+        raise NotFoundError(f'Category "{name}" not found')
+    if result["status"] == "in_use":
+        raise ConflictError(
+            f'Category "{name}" is assigned to {result["count"]} skill(s) and cannot be deleted'
+        )
+    return {"status": "deleted", "name": name}
 
 
 @router.get("/stats")
@@ -174,12 +220,16 @@ def create_skill(data: SkillCreate, repo: SQLAlchemySkillRepository = Depends(ge
 
 
 @router.put("/{id}")
-def update_skill(id: int, data: SkillUpdate, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
+def update_skill(
+    id: int,
+    data: SkillUpdate,
+    service: SkillCategoryService = Depends(get_skill_category_service),
+):
     """Update a skill."""
     updates = data.model_dump(exclude_unset=True)
     if not updates:
         raise BadRequestError("No valid fields to update")
-    result = repo.update(id, updates)
+    result = service.update_skill(id, updates)
     if not result:
         raise NotFoundError(f"Skill {id} not found")
     return result
@@ -256,6 +306,10 @@ def remove_skill_alias(id: int, alias_name: str, repo: SQLAlchemySkillRepository
 @router.post("/merge")
 def merge_skills(data: SkillMerge, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
     """Merge source skills into target skill."""
+    if not data.source_ids:
+        raise BadRequestError("source_ids must not be empty")
+    if data.target_id in data.source_ids:
+        raise BadRequestError("target skill cannot be one of the sources")
     result = repo.merge(data.target_id, data.source_ids)
     if "error" in result:
         raise NotFoundError(result["error"])
@@ -294,22 +348,31 @@ def bulk_hide(data: SkillBulkHide, repo: SQLAlchemySkillRepository = Depends(get
 
 
 @router.post("/bulk-categorize")
-def bulk_categorize(data: SkillBulkCategorize, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
-    """Re-categorize multiple skills at once."""
-    valid = {"technical", "engineering", "professional", "domain", "career"}
-    if data.category not in valid:
-        raise BadRequestError(f"Invalid category. Must be one of: {', '.join(valid)}")
-    count = repo.bulk_categorize(data.ids, data.category)
-    return {"status": "categorized", "category": data.category, "count": count}
+def bulk_categorize(
+    data: SkillBulkCategorize,
+    service: SkillCategoryService = Depends(get_skill_category_service),
+):
+    """Re-categorize multiple skills at once (category auto-created if new)."""
+    if not data.ids:
+        raise BadRequestError("ids array required")
+    category = data.category.strip()
+    if not category:
+        raise BadRequestError("category is required")
+    count = service.bulk_categorize(data.ids, category)
+    return {"status": "categorized", "category": category, "count": count}
 
 
 @router.put("/{id}/category")
-def update_category(id: int, data: SkillCategoryUpdate, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
-    """Update a skill's category."""
-    valid = {"technical", "engineering", "professional", "domain", "career"}
-    if data.category not in valid:
-        raise BadRequestError(f"Invalid category. Must be one of: {', '.join(valid)}")
-    result = repo.update(id, {"category": data.category})
+def update_category(
+    id: int,
+    data: SkillCategoryUpdate,
+    service: SkillCategoryService = Depends(get_skill_category_service),
+):
+    """Set a skill's category (auto-creates the category if new)."""
+    category = data.category.strip()
+    if not category:
+        raise BadRequestError("category is required")
+    result = service.categorize(id, category)
     if not result:
         raise NotFoundError(f"Skill {id} not found")
     return result

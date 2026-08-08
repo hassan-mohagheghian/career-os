@@ -123,6 +123,47 @@ class TestSkillListV2API:
         assert data["total_items"] == 1
         assert data["items"][0]["name"] == "Leadership"
 
+    def test_multi_category_filter_or_semantics(self, client, sa_session):
+        from skills.infrastructure import SQLAlchemySkillRepository
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        python = _create_skill(sa_session, name="Python", category="")
+        docker = _create_skill(sa_session, name="Docker", category="")
+        leadership = _create_skill(sa_session, name="Leadership", category="")
+        repo.set_categories(python.id, ["technical", "engineering"])
+        repo.set_categories(docker.id, ["infrastructure"])
+        repo.set_categories(leadership.id, ["professional"])
+
+        data = client.get("/api/skills/list?categories=technical&categories=professional").json()
+        names = {i["name"] for i in data["items"]}
+        assert names == {"Python", "Leadership"}
+
+    def test_multi_category_filter_matches_any_category(self, client, sa_session):
+        from skills.infrastructure import SQLAlchemySkillRepository
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        fullstack = _create_skill(sa_session, name="Fullstack", category="")
+        repo.set_categories(fullstack.id, ["technical", "domain"])
+
+        data = client.get("/api/skills/list?categories=domain").json()
+        assert data["total_items"] == 1
+        assert data["items"][0]["name"] == "Fullstack"
+
+    def test_multi_category_filter_empty_is_no_filter(self, client, sa_session):
+        _create_skill(sa_session, name="Python", category="technical")
+        _create_skill(sa_session, name="Leadership", category="professional")
+
+        data = client.get("/api/skills/list?categories=").json()
+        assert data["total_items"] == 2
+
+    def test_multi_category_filter_legacy_category_still_works(self, client, sa_session):
+        _create_skill(sa_session, name="Python", category="technical")
+        _create_skill(sa_session, name="Leadership", category="professional")
+
+        data = client.get("/api/skills/list?category=technical").json()
+        assert data["total_items"] == 1
+        assert data["items"][0]["name"] == "Python"
+
     def test_sort_by_level(self, client, sa_session):
         _create_skill(sa_session, name="Kafka", level=1)
         _create_skill(sa_session, name="Python", level=4)
@@ -327,3 +368,15 @@ def test_merge_folds_mentions_via_api(client, sa_session):
     items = client.get("/api/skills/list").json()["items"]
     by_name = {i["name"]: i for i in items}
     assert by_name["React"]["mention_count"] == 1
+
+
+def test_merge_rejects_empty_sources(client, sa_session):
+    target = _create_skill(sa_session, name="React")
+    resp = client.post("/api/skills/merge", json={"target_id": target.id, "source_ids": []})
+    assert resp.status_code == 400
+
+
+def test_merge_rejects_target_in_sources(client, sa_session):
+    target = _create_skill(sa_session, name="React")
+    resp = client.post("/api/skills/merge", json={"target_id": target.id, "source_ids": [target.id]})
+    assert resp.status_code == 400

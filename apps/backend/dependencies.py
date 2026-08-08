@@ -49,6 +49,12 @@ def get_skill_repo(session: Session = Depends(get_session)):
     return SQLAlchemySkillRepository(session)
 
 
+def get_skill_category_service(repo=Depends(get_skill_repo)):
+    from skills.domain.event_publisher import InMemoryEventCollector
+    from skills.application.use_cases.skill_category_service import SkillCategoryService
+    return SkillCategoryService(repo, InMemoryEventCollector())
+
+
 def get_skill_alias_repo(session: Session = Depends(get_session)):
     from skills.infrastructure import SQLAlchemySkillAliasRepository
     return SQLAlchemySkillAliasRepository(session)

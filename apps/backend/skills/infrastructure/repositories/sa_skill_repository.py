@@ -1,6 +1,7 @@
 """SQLAlchemy-based skill repository implementation."""
 
 import json
+from collections import Counter
 from typing import Any
 
 from sqlalchemy import cast, func
@@ -13,6 +14,8 @@ from skills.infrastructure.models.skill_model import (
     SkillAliasModel,
     SkillRelationshipModel,
     SkillMentionModel,
+    SkillCategoryModel,
+    SkillCategoryLinkModel,
 )
 from skills.infrastructure.mappers import skill_model_to_dict
 
@@ -29,37 +32,230 @@ class SQLAlchemySkillRepository(ISkillRepository):
         ).all()
         return [a.alias_name for a in aliases]
 
+    # ── Categories ────────────────────────────────────────────────
+
+    @staticmethod
+    def _normalize_categories(categories: list[str] | None) -> list[str]:
+        """Trim, drop empties and dedupe preserving order."""
+        seen: list[str] = []
+        for name in categories or []:
+            name = (name or "").strip()
+            if name and name not in seen:
+                seen.append(name)
+        return seen
+
+    def _ensure_category(self, name: str) -> int:
+        """Return the category id for ``name``, creating the catalog row if needed."""
+        cat = self._session.query(SkillCategoryModel).filter(
+            SkillCategoryModel.name == name
+        ).first()
+        if cat:
+            return cat.id
+        cat = SkillCategoryModel(name=name)
+        self._session.add(cat)
+        self._session.flush()
+        return cat.id
+
+    def _set_category_links(self, skill_id: int, names: list[str]) -> None:
+        """Replace a skill's category links with ``names`` (catalog rows auto-created)."""
+        self._session.query(SkillCategoryLinkModel).filter(
+            SkillCategoryLinkModel.skill_id == skill_id
+        ).delete()
+        for name in names:
+            self._session.add(SkillCategoryLinkModel(
+                skill_id=skill_id,
+                category_id=self._ensure_category(name),
+            ))
+
+    def _own_category_names(self, skill_ids: list[int]) -> dict[int, list[str]]:
+        """skill_id -> own linked category names (no inheritance)."""
+        if not skill_ids:
+            return {}
+        rows = self._session.query(
+            SkillCategoryLinkModel.skill_id, SkillCategoryModel.name
+        ).join(
+            SkillCategoryModel,
+            SkillCategoryModel.id == SkillCategoryLinkModel.category_id,
+        ).filter(SkillCategoryLinkModel.skill_id.in_(skill_ids)).all()
+        result: dict[int, list[str]] = {}
+        for skill_id, name in rows:
+            result.setdefault(skill_id, []).append(name)
+        return result
+
+    def _effective_categories(self, models: list[SkillModel]) -> dict[int, list[str]]:
+        """skill_id -> effective category names for a batch of skill models.
+
+        Effective categories = the skill's own linked categories (with the
+        primary ``category`` column as a backward-compatible fallback) plus the
+        canonical skill's categories when the row's name is registered as an
+        alias of that canonical skill (one level, mirroring the alias mention
+        folding in ``get_mention_counts``).
+        """
+        if not models:
+            return {}
+        ids = [m.id for m in models]
+        names = {m.id: m.name for m in models}
+
+        own = self._own_category_names(ids)
+        for m in models:
+            cats = own.setdefault(m.id, [])
+            if m.category and m.category not in cats:
+                cats.append(m.category)
+
+        alias_rows = self._session.query(
+            SkillAliasModel.alias_name, SkillAliasModel.skill_id
+        ).filter(SkillAliasModel.alias_name.in_(list(names.values()))).all()
+        if not alias_rows:
+            return own
+
+        canonical_ids = {skill_id for _, skill_id in alias_rows}
+        canonical_own = self._own_category_names(list(canonical_ids))
+        alias_to_canonical = dict(alias_rows)
+
+        result: dict[int, list[str]] = {}
+        for m in models:
+            cats = list(own.get(m.id, []))
+            canonical_id = alias_to_canonical.get(m.name)
+            if canonical_id is not None:
+                for name in canonical_own.get(canonical_id, []):
+                    if name not in cats:
+                        cats.append(name)
+            result[m.id] = cats
+        return result
+
+    def _to_dict(self, model: SkillModel, categories: list[str]) -> dict[str, Any]:
+        """Build a skill dict with effective categories; primary falls back to the first."""
+        result = skill_model_to_dict(
+            model,
+            aliases=self._get_aliases(model.id),
+            categories=categories,
+        )
+        if not result["category"] and categories:
+            result["category"] = categories[0]
+        return result
+
+    def get_categories(self) -> list[dict[str, Any]]:
+        """Return the category catalog (plus legacy primary-only categories) with counts."""
+        cats = self._session.query(SkillCategoryModel).order_by(
+            SkillCategoryModel.name
+        ).all()
+        known_names = {c.name for c in cats}
+
+        visible = self._session.query(SkillModel).filter(
+            SkillModel.hidden == 0
+        ).all()
+        eff = self._effective_categories(visible)
+
+        # Backward compatibility: any primary category value that predates the
+        # catalog (no catalog row / no link) is still reported.
+        for skill in visible:
+            if skill.category:
+                known_names.add(skill.category)
+
+        counts: Counter = Counter()
+        sum_demand: Counter = Counter()
+        sum_level: Counter = Counter()
+        for skill in visible:
+            for name in eff.get(skill.id, []):
+                counts[name] += 1
+                sum_demand[name] += skill.market_relevance or 0
+                sum_level[name] += skill.level or 0
+
+        result = []
+        for name in known_names:
+            result.append({
+                "category": name,
+                "count": counts.get(name, 0),
+                "avg_demand": round(sum_demand[name] / counts[name], 1) if counts[name] else None,
+                "avg_level": round(sum_level[name] / counts[name], 1) if counts[name] else None,
+            })
+        result.sort(key=lambda c: (-c["count"], c["category"]))
+        return result
+
+    def create_category(self, name: str) -> dict[str, Any] | None:
+        """Add a category to the catalog. Returns None for blank names."""
+        name = (name or "").strip()
+        if not name:
+            return None
+        existing = self._session.query(SkillCategoryModel).filter(
+            SkillCategoryModel.name == name
+        ).first()
+        if existing:
+            return {"id": existing.id, "name": existing.name, "created": False}
+        cat = SkillCategoryModel(name=name)
+        self._session.add(cat)
+        self._session.commit()
+        self._session.refresh(cat)
+        return {"id": cat.id, "name": cat.name, "created": True}
+
+    def delete_category(self, name: str) -> dict[str, Any]:
+        """Remove an unused category. Result status: deleted / in_use / not_found."""
+        cat = self._session.query(SkillCategoryModel).filter(
+            SkillCategoryModel.name == name
+        ).first()
+        if not cat:
+            return {"status": "not_found"}
+        count = self._session.query(func.count(SkillCategoryLinkModel.id)).filter(
+            SkillCategoryLinkModel.category_id == cat.id
+        ).scalar()
+        if count:
+            return {"status": "in_use", "count": count}
+        self._session.delete(cat)
+        self._session.commit()
+        return {"status": "deleted"}
+
+    def set_categories(self, skill_id: int, categories: list[str]) -> dict[str, Any] | None:
+        """Replace a skill's categories and keep the primary column in sync."""
+        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        if not model:
+            return None
+        names = self._normalize_categories(categories)
+        self._set_category_links(model.id, names)
+        model.category = names[0] if names else ""
+        self._session.commit()
+        self._session.refresh(model)
+        return self.get_by_id(model.id)
+
     def list_visible(self, category: str = "") -> list[dict[str, Any]]:
         query = self._session.query(SkillModel).filter(SkillModel.hidden == 0)
-        if category:
-            query = query.filter(SkillModel.category == category)
         query = query.order_by(SkillModel.level.desc().nulls_last())
         rows = query.all()
+        eff = self._effective_categories(rows)
         result = []
         for row in rows:
-            skill_dict = skill_model_to_dict(row, aliases=self._get_aliases(row.id))
-            result.append(skill_dict)
+            categories = eff.get(row.id, [])
+            if category and category not in categories:
+                continue
+            result.append(self._to_dict(row, categories))
         return result
 
     def list_hidden(self) -> list[dict[str, Any]]:
         rows = self._session.query(SkillModel).filter(
             SkillModel.hidden == 1
         ).order_by(SkillModel.name).all()
-        return [skill_model_to_dict(r) for r in rows]
+        eff = self._effective_categories(rows)
+        return [self._to_dict(r, eff.get(r.id, [])) for r in rows]
 
     def get_by_id(self, skill_id: int) -> dict[str, Any] | None:
         model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
         if not model:
             return None
-        return skill_model_to_dict(model, aliases=self._get_aliases(model.id))
+        categories = self._effective_categories([model]).get(model.id, [])
+        return self._to_dict(model, categories)
 
     def get_by_name(self, name: str) -> dict[str, Any] | None:
         model = self._session.query(SkillModel).filter(SkillModel.name == name).first()
         if not model:
             return None
-        return skill_model_to_dict(model, aliases=self._get_aliases(model.id))
+        categories = self._effective_categories([model]).get(model.id, [])
+        return self._to_dict(model, categories)
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
+        categories = self._normalize_categories(
+            data.get("categories") if "categories" in data else (
+                [data["category"]] if data.get("category") else []
+            )
+        )
         model = SkillModel(
             name=data["name"],
             level=data.get("level", 1),
@@ -67,9 +263,12 @@ class SQLAlchemySkillRepository(ISkillRepository):
             path=data.get("path", ""),
             source=data.get("source", "user"),
             source_type=data.get("source_type", "user_input"),
-            category=data.get("category", ""),
+            category=categories[0] if categories else (data.get("category") or ""),
         )
         self._session.add(model)
+        self._session.flush()
+        if categories:
+            self._set_category_links(model.id, categories)
         self._session.commit()
         self._session.refresh(model)
         return self.get_by_id(model.id)
@@ -85,6 +284,15 @@ class SQLAlchemySkillRepository(ISkillRepository):
 
         if "tags" in data:
             model.tags = json.dumps(data["tags"]) if isinstance(data["tags"], list) else data["tags"]
+
+        if "categories" in data:
+            names = self._normalize_categories(data["categories"])
+            self._set_category_links(model.id, names)
+            model.category = names[0] if names else ""
+        elif "category" in data:
+            # Legacy single-category update: keep the link table in sync.
+            names = self._normalize_categories([data["category"]]) if data["category"] else []
+            self._set_category_links(model.id, names)
 
         self._session.commit()
         self._session.refresh(model)
@@ -208,18 +416,6 @@ class SQLAlchemySkillRepository(ISkillRepository):
             row.skill_id = target_id
             existing_keys.add(key)
 
-    def get_categories(self) -> list[dict[str, Any]]:
-        rows = self._session.query(
-            SkillModel.category,
-            func.count(SkillModel.id).label("count"),
-            func.round(cast(func.avg(SkillModel.market_relevance), Numeric), 1).label("avg_demand"),
-            func.round(cast(func.avg(SkillModel.level), Numeric), 1).label("avg_level"),
-        ).filter(
-            SkillModel.hidden == 0, SkillModel.category != ""
-        ).group_by(SkillModel.category).order_by(func.count(SkillModel.id).desc()).all()
-
-        return [{"category": r[0], "count": r[1], "avg_demand": r[2], "avg_level": r[3]} for r in rows]
-
     def get_stats(self) -> dict[str, Any]:
         total = self._session.query(func.count(SkillModel.id)).filter(SkillModel.hidden == 0).scalar()
         hidden = self._session.query(func.count(SkillModel.id)).filter(SkillModel.hidden == 1).scalar()
@@ -252,7 +448,15 @@ class SQLAlchemySkillRepository(ISkillRepository):
         return len(skill_ids)
 
     def bulk_categorize(self, skill_ids: list[int], category: str) -> int:
-        self._session.query(SkillModel).filter(SkillModel.id.in_(skill_ids)).update({"category": category}, synchronize_session=False)
+        name = (category or "").strip()
+        if not name:
+            return 0
+        for sid in skill_ids:
+            model = self._session.query(SkillModel).filter(SkillModel.id == sid).first()
+            if not model:
+                continue
+            self._set_category_links(model.id, [name])
+            model.category = name
         self._session.commit()
         return len(skill_ids)
 
@@ -317,6 +521,11 @@ class SQLAlchemySkillRepository(ISkillRepository):
             tags=data.get("tags", "[]"),
         )
         self._session.add(m)
+        self._session.flush()
+        categories = self._normalize_categories(data.get("categories"))
+        if categories:
+            self._set_category_links(m.id, categories)
+            m.category = categories[0]
         self._session.commit()
         self._session.refresh(m)
         return m.id
@@ -397,7 +606,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         for sid, name in alias_rows:
             alias_id = name_to_id.get(name)
             if alias_id is not None and alias_id != sid:
-                counts[sid] += extra_counts.get(alias_id, 0)
+                counts[sid] = counts.get(sid, 0) + extra_counts.get(alias_id, 0)
         return counts
 
     def add_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
@@ -455,6 +664,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
         return True
 
     def create_from_dict(self, data: dict[str, Any]) -> dict[str, Any]:
+        categories = self._normalize_categories(data.get("categories"))
         m = SkillModel(
             name=data.get("name", ""),
             level=data.get("level", 1),
@@ -469,6 +679,10 @@ class SQLAlchemySkillRepository(ISkillRepository):
             tags=data.get("tags", "[]"),
         )
         self._session.add(m)
+        self._session.flush()
+        if categories:
+            self._set_category_links(m.id, categories)
+            m.category = categories[0]
         self._session.commit()
         self._session.refresh(m)
-        return skill_model_to_dict(m)
+        return self.get_by_id(m.id)

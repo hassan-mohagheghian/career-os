@@ -64,7 +64,30 @@ class ISkillRepository(ABC):
 
     @abstractmethod
     def get_categories(self) -> list[dict[str, Any]]:
-        """Get all categories with counts."""
+        """Get all categories in the catalog with per-category counts."""
+        ...
+
+    @abstractmethod
+    def create_category(self, name: str) -> dict[str, Any] | None:
+        """Add a category to the catalog. Returns None for blank names.
+
+        Result: ``{"id", "name", "created": bool}`` — ``created`` is False when
+        the category already exists.
+        """
+        ...
+
+    @abstractmethod
+    def delete_category(self, name: str) -> dict[str, Any]:
+        """Remove an unused category.
+
+        Result: ``{"status": "deleted"}``, ``{"status": "in_use", "count": n}``
+        or ``{"status": "not_found"}``.
+        """
+        ...
+
+    @abstractmethod
+    def set_categories(self, skill_id: int, categories: list[str]) -> dict[str, Any] | None:
+        """Replace a skill's categories and keep the primary column in sync."""
         ...
 
     @abstractmethod

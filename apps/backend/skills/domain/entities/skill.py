@@ -24,6 +24,7 @@ class Skill(BaseEntity):
         hidden: int = 0,
         merged_into: str = "",
         category: str = "",
+        categories: list[str] | None = None,
         confidence: float = 0,
         market_relevance: float = 0,
         evidence: str = "[]",
@@ -42,6 +43,7 @@ class Skill(BaseEntity):
         self.hidden = hidden
         self.merged_into = merged_into
         self.category = category
+        self.categories = list(categories or [])
         self.confidence = confidence
         self.market_relevance = market_relevance
         self.evidence = evidence
@@ -61,6 +63,7 @@ class Skill(BaseEntity):
             "hidden": self.hidden,
             "merged_into": self.merged_into,
             "category": self.category,
+            "categories": list(self.categories),
             "confidence": self.confidence,
             "market_relevance": self.market_relevance,
             "evidence": self.evidence,
@@ -83,6 +86,7 @@ class Skill(BaseEntity):
             hidden=data.get("hidden", 0),
             merged_into=data.get("merged_into", ""),
             category=data.get("category", ""),
+            categories=data.get("categories"),
             confidence=data.get("confidence", 0),
             market_relevance=data.get("market_relevance", 0),
             evidence=data.get("evidence", "[]"),
