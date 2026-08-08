@@ -25,7 +25,21 @@ POST /api/skills/merge
 
 ## Response
 
-`204 No Content` on success.
+`200 OK` with the merged result on success:
+
+```json
+{
+  "status": "merged",
+  "target": { "id": 12, "name": "React", "...": "..." },
+  "merged": ["ReactJS"],
+  "aliases": ["ReactJS"]
+}
+```
+
+- `status` — always `"merged"`.
+- `target` — the surviving skill (full skill payload).
+- `merged` — the names of the source skills that were merged (already hidden).
+- `aliases` — the target's full alias list after the merge.
 
 ## Behavior
 
@@ -42,7 +56,8 @@ For each source skill:
 | Status | Meaning                                     |
 | ------ | ------------------------------------------- |
 | 404    | Target or a source skill not found.         |
-| 400    | `source_ids` is empty or target ∈ source_ids. |
+| 400    | `source_ids` is empty.                      |
+| 400    | Target is included in `source_ids`.         |
 
 ---
 

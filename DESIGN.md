@@ -482,15 +482,25 @@ infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
 │ </> Skills (128)                     Loaded 25 of 128           + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Search .........................                     [Category ▾] [Pinned] [Columns] │
-├───────────────────────────────────────────────────────────────────────────────┤
-│ Pin │ Name                  │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
-│─────│─────────────────────────────────────────────────────────────────────────│
-│ ●  │ Kubernetes 2 aliases  │ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
-│ ○  │ Kafka                 │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
-│ ○  │ DDD                   │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
+│ Select │ Pin │ Name              │ Category   │ Lv │ Roles     │ Demand │ Conf │ Created │
+│─────── │─────│───────────────────│────────────│────│───────────│────────│──────│─────────│
+│ ☐      │ ●  │ Kubernetes 2 aliases│ engineering│ 4  │ DevOps    │ 90%    │ 85%  │ 2m      │
+│ ☐      │ ○  │ Kafka             │ technical  │ 2  │ Data      │ 70%    │ 60%  │ 5m      │
+│ ☐      │ ○  │ DDD               │ domain     │ 3  │ Backend   │ —      │ 45%  │ 1h      │
 │                                                                               │
 │                                        Loading more skills...                 │
 └───────────────────────────────────────────────────────────────────────────────┘
+```
+
+When rows are selected the toolbar shows a bulk action bar:
+
+```text
+│ Search .........................                     [Category ▾] [Pinned] [Columns] │
+│ 2 selected   [⟳ Merge 2 into...]   [Clear]                                       │
+```
+
+The Select column is toggled via the Columns dropdown; merging selected skills
+into one target reuses the single-merge target picker dialog.
 ```
 
 ### Skill Detail Drawer

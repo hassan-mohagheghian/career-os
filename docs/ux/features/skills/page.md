@@ -9,12 +9,13 @@ Users can:
 - Add a new skill
 - Browse all skills
 - Search skills
-- Filter skills by category
+- Filter skills by multiple categories
 - Sort skills
 - View skill details (level, roles, path, tags, aliases, evidence)
 - Edit skill core data
 - Delete a skill
 - Merge duplicate skills into a canonical skill
+- Multi-select skills and merge all selected into one target
 
 The Skills page mirrors the Jobs/Companies v2 UX: virtualized table,
 server-side pagination, infinite scroll, and Sheet-based drawers.
@@ -23,8 +24,10 @@ server-side pagination, infinite scroll, and Sheet-based drawers.
 
 # Design Principles
 
-- Skills are categorized into the canonical taxonomy: `technical`,
-  `engineering`, `professional`, `domain`, `career`.
+- Skills belong to a **dynamic category catalog** seeded with the canonical
+  taxonomy (`technical`, `engineering`, `professional`, `domain`, `career`);
+  users can create new categories. A skill may belong to **multiple**
+  categories at once.
 - The Skills list is optimized for large inventories.
 
 ---
@@ -50,17 +53,25 @@ Skills Page
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ ⛭ Skills (128)                    Loaded 25 of 128          ↻  + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................                    [Category ▾] [Pinned] [Columns] [Clear]│
-├───────────────────────────────────────────────────────────────────────────────┤
-│ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
-│─────│─────────────────────────────────────────────────────────────────────────│
-│ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
-│ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
-│ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
+│ Search .........................            [Category ▾⌕] [Pinned] [Columns] [Clear]│
+│ Select │ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
+│───────│─────│─────────────────────────────────────────────────────────────────│
+│       │ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
+│       │ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
+│       │ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
 │                                                                               │
 │                                        Loading more skills...                 │
 │                                                                               │
 └───────────────────────────────────────────────────────────────────────────────┘
+```
+
+With 2+ rows selected, a bulk action bar appears in the toolbar:
+
+```text
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ Search .........................            [Category ▾⌕] [Pinned] [Columns] [Clear]│
+│ 2 selected    [⟳ Merge 2 into...]    [Clear]                                  │
+├───────────────────────────────────────────────────────────────────────────────┤
 ```
 
 ---
@@ -90,7 +101,7 @@ Controls
 Responsibilities
 
 - Search skills.
-- Filter skills by category.
+- Filter skills by multiple categories (OR semantics).
 - Filter skills by pinned state.
 - Toggle the Pin column.
 - Clear active filters.
@@ -100,12 +111,64 @@ Controls
 | Control  | Description                                     |
 | -------- | ----------------------------------------------- |
 | Search   | Search by name, role, path, or alias.           |
-| Category | Filter by one of the five canonical categories. |
+| Category | Multi-select category filter (searchable dropdown; OR across selected categories). |
 | Pinned   | Toggle pinned-only view.                        |
-| Columns  | Show / hide the Pin column.                     |
+| Columns  | Show / hide the Select and Pin columns.         |
 | Clear    | Clears all active filters.                      |
 
 Search is debounced (300ms) via the shared `DebouncedInput` primitive.
+
+### Category filter dropdown
+
+The category filter is a **multi-select dropdown** (checkbox popover) populated
+from `GET /api/skills/categories` — the live catalog, not a hardcoded list.
+
+```text
+┌──────────────────────────────┐
+│ CATEGORIES (2)         Clear │
+├──────────────────────────────┤
+│ ⌕ Search categories...    ⨯  │
+├──────────────────────────────┤
+│ ☑ technical                  │
+│ ☐ engineering                │
+│ ☐ professional               │
+│ ☐ domain                     │
+│ ☐ career                     │
+└──────────────────────────────┘
+```
+
+- Selecting a category **adds** it to the filter; clicking again **removes** it.
+- The list filter uses **OR** semantics: a skill matches when it belongs to any
+  selected category.
+- The dropdown has its own **search box** to filter the catalog by name.
+- The trigger shows the selected values as **category badges** (up to 3) plus a
+  `+N` overflow indicator.
+- Unlike the Edit/Add drawers, the list filter does **not** offer inline
+  "add category" — the filter only browses existing categories.
+- Each active category contributes to `activeFilterCount`; the toolbar **Clear**
+  action resets the whole selection.
+
+```mermaid
+flowchart LR
+    A[Toolbar] --> B[CategoryMultiSelect]
+    B --> C[GET /api/skills/categories]
+    B --> D[selected categories]
+    D --> E[GET /api/skills/list?categories=...]
+```
+
+---
+
+## Bulk Action Bar
+
+When at least one skill is selected, the toolbar grows a second row:
+
+| Control            | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `N selected`       | Live count of selected rows (across loaded pages).   |
+| Merge N into...    | Opens the Merge Skill dialog to pick a target.       |
+| Clear              | Deselects all rows.                                  |
+
+The bar is only rendered while `selectedCount > 0`.
 
 ---
 
@@ -182,9 +245,10 @@ Configuration
 
 | Column     | Description                                        |
 | ---------- | -------------------------------------------------- |
+| Select     | Checkbox toggling row selection (multi-select)     |
 | Pin        | Pushpin toggle for pinned skills                   |
 | Name       | Skill name + origin badge (AI/Manual) + alias count badge |
-| Category   | Canonical category badge                           |
+| Category   | All category badges for the skill (one per category) |
 | Level      | Skill proficiency level (Lv.1 … Lv.10)             |
 | Roles      | Relevant roles                                     |
 | Demand     | Market demand percentage                           |
@@ -193,8 +257,29 @@ Configuration
 | Mentions   | Total job/company mentions referencing this skill (sortable) |
 | Actions    | Row actions (Details, Edit, Delete)                |
 
-The Pin column is shown by default and can be hidden via the toolbar Columns
-dropdown.
+The Select and Pin columns are hidden by default; both can be toggled via the
+toolbar Columns dropdown.
+
+---
+
+# Multi-Select
+
+The Select column supports batch operations. Selection follows best practices
+for a virtualized, infinitely-loaded list:
+
+- **Selection lives in the page state** (`Set<skillId>`), not in rows — rows are
+  unmounted when scrolled out of view, so selection survives scrolling and
+  pagination.
+- **Select-all** (header checkbox) toggles every *loaded* row; the header shows
+  an indeterminate state when only some loaded rows are selected.
+- **Selection is cleared** when the search query or any filter changes (the
+  visible set changes).
+- **Selection is pruned** to the loaded rows after a refetch, so ids of deleted
+  or merged skills are dropped automatically.
+- Checkbox clicks stop propagation and never open the detail drawer.
+
+The only bulk action today is **Merge N into...**. See
+`docs/ux/flows/skills/merge-skills.md` for the full flow.
 
 ---
 
@@ -229,7 +314,11 @@ Kubernetes  [AI]  2 aliases
 
 ## Category
 
-Displays one of the canonical category badges:
+Displays **every** category the skill belongs to, one badge per category. The
+first category (when the catalog link table is empty) falls back to the legacy
+primary `category` column. Badge colors are deterministic: the canonical five
+categories keep fixed colors, and any user-created category gets a stable
+hash-based color from a fixed palette:
 
 | Category     | Color   |
 | ------------ | ------- |
@@ -238,6 +327,13 @@ Displays one of the canonical category badges:
 | professional | Purple  |
 | domain       | Orange  |
 | career       | Cyan    |
+| user-defined | Stable hash → rose/amber/emerald/teal/sky/indigo/fuchsia/lime |
+
+```text
+Kubernetes  [technical] [engineering]
+```
+
+The column is widened (≥150px) so multiple badges fit on one row.
 
 ---
 
@@ -301,10 +397,14 @@ drawer.
 Selecting a row opens the Skill Detail drawer (Sheet from the right) showing the
 skill's data directly (no tabs):
 
-- **Level**, confidence, market demand, roles, path, tags, aliases, and "Why
-  This Skill Matters" (evidence).
+- **Categories** — a dedicated section right below the stats row showing one
+  badge per category (a skill can belong to multiple categories), then
+- Level, confidence, market demand, roles, path, tags, aliases, and "Why This
+  Skill Matters" (evidence).
 
-The header has an **Edit** button; the footer has a **Delete** button.
+The header has an **Edit** button; the footer has a **Delete** button. Category
+badges live in the dedicated body section, not the header — see
+`docs/ux/features/skills/skill-detail.md`.
 
 ---
 
@@ -314,7 +414,7 @@ The Edit drawer (Sheet) edits:
 
 - Name (required)
 - Level (1–10 select)
-- Category (canonical select)
+- Categories (multi-select with inline **+ add** — see below)
 - Relevant Roles
 - Tags (comma-separated)
 - **Aliases** — add/remove alternate names via `POST`/`DELETE
@@ -322,16 +422,50 @@ The Edit drawer (Sheet) edits:
 - **Merge** — "Merge into another skill" opens the Merge Skill dialog
   (`POST /api/skills/merge`)
 
-Saving calls `PUT /api/skills/{id}` and invalidates the list query.
+Saving calls `PUT /api/skills/{id}` and invalidates the list query. The payload
+sends `categories: string[]`; the backend replaces the link set and keeps the
+legacy primary `category` column in sync (first category).
+
+### Category multi-select (Edit / Add)
+
+The Edit and Add drawers use the same `CategoryMultiSelect` dropdown as the
+filter, with two differences:
+
+- The list is populated from the live catalog (`GET /api/skills/categories`).
+- An inline **"+ add"** field creates a new category via
+  `POST /api/skills/categories` and auto-selects it, so a skill can be tagged
+  with a brand-new category in one step.
+
+```text
+┌──────────────────────────────┐
+│ CATEGORIES (1)         Clear │
+├──────────────────────────────┤
+│ ☑ technical                  │
+│ ☐ engineering                │
+│ ...                          │
+├──────────────────────────────┤
+│ [Add category...] [+]        │
+└──────────────────────────────┘
+```
+
+Submitting a brand-new category name creates the catalog row (idempotent),
+selects it, and keeps the skill's category set.
 
 ---
 
 # Merge Skill Dialog
 
-The Merge dialog searches visible skills (excluding the current skill), lets the
-user pick a target, and merges the current skill into it. Mentions re-point to
-the target; the source skill becomes a hidden alias.
-The dialog mirrors the Companies "Relate Company" UX.
+The Merge dialog searches visible skills (excluding the source skill(s)), lets
+the user pick a target, and merges the source(s) into it. Mentions re-point to
+the target; the source skill(s) become hidden aliases.
+
+- **Single merge** — opened from the Edit drawer with one source.
+- **Bulk merge** — opened from the bulk action bar with all selected sources
+  (`POST /api/skills/merge` with `source_ids` = the selected ids).
+
+The dialog mirrors the Companies "Relate Company" UX. When multiple sources are
+involved, the description lists them and the footer button reads
+"Merge N into selected".
 
 ---
 
@@ -341,12 +475,14 @@ The Add Skill drawer (Sheet) collects:
 
 - Name (required)
 - Level (1–10 select)
-- Category (canonical select)
+- Categories (multi-select with inline **+ add**, shared control)
 - Relevant Roles
 - Path
 
-Submitting calls `POST /api/skills` with `{name, level, roles, path, category}`.
-After a successful submit the drawer closes and the skill appears in the list.
+Submitting calls `POST /api/skills` with
+`{name, level, roles, path, category, categories}`. The primary `category` is
+derived from the first selected category for legacy consumers. After a
+successful submit the drawer closes and the skill appears in the list.
 
 ---
 

@@ -10,10 +10,13 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ </> Kubernetes (engineering) [AI]   Edit                  ✕ │
+│ </> Kubernetes [AI]   Edit                                ✕ │
 ├────────────────────────────────────────────────────────────┤
 │ ★ Lv.4   Confidence: 85%   Market: 90%                    │
 │                                                            │
+│ ┌─ Categories ──────────────────────────────────────────┐  │
+│ │ [engineering] [infrastructure]                        │  │
+│ └────────────────────────────────────────────────────────┘  │
 │ ┌─ Relevant Roles ──────────────────────────────────────┐  │
 │ │ DevOps, SRE, Platform                                  │  │
 │ └────────────────────────────────────────────────────────┘  │
@@ -40,9 +43,13 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 
 | Element      | Behavior                                         |
 | ------------ | ------------------------------------------------ |
-| Title        | Skill name + CategoryBadge + OriginBadge.        |
+| Title        | Skill name + OriginBadge.                        |
 | Edit button  | Switches to the Edit drawer (`onEdit`).          |
 | Close        | Closes the drawer, clears `?skill=` param.       |
+
+Category badges are not shown in the header — they live in the dedicated
+**Categories** section of the body, because a skill can belong to multiple
+categories.
 
 ---
 
@@ -53,11 +60,17 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 | Level             | `level` (Lv.{n})    |
 | Confidence        | `confidence` (%)    |
 | Market demand     | `market_relevance`  |
+| Categories        | `categories` (all badges; falls back to `category`) |
 | Relevant Roles    | `roles`             |
 | Path              | `path`              |
 | Tags              | `tags` (badges)     |
 | Also Known As     | `aliases` (badges)  |
 | Why This Matters  | `evidence`          |
+
+The **Categories** section is rendered right below the stats row, above Relevant
+Roles. It shows one badge per category (deterministic colors — see
+`page.md` → Category). The section is hidden entirely when a skill has no
+categories at all.
 
 Sections with no data are omitted (no empty boxes).
 

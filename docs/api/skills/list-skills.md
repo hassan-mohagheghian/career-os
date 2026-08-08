@@ -57,21 +57,26 @@ Search is case-insensitive (substring match). Empty value is ignored.
 
 ## Filters
 
-### Category
+### Categories
 
 ```text
-category=engineering
+categories=engineering
+categories=technical
 ```
 
-Canonical categories:
+Repeat the `categories` parameter to select multiple categories. Matching uses
+**OR** semantics: a skill is included when it belongs to **any** of the selected
+categories (its full category set from the catalog link table, falling back to
+the legacy primary `category` column).
 
-- `technical`
-- `engineering`
-- `professional`
-- `domain`
-- `career`
+An empty/absent `categories` means no category filter is applied.
 
-Invalid categories return 400.
+The legacy single-value `category` parameter is still accepted as a convenience
+(`category=engineering` behaves like `categories=engineering`).
+
+Categories come from the live catalog (`GET /api/skills/categories`); any
+user-created category can be used. No category is rejected — unknown names
+simply match no skills.
 
 ---
 
@@ -123,6 +128,7 @@ Default: `desc`.
       "id": 12,
       "name": "Kubernetes",
       "category": "engineering",
+      "categories": ["engineering", "infrastructure"],
       "level": 4,
       "roles": "DevOps, SRE",
       "path": "./kubernetes/platform",
@@ -153,7 +159,8 @@ Row fields:
 | ------------------ | ----------------------------------------------------- |
 | `id`               | Skill id.                                             |
 | `name`             | Skill name.                                           |
-| `category`         | Canonical category.                                   |
+| `category`         | Primary category (first of `categories`; legacy column). |
+| `categories`       | Full category set from the catalog link table.        |
 | `level`            | Proficiency level (1–10).                             |
 | `roles`            | Relevant roles.                                       |
 | `path`             | Learning path.                                        |
@@ -194,7 +201,7 @@ The endpoint must not perform N+1 queries.
 
 400
 
-Invalid query parameters (e.g. unknown category, invalid sort field).
+Invalid query parameters (e.g. invalid sort field or page_size out of range).
 
 401
 

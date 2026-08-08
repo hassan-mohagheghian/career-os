@@ -19,8 +19,8 @@ The Add Skill drawer collects the core data for a new skill and creates it via
 │ Level                                         │
 │ [Lv.4 ▾]                                     │
 │                                               │
-│ Category                                      │
-│ [technical ▾]                                 │
+│ Categories                                    │
+│ [technical ☑ +1 ▾]  (multi-select + add)     │
 │                                               │
 │ Relevant Roles                                │
 │ [DevOps, SRE, Platform ...................]   │
@@ -36,13 +36,13 @@ The Add Skill drawer collects the core data for a new skill and creates it via
 
 # Fields
 
-| Field          | Type     | Required | Notes                                |
-| -------------- | -------- | -------- | ------------------------------------ |
-| Name           | text     | Yes      | Unique skill name.                   |
-| Level          | select   | No       | 1–10, default 4.                     |
-| Category       | select   | No       | Canonical category, default technical.|
-| Relevant Roles | text     | No       | Comma-separated roles.               |
-| Path           | text     | No       | Optional skill path.                 |
+| Field          | Type           | Required | Notes                                 |
+| -------------- | -------------- | -------- | ------------------------------------- |
+| Name           | text           | Yes      | Unique skill name.                    |
+| Level          | select         | No       | 1–10, default 4.                      |
+| Categories     | multi-select   | No       | Live catalog; inline "+ add" creates + selects a new category; primary = first selected. |
+| Relevant Roles | text           | No       | Comma-separated roles.                |
+| Path           | text           | No       | Optional skill path.                  |
 
 ---
 
@@ -76,4 +76,4 @@ Submit (POST /api/skills)
 # Related Documents
 
 - `docs/ux/features/skills/page.md`
-- `docs/api/skills/create-skill.md`
+- `docs/api/skills/categories.md`

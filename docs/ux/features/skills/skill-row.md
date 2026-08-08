@@ -11,7 +11,7 @@ row's columns and inline row actions.
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Kubernetes [AI] 2 aliases │ engineering │ Lv.4 │ DevOps, SRE │ 90% │ 85% │ 2m │ 3 │ ⋯ │
+│ ☑ │ Kubernetes [AI] 2 aliases │ engineering │ Lv.4 │ DevOps, SRE │ 90% │ 85% │ 2m │ 3 │ ⋯ │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -21,6 +21,7 @@ row's columns and inline row actions.
 
 | Column     | Field                    | Notes                                     |
 | ---------- | ------------------------ | ----------------------------------------- |
+| Select     | —                        | Checkbox toggling multi-select (hidden unless the Select column is enabled) |
 | Name       | `name`                   | Origin badge (AI/Manual) + alias count badge when aliases exist |
 | Category   | `category`               | Canonical category badge                  |
 | Level      | `level`                  | Rendered as `Lv.{level}`                  |
@@ -62,7 +63,20 @@ Each row exposes three icon (tooltip) buttons:
 | Delete  | Trash    | Opens the ConfirmDialog; deletes the skill.  |
 
 All action clicks `stopPropagation` so a click on an action never opens the
-Detail drawer.
+Detail drawer. The Select checkbox also stops propagation so selecting a row
+never opens the Detail drawer.
+
+---
+
+# Select Column
+
+When the Select column is enabled (toolbar Columns dropdown), each row renders a
+leading checkbox:
+
+- Checked state is driven by page-level selection state, not row-local state
+  (rows are virtualized/unmounted when scrolled away).
+- Clicking the checkbox calls the row's `onToggleSelect(id)` and never triggers
+  row navigation.
 
 ---
 

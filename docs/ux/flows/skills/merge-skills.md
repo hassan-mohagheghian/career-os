@@ -4,12 +4,16 @@
 
 How a user consolidates duplicate skill rows into a single canonical skill.
 
-The user picks a target skill; the current skill's mentions re-point to the
-target, and the source becomes a hidden alias of it.
+The user picks a target skill; the source skill(s) mentions re-point to the
+target, and the source(s) become hidden aliases of it. Merging works for a
+single skill (from the Edit drawer) or for many selected skills at once (from
+the list multi-select).
 
 ---
 
 # Flow
+
+## Single merge
 
 ```text
 Skill row → Edit drawer → "Merge into another skill"
@@ -25,6 +29,41 @@ Confirm → POST /api/skills/merge {target_id, source_ids: [current]}
         │
         ├── Success → drawer closes, list refreshes
         └── Error   → inline error, dialog stays open
+```
+
+## Bulk merge
+
+```text
+Enable Select column (Columns dropdown)
+        │
+        ▼
+Select rows (header checkbox selects all loaded; selection survives pagination)
+        │
+        ▼
+Bulk action bar appears in the toolbar → "Merge N into..."
+        │
+        ▼
+Merge Skill dialog (excludes all selected; description lists them)
+        │
+        ▼
+Pick a target skill
+        │
+        ▼
+Confirm → POST /api/skills/merge {target_id, source_ids: [all selected]}
+        │
+        ├── Success → selection clears, list refreshes, toast "Merged N skills"
+        └── Error   → toast error, dialog closes, selection kept
+```
+
+```mermaid
+flowchart TD
+    A[Enable Select column] --> B[Select rows]
+    B --> C[Bulk action bar: Merge N into...]
+    C --> D[Merge Skill dialog]
+    D --> E[Pick target skill]
+    E --> F[POST /api/skills/merge]
+    F -->|Success| G[Clear selection + refresh list + toast]
+    F -->|Error| H[Toast error, selection kept]
 ```
 
 ---
@@ -53,6 +92,26 @@ Click **Merge into selected**. The backend:
 
 The list query is invalidated; the edit drawer closes.
 
+## 4. Bulk merge (multi-select)
+
+From the Skills list:
+
+1. Enable the **Select** column via the toolbar **Columns** dropdown.
+2. Tick rows (the header checkbox selects all *loaded* rows; an indeterminate
+   state shows partial selection). Selection survives scrolling and pagination.
+3. The toolbar renders a bulk bar: **N selected**, **Merge N into...**, **Clear**.
+4. **Merge N into...** opens the Merge Skill dialog. All selected skills are
+   excluded from the candidate list and listed in the description; the footer
+   button reads **Merge N into selected**.
+5. Pick a target and confirm. The same `POST /api/skills/merge` is called with
+   `source_ids` = every selected skill id (the endpoint already loops over the
+   list).
+6. On success the selection clears, the list refetches, and a toast confirms.
+7. **Clear** (or changing the search/filters) clears the selection.
+
+The backend rejects an empty `source_ids` array and a target that is also one of
+the sources with `400`.
+
 ---
 
 # Edge Cases
@@ -65,6 +124,18 @@ target is selected.
 ## Merging a skill with no mentions
 
 The target simply gains the alias and the source is hidden; nothing else changes.
+
+## Empty bulk selection
+
+The bulk bar only renders when ≥1 row is selected; the merge button is never
+reachable with no sources. The backend additionally rejects an empty
+`source_ids` array with `400`.
+
+## Target selected as a source
+
+All selected sources are excluded from the candidate list, so the target can
+never be one of its own sources. The backend also returns `400` if a caller
+passes the target inside `source_ids`.
 
 ## Duplicate mention keys
 

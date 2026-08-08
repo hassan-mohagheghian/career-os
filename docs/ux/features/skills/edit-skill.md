@@ -19,8 +19,8 @@ The Edit Skill drawer updates the core data of an existing skill via
 │ Level                                         │
 │ [Lv.4 ▾]                                     │
 │                                               │
-│ Category                                      │
-│ [engineering ▾]                               │
+│ Categories                                    │
+│ [engineering ☑ +1 ▾]  (multi-select + add)   │
 │                                               │
 │ Relevant Roles                                │
 │ [DevOps, SRE, Platform ...................]   │
@@ -92,4 +92,4 @@ Submit (PUT /api/skills/{id})
 - `docs/ux/features/skills/page.md`
 - `docs/ux/features/skills/skill-detail.md`
 - `docs/ux/flows/skills/merge-skills.md`
-- `docs/api/skills/update-skill.md`
+- `docs/api/skills/categories.md`
