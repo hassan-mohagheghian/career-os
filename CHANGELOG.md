@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.11.0] — 2026-08-08
+
+### Added
+
+- **Skill multi-select + bulk merge.** The Skills list gains an optional
+  Select column (toggled via the Columns dropdown) with a select-all header
+  checkbox (indeterminate-aware). Selection survives scrolling/pagination and
+  clears when search or filters change. With rows selected, a toolbar bulk bar
+  offers **Merge N into...**, which reuses the existing merge target picker to
+  merge every selected skill into one target via the already multi-source
+  `POST /api/skills/merge`. The merge endpoint now validates requests:
+  `400` on an empty `source_ids` array or when the target is included in
+  `source_ids`. Docs updated in `docs/ux/features/skills/page.md`,
+  `docs/ux/features/skills/skill-row.md`, `docs/ux/flows/skills/merge-skills.md`
+  and `docs/api/skills/merge-skills.md`.
+
 ## [3.10.0] — 2026-08-07
 
 ### Added
