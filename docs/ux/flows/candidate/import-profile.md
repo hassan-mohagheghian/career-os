@@ -59,17 +59,20 @@ Review profile (skills / experience / projects / sources / versions)
 | | |
 | --- | --- |
 | User action | Click **✨ Analyze Profile** |
-| System behavior | `POST /api/candidates/analyze` → creates + dispatches a `CANDIDATE_PROCESSING` execution (source preparation → extraction → merge → version) |
-| UI state | Toast "Profile analysis queued"; Review tab activated |
+| System behavior | `POST /api/candidates/analyze`. When the profile has a source still to process (`pending` / `failed`): creates + dispatches a `CANDIDATE_PROCESSING` execution (source preparation → extraction → merge → version). When every source is already `processed` (or none exist): returns `200 { status: "noop", reason: "no_new_sources" }` and queues nothing |
+| UI state | Queued path: toast "Profile analysis queued"; Review tab activated. Noop path: info toast "No new resume/LinkedIn version to process — save a new version first"; stays on Sources |
 
 ```text
 [✨ Analyze Profile]
-        ↓ 202 { execution_id, status: queued }
-   background workflow (SSE progress)
-        ↓
-   candidate profile v1 persisted
-        ↓
-   GET /profile, /sources, /versions refetch
+        ↓ POST /api/candidates/analyze
+   ┌──────────────┴───────────────┐
+   │ new pending source?          │
+   ├── yes ── 202 {execution_id, status: queued}
+   │             ↓ background workflow (SSE progress)
+   │             ↓ candidate profile v{N} persisted
+   │             ↓ GET /profile, /sources, /versions refetch
+   └── no ── 200 {status: noop, reason: no_new_sources}
+                 ↓ info toast (no run queued)
 ```
 
 ### Step 3b — Watch analysis progress
@@ -99,7 +102,9 @@ Review profile (skills / experience / projects / sources / versions)
 
 - Resume/LinkedIn empty text → Save buttons disabled.
 - Re-importing the same source version → workflow skips it (`already_processed`).
-- No sources at all → analysis still queues; sources-ready node degrades.
+- No unprocessed sources at all (all `processed`, or none) → `POST /analyze`
+  returns `200 status=noop`, no execution queued; info toast explains that a new
+  resume/LinkedIn version must be saved first.
 - Source without content → View dialog shows "No content saved."
 
 ## Component Structure

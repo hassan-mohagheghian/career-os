@@ -570,8 +570,9 @@ resume/LinkedIn sources, run AI analysis, and review the canonical profile.
 │ │ GITHUB (optional — placeholder)    [username..............]        │  │
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
-│ │ [✨ Analyze Profile]  [☑ Processing]   (queues candidate analysis; │  │
-│ │  Processing opens queue drawer filtered to candidate executions)   │  │
+│ │ [✨ Analyze Profile]  [☑ Processing]   (queues candidate analysis │  │
+│ │  when a resume/LinkedIn is pending; otherwise info toast "no new  │  │
+│ │  version"; Processing opens queue drawer for candidate runs)      │  │
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ [REVIEW TAB]                                                           │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
@@ -597,7 +598,9 @@ resume/LinkedIn sources, run AI analysis, and review the canonical profile.
 
 Profile analysis is a background workflow (`CANDIDATE_PROCESSING` execution,
 SSE progress); the Review tab refetches `/profile`, `/sources` and `/versions`
-after analysis. Full specs live in
+after analysis. Analyze only queues a run when a resume/LinkedIn source is still
+pending; otherwise it returns `status=noop` and the UI shows an info toast
+(persisting a new version requires saving a new source first). Full specs live in
 `docs/ux/features/candidate/profile-import.md` and
 `docs/ux/flows/candidate/import-profile.md`.
 

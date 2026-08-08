@@ -90,6 +90,10 @@ export function ProfileImportPage() {
   const handleAnalyze = useCallback(() => {
     analyzeMutation.mutate(undefined, {
       onSuccess: (result) => {
+        if (result.status === 'noop') {
+          toast.info('No new resume/LinkedIn version to process — save a new version first')
+          return
+        }
         toast.success('Profile analysis queued')
         setActiveTab('review')
         void result

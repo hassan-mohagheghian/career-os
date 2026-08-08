@@ -36,3 +36,10 @@ class ICandidateSourceRepository(ABC):
     def get_next_version(self, profile_id: str, source_type: str) -> int:
         """Return the next version number for a source type on a profile."""
         ...
+
+    @abstractmethod
+    def has_unprocessed_sources(self, profile_id: str) -> bool:
+        """Return True when the profile has any source that has not been
+        processed yet (pending / failed) — i.e. something left for the next
+        candidate processing run to extract."""
+        ...

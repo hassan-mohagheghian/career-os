@@ -96,6 +96,15 @@ describe('useAnalyzeProfileMutation', () => {
     expect(mockApi.analyze).toHaveBeenCalledTimes(1)
     expect(result.current.data?.execution_id).toBe('exec-1')
   })
+
+  it('passes through a noop result', async () => {
+    mockApi.analyze.mockResolvedValue({ execution_id: null, status: 'noop', reason: 'no_new_sources' })
+    const { result } = renderHook(() => useAnalyzeProfileMutation(), { wrapper })
+    result.current.mutate(undefined)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.status).toBe('noop')
+    expect(result.current.data?.reason).toBe('no_new_sources')
+  })
 })
 
 describe('useUploadSourceMutation', () => {

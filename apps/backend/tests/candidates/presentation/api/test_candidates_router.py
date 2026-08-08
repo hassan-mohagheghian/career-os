@@ -142,7 +142,12 @@ class TestUploadSource:
 
 
 class TestAnalyze:
-    def test_dispatches_candidate_processing(self, client):
+    def test_dispatches_candidate_processing(self, client, sa_session):
+        profile_id = _seed_profile(sa_session)
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        source_repo.create(
+            {"profile_id": profile_id, "source_type": "resume", "version": 2, "status": "pending"}
+        )
         with (
             patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
             patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
@@ -155,3 +160,33 @@ class TestAnalyze:
         assert data["status"] == "queued"
         enqueue.assert_called_once_with(data["execution_id"])
         publish.assert_called_once()
+
+    def test_noop_when_all_sources_processed(self, client, sa_session):
+        _seed_profile(sa_session)
+        with (
+            patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+            patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+        ):
+            response = client.post("/api/candidates/analyze")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "noop"
+        assert data["reason"] == "no_new_sources"
+        assert data["execution_id"] is None
+        enqueue.assert_not_called()
+        publish.assert_not_called()
+
+    def test_noop_when_no_profile(self, client):
+        with (
+            patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+            patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+        ):
+            response = client.post("/api/candidates/analyze")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "noop"
+        assert data["reason"] == "no_new_sources"
+        enqueue.assert_not_called()
+        publish.assert_not_called()

@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 import { ProfileImportPage } from './ProfileImportPage'
-import type { CandidateSource } from '@/entities/candidate/types'
+import type { CandidateAnalyzeResult, CandidateSource } from '@/entities/candidate/types'
 
 const sources: CandidateSource[] = [
   {
@@ -34,16 +35,21 @@ const sources: CandidateSource[] = [
   },
 ]
 
+let analyzeResult: CandidateAnalyzeResult | undefined
+const analyzeMutate = vi.fn((_args: undefined, opts?: { onSuccess?: (r: CandidateAnalyzeResult) => void }) => {
+  if (analyzeResult && opts?.onSuccess) opts.onSuccess(analyzeResult)
+})
+
 vi.mock('@/entities/candidate/hooks', () => ({
   useCandidateProfileQuery: () => ({ data: null, isLoading: false, isError: false }),
   useCandidateSourcesQuery: () => ({ data: { items: sources }, isLoading: false, isError: false }),
   useCandidateVersionsQuery: () => ({ data: { items: [] }, isLoading: false, isError: false }),
-  useAnalyzeProfileMutation: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  useAnalyzeProfileMutation: () => ({ mutate: analyzeMutate, isPending: false, error: null }),
   useUploadSourceMutation: () => ({ mutate: vi.fn(), isPending: false, variables: null }),
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('@/entities/processing/api', () => ({
@@ -68,6 +74,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  analyzeResult = undefined
 })
 
 describe('ProfileImportPage sources', () => {
@@ -110,5 +117,28 @@ describe('ProfileImportPage sources', () => {
     await user.click(screen.getByRole('button', { name: /processing/i }))
     expect(await screen.findByText('Processing Queue')).toBeInTheDocument()
     expect(screen.getAllByText('No candidate analysis in this state.').length).toBe(3)
+  })
+})
+
+describe('ProfileImportPage analyze', () => {
+  it('shows an info toast and stays on Sources when there is nothing new to process', async () => {
+    analyzeResult = { execution_id: null, status: 'noop', reason: 'no_new_sources' }
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /analyze profile/i }))
+    expect(toast.info).toHaveBeenCalledWith(
+      'No new resume/LinkedIn version to process — save a new version first'
+    )
+    expect(screen.getByRole('tab', { name: /review/i })).not.toHaveAttribute('data-state', 'active')
+    expect(screen.getByRole('tab', { name: /sources/i })).toHaveAttribute('data-state', 'active')
+  })
+
+  it('shows queued toast and switches to Review when an execution is created', async () => {
+    analyzeResult = { execution_id: 'exec-1', status: 'queued' }
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /analyze profile/i }))
+    expect(toast.success).toHaveBeenCalledWith('Profile analysis queued')
+    expect(screen.getByRole('tab', { name: /review/i })).toHaveAttribute('data-state', 'active')
   })
 })

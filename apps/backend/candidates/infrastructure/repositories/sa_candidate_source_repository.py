@@ -59,6 +59,17 @@ class SQLAlchemyCandidateSourceRepository(ICandidateSourceRepository):
         latest = self.get_latest_by_type(profile_id, source_type)
         return int(latest.get("version") or 0) + 1 if latest else 1
 
+    def has_unprocessed_sources(self, profile_id: str) -> bool:
+        row = (
+            self._session.query(CandidateSourceModel)
+            .filter(
+                CandidateSourceModel.profile_id == profile_id,
+                CandidateSourceModel.status != "processed",
+            )
+            .first()
+        )
+        return row is not None
+
     def update(self, source_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         model = self._session.query(CandidateSourceModel).filter(CandidateSourceModel.id == source_id).first()
         if not model:

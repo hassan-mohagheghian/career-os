@@ -8,6 +8,7 @@ processing pipeline, mirroring the job/company process endpoints.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status as http_status
+from fastapi.responses import JSONResponse
 
 from candidates.infrastructure import (
     SQLAlchemyCandidateProfileRepository,
@@ -107,8 +108,16 @@ def list_versions(
 
 @router.post("/analyze", status_code=http_status.HTTP_202_ACCEPTED, response_model=CandidateAnalyzeResponse)
 def analyze_profile(
+    profile_repo: SQLAlchemyCandidateProfileRepository = Depends(get_candidate_profile_repo),
+    source_repo: SQLAlchemyCandidateSourceRepository = Depends(get_candidate_source_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
+    profile = profile_repo.get_current_profile()
+    if profile is None or not source_repo.has_unprocessed_sources(profile["id"]):
+        return JSONResponse(
+            status_code=http_status.HTTP_200_OK,
+            content=CandidateAnalyzeResponse(status="noop", reason="no_new_sources").model_dump(),
+        )
     use_case = CreateProcessingExecutionUseCase(exec_repo)
     request = CreateProcessingExecutionRequest(
         execution_type=ExecutionType.CANDIDATE_PROCESSING,

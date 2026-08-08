@@ -36,8 +36,9 @@ class CandidateVersionListResponse(BaseModel):
 
 
 class CandidateAnalyzeResponse(BaseModel):
-    execution_id: str
+    execution_id: str | None = None
     status: str
+    reason: str = ""
 
 
 class CandidateSourceUploadRequest(BaseModel):

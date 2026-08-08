@@ -126,6 +126,7 @@ export interface CandidateVersionsResult {
 }
 
 export interface CandidateAnalyzeResult {
-  execution_id: string
+  execution_id: string | null
   status: string
+  reason?: string
 }

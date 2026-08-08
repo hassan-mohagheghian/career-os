@@ -37,6 +37,11 @@ Actions available on this page:
   switch to Review to see the latest persisted profile, or open the Processing
   drawer to watch the `CANDIDATE_PROCESSING` workflow progress live via SSE
   (same component as Jobs / Companies, filtered to `target_type="candidate"`).
+- Analysis only runs when there is something to extract: `POST /api/candidates/analyze`
+  short-circuits to a `200 {status: "noop", reason: "no_new_sources"}` when every
+  saved resume/LinkedIn source version is already `processed` (or no sources exist),
+  so no execution is created and no duplicate version is snapshotted. The UI shows
+  an info toast in that case.
 
 # High-Level Layout
 
@@ -58,7 +63,9 @@ Actions available on this page:
 │ └────────────────────────────────────────────────────────────────────┘  │
 │ ┌────────────────────────────────────────────────────────────────────┐  │
 │ │ ANALYZE PROFILE (card)                                             │  │
-│ │  [✨ Analyze Profile]  [☑ Processing]   (queues candidate run)      │  │
+│ │  [✨ Analyze Profile]  [☑ Processing]                              │  │
+│ │  • queues candidate run when a new resume/LinkedIn is pending;     │  │
+│ │    otherwise info toast "no new version" (no run created)          │  │
 │ └────────────────────────────────────────────────────────────────────┘  │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  [Review tab]                                                           │
@@ -116,8 +123,9 @@ flowchart LR
     end
     subgraph Analyze
         A[Analyze Profile] --> AP[POST /api/candidates/analyze]
-        AP --> EX[Execution created + dispatched]
+        AP -->|new source pending| EX[Execution created + dispatched]
         EX -. SSE /events/processing .-> W[ProcessingDrawer progress]
+        AP -->|all sources processed| NOOP[200 status=noop → info toast]
     end
     subgraph Review
         P[GET /api/candidates/profile]
@@ -151,7 +159,9 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> SourcesTab
     SourcesTab --> Analyze: analyze clicked
+    Analyze --> Noop: 200 {status:"noop"} (no new sources)
     Analyze --> Queued: 202 {execution_id}
+    Noop --> SourcesTab: info toast (stay on Sources)
     Queued --> Review: switch to Review tab
     Review --> ProfileLoaded: GET profile ok
     Review --> ProfileMissing: 404 (no profile)
@@ -169,7 +179,7 @@ stateDiagram-v2
 | View content    | [👁 View] on a SourceCard or a Connected Sources row opens `SourceContentDialog` showing the stored (PII-masked) raw text in a scrollable read-only block.                          |
 | Last updated    | Relative timestamp (`updated_at` or `created_at`) on each SourceCard footer and each Connected Sources row; hover shows the full local datetime.                                   |
 | GitHub input    | Stored locally only; marked "not yet available" (adapter is a stub).                                                                                                               |
-| Analyze Profile | `POST /api/candidates/analyze`; returns `{ execution_id, status }`; toast "queued"; switches to Review. |
+| Analyze Profile | `POST /api/candidates/analyze`. When the current profile has a source still to process (`pending` / `failed`): returns `202 { execution_id, status: "queued" }`; toast "queued"; switches to Review. When every source is already `processed` (or none exist): returns `200 { status: "noop", reason: "no_new_sources" }` without creating an execution; info toast "No new resume/LinkedIn version to process — save a new version first"; stays on Sources. |
 | Processing | [☑ Processing] opens the shared `ProcessingDrawer` filtered to `target_type="candidate"` — running / waiting / failed candidate executions with workflow step progress (SSE live updates). |
 | Review tab      | Fetches `/api/candidates/profile`, `/sources`, `/versions` on mount and after analysis via React Query invalidation.                                                               |
 | Confirm / retry | Post-hoc confirm: no separate confirm step; re-running analysis is the retry path.                                                                                                 |
@@ -187,6 +197,9 @@ stateDiagram-v2
 - Connected Sources: "No sources imported yet."
 - Version History: "No profile versions yet."
 - Skills / Experience / Projects sections are hidden when empty.
+- Analyze with no pending source: info toast "No new resume/LinkedIn version to
+  process — save a new version first"; no run queued, stays on Sources. The
+  workflow already skips `processed` versions (no duplicate versions).
 
 # Loading States
 
