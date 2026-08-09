@@ -75,11 +75,22 @@ def _cursor_encode(offset: int) -> str:
     return base64.b64encode(str(offset).encode()).decode()
 
 
-def _matches(row: dict[str, Any], query: str, industry: str, pinned: bool | None = None, status: str | None = None) -> bool:
+def _matches(
+    row: dict[str, Any],
+    query: str,
+    industry: str,
+    pinned: bool | None = None,
+    status: str | None = None,
+    status_lookup: dict[str, str] | None = None,
+) -> bool:
     if pinned is not None and bool(row.get("pinned")) != pinned:
         return False
     if status:
-        if (row.get("status") or "") != status:
+        row_status = (status_lookup or {}).get(row.get("id"))
+        if status == "none":
+            if row_status is not None:
+                return False
+        elif row_status != status:
             return False
     if query:
         q = query.lower()
@@ -155,7 +166,7 @@ def _to_list_item(
             overall_grade=scores.get("overall_grade") or scores.get("fit_grade"),
         ),
         processing=CompanyProcessingSchema(
-            status=row.get("status"),
+            status=execution.get("status") if execution else None,
             current_node=row.get("current_node"),
             progress_pct=row.get("progress_pct"),
             error=row.get("error"),
@@ -186,7 +197,8 @@ def list_companies_v2(
     job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
-    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status)]
+    status_lookup = exec_repo.latest_statuses("company")
+    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status, status_lookup)]
 
     key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort)
     with_value = [r for r in rows if key(r) is not None]
@@ -279,9 +291,10 @@ def get_company_detail(
     link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ) -> CompanyDetailResponseSchema:
     """Get a company by id with all related data in a single payload."""
-    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo)
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo, exec_repo)
 
 
 def _build_company_detail(
@@ -291,6 +304,7 @@ def _build_company_detail(
     link_repo: SQLAlchemyCompanyLinkRepository,
     job_repo: SQLAlchemyJobRepository,
     job_company_repo: SQLAlchemyJobCompanyRepository,
+    exec_repo: SQLAlchemyProcessingExecutionRepository,
 ) -> CompanyDetailResponseSchema:
     company = repo.get_by_id(id)
     if not company:
@@ -299,6 +313,7 @@ def _build_company_detail(
     intel = intel_repo.get_by_company_id(id)
     links = link_repo.get_by_company_id(id)
     jobs = job_repo.get_jobs_by_company_id(id)
+    latest_execution = exec_repo.latest_by_target_ids("company", [id]).get(id)
 
     parent_company_id = company.get("parent_company_id")
     main_company = None
@@ -383,7 +398,7 @@ def _build_company_detail(
         logo_url=company.get("logo_url"),
         founded_year=company.get("founded_year"),
         job_count=len(jobs_schema),
-        status=company.get("status"),
+        status=latest_execution.get("status") if latest_execution else None,
         current_node=company.get("current_node"),
         progress_pct=company.get("progress_pct"),
         error=company.get("error"),
@@ -424,6 +439,7 @@ def relate_company_main(
     link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
     job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ) -> CompanyDetailResponseSchema:
     """Relate a company to a main company (null clears the relation).
 
@@ -438,4 +454,4 @@ def relate_company_main(
     for affected_id in result.get("affected_company_ids", []):
         job_repo.reassign_company(affected_id, result["main_company_id"])
 
-    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo)
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo, exec_repo)

@@ -75,12 +75,18 @@ Exact match on the company's industry value.
 ### Status
 
 ```text
-status=processed
+status=running
+status=none
 ```
 
-Exact match on the company's processing status (shared `JobStatus`
-vocabulary): `created`, `pending`, `queued`, `processing`, `running`,
-`completed`, `processed`, `failed`, `cancelled`.
+Exact match on the company's processing status derived from its **latest**
+`processing_execution` row — the same source and vocabulary the Jobs list uses
+(`ExecutionStatus` values): `created`, `queued`, `starting`, `running`,
+`completed`, `failed`, `cancelled`.
+
+`status=none` matches companies that have no processing execution at all
+("Not processed"). The company row's own `status` column is **not** used; it is
+a partial mirror of the lifecycle and can be stale.
 
 ---
 

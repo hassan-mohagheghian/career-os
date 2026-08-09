@@ -52,9 +52,9 @@ Each row displays:
 - Location
 - Remote badge
 - Visa badge
-- Overall Score
 - Fit Score
 - Success Score
+- Overall Score
 - Recommendation
 - Processing Status
 - Last Updated
@@ -96,16 +96,15 @@ Details drawer.
 
 Scores are displayed as compact badges, led by the overall grade badge
 (derived from the overall score via the shared grade helper, `A++` … `D`).
+The score values follow the same Fit → Success → Overall order and the same
+color thresholds as the score cards in the Job Details drawer (see
+`jobs/page.md`).
 
 Example
 
 Grade
 
 A+
-
-Overall
-
-91
 
 Fit
 
@@ -115,8 +114,12 @@ Success
 
 88
 
+Overall
+
+91
+
 ```text
-[A+]  O 91   F 94   S 88
+[A+]  F 94   S 88   O 91
 ```
 
 Null scores show `—`; a missing overall score shows `—` for the grade instead

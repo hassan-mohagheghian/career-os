@@ -46,18 +46,22 @@ D red).
 
 # Status
 
-Rendered from the company's `latest_processing_execution` using the shared
-`JobStatus` vocabulary:
+Rendered with the shared `StatusBadge` (the exact badge the Jobs list uses)
+from the company's latest processing execution. The status vocabulary matches
+the job execution statuses:
 
 ```text
+Created
 Queued
-Processing
+Starting
+Running
 Completed
 Failed
 Cancelled
 ```
 
-Processing renders a pulsing dot.
+Running renders a pulsing dot. A company with no processing execution renders
+`—`.
 
 ---
 

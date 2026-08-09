@@ -70,11 +70,11 @@ Placement is right by default; all variants become full-screen on mobile.
 │ Search .......................................................................       │
 │ Sort ▼                  Filters ▼                                        Refresh     │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│ # │ Pin │ Job                  │ Company    │ Location │ Overall │ Fit │ Proc.  │ Updated │
+│ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Proc.  │ Updated │
 │─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ A++  94  │ 95  │ Ready  │ 2m      │
-│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ A+  90   │ 90  │ Running│ now     │
-│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ A   86   │ 86  │ Failed │ 5m      │
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] F 95 S 91 O 94 │ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] F 90 S 88 O 90  │ Running│ now     │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] F 86 S 84 O 83   │ Failed │ 5m      │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
@@ -191,60 +191,35 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ Job Details                                            [Edit]         [Close]│
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ Senior Backend Engineer                                                      │
-│ Acme Inc  ·  Berlin, Germany  ·  Hybrid  ·  Full-time                        │
-│ Open job posting ↗                                                           │
+│ [B]  Fit 85   Success 70   Overall 79                [Why]               │
 │                                                                              │
-│ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐                    │
-│ │ Overall   │ │ Fit       │ │ Success   │ │ Grade     │                    │
-│ │ 79        │ │ 85        │ │ 70        │ │ [B]       │                    │
-│ └───────────┘ └───────────┘ └───────────┘ └───────────┘                    │
+│ Senior Backend Engineer                                                      │
+│ Company   Acme Inc [▾]   │ Employment  Permanent                            │
+│ Location  Berlin, DE…    │ Salary      90k                                  │
+│ Work Types Hybrid, FT    │ Visa        EU Blue Ca… (hover/click → full)    │
+│ Open job posting ↗                                                          │
 │                                                                              │
 │ ┌─ Recommendation ─────────────────────────────────────────────────────────┐ │
 │ │ [consider]           2026-08-03 12:00                                    │ │
 │ │ Great role overall. It matches the senior backend profile...             │ │
 │ └───────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
-│ ┌─ AI Analysis ────────────────────────────────────────────────────────────┐ │
-│ │ • Mention Kafka coursework                                               │ │
-│ │ • Ask about salary band                                                  │ │
-│ ├─ Scores Explanation ────────────────────────────────────────────────────┤ │
-│ │ WHY IT FITS                                                              │ │
-│ │ • Python backend experience                                              │ │
-│ │ CHANCE OF SUCCESS                                                        │ │
-│ │ • Senior level · Berlin                                                  │ │
-│ │ CONCERNS                                                                 │ │
-│ │ • No Kafka experience (red)                                              │ │
-│ ├─ Summary ────────────────────────────────────────────────────────────────┤ │
-│ │ Backend role at Acme.                                                    │ │
-│ │ Resume fit: Strong fit.  Note: Apply early.                              │ │
-│ ├─ Tagged Skills ─────────────────────────────────────────────────────────┤ │
+│ ┌─ Tagged Skills ──────────────────────────────────────────────────────────┐ │
 │ │ [Python · L4 · Language] [Postgres · L4 · Data]                          │ │
 │ │ [Kafka · L1 · Data] [Docker · L3 · Engineering]                          │ │
 │ └───────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
-│ ┌─ Details ─────────────────────────────────────────────────────────────────┐ │
-│ │ Role            Senior Backend Engineer                                   │ │
-│ │ Company         Acme GmbH [▾]          (picker: link/unlink a company)     │ │
-│ │ Status          done                                                      │ │
-│ │ Salary          90k                                                       │ │
-│ │ Visa            sponsored                                                  │ │
-│ │ Created         2026-07-29 09:00                                          │ │
-│ └────────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ AI Analysis ────────────────────────────────────────────────────────────┐ │
+│ │ • Mention Kafka coursework                                               │ │
+│ │ • Ask about salary band                                                  │ │
+│ ├─ Summary ────────────────────────────────────────────────────────────────┤ │
+│ │ Backend role at Acme.                                                    │ │
+│ │ Resume fit: Strong fit.  Note: Apply early.                              │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
-│ ┌─ Published by ────────────────────────────────────────────────────────────┐ │
-│ │ RecruitCo                               [recruiting agency]               │ │
-│ │ TalentBridge GmbH                                                         │ │
-│ │ • listed as the recruiting partner                                        │ │
-│ └────────────────────────────────────────────────────────────────────────────┘ │
+│ ▸ Published by — RecruitCo, TalentBridge GmbH                                │
 │                                                                              │
-│ ┌─ Processing ──────────────────────────────────────────────────────────────┐ │
-│ │ Execution     exec-1234    Status  completed                              │ │
-│ │ ✓ Load Job          ✓ Analyze Job      ✓ Score Job                        │ │
-│ │ ✓ Fetch Content     ✓ Extract Skills   ✓ Recommendation                   │ │
-│ │ ✓ Extract Content   ✓ Summarize        ✓ Save Results                     │ │
-│ │ ✓ Build Context                                                           │ │
-│ └────────────────────────────────────────────────────────────────────────────┘ │
+│ ▸ Processing                                                                 │
 │                                                                              │
 │ ┌─ Description ─────────────────────────────────────────────────────────────┐ │
 │ │ We need a senior backend engineer with Python, Postgres and Kafka.        │ │
@@ -253,8 +228,20 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 ```
 
 The `recommendation` badge maps apply → green, consider → blue, skip → gray.
-Tagged skills render as compact badges; `missing`/`low` skills are tinted to
-signal gaps. Full specs live in `docs/ux/features/jobs/`.
+The `[Why]` button after the Overall score opens a **Scores Explanation**
+popover (Why it fits / Chance of success / Concerns). It auto-opens on hover,
+auto-closes on unhover, and clicking pins/unpins it. Below the title a
+balanced two-column block (each half the drawer width) shows six labeled rows,
+three per column: `Company` (picker) / `Location` / `Work Types` on the left;
+`Employment` / `Salary` / `Visa` on the right. Rows are aligned one-to-one
+across the columns. `Location` and `Visa` are truncated at 30 characters with
+an ellipsis; hovering reveals the full value in a tooltip and clicking
+expands/collapses the value inline. Tagged skills render as compact badges;
+`missing`/`low` skills are tinted to signal
+gaps. The **Published by** section is a collapsed-by-default `Collapsible`
+whose folded trigger shows the recruiter company names inline, positioned just
+before the **Processing** collapsible. Full specs live in
+`docs/ux/features/jobs/`.
 
 ---
 
@@ -319,7 +306,7 @@ Full specs: `docs/ux/features/rules/`.
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │ Companies (128)                       Loaded 25 of 128      Queue           + Add Company│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search ............................................        [Industry ▾] [Pinned] [Columns] [Clear]│
+│ Search ............................................        [Industry ▾] [Status ▾] [Pinned] [Columns] [Clear]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
 │───│─────┼──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│

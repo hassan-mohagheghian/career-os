@@ -1,12 +1,13 @@
 import type { CompanyListItem } from '@/entities/company/types'
 import { ScoreBadge } from '@/features/jobs-v2/components/ScoreBadge'
+import { StatusBadge } from '@/features/jobs-v2/components/StatusBadge'
+import type { ProcessingStatus } from '@/entities/job/types'
 import { Badge } from '@/shared/ui/badge'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { PinButton } from '@/shared/components/PinButton'
 import { buildCompanyGridTemplate } from './companiesColumns'
-import { CompanyProcessingBadge } from './CompanyProcessingBadge'
 import { CompanyActions } from './CompanyActions'
 
 interface CompanyRowProps {
@@ -32,7 +33,7 @@ export function CompanyRow({
   showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
 }: CompanyRowProps) {
   const grade = company.scores?.overall_grade ?? (company.scores?.overall != null ? gradeForScore(company.scores.overall) : null)
-  const processingStatus = company.processing?.status ?? null
+  const processingStatus = (company.processing?.status ?? null) as ProcessingStatus | null
   const recruiter = isRecruiterType(company.company_type)
   const listedJobs = recruiter ? company.recruiter_job_count : company.job_count
   const listedLabel = recruiter
@@ -93,7 +94,7 @@ export function CompanyRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">
-        <CompanyProcessingBadge status={processingStatus} />
+        <StatusBadge status={processingStatus} />
       </div>
       <div className="py-2 px-3 flex items-center">
         <DateTime value={company.updated_at} format="relative" className="text-2xs text-muted-foreground" />

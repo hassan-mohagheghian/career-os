@@ -19,8 +19,9 @@ calls are needed for the Company detail drawer.
 
 > Company processing runs through the shared `ProcessingExecution` lifecycle
 > (execution type `COMPANY_PROCESSING`), the same two-phase model as jobs:
-> context preparation without LLM, then a single-LLM analysis call. `status` uses
-> the shared `JobStatus` vocabulary (`queued` → `processing` → `completed` /
+> context preparation without LLM, then a single-LLM analysis call. `status` is
+> derived from the company's **latest** execution, using the shared execution
+> vocabulary (`created` → `queued` → `starting`/`running` → `completed` /
 > `failed` / `cancelled`). Live progress is exposed via `/api/processing/queue`
 > and SSE events (`/events/processing`, `target_type: "company"`), and is
 > monitored through the shared Processing Drawer filtered to companies.

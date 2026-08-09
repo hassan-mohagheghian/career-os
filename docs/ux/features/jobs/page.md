@@ -62,12 +62,12 @@ Jobs Page
 │ Sort ▼                                         Filters ▼                                   Refresh          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                              │
-│ # │ Pin │ Job │ Company │ Location │ Overall │ Fit │ Success │ Rec │ Processing │ Updated │ Actions │
+│ # │ Pin │ Job │ Company │ Location │ Scores │ Rec │ Processing │ Updated │ Actions │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ A++ │ 95 │ 91 │ ★ Apply │ Ready │ 2m │ ...   │
-│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ A+  │ 90 │ 88 │ ☆ Apply │ Running │ now │ ... │
-│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ A   │ 86 │ 84 │ — Skip │ Failed │ 5m │ ...   │
+│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] F 95 │ S 91 │ O 94 │ ★ Apply │ Ready │ 2m │ ...   │
+│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] F 90 │ S 88 │ O 90 │ ☆ Apply │ Running │ now │ ... │
+│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] F 86  │ S 84 │ O 83 │ — Skip │ Failed │ 5m │ ...   │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
@@ -952,11 +952,13 @@ shows a single scrollable page:
 
 ```text
 ┌─ Job Details ──────────────────────────────────────── ✕ ┐
-│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78       │ ← score strip
+│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  [Why]│ ← score strip
 │                                                         │
 │ Software Engineer (Senior)                              │
-│ Acme GmbH                        {MapPin} Berlin, DE     │
-│ {Briefcase} Full-time, Remote  {Clock} Permanent         │
+│ Company  Acme GmbH [▾]      │  Employment  Permanent   │
+│ Location Berlin, DE…        │  Salary      €90k–€110k  │
+│ Work Types Full-time, Remote│  Visa        EU Blue Ca… │
+│                             │  hover/click → full      │
 │ 🔗 Open job posting                                     │
 │                                                         │
 │ ┌─ Recommendation ─────────────────────────────┐        │
@@ -964,47 +966,49 @@ shows a single scrollable page:
 │ │ Strong match for your visa profile...        │        │
 │ └──────────────────────────────────────────────┘        │
 │                                                         │
-│ ┌─ Details ────────────────────────────────────┐        │
-│ │ Role     Senior Software Engineer            │        │
-│ │ Company  Acme GmbH [Change company]          │        │
-│ │ Status   processed                           │        │
-│ │ Salary   €90k–€110k                          │        │
-│ │ Visa     EU Blue Card eligible               │        │
-│ │ Created  2026-01-15                          │        │
-│ └──────────────────────────────────────────────┘        │
-│                                                         │
-│ ┌─ Published by ───────────────────────────────┐        │
-│ │ RecruitCo                        [recruiting │        │
-│ │                                  agency]     │        │
-│ └──────────────────────────────────────────────┘        │
-│                                                         │
 │ ┌─ Tagged Skills ──────────────────────────────┐        │
 │ │ [TypeScript] [React] [Kubernetes] ...        │        │
 │ └──────────────────────────────────────────────┘        │
 │                                                         │
-│ ┌─ Analysis (Summary / Fit / Success / Concerns)┐       │
-│ └──────────────────────────────────────────────┘        │
+│ ┌─ Analysis (Summary / ...)┐                             │
+│ └──────────────────────────┘                            │
 │                                                         │
 │ ┌─ Description ────────────────────────────────┐        │
 │ └──────────────────────────────────────────────┘        │
 │                                                         │
-│ ┌─ Processing  ▾ ──────────────────────────────┐        │
-│ │ Execution exec-123   Status completed         │        │
-│ │ Current Step extract_analysis                 │        │
-│ │  ✓ extract_details 100%                      │        │
-│ │  ✓ analyze         100%                      │        │
-│ └──────────────────────────────────────────────┘        │
+│ ▸ Published by — RecruitCo, TalentBridge GmbH           │
+│                                                         │
+│ ▸ Processing                                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
 - **Score strip**: a `GradeBadge` for the overall grade plus colored
-  Fit / Success / Overall score cards at the top (green ≥80, blue ≥60,
-  yellow ≥40, red below). Replaces the old 4-column muted grid.
+  Fit / Success / Overall score cards at the top. Colors use the shared
+  `scoreColor` thresholds (≥90 green, ≥70 emerald, ≥50 yellow, ≥30 orange,
+  <30 red) — identical to the list `ScoreBadge` colors. A `[Why]` button sits
+  after the Overall score and
+  opens a **Scores Explanation** popover anchored to the button. It
+  auto-opens on hover and auto-closes on unhover; clicking the button pins
+  the popover open and clicking again closes it. The popover lists *Why it
+  fits*, *Chance of success* and *Concerns* — the same content that used to
+  be an inline `Scores Explanation` section.
 - **Recommendation** is highlighted with `border-primary/20 bg-primary/5`
   (matching the Company Detail).
+- **Published by** sits just before **Processing** at the end of the drawer
+  as a `Collapsible` **collapsed by default**; the folded trigger shows the
+  recruiter company names inline. Expanding reveals each recruiter link,
+  its company-type badge and any extraction reasons.
 - **Processing** sits at the end of the drawer inside a `Collapsible` that
   is **collapsed by default**; the caret reveals execution id, status,
   current step, any error, and the workflow steps.
+- **Tagged Skills** render as compact badges (`[Skill · Ln · Category]`).
+  Below the title a balanced two-column block (each half the drawer width)
+  shows six labeled rows, three per column: left `Company` (picker),
+  `Location`, `Work Types`; right `Employment`, `Salary`, `Visa`. Rows are
+  aligned one-to-one across the columns (`Company↔Employment`,
+  `Location↔Salary`, `Work Types↔Visa`). Both `Location` and `Visa` are
+  truncated at 30 characters with an ellipsis; hovering reveals the full
+  value in a tooltip, and clicking expands/collapses the value inline.
 
 ## Job Details — Set Company
 
@@ -1023,19 +1027,23 @@ company detail drawer on the Companies page.
 
 When the job analysis extracted one or more **recruiter / staffing / agency**
 companies (`related_companies` with `role="recruiter"` from the `job_companies`
-table), a **"Published by"** section appears between the Details section and
-the Processing section:
+table), a **"Published by"** section appears at the end of the drawer, just
+before the Processing section:
 
 ```text
-┌─ Published by ────────────────────────────────────────┐
-│ RecruitCo                                [recruiting  │
-│                                         agency]       │
-│ TalentBridge GmbH                                      │
-│ • listed as the recruiting partner                    │
-└───────────────────────────────────────────────────────┘
+▸ Published by — RecruitCo, TalentBridge GmbH
+
+   (expanded)
+▾ Published by — RecruitCo, TalentBridge GmbH
+  RecruitCo                                [recruiting
+                                           agency]
+  TalentBridge GmbH
+  • listed as the recruiting partner
 ```
 
-Each recruiter row is a link to that company's detail drawer on the Companies
+The section is a `Collapsible` **collapsed by default** — the folded trigger
+shows the recruiter company names inline next to the caret. Expanding reveals
+each recruiter row: a link to that company's detail drawer on the Companies
 page (`/companies?company=<id>`) with an optional company-type badge. When any
 recruiter carries an extraction `reason`, the reasons are listed beneath the
 rows. The section is hidden when there are no recruiter companies.

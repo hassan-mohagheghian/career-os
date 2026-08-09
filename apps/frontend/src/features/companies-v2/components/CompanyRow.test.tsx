@@ -137,6 +137,18 @@ describe('CompanyRow pinned', () => {
   })
 })
 
+describe('CompanyRow status', () => {
+  it('renders the shared StatusBadge for the execution status', () => {
+    renderRow(makeCompany({ processing: { status: 'running', current_node: null, progress_pct: 40, error: null } }))
+    expect(screen.getByText('Running')).toBeInTheDocument()
+  })
+
+  it('renders a dash when there is no execution status', () => {
+    renderRow(makeCompany())
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
 describe('CompanyRow jobs column', () => {
   it('shows job_count for product companies', () => {
     renderRow(makeCompany({ company_type: 'PRODUCT_COMPANY', job_count: 3, recruiter_job_count: 0 }))

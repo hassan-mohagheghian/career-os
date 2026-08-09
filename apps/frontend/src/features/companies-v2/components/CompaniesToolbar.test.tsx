@@ -60,8 +60,8 @@ describe('CompaniesToolbar status filter', () => {
     const onFilterStatusChange = vi.fn()
     renderToolbar({ onFilterStatusChange })
     fireEvent.click(screen.getByText('Status'))
-    fireEvent.click(screen.getByText('Processed'))
-    expect(onFilterStatusChange).toHaveBeenCalledWith('processed')
+    fireEvent.click(screen.getByText('Queued'))
+    expect(onFilterStatusChange).toHaveBeenCalledWith('queued')
   })
 
   it('shows the active status label', () => {

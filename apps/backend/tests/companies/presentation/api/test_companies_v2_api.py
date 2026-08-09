@@ -163,23 +163,37 @@ class TestCompanyListV2API:
         assert data["items"][0]["name"] == "B"
 
     def test_status_filter(self, client, sa_session):
-        _create_company(sa_session, name="Pending Co", status="pending")
-        _create_company(sa_session, name="Queued Co", status="queued")
-        _create_company(sa_session, name="Processed Co", status="processed")
+        done = _create_company(sa_session, name="Done Co")
+        failed = _create_company(sa_session, name="Failed Co")
+        running = _create_company(sa_session, name="Running Co")
+        _create_company(sa_session, name="NoExec Co")
+        for company, status in (
+            (done, ExecutionStatus.COMPLETED.value),
+            (failed, ExecutionStatus.FAILED.value),
+            (running, ExecutionStatus.RUNNING.value),
+        ):
+            sa_session.add(ProcessingExecutionModel(
+                id=str(uuid.uuid4()),
+                execution_type=ExecutionType.COMPANY_PROCESSING.value,
+                target_type="company",
+                target_id=company.id,
+                status=status,
+            ))
+        sa_session.commit()
 
-        data = client.get("/api/companies/list?status=processed").json()
+        data = client.get("/api/companies/list?status=completed").json()
         assert data["total_items"] == 1
-        assert data["items"][0]["name"] == "Processed Co"
-
-        data = client.get("/api/companies/list?status=pending").json()
-        assert data["total_items"] == 1
-        assert data["items"][0]["name"] == "Pending Co"
+        assert data["items"][0]["name"] == "Done Co"
 
         data = client.get("/api/companies/list?status=missing").json()
         assert data["total_items"] == 0
 
+        data = client.get("/api/companies/list?status=none").json()
+        assert data["total_items"] == 1
+        assert data["items"][0]["name"] == "NoExec Co"
+
         data = client.get("/api/companies/list").json()
-        assert data["total_items"] == 3
+        assert data["total_items"] == 4
 
     def test_sort_by_fit_score_nulls_last(self, client, sa_session):
         c1 = _create_company(sa_session, name="No Score")
@@ -213,6 +227,14 @@ class TestCompanyListV2API:
             current_node="analyze_company",
             progress_pct=40,
         )
+        sa_session.add(ProcessingExecutionModel(
+            id=str(uuid.uuid4()),
+            execution_type=ExecutionType.COMPANY_PROCESSING.value,
+            target_type="company",
+            target_id=c.id,
+            status=ExecutionStatus.RUNNING.value,
+        ))
+        sa_session.commit()
         _create_intel(sa_session, c.id, {
             "overall": 78,
             "fit": 80,
@@ -225,7 +247,7 @@ class TestCompanyListV2API:
         assert item["scores"]["fit"] == 80
         assert item["scores"]["success"] == 76
         assert item["scores"]["overall_grade"] == "A"
-        assert item["processing"]["status"] == "processing"
+        assert item["processing"]["status"] == "running"
         assert item["processing"]["current_node"] == "analyze_company"
         assert item["processing"]["progress_pct"] == 40
 
@@ -249,11 +271,44 @@ class TestCompanyListV2API:
         item = client.get("/api/companies/list").json()["items"][0]
         assert item["latest_processing_execution"] is not None
         assert item["latest_processing_execution"]["status"] == "running"
+        assert item["processing"]["status"] == "running"
+
+    def test_list_uses_latest_execution_status(self, client, sa_session):
+        """A stale row status must never win over the latest execution status."""
+        c = _create_company(sa_session, name="Stale Co", status="queued")
+        for status in (ExecutionStatus.FAILED.value, ExecutionStatus.COMPLETED.value):
+            sa_session.add(ProcessingExecutionModel(
+                id=str(uuid.uuid4()),
+                execution_type=ExecutionType.COMPANY_PROCESSING.value,
+                target_type="company",
+                target_id=c.id,
+                status=status,
+            ))
+        sa_session.commit()
+
+        item = client.get("/api/companies/list").json()["items"][0]
+        assert item["processing"]["status"] == "completed"
+        assert item["latest_processing_execution"]["status"] == "completed"
 
     def test_list_company_without_execution(self, client, sa_session):
         _create_company(sa_session, name="NoExec Co")
         item = client.get("/api/companies/list").json()["items"][0]
         assert item["latest_processing_execution"] is None
+        assert item["processing"]["status"] is None
+
+    def test_detail_status_from_latest_execution(self, client, sa_session):
+        c = _create_company(sa_session, name="Detail Exec Co", status="queued")
+        sa_session.add(ProcessingExecutionModel(
+            id=str(uuid.uuid4()),
+            execution_type=ExecutionType.COMPANY_PROCESSING.value,
+            target_type="company",
+            target_id=c.id,
+            status=ExecutionStatus.FAILED.value,
+        ))
+        sa_session.commit()
+
+        detail = client.get(f"/api/companies/{c.id}").json()
+        assert detail["status"] == "failed"
 
 
 class TestCompanyHardDelete:
@@ -462,6 +517,7 @@ class TestCompanyScoresFromProcessing:
         assert item["scores"]["fit"] is None
         assert item["scores"]["success"] is None
         assert item["scores"]["overall_grade"] is None
+        assert item["processing"]["status"] is None
 
 
 class TestCompanyRecruiterForAPI:

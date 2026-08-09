@@ -78,8 +78,8 @@ describe('JobDetailDrawer edit', () => {
     renderDrawer('job-1')
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
-    const link = screen.getByRole('link', { name: 'Acme GmbH' })
-    expect(link).toHaveAttribute('href', '/companies?company=company-1')
+    const picker = screen.getByRole('button', { name: 'Change company' })
+    expect(picker).toHaveTextContent('Acme GmbH')
   })
 
   it('offers a company picker in the Details section', async () => {
@@ -109,6 +109,7 @@ describe('JobDetailDrawer published by', () => {
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     expect(screen.getByText('Published by')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Published by'))
     const link = screen.getByRole('link', { name: 'RecruitCo' })
     expect(link).toHaveAttribute('href', '/companies?company=recruiter-1')
     expect(screen.getByText('recruiting agency')).toBeInTheDocument()
@@ -120,5 +121,43 @@ describe('JobDetailDrawer published by', () => {
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     expect(screen.queryByText('Published by')).not.toBeInTheDocument()
+  })
+})
+
+describe('JobDetailDrawer scores explanation', () => {
+  it('opens the scores explanation popover when clicked and shows the factors', async () => {
+    vi.mocked(jobApi.getDetail).mockResolvedValue({
+      ...sampleDetail,
+      analysis: {
+        recommendation: null,
+        apply_reason: null,
+        generated_at: null,
+        insights: [],
+        skills: [],
+        summary: null,
+        scores_explanation: {
+          fit_factors: ['Strong Python background'],
+          success_factors: ['Senior level role'],
+          concerns: ['No Kafka experience'],
+        },
+      },
+    } as any)
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Show scores explanation' }))
+    expect(screen.getByText('Scores Explanation')).toBeInTheDocument()
+    expect(screen.getByText('Strong Python background')).toBeInTheDocument()
+    expect(screen.getByText('Senior level role')).toBeInTheDocument()
+    expect(screen.getByText('No Kafka experience')).toBeInTheDocument()
+  })
+
+  it('does not render the scores explanation button without an analysis', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(
+      screen.queryByRole('button', { name: 'Show scores explanation' }),
+    ).not.toBeInTheDocument()
   })
 })

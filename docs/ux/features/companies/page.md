@@ -68,9 +68,9 @@ Companies Page
 │                                                                                               │
 │ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
 │───│─────│─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Processed │ 2m │ 2h │ ⋯ │
+│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Completed │ 2m │ 2h │ ⋯ │
 │ 2 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ 3 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ Pending   │ 1h │ 2d │ ⋯ │
+│ 3 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ —         │ 1h │ 2d │ ⋯ │
 │                                                                                               │
 │                                        Loading more companies...                              │
 │                                                                                               │
@@ -341,16 +341,19 @@ Null scores display `—`.
 
 ## Status
 
-Displays the processing status from the company's latest processing execution
-(shared `JobStatus` vocabulary).
+Displays the processing status derived from the company's **latest processing
+execution** — the exact source and shared `StatusBadge` the Jobs list uses
+(`ExecutionStatus` vocabulary). Companies with no execution render `—`.
 
-| Status     | Color              |
-| ---------- | ------------------ |
-| queued     | Yellow             |
-| processing | Blue (pulsing dot) |
-| completed  | Green              |
-| failed     | Red                |
-| cancelled  | Red                |
+| Status    | Color                        |
+| --------- | ---------------------------- |
+| created   | Gray                         |
+| queued    | Blue                         |
+| starting  | Amber                        |
+| running   | Green (pulsing dot)          |
+| completed | Green                        |
+| failed    | Red                          |
+| cancelled | Gray                         |
 
 ---
 
@@ -505,19 +508,17 @@ status matches exactly (server-side filter on `GET /api/companies/list?status=`)
 Status ▾
 ├── All
 ├── Created
-├── Pending
 ├── Queued
-├── Processing
 ├── Running
 ├── Completed
-├── Processed
 ├── Failed
-└── Cancelled
+└── Not processed
 ```
 
-The company status mirrors the shared `JobStatus` vocabulary. When active it
-counts as an active filter and is cleared by the toolbar's Clear action
-alongside the others.
+The status is derived from the company's **latest processing execution** (the
+same source and vocabulary as the Jobs toolbar). `Not processed` selects
+companies with no execution at all. When active it counts as an active filter
+and is cleared by the toolbar's Clear action alongside the others.
 
 ---
 

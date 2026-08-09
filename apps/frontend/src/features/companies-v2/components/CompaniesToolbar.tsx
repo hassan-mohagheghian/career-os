@@ -11,14 +11,11 @@ import { cn } from '@/shared/lib/utils'
 
 const STATUS_LABELS: Record<string, string> = {
   created: 'Created',
-  pending: 'Pending',
   queued: 'Queued',
-  processing: 'Processing',
   running: 'Running',
   completed: 'Completed',
-  processed: 'Processed',
   failed: 'Failed',
-  cancelled: 'Cancelled',
+  none: 'Not processed',
 }
 
 interface CompaniesToolbarProps {
@@ -94,14 +91,11 @@ export function CompaniesToolbar({
             <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
               <SelectItem value="created">Created</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="queued">Queued</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="running">Running</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="processed">Processed</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="none">Not processed</SelectItem>
             </SelectContent>
           </Select>
           <Button

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gradeForScore } from './grade'
+import { gradeForScore, scoreColor } from './grade'
 
 describe('gradeForScore', () => {
   it('returns A++ for scores >= 90', () => {
@@ -36,5 +36,38 @@ describe('gradeForScore', () => {
     expect(gradeForScore(null)).toBe('P')
     expect(gradeForScore(undefined)).toBe('P')
     expect(gradeForScore(NaN)).toBe('P')
+  })
+})
+
+describe('scoreColor', () => {
+  it('returns green for scores >= 90', () => {
+    expect(scoreColor(90)).toBe('text-green-500')
+    expect(scoreColor(95)).toBe('text-green-500')
+  })
+
+  it('returns emerald for scores >= 70', () => {
+    expect(scoreColor(70)).toBe('text-emerald-500')
+    expect(scoreColor(89)).toBe('text-emerald-500')
+  })
+
+  it('returns yellow for scores >= 50', () => {
+    expect(scoreColor(50)).toBe('text-yellow-500')
+    expect(scoreColor(69)).toBe('text-yellow-500')
+  })
+
+  it('returns orange for scores >= 30', () => {
+    expect(scoreColor(30)).toBe('text-orange-500')
+    expect(scoreColor(49)).toBe('text-orange-500')
+  })
+
+  it('returns red for scores < 30', () => {
+    expect(scoreColor(0)).toBe('text-red-500')
+    expect(scoreColor(29)).toBe('text-red-500')
+  })
+
+  it('returns muted for null, undefined or NaN', () => {
+    expect(scoreColor(null)).toBe('text-muted-foreground')
+    expect(scoreColor(undefined)).toBe('text-muted-foreground')
+    expect(scoreColor(NaN)).toBe('text-muted-foreground')
   })
 })

@@ -54,8 +54,9 @@ parameter.
 ## 3b. Filter by status
 
 Selecting a processing status in the toolbar refetches the list with the
-`status` parameter (exact match on the company's processing status, shared
-`JobStatus` vocabulary).
+`status` parameter. The status is derived from the company's **latest
+processing execution** (the same source and `ExecutionStatus` vocabulary as
+jobs); `status=none` selects companies with no execution ("Not processed").
 
 ## 4. Sort
 

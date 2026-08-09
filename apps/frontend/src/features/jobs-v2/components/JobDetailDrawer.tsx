@@ -13,22 +13,27 @@ import {
   CheckCircle,
   XCircle,
   LinkSimple,
-  MapPin,
-  Briefcase,
-  Clock as ClockIcon,
   PencilSimple,
   CaretDown,
   CaretRight,
+  Question,
 } from "@phosphor-icons/react";
 import { jobApi } from "@/entities/job/api";
 import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
 import DateTime from "@/shared/components/DateTime";
 import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
 import { GradeBadge } from "@/shared/components/GradeBadge";
-import { gradeForScore } from "@/shared/lib/grade";
+import { gradeForScore, scoreColor } from "@/shared/lib/grade";
 import { RecommendationBadge } from "./RecommendationBadge";
 import { CompanyPicker } from "./CompanyPicker";
 import { Button } from "@/shared/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -97,6 +102,37 @@ function StepItem({
   );
 }
 
+function TruncatedValue({ value }: { value: string | null | undefined }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = value || "—";
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className={`inline-block align-middle text-left cursor-pointer ${
+              expanded
+                ? "whitespace-normal break-words"
+                : "max-w-[30ch] truncate"
+            }`}
+            aria-label={
+              expanded ? "Collapse value" : "Expand to see full value"
+            }
+          >
+            {text}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 function DetailRow({
   label,
   value,
@@ -124,13 +160,6 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function scoreColor(value: number): string {
-  if (value >= 80) return "text-emerald-500";
-  if (value >= 60) return "text-blue-500";
-  if (value >= 40) return "text-yellow-500";
-  return "text-red-500";
-}
-
 function JobScoreCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex flex-col items-center">
@@ -139,6 +168,117 @@ function JobScoreCard({ label, value }: { label: string; value: number }) {
         {label}
       </div>
     </div>
+  );
+}
+
+function ScoresExplanationBody({
+  explanation,
+}: {
+  explanation: NonNullable<
+    NonNullable<JobDetail["analysis"]>["scores_explanation"]
+  >;
+}) {
+  return (
+    <>
+      {explanation.fit_factors.length > 0 && (
+        <>
+          <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+            Why it fits
+          </p>
+          <ul className="mb-2 space-y-1">
+            {explanation.fit_factors.map((f, i) => (
+              <li key={i} className="text-xs text-foreground flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{f}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {explanation.success_factors.length > 0 && (
+        <>
+          <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+            Chance of success
+          </p>
+          <ul className="mb-2 space-y-1">
+            {explanation.success_factors.map((f, i) => (
+              <li key={i} className="text-xs text-foreground flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{f}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {explanation.concerns.length > 0 && (
+        <>
+          <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+            Concerns
+          </p>
+          <ul className="space-y-1">
+            {explanation.concerns.map((c, i) => (
+              <li key={i} className="text-xs text-red-500/90 flex gap-1.5">
+                <span className="shrink-0">•</span>
+                <span className="break-words">{c}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  );
+}
+
+function ScoresExplanationButton({
+  explanation,
+}: {
+  explanation: NonNullable<
+    NonNullable<JobDetail["analysis"]>["scores_explanation"]
+  >;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const open = hovered || pinned;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setHovered(false);
+          setPinned(false);
+        }
+      }}
+    >
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="flex items-center"
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Show scores explanation"
+            onClick={() => setPinned((p) => !p)}
+            className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-2xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          >
+            <Question className="w-3.5 h-3.5" />
+            Why
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-80 p-3"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Scores Explanation
+          </p>
+          <ScoresExplanationBody explanation={explanation} />
+        </PopoverContent>
+      </div>
+    </Popover>
   );
 }
 
@@ -165,7 +305,7 @@ function AnalysisSection({
   analysis: NonNullable<JobDetail["analysis"]>;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-1">
       <Section title="AI Analysis">
         {analysis.generated_at && (
           <span className="text-2xs text-muted-foreground">
@@ -186,50 +326,6 @@ function AnalysisSection({
           </ul>
         )}
       </Section>
-
-      {analysis.scores_explanation && (
-        <Section title="Scores Explanation">
-          {analysis.scores_explanation.fit_factors.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
-              Why it fits
-            </p>
-          )}
-          <ul className="mb-2 space-y-1">
-            {analysis.scores_explanation.fit_factors.map((f, i) => (
-              <li key={i} className="text-xs text-foreground flex gap-1.5">
-                <span className="shrink-0">•</span>
-                <span className="break-words">{f}</span>
-              </li>
-            ))}
-          </ul>
-          {analysis.scores_explanation.success_factors.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
-              Chance of success
-            </p>
-          )}
-          <ul className="mb-2 space-y-1">
-            {analysis.scores_explanation.success_factors.map((f, i) => (
-              <li key={i} className="text-xs text-foreground flex gap-1.5">
-                <span className="shrink-0">•</span>
-                <span className="break-words">{f}</span>
-              </li>
-            ))}
-          </ul>
-          {analysis.scores_explanation.concerns.length > 0 && (
-            <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
-              Concerns
-            </p>
-          )}
-          <ul className="space-y-1">
-            {analysis.scores_explanation.concerns.map((c, i) => (
-              <li key={i} className="text-xs text-red-500/90 flex gap-1.5">
-                <span className="shrink-0">•</span>
-                <span className="break-words">{c}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
 
       {analysis.summary &&
         (analysis.summary.summary ||
@@ -260,7 +356,76 @@ function AnalysisSection({
   );
 }
 
-function ProcessingSection({ exec }: { exec: JobDetail["latest_processing_execution"] }) {
+function PublishedBySection({
+  recruiters,
+}: {
+  recruiters: NonNullable<JobDetail["related_companies"]>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger className="flex items-center gap-1.5 w-full">
+          {open ? (
+            <CaretDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          ) : (
+            <CaretRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          )}
+          <span className="text-2xs font-medium text-muted-foreground uppercase tracking-wide shrink-0">
+            Published by
+          </span>
+          {!open && (
+            <span className="text-2xs text-foreground truncate min-w-0">
+              {recruiters.map((c) => c.name || "Recruiting company").join(", ")}
+            </span>
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <ul className="space-y-1.5">
+            {recruiters.map((c) => (
+              <li
+                key={c.company_id}
+                className="flex items-center justify-between gap-3"
+              >
+                <a
+                  href={`/companies?company=${c.company_id}`}
+                  className="text-xs text-primary hover:underline break-words"
+                >
+                  {c.name || "Recruiting company"}
+                </a>
+                {c.company_type && (
+                  <Badge>{c.company_type.replace(/_/g, " ")}</Badge>
+                )}
+              </li>
+            ))}
+          </ul>
+          {recruiters.some((c) => c.reason) && (
+            <ul className="mt-2 space-y-1">
+              {recruiters
+                .filter((c) => c.reason)
+                .map((c) => (
+                  <li
+                    key={c.company_id}
+                    className="text-2xs text-muted-foreground flex gap-1.5"
+                  >
+                    <span className="shrink-0">•</span>
+                    <span className="break-words">{c.reason}</span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
+function ProcessingSection({
+  exec,
+}: {
+  exec: JobDetail["latest_processing_execution"];
+}) {
   const [open, setOpen] = useState(false);
   const steps = exec?.workflow?.steps ?? [];
 
@@ -312,56 +477,26 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
   );
 
   return (
-    <div className="space-y-4 min-w-0">
-      <div className="flex items-center gap-3 mb-1">
-        <GradeBadge
-          grade={gradeForScore(detail.scores?.overall ?? null)}
-          className="w-10 h-8 text-sm"
-        />
-        {detail.scores?.fit != null && (
-          <JobScoreCard label="Fit" value={detail.scores.fit} />
-        )}
-        {detail.scores?.success != null && (
-          <JobScoreCard label="Success" value={detail.scores.success} />
-        )}
-        {detail.scores?.overall != null && (
-          <JobScoreCard label="Overall" value={detail.scores.overall} />
-        )}
-      </div>
-      <div>
-        <h2 className="text-base font-semibold text-foreground">
-          {detail.title || detail.role || "Untitled"}
-        </h2>
-        {detail.company_id ? (
-          <a
-            href={`/companies?company=${detail.company_id}`}
-            className="text-sm text-primary hover:underline"
-          >
-            {detail.company_name || "Linked Company"}
-          </a>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {detail.company_name || "Unknown"}
-          </p>
-        )}
-        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-          {detail.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
-              {detail.location}
-            </span>
+    <div className="space-y-1 min-w-0">
+      <div className="flex   justify-between">
+        <div className="flex items-center gap-3 mb-1">
+          <GradeBadge
+            grade={gradeForScore(detail.scores?.overall ?? null)}
+            className="w-10 h-8 text-sm"
+          />
+          {detail.scores?.fit != null && (
+            <JobScoreCard label="Fit" value={detail.scores.fit} />
           )}
-          {detail.work_types && detail.work_types.length > 0 && (
-            <span className="flex items-center gap-1">
-              <Briefcase className="w-3.5 h-3.5" />
-              {detail.work_types.join(", ")}
-            </span>
+          {detail.scores?.success != null && (
+            <JobScoreCard label="Success" value={detail.scores.success} />
           )}
-          {detail.employment_types && detail.employment_types.length > 0 && (
-            <span className="flex items-center gap-1">
-              <ClockIcon className="w-3.5 h-3.5" />
-              {detail.employment_types.join(", ")}
-            </span>
+          {detail.scores?.overall != null && (
+            <JobScoreCard label="Overall" value={detail.scores.overall} />
+          )}
+          {detail.analysis?.scores_explanation && (
+            <ScoresExplanationButton
+              explanation={detail.analysis.scores_explanation}
+            />
           )}
         </div>
         {detail.url && (
@@ -374,6 +509,46 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
             <LinkSimple className="w-3.5 h-3.5" /> Open job posting
           </a>
         )}
+      </div>
+      <div>
+        <h2 className="text-base font-semibold text-foreground">
+          {detail.title || detail.role || "Untitled"}
+        </h2>
+        <div className="grid grid-cols-2 gap-12 ">
+          <div className="min-w-0 ">
+            <DetailRow
+              label="Company"
+              value={
+                <CompanyPicker
+                  companyId={detail.company_id ?? null}
+                  companyName={detail.company_name ?? null}
+                  onSelect={(id) => setCompany.mutate(id)}
+                  pending={setCompany.isPending}
+                />
+              }
+            />
+            <DetailRow
+              label="Location"
+              value={<TruncatedValue value={detail.location} />}
+            />
+            <DetailRow
+              label="Visa"
+              value={<TruncatedValue value={detail.visa} />}
+            />
+          </div>
+          <div className="min-w-0">
+            <DetailRow
+              label="Employment"
+              value={detail.employment_types?.join(", ")}
+            />
+            <DetailRow label="Salary" value={detail.salary} />
+
+            <DetailRow
+              label="Work Types"
+              value={detail.work_types?.join(", ")}
+            />
+          </div>
+        </div>
       </div>
 
       {detail.analysis?.recommendation && (
@@ -395,72 +570,6 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
             <p className="text-xs text-foreground whitespace-pre-wrap">
               {detail.analysis.apply_reason}
             </p>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-          Details
-        </p>
-        <DetailRow label="Role" value={detail.role} />
-        <div className="flex items-start justify-between gap-4 py-1.5">
-          <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">
-            Company
-          </span>
-          <CompanyPicker
-            companyId={detail.company_id ?? null}
-            companyName={detail.company_name ?? null}
-            onSelect={(id) => setCompany.mutate(id)}
-            pending={setCompany.isPending}
-          />
-        </div>
-        <DetailRow label="Status" value={detail.status} />
-        <DetailRow label="Salary" value={detail.salary} />
-        <DetailRow label="Visa" value={detail.visa} />
-        <DetailRow
-          label="Created"
-          value={<DateTime value={detail.created_at} />}
-        />
-      </div>
-
-      {recruiters.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
-          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-            Published by
-          </p>
-          <ul className="space-y-1.5">
-            {recruiters.map((c) => (
-              <li
-                key={c.company_id}
-                className="flex items-center justify-between gap-3"
-              >
-                <a
-                  href={`/companies?company=${c.company_id}`}
-                  className="text-xs text-primary hover:underline break-words"
-                >
-                  {c.name || "Recruiting company"}
-                </a>
-                {c.company_type && (
-                  <Badge>{c.company_type.replace(/_/g, " ")}</Badge>
-                )}
-              </li>
-            ))}
-          </ul>
-          {recruiters.some((c) => c.reason) && (
-            <ul className="mt-2 space-y-1">
-              {recruiters
-                .filter((c) => c.reason)
-                .map((c) => (
-                  <li
-                    key={c.company_id}
-                    className="text-2xs text-muted-foreground flex gap-1.5"
-                  >
-                    <span className="shrink-0">•</span>
-                    <span className="break-words">{c.reason}</span>
-                  </li>
-                ))}
-            </ul>
           )}
         </div>
       )}
@@ -507,6 +616,8 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
       {detail.links && detail.links.length > 0 && (
         <NotesLinksReadOnly notes={[]} links={detail.links} heading="Links" />
       )}
+
+      {recruiters.length > 0 && <PublishedBySection recruiters={recruiters} />}
 
       <ProcessingSection exec={detail.latest_processing_execution} />
     </div>

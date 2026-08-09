@@ -14,3 +14,14 @@ export function gradeForScore(score: number | null | undefined): string {
   }
   return 'P'
 }
+
+export function scoreColor(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return 'text-muted-foreground'
+  }
+  if (value >= 90) return 'text-green-500'
+  if (value >= 70) return 'text-emerald-500'
+  if (value >= 50) return 'text-yellow-500'
+  if (value >= 30) return 'text-orange-500'
+  return 'text-red-500'
+}

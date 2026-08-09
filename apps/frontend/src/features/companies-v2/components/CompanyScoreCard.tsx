@@ -1,13 +1,8 @@
+import { scoreColor } from '@/shared/lib/grade'
+
 interface CompanyScoreCardProps {
   label: string
   value: number
-}
-
-function scoreColor(value: number): string {
-  if (value >= 80) return 'text-emerald-500'
-  if (value >= 60) return 'text-blue-500'
-  if (value >= 40) return 'text-yellow-500'
-  return 'text-red-500'
 }
 
 export function CompanyScoreCard({ label, value }: CompanyScoreCardProps) {
