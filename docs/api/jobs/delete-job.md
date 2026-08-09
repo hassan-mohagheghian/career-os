@@ -5,9 +5,9 @@
 Permanently (hard) deletes a Job and all of its related data. This is the
 Delete Job feature.
 
-Deletion is **hard**: the Job row is removed from the database along with any
-summary, resume, and processing execution rows associated with the Job. This is
-permanent and cannot be undone.
+Deletion is **hard**: the Job row is removed from the database along with its
+`job_analysis` row, summary, and processing execution rows associated with the
+Job. This is permanent and cannot be undone.
 
 Deletion does not touch other Jobs.
 
@@ -92,7 +92,7 @@ When the request succeeds:
 
 - The Job row is deleted.
 - The canonical `job_analysis` row (schema `job`) for the Job is deleted.
-- Related summary and resume rows (if any) are deleted.
+- The related summary row (if any) is deleted.
 - All processing executions targeting the Job are deleted.
 - The frontend cache is updated so the deleted Job disappears from the UI.
 

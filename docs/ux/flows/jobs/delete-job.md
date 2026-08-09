@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Removes a Job and all of its related data (summary, resume, processing
+Removes a Job and all of its related data (job_analysis, summary, processing
 executions) from the Jobs workspace.
 
 This is a destructive, irreversible action. A confirmation step is required.

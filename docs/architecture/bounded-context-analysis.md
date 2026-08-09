@@ -98,17 +98,18 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 
 ---
 
-### 1.5 Resume (part of Jobs Context)
-**Responsibility:** Resume and cover letter storage, retrieval, and generation lifecycle.
+### 1.5 Candidates Context
+**Responsibility:** Candidate profile sources (resume / LinkedIn) stored as analysis input.
 
 **Entities:**
-- `Resume` — `resumes` table, PK: `id` (string)
+- `Candidate` — `candidates` table
+- `CandidateSource` — `candidate_sources` table, PK: `id` (string)
 
-**Entity Location:** `jobs/domain/entities/resume.py`
-**Repository Interface:** `IResumeRepository` at `jobs/domain/repositories/resume_repository.py`
-**Infrastructure:** `ResumeModel`, `SQLAlchemyResumeRepository` at `jobs/infrastructure/`
-**API Endpoints:** `/resumes` — CRUD, generation
-**Workers:** `process_generation()` at `jobs/infrastructure/workers/generation_worker.py`
+**Entity Location:** `candidates/domain/entities/`
+**Repository Interface:** `ICandidateRepository` at `candidates/domain/repositories/candidate_repository.py`
+**Infrastructure:** `CandidateSourceModel`, `SQLAlchemyCandidateRepository` at `candidates/infrastructure/`
+**Adapters:** `resume_adapter.py`, `linkedin_adapter.py` at `candidates/application/adapters/`
+**API Endpoints:** `/candidates/sources` — upload + list resume / LinkedIn sources
 
 ---
 
@@ -147,14 +148,13 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 ---
 
 ### 1.8 Processing (Execution Queue) Context
-**Responsibility:** Background execution queue and workflow state — job and company submissions, generation requests, pipeline state tracking, live progress via SSE.
+**Responsibility:** Background execution queue and workflow state — job and company submissions, pipeline state tracking, live progress via SSE.
 
 **Entities:**
-- `ProcessingExecution` — execution rows, PK: `id` (types: JOB_PROCESSING, COMPANY_PROCESSING)
-- `PendingGeneration` — `pending_generations` table, PK: `id`
+- `ProcessingExecution` — execution rows, PK: `id` (types: JOB_PROCESSING, COMPANY_PROCESSING, CANDIDATE_PROCESSING)
 
 **Value Objects:**
-- `PipelineStep` (step_fetch, step_analyze, step_resume, step_cover, step_db, step_done)
+- `PipelineStep` (step_fetch, step_extract, step_analyze, step_db, step_done)
 - `JobStatus` (pending → queued → processing → done/failed/paused)
 - `SourceType` (cli, web, reprocess, rescore)
 
@@ -163,8 +163,8 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 - State machine transition validation
 - Process lifecycle management
 
-**Repository Interfaces:** `IPendingRepository`, `IPendingGenerationRepository`
-**Infrastructure:** `ProcessingExecutionModel`, `PendingGenerationModel`, SQLAlchemy implementations
+**Repository Interfaces:** `IPendingRepository`, `IProcessingExecutionRepository`
+**Infrastructure:** `ProcessingExecutionModel`, SQLAlchemy implementations
 **API Endpoints:** `processing/presentation/api/executions_router.py` (`/processing`), `process_router.py` (`/jobs`)
 **Core:** `core/queue.py` — `JobQueueManager`
 
@@ -197,15 +197,15 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
                            │
           ┌────────┬───────┼───────┬────────┐
           │        │       │       │        │
-    ┌─────▼───┐ ┌──▼───┐ ┌─▼──┐ ┌──▼──┐ ┌──▼────┐
-    │  Jobs   │ │ Comp │ │Skil│ │Care │ │Resume │
-    │         │ │anies │ │ls  │ │er   │ │       │
-    └────┬────┘ └──┬───┘ └─┬──┘ └──┬──┘ └──┬────┘
-         │         │       │       │        │
-         │         │       │       │        │
-    ┌────▼─────────▼───────▼───────▼────────▼────┐
-    │              Pending (Queue)                │
-    └─────────────────┬──────────────────────────┘
+    ┌─────▼───┐ ┌──▼───┐ ┌─▼──┐ ┌──▼────┐
+    │  Jobs   │ │ Comp │ │Skil│ │Cand.  │
+    │         │ │anies │ │ls  │ │Profile│
+    └────┬────┘ └──┬───┘ └─┬──┘ └──┬────┘
+         │         │       │       │
+         │         │       │       │
+    ┌────▼─────────▼───────▼───────▼────┐
+    │           Pending (Queue)          │
+    └─────────────────┬──────────────────┘
                       │
                ┌──────▼──────┐
                │      AI     │
@@ -219,15 +219,15 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 |--------|--------|-------------|------|
 | Jobs | Companies | `company_id` FK | Partner |
 | Jobs | Skills | `stack` field references skills | Consumer |
-| Jobs | Resume | `job_id` links resumes | Partner |
 | Companies | Skills | Tech stack references | Consumer |
 | Career | Jobs | Reads job data for insights | Consumer |
 | Career | Companies | Reads company data | Consumer |
 | Career | Skills | Reads skill data | Consumer |
 | Career | Preferences | Scoring rules | Owner |
+| Candidates | Skills | `skill_id` logical reference | Consumer |
 | Pending | Jobs | Creates jobs after processing | Partner |
 | Pending | Companies | Creates companies | Partner |
-| Pending | Resume | Triggers generation | Partner |
+| Pending | Candidates | Runs candidate extraction | Partner |
 | AI | All | LLM services | Infrastructure |
 
 ---
@@ -235,11 +235,11 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 ## 3. Dependencies
 
 ### 3.1 Inbound Dependencies (who depends on this context)
-- **Jobs** ← Pending, Career, Resume
+- **Jobs** ← Pending, Career
 - **Companies** ← Jobs, Pending, Career
-- **Skills** ← Jobs, Companies, Career
+- **Skills** ← Jobs, Companies, Career, Candidates
 - **Career** ← (standalone, reads from others)
-- **Resume** ← Pending, Jobs
+- **Candidates** ← Pending
 - **AI** ← All contexts
 - **Pending** ← (standalone, creates into others)
 - **Preferences** ← Jobs, Companies (via rules loading)
@@ -249,8 +249,8 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 - **Companies** → Preferences (scoring rules)
 - **Skills** → (none)
 - **Career** → Jobs, Companies, Skills (reads for insights), AI
-- **Resume** → Jobs, AI
-- **Pending** → Jobs, Companies, AI
+- **Candidates** → Skills (logical reference), AI
+- **Pending** → Jobs, Companies, Candidates, AI
 - **AI** → (none, external LLM APIs)
 
 ---
@@ -278,17 +278,17 @@ The Job Search Intelligence platform is a FastAPI + SQLAlchemy monolith serving 
 |---------|-------------------|--------------|------------|
 | AI | High | None (stateless) | Low — just isolate LLM calls |
 | Career | Medium | — | Medium — depends on reading other contexts |
-| Resume | Medium | `resumes` | Low — small, focused |
+| Candidates | Medium | `candidates`, `candidate_sources` | Low — small, focused |
 | Skills | Medium | `skills`, `skill_*`, `tech_learning` | Medium — self-contained |
 | Companies | Low | `companies`, `company_*` | Medium — complex intelligence pipeline |
 | Jobs | Low | `jobs`, `summaries` | High — core aggregate, many dependencies |
-| Pending | Low | `pending_*` | High — orchestrates everything |
+| Pending | Low | `processing_executions` | High — orchestrates everything |
 | Rules | None | `rules` | Shared — should stay in shared kernel |
 
 ### Database Ownership
 - Each context could own its tables in a separate PostgreSQL schema
 - `jobs.company_id` FK → would become a cross-service reference (UUID-based)
-- `pending_generations.job_num` → would become an event-driven reference
+- `candidate_sources.profile_id` → would become an event-driven reference
 
 ---
 

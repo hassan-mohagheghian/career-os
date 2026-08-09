@@ -3,7 +3,7 @@
 ## Purpose
 
 The Delete Job action permanently removes a Job from the system, including all
-of its related data (summary, resume, and processing executions).
+of its related data (job_analysis, summary, and processing executions).
 
 Deletion is **hard and irreversible**. It is guarded by a destructive
 confirmation dialog to prevent accidental removal.

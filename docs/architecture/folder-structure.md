@@ -125,12 +125,23 @@ apps/backend/
 │       │       └── rules.py
 │       └── cli/
 │
-│                                        # Resume lives under jobs/ context:
-│                                        #   jobs/domain/entities/resume.py
-│                                        #   jobs/domain/repositories/resume_repository.py
-│                                        #   jobs/infrastructure/repositories/sa_resume_repository.py
-│                                        #   jobs/presentation/api/resumes_router.py
-│                                        #   jobs/presentation/api/schemas/resumes.py
+├── candidates/                      # Candidates Bounded Context (resume / LinkedIn input)
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── candidate.py
+│   │   │   └── candidate_source.py
+│   │   └── repositories/
+│   │       └── candidate_repository.py
+│   ├── application/
+│   │   ├── services/candidate_service.py
+│   │   └── adapters/
+│   │       ├── resume_adapter.py
+│   │       └── linkedin_adapter.py
+│   ├── infrastructure/
+│   │   └── repositories/sa_candidate_repository.py
+│   └── presentation/api/
+│       ├── candidates_router.py     # prefix /candidates
+│       └── schemas/candidates.py
 │
 ├── processing/                     # Processing Bounded Context (executions + queue)
 │   ├── domain/

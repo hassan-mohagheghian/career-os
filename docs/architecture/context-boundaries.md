@@ -45,16 +45,15 @@ The system is divided into six bounded contexts, each representing a distinct bu
 - Manage scoring rules
 - Evaluate fit/success scores for jobs and companies
 
-### 5. Resume (part of Jobs)
-**Responsibility**: Resume and cover letter generation.
+### 5. Candidates
+**Responsibility**: Manage candidate profile sources (resume / LinkedIn) used as analysis input.
 
-**Core Entities**: `Resume` (in `jobs/domain/entities/resume.py`)
+**Core Entities**: `Candidate`, `CandidateSource` (in `candidates/domain/`)
 
 **Key Behaviors**:
-- Generate tailored resumes for specific jobs
-- Generate cover letters
-- Store and manage resume versions
-- Link resumes to jobs
+- Upload and store resume / LinkedIn profile sources
+- Mask PII on save
+- Provide latest resume / LinkedIn text as labeled context for job analysis
 
 ### 6. Processing
 **Responsibility**: Execution queue and workflow state for jobs and companies (GET /api/processing/queue, SSE events at /events/processing).
@@ -88,13 +87,13 @@ The `shared/` context provides infrastructure and domain primitives used by all 
                               │ enqueues
                ┌──────────────┼──────────────┐
                ▼              ▼              ▼
-         ┌──────────┐   ┌──────────┐   ┌──────────┐
-         │   Jobs   │   │Companies │   │  Resume  │
-         │          │   │          │   │          │
-         └────┬─────┘   └────┬─────┘   └────┬─────┘
-              │              │              │
-              │  provides    │  provides    │
-              ▼              ▼              ▼
+         ┌──────────┐   ┌──────────┐
+         │   Jobs   │   │Companies │
+         │          │   │          │
+         └────┬─────┘   └────┬─────┘
+              │              │
+              │  provides    │  provides
+              ▼              ▼
      ┌─────────────────────────────────────────┐
      │              Career                     │
      │      (Insights & Intelligence)          │
@@ -107,7 +106,7 @@ The `shared/` context provides infrastructure and domain primitives used by all 
      └─────────────────────────────────────────┘
 ```
 
-The Processing (Execution Queue) context enqueues both job and company processing (and resume generation).
+The Processing (Execution Queue) context enqueues both job and company processing.
 
 ## Integration Patterns
 

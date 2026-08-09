@@ -6,7 +6,7 @@ Prefer Pydantic models and validation over free-form parsing.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -65,15 +65,3 @@ class SkillExtractionOutput(BaseModel):
         description="Skills grouped by category"
     )
     confidence: float = Field(ge=0.0, le=1.0, description="Extraction confidence")
-
-
-class ResumeGenerationOutput(BaseModel):
-    """Structured output for resume generation."""
-    summary: str = Field(default="", description="Professional summary")
-    experience: list[dict[str, Any]] = Field(default_factory=list, description="Work experience")
-    skills: list[str] = Field(default_factory=list, description="Skills section")
-    education: list[dict[str, Any]] = Field(default_factory=list, description="Education")
-    tailored_sections: dict[str, str] = Field(
-        default_factory=dict,
-        description="Tailored sections for the job"
-    )

@@ -64,31 +64,12 @@ through the shared two-phase ProcessingExecution workflow (`COMPANY_PROCESSING`)
 context preparation without an LLM call, then a single-LLM analysis — the same
 pattern used by jobs.
 
-## Resume Generation Graph
+## Resume / Cover Letter Generation (removed)
 
-**Name**: `resume_generation`
-**Entry**: `load_resume`
-**Finish**: `completion_event`
-
-```
-START → load_resume → load_job_context → tailor_content
-      → format_output → validate_output → completion_event → END
-```
-
-**Typed Output**: `ResumeOutput`
-
-## Cover Letter Generation Graph
-
-**Name**: `cover_letter_generation`
-**Entry**: `load_resume`
-**Finish**: `completion_event`
-
-```
-START → load_resume → load_job_context → generate_cover_letter
-      → format_output → validate_output → completion_event → END
-```
-
-**Typed Output**: `CoverLetterOutput`
+The `resume_generation` and `cover_letter_generation` graphs were **removed**.
+The platform no longer generates tailored resumes or cover letters; resumes and
+LinkedIn profiles exist only as candidate sources uploaded through
+`/api/candidates/sources` and fed into job analysis as context.
 
 ## Skill Extraction Graph
 

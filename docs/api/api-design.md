@@ -18,7 +18,6 @@ api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(insights_router, prefix="/insights", tags=["insights"])
-api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
 api_router.include_router(executions_router, prefix="/processing", tags=["processing"])
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
@@ -320,17 +319,6 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/insights/status` | GET | — | `StatusResponse` | Section statuses |
 | `/api/insights/skills-intel` | GET | — | `SkillsIntelResponse` | Skills intelligence |
 | `/api/insights/cancel` | POST | — | `{"success": true}` | Cancel generation |
-
-### Resumes
-
-| Endpoint | Method | Request Body | Response | Description |
-|----------|--------|--------------|----------|-------------|
-| `/api/resumes` | GET | — | `ResumeListResponse` | List resumes |
-| `/api/resumes` | POST | `ResumeCreate` | `ResumeResponse` | Create resume |
-| `/api/resumes/{id}` | GET | — | `ResumeResponse` | Get resume |
-| `/api/resumes/{id}` | PUT | `ResumeUpdate` | `ResumeResponse` | Update resume |
-| `/api/resumes/{id}` | DELETE | — | `{"success": true}` | Delete resume |
-| `/api/resumes/{id}/generate-cover` | POST | `GenerateCover` | `CoverLetterResponse` | Generate cover letter |
 
 ### Dashboard
 

@@ -5,9 +5,9 @@
 ```
 ┌─────────────────────────────────────────────────────────┐
 │              React SPA (Vite + TypeScript)                │
-│  ┌──────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ ┌──────┐│
-│  │ Jobs │ │Companies │ │Insights │ │ Skills │ │Resume││
-│  └──┬───┘ └────┬─────┘ └────┬────┘ └───┬────┘ └──┬───┘│
+│  ┌──────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐│
+│  │ Jobs │ │Companies │ │Insights │ │ Skills │ │ Candidate││
+│  └──┬───┘ └────┬─────┘ └────┬────┘ └───┬────┘ └─────┬────┘│
 │     └──────────┴────────────┴──────────┴─────────┘     │
 │                  Hash-based routing                      │
 └─────────────────────────┬───────────────────────────────┘
@@ -73,7 +73,7 @@
 | Job Analysis           | `job_analysis` (schema `job`) | Canonical LLM analysis per job (payload, scores, recommendation, summary, prompt/schema versions) |
 | Company                | `companies`              | Profiles with industry, tech_stack, funding_stage                             |
 | Company Intelligence   | `company_intelligence`   | AI analysis per company                                                       |
-| Resume                 | `resumes`                | Master, tailored, cover letters, LinkedIn                                     |
+| Candidate Source       | `candidate_sources`      | Resume / LinkedIn profile upload as analysis input                            |
 | Rules                  | `rules`                  | Configurable scoring rules (SHARED, JOB, COMPANY_PRODUCT, COMPANY_RECRUITING) |
 | Skills                 | `skills`                 | Skills with category, confidence, market_relevance, source                    |
 | Skill Aliases          | `skill_aliases`          | Merged skill variants (canonical skill_id → alias_name)                       |
@@ -82,8 +82,9 @@
 ```
 jobs ── company ── company_intelligence
   │                  └── company_links
-  ├── resumes
   └── processing_executions (processing queue)
+
+candidate_sources (resume / LinkedIn profile as analysis input)
 
 skills ── skill_aliases
   └── skill_relationships
@@ -108,7 +109,6 @@ INSIGHTS
   └── Networking     Connection strategy, LinkedIn targets
 
 SETTINGS
-  ├── Resume         Resume/cover letter generation
   └── Rules          Scoring rules configuration
 ```
 
@@ -144,16 +144,17 @@ app/
 │   │   ├── domain/            Rule entity, repository interfaces
 │   │   ├── infrastructure/    SQLAlchemy repositories
 │   │   └── presentation/      FastAPI routers + schemas
-│   │                             Resume lives in jobs/ context:
-│   │                             jobs/domain/entities/resume.py
-│   │                             jobs/infrastructure/repositories/sa_resume_repository.py
-│   │                             jobs/presentation/api/resumes_router.py
+│   ├── candidates/            Candidates Bounded Context
+│   │   ├── domain/            Candidate, CandidateSource entities
+│   │   ├── application/       Use cases, adapters (resume, LinkedIn)
+│   │   ├── infrastructure/    SQLAlchemy models, repositories
+│   │   └── presentation/      FastAPI routers + schemas
 │   ├── ai/                    AI Bounded Context
 │   │   ├── domain/            Generation session entities, value objects
 │   │   ├── application/       Use cases, commands, DTOs
 │   │   └── infrastructure/    Providers, tools, graphs, prompts
 │   │       ├── providers/     LLM provider implementations (mimo, openai, local, gemini, ...)
-│   │       ├── tools/         Domain tools (fetch, web, database, job, company, skill, resume)
+│   │       ├── tools/         Domain tools (fetch, web, database, job, company, skill)
 │   │       ├── graphs/        LangGraph workflows (JobProcessing, CompanyProcessing, etc.)
 │   │       └── prompts/       Centralized PromptRegistry (10+ registered prompts)
 │   ├── dependencies.py        FastAPI dependency injection
@@ -251,17 +252,18 @@ Click Generate → InsightsService → LLMService → per-section prompts (6 sec
 Click Generate → InsightsService → LLMService → skills_intelligence prompt → analyze skills
 ```
 
-### Resume/Cover Generation
+### Candidate Source Upload (was Resume/Cover Generation)
 
-```
-Click Generate → GenerationWorker (Template Method) → LLMService → company context enrichment → prompts → save to resumes
-```
+Resume and cover letter **generation was removed**. Resumes and LinkedIn
+profiles are uploaded as candidate sources (`POST /api/candidates/sources`),
+PII-masked, and extracted into the canonical candidate profile used as
+job-analysis context.
 
 ## Design Decisions
 
 - **DDD Modular Monolith**: 8 bounded contexts with strict dependency rules (domain → application → infrastructure → presentation per context)
 - **SQLAlchemy ORM + Alembic**: Clean abstractions with type safety for database access; migrations for schema evolution
-- **FastAPI + python-socketio**: Async-native with automatic OpenAPI docs, request validation via Pydantic v2
+- **FastAPI + SSE**: Async-native with automatic OpenAPI docs, request validation via Pydantic v2
 - **Feature-based frontend**: Each feature owns its components, hooks, and types
 - **Concurrency lock**: Only one insights generation at a time
 - **Version tracking**: `version` column on processing executions for retry counting
@@ -286,7 +288,6 @@ Click Generate → GenerationWorker (Template Method) → LLMService → company
 | `pending:error`        | `job_{pid}`       | Job processing error             |
 | `pending:progress`     | `job_{pid}`       | Job progress percentage          |
 | `company:update`       | `company_{pid}`   | Company processing progress      |
-| `generation:update`    | `generation_{id}` | Resume/cover generation progress |
 | `insights:progress`    | insights          | Insights generation progress     |
 | `queue:status`         | —                 | Queue status changes             |
 

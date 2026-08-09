@@ -1,6 +1,6 @@
 # Job Search Intelligence
 
-AI-powered career platform for software engineers — job discovery, company analysis, skill management, resume generation, and career insights. Built for visa-sponsored roles in Europe (Germany, Netherlands).
+AI-powered career platform for software engineers — job discovery, company analysis, skill management, and career insights. Built for visa-sponsored roles in Europe (Germany, Netherlands).
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ Both apps run in **reload mode**: backend via uvicorn `--reload`, frontend via `
                      │   ┌──────┐ ┌──────────┐      │
                      │   │ Jobs │ │Companies │      │
                      │   ├──────┤ ├──────────┤      │
-                     │   │Skills│ │  Resume  │      │
+                     │   │Skills│ │   ...    │      │
                      │   ├──────┤ ├──────────┤      │
                      │   │Rules │ │  ...     │      │
                      │   └──────┴────────────┘      │
@@ -73,7 +73,6 @@ Both apps run in **reload mode**: backend via uvicorn `--reload`, frontend via `
 Jobs              Job processing queue + processed cards
 Companies         Company intelligence + processing queue
 Skills            Skill management, aliases, insights
-Resume            Resume/cover letter generation
 Rules             Scoring rules configuration
 ```
 
@@ -103,11 +102,6 @@ Rules             Scoring rules configuration
 - Skill aliases/merge, drag-and-drop reorganization
 - AI-powered insights (market relevance, confidence)
 
-### Resume Generation
-- AI-powered resume tailoring and cover letter generation
-- Real-time progress with WebSocket updates
-- LinkedIn profile integration
-
 ## API Documentation
 
 - **Swagger UI**: `http://localhost:5000/api/docs`
@@ -126,14 +120,12 @@ Processing progress is delivered through Server-Sent Events at `/api/sse/process
 | `execution.completed` | Server→Client | Job finished; frontend refetches Job Details (analysis block) |
 | `execution.failed` / `execution.cancelled` | Server→Client | Execution failed / cancelled |
 
-Legacy Socket.IO events (`pending:*`, `company:*`, `generation:*`) still exist for the legacy LLM pipeline.
-
 ## Project Structure
 
 ```
 app/
 ├── server/                    # Python FastAPI backend (DDD modular monolith)
-│   ├── entrypoints/           # FastAPI app + SocketIO + CLI
+│   ├── entrypoints/           # FastAPI app + CLI
 │   ├── shared/                # Shared Kernel (domain, application, infrastructure)
 │   ├── jobs/                  # Jobs bounded context
 │   ├── companies/             # Companies bounded context

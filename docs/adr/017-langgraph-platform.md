@@ -17,11 +17,14 @@ We adopt LangGraph as the primary workflow orchestration engine with the followi
 Every AI generation process becomes an independent LangGraph workflow:
 - `job_processing`: Job posting analysis
 - `company_processing`: Company intelligence
-- `resume_generation`: Tailored resume creation
-- `cover_letter_generation`: Cover letter creation
 - `skill_extraction`: Skill extraction from jobs
 - `insights`: Career intelligence (6 child graphs)
 - `generate_all`: Parent orchestrator
+
+> **Update**: `resume_generation` and `cover_letter_generation` were later
+> **removed** — the platform no longer generates tailored resumes or cover
+> letters. Resumes and LinkedIn profiles are kept only as candidate sources
+> (`/api/candidates/sources`) used as analysis input.
 
 ### 2. Typed State and Outputs
 

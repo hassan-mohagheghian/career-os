@@ -20,8 +20,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Companies           | `/api/companies`                            | Company intelligence CRUD             |
 | Skills              | `/api/tech-stack`                           | Skill management + aliases + merge    |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
-| Resumes             | `/api/resumes`                              | Resume / cover letter generation      |
-| LinkedIn Profiles   | `/api/linkedin`                             | Versioned LinkedIn profile upload/list/delete |
+| Candidate Profile   | `/api/candidates/sources`                   | Resume / LinkedIn profile upload as analysis input |
 | Rules               | `/api/rules`                                | Scoring rules configuration           |
 | SSE                | `/api/sse/processing-events`                | Real-time processing event stream     |
 | System              | `/api/generation-history`, `/api/health`    | History + health check                |
@@ -116,43 +115,30 @@ Request: `{ "pinned": true }` → Response `200`: `{ "pinned": true }`, or
 
 ---
 
-## Profile Documents (Resume + LinkedIn)
+## Candidate Profile Sources (Resume + LinkedIn)
 
-Both the latest resume and the latest LinkedIn profile are fed into job
-analysis as labeled extra context. The resume is authoritative for skills and
-seniority; LinkedIn supplements it. "Latest" is the highest `version`.
+The latest resume and the latest LinkedIn profile are stored as **candidate
+sources** (`POST /api/candidates/sources`) and fed into job analysis as
+labeled extra context. The resume is authoritative for skills and seniority;
+LinkedIn supplements it. "Latest" is the highest `version` for that
+`source_type`.
 
-### `POST /api/resumes` — upload a master resume
+### `GET /api/candidates/sources` — list sources
 
-Request: `{ "raw_text": "…", "title": "Optional" }` (a legacy `content` key is
-also accepted).
+Returns all candidate sources, newest version first.
 
-Response `200`: `{ "status": "saved", "version": 1, "id": "original_1" }`.
+### `POST /api/candidates/sources` — upload a resume or LinkedIn profile
+
+Request: `{ "source_type": "resume" | "linkedin", "raw_text": "…" }`.
+Response `201`: `{ "id": "…", "source_type": "…", "version": 1, "status": "pending" }`.
 
 PII (name line, phone, email, LinkedIn/GitHub URLs) is masked before saving;
-the row stores the masked `raw_text` plus an HTML `content` preview.
+the source is left `pending` until the next candidate processing run extracts
+and marks it `processed`.
 
-### `DELETE /api/resumes/{id}` — delete a resume
+### `GET /api/candidates/versions` — list profile versions
 
-Response `200`: `{ "status": "deleted", "id": "original_1" }`, or `404` when the
-id is unknown.
-
-### `GET /api/linkedin` — list LinkedIn profiles
-
-Returns all `linkedin_*` rows, newest version first.
-
-### `POST /api/linkedin` — upload a LinkedIn profile
-
-Request: `{ "raw_text": "…" }`. Response `200`:
-`{ "status": "saved", "version": 1, "id": "linkedin_1" }`.
-
-### `GET /api/linkedin/{id}` — get a LinkedIn profile
-
-Returns the row, or `404` when unknown.
-
-### `DELETE /api/linkedin/{id}` — delete a LinkedIn profile
-
-Response `200`: `{ "status": "deleted", "id": "linkedin_1" }`, or `404`.
+### `POST /api/candidates/analyze` — run candidate processing
 
 ---
 

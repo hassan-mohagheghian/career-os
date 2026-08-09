@@ -10,7 +10,7 @@ Job Search Intelligence is a **DDD modular monolith** with a hexagonal backend (
 ┌──────────────────────────────────────────────┐
 │              Next.js (App Router)            │
 │  ┌────────┐ ┌──────────┐ ┌───────────────┐  │
-│  │  Jobs  │ │Companies │ │ Skills/Resume │  │
+│  │  Jobs  │ │Companies │ │Skills/CandProfile │  │
 │  └───┬────┘ └────┬─────┘ └───────┬───────┘  │
 │      │           │               │          │
 │  FSD: entities / features / widgets / shared │
@@ -23,7 +23,7 @@ Job Search Intelligence is a **DDD modular monolith** with a hexagonal backend (
 │  ┌───────────────────────────────────────┐  │
 │  │ Bounded Contexts                      │  │
 │  │ jobs · companies · skills · rules     │  │
-│  │ ai · processing · shared              │  │
+│  │ candidates · ai · processing · shared │  │
 │  └───────┬───────────────────────┬───────┘  │
 │          │                       │          │
 │   ┌──────▼──────┐         ┌──────▼──────┐   │

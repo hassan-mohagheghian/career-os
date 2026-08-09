@@ -26,7 +26,7 @@ export default function WorkflowTerminal({ workflowDrawer, workflowLogs, workflo
       {/* Step progress */}
       <div className="px-4 py-2 flex gap-1 border-b border-[#21262d] bg-[#161b22] overflow-x-auto">
         {['fetch', 'validate', 'extract_raw', 'extract_struct', 'summary', 'save', 'analyze', 'done'].map((s, i) => {
-          const stepDbCol = { save: 'step_resume', analyze: 'step_analyze' }[s] || `step_${s}`
+          const stepDbCol = { save: 'step_db', analyze: 'step_analyze' }[s] || `step_${s}`
           const stepVal = workflowDrawer?.[stepDbCol]
           const isDone = stepVal === 1
           const isActive = !isDone && workflowLogs.some(l => l.step === s)

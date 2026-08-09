@@ -53,15 +53,16 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | `presentation/api/` | `rules_router.py` | FastAPI router |
 | `presentation/api/schemas/` | `rules.py` | Pydantic schemas |
 
-### Resume (now part of Jobs Context)
+### Candidates Context (`candidates/`)
 
 | Layer | Files | Responsibility |
 |-------|-------|---------------|
-| `jobs/domain/entities/` | `resume.py` | Resume domain entity |
-| `jobs/domain/repositories/` | `resume_repository.py` | Repository interface |
-| `jobs/infrastructure/repositories/` | `sa_resume_repository.py` | Repository implementation |
-| `jobs/presentation/api/` | `resumes_router.py` | FastAPI router |
-| `jobs/presentation/api/schemas/` | `resumes.py` | Pydantic schemas |
+| `candidates/domain/entities/` | `candidate.py`, `candidate_source.py` | Candidate + source entities |
+| `candidates/application/` | `services/candidate_service.py` | Candidate source management |
+| `candidates/application/adapters/` | `resume_adapter.py`, `linkedin_adapter.py` | Resume / LinkedIn text parsing |
+| `candidates/infrastructure/repositories/` | `sa_candidate_repository.py` | Repository implementation |
+| `candidates/presentation/api/` | `candidates_router.py` | FastAPI router |
+| `candidates/presentation/api/schemas/` | `candidates.py` | Pydantic schemas |
 
 ### Processing Context (`processing/`)
 

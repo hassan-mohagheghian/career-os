@@ -25,9 +25,14 @@ Refactor to Domain-Driven Design (DDD) with bounded contexts:
 2. **Companies** — Company intelligence
 3. **Skills** — Skill management, aliases, relationships
 4. **Rules** — Scoring rules (was Career)
-5. **Resume** — Resume/cover letter generation
+5. **Candidates** — Candidate profile sources (resume / LinkedIn as analysis input; was Resume)
 6. **Pending** — Processing queue management
 7. **Shared** — Cross-cutting infrastructure
+
+> **Update**: The original **Resume** context (Resume/cover letter *generation*)
+> was later removed. Resume and LinkedIn profiles live on as **candidate
+> sources** under the Candidates context — uploaded as analysis input, never
+> generated.
 
 Each bounded context owns its complete vertical slice:
 - `domain/` — Entities, value objects, repository interfaces

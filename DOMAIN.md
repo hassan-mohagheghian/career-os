@@ -45,23 +45,17 @@
 - **Provenance (Evidence)**: every extracted entity carries `sources` (e.g. `["resume","linkedin"]`) + `confidence` (0-1) + notes; explicit vs inferred skills are distinguished.
 - **Versioning**: each merge produces a new `CandidateProfileVersion`; sources version independently (updating Resume must not reprocess LinkedIn).
 - **Persistence**: within-context FKs only; the cross-context `skill_id` link to `skill.skills` is a logical reference (no FK, AGENTS.md rule 15).
-- **Extraction**: `CandidateExtractService` (one `candidate.extract` LLM call per source via `LLMService.generate_structured`, versioned prompt/schema + strict validation) turns a raw source document into the structured profile. Source adapters (`CandidateSourceAdapter` → `ResumeAdapter` / `LinkedInAdapter`) read the latest `original_*` / `linkedin_*` rows from `job.resumes` (cross-context read; GitHub/Portfolio are stubs). Extracted skills resolve into `skill.skills` via `resolve_skill`; skills mentioned in a document are stored `origin=explicit` with `Evidence` and confidence; the `inferred` origin is reserved for merge/inference phases.
+- **Extraction**: `CandidateExtractService` (one `candidate.extract` LLM call per source via `LLMService.generate_structured`, versioned prompt/schema + strict validation) turns a raw source document into the structured profile. Source adapters (`CandidateSourceAdapter` → `ResumeAdapter` / `LinkedInAdapter`) read the latest `candidate.candidate_sources` row for their `source_type` (GitHub/Portfolio are stubs). Extracted skills resolve into `skill.skills` via `resolve_skill`; skills mentioned in a document are stored `origin=explicit` with `Evidence` and confidence; the `inferred` origin is reserved for merge/inference phases.
 - **Merge (ProfileMergeService)**: the single persistence primitive — folds every extracted payload into the canonical profile deterministically and idempotently. Core fields (name/title/headline/summary/location): incoming non-empty wins. Natural keys: skills by `skill_id` (fallback name; keep max level/confidence/years, union evidence sources), experiences by `(company, role)`, projects by `name`, educations by `(institution, degree)`, certificates by `name`, interests/languages by `name`. Removed = present in current but absent from incoming. Every merge writes core + all child sets + a new `CandidateProfileVersion` snapshot (`v1` for the first merge, then `version+1`) with a `source_versions` map and a `change_summary` derived from the diff.
 - **Events (EDD)**: domain events (see `docs/domain/candidates/events.md`) are emitted through the `CandidateEventPublisher` port during merge/extract operations. The default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
 
-### Resume
-- **What**: Generated resume or cover letter
-- **Types**: `original`, `original_1`, `linkedin_*`, `resume_*`, `cover_*`
-- **Storage**: Content in `resumes.content`, raw text in `resumes.raw_text`
-- **Master resume**: uploaded via `POST /api/resumes`, stored as `original_N` with version `N` auto-incremented
-- **LinkedIn profile**: uploaded via `POST /api/linkedin`, stored as `linkedin_N` with version auto-incremented
+### CandidateSource
+- **What**: A resume or LinkedIn profile uploaded as analysis input — never generated
+- **Storage**: `candidate.candidate_sources` table; `source_type` is `resume` or `linkedin`
+- **Upload**: via `POST /api/candidates/sources` (body `{source_type, raw_text}`), stored with `version` auto-incremented per source type
 - **PII**: `raw_text` is PII-masked (name line, phone, email, LinkedIn/GitHub URLs) at save time
-- **Latest**: the row with the highest `version` for the `original_*` / `linkedin_*` prefix
-
-### Generation
-- **What**: A resume or cover letter generation request
-- **Key fields**: `job_num`, `type` (resume/cover), `status`, `session_id`
-- **States**: queued → processing → done/failed/cancelled
+- **Status**: `pending` on upload, `processed` after the next candidate processing run extracts it
+- **Latest**: the row with the highest `version` for the `source_type`
 
 ## Business Rules
 
@@ -134,12 +128,13 @@ Runs as a single `ProcessingExecution` (`CANDIDATE_PROCESSING`, target
 Each step emits SSE `workflow.step.*` events; the candidate domain events
 (`candidate.*`) are collected in-memory by the `CandidateEventPublisher` port.
 
-### Resume/Cover Generation Pipeline
-1. **Prepare**: Load job data, resume, rules
-2. **Context**: Load company intelligence (if linked)
-3. **Generate**: Call LLMService with enriched prompt
-4. **Save**: Write to resumes table
-5. **Done**: Mark complete, emit WebSocket event
+### Candidate Source Upload Pipeline
+
+Resume and cover letter **generation was removed** from the platform. Resumes and
+LinkedIn profiles exist only as **candidate sources** (`candidate.candidate_sources`)
+uploaded through `POST /api/candidates/sources` and used as labeled context in job
+analysis. Upload → PII-mask → `pending`; the candidate processing pipeline
+extracts them into the canonical profile and marks them `processed`.
 
 ## Domain Workflows
 
@@ -158,7 +153,7 @@ Notes/Links added → queued → fetching → extracting → analyzing → saved
 Generate All → overview → opportunities → companies → market → networking → skills_intel
 ```
 
-### Resume/Cover Generation Flow
+### Candidate Source Upload Flow
 ```
-Click Generate → pending_generations → prepare → context → generate → save → done
+Resume/LinkedIn uploaded → PII-masked → pending → candidate processing extract → processed
 ```

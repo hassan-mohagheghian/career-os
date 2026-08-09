@@ -44,7 +44,13 @@ app/
 │   │   └── presentation/api/
 │   │       └── rules_router.py
 │   │
-│   │                                 # Resume lives in jobs/presentation/api/resumes_router.py
+│   ├── candidates/                # Candidates Bounded Context
+│   │   ├── domain/
+│   │   ├── application/
+│   │   │   └── adapters/          # resume_adapter, linkedin_adapter
+│   │   ├── infrastructure/
+│   │   └── presentation/api/
+│   │       └── candidates_router.py
 │   │
 │   ├── processing/                # Processing Bounded Context (executions + queue)
 │   │   ├── domain/
@@ -75,7 +81,6 @@ app/
 │   │   │   ├── job.py            # Job entity
 │   │   │   ├── company.py        # Company entity
 │   │   │   ├── skill.py          # Skill entity
-│   │   │   ├── resume.py         # Resume entity
 │   │   │   ├── insight.py        # Career insight entity
 │   │   │   └── pending.py        # Pending item entity
 │   │   ├── value_objects/        # Value objects
@@ -105,15 +110,13 @@ app/
 │   │   │   ├── company_service.py # Company business logic
 │   │   │   ├── skill_service.py  # Skill business logic
 │   │   │   ├── insight_service.py # Career insight logic
-│   │   │   ├── resume_service.py # Resume generation logic
 │   │   │   ├── pending_service.py # Queue management logic
 │   │   │   └── rule_service.py   # Scoring rules logic
 │   │   ├── use_cases/            # Complex use cases
 │   │   │   ├── __init__.py
 │   │   │   ├── process_job.py    # Job processing pipeline
 │   │   │   ├── process_company.py # Company processing pipeline
-│   │   │   ├── generate_insights.py # Insights generation
-│   │   │   └── generate_resume.py # Resume generation
+│   │   │   └── generate_insights.py # Insights generation
 │   │   └── dto/                  # Data Transfer Objects
 │   │       ├── __init__.py
 │   │       ├── job_dto.py
@@ -148,8 +151,7 @@ app/
 │   │   ├── workers/              # Background workers
 │   │   │   ├── __init__.py
 │   │   │   ├── job_worker.py     # Job processing worker
-│   │   │   ├── insight_worker.py # Insights generation worker
-│   │   │   └── resume_worker.py  # Resume generation worker
+│   │   │   └── insight_worker.py # Insights generation worker
 │   │   └── process/              # Process management
 │   │       ├── __init__.py
 │   │       ├── manager.py        # Subprocess lifecycle
@@ -309,7 +311,7 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 | `jobs` | `jobs_router` | `jobs/presentation/api/jobs_router.py` |
 | `pending` | `executions_router` | `processing/presentation/api/executions_router.py` |
 | `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
-| `resumes` | `resumes_router` | `jobs/presentation/api/resumes_router.py` |
+| `candidates` | `candidates_router` | `candidates/presentation/api/candidates_router.py` |
 | `skills` | `skills_router` | `skills/presentation/api/skills_router.py` |
 | `rules` | `rules_router` | `rules/presentation/api/rules_router.py` |
 | `misc` | `dashboard_router` | `shared/presentation/api/dashboard_router.py` |

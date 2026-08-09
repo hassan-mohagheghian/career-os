@@ -38,7 +38,7 @@ Each extracted service would own its PostgreSQL schema:
 - `companies_service` → `companies`, `company_*`
 - `skills_service` → `skills`, `skill_*`, `tech_learning`
 - `career_service` → `rules`
-- `resume_service` → `resumes`, `pending_generations`
+- `candidates_service` → `candidates`, `candidate_sources`
 
 ## Cross-Service Communication
 

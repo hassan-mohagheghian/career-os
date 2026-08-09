@@ -24,16 +24,14 @@
 > one LLM call per job.
 
 Also removed: `jobs/infrastructure/ai/prompts/tailor.py`, `cover_letter.py`,
-`generate_cover_letter.md`, `tailor_resume.md`. The legacy `.txt` prompt files
-(`job_processing/step2/3/4/8.txt`, `resume/step7_cover_generate.txt`,
-`resume/step_resume_generate.txt`) are **kept** for the legacy Socket.IO
-pipeline.
+`generate_cover_letter.md`, `tailor_resume.md`, and the legacy resume/cover
+letter `.txt` prompt files (`resume/step7_cover_generate.txt`,
+`resume/step_resume_generate.txt`) that backed the legacy Socket.IO pipeline —
+resume/cover letter generation was removed from the platform.
 
 ## Usage
 
-The remaining legacy prompts are plain `.txt` templates consumed directly by
-the legacy Socket.IO workers (no runtime registry). The v2 `job.analyze` prompt
-is a self-contained builder:
+The v2 `job.analyze` prompt is a self-contained builder:
 
 ```python
 from processing.application.services.job_analysis_prompt import (

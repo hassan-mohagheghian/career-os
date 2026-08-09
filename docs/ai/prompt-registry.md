@@ -8,11 +8,11 @@
 > `JOB_ANALYSIS_PROMPT_VERSION` = `JOB_ANALYSIS_SCHEMA_VERSION` = "1.0.0").
 > It is executed by the `analyze` node of the JobAnalysisGraph via
 > `LLMService.generate_structured(prompt, schema=…, timeout=240)` — exactly
-> one LLM call per job. The legacy `.txt` prompt files
-> (`job_processing/step2/3/4/8.txt`, `resume/step7_cover_generate.txt`,
-> `resume/step_resume_generate.txt`) remain for the legacy Socket.IO pipeline;
-> `jobs/infrastructure/ai/prompts/tailor.py`, `cover_letter.py`,
-> `generate_cover_letter.md`, `tailor_resume.md` were removed.
+> one LLM call per job. The legacy resume/cover letter `.txt` prompt files
+> (`resume/step7_cover_generate.txt`, `resume/step_resume_generate.txt`) were
+> also removed along with the legacy Socket.IO pipeline — resume/cover letter
+> generation is gone from the platform; `jobs/infrastructure/ai/prompts/tailor.py`,
+> `cover_letter.py`, `generate_cover_letter.md`, `tailor_resume.md` were removed.
 
 The sections below document the registry design that previously existed.
 
