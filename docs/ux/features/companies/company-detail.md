@@ -28,10 +28,10 @@ visa-seeking software engineer.
 │ <Recruiter for N jobs (recruiter types only)>│
 │ <Company Overview / description>             │
 │ <Intelligence sections, importance order>    │
-│ <Scores breakdown>                           │
 │ <Linked jobs>                                │
 │ <Notes — read only>                          │
 │ <Links — read only>                          │
+│ <Scores explanation: Why popover in header>  │
 │                                              │
 │ [View All Jobs]  [Website]  ... [Reprocess]  │
 │                               [Delete]       │
@@ -136,19 +136,53 @@ keeps its own ordering:
 ## Scores
 
 The scores shown in the header (grade badge + Fit / Success / Overall cards)
-and in the breakdown are exactly the scores **calculated by company
-processing** (`fit` / `success` → weighted `overall`),
-persisted into `company.intelligence.scores` and surfaced through the
-normalized top-level `company.scores` field. The drawer reads `company.scores`
-first and falls back to the raw `intelligence.scores` dict; this mirrors the Job
-Detail drawer, which reads the same normalized `scores` payload.
+are exactly the scores **calculated by company processing**
+(`fit` / `success` → weighted `overall`), persisted into
+`company.intelligence.scores` and surfaced through the normalized top-level
+`company.scores` field. The drawer reads `company.scores` first and falls back
+to the raw `intelligence.scores` dict; this mirrors the Job Detail drawer, which
+reads the same normalized `scores` payload.
 
-Full score breakdown:
+### Scores Explanation
 
-- Overall grade card (derived from the overall score via the shared grade helper)
-- Fit score (with positive / negative factors)
-- Success score (with positive / negative factors)
-- Score calculation (Overall = Fit × 0.5 + Success × 0.5)
+A **Why** button sits next to the score cards in the header (hidden when no
+explanation data exists — e.g. legacy/unprocessed companies). It mirrors the Job
+Detail drawer's explanation popover:
+
+- **Hover** over the button (or the popover) opens it.
+- **Click** pins it open (sticky); clicking again unpins.
+- It closes on **unhover** (mouse leave) or **unpin**.
+
+The popover shows the intelligence `fit` / `success` explanations and their
+positive / negative factors:
+
+```text
+┌─ Scores Explanation ────────────────────────────────┐
+│ WHY IT FITS                                          │
+│ Strong stack alignment                               │
+│  • Go + Postgres match          (positive, green)    │
+│  • No Kafka experience          (negative, red)      │
+│ CHANCE OF SUCCESS                                    │
+│ Growing team                                         │
+│  • Clear engineering roadmap    (positive, green)    │
+│  • Small team                   (negative, red)      │
+└──────────────────────────────────────────────────────┘
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Hidden: no explanation data
+    Hidden --> Open: hover button or popover
+    Open --> Hidden: mouse leave
+    Hidden --> Pinned: click button
+    Open --> Pinned: click button
+    Pinned --> Hidden: click button again
+    Pinned --> Open: mouse leave
+```
+
+The old full-width score breakdown cards (Overall grade card, Fit score card,
+Success score card, Score calculation) were removed; the header score strip is
+now the single score display.
 
 ## Linked Jobs
 

@@ -409,7 +409,7 @@ drawer:
   buttons in the header
 - Recommendation (prioritized to the top)
 - Intelligence sections (product or recruiter variant)
-- Full score breakdown with factors and calculation
+- Scores explanation (Why popover next to the header score cards)
 - Linked jobs list (`CompanyJobsTab`)
 - Notes & Links — read only (CRUD lives in the Edit drawer)
 - Footer actions: View All Jobs, Website, Reprocess, Delete

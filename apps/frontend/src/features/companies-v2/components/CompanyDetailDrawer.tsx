@@ -17,6 +17,7 @@ import {
   Repeat,
   Trash,
   PencilSimple,
+  Question,
 } from "@phosphor-icons/react";
 import type {
   CompanyDetail,
@@ -31,6 +32,7 @@ import { CompanyGradeBadge } from "./CompanyGradeBadge";
 import { CompanyScoreCard } from "./CompanyScoreCard";
 import { RelateCompanyDialog } from "./RelateCompanyDialog";
 import { gradeForScore } from "@/shared/lib/grade";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
 const COMPANY_TYPE_LABELS: Record<string, string> = {
   PRODUCT_COMPANY: "Product Company",
@@ -46,6 +48,151 @@ function formatCompanyType(type: string | null | undefined) {
 
 function isRecruiterType(type: string | null | undefined) {
   return type === "RECRUITING_AGENCY" || type === "STAFFING_COMPANY";
+}
+
+function strList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? (value as unknown[]).map((v) =>
+        typeof v === "string" ? v : JSON.stringify(v),
+      )
+    : [];
+}
+
+function strValue(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function CompanyScoresExplanationButton({
+  intelScores,
+}: {
+  intelScores: CompanyIntelligenceScores;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const open = hovered || pinned;
+
+  const fitExplanation = strValue(intelScores.fit_explanation);
+  const fitPositive = strList(intelScores.fit_positive_factors);
+  const fitNegative = strList(intelScores.fit_negative_factors);
+  const successExplanation = strValue(intelScores.success_explanation);
+  const successPositive = strList(intelScores.success_positive_factors);
+  const successNegative = strList(intelScores.success_negative_factors);
+
+  const hasContent =
+    !!fitExplanation ||
+    fitPositive.length > 0 ||
+    fitNegative.length > 0 ||
+    !!successExplanation ||
+    successPositive.length > 0 ||
+    successNegative.length > 0;
+
+  if (!hasContent) return null;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setHovered(false);
+          setPinned(false);
+        }
+      }}
+    >
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="flex items-center"
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Show scores explanation"
+            onClick={() => setPinned((p) => !p)}
+            className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-2xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          >
+            <Question className="w-3.5 h-3.5" />
+            Why
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-80 p-3"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Scores Explanation
+          </p>
+
+          {(fitExplanation || fitPositive.length > 0 || fitNegative.length > 0) && (
+            <>
+              <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+                Why it fits
+              </p>
+              {fitExplanation && (
+                <p className="text-xs text-foreground mb-1.5">{fitExplanation}</p>
+              )}
+              {fitPositive.length > 0 && (
+                <ul className="mb-1.5 space-y-1">
+                  {fitPositive.map((f, i) => (
+                    <li key={i} className="text-xs text-green-600 flex gap-1.5">
+                      <span className="shrink-0">•</span>
+                      <span className="break-words">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {fitNegative.length > 0 && (
+                <ul className="mb-2 space-y-1">
+                  {fitNegative.map((f, i) => (
+                    <li key={i} className="text-xs text-red-500/90 flex gap-1.5">
+                      <span className="shrink-0">•</span>
+                      <span className="break-words">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {(successExplanation ||
+            successPositive.length > 0 ||
+            successNegative.length > 0) && (
+            <>
+              <p className="text-2xs font-medium text-muted-foreground uppercase mb-1">
+                Chance of success
+              </p>
+              {successExplanation && (
+                <p className="text-xs text-foreground mb-1.5">
+                  {successExplanation}
+                </p>
+              )}
+              {successPositive.length > 0 && (
+                <ul className="mb-1.5 space-y-1">
+                  {successPositive.map((f, i) => (
+                    <li key={i} className="text-xs text-green-600 flex gap-1.5">
+                      <span className="shrink-0">•</span>
+                      <span className="break-words">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {successNegative.length > 0 && (
+                <ul className="space-y-1">
+                  {successNegative.map((f, i) => (
+                    <li key={i} className="text-xs text-red-500/90 flex gap-1.5">
+                      <span className="shrink-0">•</span>
+                      <span className="break-words">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </PopoverContent>
+      </div>
+    </Popover>
+  );
 }
 
 interface CompanyDetailDrawerProps {
@@ -178,6 +325,7 @@ function CompanyDetailContent({
         {overallScore != null && (
           <CompanyScoreCard label="Overall" value={overallScore} />
         )}
+        <CompanyScoresExplanationButton intelScores={rawScores} />
       </div>
       <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
         {company.logo_url && (
@@ -316,8 +464,6 @@ function CompanyDetailContent({
         intel={intel}
         isRecruiter={isRecruiterType(company.company_type)}
       />
-
-      <CompanyScoresSection intel={intel} scores={company.scores} />
 
       {company.jobs && company.jobs.length > 0 && (
         <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
@@ -728,183 +874,6 @@ function CompanyIntelligenceSection({
             />
           </Section>
         </>
-      )}
-    </div>
-  );
-}
-
-function CompanyScoresSection({
-  intel,
-  scores,
-}: {
-  intel: CompanyIntelligence | null | undefined;
-  scores?: CompanyScores | null;
-}) {
-  const intelScores = (intel?.scores || {}) as CompanyIntelligenceScores;
-  const normalized = scores ?? ({} as CompanyScores);
-  const fitScore =
-    normalized.fit ??
-    (typeof intelScores.fit === "number" ? intelScores.fit : null);
-  const successScore =
-    normalized.success ??
-    (typeof intelScores.success === "number" ? intelScores.success : null);
-  const overallScore =
-    normalized.overall ??
-    (typeof intelScores.overall === "number" ? intelScores.overall : null);
-  const overallGrade =
-    normalized.overall_grade ??
-    (overallScore != null
-      ? gradeForScore(overallScore)
-      : typeof intelScores.overall_grade === "string"
-        ? intelScores.overall_grade
-        : typeof intelScores.fit_grade === "string"
-          ? intelScores.fit_grade
-          : "—");
-
-  if (!intel && !scores) {
-    return (
-      <div className="rounded-lg border border-dashed p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          No scores available yet.
-        </p>
-      </div>
-    );
-  }
-
-  const FactorList = ({
-    title,
-    items,
-    color,
-  }: {
-    title: string;
-    items: unknown[];
-    color: string;
-  }) =>
-    items.length > 0 ? (
-      <div className="mb-2">
-        <span className={`text-2xs font-semibold ${color}`}>{title}</span>
-        {items.map((f, i) => (
-          <p key={i} className={`text-xs mt-0.5 ${color}`}>
-            - {typeof f === "string" ? f : JSON.stringify(f)}
-          </p>
-        ))}
-      </div>
-    ) : null;
-
-  const fitExplanation =
-    typeof intelScores.fit_explanation === "string"
-      ? intelScores.fit_explanation
-      : null;
-  const successExplanation =
-    typeof intelScores.success_explanation === "string"
-      ? intelScores.success_explanation
-      : null;
-  const fitPositive = Array.isArray(intelScores.fit_positive_factors)
-    ? (intelScores.fit_positive_factors as unknown[])
-    : [];
-  const fitNegative = Array.isArray(intelScores.fit_negative_factors)
-    ? (intelScores.fit_negative_factors as unknown[])
-    : [];
-  const successPositive = Array.isArray(intelScores.success_positive_factors)
-    ? (intelScores.success_positive_factors as unknown[])
-    : [];
-  const successNegative = Array.isArray(intelScores.success_negative_factors)
-    ? (intelScores.success_negative_factors as unknown[])
-    : [];
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
-        <div className="text-5xl font-black text-primary mb-1">
-          {overallGrade}
-        </div>
-        <div className="text-sm font-semibold text-muted-foreground">
-          Overall Grade
-        </div>
-        {overallScore != null && (
-          <div className="text-lg font-bold text-primary mt-1">
-            {overallScore}/100
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-lg border border-border/40 bg-muted/10 p-4">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex flex-col items-center">
-            <div className="text-3xl font-black text-primary">
-              {fitScore ?? "?"}
-            </div>
-            <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Fit Score
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-sm font-semibold">Company Fit Score</div>
-            <div className="text-sm text-muted-foreground">
-              How well does this company match your technical background and
-              career direction?
-            </div>
-          </div>
-        </div>
-        {fitExplanation && (
-          <p className="text-sm text-muted-foreground mb-2">{fitExplanation}</p>
-        )}
-        <FactorList
-          title="Positive Factors"
-          items={fitPositive}
-          color="text-green-500"
-        />
-        <FactorList
-          title="Negative Factors"
-          items={fitNegative}
-          color="text-red-400"
-        />
-      </div>
-
-      <div className="rounded-lg border border-border/40 bg-muted/10 p-4">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex flex-col items-center">
-            <div className="text-3xl font-black text-primary">
-              {successScore ?? "?"}
-            </div>
-            <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Success Score
-            </div>
-          </div>
-          <div className="flex-1">
-            <div className="text-sm font-semibold">Company Success Score</div>
-            <div className="text-sm text-muted-foreground">
-              How likely are you to successfully join this company?
-            </div>
-          </div>
-        </div>
-        {successExplanation && (
-          <p className="text-sm text-muted-foreground mb-2">
-            {successExplanation}
-          </p>
-        )}
-        <FactorList
-          title="Positive Factors"
-          items={successPositive}
-          color="text-green-500"
-        />
-        <FactorList
-          title="Negative Factors"
-          items={successNegative}
-          color="text-red-400"
-        />
-      </div>
-
-      {fitScore != null && successScore != null && (
-        <div className="rounded-lg border border-border/40 bg-muted/10 p-4">
-          <div className="text-sm font-semibold mb-2">Score Calculation</div>
-          <div className="text-sm text-muted-foreground">
-            Overall = Fit ({fitScore}) × 0.5 + Success ({successScore}) × 0.5 ={" "}
-            <span className="font-bold text-primary">
-              {overallScore ?? "?"}
-            </span>
-          </div>
-        </div>
       )}
     </div>
   );

@@ -92,14 +92,17 @@ describe('CompanyDetailDrawer scores', () => {
     expect(screen.getAllByText('A').length).toBeGreaterThan(0)
   })
 
-  it('shows the no-scores placeholder for unprocessed companies', async () => {
+  it('renders no score cards or explanation button for unprocessed companies', async () => {
     vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
       scores: null,
       intelligence: null,
     }))
     renderDrawer('company-1')
 
-    await waitFor(() => expect(screen.getByText('No scores available yet.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(
+      screen.queryByRole('button', { name: 'Show scores explanation' }),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -112,6 +115,47 @@ describe('CompanyDetailDrawer edit', () => {
     await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Edit company' }))
     expect(onEdit).toHaveBeenCalledWith('company-1')
+  })
+})
+
+describe('CompanyDetailDrawer scores explanation', () => {
+  it('opens the scores explanation popover on click and shows the factors', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      intelligence: {
+        scores: {
+          fit: 88,
+          success: 72,
+          overall: 80,
+          fit_explanation: 'Strong stack alignment',
+          fit_positive_factors: ['Go + Postgres match'],
+          fit_negative_factors: ['No Kafka experience'],
+          success_explanation: 'Growing team',
+          success_positive_factors: ['Clear engineering roadmap'],
+          success_negative_factors: ['Small team'],
+        },
+      } as CompanyDetail['intelligence'],
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Show scores explanation' }))
+    expect(screen.getAllByText('Scores Explanation').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Strong stack alignment').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Go + Postgres match').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('No Kafka experience').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Growing team').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Clear engineering roadmap').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Small team').length).toBeGreaterThan(0)
+  })
+
+  it('does not render the scores explanation button without explanation data', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail())
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(
+      screen.queryByRole('button', { name: 'Show scores explanation' }),
+    ).not.toBeInTheDocument()
   })
 })
 

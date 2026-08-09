@@ -379,7 +379,7 @@ for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 │ └────────────────────────────────────────────────────────────┘ │
 │ Company Overview                                              │
 │ Intelligence sections (importance order)                      │
-│ Scores breakdown                                              │
+│ Scores explanation (Why popover next to header score cards)   │
 │ Linked Jobs                                              │
 │ ┌────────────────────────────────────────────────────────┐ │
 │ │ 2 linked jobs                                          │ │
