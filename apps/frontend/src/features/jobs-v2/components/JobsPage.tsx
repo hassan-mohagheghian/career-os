@@ -51,6 +51,7 @@ interface JobsPageProps {
   onTogglePinned: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  onApplication?: (id: string) => void
   showPinnedColumn?: boolean
   onTogglePinnedColumn?: (value: boolean) => void
   showRowNumberColumn?: boolean
@@ -81,7 +82,7 @@ export function JobsPage({
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, isProcessing,
+  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication, isProcessing,
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
@@ -184,6 +185,7 @@ export function JobsPage({
         onTogglePinned={onTogglePinned}
         onRetry={onRetry}
         onCancel={onCancel}
+        onApplication={onApplication}
         showPinnedColumn={showPinnedColumn}
         showRowNumberColumn={showRowNumberColumn}
         sort={sort}

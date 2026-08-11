@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { JobDetailDrawer } from './JobDetailDrawer'
 import { jobApi } from '@/entities/job/api'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('@/entities/job/api', () => ({
   jobApi: {
     getDetail: vi.fn(),

@@ -64,12 +64,15 @@ through the shared two-phase ProcessingExecution workflow (`COMPANY_PROCESSING`)
 context preparation without an LLM call, then a single-LLM analysis — the same
 pattern used by jobs.
 
-## Resume / Cover Letter Generation (removed)
+## Resume / Cover Letter Generation (application artifacts)
 
-The `resume_generation` and `cover_letter_generation` graphs were **removed**.
-The platform no longer generates tailored resumes or cover letters; resumes and
-LinkedIn profiles exist only as candidate sources uploaded through
-`/api/candidates/sources` and fed into job analysis as context.
+The standalone `resume_generation` and `cover_letter_generation` graphs were
+**removed** in an earlier phase. Tailored resumes and cover letters are now
+generated per application by the `ApplicationIntelligenceGraph`
+(`APPLICATION_PREPARATION` / `APPLICATION_RESUME` / `APPLICATION_COVER_LETTER`
+executions), a single-graph workflow that reuses the job analysis, company and
+candidate context builders (no re-analysis). See
+`docs/ai/application-intelligence.md`.
 
 ## Skill Extraction Graph
 

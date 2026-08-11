@@ -20,6 +20,7 @@ from ai.presentation.api.llm_configurations_router import router as llm_configur
 from processing.presentation.api.process_router import router as process_router
 from processing.presentation.api.executions_router import router as executions_router
 from candidates.presentation.api.candidates_router import router as candidates_router
+from applications.presentation.api.applications_router import router as applications_router
 
 # DI dependencies — wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo
@@ -53,6 +54,7 @@ api_router.include_router(executions_router, prefix="/processing", tags=["proces
 # ── Candidate Profile ────────────────────────────────────────────
 
 api_router.include_router(candidates_router, prefix="/candidates", tags=["candidates"])
+api_router.include_router(applications_router, prefix="/applications", tags=["applications"])
 
 # ── Flask compat routes ─────────────────────────────────────────
 

@@ -22,6 +22,7 @@ interface JobsTableProps {
   onTogglePinned: (id: string, pinned: boolean) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  onApplication?: (id: string) => void
   showPinnedColumn?: boolean
   showRowNumberColumn?: boolean
   sort?: string
@@ -58,7 +59,7 @@ const COLUMN_DEFS: ColumnDef[] = [
 
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
+  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication,
   showPinnedColumn = true, showRowNumberColumn = false,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
@@ -197,6 +198,7 @@ export function JobsTable({
                   onTogglePinned={(_id, pinned) => onTogglePinned(job.id, pinned)}
                   onRetry={onRetry}
                   onCancel={onCancel}
+                  onApplication={onApplication}
                   showPinnedColumn={showPinnedColumn}
                   showRowNumberColumn={showRowNumberColumn}
                   rowNumber={virtualItem.index + 1}

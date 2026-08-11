@@ -31,6 +31,11 @@ docs/ux/
 │   └── README.md
 ├── app-shell.md               Left sidebar nav (rail + collapse + mobile sheet)
 ├── features/
+│   ├── applications/
+│   │   ├── workspace.md         Job Application Workspace page (header, sections, SSE progress)
+│   │   ├── application-tracker.md  Status select, applied date, follow-ups
+│   │   ├── preparation-plan.md     Hard/soft skill plan cards + generate
+│   │   └── application-documents.md  Tailored resume / cover letter cards
 │   ├── ai/
 │   │   ├── llm-configurations.md
 │   │   ├── add-llm-configuration.md
@@ -68,6 +73,9 @@ docs/ux/
 │       ├── edit-skill.md      Edit Skill drawer (aliases, merge, make canonical)
 │       └── breakdown-skill-dialog.md  Break down a composite skill into atomic children
 └── flows/
+    ├── applications/
+    │   ├── prepare-and-apply.md  Create/track an application (status, applied, follow-ups)
+    │   └── generate-application-artifacts.md  Generate + watch preparation/resume/cover letter
     ├── candidate/
     │   └── import-profile.md  Import resume/LinkedIn, analyze, review profile
     ├── companies/
@@ -102,7 +110,12 @@ The current product focus is the **Jobs** workspace:
 - Monitor AI processing through the Processing Queue (`docs/ux/features/jobs/processing-queue.md`, `docs/ux/flows/jobs/processing-queue.md`).
 - Watch live workflow progress (`docs/ux/flows/jobs/process-job-live.md`).
 
-**Candidate** is the newest module (110 Phase 1): import resume/LinkedIn, run
+**Applications** is the newest module (140): a per-job Application Workspace
+(`/jobs/{id}/application`) for tracking status/follow-ups and generating a preparation
+plan, tailored resume and cover letter (`docs/ux/features/applications/`,
+`docs/ux/flows/applications/`).
+
+**Candidate** (110 Phase 1): import resume/LinkedIn, run
 AI profile analysis and review the canonical profile
 (`docs/ux/features/candidate/profile-import.md`,
 `docs/ux/flows/candidate/import-profile.md`).

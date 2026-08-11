@@ -134,6 +134,53 @@ def get_processing_execution_repo(session: Session = Depends(get_session)):
     return SQLAlchemyProcessingExecutionRepository(session)
 
 
+# ── Applications Context Dependencies ────────────────────────────
+
+def get_application_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyApplicationRepository
+    return SQLAlchemyApplicationRepository(session)
+
+
+def get_follow_up_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyFollowUpRepository
+    return SQLAlchemyFollowUpRepository(session)
+
+
+def get_document_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyDocumentRepository
+    return SQLAlchemyDocumentRepository(session)
+
+
+def get_preparation_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyPreparationRepository
+    return SQLAlchemyPreparationRepository(session)
+
+
+def get_application_service(
+    application_repo=Depends(get_application_repo),
+):
+    from applications.application.services.application_service import ApplicationService
+    from applications.domain.event_publisher import InMemoryEventCollector
+    return ApplicationService(application_repo, InMemoryEventCollector())
+
+
+def get_follow_up_service(
+    follow_up_repo=Depends(get_follow_up_repo),
+    application_repo=Depends(get_application_repo),
+):
+    from applications.application.services.follow_up_service import FollowUpService
+    from applications.domain.event_publisher import InMemoryEventCollector
+    return FollowUpService(follow_up_repo, application_repo, InMemoryEventCollector())
+
+
+def get_document_service(
+    document_repo=Depends(get_document_repo),
+):
+    from applications.application.services.document_service import DocumentService
+    from applications.domain.event_publisher import InMemoryEventCollector
+    return DocumentService(document_repo, InMemoryEventCollector())
+
+
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
 def get_pending_repo(session: Session = Depends(get_session)):

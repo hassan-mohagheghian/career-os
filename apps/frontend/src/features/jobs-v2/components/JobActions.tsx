@@ -2,7 +2,7 @@ import type { ProcessingStatus } from '@/entities/job/types'
 import { ProcessingButton } from './ProcessingButton'
 import { Button } from '@/shared/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/shared/ui/tooltip'
-import { Eye, ArrowsClockwise, Square, PencilSimple, Trash } from '@phosphor-icons/react'
+import { Eye, ArrowsClockwise, Square, PencilSimple, Trash, PaperPlaneTilt } from '@phosphor-icons/react'
 
 interface JobActionsProps {
   processingStatus: ProcessingStatus | null
@@ -12,6 +12,7 @@ interface JobActionsProps {
   onDelete: () => void
   onRetry?: () => void
   onCancel?: () => void
+  onApplication?: () => void
 }
 
 function IconButton({
@@ -38,7 +39,7 @@ function IconButton({
 }
 
 export function JobActions({
-  processingStatus, onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel,
+  processingStatus, onProcessV2, onViewDetails, onEdit, onDelete, onRetry, onCancel, onApplication,
 }: JobActionsProps) {
   return (
     <TooltipProvider delayDuration={200}>
@@ -66,6 +67,9 @@ export function JobActions({
         )}
         {(processingStatus === 'queued' || processingStatus === 'starting') && (
           <IconButton icon={<Square className="w-3 h-3" />} label="Cancel" onClick={onCancel!} />
+        )}
+        {onApplication && (
+          <IconButton icon={<PaperPlaneTilt className="w-3 h-3 text-blue-500" />} label="Application" onClick={onApplication} />
         )}
         <IconButton icon={<PencilSimple className="w-3 h-3" />} label="Edit" onClick={onEdit} />
         <IconButton icon={<Trash className="w-3 h-3 text-red-500" />} label="Delete" onClick={onDelete} />

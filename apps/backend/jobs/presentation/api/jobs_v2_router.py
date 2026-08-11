@@ -42,6 +42,7 @@ from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySum
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from processing.domain.enums import ExecutionStatus
 from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
+from applications.infrastructure import SQLAlchemyApplicationRepository
 from dependencies import (
     get_job_repo,
     get_processing_execution_repo,
@@ -49,6 +50,7 @@ from dependencies import (
     get_job_company_repo,
     get_summary_repo,
     get_company_repo,
+    get_application_repo,
 )
 router = APIRouter()
 
@@ -476,11 +478,21 @@ def delete_job(
     job_id: str,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
 ):
-    """Hard-delete a job by UUID and its related tables and executions."""
+    """Hard-delete a job by UUID and its related tables and executions.
+
+    Application workspace data (applications, follow-ups, documents,
+    preparations) belongs to the Applications context and is removed here too
+    (logical reference only — the cascade is orchestrated at the API layer).
+    """
     job_dict = repo.get_by_id(job_id)
     if not job_dict:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    application_ids = application_repo.list_ids_by_job(job_id)
+    application_repo.delete_by_job(job_id)
+    for application_id in application_ids:
+        exec_repo.delete_by_target("application", application_id)
     exec_repo.delete_by_target("job", job_id)
     if not repo.delete_by_id(job_id):
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")

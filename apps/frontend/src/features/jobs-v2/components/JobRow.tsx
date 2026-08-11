@@ -19,13 +19,14 @@ interface JobRowProps {
   onTogglePinned: (id: string, pinned: boolean) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
+  onApplication?: (id: string) => void
   showPinnedColumn?: boolean
   showRowNumberColumn?: boolean
   rowNumber?: number
 }
 
 export function JobRow({
-  job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel,
+  job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication,
   showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
@@ -104,6 +105,7 @@ export function JobRow({
           onDelete={() => onDelete(job.id)}
           onRetry={() => onRetry?.(job.id)}
           onCancel={() => onCancel?.(job.id)}
+          onApplication={onApplication ? () => onApplication(job.id) : undefined}
         />
       </div>
     </div>

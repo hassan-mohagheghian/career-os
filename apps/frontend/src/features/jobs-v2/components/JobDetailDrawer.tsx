@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Drawer,
@@ -17,6 +18,7 @@ import {
   CaretDown,
   CaretRight,
   Question,
+  PaperPlaneTilt,
 } from "@phosphor-icons/react";
 import { jobApi } from "@/entities/job/api";
 import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
@@ -629,6 +631,7 @@ export function JobDetailDrawer({
   onOpenChange,
   onEdit,
 }: JobDetailDrawerProps) {
+  const router = useRouter();
   const {
     data: detail,
     isLoading,
@@ -650,17 +653,30 @@ export function JobDetailDrawer({
         title="Job Details"
         onClose={() => onOpenChange(null)}
         actions={
-          onEdit && jobId ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 text-xs text-muted-foreground"
-              onClick={() => onEdit(jobId)}
-              aria-label="Edit job"
-            >
-              <PencilSimple className="w-3.5 h-3.5" /> Edit
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-1">
+            {jobId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs text-blue-600"
+                onClick={() => router.push(`/jobs/${jobId}/application`)}
+                aria-label="Open application workspace"
+              >
+                <PaperPlaneTilt className="w-3.5 h-3.5" /> Application
+              </Button>
+            )}
+            {onEdit && jobId ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-muted-foreground"
+                onClick={() => onEdit(jobId)}
+                aria-label="Edit job"
+              >
+                <PencilSimple className="w-3.5 h-3.5" /> Edit
+              </Button>
+            ) : undefined}
+          </div>
         }
       />
       <DrawerContent>

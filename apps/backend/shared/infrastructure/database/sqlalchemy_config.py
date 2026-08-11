@@ -45,6 +45,12 @@ SCHEMAS = {
         "candidate_languages",
         "candidate_profile_versions",
     ],
+    "application": [
+        "applications",
+        "application_follow_ups",
+        "application_documents",
+        "application_preparations",
+    ],
     "shared": ["rules", "cities", "metadata", "generation_history", "alembic_version"],
 }
 

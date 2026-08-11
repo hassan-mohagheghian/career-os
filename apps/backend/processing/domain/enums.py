@@ -10,6 +10,9 @@ class ExecutionType(str, Enum):
     MARKET_ANALYSIS = "market_analysis"
     CAREER_INSIGHTS = "career_insights"
     CANDIDATE_PROCESSING = "candidate_processing"
+    APPLICATION_PREPARATION = "application_preparation"
+    APPLICATION_RESUME = "application_resume"
+    APPLICATION_COVER_LETTER = "application_cover_letter"
 
 
 class ExecutionStatus(str, Enum):

@@ -242,4 +242,43 @@ class ProcessingExecutionRunner:
                 if owns_session:
                     graph_session.close()
 
+        if execution.execution_type in (
+            ExecutionType.APPLICATION_PREPARATION,
+            ExecutionType.APPLICATION_RESUME,
+            ExecutionType.APPLICATION_COVER_LETTER,
+        ):
+            from processing.domain.workflow.application_intelligence_state import (
+                ApplicationIntelligenceState,
+            )
+            from processing.infrastructure.workflow import build_application_intelligence_graph
+
+            graph_session = session
+            owns_session = False
+            if graph_session is None:
+                graph_session = get_session_sync()
+                owns_session = True
+            try:
+                graph = build_application_intelligence_graph(graph_session)
+                state = ApplicationIntelligenceState(
+                    execution_id=execution.id,
+                    application_id=execution.target_id,
+                    job_id="",
+                    intent=execution.execution_type.value,
+                    workflow_progress=progress_ops.build_initial_progress(
+                        execution.id, execution.target_type
+                    ),
+                )
+                final = graph.invoke(state)
+                if final.workflow_progress is not None:
+                    execution.workflow_progress = final.workflow_progress.to_dict()
+                if final.status == ExecutionStatus.FAILED:
+                    raise RuntimeError("; ".join(final.errors) or "Application generation failed")
+                return {
+                    "application_id": execution.target_id,
+                    "persisted_id": final.persisted_id,
+                }
+            finally:
+                if owns_session:
+                    graph_session.close()
+
         raise RuntimeError(f"Unsupported execution type: {execution.execution_type}")

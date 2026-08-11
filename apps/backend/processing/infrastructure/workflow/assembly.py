@@ -11,6 +11,11 @@ from __future__ import annotations
 from typing import Any
 
 from ai.infrastructure.service import get_llm_service
+from applications.infrastructure import (
+    SQLAlchemyApplicationRepository,
+    SQLAlchemyDocumentRepository,
+    SQLAlchemyPreparationRepository,
+)
 from candidates.application.services.candidate_extract_service import CandidateExtractService
 from candidates.domain.event_publisher import InMemoryEventCollector
 from candidates.infrastructure import (
@@ -30,6 +35,7 @@ from processing.application.workflows.candidate_processing import CandidateProce
 from processing.application.workflows.candidate_source_preparation import CandidateSourcePreparationGraph
 from processing.application.workflows.company_analysis import CompanyAnalysisGraph
 from processing.application.workflows.company_context_preparation import CompanyContextPreparationGraph
+from processing.application.workflows.application_intelligence import ApplicationIntelligenceGraph
 from processing.application.workflows.job_analysis import JobAnalysisGraph
 from processing.application.workflows.job_context_preparation import JobContextPreparationGraph
 from processing.infrastructure.content import (
@@ -143,5 +149,28 @@ def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
     )
     return CandidateProcessingGraph(
         extract_service=extract_service,
+        event_publisher=RedisProcessingEventPublisher(),
+    )
+
+
+def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenceGraph:
+    """Build the Application Intelligence graph with production adapters.
+
+    Generates preparation plans and application documents as a consumer of the
+    existing job analysis, company intelligence and candidate profile.
+    """
+    return ApplicationIntelligenceGraph(
+        application_repo=SQLAlchemyApplicationRepository(session),
+        job_service=JobService(SQLAlchemyJobRepository(session)),
+        analysis_repo=SQLAlchemyJobAnalysisRepository(session),
+        company_service=CompanyService(
+            SQLAlchemyCompanyRepository(session),
+            SQLAlchemyCompanyIntelligenceRepository(session),
+        ),
+        intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
+        profile_repo=SQLAlchemyCandidateProfileRepository(session),
+        preparation_repo=SQLAlchemyPreparationRepository(session),
+        document_repo=SQLAlchemyDocumentRepository(session),
+        llm_service=get_llm_service(),
         event_publisher=RedisProcessingEventPublisher(),
     )

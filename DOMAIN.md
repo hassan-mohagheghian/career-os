@@ -57,6 +57,14 @@
 - **Status**: `pending` on upload, `processed` after the next candidate processing run extracts it
 - **Latest**: the row with the highest `version` for the `source_type`
 
+### Application
+- **What**: A per-job application record (`applications` context, schema `application`) that drives the Job Application Workspace (`/jobs/{job_id}/application`). Aggregates follow-ups, versioned documents (tailored resume / cover letter) and a preparation plan.
+- **Cross-context**: `job_id` is a logical reference to the Jobs context — plain column, no FK (AGENTS.md rule 15). At most one application per job; creation defaults status to `recommended`.
+- **Status**: `recommended` → `preparing` → `ready_to_apply` → `applied` (outcomes `rejected` / `withdrawn`).
+- **Artifacts**: `application_documents` (markdown content, `document_type` `tailored_resume` | `cover_letter`) and `application_preparations` (JSON payload of hard/soft skill recommendations), each versioned per successful generation.
+- **Generation**: artifacts are produced asynchronously by the processing pipeline (`application_preparation` / `application_resume` / `application_cover_letter` executions) — a consumer of existing job/company/candidate intelligence, never a re-analysis.
+- **Events (EDD)**: domain events (see `docs/domain/applications/events.md`) are emitted through the `ApplicationEventPublisher` port during create/update/follow-up/document/preparation operations; the default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
+
 ## Business Rules
 
 ### Scoring System
@@ -156,4 +164,17 @@ Generate All → overview → opportunities → companies → market → network
 ### Candidate Source Upload Flow
 ```
 Resume/LinkedIn uploaded → PII-masked → pending → candidate processing extract → processed
+```
+
+### Application Generation Flow
+```
+Generate clicked → ProcessingExecution (application_preparation/resume/cover_letter)
+  → queued → runner builds ApplicationIntelligenceGraph state
+  → load_context (job + job_skills + company + candidate) → generate (LLMService) → persist
+  → preparation row / document row (versioned) → SSE progress → workspace refetches
+```
+
+### Job Application Flow
+```
+Create application (recommended) → prepare (plan + documents) → applied (+ applied_at) → follow-ups
 ```

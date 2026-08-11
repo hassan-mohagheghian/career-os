@@ -21,6 +21,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Skills              | `/api/tech-stack`                           | Skill management + aliases + merge    |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
 | Candidate Profile   | `/api/candidates/sources`                   | Resume / LinkedIn profile upload as analysis input |
+| Applications        | `/api/applications`                        | Job application workspace: follow-ups, documents, generation |
 | Rules               | `/api/rules`                                | Scoring rules configuration           |
 | SSE                | `/api/sse/processing-events`                | Real-time processing event stream     |
 | System              | `/api/generation-history`, `/api/health`    | History + health check                |
@@ -145,4 +146,23 @@ and marks it `processed`.
 ## Full Reference
 
 For endpoint-by-endpoint documentation see `docs/api/api-design.md` (conventions) and the per-context docs under `docs/api/`.
-- `docs/api/` — per-domain API specs (`jobs/`, `processing/`, `companies/`, `sse/`, ...)
+- `docs/api/` — per-domain API specs (`jobs/`, `processing/`, `companies/`, `applications/`, `sse/`, ...)
+
+## Applications (Job Application Workspace)
+
+The Applications API (`/api/applications`) backs the Job Application Workspace.
+It tracks a per-job application (status, applied date, follow-ups) and queues
+AI generation of a preparation plan, tailored resume and cover letter through the
+processing pipeline (see `docs/api/applications/README.md` and
+`docs/ai/application-intelligence.md`).
+
+Endpoints:
+
+- `GET /api/applications/by-job/{job_id}` — application detail for a job.
+- `POST /api/applications` — create an application (`{ "job_id" }`, default status `recommended`).
+- `PATCH /api/applications/{application_id}` — update `status` / `applied_at`.
+- `POST /api/applications/{application_id}/follow-ups` — add a follow-up.
+- `PATCH` / `DELETE` `/api/applications/follow-ups/{follow_up_id}` — update / delete a follow-up.
+- `POST /api/applications/{application_id}/preparation/generate` — queue preparation (202).
+- `POST /api/applications/{application_id}/documents/{type}/generate` — queue resume / cover letter (202).
+- `PATCH` / `DELETE` `/api/applications/documents/{document_id}` — edit / delete a document.

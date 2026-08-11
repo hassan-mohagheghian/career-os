@@ -86,4 +86,18 @@ describe('JobActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Process' }))
     expect(onProcessV2).toHaveBeenCalled()
   })
+
+  it('renders Application button and calls onApplication', () => {
+    const onApplication = vi.fn()
+    renderActions({ onApplication })
+    const btn = screen.getByRole('button', { name: 'Application' })
+    expect(btn).toBeInTheDocument()
+    fireEvent.click(btn)
+    expect(onApplication).toHaveBeenCalled()
+  })
+
+  it('does not render Application button without onApplication', () => {
+    renderActions()
+    expect(screen.queryByRole('button', { name: 'Application' })).not.toBeInTheDocument()
+  })
 })

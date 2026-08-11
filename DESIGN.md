@@ -38,6 +38,11 @@ SIDEBAR RAIL
 MOBILE (<lg): hamburger → left Sheet with the same nav + bottom cluster.
 ```
 
+Per-job detail pages (e.g. the Application Workspace at `/jobs/{id}/application`)
+are reached from within the Jobs workspace — the rail highlights Jobs and the page
+offers a "← Back to Job" link (`/jobs?job={id}`), which reopens the Job Details
+drawer for that job.
+
 ---
 
 ## Design System
@@ -593,6 +598,42 @@ pending; otherwise it returns `status=noop` and the UI shows an info toast
 (persisting a new version requires saving a new source first). Full specs live in
 `docs/ux/features/candidate/profile-import.md` and
 `docs/ux/flows/candidate/import-profile.md`.
+
+### Job Application Workspace
+
+The Applications module (140) adds a per-job Application Workspace at
+`/jobs/{job_id}/application` (entry: airplane action on a job row, or the
+**Application** button in the Job Details drawer header). It is a consumer of
+existing intelligence — preparation, tailored resume and cover letter are generated
+asynchronously (`application_preparation` / `application_resume` /
+`application_cover_letter` executions) with SSE progress.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ← Back to Job                                          [Open job posting]│
+│ Staff Engineer · Acme GmbH · Berlin                                      │
+│ [Recommended] [Apply]             [A+] [Fit 85] [Success 88] [Overall 90]│
+├──────────────────────────────────────────────────────────────────────────┤
+│ ▸ AI generation in progress ▸ 42% · "Generating tailored resume"        │  ← SSE card
+├──────────────────────────────────────────────────────────────────────────┤
+│ APPLICATION                                                            │
+│  Status [Recommended ▾]    Applied at [ 2026-08-11 ]                     │
+│  FOLLOW-UPS  ☑ Follow up after interview · Sep 1  [🗑]  [note][📅][Add]  │
+├──────────────────────────────────────────────────────────────────────────┤
+│ PREPARATION                                                        [⚡ Gen]│
+│  Hard: [Kubernetes Missing] [Kafka Low high]  ·  Soft: [Comms low]       │
+├──────────────────────────────────────────────────────────────────────────┤
+│ DOCUMENTS                                                               │
+│ ┌──────────────────────────┐  ┌──────────────────────────┐              │
+│ │ TAILORED RESUME v2       │  │ COVER LETTER v1          │              │
+│ │ [copy][↓][✎][🗑][Regen]   │  │ [copy][↓][✎][🗑][Regen]   │              │
+│ └──────────────────────────┘  └──────────────────────────┘              │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Empty state (no application yet): centered "No application yet" + `[Create Application]`
+→ `POST /api/applications` (status `recommended`). Full specs live in
+`docs/ux/features/applications/` and `docs/ux/flows/applications/`.
 
 ---
 

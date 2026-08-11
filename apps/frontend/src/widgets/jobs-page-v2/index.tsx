@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic'
 import MainLayout from '@/widgets/main-layout'
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useAddJobShortcut } from '@/features/jobs-v2/hooks/useAddJobShortcut'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
@@ -25,6 +26,7 @@ function JobsPageV2Adapter() {
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
   const [showRowNumberColumn, setShowRowNumberColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
+  const router = useRouter()
 
   const {
     items, total, loadedCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage,
@@ -113,6 +115,10 @@ function JobsPageV2Adapter() {
     pinnedMutation.mutate({ jobId: id, pinned: !job.pinned })
   }, [items, pinnedMutation])
 
+  const handleOpenApplication = useCallback((id: string) => {
+    router.push(`/jobs/${id}/application`)
+  }, [router])
+
   useEffect(() => {
     const jobId = getSearchParam('job')
     if (jobId) setDetailJobId(jobId)
@@ -162,6 +168,7 @@ function JobsPageV2Adapter() {
         onTogglePinned={handleTogglePinned}
         onRetry={handleRetry}
         onCancel={handleCancel}
+        onApplication={handleOpenApplication}
         showPinnedColumn={showPinnedColumn}
         onTogglePinnedColumn={setShowPinnedColumn}
         showRowNumberColumn={showRowNumberColumn}

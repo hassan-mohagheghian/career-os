@@ -119,6 +119,42 @@ class TestProcessingExecutionRunner:
         assert "execution.failed" in names
 
 
+class TestProcessingExecutionRunnerApplication:
+    def test_run_workflow_dispatches_application_generation(self):
+        from processing.domain.workflow.application_intelligence_state import (
+            ApplicationIntelligenceState,
+        )
+
+        repo = FakeExecutionRepo()
+        execution = ProcessingExecution(
+            id=str(uuid.uuid4()),
+            execution_type=ExecutionType.APPLICATION_RESUME,
+            target_type="application",
+            target_id="app-1",
+            status=ExecutionStatus.CREATED,
+            created_at=datetime.now(UTC),
+        )
+        repo.save(execution)
+
+        class FakeGraph:
+            def invoke(self, state: ApplicationIntelligenceState) -> ApplicationIntelligenceState:
+                state.status = ExecutionStatus.COMPLETED
+                state.persisted_id = "doc-1"
+                return state
+
+        with (
+            patch(
+                "processing.infrastructure.workflow.build_application_intelligence_graph",
+                return_value=FakeGraph(),
+            ),
+            patch("shared.infrastructure.events.processing_events.publish_sync"),
+        ):
+            result = ProcessingExecutionRunner(repo).run(execution.id)
+
+        assert result["application_id"] == "app-1"
+        assert result["persisted_id"] == "doc-1"
+
+
 class TestProcessingExecutionRunnerRealSession:
     def test_run_persists_real_error_after_aborted_transaction(self, sa_session):
         """A DB error during the workflow aborts the session transaction; the

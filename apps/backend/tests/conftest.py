@@ -30,6 +30,7 @@ import companies.infrastructure.models.company_model
 import rules.infrastructure.models.rule_model
 import processing.infrastructure.models.processing_execution_model
 import candidates.infrastructure.models.candidate_model  # noqa: F401
+import applications.infrastructure.models.application_model  # noqa: F401
 
 
 def _get_test_db_url() -> str:
@@ -114,6 +115,7 @@ def client(sa_session):
         get_summary_repo, get_company_link_repo, get_company_intelligence_repo,
         get_processing_execution_repo,
         get_candidate_repo, get_candidate_profile_repo, get_candidate_source_repo,
+        get_application_repo, get_follow_up_repo, get_document_repo, get_preparation_repo,
     )
     from exceptions import AppError
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -127,6 +129,10 @@ def client(sa_session):
     from candidates.infrastructure.repositories.sa_candidate_repository import SQLAlchemyCandidateRepository
     from candidates.infrastructure.repositories.sa_candidate_profile_repository import SQLAlchemyCandidateProfileRepository
     from candidates.infrastructure.repositories.sa_candidate_source_repository import SQLAlchemyCandidateSourceRepository
+    from applications.infrastructure.repositories.sa_application_repository import SQLAlchemyApplicationRepository
+    from applications.infrastructure.repositories.sa_follow_up_repository import SQLAlchemyFollowUpRepository
+    from applications.infrastructure.repositories.sa_document_repository import SQLAlchemyDocumentRepository
+    from applications.infrastructure.repositories.sa_preparation_repository import SQLAlchemyPreparationRepository
     from shared.presentation.api.root_router import api_router
 
     app = FastAPI(title="Test API")
@@ -158,6 +164,10 @@ def client(sa_session):
     app.dependency_overrides[get_candidate_repo] = lambda: SQLAlchemyCandidateRepository(sa_session)
     app.dependency_overrides[get_candidate_profile_repo] = lambda: SQLAlchemyCandidateProfileRepository(sa_session)
     app.dependency_overrides[get_candidate_source_repo] = lambda: SQLAlchemyCandidateSourceRepository(sa_session)
+    app.dependency_overrides[get_application_repo] = lambda: SQLAlchemyApplicationRepository(sa_session)
+    app.dependency_overrides[get_follow_up_repo] = lambda: SQLAlchemyFollowUpRepository(sa_session)
+    app.dependency_overrides[get_document_repo] = lambda: SQLAlchemyDocumentRepository(sa_session)
+    app.dependency_overrides[get_preparation_repo] = lambda: SQLAlchemyPreparationRepository(sa_session)
     app.include_router(api_router)
 
     @app.get("/api/health")
