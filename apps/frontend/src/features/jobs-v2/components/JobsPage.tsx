@@ -10,7 +10,7 @@ import { ProcessingDrawer } from './ProcessingDrawer'
 import { JobDetailDrawer } from './JobDetailDrawer'
 import { JobEditDrawer } from './JobEditDrawer'
 import CreateEntityDrawer, { type CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
-import { useCreateJob } from '@/features/jobs/hooks/useCreateJob'
+import { useCreateJob } from '@/features/jobs-v2/hooks/useCreateJob'
 import { toast } from 'sonner'
 
 interface JobsPageProps {

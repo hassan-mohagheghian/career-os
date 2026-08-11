@@ -1,17 +1,21 @@
-"""New Companies List API router — paginated search/sort for the companies v2 UI.
+"""Companies API router — list, detail, create, update, delete, notes, links.
 
-Registered before the legacy ``companies_router`` so ``/companies/list`` is not
-captured by the legacy ``/companies/{id}`` route.
+The single companies router: it owns the paginated ``/companies/list`` route,
+the all-in-one detail payload, and the CRUD / notes / links / reprocess
+endpoints. There is no legacy companies router anymore.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+from datetime import datetime, UTC
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi.responses import Response
 
+from companies.application.services.company_service import CompanyService
 from companies.infrastructure import SQLAlchemyCompanyRepository
 from companies.infrastructure.repositories.sa_company_intelligence_repository import (
     SQLAlchemyCompanyIntelligenceRepository,
@@ -20,19 +24,26 @@ from companies.infrastructure.repositories.sa_company_link_repository import (
     SQLAlchemyCompanyLinkRepository,
 )
 from companies.presentation.api.schemas.companies_v2 import (
+    CompanyCreateLinkItem,
+    CompanyCreateNoteItem,
+    CompanyCreateRequest,
+    CompanyCreateResponse,
     CompanyDetailResponseSchema,
     CompanyExecutionSchema,
     CompanyIntelligenceSchema,
     CompanyJobRefSchema,
     CompanyLinkItemSchema,
+    CompanyLinkRequest,
     CompanyListResponseSchema,
     CompanyListItemSchema,
     CompanyMainRef,
     CompanyMainRequest,
+    CompanyNoteRequest,
     CompanyNoteSchema,
     CompanyPinRequest,
     CompanyProcessingSchema,
     CompanyScoresSchema,
+    CompanyUpdateRequest,
     RecruiterForSchema,
     RecruiterJobRefSchema,
 )
@@ -47,6 +58,7 @@ from dependencies import (
 from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
+from shared.application.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -59,6 +71,31 @@ SCORE_KEY_MAP = {
     "fit_score": "fit",
     "success_score": "success",
 }
+
+
+def _queue_company_for_processing(company_id: str, exec_repo) -> str:
+    """Create a COMPANY_PROCESSING execution and dispatch it to the worker queue.
+
+    Mirrors the job intake flow: create execution → mark queued → enqueue TaskIQ.
+    """
+    from processing.domain.enums import ExecutionType
+    from processing.application.use_cases.create_processing_execution import (
+        CreateProcessingExecutionRequest,
+        CreateProcessingExecutionUseCase,
+    )
+    from processing.application.services.dispatch_processing_execution import (
+        DispatchProcessingExecutionService,
+    )
+
+    use_case = CreateProcessingExecutionUseCase(exec_repo)
+    request = CreateProcessingExecutionRequest(
+        execution_type=ExecutionType.COMPANY_PROCESSING,
+        target_type="company",
+        target_id=company_id,
+    )
+    response = use_case.execute(request)
+    DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
+    return response.execution_id
 
 
 def _cursor_decode(cursor: str) -> int:
@@ -455,3 +492,196 @@ def relate_company_main(
         job_repo.reassign_company(affected_id, result["main_company_id"])
 
     return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo, exec_repo)
+
+
+# ── Create / Update / Delete ──────────────────────────────────────
+
+
+@router.post("", status_code=http_status.HTTP_201_CREATED, response_model=CompanyCreateResponse, response_model_exclude_none=True)
+def create_company(
+    body: CompanyCreateRequest,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+) -> CompanyCreateResponse:
+    """Create a company from intake (name + notes + links).
+
+    When ``body.queue`` is true (default) the company is created and immediately
+    queued for processing through the COMPANY_PROCESSING execution lifecycle.
+    """
+    service = CompanyService(repo, intel_repo)
+    company = service.create_from_intake(
+        name=body.name,
+        notes=[n.model_dump() if isinstance(n, CompanyCreateNoteItem) else dict(n) for n in body.notes]
+        if body.notes else [],
+        links=[l.model_dump() if isinstance(l, CompanyCreateLinkItem) else str(l) for l in body.links]
+        if body.links else [],
+        source=body.source,
+        input_type=body.input_type,
+    )
+    execution_id = None
+    if body.queue:
+        execution_id = _queue_company_for_processing(company["id"], exec_repo)
+        company["status"] = "queued"
+    return CompanyCreateResponse(
+        id=company["id"],
+        name=company.get("name") or "",
+        notes=company.get("notes"),
+        source=company.get("source"),
+        input_type=company.get("input_type"),
+        status=company.get("status") or "created",
+        execution_id=execution_id,
+        created_at=company.get("created_at"),
+        updated_at=company.get("updated_at"),
+    )
+
+
+@router.put("/{id}", response_model=CompanyDetailResponseSchema)
+def update_company(
+    id: str,
+    body: CompanyUpdateRequest,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+    job_repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+    job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+) -> CompanyDetailResponseSchema:
+    """Update a company and return its full detail payload."""
+    data = {k: getattr(body, k) for k in body.model_fields_set}
+    updated = repo.update(id, data)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Company {id} not found")
+    return _build_company_detail(id, repo, intel_repo, link_repo, job_repo, job_company_repo, exec_repo)
+
+
+@router.delete("/{id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_company(
+    id: str,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+) -> Response:
+    """Hard-delete a company and its related tables and executions."""
+    company = repo.get_by_id(id)
+    if not company:
+        raise NotFoundError(f"Company {id} not found")
+    exec_repo.delete_by_target("company", id)
+    link_repo.delete_by_company_id(id)
+    intel_repo.delete_by_company_id(id)
+    if not repo.delete(id):
+        raise NotFoundError(f"Company {id} not found")
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{id}/reprocess")
+def reprocess_company(
+    id: str,
+    repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+):
+    """Queue a company for reprocessing through the execution lifecycle."""
+    from processing.application.services.execution_actions import ExecutionActionService
+
+    company = repo.get_by_id(id)
+    if not company:
+        return {"error": "Not found"}
+
+    result = ExecutionActionService(exec_repo).reprocess("company", id)
+    repo.update_fields(id, status="queued", error=None, updated_at=datetime.now(UTC).isoformat())
+    return {"status": "queued", "execution_id": result["execution_id"]}
+
+
+# ── Notes ─────────────────────────────────────────────────────────
+
+
+def _notes_from_links(links: list[dict[str, Any]]) -> list[CompanyNoteSchema]:
+    return [
+        CompanyNoteSchema(id=l["id"], content=l.get("title", "").removeprefix("note:"), created_at=l.get("created_at"))
+        for l in links
+        if l.get("title", "").startswith("note:")
+    ]
+
+
+@router.get("/{id}/notes")
+def get_company_notes(
+    id: str,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> list[CompanyNoteSchema]:
+    """Get all notes for a company."""
+    return _notes_from_links(link_repo.get_by_company_id(id))
+
+
+@router.post("/{id}/notes", status_code=http_status.HTTP_201_CREATED)
+def add_company_note(
+    id: str,
+    body: CompanyNoteRequest,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> CompanyNoteSchema:
+    """Add a note to a company (stored as a ``note:`` link row)."""
+    link = link_repo.create(id, "", f"note:{body.content}")
+    return CompanyNoteSchema(id=link["id"], content=body.content, created_at=link.get("created_at"))
+
+
+@router.put("/{id}/notes/{note_id}")
+def update_company_note(
+    id: str,
+    note_id: int,
+    body: CompanyNoteRequest,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> CompanyNoteSchema:
+    """Update a company note."""
+    link = link_repo.update(note_id, id, "", f"note:{body.content}")
+    if not link:
+        raise HTTPException(status_code=404, detail=f"Note {note_id} not found")
+    return CompanyNoteSchema(id=link["id"], content=body.content, created_at=link.get("created_at"))
+
+
+@router.delete("/{id}/notes/{note_id}")
+def delete_company_note(
+    id: str,
+    note_id: int,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> dict[str, str]:
+    """Delete a company note."""
+    link_repo.delete(note_id, id)
+    return {"status": "deleted"}
+
+
+# ── Links ─────────────────────────────────────────────────────────
+
+
+@router.post("/{id}/links", status_code=http_status.HTTP_201_CREATED)
+def add_company_link(
+    id: str,
+    body: CompanyLinkRequest,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> dict[str, Any]:
+    """Add a link to a company."""
+    return link_repo.create(id, body.url, body.title or "", body.description or "")
+
+
+@router.put("/{id}/links/{link_id}")
+def update_company_link(
+    id: str,
+    link_id: int,
+    body: CompanyLinkRequest,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> dict[str, Any]:
+    """Update a company link."""
+    link = link_repo.update(link_id, id, body.url, body.title or "", body.description or "")
+    if not link:
+        raise HTTPException(status_code=404, detail=f"Link {link_id} not found")
+    return link
+
+
+@router.delete("/{id}/links/{link_id}")
+def delete_company_link(
+    id: str,
+    link_id: int,
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
+) -> dict[str, str]:
+    """Delete a company link."""
+    link_repo.delete(link_id, id)
+    return {"status": "deleted"}

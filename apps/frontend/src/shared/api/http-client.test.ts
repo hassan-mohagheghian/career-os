@@ -41,8 +41,27 @@ describe('api.http-client', () => {
       json: vi.fn().mockResolvedValue({ error: 'Job abc not found' }),
     })
     await expect(api.delete('/jobs/abc')).rejects.toEqual(
-      new ApiError(404, 'Job abc not found')
+      new ApiError(404, 'Job abc not found', { error: 'Job abc not found' })
     )
+  })
+
+  it('throws ApiError carrying the parsed body for structured errors', async () => {
+    mockFetchResponse({
+      status: 409,
+      ok: false,
+      statusText: 'Conflict',
+      json: vi.fn().mockResolvedValue({
+        error: { code: 'JOB_ALREADY_EXISTS', message: 'Duplicate job', details: { job_id: 'job-1' } },
+      }),
+    })
+    const promise = api.post('/jobs', {})
+    await expect(promise).rejects.toBeInstanceOf(ApiError)
+    await promise.catch((e: ApiError) => {
+      expect(e.message).toBe('Duplicate job')
+      expect(e.body).toEqual({
+        error: { code: 'JOB_ALREADY_EXISTS', message: 'Duplicate job', details: { job_id: 'job-1' } },
+      })
+    })
   })
 
   it('throws ApiError with statusText when error body cannot be parsed', async () => {
@@ -53,7 +72,7 @@ describe('api.http-client', () => {
       json: vi.fn().mockRejectedValue(new SyntaxError('no body')),
     })
     await expect(api.get('/jobs/list')).rejects.toEqual(
-      new ApiError(500, 'Internal Server Error')
+      new ApiError(500, 'Internal Server Error', undefined)
     )
   })
 })

@@ -25,8 +25,9 @@ import type {
   CompanyIntelligenceScores,
   CompanyScores,
 } from "@/entities/company/types";
+import { isRecruiterCompany } from "@/entities/company/lib";
 import { useCompanyQuery } from "@/entities/company/hooks";
-import CompanyJobsTab from "@/features/companies/components/CompanyJobsTab";
+import CompanyJobsTab from "./CompanyJobsTab";
 import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
 import { CompanyGradeBadge } from "./CompanyGradeBadge";
 import { CompanyScoreCard } from "./CompanyScoreCard";
@@ -44,10 +45,6 @@ const COMPANY_TYPE_LABELS: Record<string, string> = {
 
 function formatCompanyType(type: string | null | undefined) {
   return (type && COMPANY_TYPE_LABELS[type]) || type || "Unknown";
-}
-
-function isRecruiterType(type: string | null | undefined) {
-  return type === "RECRUITING_AGENCY" || type === "STAFFING_COMPANY";
 }
 
 function strList(value: unknown): string[] {
@@ -354,7 +351,7 @@ function CompanyDetailContent({
             {formatCompanyType(company.company_type)}
           </Badge>
         )}
-        {isRecruiterType(company.company_type)
+        {isRecruiterCompany(company)
           ? !!company.recruiter_job_count &&
             company.recruiter_job_count > 0 && (
               <Badge
@@ -411,7 +408,7 @@ function CompanyDetailContent({
 
       <CompanyRecommendationSection intel={intel} />
 
-      {isRecruiterType(company.company_type) &&
+      {isRecruiterCompany(company) &&
         company.recruiter_for &&
         company.recruiter_for.length > 0 && (
           <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
@@ -462,7 +459,7 @@ function CompanyDetailContent({
       <CompanyIntelligenceSection
         company={company}
         intel={intel}
-        isRecruiter={isRecruiterType(company.company_type)}
+        isRecruiter={isRecruiterCompany(company)}
       />
 
       {company.jobs && company.jobs.length > 0 && (

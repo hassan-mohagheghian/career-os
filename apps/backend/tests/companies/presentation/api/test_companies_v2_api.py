@@ -610,3 +610,149 @@ class TestCompanyRecruiterForAPI:
         assert items["Acme GmbH"]["recruiter_job_count"] == 0
         assert items["Product Co"]["job_count"] == 1
         assert items["Product Co"]["recruiter_job_count"] == 0
+
+
+class TestCompanyCreateAPI:
+    def test_create_company_queues_by_default(self, client, sa_session):
+        from unittest.mock import patch
+
+        with patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue, patch(
+            "shared.infrastructure.events.processing_events.publish_sync"
+        ):
+            resp = client.post(
+                "/api/companies",
+                json={
+                    "name": "Acme GmbH",
+                    "notes": [{"content": "Berlin product company"}],
+                    "links": [{"url": "https://acme.example", "title": "Website"}],
+                },
+            )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["name"] == "Acme GmbH"
+        assert data["status"] == "queued"
+        assert data["execution_id"]
+        enqueue.assert_called_once_with(data["execution_id"])
+
+        company = sa_session.query(CompanyModel).filter(CompanyModel.id == data["id"]).first()
+        assert company is not None
+        assert "Berlin product company" in company.notes
+        assert "https://acme.example" in company.notes
+
+    def test_create_company_without_queue(self, client, sa_session):
+        from unittest.mock import patch
+
+        with patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue, patch(
+            "shared.infrastructure.events.processing_events.publish_sync"
+        ):
+            resp = client.post(
+                "/api/companies",
+                json={"name": "IdleCo", "notes": [], "links": [], "queue": False},
+            )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["name"] == "IdleCo"
+        assert data["status"] == "created"
+        assert "execution_id" not in data
+        enqueue.assert_not_called()
+
+
+class TestCompanyUpdateAPI:
+    def test_update_company_returns_detail(self, client, sa_session):
+        c = _create_company(sa_session, name="Old Name", industry="Old")
+        resp = client.put(
+            f"/api/companies/{c.id}",
+            json={"name": "New Name", "industry": "New", "city": "Munich"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["name"] == "New Name"
+        assert body["industry"] == "New"
+        assert body["city"] == "Munich"
+
+        sa_session.expire_all()
+        row = sa_session.get(CompanyModel, c.id)
+        assert row.name == "New Name"
+        assert row.industry == "New"
+
+    def test_update_company_nulls_clear_field(self, client, sa_session):
+        c = _create_company(sa_session, name="Clear Co", website="https://old.example")
+        resp = client.put(f"/api/companies/{c.id}", json={"website": None})
+        assert resp.status_code == 200
+        sa_session.expire_all()
+        row = sa_session.get(CompanyModel, c.id)
+        assert row.website is None
+
+    def test_update_company_not_found(self, client):
+        resp = client.put("/api/companies/does-not-exist", json={"name": "X"})
+        assert resp.status_code == 404
+
+
+class TestCompanyNotesAPI:
+    def test_add_list_and_get_notes(self, client, sa_session):
+        c = _create_company(sa_session, name="Notes Co")
+        resp = client.post(f"/api/companies/{c.id}/notes", json={"content": "First note"})
+        assert resp.status_code == 201
+        assert resp.json()["content"] == "First note"
+
+        notes = client.get(f"/api/companies/{c.id}/notes").json()
+        assert len(notes) == 1
+        assert notes[0]["content"] == "First note"
+
+    def test_update_and_delete_note(self, client, sa_session):
+        c = _create_company(sa_session, name="Edit Notes Co")
+        note = client.post(f"/api/companies/{c.id}/notes", json={"content": "Before"}).json()
+
+        resp = client.put(f"/api/companies/{c.id}/notes/{note['id']}", json={"content": "After"})
+        assert resp.status_code == 200
+        assert resp.json()["content"] == "After"
+
+        notes = client.get(f"/api/companies/{c.id}/notes").json()
+        assert notes[0]["content"] == "After"
+
+        resp = client.delete(f"/api/companies/{c.id}/notes/{note['id']}")
+        assert resp.status_code == 200
+        assert client.get(f"/api/companies/{c.id}/notes").json() == []
+
+    def test_update_missing_note_404(self, client, sa_session):
+        c = _create_company(sa_session, name="No Notes Co")
+        resp = client.put(f"/api/companies/{c.id}/notes/999999", json={"content": "X"})
+        assert resp.status_code == 404
+
+
+class TestCompanyLinksAPI:
+    def test_add_list_and_update_link(self, client, sa_session):
+        c = _create_company(sa_session, name="Links Co")
+        resp = client.post(
+            f"/api/companies/{c.id}/links",
+            json={"url": "https://acme.example", "title": "Website", "description": "Main site"},
+        )
+        assert resp.status_code == 201
+        link = resp.json()
+        assert link["url"] == "https://acme.example"
+        assert link["title"] == "Website"
+
+        updated = client.put(
+            f"/api/companies/{c.id}/links/{link['id']}",
+            json={"url": "https://new.example", "title": "Careers", "description": ""},
+        ).json()
+        assert updated["url"] == "https://new.example"
+        assert updated["title"] == "Careers"
+
+        links = client.get(f"/api/companies/{c.id}").json()["links"]
+        assert len(links) == 1
+        assert links[0]["url"] == "https://new.example"
+
+    def test_delete_link(self, client, sa_session):
+        c = _create_company(sa_session, name="Del Link Co")
+        link = client.post(f"/api/companies/{c.id}/links", json={"url": "https://x.example"}).json()
+        resp = client.delete(f"/api/companies/{c.id}/links/{link['id']}")
+        assert resp.status_code == 200
+        detail = client.get(f"/api/companies/{c.id}").json()
+        assert detail["links"] == []
+        assert detail["notes"] == []
+
+    def test_update_missing_link_404(self, client, sa_session):
+        c = _create_company(sa_session, name="No Links Co")
+        resp = client.put(f"/api/companies/{c.id}/links/999999", json={"url": "https://x.example"})
+        assert resp.status_code == 404

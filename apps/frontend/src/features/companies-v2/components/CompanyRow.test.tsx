@@ -171,6 +171,32 @@ describe('CompanyRow jobs column', () => {
   })
 })
 
+describe('CompanyRow recruiter tint', () => {
+  it('marks recruiter rows with the purple tint attribute', () => {
+    const { container } = renderRow(makeCompany({
+      company_type: 'RECRUITING_AGENCY',
+      recruiter_job_count: 3,
+    }))
+    expect(container.querySelector('[data-recruiter="true"]')).toBeInTheDocument()
+  })
+
+  it('does not tint product company rows', () => {
+    const { container } = renderRow(makeCompany({
+      company_type: 'PRODUCT_COMPANY',
+      recruiter_job_count: 0,
+    }))
+    expect(container.querySelector('[data-recruiter="false"]')).toBeInTheDocument()
+  })
+
+  it('tints companies detected as recruiters by listed job count', () => {
+    const { container } = renderRow(makeCompany({
+      company_type: 'PRODUCT_COMPANY',
+      recruiter_job_count: 2,
+    }))
+    expect(container.querySelector('[data-recruiter="true"]')).toBeInTheDocument()
+  })
+})
+
 describe('CompanyRow row-number column', () => {
   it('renders no row number when the column is off', () => {
     renderRow(makeCompany())

@@ -68,11 +68,11 @@ def test_create_skill(client):
 
 def test_list_companies_empty(client):
     """Test listing companies when database is empty."""
-    response = client.get("/api/companies")
+    response = client.get("/api/companies/list")
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 0
+    assert isinstance(data, dict)
+    assert data["items"] == []
 
 
 def test_get_job_detail(client, test_db):

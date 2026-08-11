@@ -1,7 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import CompanyNotesTab from './CompanyNotesTab'
+import { companyApi } from '@/entities/company/api'
+
+vi.mock('@/entities/company/api', () => ({
+  companyApi: {
+    listNotes: vi.fn(),
+    addNote: vi.fn(),
+    updateNote: vi.fn(),
+    deleteNote: vi.fn(),
+    addLink: vi.fn(),
+    updateLink: vi.fn(),
+    deleteLink: vi.fn(),
+  },
+}))
 
 const mockCompany = {
   id: 1,
@@ -12,9 +25,7 @@ const mockCompany = {
 
 describe('CompanyNotesTab', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(mockCompany.links) })
-    ))
+    vi.clearAllMocks()
   })
 
   it('renders notes section', () => {
@@ -22,7 +33,7 @@ describe('CompanyNotesTab', () => {
     expect(screen.getByText('Company Notes')).toBeInTheDocument()
   })
 
-  it('renders links section', async () => {
+  it('renders links section', () => {
     render(<CompanyNotesTab company={mockCompany} />)
     expect(screen.getByText('Company Links')).toBeInTheDocument()
   })
@@ -57,5 +68,20 @@ describe('CompanyNotesTab', () => {
   it('renders note count badge', () => {
     render(<CompanyNotesTab company={mockCompany} />)
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('adds a note via companyApi', async () => {
+    vi.mocked(companyApi.addNote).mockResolvedValue({ id: 99, content: 'New note' })
+    vi.mocked(companyApi.listNotes).mockResolvedValue([
+      { id: 'n1', content: 'Test note' },
+      { id: 99, content: 'New note' },
+    ] as any)
+    render(<CompanyNotesTab company={{ ...mockCompany, notes: [] }} />)
+    fireEvent.change(screen.getByPlaceholderText('Add a note (any information about the company)...'), {
+      target: { value: 'New note' },
+    })
+    fireEvent.click(screen.getByText('Add Note'))
+    await screen.findByText('New note')
+    expect(companyApi.addNote).toHaveBeenCalledWith(1, { content: 'New note' })
   })
 })

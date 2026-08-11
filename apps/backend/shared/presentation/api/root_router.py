@@ -5,14 +5,10 @@ presentation/api/ layer with routers and schemas.
 """
 
 import json
-from datetime import datetime, UTC
-
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
 
 # Bounded context routers — imported from their owning context's presentation layer
 from skills.presentation.api.skills_router import router as skills_router
-from companies.presentation.api.companies_router import router as companies_router
 
 from rules.presentation.api.rules_router import router as rules_router
 from shared.presentation.api.dashboard_router import router as dashboard_router
@@ -43,7 +39,6 @@ api_router.include_router(companies_v2_router, prefix="/companies", tags=["compa
 # ── Feature routers ──────────────────────────────────────────────
 
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
-api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 
 api_router.include_router(rules_router, prefix="/rules", tags=["rules"])
 api_router.include_router(dashboard_router, prefix="", tags=["dashboard"])
@@ -130,25 +125,6 @@ def link_job_to_company(job_id: str, data: dict):
         return {"status": "linked"}
     finally:
         session.close()
-
-
-@api_router.post("/companies/{id}/reprocess")
-def reprocess_company(id: str, session: Session = Depends(get_session_sync)):
-    from companies.infrastructure import SQLAlchemyCompanyRepository
-    from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
-    from processing.application.services.execution_actions import ExecutionActionService
-
-    company_repo = SQLAlchemyCompanyRepository(session)
-    company = company_repo.get_by_id(id)
-    if not company:
-        return {"error": "Not found"}
-
-    exec_repo = SQLAlchemyProcessingExecutionRepository(session)
-    result = ExecutionActionService(exec_repo).reprocess("company", id)
-
-    company_repo.update_fields(id, status="queued", error=None, updated_at=datetime.now(UTC).isoformat())
-    session.commit()
-    return {"status": "queued", "execution_id": result["execution_id"]}
 
 
 

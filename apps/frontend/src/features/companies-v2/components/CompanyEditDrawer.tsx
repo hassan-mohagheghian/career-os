@@ -14,7 +14,7 @@ import { CircleNotch, Pencil, Warning } from "@phosphor-icons/react";
 import type { CompanyDetail, CompanyEditInput } from "@/entities/company/types";
 import { companyApi } from "@/entities/company/api";
 import { useQueryClient } from "@tanstack/react-query";
-import CompanyNotesTab from "@/features/companies/components/CompanyNotesTab";
+import CompanyNotesTab from "./CompanyNotesTab";
 
 const COMPANY_KEY = "companies-v2-infinite";
 const COMPANY_DETAIL_KEY = "company-detail";

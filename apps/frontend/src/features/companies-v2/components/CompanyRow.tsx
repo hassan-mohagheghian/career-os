@@ -1,4 +1,5 @@
 import type { CompanyListItem } from '@/entities/company/types'
+import { isRecruiterCompany } from '@/entities/company/lib'
 import { ScoreBadge } from '@/features/jobs-v2/components/ScoreBadge'
 import { StatusBadge } from '@/features/jobs-v2/components/StatusBadge'
 import type { ProcessingStatus } from '@/entities/job/types'
@@ -7,6 +8,7 @@ import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { PinButton } from '@/shared/components/PinButton'
+import { cn } from '@/shared/lib/utils'
 import { buildCompanyGridTemplate } from './companiesColumns'
 import { CompanyActions } from './CompanyActions'
 
@@ -22,19 +24,13 @@ interface CompanyRowProps {
   rowNumber?: number
 }
 
-const RECRUITER_TYPES = ['RECRUITING_AGENCY', 'STAFFING_COMPANY']
-
-function isRecruiterType(type: string | null | undefined) {
-  return RECRUITER_TYPES.includes(type ?? '')
-}
-
 export function CompanyRow({
   company, onViewDetails, onReprocess, onEdit, onDelete, onTogglePinned,
   showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
 }: CompanyRowProps) {
   const grade = company.scores?.overall_grade ?? (company.scores?.overall != null ? gradeForScore(company.scores.overall) : null)
   const processingStatus = (company.processing?.status ?? null) as ProcessingStatus | null
-  const recruiter = isRecruiterType(company.company_type)
+  const recruiter = isRecruiterCompany(company)
   const listedJobs = recruiter ? company.recruiter_job_count : company.job_count
   const listedLabel = recruiter
     ? `${listedJobs} ${listedJobs === 1 ? 'job' : 'jobs'} listed for clients`
@@ -42,9 +38,13 @@ export function CompanyRow({
 
   return (
     <div
-      className="grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
+      className={cn(
+        "grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center",
+        recruiter && "bg-purple-500/5 hover:bg-purple-500/10 focus-within:bg-purple-500/10"
+      )}
       style={{ gridTemplateColumns: buildCompanyGridTemplate(showRowNumberColumn, showPinnedColumn) }}
       onClick={() => onViewDetails(company.id)}
+      data-recruiter={recruiter ? "true" : "false"}
     >
       {showRowNumberColumn && (
         <div className="py-2 px-3 flex items-center justify-center">

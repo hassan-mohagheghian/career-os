@@ -49,6 +49,22 @@ class SQLAlchemyCompanyLinkRepository(ICompanyLinkRepository):
         self._session.refresh(m)
         return self._to_dict(m)
 
+    def update(
+        self, link_id: int, company_id: str, url: str, title: str = "", description: str = ""
+    ) -> dict[str, Any] | None:
+        m = self._session.query(CompanyLinkModel).filter(
+            CompanyLinkModel.id == link_id,
+            CompanyLinkModel.company_id == company_id,
+        ).first()
+        if not m:
+            return None
+        m.url = url
+        m.title = title
+        m.description = description
+        self._session.commit()
+        self._session.refresh(m)
+        return self._to_dict(m)
+
     def delete(self, link_id: int, company_id: str) -> bool:
         m = self._session.query(CompanyLinkModel).filter(
             CompanyLinkModel.id == link_id,

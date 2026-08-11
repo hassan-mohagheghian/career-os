@@ -571,9 +571,9 @@ current implementation (paths + line numbers).
 
 ## 1. Frontend — user submits a job URL and starts processing
 
-- Add-job form: `apps/frontend/src/features/jobs/components/AddJobForm.tsx`
+- Add-job form: `apps/frontend/src/features/jobs-v2/components/AddJobForm.tsx`
   `handleSubmit` (line 67) → `useCreateJob().createJob` →
-  `POST /api/jobs` (`apps/frontend/src/features/jobs/hooks/useCreateJob.ts`
+  `POST /api/jobs` (`apps/frontend/src/features/jobs-v2/hooks/useCreateJob.ts`
   line 36).
   - **Create Job** (queue not set): creates the job record only (status
     `imported`).

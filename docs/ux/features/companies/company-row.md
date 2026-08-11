@@ -24,6 +24,34 @@ Rows are never expandable. Selecting a row opens the Company Detail drawer.
 | Created   | Relative creation time                    |
 | Actions   | Details, Reprocess, Edit, Delete          |
 
+The **Jobs** column value depends on company type. A **recruiter company**
+(company type `RECRUITING_AGENCY` / `STAFFING_COMPANY` **or** a positive
+`recruiter_job_count`) shows its `recruiter_job_count` labeled
+"listed for clients"; all other companies show `job_count`. The tooltip
+reflects the label (`N jobs listed for clients` for recruiters).
+
+---
+
+# Recruiter Tint
+
+Recruiter rows get a light purple background tint
+(`bg-purple-500/5`, stronger on hover / focus) and a
+`data-recruiter="true"` attribute so they are visually distinguishable from
+product companies at a glance. Detection uses the shared `isRecruiterCompany`
+helper (`entities/company/lib.ts`):
+
+```text
+recruiter = company_type in {RECRUITING_AGENCY, STAFFING_COMPANY}
+            OR recruiter_job_count > 0
+```
+
+```text
++------------------------------------------------------------------------------+
+|  [logo] Acme Staffing            | Recruiting Agency | Berlin, DE | 50-200 | 12 listed |
+|  [purple tint spans the whole row]                               F 82 S 90 O 87 |
++------------------------------------------------------------------------------+
+```
+
 ---
 
 # Scores

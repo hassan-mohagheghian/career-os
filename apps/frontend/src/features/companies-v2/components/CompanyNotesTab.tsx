@@ -4,6 +4,7 @@ import { cn } from '@/shared/lib/utils'
 import { Button } from '@/shared/ui/button'
 import { Badge } from '@/shared/ui/badge'
 import { Card } from '@/shared/ui/card'
+import { companyApi } from '@/entities/company/api'
 
 export default function CompanyNotesTab({ company, onUpdate }: { company: any; onUpdate?: any }) {
   const [notes, setNotes] = useState(() => {
@@ -13,7 +14,7 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
   })
   const [links, setLinks] = useState(company.links || [])
   const [noteInput, setNoteInput] = useState('')
-  const [editingNoteId, setEditingNoteId] = useState(null)
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
   const [editNoteContent, setEditNoteContent] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -22,15 +23,14 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
   const [linkDesc, setLinkDesc] = useState('')
-  const [editingLinkId, setEditingLinkId] = useState(null)
+  const [editingLinkId, setEditingLinkId] = useState<number | null>(null)
 
   // Links come from the company detail payload (single API call), no separate fetch.
   // Notes CRUD
   const refreshNotes = async () => {
     try {
-      const res = await fetch(`/api/companies/${company.id}/notes`)
-      const data = await res.json()
-      setNotes(Array.isArray(data) ? data.map(n => ({ id: n.id, content: String(n.title || '').replace(/^note:/, '') })) : [])
+      const data = await companyApi.listNotes(company.id)
+      setNotes(Array.isArray(data) ? data.map(n => ({ id: n.id, content: n.content })) : [])
     } catch { setNotes([]) }
   }
 
@@ -38,28 +38,18 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
     if (!noteInput.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/companies/${company.id}/notes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'text', content: noteInput.trim() })
-      })
-      const data = await res.json()
+      const data = await companyApi.addNote(company.id, { content: noteInput.trim() })
       onUpdate?.(data)
       setNoteInput('')
       await refreshNotes()
     } finally { setSaving(false) }
   }
 
-  const updateNote = async (noteId) => {
+  const updateNote = async (noteId: number) => {
     if (!editNoteContent.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editNoteContent.trim() })
-      })
-      const data = await res.json()
+      const data = await companyApi.updateNote(company.id, noteId, { content: editNoteContent.trim() })
       onUpdate?.(data)
       setEditingNoteId(null)
       setEditNoteContent('')
@@ -67,12 +57,11 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
     } finally { setSaving(false) }
   }
 
-  const deleteNote = async (noteId) => {
+  const deleteNote = async (noteId: number) => {
     setSaving(true)
     try {
-      const res = await fetch(`/api/companies/${company.id}/notes/${noteId}`, { method: 'DELETE' })
-      const data = await res.json()
-      onUpdate?.(data)
+      await companyApi.deleteNote(company.id, noteId)
+      onUpdate?.({ status: 'deleted' })
       await refreshNotes()
     } finally { setSaving(false) }
   }
@@ -82,45 +71,32 @@ export default function CompanyNotesTab({ company, onUpdate }: { company: any; o
     if (!linkUrl.trim()) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/companies/${company.id}/links`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setLinks(prev => [data, ...prev])
-        setLinkUrl('')
-        setLinkTitle('')
-        setLinkDesc('')
-        setShowLinkForm(false)
-      }
+      const data = await companyApi.addLink(company.id, { url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
+      setLinks(prev => [data, ...prev])
+      setLinkUrl('')
+      setLinkTitle('')
+      setLinkDesc('')
+      setShowLinkForm(false)
     } finally { setSaving(false) }
   }
 
-  const updateLink = async (linkId) => {
+  const updateLink = async (linkId: number) => {
     setSaving(true)
     try {
-      const res = await fetch(`/api/companies/${company.id}/links/${linkId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setLinks(prev => prev.map(l => l.id === linkId ? { ...l, url: data.url, title: data.title, description: data.description } : l))
-        setEditingLinkId(null)
-        setLinkUrl('')
-        setLinkTitle('')
-        setLinkDesc('')
-      }
+      const data = await companyApi.updateLink(company.id, linkId, { url: linkUrl.trim(), title: linkTitle.trim(), description: linkDesc.trim() })
+      setLinks(prev => prev.map(l => l.id === linkId ? data : l))
+      setEditingLinkId(null)
+      setLinkUrl('')
+      setLinkTitle('')
+      setLinkDesc('')
+      setShowLinkForm(false)
     } finally { setSaving(false) }
   }
 
-  const deleteLink = async (linkId) => {
+  const deleteLink = async (linkId: number) => {
     setSaving(true)
     try {
-      await fetch(`/api/companies/${company.id}/links/${linkId}`, { method: 'DELETE' })
+      await companyApi.deleteLink(company.id, linkId)
       setLinks(prev => prev.filter(l => l.id !== linkId))
     } finally { setSaving(false) }
   }

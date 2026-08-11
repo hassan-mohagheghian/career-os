@@ -15,7 +15,7 @@ from fastapi import APIRouter
 api_router = APIRouter(prefix="/api")
 
 api_router.include_router(jobs_v2_router, prefix="/jobs", tags=["jobs"])
-api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
+api_router.include_router(companies_v2_router, prefix="/companies", tags=["companies"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(insights_router, prefix="/insights", tags=["insights"])
 api_router.include_router(process_router, prefix="/jobs", tags=["processing"])
@@ -255,16 +255,21 @@ async def app_error_handler(request: Request, exc: AppError):
 
 | Endpoint | Method | Request Body | Response | Description |
 |----------|--------|--------------|----------|-------------|
-| `/api/companies/list` | GET | — | `CompanyListResponse` | Paginated list (search/sort/filter) |
-| `/api/companies/list/{id}` | GET | — | `CompanyDetailResponse` | Get company + notes, links, intelligence, scores, jobs (single payload) |
-| `/api/companies/{id}` | GET | — | `CompanyResponse` | Get company |
-| `/api/companies` | POST | `CompanyCreate` | `CompanyResponse` | Create company (`{name, notes, links, source, queue}` → `{id, name, status, execution_id?}`, 201) |
-| `/api/companies/{id}` | PUT | `CompanyUpdate` | `CompanyResponse` | Update company |
+| `/api/companies/list` | GET | — | `CompanyListResponse` | Paginated list (search/sort/filter, pinned, cursor) |
+| `/api/companies/{id}` | GET | — | `CompanyDetailResponseSchema` | Get company + notes, links, intelligence, scores, jobs (single payload) |
+| `/api/companies` | POST | `CompanyCreateRequest` | `CompanyCreateResponse` | Create company (`{name, notes, links, source, queue}` → `{id, name, status, execution_id?}`, 201) |
+| `/api/companies/{id}` | PUT | `CompanyUpdateRequest` | `CompanyDetailResponseSchema` | Update company |
 | `/api/companies/{id}` | DELETE | — | `204` | Hard-delete company (executions, links, intelligence) |
+| `/api/companies/{id}/pinned` | PUT | `{pinned}` | `{id, pinned}` | Toggle company pinned |
+| `/api/companies/{id}/main` | PUT | `{main_company_id}` | `CompanyDetailResponseSchema` | Set main company (relate aliases) |
 | `/api/companies/{id}/reprocess` | POST | — | `{"status": "queued", "execution_id": "..."}` | Queue company for reprocessing |
-| `/api/companies/{id}/intelligence` | GET | — | `CompanyIntelligenceResponse` | Get intelligence |
-| `/api/companies/{id}/notes` | POST | `NoteCreate` | `NoteResponse` | Add note |
-| `/api/companies/{id}/links` | POST | `LinkCreate` | `LinkResponse` | Add link |
+| `/api/companies/{id}/notes` | GET | — | `CompanyNote[]` | List notes |
+| `/api/companies/{id}/notes` | POST | `{content}` | `CompanyNote` | Add note (201) |
+| `/api/companies/{id}/notes/{note_id}` | PUT | `{content}` | `CompanyNote` | Update note |
+| `/api/companies/{id}/notes/{note_id}` | DELETE | — | `204` | Delete note |
+| `/api/companies/{id}/links` | POST | `{url, title?, description?}` | `CompanyLink` | Add link (201) |
+| `/api/companies/{id}/links/{link_id}` | PUT | `{url, title?, description?}` | `CompanyLink` | Update link |
+| `/api/companies/{id}/links/{link_id}` | DELETE | — | `204` | Delete link |
 
 > `{id}` values for companies are **UUID v7 strings** (migration
 > `company_002_add_uuid_v7`); all company endpoints accept/take string ids.

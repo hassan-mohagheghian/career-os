@@ -1,7 +1,33 @@
 import { api } from '@/shared/api'
 import type { JobSearchQuery, JobSearchResult, InfiniteJobSearchResult, JobDetail, JobEditInput } from './types'
 
+export interface CreateJobLinkItem {
+  title?: string
+  url: string
+}
+
+export interface CreateJobNoteItem {
+  title?: string
+  content: string
+}
+
+export interface CreateJobRequest {
+  job_post_url: string
+  job_title?: string
+  links?: CreateJobLinkItem[]
+  notes?: CreateJobNoteItem[]
+  queue?: boolean
+}
+
+export interface CreateJobResponse {
+  id: string
+  status: string
+  message: string
+  execution_id?: string | null
+}
+
 export const jobApi = {
+  create: (data: CreateJobRequest) => api.post<CreateJobResponse>('/jobs', data),
   search: (query: JobSearchQuery) => {
     const params = new URLSearchParams()
     if (query.page !== undefined) params.set('page', String(query.page))

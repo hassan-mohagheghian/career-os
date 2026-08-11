@@ -186,3 +186,71 @@ class CompanyMainRequest(BaseModel):
     """Body for PUT /api/companies/{id}/main — null clears the relation."""
 
     main_company_id: str | None = None
+
+
+class CompanyCreateLinkItem(BaseModel):
+    """A single link on the create-company intake payload."""
+
+    url: str = ""
+    title: str | None = None
+    description: str | None = None
+
+
+class CompanyCreateNoteItem(BaseModel):
+    """A single text note on the create-company intake payload."""
+
+    content: str = ""
+
+
+class CompanyCreateRequest(BaseModel):
+    """Body for POST /api/companies — create a company from intake."""
+
+    name: str = ""
+    notes: list[CompanyCreateNoteItem] | list[dict[str, Any]] = Field(default_factory=list)
+    links: list[CompanyCreateLinkItem] | list[str] = Field(default_factory=list)
+    source: str = "web"
+    input_type: str = "url"
+    queue: bool = True
+
+
+class CompanyCreateResponse(BaseModel):
+    """Response for POST /api/companies."""
+
+    id: str
+    name: str
+    notes: str | None = None
+    source: str | None = None
+    input_type: str | None = None
+    status: str
+    execution_id: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class CompanyUpdateRequest(BaseModel):
+    """Body for PUT /api/companies/{id} — partial update of profile fields."""
+
+    name: str | None = None
+    industry: str | None = None
+    city: str | None = None
+    country: str | None = None
+    logo_url: str | None = None
+    website: str | None = None
+    domain: str | None = None
+    description: str | None = None
+    company_size: str | None = None
+    company_type: str | None = None
+
+
+class CompanyNoteRequest(BaseModel):
+    """Body for POST /api/companies/{id}/notes and PUT .../notes/{note_id}."""
+
+    content: str = ""
+
+
+class CompanyLinkRequest(BaseModel):
+    """Body for POST /api/companies/{id}/links and PUT .../links/{link_id}."""
+
+    url: str = ""
+    title: str | None = None
+    description: str | None = None

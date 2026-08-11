@@ -23,6 +23,13 @@ class ICompanyLinkRepository(ABC):
         ...
 
     @abstractmethod
+    def update(
+        self, link_id: int, company_id: str, url: str, title: str = "", description: str = ""
+    ) -> dict[str, Any] | None:
+        """Update a link's URL, title, and description."""
+        ...
+
+    @abstractmethod
     def delete(self, link_id: int, company_id: str) -> bool:
         """Delete a link."""
         ...
