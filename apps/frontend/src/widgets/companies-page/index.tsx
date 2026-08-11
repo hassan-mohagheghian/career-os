@@ -19,7 +19,7 @@ function CompaniesPageAdapter() {
   const [detailCompanyId, setDetailCompanyId] = useState<string | null>(null)
   const [editCompanyId, setEditCompanyId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
-  const [showRowNumberColumn, setShowRowNumberColumn] = useState(false)
+  const [showRowNumberColumn, setShowRowNumberColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {

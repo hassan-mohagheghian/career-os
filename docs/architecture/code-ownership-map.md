@@ -11,13 +11,13 @@ Each bounded context owns its complete vertical slice: domain, application, infr
 | `domain/entities/` | `job.py`, `summary.py` | Job and summary domain entities |
 | `domain/value_objects/` | `job_score.py`, `job_location.py`, `workflow_log.py` | Score, location, workflow value objects |
 | `domain/repositories/` | `job_repository.py`, `summary_repository.py` | Repository interfaces |
-| `application/use_cases/` | `list_jobs.py` | Job listing use case |
+| `application/use_cases/` | `list_jobs_v2.py` | Job listing use case (V2) |
 | `application/commands/` | `analyze_jobs.py`, `backfill_raw.py`, `backfill_structured.py`, `normalize_locations.py`, `process_pending.py` | CLI commands and batch operations |
 | `infrastructure/models/` | `job_model.py`, `misc_models.py` | SQLAlchemy models |
 | `infrastructure/repositories/` | `sa_job_repository.py`, `sa_summary_repository.py` | Repository implementations |
 | `infrastructure/workers/` | `worker.py` | Job processing worker |
 | `infrastructure/ai/prompts/` | `job_processing/*.txt` | AI prompts for job processing |
-| `presentation/api/` | `jobs_router.py` | FastAPI router |
+| `presentation/api/` | `jobs_v2_router.py` | FastAPI router (list/detail/create/update/delete) |
 | `presentation/api/schemas/` | `jobs.py` | Pydantic schemas |
 
 ### Companies Context (`companies/`)

@@ -194,7 +194,7 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 │ [B]  Fit 85   Success 70   Overall 79                [Why]               │
 │                                                                              │
 │ Senior Backend Engineer                                                      │
-│ Company   Acme Inc [▾]   │ Employment  Permanent                            │
+│ Company   Acme Inc →▾   │ Employment  Permanent                            │
 │ Location  Berlin, DE…    │ Salary      90k                                  │
 │ Work Types Hybrid, FT    │ Visa        EU Blue Ca… (hover/click → full)    │
 │ Open job posting ↗                                                          │
@@ -272,28 +272,31 @@ sets the rule to `neighbor ± 1` (clamped 0–100); drag redistributes the colum
 
 ### Add / Edit Rule Drawer
 
+A right-side drawer (same side as every other drawer), `lg` width.
+
 ```text
-┌───────────────────────────────────────────────────────────────────────────┐
-│ Add Rule / Edit Rule                                          [Close] (✕) │
-├───────────────────────────────────────────────────────────────────────────┤
-│  Scope ▼              Category ▼                                          │
-│  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ Job ▾           │  │ Fit score ▾     │                                 │
-│  └─────────────────┘  └─────────────────┘                                 │
-│  Key name *          Priority (0-100)                                     │
-│  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ e.g. remote_work│  │ 50              │                                 │
-│  └─────────────────┘  └─────────────────┘                                 │
-│  Value / rule *                                                           │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ How the rule matches candidates / companies                         │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│  How this affects scoring (optional)                                      │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ Optional description                                               │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                            [Cancel] [Save]│
-└───────────────────────────────────────────────────────────────────────────┘
+                     ┌──────────────────────────────────────────────┐
+                     │ Add Rule / Edit Rule                [Close] ✕│
+                     ├──────────────────────────────────────────────┤
+                     │ Scope ▼        Category ▼                    │
+                     │ ┌───────────┐  ┌───────────┐                 │
+                     │ │ Job ▾     │  │ Fit score ▾│                │
+                     │ └───────────┘  └───────────┘                 │
+                     │ Key name *      Priority (0-100)             │
+                     │ ┌───────────┐  ┌───────────┐                 │
+                     │ │ remote_work│  │ 50        │                 │
+                     │ └───────────┘  └───────────┘                 │
+                     │ Value / rule *                               │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ How the rule matches candidates /       │  │
+                     │ │ companies                               │  │
+                     │ └────────────────────────────────────────┘  │
+                     │ How this affects scoring (optional)          │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ Optional description                   │  │
+                     │ └────────────────────────────────────────┘  │
+                     │                              [Cancel] [Save] │
+                     └──────────────────────────────────────────────┘
 ```
 
 Full specs: `docs/ux/features/rules/`.

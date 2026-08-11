@@ -754,6 +754,32 @@ class TestSearchJobsCursorExclude:
         assert items == []
 
 
+# ── get_by_url_fragment ─────────────────────────────────────────
+
+class TestGetByUrlFragment:
+    def test_matches_job_url_containing_fragment(self, sa_session, repo):
+        m = _add(
+            sa_session,
+            id="job-1",
+            url="https://www.linkedin.com/jobs/view/4333938709/?trackingId=AAA",
+        )
+        result = repo.get_by_url_fragment("linkedin.com/jobs/view/4333938709")
+        assert result is not None
+        assert result["id"] == m.id
+
+    def test_ignores_deleted_jobs(self, sa_session, repo):
+        _add(sa_session, id="job-1", deleted=1,
+             url="https://www.linkedin.com/jobs/view/4333938709/")
+        assert repo.get_by_url_fragment("linkedin.com/jobs/view/4333938709") is None
+
+    def test_returns_none_when_no_match(self, sa_session, repo):
+        _add(sa_session, id="job-1", url="https://example.com/jobs/1")
+        assert repo.get_by_url_fragment("linkedin.com/jobs/view/1") is None
+
+    def test_returns_none_for_absent_fragment(self, repo):
+        assert repo.get_by_url_fragment("linkedin.com/jobs/view/999999") is None
+
+
 # ── not-found branches ───────────────────────────────────────────
 
 class TestNotFoundBranches:

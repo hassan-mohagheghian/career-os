@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
@@ -8,6 +8,7 @@ import type { CompanyListItem } from '@/entities/company/types'
 import { MagnifyingGlass, Buildings, PushPin, Funnel } from '@phosphor-icons/react'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
 import { cn } from '@/shared/lib/utils'
+import { useFocusSearchShortcut } from '@/shared/hooks'
 
 const STATUS_LABELS: Record<string, string> = {
   created: 'Created',
@@ -45,6 +46,9 @@ export function CompaniesToolbar({
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
 }: CompaniesToolbarProps) {
+  const searchRef = useRef<HTMLInputElement>(null)
+  useFocusSearchShortcut(searchRef)
+
   const industries = useMemo(() => {
     const set = new Set<string>()
     items.forEach(c => {
@@ -58,6 +62,7 @@ export function CompaniesToolbar({
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <DebouncedInput
+            ref={searchRef}
             value={query}
             onValueChange={onQueryChange}
             placeholder="Search by name, industry, or location..."

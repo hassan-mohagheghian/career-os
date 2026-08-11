@@ -14,7 +14,7 @@ from fastapi import APIRouter
 
 api_router = APIRouter(prefix="/api")
 
-api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(jobs_v2_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(insights_router, prefix="/insights", tags=["insights"])

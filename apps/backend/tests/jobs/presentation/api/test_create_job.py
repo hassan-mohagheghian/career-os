@@ -105,18 +105,51 @@ def test_create_with_queue_defaults_false(client, test_db):
     enqueue.assert_not_called()
 
 
-def test_create_duplicate_url_returns_409(client, test_db):
+def test_create_same_non_linkedin_url_twice_succeeds(client, test_db):
+    """Non-LinkedIn URLs are not restricted until their own rule exists."""
     url = "https://example.com/jobs/duplicate"
     with patch("shared.infrastructure.taskiq.client.enqueue_execution_sync"):
         first = client.post("/api/jobs", json={"job_post_url": url})
         assert first.status_code == 201
 
     second = client.post("/api/jobs", json={"job_post_url": url, "queue": True})
+    assert second.status_code == 201
+
+
+def test_create_duplicate_linkedin_job_returns_409(client, test_db):
+    """Same LinkedIn job id with different tracking params is a duplicate."""
+    first_url = (
+        "https://www.linkedin.com/jobs/view/4333938709/?trackingId=AAA&refId=BBB"
+    )
+    second_url = (
+        "https://www.linkedin.com/jobs/view/4333938709/"
+        "?trackingId=CCC%3D%3D&refId=DDD%3D%3D&eBP=NON_CHARGEABLE_CHANNEL"
+    )
+    with patch("shared.infrastructure.taskiq.client.enqueue_execution_sync"):
+        first = client.post("/api/jobs", json={"job_post_url": first_url})
+        assert first.status_code == 201
+
+    second = client.post("/api/jobs", json={"job_post_url": second_url, "queue": True})
     assert second.status_code == 409
     body = second.json()
     assert body["error"]["code"] == "JOB_ALREADY_EXISTS"
     assert body["error"]["message"] == "A Job with the same primary URL already exists."
     assert body["error"]["details"]["job_id"] == first.json()["id"]
+
+
+def test_create_linkedin_different_job_ids_succeed(client, test_db):
+    with patch("shared.infrastructure.taskiq.client.enqueue_execution_sync"):
+        first = client.post(
+            "/api/jobs",
+            json={"job_post_url": "https://www.linkedin.com/jobs/view/11111/"},
+        )
+        assert first.status_code == 201
+
+    second = client.post(
+        "/api/jobs",
+        json={"job_post_url": "https://www.linkedin.com/jobs/view/22222/?trackingId=Z"},
+    )
+    assert second.status_code == 201
 
 
 def test_create_job_missing_url_returns_422(client):

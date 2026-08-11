@@ -21,7 +21,7 @@ app/
 │   │   ├── application/
 │   │   ├── infrastructure/
 │   │   └── presentation/api/
-│   │       └── jobs_router.py
+│   │       ├── jobs_v2_router.py
 │   │
 │   ├── companies/                 # Companies Bounded Context
 │   │   ├── domain/
@@ -242,7 +242,7 @@ jobs/                              # Jobs Bounded Context
 │   ├── models/job_model.py        # SQLAlchemy model
 │   └── repositories/sa_job_repository.py  # Implementation (infrastructure)
 └── presentation/
-    └── api/jobs_router.py         # Router (presentation)
+    └── api/jobs_v2_router.py       # Router (presentation; owns list/detail/create/update/delete)
 ```
 
 ### Feature Responsibilities
@@ -308,7 +308,7 @@ async def list_jobs(service: JobService = Depends(get_job_service)):
 
 | Flask Blueprint | FastAPI Router | Bounded Context |
 |-----------------|----------------|-----------------|
-| `jobs` | `jobs_router` | `jobs/presentation/api/jobs_router.py` |
+| `jobs` | `jobs_v2_router` | `jobs/presentation/api/jobs_v2_router.py` |
 | `pending` | `executions_router` | `processing/presentation/api/executions_router.py` |
 | `companies` | `companies_router` | `companies/presentation/api/companies_router.py` |
 | `candidates` | `candidates_router` | `candidates/presentation/api/candidates_router.py` |

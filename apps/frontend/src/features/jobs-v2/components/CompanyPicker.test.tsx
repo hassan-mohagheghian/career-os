@@ -41,6 +41,12 @@ describe('CompanyPicker', () => {
     expect(screen.getByRole('button', { name: 'Change company' })).toHaveTextContent('Set company')
   })
 
+  it('links the linked company name to its detail drawer', () => {
+    renderPicker({ companyId: 'c-1', companyName: 'Acme GmbH' })
+    const link = screen.getByRole('link', { name: 'Acme GmbH' })
+    expect(link).toHaveAttribute('href', '/companies?company=c-1')
+  })
+
   it('lists companies and calls onSelect when one is picked', async () => {
     const onSelect = vi.fn()
     renderPicker({ onSelect })

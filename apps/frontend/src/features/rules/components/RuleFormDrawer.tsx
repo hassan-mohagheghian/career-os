@@ -54,7 +54,7 @@ export default function RuleFormDrawer({
   const [f, setF] = useState<RuleFormValues>(initial || DEFAULT_RULE);
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} placement="bottom">
+    <Drawer open={open} onOpenChange={onOpenChange} placement="right">
       <DrawerHeader title={title} onClose={() => onOpenChange(false)} />
       <DrawerContent>
         <div className="mx-auto w-full max-w-[560px] space-y-4">

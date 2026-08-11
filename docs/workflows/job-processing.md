@@ -594,7 +594,7 @@ current implementation (paths + line numbers).
 
 ## 1a. API route — create + queue in one request
 
-`apps/backend/jobs/presentation/api/jobs_router.py` — `create_job`
+`apps/backend/jobs/presentation/api/jobs_v2_router.py` — `create_job`
 (`POST /api/jobs`):
 
 1. Resolves a duplicate URL (409 `JobAlreadyExistsError`).

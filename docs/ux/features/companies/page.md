@@ -142,6 +142,12 @@ Changing filters never reloads the entire page.
 
 Search is debounced (300ms) via the shared `DebouncedInput` primitive.
 
+Pressing `F` anywhere on the page (unless the focus is inside an input,
+textarea, select, or content-editable element) moves focus to the Search field
+and selects any existing query, so typing immediately starts a new search. The
+`F` keypress itself is never inserted into the field. The same shortcut applies
+to the Jobs and Skills search fields.
+
 ---
 
 # Company List

@@ -168,6 +168,15 @@ describe('SkillsPage', () => {
     expect(screen.getByText('Pin')).toBeInTheDocument()
   })
 
+  it('focuses the search input when F is pressed', () => {
+    renderPage(baseProps())
+    const search = screen.getByLabelText('Search skills')
+
+    fireEvent.keyDown(window, { key: 'f' })
+
+    expect(search).toHaveFocus()
+  })
+
   it('reports a column toggle when the Pinned option is clicked', async () => {
     const user = userEvent.setup()
     const onTogglePinnedColumn = vi.fn()

@@ -78,8 +78,9 @@ describe('JobDetailDrawer edit', () => {
     renderDrawer('job-1')
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
-    const picker = screen.getByRole('button', { name: 'Change company' })
-    expect(picker).toHaveTextContent('Acme GmbH')
+    const link = screen.getByRole('link', { name: 'Acme GmbH' })
+    expect(link).toHaveAttribute('href', '/companies?company=company-1')
+    expect(screen.getByRole('button', { name: 'Change company' })).toBeInTheDocument()
   })
 
   it('offers a company picker in the Details section', async () => {

@@ -27,6 +27,26 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
   return render(<JobsToolbar {...(props as any)} />)
 }
 
+describe('JobsToolbar search shortcut', () => {
+  it('focuses the search input when F is pressed', () => {
+    renderToolbar()
+    const search = screen.getByLabelText('Search jobs')
+
+    fireEvent.keyDown(window, { key: 'f' })
+
+    expect(search).toHaveFocus()
+  })
+
+  it('does not steal focus when typing inside the search input', () => {
+    renderToolbar()
+    const search = screen.getByLabelText('Search jobs')
+
+    fireEvent.keyDown(search, { key: 'f' })
+
+    expect(search).not.toHaveFocus()
+  })
+})
+
 describe('JobsToolbar location filter', () => {
   beforeEach(() => {
     vi.useFakeTimers()

@@ -95,6 +95,15 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_url_fragment(self, fragment: str) -> dict[str, Any] | None:
+        """Get the first non-deleted job whose URL contains ``fragment``.
+
+        Used by job-board URL duplicate rules (e.g. the LinkedIn job id in the
+        path) to detect an existing posting regardless of query parameters.
+        """
+        ...
+
+    @abstractmethod
     def create_job(self, url: str, title: str | None = None, notes: str = "[]", links: str = "[]", source: str = "api") -> dict[str, Any]:
         """Create a new job. Returns the created job."""
         ...

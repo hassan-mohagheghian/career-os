@@ -2,9 +2,10 @@
 
 ## Purpose
 
-A **bottom drawer** (placement `bottom`, default `lg` variant) used for both
-adding a new rule and editing an existing one. It opens over the Rules page
-without leaving it. The title switches between `Add Rule` and `Edit Rule`.
+A **right-side drawer** (placement `right`, `lg` variant — the same side as
+every other drawer in the app) used for both adding a new rule and editing an
+existing one. It slides in from the right edge over the Rules page without
+leaving it. The title switches between `Add Rule` and `Edit Rule`.
 
 The drawer is implemented in
 `apps/frontend/src/features/rules/components/RuleFormDrawer.tsx`, built on the
@@ -15,38 +16,37 @@ shared `Drawer` primitive (`docs/ux/design-system/drawer.md`).
 ## Wireframe
 
 ```text
-┌───────────────────────────────────────────────────────────────────────────┐
-│ Add Rule / Edit Rule                                          [Close] (✕) │
-├───────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
-│  Scope ▼              Category ▼                                          │
-│  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ Job ▾           │  │ Fit score ▾     │                                 │
-│  └─────────────────┘  └─────────────────┘                                 │
-│                                                                           │
-│  Key name *                                                               │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ e.g. remote_work                                                   │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│  Priority (0-100)                                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ 50                                                                 │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│  Value / rule *                                                           │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ How the rule matches candidates / companies                         │   │
-│  │                                                                     │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│  How this affects scoring (optional)                                      │
-│  ┌────────────────────────────────────────────────────────────────────┐   │
-│  │ Optional description                                               │   │
-│  └────────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│                                                            [Cancel] [Save]│
-└───────────────────────────────────────────────────────────────────────────┘
+                     ┌──────────────────────────────────────────────┐
+                     │ Add Rule / Edit Rule                [Close] ✕│
+                     ├──────────────────────────────────────────────┤
+                     │ Scope ▼        Category ▼                    │
+                     │ ┌───────────┐  ┌───────────┐                 │
+                     │ │ Job ▾     │  │ Fit score ▾│                │
+                     │ └───────────┘  └───────────┘                 │
+                     │                                              │
+                     │ Key name *                                   │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ e.g. remote_work                       │  │
+                     │ └────────────────────────────────────────┘  │
+                     │                                              │
+                     │ Priority (0-100)                            │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ 50                                     │  │
+                     │ └────────────────────────────────────────┘  │
+                     │                                              │
+                     │ Value / rule *                              │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ How the rule matches candidates /       │  │
+                     │ │ companies                               │  │
+                     │ └────────────────────────────────────────┘  │
+                     │                                              │
+                     │ How this affects scoring (optional)          │
+                     │ ┌────────────────────────────────────────┐  │
+                     │ │ Optional description                   │  │
+                     │ └────────────────────────────────────────┘  │
+                     │                                              │
+                     │                              [Cancel] [Save] │
+                     └──────────────────────────────────────────────┘
 ```
 
 ## Fields

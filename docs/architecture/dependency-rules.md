@@ -57,7 +57,7 @@ presentation → application → domain
 
 ```python
 # ✅ Presentation → Application
-from jobs.application.use_cases.list_jobs import ListJobsUseCase
+from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase
 
 # ✅ Presentation → Shared Infrastructure
 from shared.infrastructure.database.session import get_session

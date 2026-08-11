@@ -1,11 +1,13 @@
 'use client'
 
+import { useRef } from 'react'
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { MagnifyingGlass, FunnelSimple, PushPin, GitMerge, X } from '@phosphor-icons/react'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
 import { cn } from '@/shared/lib/utils'
 import { CategoryMultiSelect } from './CategoryMultiSelect'
+import { useFocusSearchShortcut } from '@/shared/hooks'
 
 interface SkillsToolbarProps {
   query: string
@@ -50,11 +52,15 @@ export function SkillsToolbar({
   onClearSelection,
   mergePending = false,
 }: SkillsToolbarProps) {
+  const searchRef = useRef<HTMLInputElement>(null)
+  useFocusSearchShortcut(searchRef)
+
   return (
     <div className="px-3 py-2 border-b border-border/40">
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <DebouncedInput
+            ref={searchRef}
             value={query}
             onValueChange={onQueryChange}
             placeholder="Search by name, role, path, or alias..."

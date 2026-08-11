@@ -26,7 +26,7 @@ apps/backend/
 │   │       └── summary_repository.py
 │   ├── application/
 │   │   ├── use_cases/
-│   │   │   └── list_jobs.py
+│   │   │   └── list_jobs_v2.py
 │   │   ├── commands/
 │   │   │   ├── analyze_jobs.py
 │   │   │   ├── backfill_raw.py
@@ -50,7 +50,7 @@ apps/backend/
 │   │       └── step8_score.txt
 │   └── presentation/
 │       ├── api/
-│       │   ├── jobs_router.py
+│       │   ├── jobs_v2_router.py
 │       │   └── schemas/jobs.py
 │       └── cli/
 │

@@ -23,7 +23,7 @@ function JobsPageV2Adapter() {
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
-  const [showRowNumberColumn, setShowRowNumberColumn] = useState(false)
+  const [showRowNumberColumn, setShowRowNumberColumn] = useState(true)
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
 
   const {

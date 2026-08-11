@@ -15,6 +15,7 @@ export interface DebouncedInputProps
   activeClassName?: string
   wrapperClassName?: string
   inputClassName?: string
+  ref?: React.Ref<HTMLInputElement>
 }
 
 export function DebouncedInput({
@@ -29,6 +30,7 @@ export function DebouncedInput({
   inputClassName,
   className,
   type,
+  ref,
   'aria-label': ariaLabel,
   ...rest
 }: DebouncedInputProps) {
@@ -86,6 +88,7 @@ export function DebouncedInput({
         </span>
       )}
       <Input
+        ref={ref}
         type={type ?? 'text'}
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}

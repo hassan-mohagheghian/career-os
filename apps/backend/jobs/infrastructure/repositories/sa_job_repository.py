@@ -250,6 +250,14 @@ class SQLAlchemyJobRepository(IJobRepository):
         m = self._session.query(JobModel.id).filter(JobModel.url == url).first()
         return m[0] if m else None
 
+    def get_by_url_fragment(self, fragment: str) -> dict[str, Any] | None:
+        m = (
+            self._session.query(JobModel)
+            .filter(JobModel.deleted == 0, JobModel.url.contains(fragment))
+            .first()
+        )
+        return job_model_to_dict(m) if m else None
+
     def upsert(self, data: dict[str, Any]) -> dict[str, Any]:
         job_id = data.get("id") or data.get("url")
         existing = self._session.query(JobModel).filter(

@@ -50,6 +50,26 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
   return render(<CompaniesToolbar {...(props as any)} />)
 }
 
+describe('CompaniesToolbar search shortcut', () => {
+  it('focuses the search input when F is pressed', () => {
+    renderToolbar()
+    const search = screen.getByLabelText('Search companies')
+
+    fireEvent.keyDown(window, { key: 'f' })
+
+    expect(search).toHaveFocus()
+  })
+
+  it('does not steal focus when typing inside the search input', () => {
+    renderToolbar()
+    const search = screen.getByLabelText('Search companies')
+
+    fireEvent.keyDown(search, { key: 'f' })
+
+    expect(search).not.toHaveFocus()
+  })
+})
+
 describe('CompaniesToolbar status filter', () => {
   it('renders a Status dropdown', () => {
     renderToolbar()

@@ -955,7 +955,7 @@ shows a single scrollable page:
 │ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  [Why]│ ← score strip
 │                                                         │
 │ Software Engineer (Senior)                              │
-│ Company  Acme GmbH [▾]      │  Employment  Permanent   │
+│ Company  Acme GmbH →▾      │  Employment  Permanent   │
 │ Location Berlin, DE…        │  Salary      €90k–€110k  │
 │ Work Types Full-time, Remote│  Visa        EU Blue Ca… │
 │                             │  hover/click → full      │
@@ -1019,9 +1019,18 @@ button). It links the job to a company via `PUT /api/jobs/{id}/company`:
   its display name becomes the company's canonical name.
 - **Unlink** — clears `company_id` (the stored company name is left as-is).
 
-The picker is a searchable popover backed by `GET /api/companies/list`. Once
-linked, the company name in the drawer header becomes a deep link to the
-company detail drawer on the Companies page.
+The picker is a searchable popover backed by `GET /api/companies/list`.
+
+```text
+Company  Acme GmbH →▾            (linked — name is a link, ▾ reopens the picker)
+
+Company  Set company ▾           (not linked)
+```
+
+Once linked, the company name renders as a **deep link** to that company's
+detail drawer on the Companies page (`/companies?company=<id>`); the caret
+button next to it still reopens the picker to change or unlink the company.
+When no company is linked, the row shows a `Set company` picker button.
 
 ## Job Details — Published by
 
@@ -1273,6 +1282,14 @@ Changes
 ---
 
 # Search Behavior
+
+## Keyboard Shortcut — Focus Search
+
+Pressing `F` anywhere on the Jobs page (unless the focus is inside an input,
+textarea, select, or content-editable element) moves focus to the Search field
+and selects any existing query, so typing immediately starts a new search. The
+`F` keypress itself is never inserted into the field. The same shortcut applies
+to the Companies and Skills search fields.
 
 Search is incremental.
 
@@ -1566,7 +1583,7 @@ Keyboard shortcuts
 | ↑ ↓      | Navigate rows    |
 | Enter    | Open Job Details |
 | Esc      | Close Drawer     |
-| Ctrl + F | Focus Search     |
+| F        | Focus Search     |
 | N        | Open Add Job drawer |
 
 ---

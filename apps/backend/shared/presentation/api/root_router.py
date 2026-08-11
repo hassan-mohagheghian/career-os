@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 # Bounded context routers — imported from their owning context's presentation layer
-from jobs.presentation.api.jobs_router import router as jobs_router
 from skills.presentation.api.skills_router import router as skills_router
 from companies.presentation.api.companies_router import router as companies_router
 
@@ -42,7 +41,6 @@ api_router.include_router(companies_v2_router, prefix="/companies", tags=["compa
 
 # ── Feature routers ──────────────────────────────────────────────
 
-api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(companies_router, prefix="/companies", tags=["companies"])
 

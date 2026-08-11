@@ -215,8 +215,32 @@ Example
 409 Conflict
 ```
 
+Duplicate detection is **rule-based**: each job board contributes a rule that
+knows how to identify the same posting even when the URL differs (tracking
+parameters, subdomains, redirects). The rules are evaluated in order.
+
+### LinkedIn (first rule)
+
+LinkedIn job links carry the job id in the URL path — `/jobs/view/{job_id}` —
+with query parameters (`trackingId`, `refId`, `eBP`, ...) that change on every
+visit. The LinkedIn rule extracts that path fragment and rejects the create
+when any existing job's URL contains the same `linkedin.com/jobs/view/{job_id}`
+fragment, regardless of the query string.
+
+Example — the second URL is a duplicate of the first:
+
+```
+https://www.linkedin.com/jobs/view/4333938709/?trackingId=AAA
+https://www.linkedin.com/jobs/view/4333938709/?trackingId=CCC%3D%3D&refId=DDD
+```
+
+### Other job boards
+
+Other job boards get their own rule when added. Until a board has a rule, its
+URLs are **not** restricted — creating the same posting URL twice succeeds.
+
 The `details.job_id` field contains the id of the existing job (the one that
-shares the primary URL), so the UI can link to it.
+shares the posting URL), so the UI can link to it.
 
 Example
 
@@ -233,6 +257,10 @@ Example
 ```
 
 ---
+
+## Related
+
+- `docs/domain/jobs/job-url-duplicate-rules.md` — the duplicate rule registry.
 
 ## Unauthorized
 

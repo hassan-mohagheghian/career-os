@@ -59,7 +59,7 @@ docs/ux/
 │       └── workflow-progress.md
 │   ├── rules/
 │       ├── page.md            Rules page (scopes, columns, priority/badge, reorder)
-│       └── rule-form-drawer.md  Add / Edit Rule bottom drawer
+│       └── rule-form-drawer.md  Add / Edit Rule right drawer
 │   └── skills/
 │       ├── page.md            Skills page (list, toolbar, multi-select, column toggles, infinite scroll, drawers)
 │       ├── skill-row.md       Skill row columns, select checkbox, origin/alias badges, mentions, actions

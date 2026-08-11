@@ -131,7 +131,7 @@ describe('RulesTab', () => {
     expect(screen.getByText('Prefers remote')).toBeInTheDocument()
   })
 
-  it('opens the Add Rule drawer from the bottom when clicking Add rule', () => {
+  it('opens the Add Rule drawer from the right when clicking Add rule', () => {
     render(<RulesTab rules={mockRules} onUpdate={vi.fn()} />)
     fireEvent.click(screen.getAllByText('Add rule')[0])
     expect(screen.getByText('Add Rule')).toBeInTheDocument()
