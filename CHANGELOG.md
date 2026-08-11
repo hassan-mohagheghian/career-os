@@ -1,5 +1,40 @@
 # Changelog
 
+## [3.13.0] — 2026-08-11
+
+### Added
+
+- **Job Application Workspace.** New bounded context `applications` (schema
+  `application`: `applications`, `application_follow_ups`, `application_documents`,
+  `application_preparations`; migration `application_001`, single head).
+  `/api/applications` (per-context router) exposes: get-by-job, create (default
+  status `recommended`), update status/`applied_at`, follow-up add/update/delete,
+  document update/delete, and generate endpoints for the three artifacts
+  (202 + `execution_id`).
+- **AI generation of application artifacts.** New `ExecutionType`s
+  (`application_preparation`, `application_resume`, `application_cover_letter`)
+  run a single LangGraph `ApplicationIntelligenceGraph`
+  (load_context → generate → persist → ready|failed) through the existing
+  processing pipeline (TaskIQ + SSE progress). It is a consumer of existing
+  intelligence — it reuses the job-analysis, company and candidate context
+  builders and never re-analyzes (prompt version `1.0.0`, strict JSON validation
+  with one retry). Persisted artifacts emit `application.*` domain events
+  (in-memory collector, catalog in `docs/domain/applications/events.md`).
+- **Frontend workspace page** at `/jobs/{job_id}/application` (first dynamic
+  route): header with job identity/scores/recommendation + status, application
+  tracker (status select, applied date, follow-ups), preparation plan
+  (hard/soft skill cards), documents (tailored resume / cover letter with
+  view/edit/regenerate/download/copy/delete), and live SSE `GenerationProgress`.
+  Entry points: airplane row action in `JobActions` and an **Application**
+  button in the Job Details drawer; "← Back to Job" returns to `/jobs?job={id}`.
+- **Job delete cascade** for applications: deleting a job hard-deletes its
+  application, follow-ups, documents, preparations and generation executions.
+- Docs: `docs/domain/applications/`, `docs/api/applications/`,
+  `docs/ai/application-intelligence.md`, UX feature + flow specs
+  (`docs/ux/features/applications/`, `docs/ux/flows/applications/`) with ASCII
+  wireframes + Mermaid, updated `DESIGN.md`, `CONTEXT.md`, `DOMAIN.md`,
+  `API.md`, `ARCHITECTURE.md`, `docs/ux/README.md`, `docs/ai/graphs.md`.
+
 ## [3.12.0] — 2026-08-08
 
 ### Added
