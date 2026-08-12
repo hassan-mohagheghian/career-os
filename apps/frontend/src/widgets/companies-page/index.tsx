@@ -34,10 +34,6 @@ function CompaniesPageAdapter() {
     deleteMutation, reprocessMutation, setMainMutation, pinnedMutation,
   } = useCompaniesInfiniteQuery()
 
-  const navigateToJobs = useCallback(() => {
-    window.location.href = '/jobs'
-  }, [])
-
   const openJob = useCallback((id: string) => {
     window.location.href = `/jobs?job=${encodeURIComponent(id)}`
   }, [])
@@ -164,7 +160,6 @@ function CompaniesPageAdapter() {
         onEditCompanyIdChange={setEditCompanyId}
         onOpenJob={openJob}
         onNavigateToJob={openJob}
-        onViewAllJobs={navigateToJobs}
       />
       <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
     </div>

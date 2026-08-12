@@ -59,7 +59,6 @@ interface CompaniesPageProps {
   onEditCompanyIdChange: (id: string | null) => void
   onOpenJob?: (id: string) => void
   onNavigateToJob?: (id: string) => void
-  onViewAllJobs?: (name: string) => void
 }
 
 export function CompaniesPage({
@@ -79,7 +78,7 @@ export function CompaniesPage({
   addCompanyDrawerOpen, onAddCompanyDrawerOpenChange,
   detailCompanyId, onDetailCompanyIdChange,
   editCompanyId, onEditCompanyIdChange,
-  onOpenJob, onNavigateToJob, onViewAllJobs,
+  onOpenJob, onNavigateToJob,
 }: CompaniesPageProps) {
   const { createCompany, submitting, error: createError, clearError } = useCreateCompany()
 
@@ -176,14 +175,12 @@ export function CompaniesPage({
       <CompanyDetailDrawer
         companyId={detailCompanyId}
         onOpenChange={onDetailCompanyIdChange}
-        onDelete={onDelete}
         onReprocess={onReprocess}
         onEdit={onEdit}
         onRelate={onRelate}
         relatePending={relatePending}
         onOpenJob={onOpenJob}
         onNavigateToJob={onNavigateToJob}
-        onViewAllJobs={onViewAllJobs}
       />
       <CompanyEditDrawer
         companyId={editCompanyId}

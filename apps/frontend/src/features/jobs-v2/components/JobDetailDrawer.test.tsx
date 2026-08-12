@@ -45,13 +45,22 @@ beforeEach(() => {
   vi.mocked(jobApi.getDetail).mockResolvedValue(sampleDetail as any)
 })
 
-function renderDrawer(jobId: string | null, onEdit: (id: string) => void = vi.fn()) {
+function renderDrawer(
+  jobId: string | null,
+  onEdit: (id: string) => void = vi.fn(),
+  onReprocess: (id: string) => void = vi.fn(),
+) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={qc}>
-      <JobDetailDrawer jobId={jobId} onOpenChange={vi.fn()} onEdit={onEdit} />
+      <JobDetailDrawer
+        jobId={jobId}
+        onOpenChange={vi.fn()}
+        onEdit={onEdit}
+        onReprocess={onReprocess}
+      />
     </QueryClientProvider>
   )
 }
@@ -76,6 +85,29 @@ describe('JobDetailDrawer edit', () => {
       </QueryClientProvider>
     )
     expect(screen.queryByRole('button', { name: 'Edit job' })).not.toBeInTheDocument()
+  })
+
+  it('calls onReprocess when the header Reprocess button is clicked', async () => {
+    const onReprocess = vi.fn()
+    renderDrawer('job-1', vi.fn(), onReprocess)
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Reprocess job' }))
+    expect(onReprocess).toHaveBeenCalledWith('job-1')
+  })
+
+  it('does not render the Reprocess button without an onReprocess handler', () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    render(
+      <QueryClientProvider client={qc}>
+        <JobDetailDrawer jobId="job-1" onOpenChange={vi.fn()} />
+      </QueryClientProvider>
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Reprocess job' }),
+    ).not.toBeInTheDocument()
   })
 
   it('links the company name to the companies page detail drawer', async () => {

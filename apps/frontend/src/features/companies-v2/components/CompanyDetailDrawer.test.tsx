@@ -35,7 +35,7 @@ function makeDetail(overrides: Partial<CompanyDetail> = {}): CompanyDetail {
   }
 }
 
-function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn(), onEdit: (id: string) => void = vi.fn(), onOpenJob: (id: string) => void = vi.fn()) {
+function renderDrawer(companyId: string | null, onOpenChange: (id: string | null) => void = vi.fn(), onEdit: (id: string) => void = vi.fn(), onOpenJob: (id: string) => void = vi.fn(), onReprocess: (id: string) => void = vi.fn()) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -44,8 +44,7 @@ function renderDrawer(companyId: string | null, onOpenChange: (id: string | null
       <CompanyDetailDrawer
         companyId={companyId}
         onOpenChange={onOpenChange}
-        onDelete={vi.fn()}
-        onReprocess={vi.fn()}
+        onReprocess={onReprocess}
         onEdit={onEdit}
         onRelate={vi.fn()}
         relatePending={false}
@@ -115,6 +114,63 @@ describe('CompanyDetailDrawer edit', () => {
     await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Edit company' }))
     expect(onEdit).toHaveBeenCalledWith('company-1')
+  })
+
+  it('calls onReprocess when the header Reprocess button is clicked', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail())
+    const onReprocess = vi.fn()
+    renderDrawer('company-1', vi.fn(), vi.fn(), vi.fn(), onReprocess)
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Reprocess company' }))
+    expect(onReprocess).toHaveBeenCalledWith('company-1')
+  })
+})
+
+describe('CompanyDetailDrawer footer actions', () => {
+  it('renders the website link at the top, next to the scores', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      website: 'https://acme.dev',
+      job_count: 3,
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    const websiteLink = screen.getByRole('link', { name: 'Website' })
+    expect(websiteLink).toHaveAttribute('href', 'https://acme.dev')
+    expect(websiteLink).toHaveAttribute('target', '_blank')
+  })
+
+  it('lists the other company links below the website link at the top', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      website: 'https://acme.dev',
+      links: [
+        { id: 1, url: 'https://acme.dev', title: 'Website', description: null, status: 'ok', created_at: null },
+        { id: 2, url: 'https://acme.dev/careers', title: 'Careers',
+          description: null, status: 'ok', created_at: null },
+        { id: 3, url: 'https://github.com/acme', title: 'GitHub', description: null, status: 'ok', created_at: null },
+      ],
+      job_count: 3,
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    const topCareers = screen.getAllByRole('link', { name: 'Careers' })[0]
+    expect(topCareers).toHaveAttribute('href', 'https://acme.dev/careers')
+    expect(topCareers).toHaveAttribute('target', '_blank')
+    expect(screen.getAllByRole('link', { name: 'GitHub' })[0]).toHaveAttribute('href', 'https://github.com/acme')
+    expect(
+      screen.getAllByRole('link', { name: 'Website' }).some((l) => l.getAttribute('href') === 'https://acme.dev'),
+    ).toBe(true)
+  })
+
+  it('does not render View All Jobs or Delete buttons', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({ job_count: 3, website: 'https://acme.dev' }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'View All Jobs' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 })
 

@@ -55,6 +55,7 @@ function renderPage(overrides: Record<string, unknown> = {}) {
     activeFilterCount: 0,
     onClearFilters: vi.fn(),
     onProcessV2: vi.fn(),
+    onReprocess: vi.fn(),
     onViewDetails: vi.fn(),
     onEdit: vi.fn(),
     onDelete: vi.fn(),

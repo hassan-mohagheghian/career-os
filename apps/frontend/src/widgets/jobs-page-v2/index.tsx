@@ -162,6 +162,7 @@ function JobsPageV2Adapter() {
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}
+        onReprocess={handleProcessV2}
         onViewDetails={handleViewDetails}
         onEdit={handleEdit}
         onDelete={handleDelete}

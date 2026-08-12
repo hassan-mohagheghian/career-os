@@ -52,7 +52,7 @@ docs/ux/
 │   ├── companies/
 │   │   ├── page.md            Companies page (list, toolbar, column toggles, infinite scroll, drawers)
 │   │   ├── company-row.md     Company row columns, grades, scores, status, actions
-│   │   ├── company-detail.md  Company Detail drawer (single page, scores, recommendation)
+│   │   ├── company-detail.md  Company Detail drawer (single page, scores, header actions)
 │   │   ├── relate-company.md  Related companies: main/alias relations, Relate Company dialog
 │   │   ├── add-company.md     Add Company drawer (shared Create Entity, company mode)
 │   │   ├── edit-company.md    Edit Company drawer

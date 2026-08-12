@@ -45,6 +45,7 @@ interface JobsPageProps {
   activeFilterCount: number
   onClearFilters: () => void
   onProcessV2: (id: string) => void
+  onReprocess: (id: string) => void
   onViewDetails: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
@@ -82,7 +83,7 @@ export function JobsPage({
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   activeFilterCount, onClearFilters,
-  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication, isProcessing,
+  onProcessV2, onReprocess, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication, isProcessing,
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
@@ -201,6 +202,7 @@ export function JobsPage({
         jobId={detailJobId}
         onOpenChange={onDetailJobIdChange}
         onEdit={onEdit}
+        onReprocess={onReprocess}
       />
       <JobEditDrawer
         jobId={editJobId}

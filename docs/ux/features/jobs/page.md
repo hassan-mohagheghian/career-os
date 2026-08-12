@@ -951,7 +951,7 @@ The Job Details drawer (shared `Drawer`, default `lg`, placement `right`)
 shows a single scrollable page:
 
 ```text
-┌─ Job Details ──────────────────────────────────────── ✕ ┐
+┌─ Job Details ───────────────────────────── Application  ↻  ✎  ✕ ┐
 │ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  [Why]│ ← score strip
 │                                                         │
 │ Software Engineer (Senior)                              │
@@ -992,6 +992,11 @@ shows a single scrollable page:
   the popover open and clicking again closes it. The popover lists *Why it
   fits*, *Chance of success* and *Concerns* — the same content that used to
   be an inline `Scores Explanation` section.
+- **Header actions**: `[Application]` opens the application workspace, a
+  `↻ Reprocess` ghost button re-queues the job (same `onProcessV2` flow as the
+  row's Reprocess action — the Queue drawer opens and the execution list
+  refreshes), and `✎ Edit` opens the edit drawer. Reprocess renders only when a
+  reprocess handler is provided.
 - **Recommendation** is highlighted with `border-primary/20 bg-primary/5`
   (matching the Company Detail).
 - **Published by** sits just before **Processing** at the end of the drawer

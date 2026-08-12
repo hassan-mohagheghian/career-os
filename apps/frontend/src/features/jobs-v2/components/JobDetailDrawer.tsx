@@ -19,6 +19,7 @@ import {
   CaretRight,
   Question,
   PaperPlaneTilt,
+  Repeat,
 } from "@phosphor-icons/react";
 import { jobApi } from "@/entities/job/api";
 import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
@@ -46,6 +47,7 @@ interface JobDetailDrawerProps {
   jobId: string | null;
   onOpenChange: (jobId: string | null) => void;
   onEdit?: (id: string) => void;
+  onReprocess?: (id: string) => void;
 }
 
 function stepIcon(status: JobDetailWorkflowStep["status"]) {
@@ -630,6 +632,7 @@ export function JobDetailDrawer({
   jobId,
   onOpenChange,
   onEdit,
+  onReprocess,
 }: JobDetailDrawerProps) {
   const router = useRouter();
   const {
@@ -654,6 +657,17 @@ export function JobDetailDrawer({
         onClose={() => onOpenChange(null)}
         actions={
           <div className="flex items-center gap-1">
+            {onReprocess && jobId ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-muted-foreground"
+                onClick={() => onReprocess(jobId)}
+                aria-label="Reprocess job"
+              >
+                <Repeat className="w-3.5 h-3.5" /> Reprocess
+              </Button>
+            ) : undefined}
             {jobId && (
               <Button
                 variant="outline"

@@ -194,7 +194,7 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ Job Details                                            [Edit]         [Close]│
+│ Job Details                      [Application] [↻] [Edit] [Close]│
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ [B]  Fit 85   Success 70   Overall 79                [Why]               │
 │                                                                              │
@@ -366,11 +366,11 @@ for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 
 ```text
 ┌────────────────────────────────────────────────────────────────┐
-│ Company Details                                    [Edit] Close │
+│ Company Details                     [Reprocess] [Edit] Close   │
 ├────────────────────────────────────────────────────────────────┤
-│ [A+]  Fit 85 · Success 90 · Overall 88                         │
-│ ◉ Acme GmbH                                                    │
-│ Software Development                                           │
+│ [A+]  Fit 85 · Success 90 · Overall 88       🔗 Website │
+│ ◉ Acme GmbH                                 🔗 Careers │
+│ Software Development                        🔗 GitHub  │
 │ Berlin, Germany · 51-200 · Product Company                      │
 │ 12 jobs                                                        │
 │ ◈ Related Companies                                  [ Manage ]│
@@ -397,7 +397,6 @@ for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 │ │   Munich · [Fit 90][Success 70][Overall 82]           │ │
 │ └────────────────────────────────────────────────────────┘ │
 │ Notes & Links (read only)                                     │
-│ [View All Jobs] [Website]        [Reprocess] [Delete]         │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -405,6 +404,13 @@ The job-count badge in the header is adaptive like the list's Jobs column:
 product companies show `N jobs` (hiring count); recruiter-type companies
 (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) show `N listed` (jobs listed for
 clients, matching the "Recruiter for N jobs" section below).
+
+The link column at the top-right of the score strip lists the company Website
+first and the remaining `company.links` beneath it (skipping the link equal to
+the website) — mirroring the Job Detail drawer's "Open job posting" link.
+Reprocess and Edit live in the drawer header. There is no bottom action footer
+— the "View All Jobs" and "Delete" buttons were removed. Deleting a company is
+done via the row actions on the Companies page.
 
 ### Relate Company Dialog
 

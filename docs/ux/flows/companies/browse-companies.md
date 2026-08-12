@@ -27,8 +27,8 @@ Load first page (GET /api/companies/list, page_size=25)
    ┌──────────────────┐   ┌──────────────────────────────┐
    │  Detail Drawer   │   │  Processing Drawer (shared,  │
    │  (Drawer)        │   │  targetType=company, live SSE)│
-   │  Edit / Reprocess│   │  Start / Retry / Remove /     │
-   │  Delete / Jobs   │   │  Cancel                       │
+   │  Reprocess/Edit  │   │  Start / Retry / Remove /     │
+   │  Links column    │   │  Cancel                       │
    └──────────────────┘   └──────────────────────────────┘
 ```
 
@@ -75,11 +75,11 @@ is set, so the drawer survives a reload (deep-link).
 
 ## 7. Manage
 
-From the drawer or row actions the user can edit, reprocess, or delete the
-company. Deletion requires confirmation. Reprocess calls
-`POST /api/companies/{id}/reprocess` (returns `{status: "queued",
+From the drawer header the user can reprocess or edit the company. Reprocess
+calls `POST /api/companies/{id}/reprocess` (returns `{status: "queued",
 execution_id}`) and opens the shared Processing Drawer (`targetType="company"`)
-where the new execution can be monitored.
+where the new execution can be monitored. Deletion is no longer available inside
+the detail drawer — it happens only via the row actions on the Companies page.
 
 ## 8. Monitor processing
 

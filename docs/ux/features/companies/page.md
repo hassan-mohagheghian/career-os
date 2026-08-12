@@ -411,14 +411,22 @@ The drawer shows a single scrollable page (no tabs), mirroring the Job Detail
 drawer:
 
 - Overall grade badge (derived from the overall score) + Fit / Success / Overall
-  score cards, then company name, logo, industry and meta badges — no action
-  buttons in the header
+  score cards, then company name, logo, industry and meta badges
+- Link column at the top-right of the score strip — Website first, then the
+  remaining `company.links` beneath it (each opens in a new tab, skipping any
+  link equal to the website) — mirrors the Job Detail drawer's "Open job
+  posting" link
+- Header actions: Reprocess (re-enqueues for processing) and Edit — ghost
+  buttons at the top-right, beside the "Company Details" title
 - Recommendation (prioritized to the top)
 - Intelligence sections (product or recruiter variant)
 - Scores explanation (Why popover next to the header score cards)
 - Linked jobs list (`CompanyJobsTab`)
 - Notes & Links — read only (CRUD lives in the Edit drawer)
-- Footer actions: View All Jobs, Website, Reprocess, Delete
+
+There is no bottom action footer: the "View All Jobs" and "Delete" buttons
+were removed. Deleting a company is done via the row actions; job navigation
+happens per-row inside the Linked Jobs section.
 
 The drawer loads the company once via `GET /api/companies/list/{id}`, which
 returns all company data (base fields, status, notes, links, intelligence,

@@ -15,7 +15,6 @@ import {
   Briefcase,
   LinkSimple,
   Repeat,
-  Trash,
   PencilSimple,
   Question,
 } from "@phosphor-icons/react";
@@ -195,27 +194,23 @@ function CompanyScoresExplanationButton({
 interface CompanyDetailDrawerProps {
   companyId: string | null;
   onOpenChange: (id: string | null) => void;
-  onDelete: (id: string) => void;
   onReprocess: (id: string) => void;
   onEdit?: (id: string) => void;
   onRelate: (companyId: string, mainCompanyId: string | null) => void;
   relatePending: boolean;
   onOpenJob?: (id: string) => void;
   onNavigateToJob?: (id: string) => void;
-  onViewAllJobs?: (name: string) => void;
 }
 
 export function CompanyDetailDrawer({
   companyId,
   onOpenChange,
-  onDelete,
   onReprocess,
   onEdit,
   onRelate,
   relatePending,
   onOpenJob,
   onNavigateToJob,
-  onViewAllJobs,
 }: CompanyDetailDrawerProps) {
   const { data: company, isLoading, isError } = useCompanyQuery(companyId);
   const [relateDialogOpen, setRelateDialogOpen] = useState(false);
@@ -231,17 +226,30 @@ export function CompanyDetailDrawer({
         title="Company Details"
         onClose={() => onOpenChange(null)}
         actions={
-          onEdit && companyId ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 text-xs text-muted-foreground"
-              onClick={() => onEdit(companyId)}
-              aria-label="Edit company"
-            >
-              <PencilSimple className="w-3.5 h-3.5" /> Edit
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-1">
+            {onReprocess && companyId ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-muted-foreground"
+                onClick={() => onReprocess(companyId)}
+                aria-label="Reprocess company"
+              >
+                <Repeat className="w-3.5 h-3.5" /> Reprocess
+              </Button>
+            ) : undefined}
+            {onEdit && companyId ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-muted-foreground"
+                onClick={() => onEdit(companyId)}
+                aria-label="Edit company"
+              >
+                <PencilSimple className="w-3.5 h-3.5" /> Edit
+              </Button>
+            ) : undefined}
+          </div>
         }
       />
       <DrawerContent>
@@ -260,12 +268,9 @@ export function CompanyDetailDrawer({
         {company && !isLoading && (
           <CompanyDetailContent
             company={company}
-            onDelete={onDelete}
-            onReprocess={onReprocess}
             onOpenJobsRelation={() => setRelateDialogOpen(true)}
             onOpenJob={onOpenJob}
             onNavigateToJob={onNavigateToJob}
-            onViewAllJobs={onViewAllJobs}
           />
         )}
       </DrawerContent>
@@ -282,22 +287,16 @@ export function CompanyDetailDrawer({
 
 interface CompanyDetailContentProps {
   company: CompanyDetail;
-  onDelete: (id: string) => void;
-  onReprocess: (id: string) => void;
   onOpenJobsRelation: () => void;
   onOpenJob?: (id: string) => void;
   onNavigateToJob?: (id: string) => void;
-  onViewAllJobs?: (name: string) => void;
 }
 
 function CompanyDetailContent({
   company,
-  onDelete,
-  onReprocess,
   onOpenJobsRelation,
   onOpenJob,
   onNavigateToJob,
-  onViewAllJobs,
 }: CompanyDetailContentProps) {
   const intel = company.intelligence;
   const rawScores = (intel?.scores || {}) as CompanyIntelligenceScores;
@@ -313,16 +312,48 @@ function CompanyDetailContent({
 
   return (
     <div className="space-y-4 min-w-0">
-      <div className="flex items-center gap-3 mb-1">
-        <CompanyGradeBadge grade={overallGrade} className="w-10 h-8 text-sm" />
-        {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
-        {successScore != null && (
-          <CompanyScoreCard label="Success" value={successScore} />
+      <div className="flex justify-between">
+        <div className="flex items-center gap-3 mb-1">
+          <CompanyGradeBadge grade={overallGrade} className="w-10 h-8 text-sm" />
+          {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
+          {successScore != null && (
+            <CompanyScoreCard label="Success" value={successScore} />
+          )}
+          {overallScore != null && (
+            <CompanyScoreCard label="Overall" value={overallScore} />
+          )}
+          <CompanyScoresExplanationButton intelScores={rawScores} />
+        </div>
+        {(company.website ||
+          (company.links && company.links.some((l) => l.url))) && (
+          <div className="flex flex-col items-end gap-1 mt-2 min-w-0">
+            {company.website && (
+              <a
+                href={company.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline"
+              >
+                <LinkSimple className="w-3.5 h-3.5 shrink-0" /> Website
+              </a>
+            )}
+            {(company.links || [])
+              .filter((l) => l.url && l.url !== company.website)
+              .map((l) => (
+                <a
+                  key={l.id}
+                  href={l.url ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={l.url ?? ""}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline max-w-[28ch] truncate"
+                >
+                  <LinkSimple className="w-3.5 h-3.5 shrink-0" />
+                  {l.title || l.url}
+                </a>
+              ))}
+          </div>
         )}
-        {overallScore != null && (
-          <CompanyScoreCard label="Overall" value={overallScore} />
-        )}
-        <CompanyScoresExplanationButton intelScores={rawScores} />
       </div>
       <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
         {company.logo_url && (
@@ -474,7 +505,6 @@ function CompanyDetailContent({
             jobs={company.jobs || []}
             onOpenJob={onOpenJob}
             onNavigateToJob={onNavigateToJob}
-            onViewAllJobs={onViewAllJobs}
           />
         </div>
       )}
@@ -484,43 +514,6 @@ function CompanyDetailContent({
         links={company.links}
         heading="Notes & Links"
       />
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
-        {!!company.job_count && company.job_count > 0 && onViewAllJobs && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1 h-7 text-2xs"
-            onClick={() => onViewAllJobs(company.name)}
-          >
-            <Briefcase className="w-3 h-3" /> View All Jobs
-          </Button>
-        )}
-        {company.website && (
-          <a href={company.website} target="_blank" rel="noreferrer">
-            <Button variant="outline" size="sm" className="gap-1 h-7 text-2xs">
-              <LinkSimple className="w-3 h-3" /> Website
-            </Button>
-          </a>
-        )}
-        <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 h-7 text-2xs"
-          onClick={() => onReprocess(company.id)}
-        >
-          <Repeat className="w-3 h-3" /> Reprocess
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 h-7 text-2xs text-destructive"
-          onClick={() => onDelete(company.id)}
-        >
-          <Trash className="w-3 h-3" /> Delete
-        </Button>
-      </div>
     </div>
   );
 }

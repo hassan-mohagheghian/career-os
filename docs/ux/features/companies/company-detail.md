@@ -15,11 +15,11 @@ visa-seeking software engineer.
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Company Details              [Edit]              ✕ │
+│ Company Details       [Reprocess] [Edit]  ✕  │
 ├──────────────────────────────────────────────┤
-│ [A+]  Fit 85  Success 90  Overall 88         │
-│ ◉ Acme GmbH                                  │
-│ Software Development                         │
+│ [A+]  Fit 85  Success 90  Overall 88   🔗Web │
+│ ◉ Acme GmbH                          🔗Ext.  │
+│ Software Development                        │
 │ 📍 Berlin, Germany  👥 51-200  Product Co.   │
 │ 💼 12 jobs                                   │
 │ ◈ Related Companies                 [Manage] │
@@ -29,12 +29,8 @@ visa-seeking software engineer.
 │ <Company Overview / description>             │
 │ <Intelligence sections, importance order>    │
 │ <Linked jobs>                                │
-│ <Notes — read only>                          │
-│ <Links — read only>                          │
+│ <Notes & Links — read only>                  │
 │ <Scores explanation: Why popover in header>  │
-│                                              │
-│ [View All Jobs]  [Website]  ... [Reprocess]  │
-│                               [Delete]       │
 └──────────────────────────────────────────────┘
 ```
 
@@ -44,6 +40,12 @@ visa-seeking software engineer.
 
 - Overall grade badge (derived from the overall score, A++ … D)
 - Fit / Success / Overall score cards
+- Link column at the top-right of the score strip:
+  - Website link first (opens `company.website` in a new tab) when a website
+    exists
+  - The remaining `company.links` listed beneath it (any link whose URL equals
+    the website is skipped), each opening in a new tab
+  - Mirrors the Job Detail drawer's "Open job posting" link placement
 - Company name + logo
 - Industry
 - Badges: location, company size, company type, linked-job count
@@ -52,15 +54,15 @@ visa-seeking software engineer.
   - Recruiter-type companies (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) —
     `N listed` (jobs listed for clients, `recruiter_job_count`)
 
-The header mirrors the Job Detail drawer's first section: no action buttons in
-the header. Actions are grouped in a footer at the bottom of the page.
-
 ## Header Actions
 
-- **Edit** — a ghost button in the top-right of the drawer header, next to the
-  "Company Details" title. It opens the **Edit Company** drawer for the same
-  company (`CompanyEditDrawer`), reusing the page-level edit state. The detail
-  drawer stays open underneath.
+- **Reprocess** — a ghost button in the top-right of the drawer header, before
+  Edit (mirrors the Job Detail drawer's `[Action] [Edit]` layout). It
+  re-enqueues the company for processing.
+- **Edit** — a ghost button in the top-right of the drawer header, next to
+  Reprocess, beside the "Company Details" title. It opens the **Edit Company**
+  drawer for the same company (`CompanyEditDrawer`), reusing the page-level edit
+  state. The detail drawer stays open underneath.
 
 ---
 
@@ -190,7 +192,7 @@ now the single score display.
 the job's role, location, and its Fit / Success / Overall scores with an
 overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
 deep-links to `/jobs?job=<id>`, where the Jobs page opens that job's detail
-drawer on mount. "View All Jobs" navigates to the plain Jobs page.
+drawer on mount.
 
 ```text
 ┌─ Linked Jobs ────────────────────────────────────────────┐
@@ -214,15 +216,20 @@ edited in the **Edit Company** drawer, not here.
 Read-only list of `company.links` from the detail payload. Links are added and
 edited in the **Edit Company** drawer, not here.
 
-## Footer Actions
+## Top Actions
 
-A footer row at the bottom of the page groups the actions that used to live in
-the drawer header:
+The drawer no longer has a bottom footer with action buttons. Actions moved
+into the header/score strip, mirroring the Job Detail drawer:
 
-- View All Jobs (navigates to the Jobs page) — only when the company has jobs
-- Website (opens `company.website` in a new tab) — only when a website exists
-- Reprocess (re-enqueues the company for processing)
-- Delete (deletes with confirmation)
+- Links column at the top-right of the score strip — Website first, then the
+  remaining `company.links` beneath it; each opens in a new tab (any link equal
+  to the website is skipped)
+- Reprocess (re-enqueues the company for processing) — in the drawer header
+  next to Edit
+
+The "View All Jobs" and "Delete" buttons were removed. Job navigation happens
+per-row inside the **Linked Jobs** section; deleting a company is done via the
+row actions on the Companies page, not inside the detail drawer.
 
 ---
 

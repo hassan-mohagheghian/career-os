@@ -5,13 +5,12 @@ import { Button } from '@/shared/ui/button'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 
-export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOpenJob, onNavigateToJob, onViewAllJobs }: {
+export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOpenJob, onNavigateToJob }: {
   companyId?: string
   companyName?: string
   jobs?: any[]
   onOpenJob?: (id: string) => void
   onNavigateToJob?: (id: string) => void
-  onViewAllJobs?: (name: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const shownJobs = expanded ? jobs : jobs.slice(0, 5)
