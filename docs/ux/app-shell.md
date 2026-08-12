@@ -219,4 +219,4 @@ component-level color literals. The sidebar uses only theme tokens
 - `docs/ux/features/jobs/page.md` (page content under the shell)
 - `docs/ux/features/companies/page.md`
 - `docs/ux/features/skills/page.md`
-- `DESIGN.md` (navigation structure wireframe)
+- `docs/ux/DESIGN.md` (navigation structure wireframe)

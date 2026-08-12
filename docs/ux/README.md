@@ -128,4 +128,4 @@ AI profile analysis and review the canonical profile
 - Score grades: A++/A+ green, A lime, B blue, C orange, D red.
 - All UI is keyboard accessible and follows WCAG AA.
 
-For the visual design summary and wireframes see `DESIGN.md` at the repository root.
+For the visual design summary and wireframes see `docs/ux/DESIGN.md`.

@@ -172,12 +172,12 @@ Key files:
 
 | File | Purpose |
 |------|---------|
-| `CONTEXT.md` | Project context, target users, key rules |
+| `docs/context.md` | Project context, target users, key rules |
 | `AGENTS.md` | Coding rules, architecture, agent workflow |
-| `API.md` | API overview |
-| `ARCHITECTURE.md` | System design overview |
-| `DOMAIN.md` | Core entities and business rules |
-| `DESIGN.md` | Product & UX design |
+| `docs/api/API.md` | API overview |
+| `docs/architecture/overview.md` | System design overview |
+| `docs/domain/overview.md` | Core entities and business rules |
+| `docs/ux/DESIGN.md` | Product & UX design |
 | `docs/architecture/` | Full system design, DDD contexts, runtime |
 | `docs/ai/` | AI bounded context, providers, graphs |
 | `docs/api/` | Per-context API reference |

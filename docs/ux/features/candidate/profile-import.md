@@ -228,4 +228,4 @@ stateDiagram-v2
 # Related Documents
 
 - `docs/ux/flows/candidate/import-profile.md` (user journey)
-- `DESIGN.md` (nav tree + wireframes)
+- `docs/ux/DESIGN.md` (nav tree + wireframes)
