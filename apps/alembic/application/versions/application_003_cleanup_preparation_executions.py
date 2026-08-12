@@ -6,6 +6,10 @@ Databases that ran executions before that removal still carry orphaned rows in
 which is no longer a valid :class:`ExecutionType`. This data migration hard-deletes
 those dead rows (rule 8) so every repository read path stops failing.
 
+The delete is guarded so it no-ops on fresh databases: `processing_executions` is a
+startup-created table (`Base.metadata.create_all()`), not an alembic-managed one, so
+`alembic upgrade head` may run before the table exists (CI).
+
 Revision ID: application_003
 Revises: application_002
 Create Date: 2026-08-12 14:35:13.255463
@@ -13,6 +17,7 @@ Create Date: 2026-08-12 14:35:13.255463
 from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -23,6 +28,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if not inspector.has_table("processing_executions", schema="processing"):
+        return
     op.execute(
         "DELETE FROM processing.processing_executions "
         "WHERE execution_type = 'application_preparation'"

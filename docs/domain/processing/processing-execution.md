@@ -332,7 +332,10 @@ Two safeguards keep those rows from crashing read paths:
 
 1. **Data migration** — `application_003_cleanup_preparation_executions` hard-deletes
    orphaned rows for removed types on upgrade (rule 8: dead completion rows are
-   discarded). The DELETE is irreversible by design.
+   discarded). The DELETE is guarded by a table-exists check because
+   `processing_executions` is a startup-created table (`Base.metadata.create_all()`),
+   not alembic-managed — CI runs `alembic upgrade head` on a fresh DB before the
+   table exists, so the cleanup no-ops there. Irreversible by design.
 2. **Defensive parse** — `ProcessingExecution.from_dict` maps any `execution_type`
    string that is not a current enum value to `ExecutionType.LEGACY` instead of
    raising `ValueError`. A `LEGACY` execution is **not dispatchable**: it has no
