@@ -133,8 +133,11 @@ Investigate → Write implementation prompt → Update tests/docs → Code → R
    - `NNN` is the next sequential number (highest existing + 1), 3-digit padded.
    - `scope` is one of `feature`, `refactor`, `fix`, `chore`, `docs`, `ux`.
    - Add a `# Prompt NNN - <Title>` header and record the objective, current state,
-     implementation steps, testing requirements and constraints (match the style of
-     `implementation-history/061_processing_drawer_action_buttons.md`).
+      implementation steps, testing requirements and constraints (match the style of
+      `implementation-history/061_processing_drawer_action_buttons.md`).
+   - Follow the template and token-efficiency rules in `implementation-history/README.md`
+      (reference files/docs by path, never paste contents; read only the prompts
+      relevant to the affected modules, not the whole folder).
    - This step is **non-negotiable**: every implementation must leave this history trace
      behind before any code is written, and the file must be committed with the change.
 3. **Update tests + docs (before coding)**
