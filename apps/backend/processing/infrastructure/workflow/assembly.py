@@ -14,7 +14,6 @@ from ai.infrastructure.service import get_llm_service
 from applications.infrastructure import (
     SQLAlchemyApplicationRepository,
     SQLAlchemyDocumentRepository,
-    SQLAlchemyPreparationRepository,
 )
 from candidates.application.services.candidate_extract_service import CandidateExtractService
 from candidates.domain.event_publisher import InMemoryEventCollector
@@ -31,11 +30,15 @@ from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlche
 from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
 from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
 from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
+from roadmaps.application.services.roadmap_service import RoadmapService
+from roadmaps.domain.event_publisher import InMemoryEventCollector as RoadmapInMemoryEventCollector
+from roadmaps.infrastructure import SQLAlchemyRoadmapRepository
 from processing.application.workflows.candidate_processing import CandidateProcessingGraph
 from processing.application.workflows.candidate_source_preparation import CandidateSourcePreparationGraph
 from processing.application.workflows.company_analysis import CompanyAnalysisGraph
 from processing.application.workflows.company_context_preparation import CompanyContextPreparationGraph
 from processing.application.workflows.application_intelligence import ApplicationIntelligenceGraph
+from processing.application.workflows.roadmap_generation import RoadmapGenerationGraph
 from processing.application.workflows.job_analysis import JobAnalysisGraph
 from processing.application.workflows.job_context_preparation import JobContextPreparationGraph
 from processing.infrastructure.content import (
@@ -156,8 +159,9 @@ def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
 def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenceGraph:
     """Build the Application Intelligence graph with production adapters.
 
-    Generates preparation plans and application documents as a consumer of the
-    existing job analysis, company intelligence and candidate profile.
+    Generates application documents (tailored resume / cover letter) as a
+    consumer of the existing job analysis, company intelligence and candidate
+    profile.
     """
     return ApplicationIntelligenceGraph(
         application_repo=SQLAlchemyApplicationRepository(session),
@@ -169,8 +173,34 @@ def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenc
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
-        preparation_repo=SQLAlchemyPreparationRepository(session),
         document_repo=SQLAlchemyDocumentRepository(session),
+        llm_service=get_llm_service(),
+        event_publisher=RedisProcessingEventPublisher(),
+    )
+
+
+def build_roadmap_generation_graph(session: Any) -> RoadmapGenerationGraph:
+    """Build the Roadmap Generation graph with production infrastructure adapters.
+
+    Generates a job-preparation roadmap as a consumer of the existing job
+    analysis, company intelligence and candidate profile, persisting it into the
+    Roadmaps context through RoadmapService.
+    """
+    return RoadmapGenerationGraph(
+        application_repo=SQLAlchemyApplicationRepository(session),
+        job_service=JobService(SQLAlchemyJobRepository(session)),
+        analysis_repo=SQLAlchemyJobAnalysisRepository(session),
+        company_service=CompanyService(
+            SQLAlchemyCompanyRepository(session),
+            SQLAlchemyCompanyIntelligenceRepository(session),
+        ),
+        intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
+        profile_repo=SQLAlchemyCandidateProfileRepository(session),
+        roadmap_service=RoadmapService(
+            SQLAlchemyRoadmapRepository(session),
+            SQLAlchemySkillRepository(session),
+            RoadmapInMemoryEventCollector(),
+        ),
         llm_service=get_llm_service(),
         event_publisher=RedisProcessingEventPublisher(),
     )

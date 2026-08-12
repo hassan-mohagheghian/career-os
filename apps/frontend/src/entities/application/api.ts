@@ -24,8 +24,8 @@ export const applicationApi = {
     api.patch<ApplicationFollowUp>(`/applications/follow-ups/${followUpId}`, input),
   deleteFollowUp: (followUpId: string) =>
     api.delete<void>(`/applications/follow-ups/${followUpId}`),
-  generatePreparation: (applicationId: string) =>
-    api.post<GenerateResponse>(`/applications/${applicationId}/preparation/generate`),
+  generateRoadmap: (applicationId: string) =>
+    api.post<GenerateResponse>(`/applications/${applicationId}/roadmap/generate`),
   generateDocument: (applicationId: string, documentType: ApplicationDocumentType) =>
     api.post<GenerateResponse>(`/applications/${applicationId}/documents/${documentType}/generate`),
   updateDocument: (documentId: string, content: string) =>

@@ -5,6 +5,19 @@ import { GenerationProgress } from './GenerationProgress'
 import type { ApplicationGenerationState } from '../hooks/useApplicationGeneration'
 
 describe('GenerationProgress', () => {
+  it('shows the roadmap artifact label', () => {
+    const generation: ApplicationGenerationState = {
+      executionId: 'exec-1',
+      status: 'running',
+      progress: 10,
+      currentStep: null,
+      error: null,
+      artifact: 'roadmap',
+    }
+    render(<GenerationProgress generation={generation} />)
+    expect(screen.getByText(/Learning roadmap/)).toBeInTheDocument()
+  })
+
   it('shows running status with progress and current step', () => {
     const generation: ApplicationGenerationState = {
       executionId: 'exec-1',

@@ -1,5 +1,5 @@
-"""Application Intelligence prompt builders — preparation plan, tailored resume
-and cover letter generation.
+"""Application Intelligence prompt builders — tailored resume and cover letter
+generation.
 
 Each builder produces a versioned prompt plus its strict output JSON schema.
 The LLM call always goes through LLMService (AGENTS.md rule #1) and the result
@@ -20,43 +20,6 @@ APPLICATION_INTELLIGENCE_PROMPT_VERSION = "1.0.0"
 APPLICATION_INTELLIGENCE_SCHEMA_VERSION = "1.0.0"
 
 
-def build_preparation_output_schema() -> dict[str, Any]:
-    """JSON schema for the preparation plan (hard/soft skill gap plan)."""
-    gap_item = {
-        "type": "object",
-        "properties": {
-            "skill": {"type": "string"},
-            "gap_level": {"type": "string", "enum": ["missing", "low", "matching"]},
-            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
-            "why": {"type": "string"},
-            "what_to_learn": {"type": "array", "items": {"type": "string"}},
-            "how_to_practice": {"type": "array", "items": {"type": "string"}},
-            "resources": {"type": "array", "items": {"type": "string"}},
-            "estimated_effort": {"type": "string"},
-        },
-        "required": ["skill"],
-    }
-    soft_item = {
-        "type": "object",
-        "properties": {
-            "skill": {"type": "string"},
-            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
-            "why": {"type": "string"},
-            "what_to_improve": {"type": "array", "items": {"type": "string"}},
-            "how_to_practice": {"type": "array", "items": {"type": "string"}},
-        },
-        "required": ["skill"],
-    }
-    return {
-        "type": "object",
-        "properties": {
-            "hard_skills": {"type": "array", "items": gap_item},
-            "soft_skills": {"type": "array", "items": soft_item},
-        },
-        "required": ["hard_skills", "soft_skills"],
-    }
-
-
 def build_document_output_schema() -> dict[str, Any]:
     """JSON schema for generated documents (tailored resume / cover letter).
 
@@ -74,33 +37,6 @@ def build_document_output_schema() -> dict[str, Any]:
 
 def _sections(context: dict[str, str], keys: list[str]) -> str:
     return "\n\n".join(context.get(k) or f"{k.upper()}:\n  (no data available)" for k in keys)
-
-
-def build_preparation_prompt(context: dict[str, str]) -> str:
-    """Build the preparation plan prompt (grounded in job + job skills)."""
-    schema = json.dumps(build_preparation_output_schema(), indent=2)
-    return f"""You are a senior career advisor for a software engineer preparing to apply for a visa-sponsored role in Europe.
-
-Build a practical, prioritized preparation plan based ONLY on the structured job analysis below. Never re-analyze the job — use the tagged skills and scores as the source of truth.
-
-{_sections(context, ["job", "job_skills"])}
-
-PLAN RULES:
-1. hard_skills: for EVERY job-required skill tagged "missing" or "low" by the analysis, create one entry.
-   - gap_level: "missing" (user lacks it) or "low" (has it below the required level). Never "matching".
-   - priority: "high" (blocks the application / core to the role), "medium", or "low".
-   - why: one sentence tying the skill to this specific job.
-   - what_to_learn: 2-3 concrete, actionable learning objectives.
-   - how_to_practice: 2-3 concrete practice exercises (projects, katas, contributions).
-   - resources: 1-2 realistic learning resources (documentation, courses, repos) — do not invent obscure URLs.
-   - estimated_effort: short duration estimate (e.g. "3-4 weeks").
-2. soft_skills: at most 3 high-value soft skills the user should emphasize or improve for THIS role (e.g. from the job's collaboration/culture signals in the analysis), with priority, why, what_to_improve (1-2), how_to_practice (1-2).
-3. Keep the whole plan actionable: at most 10 hard_skills and 3 soft_skills.
-
-Respond ONLY with valid JSON matching exactly this schema:
-
-{schema}
-"""
 
 
 def build_resume_prompt(context: dict[str, str]) -> str:

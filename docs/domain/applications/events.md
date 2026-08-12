@@ -72,13 +72,6 @@ flowchart LR
 - **Payload**: `application_id`, `follow_up_id`.
 - **Consumers**: none yet.
 
-### `application.preparation.generated`
-
-- **Event**: `ApplicationPreparationGenerated`
-- **Trigger**: the AI workflow persist node writes a new preparation version.
-- **Payload**: `application_id`, `preparation_id`, `version`.
-- **Consumers**: none yet (future: notify/analytics).
-
 ### `application.document.generated`
 
 - **Event**: `ApplicationDocumentGenerated`

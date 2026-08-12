@@ -9,7 +9,6 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
-    ApplicationPreparationModel,
     _now_iso,
 )
 
@@ -90,29 +89,6 @@ def dict_to_document_model(data: dict[str, Any]) -> ApplicationDocumentModel:
         document_type=data.get("document_type", ""),
         version=data.get("version", 1),
         content=data.get("content", ""),
-        created_at=data.get("created_at") or _now_iso(),
-        updated_at=data.get("updated_at") or _now_iso(),
-    )
-
-
-def preparation_model_to_dict(model: ApplicationPreparationModel) -> dict[str, Any]:
-    return {
-        "id": model.id,
-        "application_id": model.application_id,
-        "version": model.version,
-        "payload": _json_loads(model.payload),
-        "created_at": model.created_at,
-        "updated_at": model.updated_at,
-    }
-
-
-def dict_to_preparation_model(data: dict[str, Any]) -> ApplicationPreparationModel:
-    payload = data.get("payload")
-    return ApplicationPreparationModel(
-        id=data.get("id"),
-        application_id=data.get("application_id", ""),
-        version=data.get("version", 1),
-        payload=json.dumps(payload or {}, ensure_ascii=False),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
     )

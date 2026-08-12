@@ -93,6 +93,24 @@ export interface SkillBreakdownInfo {
   origin: { id: number; name: string } | null
 }
 
+export interface SkillReferencedJob {
+  id: string
+  title: string
+  company: string | null
+  location: string | null
+  fit_score: number | null
+  success_score: number | null
+  overall_score: number | null
+  pinned: boolean
+  status: string
+  created_at: string | null
+}
+
+export interface SkillReferencedJobs {
+  jobs: SkillReferencedJob[]
+  total: number
+}
+
 export interface SkillCategoryInfo {
   category: string
   count: number

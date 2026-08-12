@@ -10,7 +10,7 @@ interface GenerationProgressProps {
 }
 
 const artifactLabels: Record<string, string> = {
-  preparation: 'Preparation plan',
+  roadmap: 'Learning roadmap',
   tailored_resume: 'Tailored resume',
   cover_letter: 'Cover letter',
 }

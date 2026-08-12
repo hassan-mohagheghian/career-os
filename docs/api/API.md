@@ -18,7 +18,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Execution Detail    | `/api/processing/executions/{execution_id}` | Execution status + workflow progress  |
 | Execution Actions   | `/api/processing/executions/{id}/...`       | Start, cancel, retry, remove queue entry |
 | Companies           | `/api/companies`                            | Company intelligence CRUD             |
-| Skills              | `/api/tech-stack`                           | Skill management + aliases + merge    |
+| Skills              | `/api/skills`                               | Skill CRUD, aliases, merge, breakdown, jobs referencing a skill |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
 | Candidate Profile   | `/api/candidates/sources`                   | Resume / LinkedIn profile upload as analysis input |
 | Applications        | `/api/applications`                        | Job application workspace: follow-ups, documents, generation |
@@ -152,9 +152,9 @@ For endpoint-by-endpoint documentation see `docs/api/api-design.md` (conventions
 
 The Applications API (`/api/applications`) backs the Job Application Workspace.
 It tracks a per-job application (status, applied date, follow-ups) and queues
-AI generation of a preparation plan, tailored resume and cover letter through the
-processing pipeline (see `docs/api/applications/README.md` and
-`docs/ai/application-intelligence.md`).
+AI generation of a tailored resume, cover letter and a job-preparation roadmap
+through the processing pipeline (see `docs/api/applications/README.md`,
+`docs/ai/application-intelligence.md` and `docs/ai/roadmap-generation.md`).
 
 Endpoints:
 
@@ -163,6 +163,6 @@ Endpoints:
 - `PATCH /api/applications/{application_id}` — update `status` / `applied_at`.
 - `POST /api/applications/{application_id}/follow-ups` — add a follow-up.
 - `PATCH` / `DELETE` `/api/applications/follow-ups/{follow_up_id}` — update / delete a follow-up.
-- `POST /api/applications/{application_id}/preparation/generate` — queue preparation (202).
+- `POST /api/applications/{application_id}/roadmap/generate` — queue roadmap generation (202).
 - `POST /api/applications/{application_id}/documents/{type}/generate` — queue resume / cover letter (202).
 - `PATCH` / `DELETE` `/api/applications/documents/{document_id}` — edit / delete a document.

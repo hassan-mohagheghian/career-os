@@ -3,9 +3,9 @@
 ## Purpose
 
 The Applications API exposes the application record, its follow-ups, documents and
-preparation plan, and queues AI generation of the application artifacts. It lives in
-the Applications bounded context router (`/api/applications`) — per-context routers
-(AGENTS.md rule 10).
+the AI roadmap entry point, and queues AI generation of the application artifacts.
+It lives in the Applications bounded context router (`/api/applications`) —
+per-context routers (AGENTS.md rule 10).
 
 ## Overview
 
@@ -17,7 +17,7 @@ the Applications bounded context router (`/api/applications`) — per-context ro
 | POST | `/api/applications/{application_id}/follow-ups` | Add a follow-up. |
 | PATCH | `/api/applications/follow-ups/{follow_up_id}` | Update a follow-up (date, note, completed). |
 | DELETE | `/api/applications/follow-ups/{follow_up_id}` | Delete a follow-up (204). |
-| POST | `/api/applications/{application_id}/preparation/generate` | Queue preparation generation (202). |
+| POST | `/api/applications/{application_id}/roadmap/generate` | Queue roadmap generation (202). |
 | POST | `/api/applications/{application_id}/documents/{document_type}/generate` | Queue document generation (202). |
 | PATCH | `/api/applications/documents/{document_id}` | Edit document content. |
 | DELETE | `/api/applications/documents/{document_id}` | Delete a document. |
@@ -26,8 +26,8 @@ the Applications bounded context router (`/api/applications`) — per-context ro
 
 `GET /api/applications/by-job/{job_id}`
 
-Returns the full application detail: core fields + `follow_ups`, `documents`,
-`preparation`. `404` when the job has no application.
+Returns the full application detail: core fields + `follow_ups`, `documents`.
+`404` when the job has no application.
 
 ## Create Application
 
@@ -57,16 +57,17 @@ Both generation endpoints create a `ProcessingExecution` targeting the applicati
 and dispatch it to the queue immediately, returning **202**:
 
 ```
-POST /api/applications/{id}/preparation/generate
+POST /api/applications/{id}/roadmap/generate
 POST /api/applications/{id}/documents/{tailored_resume|cover_letter}/generate
 
 Response 202: { "execution_id": "...", "status": "queued", "artifact": "..." }
 ```
 
-Execution types: `application_preparation`, `application_resume`,
-`application_cover_letter` (see `docs/ai/application-intelligence.md`). Progress is
-streamed over SSE (`/events/processing`, `target_type="application"`); the client
-refetches the application detail on completion/failure.
+Execution types: `roadmap_generation`, `application_resume`,
+`application_cover_letter` (see `docs/ai/roadmap-generation.md` and
+`docs/ai/application-intelligence.md`). Progress is streamed over SSE
+(`/events/processing`, `target_type="application"`); the client refetches the
+application detail on completion/failure.
 
 The pipeline enforces **at most one active execution per application** — a second
 generate while one is queued/running returns **409 Conflict**.
@@ -89,11 +90,11 @@ generate while one is queued/running returns **409 Conflict**.
 ## Job Delete Cascade
 
 Deleting a job (`DELETE /api/jobs/{job_id}`) hard-deletes the application, its
-follow-ups, documents, preparations and the application's generation executions
-(rule 8).
+follow-ups, documents and the application's generation executions (rule 8).
 
 # Related Documents
 
 - `docs/domain/applications/application.md`
 - `docs/ai/application-intelligence.md`
+- `docs/ai/roadmap-generation.md`
 - `docs/ux/features/applications/workspace.md`

@@ -321,6 +321,26 @@ query (`ROW_NUMBER() OVER (PARTITION BY target_id ORDER BY created_at DESC)`).
 
 ---
 
+# Legacy execution types
+
+`ExecutionType` can lose members when a feature is removed (e.g.
+`application_preparation` was dropped from the enum when the preparation feature
+was deleted). Databases that ran executions before the removal may keep orphaned
+rows whose `execution_type` is no longer a valid enum value.
+
+Two safeguards keep those rows from crashing read paths:
+
+1. **Data migration** — `application_003_cleanup_preparation_executions` hard-deletes
+   orphaned rows for removed types on upgrade (rule 8: dead completion rows are
+   discarded). The DELETE is irreversible by design.
+2. **Defensive parse** — `ProcessingExecution.from_dict` maps any `execution_type`
+   string that is not a current enum value to `ExecutionType.LEGACY` instead of
+   raising `ValueError`. A `LEGACY` execution is **not dispatchable**: it has no
+   runner branch and can never be started or retried, so it only ever appears in
+   history/queue listings.
+
+---
+
 # API Exposure
 
 Clients access execution information through APIs.

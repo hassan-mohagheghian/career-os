@@ -19,6 +19,7 @@ from typing import Any, Iterable
 from processing.application.workflows.application_workflow_step_mapper import ApplicationWorkflowStepMapper
 from processing.application.workflows.candidate_workflow_step_mapper import CandidateWorkflowStepMapper
 from processing.application.workflows.company_workflow_step_mapper import CompanyWorkflowStepMapper
+from processing.application.workflows.roadmap_workflow_step_mapper import RoadmapWorkflowStepMapper
 from processing.application.workflows.workflow_step_mapper import WorkflowStepMapper
 from processing.domain.workflow.workflow_progress import (
     WorkflowProgress,
@@ -37,12 +38,15 @@ def build_initial_progress(execution_id: str, target_type: str | None = None) ->
 
     Defaults to the job step tree; pass ``target_type="company"`` for the
     company step tree, ``target_type="candidate"`` for the candidate tree, or
-    ``target_type="application"`` for the application generation tree.
+    ``target_type="application"`` for the application generation tree, or
+    ``target_type="roadmap"`` for the roadmap generation tree.
     """
     if target_type == "candidate":
         return CandidateWorkflowStepMapper.build_initial_progress(execution_id)
     if target_type == "company":
         return CompanyWorkflowStepMapper.build_initial_progress(execution_id)
+    if target_type == "roadmap":
+        return RoadmapWorkflowStepMapper.build_initial_progress(execution_id)
     if target_type == "application":
         return ApplicationWorkflowStepMapper.build_initial_progress(execution_id)
     return WorkflowStepMapper.build_initial_progress(execution_id)
@@ -204,6 +208,8 @@ def _build_initial_progress(state: Any) -> WorkflowProgress:
     Dispatches on the target carried by the state (job_id vs company_id vs
     profile_id vs application_id) so each workflow renders its own step tree.
     """
+    if getattr(state, "intent", None) == "roadmap_generation":
+        return RoadmapWorkflowStepMapper.build_initial_progress(state.execution_id)
     if getattr(state, "application_id", None):
         return ApplicationWorkflowStepMapper.build_initial_progress(state.execution_id)
     if getattr(state, "profile_id", None):

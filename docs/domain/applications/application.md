@@ -13,7 +13,6 @@ Workspace (`/jobs/{job_id}/application`).
 | Application | `Application` | The aggregate root. Represents a user's application for a single job. |
 | Follow-up | `ApplicationFollowUp` | A scheduled/recorded touch-point (date, note, completion). Minimal, not a CRM. |
 | Document | `ApplicationDocument` | A versioned generated artifact (tailored resume, cover letter) stored as markdown. |
-| Preparation | `ApplicationPreparation` | A versioned generated plan: hard/soft skill recommendations. |
 
 ## Application Status
 
@@ -37,19 +36,19 @@ Workspace (`/jobs/{job_id}/application`).
 | `tailored_resume` | `application_resume` |
 | `cover_letter` | `application_cover_letter` |
 
-The preparation plan maps to `application_preparation`. Generation artifacts are
-produced by the Processing bounded context (`docs/ai/application-intelligence.md`) and
-persisted here by its workflow persist node.
+The application documents are produced by the Processing bounded context
+(`docs/ai/application-intelligence.md`) and persisted here by its workflow persist
+node. A skill-gap roadmap for an application lives in the Roadmaps context
+(`docs/ai/roadmap-generation.md`).
 
 ## Aggregates and Cross-Context References
 
-- The `Application` is the aggregate root; it **owns** its follow-ups, documents and
-  preparation plan.
+- The `Application` is the aggregate root; it **owns** its follow-ups and documents.
 - `job_id` is a **logical reference** to the Jobs context — a plain column, **no
   FK**, no `ondelete` cascade (AGENTS.md rule 15). Referential integrity is enforced
   by the application layer / repositories.
 - Database schema: `application` with tables `applications`,
-  `application_follow_ups`, `application_documents`, `application_preparations`.
+  `application_follow_ups`, `application_documents`.
 
 ## Business Rules
 
@@ -57,10 +56,9 @@ persisted here by its workflow persist node.
   defaulting to status `recommended`. There is at most one application per job
   (`get_by_job_id`).
 - Documents are **versioned**: each successful generation writes a new row (higher
-  `version`); edits bump `version`. Preparation likewise stores one row per generated
-  version; `get_latest` returns the newest.
-- Hard delete: deleting an application removes its follow-ups, documents, preparations
-  and its generation executions.
+  `version`); edits bump `version`.
+- Hard delete: deleting an application removes its follow-ups, documents and its
+  generation executions.
 - Deleting a **job** cascades to its application and children (job-delete flow, rule 8).
 
 ## Domain Events

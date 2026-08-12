@@ -1,9 +1,8 @@
 """Application aggregate entities.
 
 The Application is the aggregate root of the Applications bounded context. It
-represents a user's application for a single job and owns its follow-ups,
-versioned documents (tailored resume / cover letter) and the generated
-preparation plan.
+represents a user's application for a single job and owns its follow-ups and
+versioned documents (tailored resume / cover letter).
 
 Cross-context references (``job_id``) are logical references only — there is no
 FK into the ``job`` schema (AGENTS.md rule 15).
@@ -125,35 +124,10 @@ class ApplicationDocument(TimestampedEntity):
         }
 
 
-@dataclass
-class ApplicationPreparation(TimestampedEntity):
-    """A versioned preparation plan generated from existing intelligence.
-
-    ``payload`` is the parsed JSON body of the generation (hard/soft skill
-    recommendations with why/what/how/resources/effort/priority).
-    """
-
-    id: str = field(default_factory=lambda: str(uuid.uuid7()))
-    application_id: str = ""
-    version: int = 1
-    payload: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "application_id": self.application_id,
-            "version": self.version,
-            "payload": self.payload,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
-        }
-
-
 __all__ = [
     "Application",
     "ApplicationFollowUp",
     "ApplicationDocument",
-    "ApplicationPreparation",
     "ApplicationStatus",
     "DocumentType",
 ]

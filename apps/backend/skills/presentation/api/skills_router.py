@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_skill_repo, get_skill_category_service, get_skill_normalization_service
+from dependencies import get_skill_repo, get_skill_category_service, get_skill_normalization_service, get_job_repo
 from skills.application.use_cases.skill_category_service import SkillCategoryService
 from skills.application.use_cases.skill_normalization_service import SkillNormalizationService
 from skills.infrastructure import SQLAlchemySkillRepository
@@ -28,6 +28,8 @@ from skills.presentation.api.schemas.skills import (
     SkillCategoryCreate,
     SkillListItemSchema,
     SkillListResponseSchema,
+    SkillJobRefSchema,
+    SkillJobsResponseSchema,
 )
 from shared.application.exceptions import NotFoundError, BadRequestError, ConflictError
 
@@ -228,6 +230,43 @@ def get_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)
     if not skill:
         raise NotFoundError(f"Skill {id} not found")
     return skill
+
+
+@router.get("/{id}/jobs", response_model=SkillJobsResponseSchema)
+def get_skill_jobs(
+    id: int,
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+    job_repo=Depends(get_job_repo),
+):
+    """List the jobs that mention a skill (source_type="job")."""
+    skill = repo.get_by_id(id)
+    if not skill:
+        raise NotFoundError(f"Skill {id} not found")
+    job_ids = repo.get_job_mention_ids(id)
+    jobs, _, _, _ = job_repo.search_jobs_cursor(
+        job_ids=job_ids,
+        page_size=200,
+        sort="created_at",
+        order="desc",
+    )
+    return SkillJobsResponseSchema(
+        jobs=[
+            SkillJobRefSchema(
+                id=j.get("id") or "",
+                title=j.get("title") or j.get("role") or "",
+                company=j.get("company"),
+                location=j.get("location"),
+                fit_score=j.get("fit_score"),
+                success_score=j.get("success_score"),
+                overall_score=j.get("overall_score"),
+                pinned=bool(j.get("pinned")),
+                status=j.get("status") or "",
+                created_at=j.get("created_at"),
+            )
+            for j in jobs
+        ],
+        total=len(jobs),
+    )
 
 
 @router.post("")

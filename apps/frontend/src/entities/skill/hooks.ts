@@ -237,3 +237,11 @@ export function usePromoteAliasToCanonical() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
   })
 }
+
+export function useSkillReferencedJobs(skillId: number | null) {
+  return useQuery({
+    queryKey: ['skills-referenced-jobs', skillId],
+    queryFn: () => skillApi.referencedJobs(skillId as number),
+    enabled: skillId != null,
+  })
+}

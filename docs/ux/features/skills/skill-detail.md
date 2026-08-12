@@ -32,9 +32,22 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 │ ┌─ Why This Skill Matters ───────────────────────────────┐  │
 │ │ Critical for cloud-native platform engineering.         │  │
 │ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Referenced Jobs (2) ──────────────────────────────────┐  │
+│ │ · SRE Engineer        Berlin          [B]             │  │
+│ │   Fit 8  Success 7  Overall 9                          │  │
+│ │ · Platform Engineer   Munich          [A]             │  │
+│ │   Fit 6  Success 8  Overall 7                          │  │
+│ └────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────┤
 │          [✂ Break down]                    [🗑 Delete]     │
 └────────────────────────────────────────────────────────────┘
+```
+
+```mermaid
+flowchart LR
+  SkillRow[Skill row] -->|click row| SkillDetail[Skill Detail drawer]
+  SkillDetail -->|Referenced Jobs list| JobRow[Job row]
+  JobRow -->|click job| JobsPage["Jobs page - ?job=<id> drawer"]
 ```
 
 ---
@@ -66,11 +79,24 @@ categories.
 | Tags              | `tags` (badges)     |
 | Also Known As     | `aliases` (badges)  |
 | Why This Matters  | `evidence`          |
+| Referenced Jobs   | `GET /skills/{id}/jobs` (jobs-only mentions) |
 
 The **Categories** section is rendered right below the stats row, above Relevant
 Roles. It shows one badge per category (deterministic colors — see
 `page.md` → Category). The section is hidden entirely when a skill has no
 categories at all.
+
+The **Referenced Jobs** section is the last section in the drawer and lists the
+jobs that mention the skill (`source_type="job"`). The header count equals the
+number of listed jobs (jobs-only — it can be lower than the row-level
+`mention_count`, which also counts company mentions). States:
+
+| State   | Rendering                                              |
+| ------- | ------------------------------------------------------ |
+| Loading | "Loading jobs…"                                         |
+| Error   | "Unable to load jobs" (destructive text)               |
+| Empty   | "No jobs reference this skill yet."                     |
+| List    | One row per job: title, location, Fit/Success/Overall badges + grade badge. Clicking a row navigates to the Jobs page with that job's drawer open (`/jobs?job=<id>`). |
 
 Sections with no data are omitted (no empty boxes).
 
@@ -90,6 +116,8 @@ Sections with no data are omitted (no empty boxes).
 
 - The `?skill=<id>` URL parameter deep-links the drawer (survives reload).
 - Edit swaps the drawer while keeping the same skill selected.
+- Clicking a referenced job navigates to the Jobs page and opens that job's
+  drawer (`/jobs?job=<id>`), mirroring the companies drawer behavior.
 
 ---
 

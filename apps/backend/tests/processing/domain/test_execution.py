@@ -5,6 +5,7 @@ from processing.domain.entities.processing_execution import ProcessingExecution
 def test_execution_type_enum_values():
     assert ExecutionType.JOB_PROCESSING.value == "job_processing"
     assert ExecutionType.COMPANY_PROCESSING.value == "company_processing"
+    assert ExecutionType.LEGACY.value == "legacy"
 
 
 def test_execution_status_enum_values():
@@ -65,6 +66,27 @@ def test_processing_execution_from_dict():
     assert execution.status == ExecutionStatus.QUEUED
     assert execution.target_type == "job"
     assert execution.target_id == "456"
+
+
+def test_from_dict_maps_unknown_execution_type_to_legacy():
+    data = {
+        "id": "test-id-legacy",
+        "execution_type": "application_preparation",
+        "status": "completed",
+        "target_type": "application",
+        "target_id": "app-1",
+        "created_at": None,
+        "started_at": None,
+        "finished_at": None,
+        "retry_count": 0,
+        "error_message": None,
+    }
+    execution = ProcessingExecution.from_dict(data)
+    assert execution.id == "test-id-legacy"
+    assert execution.execution_type == ExecutionType.LEGACY
+    assert execution.status == ExecutionStatus.COMPLETED
+    assert execution.target_type == "application"
+    assert execution.target_id == "app-1"
 
 
 def test_processing_execution_status_update():

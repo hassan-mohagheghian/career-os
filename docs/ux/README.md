@@ -34,8 +34,13 @@ docs/ux/
 │   ├── applications/
 │   │   ├── workspace.md         Job Application Workspace page (header, sections, SSE progress)
 │   │   ├── application-tracker.md  Status select, applied date, follow-ups
-│   │   ├── preparation-plan.md     Hard/soft skill plan cards + generate
 │   │   └── application-documents.md  Tailored resume / cover letter cards
+│   ├── roadmaps/
+│   │   ├── my-roadmaps.md       My Roadmaps list page (cards, create/edit/delete, empty)
+│   │   ├── roadmap-detail.md    Roadmap detail page (goal header, milestone journey, tasks, notes/resources/skills)
+│   │   ├── roadmap-generation.md  Application Workspace roadmap section (generate/regenerate/view/delete)
+│   │   ├── roadmap-application-overview.md  Brief roadmap overview (milestones list) in the workspace
+│   │   └── roadmap-create-edit.md  Manual create/edit dialogs
 │   ├── ai/
 │   │   ├── llm-configurations.md
 │   │   ├── add-llm-configuration.md
@@ -68,14 +73,17 @@ docs/ux/
 │   └── skills/
 │       ├── page.md            Skills page (list, toolbar, multi-select, column toggles, infinite scroll, drawers)
 │       ├── skill-row.md       Skill row columns, select checkbox, origin/alias badges, mentions, actions
-│       ├── skill-detail.md    Skill Detail drawer (level, roles, tags, aliases)
+│       ├── skill-detail.md    Skill Detail drawer (level, roles, tags, aliases, referenced jobs)
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
 │       ├── edit-skill.md      Edit Skill drawer (aliases, merge, make canonical)
 │       └── breakdown-skill-dialog.md  Break down a composite skill into atomic children
 └── flows/
     ├── applications/
     │   ├── prepare-and-apply.md  Create/track an application (status, applied, follow-ups)
-    │   └── generate-application-artifacts.md  Generate + watch preparation/resume/cover letter
+    │   └── generate-application-artifacts.md  Generate + watch roadmap/resume/cover letter
+    ├── roadmaps/
+    │   ├── create-manual-roadmap.md  Create a manual roadmap + first milestone/task
+    │   └── generate-roadmap-from-application.md  Generate AI roadmap, watch SSE, open detail
     ├── candidate/
     │   └── import-profile.md  Import resume/LinkedIn, analyze, review profile
     ├── companies/
@@ -111,9 +119,9 @@ The current product focus is the **Jobs** workspace:
 - Watch live workflow progress (`docs/ux/flows/jobs/process-job-live.md`).
 
 **Applications** is the newest module (140): a per-job Application Workspace
-(`/jobs/{id}/application`) for tracking status/follow-ups and generating a preparation
-plan, tailored resume and cover letter (`docs/ux/features/applications/`,
-`docs/ux/flows/applications/`).
+(`/jobs/{id}/application`) for tracking status/follow-ups and generating a roadmap,
+tailored resume and cover letter (`docs/ux/features/applications/`,
+`docs/ux/features/roadmaps/`, `docs/ux/flows/applications/`, `docs/ux/flows/roadmaps/`).
 
 **Candidate** (110 Phase 1): import resume/LinkedIn, run
 AI profile analysis and review the canonical profile

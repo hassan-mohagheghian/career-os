@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.14.0] — 2026-08-12
+
+### Added
+
+- **AI-generated job-preparation roadmaps** (prompts 144–149). New `roadmaps`
+  bounded context (schema `roadmap`: `roadmaps`, `roadmap_goals`,
+  `roadmap_milestones`, `roadmap_tasks`, `roadmap_notes`, `roadmap_resources`,
+  `roadmap_skill_links`; migrations `roadmap_001`, single head) with CRUD,
+  milestone/task/note/resource management, skill linking and progress
+  calculation. `POST /api/applications/{id}/roadmap/generate` queues a
+  `roadmap_generation` execution — a single-LLM-call `RoadmapGenerationGraph`
+  (load_context → generate → persist → ready|failed) that is a consumer of the
+  persisted job-analysis, company and candidate intelligence and persists the
+  roadmap via `RoadmapService`. The legacy application preparation is fully
+  removed (`application_002_drop_preparation`). Domain events
+  (`roadmap.*`, in-memory collector) cataloged in `docs/domain/roadmaps/events.md`.
+- **Roadmap workspace UX.** Application Workspace ROADMAP section replaces the
+  preparation plan: generate/regenerate with live SSE progress, a brief roadmap
+  **overview** (goal, overall progress, first 5 milestones with status/priority
+  and task progress), and View/Delete actions. New My Roadmaps page (`/roadmaps`)
+  and Roadmap detail page (`/roadmaps/{id}`) with milestone journey, tasks,
+  notes, resources and skill links. Full UX specs with wireframes under
+  `docs/ux/features/roadmaps/`, `docs/ux/flows/roadmaps/`.
+
 ## [3.13.0] — 2026-08-11
 
 ### Added

@@ -86,12 +86,12 @@ export function useDeleteFollowUpMutation() {
   })
 }
 
-export function useGeneratePreparationMutation() {
+export function useGenerateRoadmapMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (applicationId: string) => applicationApi.generatePreparation(applicationId),
+    mutationFn: (applicationId: string) => applicationApi.generateRoadmap(applicationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
+      queryClient.invalidateQueries({ queryKey: ['roadmap', 'by-application'] })
     },
   })
 }

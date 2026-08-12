@@ -2,16 +2,17 @@
 
 ## Purpose
 
-This flow defines how the user generates the three application artifacts —
-**preparation plan**, **tailored resume**, and **cover letter** — from the Job
-Application Workspace, and watches the generation live.
+This flow defines how the user generates application artifacts from the Job
+Application Workspace and watches the generation live. Artifacts are: the **roadmap**
+(AI job-preparation plan, replaces the legacy preparation plan), the **tailored
+resume**, and the **cover letter**.
 
-Artifacts are produced **asynchronously** through the existing processing pipeline
+Artifacts are produced **asynchronously** through the processing pipeline
 (TaskIQ + LangGraph) with SSE progress. Each artifact maps to one execution type:
 
 | Artifact | Endpoint | ExecutionType |
 | -------- | -------- | ------------- |
-| Preparation plan | `POST /api/applications/{id}/preparation/generate` | `application_preparation` |
+| Roadmap | `POST /api/applications/{id}/roadmap/generate` | `roadmap_generation` |
 | Tailored resume | `POST /api/applications/{id}/documents/tailored_resume/generate` | `application_resume` |
 | Cover letter | `POST /api/applications/{id}/documents/cover_letter/generate` | `application_cover_letter` |
 
@@ -33,37 +34,38 @@ SSE /events/processing  (target_type="application")
 GenerationProgress card updates live (step title + %)
         │
         ▼
-completed/failed  →  application query refetched → new artifact visible
+completed/failed  →  application/roadmap query refetched → new artifact visible
 ```
 
 ## Flow Steps
 
 1. **Trigger**: click `[⚡ Generate]` (no artifact yet) or `[⚡ Regenerate]` (artifact
-   exists) on the preparation section or a document card.
+   exists) on the Roadmap section or a document card.
 2. **Dispatch**: the API creates a `ProcessingExecution` (target `application`) and
-   dispatches it to the queue; returns `202 {execution_id, status: "queued"}`. A toast
-   confirms the queueing.
+   dispatches it to the queue; returns `202 {execution_id, status: "queued",
+   artifact: "roadmap"}`. A toast confirms the queueing.
 3. **Watch live**: the page-level `GenerationProgress` card appears, driven by SSE
    events for `target_type="application"` and `target_id={application.id}`:
    - `execution.started` → card shows running.
    - `workflow.step.progress` → card shows the current step title and percent.
    - `execution.completed` → card shows success + Dismiss.
    - `execution.failed` → card shows the error message.
-4. **Refresh**: on completion/failure the application query is invalidated/refetched so
-   the new document/preparation (or the missing artifact) renders.
+4. **Refresh**: on completion/failure the application (resp. roadmap) query is
+   invalidated/refetched so the new artifact renders. Roadmap query:
+   `GET /api/roadmaps/by-application/{application_id}`.
 
 ## Workflow
 
-The generation workflow is a consumer of existing intelligence: it assembles the job
+The generation workflows are consumers of existing intelligence: they assemble the job
 context, job skills, company context and candidate profile (already persisted by the
-pipeline) and produces only the artifact.
+pipeline) and produce only the artifact.
 
 ```mermaid
 flowchart LR
     subgraph Backend
         A[POST .../generate] --> B[CreateProcessingExecutionUseCase]
         B --> C[Dispatch to TaskIQ]
-        C --> D[ApplicationIntelligenceGraph]
+        C --> D[Artifact workflow]
         D --> D1[load_context]
         D1 --> D2[generate]
         D2 --> D3[persist]
@@ -71,7 +73,7 @@ flowchart LR
     end
     subgraph Frontend
         F[Generate button] --> G[SSE GenerationProgress card]
-        G -->|completed/failed| H[refetch application]
+        G -->|completed/failed| H[refetch roadmap / application]
     end
     D4 -. processing events .-> G
 ```
@@ -93,8 +95,8 @@ sequenceDiagram
     W-->>U: GenerationProgress card updates
     alt success
         Q->>SSE: execution.completed
-        W->>API: refetch /by-job/{id}
-        API-->>W: new document / preparation
+        W->>API: refetch roadmap / by-job/{id}
+        API-->>W: new roadmap / document
     else failure
         Q->>SSE: execution.failed {message}
         W-->>U: error card + Dismiss
@@ -107,12 +109,13 @@ sequenceDiagram
   application (409). The UI disables the affected Generate button while one is running.
 - **Generation failed**: the card shows the failure message; the artifact stays at its
   previous version (or absent). The user can retry via Generate/Regenerate.
-- **Regenerate**: queues a new version; the old document/plan remains visible until the
-  new one persists.
+- **Regenerate**: queues a new version; the old roadmap/document remains visible until
+  the new one persists (a new roadmap overwrites the previous one).
 
 # Related Documents
 
 - `docs/ux/features/applications/workspace.md`
-- `docs/ux/features/applications/preparation-plan.md`
+- `docs/ux/features/roadmaps/roadmap-generation.md`
+- `docs/ux/flows/roadmaps/generate-roadmap-from-application.md`
 - `docs/ux/features/applications/application-documents.md`
 - `docs/ux/flows/applications/prepare-and-apply.md`

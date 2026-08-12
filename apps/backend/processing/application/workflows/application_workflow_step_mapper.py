@@ -3,7 +3,7 @@ names to user-facing WorkflowSteps.
 
 LangGraph internals are never exposed to clients. This mapper is the only place
 that knows the node_name → step title mapping for the application intelligence
-workflow (preparation plan / tailored resume / cover letter generation).
+workflow (tailored resume / cover letter generation).
 """
 
 from __future__ import annotations

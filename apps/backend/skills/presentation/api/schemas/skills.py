@@ -140,6 +140,28 @@ class SkillListResponseSchema(BaseModel):
     total_items: int = 0
 
 
+class SkillJobRefSchema(BaseModel):
+    """A job that mentions a skill (used by the skill detail drawer)."""
+
+    id: str
+    title: str = ""
+    company: str | None = None
+    location: str | None = None
+    fit_score: int | None = None
+    success_score: int | None = None
+    overall_score: int | None = None
+    pinned: bool = False
+    status: str = ""
+    created_at: str | None = None
+
+
+class SkillJobsResponseSchema(BaseModel):
+    """Jobs that mention a skill."""
+
+    jobs: list[SkillJobRefSchema] = Field(default_factory=list)
+    total: int = 0
+
+
 class CategoryResponse(BaseModel):
     category: str
     count: int

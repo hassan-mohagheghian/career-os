@@ -70,7 +70,7 @@ def build_job_context(job: dict[str, Any], analysis: dict[str, Any] | None) -> s
 def build_job_skills_context(analysis: dict[str, Any] | None) -> str:
     """Format the job-required skills tagged by the analysis (matched/missing/low).
 
-    This is the primary source for the preparation plan's skill gaps.
+    This is the primary source for skill-gap grounding in the generation prompts.
     """
     payload = (analysis or {}).get("payload") or {}
     skills = payload.get("skills") or []
@@ -143,8 +143,7 @@ def build_application_context(
     """Assemble the labeled sections consumed by the generation prompts.
 
     Returns a map of section name → text so each prompt builder can embed the
-    sections it needs (job + skills for the preparation plan; job + company +
-    candidate for documents).
+    sections it needs (job + skills + company + candidate).
     """
     return {
         "job": build_job_context(job, analysis),

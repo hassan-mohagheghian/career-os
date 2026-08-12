@@ -1,8 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { SkillDetailDrawer } from './SkillDetailDrawer'
-import type { SkillListItem } from '@/entities/skill/types'
+import type { SkillListItem, SkillReferencedJobs } from '@/entities/skill/types'
+
+vi.mock('@/entities/skill/hooks', () => ({
+  useSkillReferencedJobs: (skillId: number | null) => ({
+    data: skillId != null ? (mockReferencedJobs as SkillReferencedJobs) : null,
+    isLoading: false,
+    isError: false,
+  }),
+}))
+
+let mockReferencedJobs: SkillReferencedJobs = { jobs: [], total: 0 }
 
 function makeSkill(overrides: Partial<SkillListItem> = {}): SkillListItem {
   return {
@@ -26,7 +36,7 @@ function makeSkill(overrides: Partial<SkillListItem> = {}): SkillListItem {
   }
 }
 
-function renderDrawer(skill: SkillListItem) {
+function renderDrawer(skill: SkillListItem, onOpenJob?: () => void) {
   return render(
     <SkillDetailDrawer
       skillId={skill.id}
@@ -35,6 +45,7 @@ function renderDrawer(skill: SkillListItem) {
       onEdit={vi.fn()}
       onDelete={vi.fn()}
       onBreakDown={vi.fn()}
+      onOpenJob={onOpenJob}
     />
   )
 }
@@ -51,5 +62,63 @@ describe('SkillDetailDrawer', () => {
   it('hides the Categories section when the skill has no categories', () => {
     renderDrawer(makeSkill({ category: '', categories: [] }))
     expect(screen.queryByText('Categories')).not.toBeInTheDocument()
+  })
+
+  it('shows the count of referenced jobs in the section header', () => {
+    mockReferencedJobs = {
+      total: 2,
+      jobs: [
+        { id: 'j1', title: 'Platform Engineer', company: 'Acme', location: 'Berlin', fit_score: 8, success_score: 7, overall_score: 9, pinned: false, status: 'completed', created_at: null },
+        { id: 'j2', title: 'SRE Engineer', company: 'Beta', location: 'Munich', fit_score: 6, success_score: 8, overall_score: 7, pinned: false, status: 'completed', created_at: null },
+      ],
+    }
+    renderDrawer(makeSkill())
+
+    expect(screen.getByText('Referenced Jobs (2)')).toBeInTheDocument()
+  })
+
+  it('renders each referenced job row with its title', () => {
+    mockReferencedJobs = {
+      total: 1,
+      jobs: [
+        { id: 'j1', title: 'Platform Engineer', company: 'Acme', location: 'Berlin', fit_score: 8, success_score: 7, overall_score: 9, pinned: false, status: 'completed', created_at: null },
+      ],
+    }
+    renderDrawer(makeSkill())
+
+    expect(screen.getByText('Platform Engineer')).toBeInTheDocument()
+  })
+
+  it('calls onOpenJob when a job row is clicked', () => {
+    mockReferencedJobs = {
+      total: 1,
+      jobs: [
+        { id: 'j1', title: 'Platform Engineer', company: 'Acme', location: 'Berlin', fit_score: null, success_score: null, overall_score: null, pinned: false, status: 'completed', created_at: null },
+      ],
+    }
+    const onOpenJob = vi.fn()
+    renderDrawer(makeSkill(), onOpenJob)
+
+    fireEvent.click(screen.getByText('Platform Engineer'))
+    expect(onOpenJob).toHaveBeenCalledWith('j1')
+  })
+
+  it('shows an empty state when no jobs reference the skill', () => {
+    mockReferencedJobs = { jobs: [], total: 0 }
+    const skill = makeSkill({ id: 99 })
+    render(
+      <SkillDetailDrawer
+        skillId={skill.id}
+        skill={skill}
+        onOpenChange={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onBreakDown={vi.fn()}
+      />
+    )
+    expect(screen.getByText('Referenced Jobs (0)')).toBeInTheDocument()
+    expect(
+      screen.getByText('No jobs reference this skill yet.')
+    ).toBeInTheDocument()
   })
 })

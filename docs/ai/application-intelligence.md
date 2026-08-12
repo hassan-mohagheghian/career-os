@@ -2,12 +2,14 @@
 
 ## Purpose
 
-Defines the AI workflow that generates the three **application artifacts** on top of
+Defines the AI workflow that generates the **application documents** on top of
 existing Career Intelligence:
 
-- **Preparation plan** (`application_preparation`): hard/soft skill recommendations.
 - **Tailored resume** (`application_resume`): resume markdown grounded in the job + profile.
 - **Cover letter** (`application_cover_letter`): cover letter markdown.
+
+(A skill-gap **roadmap** is a separate workflow — see
+`docs/ai/roadmap-generation.md`.)
 
 The workflow is a **consumer of existing intelligence** — it never re-analyzes the job,
 company or candidate. It reads the persisted outputs of the job/company/candidate
@@ -32,8 +34,6 @@ flowchart LR
 - `generate` — calls `LLMService` once with the intent-specific prompt + JSON schema;
   retries once with a "shorten the response" hint when the output fails validation.
 - `persist` — writes the artifact to the Applications context:
-  - preparation → `application_preparations` (`payload` JSON of hard/soft skills);
-    emits `ApplicationPreparationGenerated`.
   - resume/cover letter → `application_documents` (markdown `content` in a `{content}`
     envelope); emits `ApplicationDocumentGenerated`.
 - `application_ready` / `execution_failed` — terminal nodes updating the processing
@@ -60,16 +60,13 @@ rendered to the LLM.
 `processing/application/services/application_intelligence_prompts.py`:
 
 - `APPLICATION_INTELLIGENCE_PROMPT_VERSION = "1.0.0"`.
-- `build_preparation_prompt` — asks for a skill plan with `build_preparation_output_schema`
-  (`hard_skills`/`soft_skills` arrays; gap levels `missing|low|matching`, priorities
-  `high|medium|low`).
 - `build_resume_prompt` / `build_cover_letter_prompt` — ask for a document with
   `build_document_output_schema` (a `{content}` envelope holding the markdown).
 
 ## Validation
 
 `processing/application/services/application_intelligence_validation.py`:
-- `PreparationOutput` / `DocumentOutput` parse and strictly validate the LLM JSON.
+- `DocumentOutput` parses and strictly validates the LLM JSON.
 - On validation failure the generate node retries once with `_RETRY_SHORTEN_HINT`,
   then surfaces `CLEAN_FAILURE_MESSAGE` ("The AI returned a result that does not
   match the required format.").

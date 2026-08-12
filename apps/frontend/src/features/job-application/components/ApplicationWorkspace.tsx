@@ -11,12 +11,12 @@ import {
   useApplicationByJobQuery,
   useCreateApplicationMutation,
   useGenerateDocumentMutation,
-  useGeneratePreparationMutation,
+  useGenerateRoadmapMutation,
 } from '@/entities/application/hooks'
 import { useApplicationGeneration } from '../hooks/useApplicationGeneration'
 import { WorkspaceHeader } from './WorkspaceHeader'
 import { ApplicationTracker } from './ApplicationTracker'
-import { PreparationPlan } from './PreparationPlan'
+import { RoadmapSection } from './RoadmapSection'
 import { ApplicationDocuments } from './ApplicationDocuments'
 import { GenerationProgress } from './GenerationProgress'
 import { Button } from '@/shared/ui/button'
@@ -72,7 +72,7 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
   } = useApplicationByJobQuery(jobId)
 
   const createApplication = useCreateApplicationMutation()
-  const generatePreparation = useGeneratePreparationMutation()
+  const generateRoadmap = useGenerateRoadmapMutation()
   const generateDocument = useGenerateDocumentMutation()
 
   const [localApplication, setLocalApplication] = useState<ApplicationDetail | null>(null)
@@ -96,17 +96,16 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
     })
   }
 
-  const handleGeneratePreparation = useCallback(() => {
+  const handleGenerateRoadmap = useCallback(() => {
     if (!app) return
-    generatePreparation.mutate(app.id, {
-      onSuccess: (response) => {
+    generateRoadmap.mutate(app.id, {
+      onSuccess: () => {
         setGeneratingType(null)
-        toast.success('Preparation generation queued')
-        void response
+        toast.success('Roadmap generation queued')
       },
-      onError: () => toast.error('Failed to queue preparation generation'),
+      onError: () => toast.error('Failed to queue roadmap generation'),
     })
-  }, [app, generatePreparation])
+  }, [app, generateRoadmap])
 
   const handleGenerateDocument = useCallback(
     (documentType: ApplicationDocumentType) => {
@@ -173,12 +172,11 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
             <ApplicationTracker application={app} />
           </ApplicationSection>
 
-          <ApplicationSection title="Preparation">
-            <PreparationPlan
+          <ApplicationSection title="Roadmap">
+            <RoadmapSection
               applicationId={app.id}
-              preparation={app.preparation}
-              generating={generatePreparation.isPending}
-              onGenerate={handleGeneratePreparation}
+              generating={generateRoadmap.isPending}
+              onGenerate={handleGenerateRoadmap}
             />
           </ApplicationSection>
 

@@ -146,6 +146,15 @@ class ISkillRepository(ABC):
         ...
 
     @abstractmethod
+    def get_job_mention_ids(self, skill_id: int) -> list[str]:
+        """Return the distinct job ids that mention the given skill.
+
+        Only ``skill_mentions`` rows with ``source_type == "job"`` are included;
+        company mentions are ignored.
+        """
+        ...
+
+    @abstractmethod
     def add_alias(self, skill_id: int, alias_name: str) -> dict[str, Any] | None:
         """Add an alias to a skill. Returns the updated skill or None."""
         ...

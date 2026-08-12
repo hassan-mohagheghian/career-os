@@ -51,6 +51,23 @@ def _add_execution(sa_session, target_id: str, status: str, execution_id: str | 
     return model
 
 
+def _add_legacy_execution(sa_session, target_id: str, status: str = "completed"):
+    """Insert a row for a removed execution type (e.g. application_preparation)."""
+    model = ProcessingExecutionModel(
+        id=str(uuid.uuid7()),
+        execution_type="application_preparation",
+        status=status,
+        target_type=TARGET_TYPE,
+        target_id=target_id,
+        created_at="2026-08-01T10:00:00.000Z",
+        started_at="2026-08-01T10:00:00.000Z",
+        finished_at=None,
+    )
+    sa_session.add(model)
+    sa_session.commit()
+    return model
+
+
 def _repo(sa_session) -> SQLAlchemyProcessingExecutionRepository:
     return SQLAlchemyProcessingExecutionRepository(sa_session)
 
@@ -127,6 +144,36 @@ class TestLatestStatuses:
 
     def test_empty(self, sa_session):
         assert _repo(sa_session).latest_statuses(TARGET_TYPE) == {}
+
+
+class TestLegacyExecutionTypes:
+    def test_list_recent_tolerates_legacy_rows(self, sa_session):
+        _add_execution(sa_session, "job-a", status="completed", execution_id="a-1")
+        _add_legacy_execution(sa_session, "job-legacy")
+
+        executions = _repo(sa_session).list_recent(limit=10)
+
+        legacy = [e for e in executions if e.target_id == "job-legacy"]
+        assert len(legacy) == 1
+        assert legacy[0].execution_type == "legacy"
+        assert legacy[0].status == "completed"
+
+    def test_list_by_target_tolerates_legacy_rows(self, sa_session):
+        _add_legacy_execution(sa_session, "job-legacy")
+
+        executions = _repo(sa_session).list_by_target(TARGET_TYPE, "job-legacy")
+
+        assert len(executions) == 1
+        assert executions[0].execution_type == "legacy"
+        assert executions[0].target_id == "job-legacy"
+
+    def test_active_execution_tolerates_legacy_rows(self, sa_session):
+        _add_legacy_execution(sa_session, "job-legacy", status="queued")
+
+        execution = _repo(sa_session).active_execution(TARGET_TYPE, "job-legacy")
+
+        assert execution is not None
+        assert execution.execution_type == "legacy"
 
 
 class TestTargetIds:

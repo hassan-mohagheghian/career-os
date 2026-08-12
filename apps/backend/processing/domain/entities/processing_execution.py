@@ -102,9 +102,17 @@ class ProcessingExecution(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ProcessingExecution:
+        try:
+            execution_type = ExecutionType(data["execution_type"])
+        except ValueError:
+            # Execution types for removed features (e.g. application_preparation)
+            # may still exist in databases that ran them before deletion. A legacy
+            # value must never crash a read path, so it maps to a non-dispatchable
+            # LEGACY marker instead.
+            execution_type = ExecutionType.LEGACY
         return cls(
             id=data.get("id"),
-            execution_type=ExecutionType(data["execution_type"]),
+            execution_type=execution_type,
             target_type=data["target_type"],
             target_id=str(data["target_id"]),
             status=ExecutionStatus(data["status"]),

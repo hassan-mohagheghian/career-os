@@ -5,6 +5,7 @@ import {
   Gear,
   Brain,
   UserCircle,
+  Signpost,
   type Icon,
 } from '@phosphor-icons/react'
 
@@ -25,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'companies', label: 'Companies', icon: Buildings },
   { id: 'skills', label: 'Skills', icon: TreeStructure },
   { id: 'candidate', label: 'Candidate', icon: UserCircle },
+  { id: 'roadmaps', label: 'Roadmaps', icon: Signpost },
   { id: 'rules', label: 'Rules', icon: Gear },
   {
     id: 'ai',

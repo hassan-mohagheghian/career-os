@@ -35,7 +35,6 @@ const sampleApplication: ApplicationDetail = {
     },
   ],
   documents: [],
-  preparation: null,
 }
 
 beforeEach(() => {

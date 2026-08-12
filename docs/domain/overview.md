@@ -58,12 +58,19 @@
 - **Latest**: the row with the highest `version` for the `source_type`
 
 ### Application
-- **What**: A per-job application record (`applications` context, schema `application`) that drives the Job Application Workspace (`/jobs/{job_id}/application`). Aggregates follow-ups, versioned documents (tailored resume / cover letter) and a preparation plan.
+- **What**: A per-job application record (`applications` context, schema `application`) that drives the Job Application Workspace (`/jobs/{job_id}/application`). Aggregates follow-ups and versioned documents (tailored resume / cover letter).
 - **Cross-context**: `job_id` is a logical reference to the Jobs context — plain column, no FK (AGENTS.md rule 15). At most one application per job; creation defaults status to `recommended`.
 - **Status**: `recommended` → `preparing` → `ready_to_apply` → `applied` (outcomes `rejected` / `withdrawn`).
-- **Artifacts**: `application_documents` (markdown content, `document_type` `tailored_resume` | `cover_letter`) and `application_preparations` (JSON payload of hard/soft skill recommendations), each versioned per successful generation.
-- **Generation**: artifacts are produced asynchronously by the processing pipeline (`application_preparation` / `application_resume` / `application_cover_letter` executions) — a consumer of existing job/company/candidate intelligence, never a re-analysis.
-- **Events (EDD)**: domain events (see `docs/domain/applications/events.md`) are emitted through the `ApplicationEventPublisher` port during create/update/follow-up/document/preparation operations; the default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
+- **Artifacts**: `application_documents` (markdown content, `document_type` `tailored_resume` | `cover_letter`), versioned per successful generation. A skill-gap roadmap for the application lives in the Roadmaps context (source `APPLICATION`).
+- **Generation**: documents are produced asynchronously by the processing pipeline (`application_resume` / `application_cover_letter` executions) — a consumer of existing job/company/candidate intelligence, never a re-analysis.
+- **Events (EDD)**: domain events (see `docs/domain/applications/events.md`) are emitted through the `ApplicationEventPublisher` port during create/update/follow-up/document operations; the default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
+
+### Roadmap
+- **What**: A user goal broken into milestones and tasks (`roadmaps` context, schema `roadmap`), with optional skill links, notes and learning resources. Independent from Applications: an application is only a logical reference (`application_id`, no FK).
+- **Cross-context**: `roadmaps.application_id` and `roadmap_skill_links.skill_id` are logical references (AGENTS.md rule 15); skills attach via `SQLAlchemySkillRepository.resolve_skill`.
+- **Sources / status**: `MANUAL` (default) / `APPLICATION` / `AI_GENERATED`; roadmap status `ACTIVE` / `COMPLETED` / `ARCHIVED`. Tasks and milestones carry `NOT_STARTED` / `IN_PROGRESS` / `COMPLETED` (+ `SKIPPED` for tasks).
+- **Progress**: computed, not stored — `completed (or skipped) tasks / total tasks`, per milestone and overall (0 when no tasks).
+- **Events (EDD)**: domain events (see `docs/domain/roadmaps/events.md`) are emitted through the `RoadmapEventPublisher` port during create/update/delete/milestone/task/note/resource/skill-link operations; the default implementation is an in-memory collector — pub/sub transport is deferred (AGENTS.md rule 16).
 
 ## Business Rules
 
@@ -168,10 +175,10 @@ Resume/LinkedIn uploaded → PII-masked → pending → candidate processing ext
 
 ### Application Generation Flow
 ```
-Generate clicked → ProcessingExecution (application_preparation/resume/cover_letter)
-  → queued → runner builds ApplicationIntelligenceGraph state
+Generate clicked → ProcessingExecution (roadmap_generation / application_resume / application_cover_letter)
+  → queued → runner builds the graph state (roadmap or application intelligence)
   → load_context (job + job_skills + company + candidate) → generate (LLMService) → persist
-  → preparation row / document row (versioned) → SSE progress → workspace refetches
+  → roadmap row / document row (versioned) → SSE progress → workspace refetches
 ```
 
 ### Job Application Flow

@@ -82,6 +82,30 @@ class TestSkillMentions:
         assert repo.get_mention_counts([9999]) == {}
 
 
+class TestGetJobMentionIds:
+    def test_returns_distinct_job_source_ids(self, sa_session):
+        skill = SkillModel(name="Kafka", source="user")
+        sa_session.add(skill)
+        sa_session.commit()
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(skill.id, "job", "job-uuid-1")
+        repo.upsert_mentions(skill.id, "job", "job-uuid-1")
+        repo.upsert_mentions(skill.id, "job", "job-uuid-2")
+        repo.upsert_mentions(skill.id, "company", "company-uuid-1")
+
+        assert repo.get_job_mention_ids(skill.id) == ["job-uuid-1", "job-uuid-2"]
+
+    def test_empty_when_no_job_mentions(self, sa_session):
+        skill = SkillModel(name="Kafka", source="user")
+        sa_session.add(skill)
+        sa_session.commit()
+
+        repo = SQLAlchemySkillRepository(sa_session)
+        repo.upsert_mentions(skill.id, "company", "company-uuid-1")
+        assert repo.get_job_mention_ids(skill.id) == []
+
+
 class TestAliasMentionFolding:
     """A skill's mention count folds in mentions recorded under separate skill
     rows whose name matches one of the skill's aliases."""

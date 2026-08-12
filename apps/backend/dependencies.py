@@ -151,11 +151,6 @@ def get_document_repo(session: Session = Depends(get_session)):
     return SQLAlchemyDocumentRepository(session)
 
 
-def get_preparation_repo(session: Session = Depends(get_session)):
-    from applications.infrastructure import SQLAlchemyPreparationRepository
-    return SQLAlchemyPreparationRepository(session)
-
-
 def get_application_service(
     application_repo=Depends(get_application_repo),
 ):
@@ -179,6 +174,22 @@ def get_document_service(
     from applications.application.services.document_service import DocumentService
     from applications.domain.event_publisher import InMemoryEventCollector
     return DocumentService(document_repo, InMemoryEventCollector())
+
+
+# ── Roadmaps Context Dependencies ────────────────────────────────
+
+def get_roadmap_repo(session: Session = Depends(get_session)):
+    from roadmaps.infrastructure import SQLAlchemyRoadmapRepository
+    return SQLAlchemyRoadmapRepository(session)
+
+
+def get_roadmap_service(
+    roadmap_repo=Depends(get_roadmap_repo),
+    skill_repo=Depends(get_skill_repo),
+):
+    from roadmaps.application.services.roadmap_service import RoadmapService
+    from roadmaps.domain.event_publisher import InMemoryEventCollector
+    return RoadmapService(roadmap_repo, skill_repo, InMemoryEventCollector())
 
 
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──

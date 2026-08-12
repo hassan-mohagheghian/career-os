@@ -84,6 +84,8 @@ export function useApplicationGeneration(applicationId: string | null) {
       })
       queryClient.invalidateQueries({ queryKey: ['application', applicationIdRef.current] })
       queryClient.invalidateQueries({ queryKey: ['application', 'by-job'] })
+      queryClient.invalidateQueries({ queryKey: ['roadmap', 'by-application'] })
+      queryClient.invalidateQueries({ queryKey: ['roadmap', 'list'] })
     }
   }, [queryClient, resolveStep])
 

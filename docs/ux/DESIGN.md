@@ -519,6 +519,13 @@ muted background and inset ring.
 │ ┌─ Also Known As ───────────────────────────────────────┐  │
 │ │ [k8s]                                                  │  │
 │ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Referenced Jobs (2) ──────────────────────────────────┐  │
+│ │ · SRE Engineer        Berlin          [B]             │  │
+│ │   Fit 8  Success 7  Overall 9                          │  │
+│ │ · Platform Engineer   Munich          [A]             │  │
+│ │   Fit 6  Success 8  Overall 7                          │  │
+│ │  Click a job → opens it in the Jobs page drawer        │  │
+│ └────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────┤
 │          [✂ Break down]                    [🗑 Delete]     │
 └────────────────────────────────────────────────────────────┘
@@ -604,8 +611,8 @@ pending; otherwise it returns `status=noop` and the UI shows an info toast
 The Applications module (140) adds a per-job Application Workspace at
 `/jobs/{job_id}/application` (entry: airplane action on a job row, or the
 **Application** button in the Job Details drawer header). It is a consumer of
-existing intelligence — preparation, tailored resume and cover letter are generated
-asynchronously (`application_preparation` / `application_resume` /
+existing intelligence — roadmap, tailored resume and cover letter are generated
+asynchronously (`roadmap_generation` / `application_resume` /
 `application_cover_letter` executions) with SSE progress.
 
 ```text
@@ -620,8 +627,16 @@ asynchronously (`application_preparation` / `application_resume` /
 │  Status [Recommended ▾]    Applied at [ 2026-08-11 ]                     │
 │  FOLLOW-UPS  ☑ Follow up after interview · Sep 1  [🗑]  [note][📅][Add]  │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ PREPARATION                                                        [⚡ Gen]│
-│  Hard: [Kubernetes Missing] [Kafka Low high]  ·  Soft: [Comms low]       │
+│ PREPARATION / ROADMAP                                             [⚡ Gen] │
+│  No roadmap yet. Generate a job-preparation roadmap             │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Kafka → Staff Engineer Roadmap  [ACTIVE]  ▓▓░░ 25%         │ │
+│  │ 1/4 tasks done                                             │ │
+│  │ MILESTONES · overview (roadmap-application-overview.md)    │ │
+│  │ ① Skills foundation [IN PROGRESS][HIGH]  1/2  ▓▓▓▓░        │ │
+│  │ ② Ship Kafka project [NOT STARTED][CRIT]  0/2  ░░░░░       │ │
+│  │ [View roadmap] [⚡ Regenerate] [🗑 Delete]                  │ │
+│  └────────────────────────────────────────────────────────────┘ │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ DOCUMENTS                                                               │
 │ ┌──────────────────────────┐  ┌──────────────────────────┐              │
@@ -633,7 +648,32 @@ asynchronously (`application_preparation` / `application_resume` /
 
 Empty state (no application yet): centered "No application yet" + `[Create Application]`
 → `POST /api/applications` (status `recommended`). Full specs live in
-`docs/ux/features/applications/` and `docs/ux/flows/applications/`.
+`docs/ux/features/applications/`, `docs/ux/features/roadmaps/` and
+`docs/ux/flows/applications/`, `docs/ux/flows/roadmaps/`.
+
+### Roadmaps
+
+The Roadmaps module (144–147) is the replacement for the legacy preparation plan.
+A roadmap is a goal + ordered milestones + tasks, either AI-generated from a job
+application or created manually. Full specs:
+`docs/ux/features/roadmaps/`, `docs/ux/flows/roadmaps/`.
+
+```text
+My Roadmaps (/roadmaps)                                    Detail (/roadmaps/{id})
+┌─────────────────────────────────────────┐   ┌────────────────────────────────┤
+│ My Roadmaps                    [➕ New] │   │ ← My Roadmaps                  │
+│ ┌───────────────────┐ ┌──────────────┐ │   │ 🗺 Kafka Roadmap      [Edit]    │
+│ │ 🗺 Kafka Roadmap   │ │ 🗺 Career    │ │   │ [APPLICATION][ACTIVE][JOB]      │
+│ │ Goal: JOB         │ │ Goal:CUSTOM  │ │   │ Goal: Land a staff role         │
+│ │ [APPL][ACTIVE]    │ │ [MAN][ARCH]  │ │   │ ▓▓▓▓▓▓░░░░ 25%  1/4 tasks done  │
+│ │ ▓▓▓▓░░ 25%        │ │ ▓▓▓▓▓▓ 50%   │ │   ├────────────────────────────────┤
+│ │ [Open][✎][🗑]      │ │ [Open][✎][🗑]│ │   │ JOURNEY              [+ Milestone]│
+│ └───────────────────┘ └──────────────┘ │   │ ① Basics ▸ 1/2 · 50%           │
+│                                         │   │  ☐ Read docs · MEDIUM          │
+│ Empty: 🗺 No roadmaps yet             │   │    NOTES (0)  [Add]             │
+│        [+ New Roadmap]                 │   │ ② Apply ▸ 0/3 · 0%             │
+└─────────────────────────────────────────┘   └────────────────────────────────┤
+```
 
 ---
 

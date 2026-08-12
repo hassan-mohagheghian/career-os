@@ -27,9 +27,9 @@ Load first page (GET /api/skills/list, page_size=25)
    ┌──────────────────┐   ┌──────────────────┐
    │  Detail Drawer   │   │  Add Skill Drawer│
    │  Edit / Delete   │   │                  │
-   └──────────────────┘   │  Name, Level,    │
-                          │  Category, Roles │
-                          └──────────────────┘
+   │  Referenced Jobs │   │  Name, Level,    │
+   │  → Jobs page     │   │  Category, Roles │
+   └──────────────────┘   └──────────────────┘
 ```
 
 ---
@@ -81,6 +81,12 @@ Deletion requires confirmation (`ConfirmDialog`).
 From the Edit drawer the user can add/remove aliases and merge a duplicate skill
 into a canonical one (`docs/ux/flows/skills/merge-skills.md`). The Mentions
 column shows how many job/company analyses reference each skill.
+
+## 10. View referenced jobs
+
+The Skill Detail drawer's **Referenced Jobs (n)** section lists the jobs that
+mention the skill (`GET /api/skills/{id}/jobs`). Clicking a job navigates to the
+Jobs page and opens that job's drawer (`/jobs?job=<id>`).
 
 ---
 

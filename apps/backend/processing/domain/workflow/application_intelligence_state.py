@@ -1,15 +1,15 @@
-"""ApplicationIntelligenceState — the workflow state for application artifact
-generation (preparation plan / tailored resume / cover letter).
+"""ApplicationIntelligenceState — the workflow state for application document
+generation (tailored resume / cover letter).
 
 The state flows through the ApplicationIntelligenceGraph nodes:
 
     execution_id
     application_id
     job_id
-    intent            (ExecutionType: application_preparation | application_resume | application_cover_letter)
+    intent            (ExecutionType: application_resume | application_cover_letter)
     context           (job, analysis, company, intelligence, candidate_profile)
     result            (schema-valid generation payload)
-    persisted_id      (preparation / document row id)
+    persisted_id      (document row id)
     errors
     status
 
@@ -31,7 +31,7 @@ class ApplicationIntelligenceState(BaseModel):
     execution_id: str
     application_id: str
     job_id: str
-    intent: str = "application_preparation"
+    intent: str = "application_resume"
     context: dict[str, Any] = Field(default_factory=dict)
     result: dict[str, Any] | None = None
     persisted_id: str | None = None

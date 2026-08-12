@@ -308,6 +308,7 @@ async def app_error_handler(request: Request, exc: AppError):
 | `/api/skills/{id}/rename` | PATCH | `RenameSkill` | `SkillResponse` | Rename skill |
 | `/api/skills/{id}/aliases` | POST | `SkillAliasAdd` | `SkillResponse` | Add an alias |
 | `/api/skills/{id}/aliases` | DELETE | `?alias_name=` | `SkillResponse` | Remove an alias (query param so names with `/` work) |
+| `/api/skills/{id}/jobs` | GET | — | `SkillJobsResponse` | Jobs that mention a skill (jobs-only mentions) |
 | `/api/skills/merge` | POST | `MergeSkills` | `SkillResponse` | Merge skills (folds mentions) |
 | `/api/skills/categories` | GET | — | `CategoryList` | List categories |
 | `/api/skills/stats` | GET | — | `SkillStats` | Skill statistics |

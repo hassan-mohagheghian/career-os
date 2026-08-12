@@ -47,7 +47,7 @@ Workspace at /jobs/{id}/application
      (or `rejected` / `withdrawn`).
    - Optionally sets **Applied at**.
 4. **Schedule follow-ups**: add a note + optional date; toggle ☐/☑ as actions happen.
-5. **Generate preparation and documents** (see the generation flow), then mark the
+5. **Generate the roadmap and documents** (see the generation flow), then mark the
    application **Applied** with the date.
 
 ## State Diagram
@@ -82,7 +82,7 @@ sequenceDiagram
         W->>API: POST {job_id}
         API-->>W: 201 {status: "recommended"}
     else application exists
-        API-->>W: 200 detail (follow_ups, documents, preparation)
+        API-->>W: 200 detail (follow_ups, documents) + GET /api/roadmaps/by-application
     end
     U->>W: set status / applied_at
     W->>API: PATCH /applications/{id}

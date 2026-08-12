@@ -42,6 +42,10 @@ function SkillsPageAdapter() {
     setSearchParam('skill', String(id))
   }, [])
 
+  const handleOpenJob = useCallback((id: string) => {
+    window.location.href = `/jobs?job=${encodeURIComponent(id)}`
+  }, [])
+
   const handleTogglePinned = useCallback((id: number, pinned: boolean) => {
     pinnedMutation.mutate({ id, pinned })
   }, [pinnedMutation])
@@ -128,6 +132,7 @@ function SkillsPageAdapter() {
         }}
         editSkillId={editSkillId}
         onEditSkillIdChange={setEditSkillId}
+        onOpenJob={handleOpenJob}
       />
       <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
     </div>

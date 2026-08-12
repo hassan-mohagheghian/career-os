@@ -1,6 +1,6 @@
 """ApplicationIntelligenceGraph — LangGraph workflow that generates one
-application artifact (preparation plan / tailored resume / cover letter) from
-existing Career Intelligence and persists it.
+application artifact (tailored resume / cover letter) from existing Career
+Intelligence and persists it.
 
     Flow:
 
@@ -10,9 +10,9 @@ existing Career Intelligence and persists it.
     → ApplicationReady | ExecutionFailed
 
 The graph is parametrized by the intent carried in the state
-(ExecutionType.APPLICATION_PREPARATION / APPLICATION_RESUME /
-APPLICATION_COVER_LETTER). It performs exactly one LLM call and reuses the
-persisted job analysis, company intelligence and candidate profile.
+(ExecutionType.APPLICATION_RESUME / APPLICATION_COVER_LETTER). It performs
+exactly one LLM call and reuses the persisted job analysis, company
+intelligence and candidate profile.
 """
 
 from __future__ import annotations
@@ -49,7 +49,6 @@ class ApplicationIntelligenceGraph:
         company_service: Any,
         intelligence_repo: Any,
         profile_repo: Any,
-        preparation_repo: Any,
         document_repo: Any,
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
@@ -60,7 +59,6 @@ class ApplicationIntelligenceGraph:
         self._companies = company_service
         self._intelligence = intelligence_repo
         self._profiles = profile_repo
-        self._preparations = preparation_repo
         self._documents = document_repo
         self._llm = llm_service
         self._events = event_publisher
@@ -82,7 +80,7 @@ class ApplicationIntelligenceGraph:
             ),
         )
         graph.add_node(NODE_GENERATE, GenerateNode(self._llm, self._events))
-        graph.add_node(NODE_PERSIST, PersistNode(self._preparations, self._documents, self._events))
+        graph.add_node(NODE_PERSIST, PersistNode(self._documents, self._events))
         graph.add_node(NODE_APPLICATION_READY, ApplicationReadyNode(self._events))
         graph.add_node(NODE_EXECUTION_FAILED, ExecutionFailedNode(self._events))
 

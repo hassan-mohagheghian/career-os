@@ -6,6 +6,7 @@ import type {
   SkillCategoryInfo,
   SkillCreateInput,
   SkillListItem,
+  SkillReferencedJobs,
   SkillSearchQuery,
   SkillUpdateInput,
   InfiniteSkillSearchResult,
@@ -42,4 +43,5 @@ export const skillApi = {
   breakDown: (id: number, childNames: string[]) => api.post<SkillBreakdownResult>(`/skills/${id}/breakdown`, { child_names: childNames }),
   getBreakdowns: (id: number) => api.get<SkillBreakdownInfo>(`/skills/${id}/breakdowns`),
   promoteAliasToCanonical: (id: number, aliasName: string) => api.patch<SkillListItem>(`/skills/${id}/canonical`, { alias_name: aliasName }),
+  referencedJobs: (id: number) => api.get<SkillReferencedJobs>(`/skills/${id}/jobs`),
 }

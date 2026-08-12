@@ -13,7 +13,6 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
-    ApplicationPreparationModel,
 )
 
 
@@ -72,7 +71,7 @@ class SQLAlchemyApplicationRepository(IApplicationRepository):
         app_ids = self.list_ids_by_job(job_id)
         if not app_ids:
             return 0
-        for child_model in (ApplicationFollowUpModel, ApplicationDocumentModel, ApplicationPreparationModel):
+        for child_model in (ApplicationFollowUpModel, ApplicationDocumentModel):
             self._session.query(child_model).filter(
                 child_model.application_id.in_(app_ids)
             ).delete(synchronize_session=False)

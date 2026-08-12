@@ -66,17 +66,3 @@ class ApplicationDocumentModel(Base):
     content: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
-
-
-class ApplicationPreparationModel(Base):
-    __tablename__ = "application_preparations"
-    __table_args__ = {"schema": "application"}
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
-    application_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("application.applications.id"), nullable=False, index=True
-    )
-    version: Mapped[int] = mapped_column(Integer, default=1)
-    payload: Mapped[str] = mapped_column(Text, default="{}")
-    created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
-    updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)

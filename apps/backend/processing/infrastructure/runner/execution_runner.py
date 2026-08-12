@@ -243,7 +243,6 @@ class ProcessingExecutionRunner:
                     graph_session.close()
 
         if execution.execution_type in (
-            ExecutionType.APPLICATION_PREPARATION,
             ExecutionType.APPLICATION_RESUME,
             ExecutionType.APPLICATION_COVER_LETTER,
         ):
@@ -276,6 +275,41 @@ class ProcessingExecutionRunner:
                 return {
                     "application_id": execution.target_id,
                     "persisted_id": final.persisted_id,
+                }
+            finally:
+                if owns_session:
+                    graph_session.close()
+
+        if execution.execution_type == ExecutionType.ROADMAP_GENERATION:
+            from processing.domain.workflow.roadmap_generation_state import (
+                RoadmapGenerationState,
+            )
+            from processing.infrastructure.workflow import build_roadmap_generation_graph
+
+            graph_session = session
+            owns_session = False
+            if graph_session is None:
+                graph_session = get_session_sync()
+                owns_session = True
+            try:
+                graph = build_roadmap_generation_graph(graph_session)
+                state = RoadmapGenerationState(
+                    execution_id=execution.id,
+                    application_id=execution.target_id,
+                    job_id="",
+                    intent=execution.execution_type.value,
+                    workflow_progress=progress_ops.build_initial_progress(
+                        execution.id, "roadmap"
+                    ),
+                )
+                final = graph.invoke(state)
+                if final.workflow_progress is not None:
+                    execution.workflow_progress = final.workflow_progress.to_dict()
+                if final.status == ExecutionStatus.FAILED:
+                    raise RuntimeError("; ".join(final.errors) or "Roadmap generation failed")
+                return {
+                    "application_id": execution.target_id,
+                    "roadmap_id": final.persisted_roadmap_id,
                 }
             finally:
                 if owns_session:

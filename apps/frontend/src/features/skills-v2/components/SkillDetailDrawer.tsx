@@ -14,10 +14,14 @@ import {
   Trash,
   Code,
   Scissors,
+  MapPin,
 } from "@phosphor-icons/react";
 import { cn } from "@/shared/lib/utils";
 import type { SkillListItem } from "@/entities/skill/types";
 import { CategoryBadges, OriginBadge } from "./SkillRow";
+import { useSkillReferencedJobs } from "@/entities/skill/hooks";
+import { GradeBadge } from "@/shared/components/GradeBadge";
+import { gradeForScore } from "@/shared/lib/grade";
 
 interface SkillDetailDrawerProps {
   skillId: number | null;
@@ -26,6 +30,90 @@ interface SkillDetailDrawerProps {
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
   onBreakDown: (id: number) => void;
+  onOpenJob?: (id: string) => void;
+}
+
+function ReferencedJobsList({
+  skillId,
+  onOpenJob,
+}: {
+  skillId: number;
+  onOpenJob?: (id: string) => void;
+}) {
+  const { data, isLoading, isError } = useSkillReferencedJobs(skillId);
+  const jobs = data?.jobs ?? [];
+  const n = jobs.length;
+
+  return (
+    <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
+      <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+        Referenced Jobs ({n})
+      </p>
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground">Loading jobs…</p>
+      ) : isError ? (
+        <p className="text-xs text-destructive">Unable to load jobs</p>
+      ) : n === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No jobs reference this skill yet.
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {jobs.map((j) => {
+            const overall = j.overall_score;
+            const validOverall =
+              overall != null && !Number.isNaN(overall) ? overall : null;
+            return (
+              <div
+                key={j.id}
+                className="flex items-center gap-1 p-2 rounded border border-border/50 hover:bg-muted/50 transition group cursor-pointer"
+                onClick={() => onOpenJob?.(j.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold truncate flex-1">
+                      {j.title || "Untitled Job"}
+                    </span>
+                    {validOverall != null && (
+                      <GradeBadge
+                        grade={gradeForScore(validOverall)}
+                        className="shrink-0"
+                      />
+                    )}
+                  </div>
+                  {j.location && (
+                    <div className="text-2xs text-muted-foreground mt-0.5">
+                      <MapPin className="w-2 h-2 inline mr-0.5" />
+                      {j.location}
+                    </div>
+                  )}
+                  {(j.fit_score != null || j.success_score != null) && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {j.fit_score != null && (
+                        <Badge variant="secondary" className="text-2xs">
+                          Fit {j.fit_score}
+                        </Badge>
+                      )}
+                      {j.success_score != null && (
+                        <Badge variant="secondary" className="text-2xs">
+                          Success {j.success_score}
+                        </Badge>
+                      )}
+                      {overall != null && (
+                        <Badge variant="secondary" className="text-2xs">
+                          Overall {overall}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function SkillDetailDrawer({
@@ -35,6 +123,7 @@ export function SkillDetailDrawer({
   onEdit,
   onDelete,
   onBreakDown,
+  onOpenJob,
 }: SkillDetailDrawerProps) {
   const open = !!skill && !!skillId;
 
@@ -193,6 +282,10 @@ export function SkillDetailDrawer({
               </p>
               <p className="text-xs text-muted-foreground">{skill.evidence}</p>
             </div>
+          )}
+
+          {skillId != null && (
+            <ReferencedJobsList skillId={skillId} onOpenJob={onOpenJob} />
           )}
         </div>
       </DrawerContent>

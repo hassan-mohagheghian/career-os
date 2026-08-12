@@ -1,8 +1,8 @@
 """Applications API router — the Job Application Workspace backend.
 
 Owned by the Applications bounded context (per-context router, rule 10). Reads
-and writes application records and dispatches generation executions (preparation
-plan, tailored resume, cover letter) through the processing pipeline.
+and writes application records and dispatches generation executions (tailored
+resume, cover letter, AI roadmap) through the processing pipeline.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from applications.infrastructure import (
     SQLAlchemyApplicationRepository,
     SQLAlchemyDocumentRepository,
     SQLAlchemyFollowUpRepository,
-    SQLAlchemyPreparationRepository,
 )
 from applications.presentation.api.schemas.applications import (
     ApplicationDetailResponse,
@@ -41,7 +40,6 @@ from dependencies import (
     get_document_service,
     get_follow_up_repo,
     get_follow_up_service,
-    get_preparation_repo,
     get_processing_execution_repo,
 )
 from processing.application.services.dispatch_processing_execution import (
@@ -67,7 +65,6 @@ def _detail(
     application_repo: SQLAlchemyApplicationRepository,
     follow_up_repo: SQLAlchemyFollowUpRepository,
     document_repo: SQLAlchemyDocumentRepository,
-    preparation_repo: SQLAlchemyPreparationRepository,
     application_id: str,
 ) -> ApplicationDetailResponse:
     application = application_repo.get_by_id(application_id)
@@ -77,7 +74,6 @@ def _detail(
         application,
         follow_up_repo.list_for_application(application_id),
         document_repo.list_for_application(application_id),
-        preparation_repo.get_latest(application_id),
     )
 
 
@@ -99,7 +95,6 @@ def get_application_by_job(
     application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
-    preparation_repo: SQLAlchemyPreparationRepository = Depends(get_preparation_repo),
 ):
     application = application_repo.get_by_job_id(job_id)
     if not application:
@@ -108,7 +103,6 @@ def get_application_by_job(
         application,
         follow_up_repo.list_for_application(application["id"]),
         document_repo.list_for_application(application["id"]),
-        preparation_repo.get_latest(application["id"]),
     )
 
 
@@ -118,14 +112,12 @@ def create_application(
     service: ApplicationService = Depends(get_application_service),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
-    preparation_repo: SQLAlchemyPreparationRepository = Depends(get_preparation_repo),
 ):
     stored = service.create(body.job_id)
     return build_detail_response(
         stored,
         follow_up_repo.list_for_application(stored["id"]),
         document_repo.list_for_application(stored["id"]),
-        preparation_repo.get_latest(stored["id"]),
     )
 
 
@@ -137,7 +129,6 @@ def update_application(
     application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
-    preparation_repo: SQLAlchemyPreparationRepository = Depends(get_preparation_repo),
 ):
     data = body.model_dump(exclude_unset=True)
     service.update(application_id, data)
@@ -145,7 +136,6 @@ def update_application(
         application_repo,
         follow_up_repo,
         document_repo,
-        preparation_repo,
         application_id,
     )
 
@@ -183,16 +173,16 @@ def delete_follow_up(
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/{application_id}/preparation/generate", status_code=http_status.HTTP_202_ACCEPTED, response_model=GenerateResponse)
-def generate_preparation(
+@router.post("/{application_id}/roadmap/generate", status_code=http_status.HTTP_202_ACCEPTED, response_model=GenerateResponse)
+def generate_roadmap(
     application_id: str,
     application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
     if not application_repo.get_by_id(application_id):
         raise NotFoundError(f"Application {application_id} not found")
-    execution_id = _dispatch(exec_repo, ExecutionType.APPLICATION_PREPARATION, application_id)
-    return GenerateResponse(execution_id=execution_id, status="queued", artifact="preparation")
+    execution_id = _dispatch(exec_repo, ExecutionType.ROADMAP_GENERATION, application_id)
+    return GenerateResponse(execution_id=execution_id, status="queued", artifact="roadmap")
 
 
 @router.post("/{application_id}/documents/{document_type}/generate", status_code=http_status.HTTP_202_ACCEPTED, response_model=GenerateResponse)

@@ -54,6 +54,7 @@ interface SkillsPageProps {
   onDetailSkillIdChange: (id: number | null) => void
   editSkillId: number | null
   onEditSkillIdChange: (id: number | null) => void
+  onOpenJob?: (id: string) => void
 }
 
 export function SkillsPage({
@@ -71,6 +72,7 @@ export function SkillsPage({
   addSkillDrawerOpen, onAddSkillDrawerOpenChange,
   detailSkillId, onDetailSkillIdChange,
   editSkillId, onEditSkillIdChange,
+  onOpenJob,
 }: SkillsPageProps) {
   const { createSkill, submitting, error: createError, clearError } = useCreateSkill()
   const mergeMutation = useMergeSkills()
@@ -265,6 +267,7 @@ export function SkillsPage({
           const skill = items.find((s) => s.id === id)
           if (skill) setBreakdownSkill({ id: skill.id, name: skill.name })
         }}
+        onOpenJob={onOpenJob}
       />
       <SkillEditDrawer
         skillId={editSkillId}

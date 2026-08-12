@@ -607,6 +607,18 @@ class SQLAlchemySkillRepository(ISkillRepository):
         ).delete()
         self._session.commit()
 
+    def get_job_mention_ids(self, skill_id: int) -> list[str]:
+        """Return the distinct job ids that mention the given skill."""
+        rows = self._session.query(SkillMentionModel.source_id).filter(
+            SkillMentionModel.skill_id == skill_id,
+            SkillMentionModel.source_type == "job",
+        ).all()
+        seen: list[str] = []
+        for (source_id,) in rows:
+            if source_id and source_id not in seen:
+                seen.append(source_id)
+        return seen
+
     def get_mention_counts(self, skill_ids: list[int]) -> dict[int, int]:
         """Return {skill_id: total mention count} for the given skill ids.
 

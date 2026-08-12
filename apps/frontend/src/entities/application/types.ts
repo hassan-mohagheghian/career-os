@@ -8,7 +8,7 @@ export type ApplicationStatus =
 
 export type ApplicationDocumentType = 'tailored_resume' | 'cover_letter'
 
-export type ApplicationArtifactType = 'preparation' | ApplicationDocumentType
+export type ApplicationArtifactType = 'roadmap' | ApplicationDocumentType
 
 export interface ApplicationFollowUp {
   id: string
@@ -30,36 +30,6 @@ export interface ApplicationDocument {
   updated_at: string | null
 }
 
-export interface HardSkillRecommendation {
-  skill: string
-  gap_level: 'missing' | 'low' | 'matching' | null
-  priority: 'high' | 'medium' | 'low' | null
-  why: string | null
-  what_to_learn: string[]
-  how_to_practice: string[]
-  resources: string[]
-  estimated_effort: string | null
-}
-
-export interface SoftSkillRecommendation {
-  skill: string
-  gap_level: 'missing' | 'low' | 'matching' | null
-  priority: 'high' | 'medium' | 'low' | null
-  why: string | null
-  what_to_improve: string[]
-  how_to_practice: string[]
-}
-
-export interface ApplicationPreparation {
-  id: string
-  application_id: string
-  version: number
-  hard_skills: HardSkillRecommendation[]
-  soft_skills: SoftSkillRecommendation[]
-  created_at: string | null
-  updated_at: string | null
-}
-
 export interface ApplicationDetail {
   id: string
   job_id: string
@@ -69,7 +39,6 @@ export interface ApplicationDetail {
   updated_at: string | null
   follow_ups: ApplicationFollowUp[]
   documents: ApplicationDocument[]
-  preparation: ApplicationPreparation | null
 }
 
 export interface GenerateResponse {

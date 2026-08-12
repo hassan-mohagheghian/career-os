@@ -45,6 +45,12 @@ The response contains three sections:
 - Queued
 - Failed
 
+Rows whose `execution_type` belongs to a removed feature (e.g.
+`application_preparation`) are safe: `from_dict` maps unknown types to a
+non-dispatchable `legacy` marker instead of raising, and migration
+`application_003_cleanup_preparation_executions` hard-deletes orphaned rows on
+upgrade.
+
 Example:
 
 {

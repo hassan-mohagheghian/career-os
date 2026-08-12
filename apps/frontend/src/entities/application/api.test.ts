@@ -17,7 +17,7 @@ function ok(body: unknown) {
 
 describe('applicationApi', () => {
   it('creates an application with a job_id', async () => {
-    const detail = { id: 'app-1', job_id: 'job-1', status: 'recommended', follow_ups: [], documents: [], preparation: null }
+    const detail = { id: 'app-1', job_id: 'job-1', status: 'recommended', follow_ups: [], documents: [] }
     fetchMock.mockResolvedValue(ok(detail))
 
     const result = await applicationApi.create('job-1')
@@ -30,7 +30,7 @@ describe('applicationApi', () => {
   })
 
   it('updates an application status', async () => {
-    const detail = { id: 'app-1', job_id: 'job-1', status: 'applied', applied_at: '2026-08-11T10:00:00Z', follow_ups: [], documents: [], preparation: null }
+    const detail = { id: 'app-1', job_id: 'job-1', status: 'applied', applied_at: '2026-08-11T10:00:00Z', follow_ups: [], documents: [] }
     fetchMock.mockResolvedValue(ok(detail))
 
     await applicationApi.update('app-1', { status: 'applied', applied_at: '2026-08-11T10:00:00Z' })
@@ -42,7 +42,7 @@ describe('applicationApi', () => {
   })
 
   it('gets the application for a job', async () => {
-    fetchMock.mockResolvedValue(ok({ id: 'app-1', job_id: 'job-1', status: 'preparing', follow_ups: [], documents: [], preparation: null }))
+    fetchMock.mockResolvedValue(ok({ id: 'app-1', job_id: 'job-1', status: 'preparing', follow_ups: [], documents: [] }))
 
     await applicationApi.getByJob('job-1')
 
@@ -61,15 +61,15 @@ describe('applicationApi', () => {
     expect(JSON.parse(options.body)).toEqual({ note: 'ping' })
   })
 
-  it('generates a preparation', async () => {
-    fetchMock.mockResolvedValue(ok({ execution_id: 'exec-1', status: 'queued', artifact: 'preparation' }))
+  it('generates a roadmap', async () => {
+    fetchMock.mockResolvedValue(ok({ execution_id: 'exec-1', status: 'queued', artifact: 'roadmap' }))
 
-    const result = await applicationApi.generatePreparation('app-1')
+    const result = await applicationApi.generateRoadmap('app-1')
 
     const [url, options] = fetchMock.mock.calls[0]
-    expect(url).toBe('/api/applications/app-1/preparation/generate')
+    expect(url).toBe('/api/applications/app-1/roadmap/generate')
     expect(options.method).toBe('POST')
-    expect(result.artifact).toBe('preparation')
+    expect(result.artifact).toBe('roadmap')
   })
 
   it('generates a cover letter document', async () => {
@@ -106,6 +106,6 @@ describe('applicationApi', () => {
   it('rejects when generation fails', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 409, json: () => Promise.resolve({ error: 'an execution is already running' }) })
 
-    await expect(applicationApi.generatePreparation('app-1')).rejects.toThrow(/already running/)
+    await expect(applicationApi.generateRoadmap('app-1')).rejects.toThrow(/already running/)
   })
 })

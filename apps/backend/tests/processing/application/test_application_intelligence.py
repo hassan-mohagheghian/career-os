@@ -2,8 +2,8 @@
 
 Covers:
 - Context assembly (grounded consumers — no re-analysis)
-- Prompt builders (preparation / resume / cover letter) + output schemas
-- Validation models (PreparationOutput / DocumentOutput)
+- Prompt builders (resume / cover letter) + output schemas
+- Validation models (DocumentOutput)
 - Nodes (LoadContext, Generate, Persist) with fake repos + mock LLM
 - The ApplicationIntelligenceGraph end-to-end
 - The application workflow step mapper + progress_ops dispatch
@@ -27,13 +27,10 @@ from processing.application.services.application_intelligence_prompts import (
     APPLICATION_INTELLIGENCE_PROMPT_VERSION,
     build_cover_letter_prompt,
     build_document_output_schema,
-    build_preparation_output_schema,
-    build_preparation_prompt,
     build_resume_prompt,
 )
 from processing.application.services.application_intelligence_validation import (
     DocumentOutput,
-    PreparationOutput,
 )
 from processing.application.workflows.application_intelligence import ApplicationIntelligenceGraph
 from processing.application.workflows.application_intelligence.nodes import (
@@ -190,19 +187,6 @@ class FakeProfileRepo:
         return self._profile
 
 
-class FakePreparationRepo:
-    def __init__(self):
-        self.created = []
-
-    def get_next_version(self, application_id):
-        return len(self.created) + 1
-
-    def create(self, data):
-        stored = dict(data, id=f"prep-{len(self.created) + 1}")
-        self.created.append(stored)
-        return stored
-
-
 class FakeDocumentRepo:
     def __init__(self):
         self.created = []
@@ -250,7 +234,7 @@ def _context() -> dict[str, str]:
     return build_application_context(_job(), _analysis(), _company(), _intelligence(), _profile())
 
 
-def _state(intent: str = ExecutionType.APPLICATION_PREPARATION) -> ApplicationIntelligenceState:
+def _state(intent: str = ExecutionType.APPLICATION_RESUME) -> ApplicationIntelligenceState:
     state = ApplicationIntelligenceState(
         execution_id="exec-1",
         application_id="app-1",
@@ -324,12 +308,6 @@ class TestContextAssembly:
 
 
 class TestPrompts:
-    def test_preparation_prompt_grounded_not_reanalysis(self):
-        prompt = build_preparation_prompt(_context())
-        assert "hard_skills" in prompt
-        assert "kafka" in prompt
-        assert "Never re-analyze the job" in prompt
-
     def test_resume_prompt_tailored(self):
         prompt = build_resume_prompt(_context())
         assert "MARKDOWN" in prompt
@@ -342,12 +320,6 @@ class TestPrompts:
         assert "Subject" in prompt
         assert "visa-sponsored" in prompt
         assert "350 words" in prompt
-
-    def test_preparation_schema_shape(self):
-        schema = build_preparation_output_schema()
-        props = schema["properties"]
-        assert props["hard_skills"]["type"] == "array"
-        assert props["soft_skills"]["type"] == "array"
 
     def test_document_schema_shape(self):
         schema = build_document_output_schema()
@@ -364,22 +336,6 @@ class TestPrompts:
 
 
 class TestValidation:
-    def test_preparation_output_valid(self):
-        payload = {
-            "hard_skills": [
-                {"skill": "kafka", "gap_level": "missing", "priority": "high",
-                 "why": "Required for the role", "what_to_learn": ["Basics"], "resources": []},
-            ],
-            "soft_skills": [{"skill": "communication", "priority": "medium"}],
-        }
-        out = PreparationOutput.model_validate(payload).dump_payload()
-        assert out["hard_skills"][0]["skill"] == "kafka"
-        assert out["hard_skills"][0]["gap_level"] == "missing"
-
-    def test_preparation_output_rejects_bad_gap_level(self):
-        with pytest.raises(ValidationError):
-            PreparationOutput.model_validate({"hard_skills": [{"skill": "x", "gap_level": "bogus"}]})
-
     def test_document_output_valid(self):
         out = DocumentOutput.model_validate({"content": "## Hello"}).dump_payload()
         assert out["content"] == "## Hello"
@@ -453,24 +409,19 @@ class TestGenerateNode:
         state.context = _context()
         return state
 
-    def test_preparation_generation(self):
-        content = {
-            "hard_skills": [
-                {"skill": "kafka", "gap_level": "missing", "priority": "high", "why": "Role core"},
-            ],
-            "soft_skills": [],
-        }
-        state = GenerateNode(FakeLLM(content=json.dumps(content)))(self._ready_state())
-        assert state.status != ExecutionStatus.FAILED
-        assert state.result["hard_skills"][0]["skill"] == "kafka"
-        assert state.result["prompt_version"] == APPLICATION_INTELLIGENCE_PROMPT_VERSION
-
     def test_resume_generation(self):
         state = _state(ExecutionType.APPLICATION_RESUME)
         state.context = _context()
         state = GenerateNode(FakeLLM(content=json.dumps({"content": "## Hassan"})))(state)
         assert state.status != ExecutionStatus.FAILED
         assert state.result["content"] == "## Hassan"
+
+    def test_cover_letter_generation(self):
+        state = _state(ExecutionType.APPLICATION_COVER_LETTER)
+        state.context = _context()
+        state = GenerateNode(FakeLLM(content=json.dumps({"content": "Dear Team"})))(state)
+        assert state.status != ExecutionStatus.FAILED
+        assert state.result["content"] == "Dear Team"
 
     def test_unsupported_intent_fails(self):
         state = _state("bogus_intent")
@@ -485,7 +436,7 @@ class TestGenerateNode:
         assert any("provider down" in e for e in state.errors)
 
     def test_schema_invalid_fails_clean(self):
-        content = {"hard_skills": [{"skill": "x", "gap_level": "bogus"}]}
+        content = {"content": "  "}
         state = GenerateNode(FakeLLM(content=json.dumps(content)))(self._ready_state())
         assert state.status == ExecutionStatus.FAILED
         assert any("does not match the required format" in e for e in state.errors)
@@ -493,7 +444,7 @@ class TestGenerateNode:
     def test_retries_once_then_succeeds(self):
         class FlakyLLM(FakeLLM):
             def __init__(self):
-                super().__init__(content=json.dumps({"hard_skills": [], "soft_skills": []}))
+                super().__init__(content=json.dumps({"content": "## Hassan"}))
                 self._fail_first = True
 
             def generate_structured(self, prompt, schema=None, timeout=None):
@@ -505,7 +456,7 @@ class TestGenerateNode:
 
         state = GenerateNode(FlakyLLM())(self._ready_state())
         assert state.status != ExecutionStatus.FAILED
-        assert state.result["hard_skills"] == []
+        assert state.result["content"] == "## Hassan"
 
 
 # --------------------------------------------------------------------------- #
@@ -514,25 +465,12 @@ class TestGenerateNode:
 
 
 class TestPersistNode:
-    def test_preparation_persisted(self):
-        publisher = CollectingEventPublisher()
-        prep_repo = FakePreparationRepo()
-        state = _state()
-        state.result = {"hard_skills": [{"skill": "kafka"}], "soft_skills": []}
-        state = PersistNode(prep_repo, FakeDocumentRepo(), publisher)(state)
-
-        assert state.status != ExecutionStatus.FAILED
-        assert state.persisted_id == "prep-1"
-        assert prep_repo.created[0]["application_id"] == "app-1"
-        assert prep_repo.created[0]["payload"]["hard_skills"][0]["skill"] == "kafka"
-        assert any(e.event_type == "application.preparation.generated" for e in publisher.events)
-
     def test_document_persisted_typed(self):
         publisher = CollectingEventPublisher()
         doc_repo = FakeDocumentRepo()
         state = _state(ExecutionType.APPLICATION_RESUME)
         state.result = {"content": "## Hassan"}
-        state = PersistNode(FakePreparationRepo(), doc_repo, publisher)(state)
+        state = PersistNode(doc_repo, publisher)(state)
 
         assert state.status != ExecutionStatus.FAILED
         assert state.persisted_id == "doc-1"
@@ -544,11 +482,11 @@ class TestPersistNode:
         doc_repo = FakeDocumentRepo()
         state = _state(ExecutionType.APPLICATION_COVER_LETTER)
         state.result = {"content": "Dear Hiring Team"}
-        state = PersistNode(FakePreparationRepo(), doc_repo)(state)
+        state = PersistNode(doc_repo)(state)
         assert doc_repo.created[0]["document_type"] == "cover_letter"
 
     def test_no_result_fails(self):
-        state = PersistNode(FakePreparationRepo(), FakeDocumentRepo())(_state())
+        state = PersistNode(FakeDocumentRepo())(_state())
         assert state.status == ExecutionStatus.FAILED
 
 
@@ -566,26 +504,24 @@ class TestGraphE2E:
             FakeCompanyService(_company()),
             FakeIntelligenceRepo(_intelligence()),
             FakeProfileRepo(_profile()),
-            FakePreparationRepo(),
             FakeDocumentRepo(),
-            llm_service=llm or FakeLLM(
-                content=json.dumps({"hard_skills": [{"skill": "kafka"}], "soft_skills": []})
-            ),
+            llm_service=llm
+            or FakeLLM(content=json.dumps({"content": "## Hassan"})),
             event_publisher=RecordingEventPublisher(),
         )
 
-    def test_preparation_end_to_end(self):
-        state = self._graph().invoke(_state())
-        assert state.status == ExecutionStatus.COMPLETED
-        assert state.persisted_id == "prep-1"
-        assert state.result["hard_skills"][0]["skill"] == "kafka"
-
     def test_resume_end_to_end(self):
-        llm = FakeLLM(content=json.dumps({"content": "## Hassan"}))
-        state = self._graph(llm).invoke(_state(ExecutionType.APPLICATION_RESUME))
+        state = self._graph().invoke(_state(ExecutionType.APPLICATION_RESUME))
         assert state.status == ExecutionStatus.COMPLETED
         assert state.persisted_id == "doc-1"
         assert state.result["content"] == "## Hassan"
+
+    def test_cover_letter_end_to_end(self):
+        llm = FakeLLM(content=json.dumps({"content": "Dear Team"}))
+        state = self._graph(llm).invoke(_state(ExecutionType.APPLICATION_COVER_LETTER))
+        assert state.status == ExecutionStatus.COMPLETED
+        assert state.persisted_id == "doc-1"
+        assert state.result["content"] == "Dear Team"
 
     def test_failure_routes_to_execution_failed(self):
         graph = self._graph(llm=FakeLLM(error=RuntimeError("boom")))
@@ -601,7 +537,6 @@ class TestGraphE2E:
             FakeCompanyService(_company()),
             FakeIntelligenceRepo(_intelligence()),
             FakeProfileRepo(_profile()),
-            FakePreparationRepo(),
             FakeDocumentRepo(),
             llm_service=FakeLLM(content="{}"),
             event_publisher=RecordingEventPublisher(),

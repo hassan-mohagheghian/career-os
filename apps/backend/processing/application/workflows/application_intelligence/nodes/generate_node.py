@@ -21,13 +21,10 @@ from processing.application.services.application_intelligence_prompts import (
     APPLICATION_INTELLIGENCE_SCHEMA_VERSION,
     build_cover_letter_prompt,
     build_document_output_schema,
-    build_preparation_output_schema,
-    build_preparation_prompt,
     build_resume_prompt,
 )
 from processing.application.services.application_intelligence_validation import (
     DocumentOutput,
-    PreparationOutput,
 )
 from processing.application.workflows import progress_ops
 from processing.domain.enums import ExecutionStatus, ExecutionType
@@ -93,8 +90,6 @@ class GenerateNode:
 
     @staticmethod
     def _plan_for(intent: str, context: dict[str, Any]) -> tuple[str | None, dict[str, Any] | None]:
-        if intent == ExecutionType.APPLICATION_PREPARATION:
-            return build_preparation_prompt(context), build_preparation_output_schema()
         if intent == ExecutionType.APPLICATION_RESUME:
             return build_resume_prompt(context), build_document_output_schema()
         if intent == ExecutionType.APPLICATION_COVER_LETTER:
@@ -141,8 +136,6 @@ class GenerateNode:
         if not payload:
             return None, "the response was not parseable JSON"
         try:
-            if intent == ExecutionType.APPLICATION_PREPARATION:
-                return PreparationOutput.model_validate(payload).dump_payload(), ""
             return DocumentOutput.model_validate(payload).dump_payload(), ""
         except ValidationError as e:
             return None, _format_validation_error(e)

@@ -4,13 +4,12 @@ Covers:
 - Create / get-by-job / update application
 - Follow-ups CRUD
 - Document update / delete
-- Generation dispatch (preparation + documents) → creates ProcessingExecution
+- Generation dispatch (roadmap + documents) → creates ProcessingExecution
 - Invalid input handling
 """
 
 from __future__ import annotations
 
-import json
 import uuid
 
 import pytest
@@ -19,7 +18,6 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
-    ApplicationPreparationModel,
 )
 from jobs.infrastructure.models.job_model import JobModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
@@ -72,7 +70,6 @@ class TestApplicationAPI:
         assert body["status"] == "recommended"
         assert body["follow_ups"] == []
         assert body["documents"] == []
-        assert body["preparation"] is None
 
     def test_create_is_idempotent(self, client, sa_session):
         job = _create_job(sa_session)
@@ -204,19 +201,19 @@ class TestDocumentAPI:
 
 
 class TestGenerationDispatchAPI:
-    def test_generate_preparation_queues_execution(self, client, sa_session):
+    def test_generate_roadmap_queues_execution(self, client, sa_session):
         job = _create_job(sa_session)
         app = _create_application(sa_session, job.id)
-        resp = client.post(f"/api/applications/{app.id}/preparation/generate")
+        resp = client.post(f"/api/applications/{app.id}/roadmap/generate")
         assert resp.status_code == 202
         body = resp.json()
-        assert body["artifact"] == "preparation"
+        assert body["artifact"] == "roadmap"
         assert body["status"] == "queued"
         execution = sa_session.query(ProcessingExecutionModel).filter(
             ProcessingExecutionModel.id == body["execution_id"]
         ).first()
         assert execution is not None
-        assert execution.execution_type == "application_preparation"
+        assert execution.execution_type == "roadmap_generation"
         assert execution.target_type == "application"
         assert execution.target_id == app.id
 
@@ -245,28 +242,5 @@ class TestGenerationDispatchAPI:
         assert resp.status_code == 400
 
     def test_generate_missing_application_404(self, client):
-        resp = client.post("/api/applications/nope/preparation/generate")
+        resp = client.post("/api/applications/nope/roadmap/generate")
         assert resp.status_code == 404
-
-
-class TestPreparationDetail:
-    def test_preparation_serialized_in_detail(self, client, sa_session):
-        job = _create_job(sa_session)
-        app = _create_application(sa_session, job.id)
-        sa_session.add(ApplicationPreparationModel(
-            id=str(uuid.uuid7()),
-            application_id=app.id,
-            version=1,
-            payload=json.dumps({
-                "hard_skills": [{"skill": "kubernetes", "gap_level": "missing", "priority": "high"}],
-                "soft_skills": [{"skill": "communication", "priority": "medium"}],
-            }),
-        ))
-        sa_session.commit()
-
-        detail = client.get(f"/api/applications/by-job/{job.id}").json()
-        prep = detail["preparation"]
-        assert prep is not None
-        assert prep["version"] == 1
-        assert prep["hard_skills"][0]["skill"] == "kubernetes"
-        assert prep["soft_skills"][0]["skill"] == "communication"

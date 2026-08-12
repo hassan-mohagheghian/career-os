@@ -31,6 +31,11 @@ vi.mock('@/entities/skill/hooks', () => ({
     createMutation: { mutateAsync: vi.fn().mockResolvedValue({ id: 9, name: 'data', created: true }) },
     deleteMutation: { mutateAsync: vi.fn() },
   }),
+  useSkillReferencedJobs: () => ({
+    data: { jobs: [], total: 0 },
+    isLoading: false,
+    isError: false,
+  }),
 }))
 
 vi.mock('@/entities/skill/api', () => ({

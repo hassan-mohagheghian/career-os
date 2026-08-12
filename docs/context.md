@@ -18,7 +18,7 @@ Job Search Intelligence is an AI-powered career platform that helps software eng
 - **Skills Management**: 5-category taxonomy, aliases, AI-powered insights
 - **Career Insights**: Health score, market analysis, opportunity funnel
 - **Candidate Profile**: Upload a resume or LinkedIn profile as analysis input (masked PII); sources converge into a canonical candidate profile used as job-analysis context
-- **Application Workspace**: Turn a job into a tracked application (status, applied date, follow-ups) and generate a preparation plan, tailored resume and cover letter from the existing intelligence
+- **Application Workspace**: Turn a job into a tracked application (status, applied date, follow-ups) and generate a tailored resume, cover letter and a job-preparation roadmap from the existing intelligence
 
 ## Key Rules
 

@@ -49,7 +49,15 @@ SCHEMAS = {
         "applications",
         "application_follow_ups",
         "application_documents",
-        "application_preparations",
+    ],
+    "roadmap": [
+        "roadmaps",
+        "roadmap_goals",
+        "roadmap_milestones",
+        "roadmap_tasks",
+        "roadmap_skill_links",
+        "roadmap_notes",
+        "roadmap_resources",
     ],
     "shared": ["rules", "cities", "metadata", "generation_history", "alembic_version"],
 }

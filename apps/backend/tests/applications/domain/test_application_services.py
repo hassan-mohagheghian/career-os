@@ -20,7 +20,6 @@ from applications.domain.entities.application import (
     Application,
     ApplicationDocument,
     ApplicationFollowUp,
-    ApplicationPreparation,
     ApplicationStatus,
     DocumentType,
 )
@@ -32,7 +31,6 @@ from applications.domain.events import (
     ApplicationFollowUpAdded,
     ApplicationFollowUpDeleted,
     ApplicationFollowUpUpdated,
-    ApplicationPreparationGenerated,
     ApplicationUpdated,
 )
 from shared.application.exceptions import NotFoundError, ValidationError
@@ -179,10 +177,6 @@ class TestEntities:
         fu = ApplicationFollowUp(application_id="app-1", scheduled_at="2026-01-01")
         assert fu.completed is False
         assert fu.to_dict()["scheduled_at"] == "2026-01-01"
-
-    def test_preparation_dict(self):
-        prep = ApplicationPreparation(application_id="app-1", payload={"hard_skills": []})
-        assert prep.to_dict()["payload"] == {"hard_skills": []}
 
 
 # --------------------------------------------------------------------------- #
@@ -355,19 +349,11 @@ class TestDomainEvents:
             ApplicationFollowUpAdded,
             ApplicationFollowUpUpdated,
             ApplicationFollowUpDeleted,
-            ApplicationPreparationGenerated,
             ApplicationDocumentGenerated,
             ApplicationDocumentUpdated,
             ApplicationDocumentDeleted,
         ):
             assert issubclass(cls, DomainEvent)
-
-    def test_preparation_generated_event_fields(self):
-        e = ApplicationPreparationGenerated(application_id="app-1", preparation_id="prep-1", version=3)
-        assert e.application_id == "app-1"
-        assert e.preparation_id == "prep-1"
-        assert e.version == 3
-        assert e.event_type == "application.preparation.generated"
 
     def test_document_generated_event_fields(self):
         e = ApplicationDocumentGenerated(

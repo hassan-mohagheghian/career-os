@@ -6,9 +6,8 @@ The Job Application Workspace is a dedicated full page at `/jobs/{job_id}/applic
 that turns a job into an **application** and supports the "prepare and apply" journey.
 It is a **consumer of existing Career Intelligence** — it reads the persisted job
 analysis, company intelligence, candidate profile and skill evidence produced by the
-existing pipeline and adds application-specific reasoning on top (preparation plan,
-tailored resume, cover letter, follow-ups). It never re-runs job/company/candidate
-analysis.
+existing pipeline and adds application-specific reasoning on top (roadmap, tailored
+resume, cover letter, follow-ups). It never re-runs job/company/candidate analysis.
 
 ## Entry Points
 
@@ -27,9 +26,10 @@ The workspace reads intelligence but never duplicates analysis:
 | ---- | --------------- | -------- |
 | Job identity + scores + recommendation | `GET /api/jobs/{id}` | Header |
 | Job analysis (skills, summary, resume_fit) | `GET /api/jobs/{id}` (analysis) | AI generation context |
-| Application record + follow-ups + documents + preparation | `GET /api/applications/by-job/{id}` | All sections |
+| Application record + follow-ups + documents | `GET /api/applications/by-job/{id}` | Application/Documents sections |
+| Roadmap | `GET /api/roadmaps/by-application/{id}` (404 when none) | Roadmap section |
 
-Application generation (`preparation`, `tailored_resume`, `cover_letter`) is queued via
+Application generation (`roadmap`, `tailored_resume`, `cover_letter`) is queued via
 `POST /api/applications/.../generate` (202) and runs asynchronously through the existing
 processing pipeline with live SSE progress.
 
@@ -50,15 +50,17 @@ processing pipeline with live SSE progress.
 │  ☑ Follow up after interview · Sep 1, 2026                        [🗑]   │
 │  [ Note (e.g. follow up after interview) ][ date ] [Add]                 │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ PREPARATION                                                        [⚡ Gen]│
-│  Hard skills                                                             │
-│  ┌──────────────────────┐  ┌──────────────────────┐                      │
-│  │ Kubernetes · Missing │  │ Kafka · Low   [high] │                      │
-│  │ Why / What to learn  │  │ Why / How to practice│                      │
-│  │ / How to practice /  │  │ ...                  │                      │
-│  │ resources / effort   │  └──────────────────────┘                      │
-│  └──────────────────────┘                                                │
-│  Soft skills  (same card grid)                                           │
+│ ROADMAP                                                        [⚡ Gen]│
+│  No roadmap yet. Generate a step-by-step job-preparation roadmap        │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │ Kafka → Staff Engineer Roadmap          [ACTIVE]                 │   │
+│  │ Goal: Land a staff-level role                                    │   │
+│  │ ▓▓▓▓▓▓░░░░░░ 25%  1/4 tasks done                                 │   │
+│  │ MILESTONES  (overview — see roadmap-application-overview.md)     │   │
+│  │ ① Skills foundation [IN PROGRESS][HIGH]      1/2  ▓▓▓▓░░░        │   │
+│  │ ② Ship Kafka project [NOT STARTED][CRITICAL]  0/2  ░░░░░░░       │   │
+│  │ [View roadmap] [⚡ Regenerate] [🗑 Delete]                        │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ DOCUMENTS                                                                │
 │ ┌────────────────────────────┐  ┌────────────────────────────┐           │
@@ -80,7 +82,7 @@ app/jobs/[job_id]/application/page.tsx        (dynamic route, first dynamic rout
         │   ├── GenerationProgress      → SSE generation status card
         │   ├── ApplicationSection      → titled card wrapper
         │   ├── ApplicationTracker      → status select, applied date, follow-ups
-        │   ├── PreparationPlan         → hard/soft skill cards + generate button
+│         ├── RoadmapSection          → roadmap state + brief overview + generate/regenerate/delete
         │   └── ApplicationDocuments    → resume / cover letter cards
         └── hooks/useApplicationGeneration → SSE subscription for the application
 ```
@@ -107,7 +109,7 @@ Clicking **Create Application** calls `POST /api/applications { job_id }` (201, 
 An in-place progress card (see `GenerationProgress`) appears above the sections while an
 application execution is `queued`/`running` (driven by SSE), showing the current workflow
 step title and percent. On `completed`/`failed` the application query is refetched so the
-new document/preparation appears; the card shows the result and a **Dismiss** button.
+new roadmap/document appears; the card shows the result and a **Dismiss** button.
 
 ## Behaviors
 
@@ -117,7 +119,8 @@ new document/preparation appears; the card shows the result and a **Dismiss** bu
 | Status select | `PATCH /api/applications/{id}` with the chosen status; list: recommended, preparing, ready_to_apply, applied, rejected, withdrawn. |
 | Applied at | Native date input; `PATCH` with `applied_at` (or `null` to clear). |
 | Follow-ups | Add (note + optional date), toggle done, delete — see `application-tracker.md`. |
-| Preparation Generate | `POST /api/applications/{id}/preparation/generate` → 202, SSE progress, refetch on completion. Label becomes **Regenerate** once a plan exists. |
+| Roadmap Generate | `POST /api/applications/{id}/roadmap/generate` → 202 (`artifact="roadmap"`), SSE progress, roadmap refetch on completion. Label becomes **Regenerate** once a roadmap exists. |
+| Roadmap Overview | When a roadmap exists the section shows a brief overview (title, goal, overall progress, first 5 milestones with status/priority/task progress) — see `roadmaps/roadmap-application-overview.md`. |
 | Document Generate | `POST /api/applications/{id}/documents/{tailored_resume\|cover_letter}/generate` → 202, SSE progress, refetch on completion. Label becomes **Regenerate** once the document exists. |
 | Document actions | Copy, download as `.md`, edit in place (textarea + Save/Cancel), delete. |
 
@@ -142,7 +145,9 @@ new document/preparation appears; the card shows the result and a **Dismiss** bu
 # Related Documents
 
 - `docs/ux/features/applications/application-tracker.md`
-- `docs/ux/features/applications/preparation-plan.md`
+- `docs/ux/features/roadmaps/roadmap-generation.md`
+- `docs/ux/features/roadmaps/roadmap-application-overview.md`
 - `docs/ux/features/applications/application-documents.md`
 - `docs/ux/flows/applications/prepare-and-apply.md`
 - `docs/ux/flows/applications/generate-application-artifacts.md`
+- `docs/ux/flows/roadmaps/generate-roadmap-from-application.md`

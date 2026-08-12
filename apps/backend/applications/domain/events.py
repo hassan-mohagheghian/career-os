@@ -1,9 +1,9 @@
 """Domain events for the Applications bounded context.
 
 Emitted as the application evolves: created, status/applied-date updated,
-follow-ups added/completed/deleted, and generated artifacts (preparation plan,
-documents) persisted. All events are immutable facts (AGENTS.md rule 16); the
-default transport is the in-memory collector.
+follow-ups added/completed/deleted, and generated documents persisted. All
+events are immutable facts (AGENTS.md rule 16); the default transport is the
+in-memory collector.
 """
 
 from __future__ import annotations
@@ -62,16 +62,6 @@ class ApplicationFollowUpDeleted(DomainEvent):
 
 
 @dataclass(frozen=True)
-class ApplicationPreparationGenerated(DomainEvent):
-    """A preparation plan was persisted for an application."""
-
-    application_id: str = ""
-    preparation_id: str = ""
-    version: int = 1
-    event_type: str = "application.preparation.generated"
-
-
-@dataclass(frozen=True)
 class ApplicationDocumentGenerated(DomainEvent):
     """An application document version was persisted."""
 
@@ -109,7 +99,6 @@ __all__ = [
     "ApplicationFollowUpAdded",
     "ApplicationFollowUpUpdated",
     "ApplicationFollowUpDeleted",
-    "ApplicationPreparationGenerated",
     "ApplicationDocumentGenerated",
     "ApplicationDocumentUpdated",
     "ApplicationDocumentDeleted",
