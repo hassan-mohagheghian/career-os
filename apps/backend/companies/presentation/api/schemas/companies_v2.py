@@ -173,6 +173,7 @@ class CompanyDetailResponseSchema(BaseModel):
     is_alias: bool = False
     recruiter_job_count: int = 0
     recruiter_for: list[RecruiterForSchema] = Field(default_factory=list)
+    recruiter_jobs: list[CompanyJobRefSchema] = Field(default_factory=list)
     notes: list[CompanyNoteSchema] = Field(default_factory=list)
     links: list[CompanyLinkItemSchema] = Field(default_factory=list)
     intelligence: CompanyIntelligenceSchema | None = None

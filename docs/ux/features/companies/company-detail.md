@@ -25,7 +25,7 @@ visa-seeking software engineer.
 │ ◈ Related Companies                 [Manage] │
 │                                              │
 │ <Recommendation>                             │
-│ <Recruiter for N jobs (recruiter types only)>│
+│ <Jobs listed for clients (recruiter types)>  │
 │ <Company Overview / description>             │
 │ <Intelligence sections, importance order>    │
 │ <Linked jobs>                                │
@@ -85,30 +85,44 @@ A `Manage` button opens the Relate Company dialog.
 Rendered as a highlighted card: priority badge, observation, action, evidence,
 impact, ideal role, timing.
 
-## Recruiter for
+## Jobs listed for clients
 
 Shown only for recruiter-type companies (`RECRUITING_AGENCY` /
 `STAFFING_COMPANY`) that publish jobs on behalf of hiring companies. Sits
 between the Recommendation card and the Intelligence sections.
 
-The section header reads **"Recruiter for N jobs"** (total recruiter jobs with
-an attributed hiring company). Each hiring company is grouped as a row with its
-name (a link to that company's detail drawer on the Companies page) and the
-count of jobs published for it. Under each hiring company, the **individual
-jobs** are listed as links (job title) that open the job's detail drawer on the
-Jobs page (`/jobs?job=<id>`). The job links are the primary action; the hiring
-company link is a secondary reference.
+It renders the same `CompanyJobsTab` presentation the **Linked Jobs** section
+uses for product companies, but fed by the **client jobs** the recruiter
+publishes for other companies (`recruiter_jobs` from the detail payload). This
+makes recruiter companies behave like product companies — a jobs listing in the
+detail drawer — except the jobs reference belong to other companies. Each row
+shows the job role, location, and Fit / Success / Overall scores with an
+overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
+opens its detail drawer on the Jobs page.
 
 ```text
-┌─ Recruiter for 3 jobs ───────────────────────────────────┐
-│ Acme GmbH                             2 jobs            │
-│ Beta GmbH                             1 job             │
-└──────────────────────────────────────────────────────────┘
+┌─ Jobs listed for clients ─────────────────────────────┐
+│ 3 linked jobs                                         │
+│ Senior Backend Engineer                    [B]        │
+│  Berlin, Germany   [Fit 84][Success 63][Overall 76]   │
+│ Platform Engineer                           [A]       │
+│  Munich, Germany   [Fit 90][Success 70][Overall 82]   │
+│ ...                                                   │
+│ [Show all 3 jobs]                                     │
+└───────────────────────────────────────────────────────┘
 ```
 
-Data comes from the detail payload: `recruiter_for` (rows of `company_id`,
-`name`, `job_count`) and `recruiter_job_count`. Jobs whose only hiring company
-is the recruiter itself are excluded.
+Data comes from `recruiter_jobs` — the flat, sorted list of every job the
+recruiter publishes for other companies, carrying `id`, `role`, `location`,
+`match`, `score` and the fit / success / overall scores. A job is included
+whenever the company appears as a recruiter on it, even when the hiring
+company is unknown; only jobs where the recruiter is also the hiring company
+(its own role) are excluded. The section is hidden when there are no client
+jobs.
+
+The legacy grouped **Recruiter for** section (jobs grouped under each hiring
+company) was removed in favor of this flat listing, matching the product-company
+"Linked Jobs" presentation.
 
 ## Company Overview
 
@@ -193,6 +207,11 @@ the job's role, location, and its Fit / Success / Overall scores with an
 overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
 deep-links to `/jobs?job=<id>`, where the Jobs page opens that job's detail
 drawer on mount.
+
+Recruiter-type companies surface the same presentation through the **Jobs
+listed for clients** section above (fed by `recruiter_jobs`); the plain
+"Linked Jobs" section stays empty for them because a recruiter rarely hires
+directly.
 
 ```text
 ┌─ Linked Jobs ────────────────────────────────────────────┐

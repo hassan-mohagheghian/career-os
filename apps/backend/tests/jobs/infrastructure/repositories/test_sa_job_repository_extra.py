@@ -90,6 +90,28 @@ class TestGetByIds:
         assert repo.get_by_ids([]) == []
 
 
+class TestGetJobsByIds:
+    def test_batch_fetches_full_details(self, sa_session, repo):
+        a = _add(sa_session, id="job-a", title="Engineer", role="Engineer",
+                 location="Berlin", fit_score=84, success_score=63, overall_score=76)
+        b = _add(sa_session, id="job-b", title="Designer", role="Designer",
+                 location="Munich", fit_score=90, success_score=70, overall_score=82)
+        _add(sa_session, id="job-c", deleted=1, title="Deleted", role="Deleted", location="Hamburg")
+
+        result = repo.get_jobs_by_ids([a.id, b.id, "job-c", "does-not-exist"])
+        by_id = {r["id"]: r for r in result}
+        assert set(by_id) == {a.id, b.id}
+        assert by_id[a.id]["role"] == "Engineer"
+        assert by_id[a.id]["location"] == "Berlin"
+        assert by_id[a.id]["fit_score"] == 84
+        assert by_id[a.id]["success_score"] == 63
+        assert by_id[a.id]["overall_score"] == 76
+        assert by_id[b.id]["role"] == "Designer"
+
+    def test_empty_input_returns_empty_list(self, sa_session, repo):
+        assert repo.get_jobs_by_ids([]) == []
+
+
 # ── list_jobs ────────────────────────────────────────────────────
 
 class TestListJobs:

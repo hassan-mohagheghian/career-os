@@ -115,7 +115,8 @@ and stores the associations in the `job_companies` table:
 - The **hiring company** drives the job's `company_id` / display name.
 - **Related companies** are stored with `role="recruiter"` and shown in the Job
   Detail drawer under **Published by**; recruiter companies show their
-  hiring-client portfolio under **Recruiter for** in the Company Detail drawer.
+  hiring-client jobs under **Jobs listed for clients** in the Company Detail
+  drawer.
 - Associations are **replaced** on every re-process, so a re-run with changed
   extraction never leaves stale recruiter rows.
 

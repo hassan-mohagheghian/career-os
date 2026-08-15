@@ -31,7 +31,7 @@
 - **Roles**: `hiring` (the employer, drives the job's `company_id` / display name) and `recruiter` (recruiting / staffing / consulting agency)
 - **Key fields**: `job_id`, `company_id`, `role`, `company_type` (extraction vocabulary), `confidence`, `reason`
 - **Lifecycle**: rows are **replaced** for the job on every re-process; hard-deleted with the job via FK cascade
-- **Surfacing**: recruiters render as **Published by** in the Job detail drawer; a recruiter's hiring clients render as **Recruiter for** in the Company detail drawer
+- **Surfacing**: recruiters render as **Published by** in the Job detail drawer; a recruiter's hiring clients render as **Jobs listed for clients** in the Company detail drawer
 
 ### Skill
 - **What**: A skill tracked in the candidate's profile

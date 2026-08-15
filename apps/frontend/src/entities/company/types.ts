@@ -150,6 +150,7 @@ export interface CompanyDetail {
   jobs?: CompanyLinkedJob[]
   recruiter_job_count?: number
   recruiter_for?: RecruiterForCompany[]
+  recruiter_jobs?: CompanyLinkedJob[]
   parent_company_id?: string | null
   main_company?: CompanyMainRef | null
   alias_count?: number

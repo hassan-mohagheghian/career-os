@@ -377,13 +377,15 @@ for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 │ ┌────────────────────────────────────────────────────────────┐ │
 │ │ Recommendation: A — apply via careers page                 │ │
 │ └────────────────────────────────────────────────────────────┘ │
-│ Recruiter for 3 jobs (recruiter-type companies only)           │
+│ Jobs listed for clients (recruiter-type companies only)         │
 │ ┌────────────────────────────────────────────────────────────┐ │
-│ │ Acme GmbH                                    2 jobs        │ │
-│ │   • Senior Backend Engineer   → job drawer                 │ │
-│ │   • Platform Engineer         → job drawer                 │ │
-│ │ Beta GmbH                                    1 job         │ │
-│ │   • Data Engineer             → job drawer                 │ │
+│ │ 3 linked jobs                                              │ │
+│ │ Senior Backend Engineer                    [B]             │ │
+│ │   Berlin · [Fit 84][Success 63][Overall 76]               │ │
+│ │ Platform Engineer                          [A]             │ │
+│ │   Munich · [Fit 90][Success 70][Overall 82]               │ │
+│ │ Data Engineer                             [C]             │ │
+│ │   Berlin · [Fit 70][Success 55][Overall 64]               │ │
 │ └────────────────────────────────────────────────────────────┘ │
 │ Company Overview                                              │
 │ Intelligence sections (importance order)                      │
@@ -403,7 +405,7 @@ for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 The job-count badge in the header is adaptive like the list's Jobs column:
 product companies show `N jobs` (hiring count); recruiter-type companies
 (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) show `N listed` (jobs listed for
-clients, matching the "Recruiter for N jobs" section below).
+clients, matching the "Jobs listed for clients" section below).
 
 The link column at the top-right of the score strip lists the company Website
 first and the remaining `company.links` beneath it (skipping the link equal to

@@ -93,12 +93,14 @@ class SQLAlchemyJobCompanyRepository(IJobCompanyRepository):
         return [{"job_id": r.job_id, "hiring_company_id": r.company_id} for r in hiring_rows]
 
     def recruiter_job_counts(self, company_ids: list[str]) -> dict[str, int]:
-        """Per-company counts of jobs published as a recruiter with an
-        attributed distinct hiring company (same semantics as
-        ``recruiter_hiring_pairs``, aggregated for a list of company ids)."""
+        """Per-company counts of jobs a company publishes as a recruiter,
+        excluding jobs where the same company is also the hiring company
+        (its own role, not a client listing). Jobs with an unknown hiring
+        company still count — the recruiter published them for a client.
+        """
         if not company_ids:
             return {}
-        hiring_alias = aliased(JobCompanyModel)
+        self_hiring_alias = aliased(JobCompanyModel)
         rows = (
             self._session.query(
                 JobCompanyModel.company_id,
@@ -109,12 +111,12 @@ class SQLAlchemyJobCompanyRepository(IJobCompanyRepository):
                 JobCompanyModel.role == "recruiter",
             )
             .filter(
-                self._session.query(func.count())
-                .select_from(hiring_alias)
+                ~self._session.query(func.count())
+                .select_from(self_hiring_alias)
                 .filter(
-                    hiring_alias.job_id == JobCompanyModel.job_id,
-                    hiring_alias.role == "hiring",
-                    hiring_alias.company_id != JobCompanyModel.company_id,
+                    self_hiring_alias.job_id == JobCompanyModel.job_id,
+                    self_hiring_alias.role == "hiring",
+                    self_hiring_alias.company_id == JobCompanyModel.company_id,
                 )
                 .correlate(JobCompanyModel)
                 .exists()

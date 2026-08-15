@@ -215,45 +215,40 @@ describe('CompanyDetailDrawer scores explanation', () => {
   })
 })
 
-describe('CompanyDetailDrawer recruiter for', () => {
-  it('links each job a recruiter publishes to the job drawer', async () => {
+describe('CompanyDetailDrawer recruiter jobs', () => {
+  it('lists the client jobs a recruiter publishes and opens them in the job drawer', async () => {
     const onOpenJob = vi.fn()
     vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
       company_type: 'RECRUITING_AGENCY',
       recruiter_job_count: 3,
-      recruiter_for: [
-        {
-          company_id: 'hiring-1',
-          name: 'Acme GmbH',
-          job_count: 2,
-          jobs: [
-            { id: 'job-1', title: 'Senior Backend Engineer', location: 'Berlin' },
-            { id: 'job-2', title: 'Platform Engineer', location: 'Munich' },
-          ],
-        },
-        {
-          company_id: 'hiring-2',
-          name: 'Beta GmbH',
-          job_count: 1,
-          jobs: [{ id: 'job-3', title: 'Data Engineer', location: 'Berlin' }],
-        },
+      recruiter_jobs: [
+        { id: 'job-1', role: 'Senior Backend Engineer', location: 'Berlin', fit_score: 84, success_score: 63, overall_score: 76 },
+        { id: 'job-2', role: 'Platform Engineer', location: 'Munich', fit_score: 90, success_score: 70, overall_score: 82 },
+        { id: 'job-3', role: 'Data Engineer', location: 'Berlin', fit_score: 70, success_score: 55, overall_score: 64 },
       ],
     }))
     renderDrawer('company-1', vi.fn(), vi.fn(), onOpenJob)
 
-    await waitFor(() => expect(screen.getByText('Recruiter for 3 jobs')).toBeInTheDocument())
-    const acmeLink = screen.getByRole('link', { name: 'Acme GmbH' })
-    expect(acmeLink).toHaveAttribute('href', '/companies?company=hiring-1')
-    expect(screen.getByText('Beta GmbH')).toBeInTheDocument()
-    expect(screen.getByText('2 jobs')).toBeInTheDocument()
-    expect(screen.getByText('1 job')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Jobs listed for clients')).toBeInTheDocument())
+    expect(screen.getByText('3 linked jobs')).toBeInTheDocument()
+    expect(screen.getByText('Senior Backend Engineer')).toBeInTheDocument()
+    expect(screen.getByText('Platform Engineer')).toBeInTheDocument()
+    expect(screen.getByText('Data Engineer')).toBeInTheDocument()
 
-    const jobLink = screen.getByRole('link', { name: 'Senior Backend Engineer' })
-    expect(jobLink).toHaveAttribute('href', '/jobs?job=job-1')
-    fireEvent.click(jobLink)
-    expect(onOpenJob).toHaveBeenCalledWith('job-1')
-    expect(screen.getByRole('link', { name: 'Platform Engineer' })).toHaveAttribute('href', '/jobs?job=job-2')
-    expect(screen.getByRole('link', { name: 'Data Engineer' })).toHaveAttribute('href', '/jobs?job=job-3')
+    fireEvent.click(screen.getByText('Data Engineer'))
+    expect(onOpenJob).toHaveBeenCalledWith('job-3')
+  })
+
+  it('does not render the section when a recruiter has no client jobs', async () => {
+    vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
+      company_type: 'RECRUITING_AGENCY',
+      recruiter_job_count: 0,
+      recruiter_jobs: [],
+    }))
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    expect(screen.queryByText(/Jobs listed for clients/)).not.toBeInTheDocument()
   })
 
   it('does not render the section for non-recruiters', async () => {
@@ -261,7 +256,7 @@ describe('CompanyDetailDrawer recruiter for', () => {
     renderDrawer('company-1')
 
     await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
-    expect(screen.queryByText(/Recruiter for/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Jobs listed for clients/)).not.toBeInTheDocument()
   })
 })
 

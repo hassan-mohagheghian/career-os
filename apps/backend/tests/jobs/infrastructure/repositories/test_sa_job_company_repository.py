@@ -193,7 +193,7 @@ class TestRecruiterJobCounts:
         assert counts[recruiter_b.id] == 1
         assert hiring.id not in counts
 
-    def test_excludes_jobs_without_distinct_hiring_company(self, repo, sa_session):
+    def test_counts_jobs_without_known_hiring_company_but_excludes_self_hiring(self, repo, sa_session):
         recruiter = _add_company(sa_session, "RecruitCo")
         company = _add_company(sa_session, "Mixed Co")
         job_a = _add_job(sa_session, company_id=company.id)
@@ -208,7 +208,7 @@ class TestRecruiterJobCounts:
         sa_session.commit()
 
         counts = repo.recruiter_job_counts([recruiter.id])
-        assert counts.get(recruiter.id, 0) == 0
+        assert counts.get(recruiter.id, 0) == 1
 
     def test_empty_input_returns_empty(self, repo, sa_session):
         assert repo.recruiter_job_counts([]) == {}

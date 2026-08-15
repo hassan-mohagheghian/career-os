@@ -18,6 +18,15 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        """Batch-fetch non-deleted jobs by ids with full details.
+
+        Used to surface a recruiter company's client jobs (the jobs it publishes
+        on behalf of hiring companies) with role, location and scores.
+        """
+        ...
+
+    @abstractmethod
     def list_jobs(
         self,
         offset: int | None = None,

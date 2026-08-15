@@ -398,7 +398,7 @@ def _build_company_detail(
             jobs_by_hiring_company.setdefault(hiring_company_id, []).append(pair.get("job_id"))
 
     all_job_ids = [job_id for job_ids in jobs_by_hiring_company.values() for job_id in job_ids]
-    job_by_id = {j["id"]: j for j in job_repo.get_by_ids(all_job_ids)}
+    job_by_id = {j["id"]: j for j in job_repo.get_jobs_by_ids(all_job_ids)}
     recruiter_for = [
         RecruiterForSchema(
             company_id=hiring_company_id,
@@ -420,6 +420,36 @@ def _build_company_detail(
             jobs_by_hiring_company.items(), key=lambda item: len(item[1]), reverse=True
         )
     ]
+
+    # Client jobs this recruiter published, excluding jobs where it is also the
+    # hiring company (its own role). A job with an unknown hiring company still
+    # counts — the recruiter published it for a client.
+    recruiter_rows = job_company_repo.list_by_company(id, role="recruiter")
+    self_hiring_job_ids = {
+        r["job_id"] for r in job_company_repo.list_by_company(id, role="hiring")
+    }
+    recruiter_job_ids = [
+        r["job_id"] for r in recruiter_rows if r["job_id"] not in self_hiring_job_ids
+    ]
+    recruiter_job_by_id = {
+        j["id"]: j for j in job_repo.get_jobs_by_ids(recruiter_job_ids)
+    }
+    recruiter_jobs = sorted(
+        (
+            CompanyJobRefSchema(
+                id=j["id"],
+                role=j.get("role") or j.get("title"),
+                location=j.get("location"),
+                match=j.get("match"),
+                score=j.get("score"),
+                fit_score=j.get("fit_score"),
+                success_score=j.get("success_score"),
+                overall_score=j.get("overall_score"),
+            )
+            for j in recruiter_job_by_id.values()
+        ),
+        key=lambda ref: (ref.role or "") or "",
+    )
 
     return CompanyDetailResponseSchema(
         id=company["id"],
@@ -444,8 +474,9 @@ def _build_company_detail(
         intelligence=_to_intelligence_schema(intel),
         scores=_scores_from_intelligence(intel),
         jobs=jobs_schema,
-        recruiter_job_count=len(hiring_pairs),
+        recruiter_job_count=len(recruiter_jobs),
         recruiter_for=recruiter_for,
+        recruiter_jobs=recruiter_jobs,
         parent_company_id=parent_company_id,
         main_company=main_company,
         alias_count=repo.count_aliases(id),

@@ -559,10 +559,47 @@ class TestCompanyRecruiterForAPI:
             {"id": job3.id, "title": "Data Engineer", "location": "Berlin"},
         ]
 
+        by_role = {j["role"]: j for j in detail["recruiter_jobs"]}
+        assert set(by_role) == {
+            "Data Engineer",
+            "Platform Engineer",
+            "Senior Backend Engineer",
+        }
+        assert by_role["Senior Backend Engineer"]["id"] == job1.id
+        assert by_role["Senior Backend Engineer"]["location"] == "Berlin"
+        assert by_role["Data Engineer"]["id"] == job3.id
+
     def test_non_recruiter_company_has_empty_recruiter_for(self, client, sa_session):
         company = _create_company(sa_session, name="Product Co")
         detail = client.get(f"/api/companies/{company.id}").json()
         assert detail["recruiter_job_count"] == 0
+        assert detail["recruiter_for"] == []
+
+    def test_detail_lists_recruiter_jobs_without_known_hiring_company(self, client, sa_session):
+        from jobs.infrastructure.models.job_model import JobModel
+        from jobs.infrastructure.models.job_company_model import JobCompanyModel
+
+        recruiter = _create_company(sa_session, name="A2G Consulting BV", company_type="STAFFING_COMPANY")
+        job = JobModel(title="Senior Python Software Engineer", company_id=None, deleted=0, workflow_log="[]", rescoring=0)
+        sa_session.add(job)
+        sa_session.commit()
+        sa_session.add_all([
+            JobCompanyModel(job_id=job.id, company_id=recruiter.id, role="recruiter", company_type="staffing", confidence=0.95),
+        ])
+        sa_session.commit()
+
+        detail = client.get(f"/api/companies/{recruiter.id}").json()
+        assert detail["recruiter_job_count"] == 1
+        assert detail["recruiter_jobs"] == [{
+            "id": job.id,
+            "role": "Senior Python Software Engineer",
+            "location": None,
+            "match": None,
+            "score": None,
+            "fit_score": None,
+            "success_score": None,
+            "overall_score": None,
+        }]
         assert detail["recruiter_for"] == []
 
     def test_same_company_as_hiring_and_recruiter_excluded_from_itself(self, client, sa_session):

@@ -440,50 +440,20 @@ function CompanyDetailContent({
       <CompanyRecommendationSection intel={intel} />
 
       {isRecruiterCompany(company) &&
-        company.recruiter_for &&
-        company.recruiter_for.length > 0 && (
+        company.recruiter_jobs &&
+        company.recruiter_jobs.length > 0 && (
           <div className="rounded-lg border border-border/40 bg-muted/10 p-3">
             <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              <Users className="w-3 h-3 inline mr-1 text-primary" />
-              Recruiter for {company.recruiter_job_count} job
-              {company.recruiter_job_count === 1 ? "" : "s"}
+              <Briefcase className="w-3 h-3 inline mr-1 text-primary" />
+              Jobs listed for clients
             </p>
-            <ul className="space-y-2.5">
-              {company.recruiter_for.map((r) => (
-                <li key={r.company_id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <a
-                      href={`/companies?company=${r.company_id}`}
-                      className="text-xs text-muted-foreground hover:text-primary hover:underline break-words"
-                    >
-                      {r.name || "Hiring company"}
-                    </a>
-                    <span className="text-2xs text-muted-foreground shrink-0">
-                      {r.job_count} job{r.job_count === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  {r.jobs && r.jobs.length > 0 && (
-                    <ul className="mt-1 space-y-1">
-                      {r.jobs.map((job) => (
-                        <li key={job.id}>
-                          <a
-                            href={`/jobs?job=${job.id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onOpenJob?.(job.id);
-                            }}
-                            className="text-xs text-primary hover:underline break-words"
-                          >
-                            <Briefcase className="w-3 h-3 inline mr-1" />
-                            {job.title || "Job"}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <CompanyJobsTab
+              companyId={company.id}
+              companyName={company.name}
+              jobs={company.recruiter_jobs}
+              onOpenJob={onOpenJob}
+              onNavigateToJob={onNavigateToJob}
+            />
           </div>
         )}
 

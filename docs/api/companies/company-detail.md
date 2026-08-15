@@ -113,6 +113,18 @@ for the same path.
       ]
     }
   ],
+  "recruiter_jobs": [
+    {
+      "id": "job-1",
+      "role": "Senior Backend Engineer",
+      "location": "Berlin",
+      "match": "...",
+      "score": "A",
+      "fit_score": 84,
+      "success_score": 63,
+      "overall_score": 76
+    }
+  ],
   "jobs": [
     {
       "id": "019fd122-...",
@@ -165,12 +177,17 @@ its hiring-client portfolio via the `job_companies` table:
 
 | Field                 | Type                | Description                                              |
 | --------------------- | ------------------- | -------------------------------------------------------- |
-| `recruiter_job_count` | number              | Jobs where this company is a recruiter with an attributed hiring company |
+| `recruiter_job_count` | number              | Jobs this company publishes as a recruiter for clients, excluding jobs where it is also the hiring company |
 | `recruiter_for`       | array of `{ company_id, name, job_count, jobs }` | Distinct hiring companies this recruiter publishes for, sorted by job count descending; `jobs` lists the `{ id, title, location }` of the jobs published for that company, sorted by title |
+| `recruiter_jobs`      | array of `{ id, role, location, match, score, fit_score, success_score, overall_score }` | Flat, role-sorted list of every job this recruiter publishes for other companies (client jobs), carrying full scores |
 
-Only jobs that carry a **distinct** hiring company are counted — jobs where the
-recruiter is also the hiring company are excluded. Non-recruiter companies
-return `recruiter_job_count: 0` and `recruiter_for: []`.
+A recruiter's job is counted and listed whenever the company appears as
+`role="recruiter"` on it — **even when the hiring company is unknown** (the
+recruiter still published it for a client). The only jobs excluded are those
+where the same company is also the hiring company (its own role, not a client
+listing). Non-recruiter companies return `recruiter_job_count: 0`,
+`recruiter_for: []` and `recruiter_jobs: []`. The `recruiter_jobs` list is what
+the Company Detail drawer renders as its **Jobs listed for clients** section.
 
 ---
 
