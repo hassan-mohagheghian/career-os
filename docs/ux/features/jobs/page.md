@@ -961,7 +961,7 @@ shows a single scrollable page:
 
 ```text
 ┌─ Job Details ───────────────────────────── Application  ↻  ✎  ✕ ┐
-│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  [Why]│ ← score strip
+│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  #3  [Why]│ ← score strip
 │                                                         │
 │ Software Engineer (Senior)                              │
 │ Company  Acme GmbH →▾      │  Employment  Permanent   │
@@ -994,7 +994,10 @@ shows a single scrollable page:
 - **Score strip**: a `GradeBadge` for the overall grade plus colored
   Fit / Success / Overall score cards at the top. Colors use the shared
   `scoreColor` thresholds (≥90 green, ≥70 emerald, ≥50 yellow, ≥30 orange,
-  <30 red) — identical to the list `ScoreBadge` colors. A `[Why]` button sits
+  <30 red) — identical to the list `ScoreBadge` colors. A `[#N]` **Rank**
+  indicator after the Overall card shows the job's 1-based position in the full
+  job list sorted by overall score (descending) — higher scores rank lower,
+  ties share a rank. A `[Why]` button sits
   after the Overall score and
   opens a **Scores Explanation** popover anchored to the button. It
   auto-opens on hover and auto-closes on unhover; clicking the button pins

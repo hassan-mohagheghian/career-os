@@ -56,6 +56,7 @@ block produced by the Job Analysis phase:
   "id": "…",
   "title": "Senior Backend Engineer",
   "company_name": "Acme Inc",
+  "rank": 3,
   "scores": { "overall": 79, "fit": 85, "success": 70 },
   "analysis": {
     "recommendation": "consider",
@@ -79,6 +80,10 @@ block produced by the Job Analysis phase:
 ```
 
 - `analysis` is `null` until the analysis phase completes for the job.
+- `rank` is the job's 1-based position in the full job list sorted by `overall`
+  score (descending). Jobs with the same overall score share a rank (competition
+  ranking); jobs without a score tie at the end, after all scored jobs. It is
+  derived at read time and never stored.
 - For jobs processed before the analysis phase existed, `analysis` is a
   backward-compatible block built from the legacy `jobs`/`summaries`
   projections (no `recommendation`, grade-derived `summary`).

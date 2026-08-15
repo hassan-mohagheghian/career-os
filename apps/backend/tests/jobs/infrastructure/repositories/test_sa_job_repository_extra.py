@@ -789,6 +789,48 @@ class TestSearchJobsCursorExclude:
         assert items == []
 
 
+# ── overall_score_rank ──────────────────────────────────────────
+
+class TestOverallScoreRank:
+    def test_top_score_ranks_first(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=40)
+        assert repo.overall_score_rank(m1.id) == 1
+
+    def test_ranks_after_higher_scores(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        m2 = _add(sa_session, id="job-b", overall_score=40)
+        _add(sa_session, id="job-c", overall_score=70)
+        assert repo.overall_score_rank(m2.id) == 3
+
+    def test_ties_share_a_rank(self, sa_session, repo):
+        _add(sa_session, id="job-top-a", overall_score=95)
+        _add(sa_session, id="job-top-b", overall_score=95)
+        m2 = _add(sa_session, id="job-b", overall_score=80)
+        _add(sa_session, id="job-c", overall_score=80)
+        _add(sa_session, id="job-d", overall_score=60)
+        # two jobs score above 80 => both 80s rank 3
+        assert repo.overall_score_rank(m2.id) == 3
+
+    def test_null_score_ranks_after_all_scored(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=40)
+        m_null = _add(sa_session, id="job-null")
+        assert repo.overall_score_rank(m_null.id) == 3
+
+    def test_null_score_rank_when_no_scored_jobs(self, sa_session, repo):
+        m_null = _add(sa_session, id="job-null")
+        assert repo.overall_score_rank(m_null.id) == 1
+
+    def test_excludes_deleted_jobs(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=40, deleted=1)
+        assert repo.overall_score_rank(m1.id) == 1
+
+    def test_missing_job_returns_none(self, repo):
+        assert repo.overall_score_rank("does-not-exist") is None
+
+
 # ── get_by_url_fragment ─────────────────────────────────────────
 
 class TestGetByUrlFragment:

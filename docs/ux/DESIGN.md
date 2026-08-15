@@ -202,7 +202,7 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ Job Details                      [Application] [↻] [Edit] [Close]│
 ├───────────────────────────────────────────────────────────────────────────────┤
-│ [B]  Fit 85   Success 70   Overall 79                [Why]               │
+│ [B]  Fit 85   Success 70   Overall 79   #3   [Why]               │
 │                                                                              │
 │ Senior Backend Engineer                                                      │
 │ Company   Acme Inc →▾   │ Employment  Permanent                            │
@@ -239,6 +239,8 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 ```
 
 The `recommendation` badge maps apply → green, consider → blue, skip → gray.
+The `[#N]` indicator after the Overall score shows the job's 1-based rank in
+the full job list sorted by overall score (descending); ties share a rank.
 The `[Why]` button after the Overall score opens a **Scores Explanation**
 popover (Why it fits / Chance of success / Concerns). It auto-opens on hover,
 auto-closes on unhover, and clicking pins/unpins it. Below the title a
@@ -650,7 +652,7 @@ asynchronously (`roadmap_generation` / `application_resume` /
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ← Back to Job      [Job Detail] [Job Edit] [Open job posting]            │
 │ Staff Engineer · Acme GmbH · Berlin                                      │
-│ [Recommended] [Apply]             [A+] [Fit 85] [Success 88] [Overall 90]│
+│ [Recommended] [Apply]       [A+] [Fit 85] [Success 88] [Overall 90] [#3]│
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ▸ AI generation in progress ▸ 42% · "Generating tailored resume"        │  ← SSE card
 ├──────────────────────────────────────────────────────────────────────────┤

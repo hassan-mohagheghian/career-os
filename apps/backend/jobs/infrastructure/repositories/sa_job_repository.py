@@ -809,3 +809,24 @@ class SQLAlchemyJobRepository(IJobRepository):
         model.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self._session.commit()
         return True
+
+    def overall_score_rank(self, job_id: str) -> int | None:
+        """1-based rank of a job in the overall-score-sorted list (competition
+        ranking, NULLS LAST: jobs without a score tie after all scored jobs)."""
+        row = (
+            self._session.query(JobModel.overall_score)
+            .filter(JobModel.id == job_id)
+            .first()
+        )
+        if row is None:
+            return None
+        score = row[0]
+        if score is None:
+            higher = self._session.query(func.count(JobModel.id)).filter(
+                JobModel.deleted == 0, JobModel.overall_score.isnot(None)
+            ).scalar()
+        else:
+            higher = self._session.query(func.count(JobModel.id)).filter(
+                JobModel.deleted == 0, JobModel.overall_score > score
+            ).scalar()
+        return (higher or 0) + 1

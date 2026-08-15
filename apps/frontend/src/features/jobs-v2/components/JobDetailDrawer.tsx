@@ -27,6 +27,7 @@ import { formatCompanyType } from "@/entities/company/lib";
 import DateTime from "@/shared/components/DateTime";
 import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
 import { GradeBadge } from "@/shared/components/GradeBadge";
+import { RankBadge } from "@/shared/components/RankBadge";
 import { gradeForScore, scoreColor } from "@/shared/lib/grade";
 import { RecommendationBadge } from "./RecommendationBadge";
 import { TrackingBadge } from "./TrackingBadge";
@@ -499,6 +500,7 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
           {detail.scores?.overall != null && (
             <JobScoreCard label="Overall" value={detail.scores.overall} />
           )}
+          <RankBadge rank={detail.rank ?? null} />
           {detail.analysis?.scores_explanation && (
             <ScoresExplanationButton
               explanation={detail.analysis.scores_explanation}

@@ -39,7 +39,7 @@ processing pipeline with live SSE progress.
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ ← Back to Job      [Job Detail] [Job Edit] [Open job posting]            │
 │ Staff Engineer · [Acme GmbH] · Berlin                    [Product Company]│
-│ [Recommended] [Apply]             [A+] [Fit 85] [Success 88] [Overall 90]│
+│ [Recommended] [Apply]     [A+] [Fit 85] [Success 88] [Overall 90] [#3]  │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ▸ AI generation in progress ▸ 42% · "Generating tailored resume"        │  ← SSE card (while running)
 │                                                                            (completed → "Generated successfully" + Dismiss)
@@ -92,6 +92,7 @@ so the user can inspect or edit the job without leaving the application page.
 | Back to Job | `router.push('/jobs?job={id}')`; the Jobs page opens the detail drawer for that job. |
 | Open job posting | External link to `job.url` in a new tab. |
 | Company name | When the job has a `company_id`, the header company name is a **link** to `/companies?company=<id>` (opens the company in the Companies page detail drawer). A **company type badge** renders beside the name when the linked company has a type. |
+| Rank | A `[#N]` indicator after the Overall score shows the job's 1-based position in the full job list sorted by overall score (descending); ties share a rank. Sourced from `job.rank` on the detail response. |
 
 ## Component Hierarchy
 

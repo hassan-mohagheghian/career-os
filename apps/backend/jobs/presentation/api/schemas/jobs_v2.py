@@ -235,6 +235,7 @@ class JobDetailResponseSchema(BaseModel):
     visa: str | None = None
     url: str | None = None
     status: str | None = None
+    rank: int | None = None
     scores: ScoresSchema | None = None
     latest_processing_execution: JobDetailExecutionSchema | None = None
     analysis: JobAnalysisBlockSchema | None = None

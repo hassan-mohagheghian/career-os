@@ -601,6 +601,33 @@ def _create_company(test_db, **kwargs) -> CompanyModel:
     return company
 
 
+class TestJobRankV2API:
+    def test_job_detail_returns_overall_score_rank(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=85)
+        _create_job(test_db, id=2, title="Better", overall_score=92)
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["rank"] == 2
+
+    def test_job_detail_top_rank_is_one(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=92)
+        _create_job(test_db, id=2, title="Other", overall_score=40)
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["rank"] == 1
+
+    def test_job_detail_rank_shared_on_ties(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=85)
+        _create_job(test_db, id=2, title="Other", overall_score=85)
+        _create_job(test_db, id=3, title="Top", overall_score=95)
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["rank"] == 2
+
+
 class TestJobCompanyV2API:
     def test_set_company_links_job_and_sets_canonical_name(self, client, test_db):
         job = _create_job(test_db, id=1, title="Engineer", company="Old Name")

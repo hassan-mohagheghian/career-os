@@ -6,6 +6,7 @@ import type { JobDetail } from '@/entities/job/types'
 import { formatCompanyType } from '@/entities/company/lib'
 import { Badge } from '@/shared/ui/badge'
 import { GradeBadge } from '@/shared/components/GradeBadge'
+import { RankBadge } from '@/shared/components/RankBadge'
 import { gradeForScore, scoreColor } from '@/shared/lib/grade'
 import { RecommendationBadge } from '@/features/jobs-v2/components/RecommendationBadge'
 import { ApplicationStatusBadge } from './ApplicationStatusBadge'
@@ -113,6 +114,7 @@ export function WorkspaceHeader({ job, applicationStatus, onViewDetails, onEdit 
           <ScoreCard label="Fit" value={job.scores?.fit ?? null} />
           <ScoreCard label="Success" value={job.scores?.success ?? null} />
           <ScoreCard label="Overall" value={job.scores?.overall ?? null} />
+          <RankBadge rank={job.rank ?? null} />
         </div>
       </div>
     </div>

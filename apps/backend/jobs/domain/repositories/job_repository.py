@@ -155,3 +155,11 @@ class IJobRepository(ABC):
     def set_pinned(self, job_id: str, pinned: bool) -> bool:
         """Set or clear the pinned flag on a job. Returns True if the job exists."""
         ...
+
+    @abstractmethod
+    def overall_score_rank(self, job_id: str) -> int | None:
+        """Return the job's 1-based rank in the full non-deleted job list sorted
+        by overall score (descending). Competition ranking: jobs sharing a score
+        share a rank; jobs without a score tie at the end, after all scored jobs.
+        Returns None when the job does not exist."""
+        ...

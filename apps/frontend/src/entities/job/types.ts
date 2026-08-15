@@ -237,6 +237,7 @@ export interface JobDetail {
   visa: string | null
   url: string | null
   status: string | null
+  rank: number | null
   scores: Scores
   latest_processing_execution: JobDetailExecution | null
   analysis: JobAnalysis | null

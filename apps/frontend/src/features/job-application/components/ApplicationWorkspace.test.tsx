@@ -85,6 +85,7 @@ const sampleJob: JobDetail = {
   url: 'https://example.com/job',
   status: 'imported',
   scores: { overall: 90, fit: 85, success: 88 },
+  rank: 3,
   latest_processing_execution: null,
   description: 'A great role.',
   notes: [],
@@ -140,6 +141,8 @@ describe('ApplicationWorkspace', () => {
     expect(screen.getByText('Application')).toBeInTheDocument()
     expect(screen.getByText('Roadmap')).toBeInTheDocument()
     expect(screen.getByText('Documents')).toBeInTheDocument()
+    expect(screen.getByText('#3')).toBeInTheDocument()
+    expect(screen.getByText('Rank')).toBeInTheDocument()
   })
 
   it('renders Job Detail and Job Edit buttons and opens their drawers', async () => {

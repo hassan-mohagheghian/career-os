@@ -30,6 +30,7 @@ const sampleDetail = {
   url: 'https://example.com/job',
   status: 'imported',
   scores: { overall: 90, fit: 85, success: 88, overall_grade: 'A+' },
+  rank: 3,
   latest_processing_execution: null,
   description: 'A great role.',
   notes: [],
@@ -175,6 +176,24 @@ describe('JobDetailDrawer tracking', () => {
     renderDrawer('job-1')
 
     await waitFor(() => expect(screen.getByText('Applied')).toBeInTheDocument())
+  })
+})
+
+describe('JobDetailDrawer rank', () => {
+  it('renders the overall-score rank', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.getByText('#3')).toBeInTheDocument()
+    expect(screen.getByText('Rank')).toBeInTheDocument()
+  })
+
+  it('does not render a rank when it is absent', async () => {
+    vi.mocked(jobApi.getDetail).mockResolvedValue({ ...sampleDetail, rank: null } as any)
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.queryByText('Rank')).not.toBeInTheDocument()
   })
 })
 
