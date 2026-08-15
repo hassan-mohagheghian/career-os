@@ -80,9 +80,9 @@ export function JobRow({
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 whitespace-nowrap">
           <GradeBadge grade={gradeForScore(job.scores?.overall ?? null)} className="w-7 h-5 text-2xs" />
-          <ScoreBadge label="F" value={job.scores?.fit ?? null} />
-          <ScoreBadge label="S" value={job.scores?.success ?? null} />
           <ScoreBadge label="O" value={job.scores?.overall ?? null} />
+          <ScoreBadge label="S" value={job.scores?.success ?? null} />
+          <ScoreBadge label="F" value={job.scores?.fit ?? null} />
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">

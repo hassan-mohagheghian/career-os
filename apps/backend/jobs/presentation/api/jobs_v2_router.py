@@ -518,7 +518,7 @@ def get_job_detail(
         visa=job_dict.get("visa"),
         url=job_dict.get("url"),
         status=job_dict.get("status"),
-        rank=repo.overall_score_rank(job_id),
+        rank=repo.score_rank(job_id),
         scores=ScoresSchema(
             overall=job_dict.get("overall_score"),
             fit=job_dict.get("fit_score"),
@@ -592,7 +592,7 @@ def update_job(
         latest_execution,
         _related_companies_schema(job_id, job_company_repo, company_repo),
         company_type=_linked_company_type(job_dict, company_repo),
-        rank=repo.overall_score_rank(job_id),
+        rank=repo.score_rank(job_id),
     )
 
 
@@ -626,7 +626,7 @@ def set_job_company(
         latest_execution,
         _related_companies_schema(job_id, job_company_repo, company_repo),
         company_type=_linked_company_type(job_dict, company_repo),
-        rank=repo.overall_score_rank(job_id),
+        rank=repo.score_rank(job_id),
     )
 
 

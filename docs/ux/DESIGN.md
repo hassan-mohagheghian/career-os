@@ -77,9 +77,9 @@ Placement is right by default; all variants become full-screen on mobile.
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Rec │ Tracking│ Proc.  │ Updated │
 │─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] F 95 S 91 O 94 │ Apply│ [Applied]│ Ready  │ 2m      │
-│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] F 90 S 88 O 90  │ Apply│ [Interview]│ Running│ now    │
-│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] F 86 S 84 O 83   │ Skip │ [Not Applied]│ Failed│ 5m   │
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] O 94 S 91 F 95 │ Apply│ [Applied]│ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] O 90 S 88 F 90  │ Apply│ [Interview]│ Running│ now    │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] O 83 S 84 F 86   │ Skip │ [Not Applied]│ Failed│ 5m   │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
@@ -240,7 +240,8 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 
 The `recommendation` badge maps apply → green, consider → blue, skip → gray.
 The `[#N]` indicator after the Overall score shows the job's 1-based rank in
-the full job list sorted by overall score (descending); ties share a rank.
+the full job list sorted by overall, then success, then fit score (descending);
+ties break by success then fit then id, so each job has a unique rank.
 The `[Why]` button after the Overall score opens a **Scores Explanation**
 popover (Why it fits / Chance of success / Concerns). It auto-opens on hover,
 auto-closes on unhover, and clicking pins/unpins it. Below the title a
@@ -328,10 +329,10 @@ Full specs: `docs/ux/features/rules/`.
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
 │ # │ Pin │ Name │ Industry │ Type │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │
 │───│─────┼──────┼──────────┼──────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────│
-│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12  │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │
-│ 2 │ ○  │ Acme │ Software │ Product │ Berlin │ —    │ 0   │ [—] F — S — O — │ Completed │ 5m │ 1d │
+│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12  │ [A+] O 88 S 90 F 85 │ Completed │ 2m │ 2h │
+│ 2 │ ○  │ Acme │ Software │ Product │ Berlin │ —    │ 0   │ [—] O — S — F — │ Completed │ 5m │ 1d │
 │ 3 │ ○  │ Inc  │          │ Unknown │        │      │      │ alias            │           │     │     │
-│ 4 │ ○  │ Beta │ Fintech  │ Consulting │ Munich │ 51-200│ 4 │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │
+│ 4 │ ○  │ Beta │ Fintech  │ Consulting │ Munich │ 51-200│ 4 │ [B] O 58 S 55 F 60 │ Completed │ 5m │ 1d │
 │ ○  │ Head │ Recruit  │ Recruiting │ Berlin │ 1-50 │ 7¹ │ [—] F — S — O — │ Completed │ 5m │ 1d │
 │ ○  │ Nova │ Health   │ Unknown │ —    │ —    │ 0   │ [—] F — S — O — │ Failed   │ 1h │ 2d │
 │                                                                                          │

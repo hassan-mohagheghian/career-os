@@ -17,7 +17,7 @@ visa-seeking software engineer.
 ┌──────────────────────────────────────────────┐
 │ Company Details       [Reprocess] [Edit]  ✕  │
 ├──────────────────────────────────────────────┤
-│ [A+]  Fit 85  Success 90  Overall 88   🔗Web │
+│ [A+]  Overall 88  Success 90  Fit 85   🔗Web │
 │ ◉ Acme GmbH                          🔗Ext.  │
 │ Software Development                        │
 │ 📍 Berlin, Germany  👥 51-200  Product Co.   │
@@ -39,7 +39,7 @@ visa-seeking software engineer.
 # Header
 
 - Overall grade badge (derived from the overall score, A++ … D)
-- Fit / Success / Overall score cards
+- Overall / Success / Fit score cards
 - Link column at the top-right of the score strip:
   - Website link first (opens `company.website` in a new tab) when a website
     exists
@@ -96,7 +96,7 @@ uses for product companies, but fed by the **client jobs** the recruiter
 publishes for other companies (`recruiter_jobs` from the detail payload). This
 makes recruiter companies behave like product companies — a jobs listing in the
 detail drawer — except the jobs reference belong to other companies. Each row
-shows the job role, location, and Fit / Success / Overall scores with an
+shows the job role, location, and Overall / Success / Fit scores with an
 overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
 opens its detail drawer on the Jobs page.
 
@@ -104,9 +104,9 @@ opens its detail drawer on the Jobs page.
 ┌─ Jobs listed for clients ─────────────────────────────┐
 │ 3 linked jobs                                         │
 │ Senior Backend Engineer                    [B]        │
-│  Berlin, Germany   [Fit 84][Success 63][Overall 76]   │
+│  Berlin, Germany   [Overall 76][Success 63][Fit 84]   │
 │ Platform Engineer                           [A]       │
-│  Munich, Germany   [Fit 90][Success 70][Overall 82]   │
+│  Munich, Germany   [Overall 82][Success 70][Fit 90]   │
 │ ...                                                   │
 │ [Show all 3 jobs]                                     │
 └───────────────────────────────────────────────────────┘
@@ -151,7 +151,7 @@ keeps its own ordering:
 
 ## Scores
 
-The scores shown in the header (grade badge + Fit / Success / Overall cards)
+The scores shown in the header (grade badge + Overall / Success / Fit cards)
 are exactly the scores **calculated by company processing**
 (`fit` / `success` → weighted `overall`), persisted into
 `company.intelligence.scores` and surfaced through the normalized top-level
@@ -203,7 +203,7 @@ now the single score display.
 ## Linked Jobs
 
 `CompanyJobsTab` — lists `company.jobs` from the detail payload. Each row shows
-the job's role, location, and its Fit / Success / Overall scores with an
+the job's role, location, and its Overall / Success / Fit scores with an
 overall grade badge (up to 5 rows, "Show all" expands the rest). Clicking a job
 deep-links to `/jobs?job=<id>`, where the Jobs page opens that job's detail
 drawer on mount.
@@ -217,9 +217,9 @@ directly.
 ┌─ Linked Jobs ────────────────────────────────────────────┐
 │ 3 linked jobs                                            │
 │ Senior Backend Engineer                    [B]           │
-│  Berlin, Germany   [Fit 84][Success 63][Overall 76]      │
+│  Berlin, Germany   [Overall 76][Success 63][Fit 84]      │
 │ Platform Engineer                           [A]          │
-│  Munich, Germany   [Fit 90][Success 70][Overall 82]      │
+│  Munich, Germany   [Overall 82][Success 70][Fit 90]      │
 │ ...                                                      │
 │ [Show all 3 jobs]                                        │
 └──────────────────────────────────────────────────────────┘

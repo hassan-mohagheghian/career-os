@@ -15,6 +15,14 @@ from jobs.infrastructure.mappers import job_model_to_dict
 # so the cursor must distinguish a NULL boundary row from a non-NULL one.
 NULL_CURSOR = "__null__"
 
+# Multi-column tiebreak for score sorts so rows tied on the primary score are
+# ordered deterministically, sharing the chosen asc/desc direction.
+SCORE_SORT_COLUMNS = {
+    "overall_score": [JobModel.overall_score, JobModel.success_score, JobModel.fit_score],
+    "fit_score": [JobModel.fit_score, JobModel.overall_score, JobModel.success_score],
+    "success_score": [JobModel.success_score, JobModel.overall_score, JobModel.fit_score],
+}
+
 
 class SQLAlchemyJobRepository(IJobRepository):
     """SQLAlchemy implementation of job repository."""
@@ -580,10 +588,11 @@ class SQLAlchemyJobRepository(IJobRepository):
             "success_score": JobModel.success_score,
         }
         sort_column = sort_map.get(sort, JobModel.updated_at)
+        sort_columns = SCORE_SORT_COLUMNS.get(sort, [sort_column])
         if order == "asc":
-            q = q.order_by(sort_column.asc().nulls_last())
+            q = q.order_by(*(c.asc().nulls_last() for c in sort_columns))
         else:
-            q = q.order_by(sort_column.desc().nulls_last())
+            q = q.order_by(*(c.desc().nulls_last() for c in sort_columns))
 
         offset = (page - 1) * page_size
         q = q.offset(offset).limit(page_size)
@@ -691,6 +700,8 @@ class SQLAlchemyJobRepository(IJobRepository):
             "success_score": JobModel.success_score,
         }
         sort_column = sort_map.get(sort, JobModel.updated_at)
+        multi = sort in SCORE_SORT_COLUMNS
+        sort_columns = SCORE_SORT_COLUMNS.get(sort, [sort_column])
 
         # Status sort orders by the same execution status each row displays
         # (the latest execution), grouping rows by status. Unprocessed rows
@@ -738,31 +749,71 @@ class SQLAlchemyJobRepository(IJobRepository):
                             )
                         )
             else:
-                # NULLS LAST is the policy for every sort, so keyset
-                # pagination must be NULL-aware. Cursor format: ``value|id``
-                # (a legacy single-value cursor without ``|`` is tolerated).
-                # While the boundary row is non-NULL the next page is every
-                # row strictly below it plus all NULL rows (they sort last);
-                # once the boundary row is NULL, remaining pages walk the
-                # NULL tail by id alone.
-                cur_value, cur_id = cursor, None
-                if "|" in cursor:
-                    cur_value, cur_id = cursor.rsplit("|", 1)
-                if cur_value == NULL_CURSOR and cur_id is not None:
-                    if order == "desc":
-                        q = q.filter(and_(sort_column.is_(None), JobModel.id < cur_id))
-                    else:
-                        q = q.filter(and_(sort_column.is_(None), JobModel.id > cur_id))
-                else:
-                    cur = cast(cur_value, sort_column.type)
-                    cmp = sort_column < cur if order == "desc" else sort_column > cur
+                if multi:
+                    # Multi-column keyset: cursor format ``v1|v2|v3|id``, one
+                    # value per tiebreak column plus the id, all NULLS LAST.
+                    # Effective value uses a direction-aware sentinel for NULL
+                    # (coalesced to -1 in desc, to a large value in asc) so NULL
+                    # columns sort last; ties resolve lexicographically then by id.
+                    parts = cursor.split("|")
+                    cur_id = parts[3] if len(parts) == 4 else None
+                    sentinel = -1 if order == "desc" else 10_000
+                    cur_eff = []
+                    for i, col in enumerate(sort_columns):
+                        raw = parts[i] if len(parts) > i else None
+                        if raw == NULL_CURSOR or raw is None:
+                            cur_eff.append(sentinel)
+                        else:
+                            cur_eff.append(cast(raw, col.type))
                     if cur_id is not None:
-                        tiebreak = JobModel.id < cur_id if order == "desc" else JobModel.id > cur_id
-                        q = q.filter(
-                            or_(cmp, and_(sort_column == cur, tiebreak), sort_column.is_(None))
-                        )
+                        eff = [func.coalesce(c, sentinel) for c in sort_columns]
+                        cmp_op = lambda a, b: a < b if order == "desc" else a > b  # noqa: E731
+                        tie_op = JobModel.id < cur_id if order == "desc" else JobModel.id > cur_id
+                        conditions = [
+                            cmp_op(eff[0], cur_eff[0]),
+                            and_(
+                                eff[0] == cur_eff[0],
+                                cmp_op(eff[1], cur_eff[1]),
+                            ),
+                            and_(
+                                eff[0] == cur_eff[0],
+                                eff[1] == cur_eff[1],
+                                cmp_op(eff[2], cur_eff[2]),
+                            ),
+                            and_(
+                                eff[0] == cur_eff[0],
+                                eff[1] == cur_eff[1],
+                                eff[2] == cur_eff[2],
+                                tie_op,
+                            ),
+                        ]
+                        q = q.filter(or_(*conditions))
+                else:
+                    # NULLS LAST is the policy for every sort, so keyset
+                    # pagination must be NULL-aware. Cursor format: ``value|id``
+                    # (a legacy single-value cursor without ``|`` is tolerated).
+                    # While the boundary row is non-NULL the next page is every
+                    # row strictly below it plus all NULL rows (they sort last);
+                    # once the boundary row is NULL, remaining pages walk the
+                    # NULL tail by id alone.
+                    cur_value, cur_id = cursor, None
+                    if "|" in cursor:
+                        cur_value, cur_id = cursor.rsplit("|", 1)
+                    if cur_value == NULL_CURSOR and cur_id is not None:
+                        if order == "desc":
+                            q = q.filter(and_(sort_column.is_(None), JobModel.id < cur_id))
+                        else:
+                            q = q.filter(and_(sort_column.is_(None), JobModel.id > cur_id))
                     else:
-                        q = q.filter(or_(cmp, sort_column.is_(None)))
+                        cur = cast(cur_value, sort_column.type)
+                        cmp = sort_column < cur if order == "desc" else sort_column > cur
+                        if cur_id is not None:
+                            tiebreak = JobModel.id < cur_id if order == "desc" else JobModel.id > cur_id
+                            q = q.filter(
+                                or_(cmp, and_(sort_column == cur, tiebreak), sort_column.is_(None))
+                            )
+                        else:
+                            q = q.filter(or_(cmp, sort_column.is_(None)))
 
         if status_mode:
             if order == "asc":
@@ -770,9 +821,15 @@ class SQLAlchemyJobRepository(IJobRepository):
             else:
                 q = q.order_by(rank_expr.desc(), JobModel.id.desc())
         elif order == "asc":
-            q = q.order_by(sort_column.asc().nulls_last(), JobModel.id.asc())
+            q = q.order_by(
+                *(c.asc().nulls_last() for c in sort_columns),
+                JobModel.id.asc(),
+            )
         else:
-            q = q.order_by(sort_column.desc().nulls_last(), JobModel.id.desc())
+            q = q.order_by(
+                *(c.desc().nulls_last() for c in sort_columns),
+                JobModel.id.desc(),
+            )
 
         q = q.limit(page_size + 1)
         if cursor is None and page and page > 1:
@@ -792,9 +849,16 @@ class SQLAlchemyJobRepository(IJobRepository):
                 )
                 next_cursor = f"{boundary_rank}:{boundary.id}"
             else:
-                boundary_value = getattr(boundary, sort, boundary.updated_at)
-                value = NULL_CURSOR if boundary_value is None else str(boundary_value)
-                next_cursor = f"{value}|{boundary.id}"
+                if multi:
+                    vals = [getattr(boundary, col.key) for col in sort_columns]
+                    encoded = [
+                        NULL_CURSOR if v is None else str(v) for v in vals
+                    ]
+                    next_cursor = "|".join(encoded + [boundary.id])
+                else:
+                    boundary_value = getattr(boundary, sort, boundary.updated_at)
+                    value = NULL_CURSOR if boundary_value is None else str(boundary_value)
+                    next_cursor = f"{value}|{boundary.id}"
         else:
             next_cursor = None
 
@@ -810,23 +874,47 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.commit()
         return True
 
-    def overall_score_rank(self, job_id: str) -> int | None:
-        """1-based rank of a job in the overall-score-sorted list (competition
-        ranking, NULLS LAST: jobs without a score tie after all scored jobs)."""
+    def score_rank(self, job_id: str) -> int | None:
+        """1-based rank of a job in the full list sorted by overall, then
+        success, then fit score (each descending, NULLS LAST), with the final
+        all-equal tie broken by id (desc). Jobs without a score sort last."""
         row = (
-            self._session.query(JobModel.overall_score)
+            self._session.query(
+                JobModel.id,
+                JobModel.overall_score,
+                JobModel.success_score,
+                JobModel.fit_score,
+            )
             .filter(JobModel.id == job_id)
             .first()
         )
         if row is None:
             return None
-        score = row[0]
-        if score is None:
-            higher = self._session.query(func.count(JobModel.id)).filter(
-                JobModel.deleted == 0, JobModel.overall_score.isnot(None)
-            ).scalar()
-        else:
-            higher = self._session.query(func.count(JobModel.id)).filter(
-                JobModel.deleted == 0, JobModel.overall_score > score
-            ).scalar()
-        return (higher or 0) + 1
+        _, o, s, f = row
+        # -1 sentinel: scores are 0-100, so NULL sorts after every real value
+        # (matches the list's NULLS LAST policy).
+        o_eff = o if o is not None else -1
+        s_eff = s if s is not None else -1
+        f_eff = f if f is not None else -1
+        before = self._session.query(func.count(JobModel.id)).filter(
+            JobModel.deleted == 0,
+            or_(
+                func.coalesce(JobModel.overall_score, -1) > o_eff,
+                and_(
+                    func.coalesce(JobModel.overall_score, -1) == o_eff,
+                    func.coalesce(JobModel.success_score, -1) > s_eff,
+                ),
+                and_(
+                    func.coalesce(JobModel.overall_score, -1) == o_eff,
+                    func.coalesce(JobModel.success_score, -1) == s_eff,
+                    func.coalesce(JobModel.fit_score, -1) > f_eff,
+                ),
+                and_(
+                    func.coalesce(JobModel.overall_score, -1) == o_eff,
+                    func.coalesce(JobModel.success_score, -1) == s_eff,
+                    func.coalesce(JobModel.fit_score, -1) == f_eff,
+                    JobModel.id > job_id,
+                ),
+            ),
+        ).scalar()
+        return (before or 0) + 1

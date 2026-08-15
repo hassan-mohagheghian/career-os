@@ -157,9 +157,10 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
-    def overall_score_rank(self, job_id: str) -> int | None:
+    def score_rank(self, job_id: str) -> int | None:
         """Return the job's 1-based rank in the full non-deleted job list sorted
-        by overall score (descending). Competition ranking: jobs sharing a score
-        share a rank; jobs without a score tie at the end, after all scored jobs.
-        Returns None when the job does not exist."""
+        by overall, then success, then fit score (each descending), with the
+        final all-equal tie broken by id (desc) — a fine-grained, unique rank.
+        Jobs without a score sort last (after all scored jobs). Returns None when
+        the job does not exist."""
         ...

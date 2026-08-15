@@ -618,10 +618,18 @@ class TestJobRankV2API:
         assert resp.status_code == 200
         assert resp.json()["rank"] == 1
 
-    def test_job_detail_rank_shared_on_ties(self, client, test_db):
-        job = _create_job(test_db, id=1, title="Engineer", overall_score=85)
-        _create_job(test_db, id=2, title="Other", overall_score=85)
-        _create_job(test_db, id=3, title="Top", overall_score=95)
+    def test_job_detail_success_breaks_overall_tie(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=85, success_score=60)
+        _create_job(test_db, id=2, title="Other", overall_score=85, success_score=95)
+
+        # Same overall, but job-2 has higher success -> ranks above job-1.
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["rank"] == 2
+
+    def test_job_detail_fit_breaks_overall_and_success_tie(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=85, success_score=70, fit_score=40)
+        _create_job(test_db, id=2, title="Other", overall_score=85, success_score=70, fit_score=95)
 
         resp = client.get(f"/api/jobs/{job.id}")
         assert resp.status_code == 200

@@ -68,7 +68,7 @@ Companies Page
 │                                                                                               │
 │ # │ Pin │ Name │ Industry │ Type │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │
 │───│─────│──────│──────────│──────│──────────│──────│──────│────────┼─────────┼─────────┼─────────│
-│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Completed │ 2m │ 2h │
+│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12   │ [A+] O 88 │ S 90 │ F 85 │ Completed │ 2m │ 2h │
 │ 2 │ ○  │ Beta │ Fintech  │ Consulting │ Munich │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │
 │ 3 │ ○  │ Nova │ Health   │ —    │ —    │ 0    │ [—] F —   │ S —  │ O —  │ —         │ 1h │ 2d │
 │                                                                                               │
@@ -234,7 +234,7 @@ Configuration
 | Location | City, Country                                          |
 | Size     | Company size band                                      |
 | Jobs     | Jobs count, adapted to role: hiring jobs for product companies, listed jobs for recruiters |
-| Scores   | Grade badge + Fit / Success / Overall score values     |
+| Scores   | Grade badge + Overall / Success / Fit score values     |
 | Status   | Processing status from the latest processing execution |
 | Updated  | Relative update time                                   |
 | Created  | Relative creation time                                 |
@@ -345,7 +345,7 @@ Displays the overall grade badge (derived from the overall score via the shared
 grade helper, `A++` … `D`) followed by three compact score badges.
 
 ```text
-[A+]  F 85   S 90   O 88
+[A+]  O 88   S 90   F 85
 ```
 
 Color thresholds (matches `ScoreBadge` in jobs-v2):
@@ -428,7 +428,7 @@ Selecting a row opens the Company Detail drawer (shared `Drawer` from the right)
 The drawer shows a single scrollable page (no tabs), mirroring the Job Detail
 drawer:
 
-- Overall grade badge (derived from the overall score) + Fit / Success / Overall
+- Overall grade badge (derived from the overall score) + Overall / Success / Fit
   score cards, then company name, logo, industry and meta badges
 - Link column at the top-right of the score strip — Website first, then the
   remaining `company.links` beneath it (each opens in a new tab, skipping any

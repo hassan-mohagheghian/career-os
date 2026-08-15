@@ -103,6 +103,17 @@ describe('JobRow grade', () => {
     expect(screen.getByText('A++')).toBeInTheDocument()
   })
 
+  it('renders score badges in Overall, Success, Fit order', () => {
+    const { container } = renderRow(makeJob({ scores: { overall: 92, fit: 90, success: 85 } }))
+    const text = container.textContent ?? ''
+    const overall = text.indexOf('92')
+    const success = text.indexOf('85')
+    const fit = text.indexOf('90')
+    expect(overall).toBeGreaterThan(-1)
+    expect(success).toBeGreaterThan(overall)
+    expect(fit).toBeGreaterThan(success)
+  })
+
   it('renders an em dash when there is no overall score', () => {
     const { container } = renderRow(makeJob())
     expect(container.textContent).toContain('—')

@@ -128,7 +128,12 @@ with a value, in both `asc` and `desc` order.
 
 Score sorts (`overall_score`, `fit_score`, `success_score`) read the
 corresponding canonical key from the company's scores blob (`overall`,
-`fit`, `success`).
+`fit`, `success`) and are **multi-column** so ties on the primary score are
+ordered deterministically, sharing the chosen `asc`/`desc` direction:
+
+- `overall_score` → overall, then success, then fit
+- `fit_score` → fit, then overall, then success
+- `success_score` → success, then overall, then fit
 
 Order
 

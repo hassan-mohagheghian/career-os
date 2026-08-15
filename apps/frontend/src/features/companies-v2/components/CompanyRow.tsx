@@ -94,9 +94,9 @@ export function CompanyRow({
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-2 whitespace-nowrap">
           <GradeBadge grade={grade} className="w-7 h-5 text-2xs" />
-          <ScoreBadge label="F" value={company.scores?.fit ?? null} />
-          <ScoreBadge label="S" value={company.scores?.success ?? null} />
           <ScoreBadge label="O" value={company.scores?.overall ?? null} />
+          <ScoreBadge label="S" value={company.scores?.success ?? null} />
+          <ScoreBadge label="F" value={company.scores?.fit ?? null} />
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">

@@ -45,9 +45,9 @@ export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOp
               {j.location && <div className="text-2xs text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
               {(j.fit_score != null || j.success_score != null) && (
                 <div className="flex items-center gap-2 mt-0.5">
-                  {j.fit_score != null && <Badge variant="secondary" className="text-2xs">Fit {j.fit_score}</Badge>}
-                  {j.success_score != null && <Badge variant="secondary" className="text-2xs">Success {j.success_score}</Badge>}
                   {overall != null && <Badge variant="secondary" className="text-2xs">Overall {overall}</Badge>}
+                  {j.success_score != null && <Badge variant="secondary" className="text-2xs">Success {j.success_score}</Badge>}
+                  {j.fit_score != null && <Badge variant="secondary" className="text-2xs">Fit {j.fit_score}</Badge>}
                 </div>
               )}
             </div>

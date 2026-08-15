@@ -19,7 +19,7 @@ Rows are never expandable. Selecting a row opens the Company Detail drawer.
 | Location  | City, Country                             |
 | Size      | Company size band                         |
 | Jobs      | Number of linked, non-deleted jobs        |
-| Scores    | Grade badge + Fit / Success / Overall score values |
+| Scores    | Grade badge + Overall / Success / Fit score values |
 | Status    | Processing status from the latest processing execution |
 | Updated   | Relative update time                      |
 | Created   | Relative creation time                    |
@@ -94,7 +94,7 @@ recruiter = company_type in {RECRUITING_AGENCY, STAFFING_COMPANY}
 [A+]  F 85   S 90   O 88
 ```
 
-The Fit / Success / Overall values and the grade badge are exactly the scores
+The Overall / Success / Fit values and the grade badge are exactly the scores
 **calculated by company processing** (fit / success → weighted overall, stored
 in `company.intelligence.scores` and surfaced as the normalized `scores` field
 by `GET /api/companies/list`). The row prefers the processing-computed

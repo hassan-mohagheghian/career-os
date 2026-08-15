@@ -210,6 +210,39 @@ class TestCompanyListV2API:
         names = [i["name"] for i in data["items"]]
         assert names == ["Low Fit", "High Fit", "No Score"]
 
+    def test_sort_overall_tiebroken_by_success_then_fit(self, client, sa_session):
+        c1 = _create_company(sa_session, name="A")
+        _create_intel(sa_session, c1.id, {"overall": 80, "success": 70, "fit": 60})
+        c2 = _create_company(sa_session, name="B")
+        _create_intel(sa_session, c2.id, {"overall": 80, "success": 70, "fit": 90})
+        c3 = _create_company(sa_session, name="C")
+        _create_intel(sa_session, c3.id, {"overall": 80, "success": 90, "fit": 10})
+
+        data = client.get("/api/companies/list?sort=overall_score&order=desc").json()
+        assert [i["name"] for i in data["items"]] == ["C", "B", "A"]
+
+    def test_sort_fit_tiebroken_by_overall_then_success(self, client, sa_session):
+        c1 = _create_company(sa_session, name="A")
+        _create_intel(sa_session, c1.id, {"fit": 70, "overall": 60, "success": 50})
+        c2 = _create_company(sa_session, name="B")
+        _create_intel(sa_session, c2.id, {"fit": 70, "overall": 80, "success": 20})
+        c3 = _create_company(sa_session, name="C")
+        _create_intel(sa_session, c3.id, {"fit": 70, "overall": 80, "success": 90})
+
+        data = client.get("/api/companies/list?sort=fit_score&order=desc").json()
+        assert [i["name"] for i in data["items"]] == ["C", "B", "A"]
+
+    def test_sort_success_tiebroken_by_overall_then_fit(self, client, sa_session):
+        c1 = _create_company(sa_session, name="A")
+        _create_intel(sa_session, c1.id, {"success": 70, "overall": 60, "fit": 50})
+        c2 = _create_company(sa_session, name="B")
+        _create_intel(sa_session, c2.id, {"success": 70, "overall": 80, "fit": 20})
+        c3 = _create_company(sa_session, name="C")
+        _create_intel(sa_session, c3.id, {"success": 70, "overall": 80, "fit": 90})
+
+        data = client.get("/api/companies/list?sort=success_score&order=desc").json()
+        assert [i["name"] for i in data["items"]] == ["C", "B", "A"]
+
     def test_default_sort_newest_first(self, client, sa_session):
         _create_company(sa_session, name="Old Co", created_at="2026-01-01T00:00:00Z")
         _create_company(sa_session, name="New Co", created_at="2026-07-01T00:00:00Z")

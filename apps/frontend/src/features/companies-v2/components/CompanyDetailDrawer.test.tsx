@@ -70,6 +70,19 @@ describe('CompanyDetailDrawer scores', () => {
     expect(screen.getAllByText('A+').length).toBeGreaterThan(0)
   })
 
+  it('renders score cards in Overall, Success, Fit order', async () => {
+    renderDrawer('company-1')
+
+    await waitFor(() => expect(screen.getByText('Acme GmbH')).toBeInTheDocument())
+    const text = document.body.textContent ?? ''
+    const overall = text.indexOf('80')
+    const success = text.indexOf('72')
+    const fit = text.indexOf('88')
+    expect(overall).toBeGreaterThan(-1)
+    expect(success).toBeGreaterThan(overall)
+    expect(fit).toBeGreaterThan(success)
+  })
+
   it('falls back to the intelligence scores when the normalized scores are missing', async () => {
     vi.mocked(companyApi.get).mockResolvedValue(makeDetail({
       scores: null,

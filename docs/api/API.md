@@ -80,10 +80,10 @@ block produced by the Job Analysis phase:
 ```
 
 - `analysis` is `null` until the analysis phase completes for the job.
-- `rank` is the job's 1-based position in the full job list sorted by `overall`
-  score (descending). Jobs with the same overall score share a rank (competition
-  ranking); jobs without a score tie at the end, after all scored jobs. It is
-  derived at read time and never stored.
+- `rank` is the job's 1-based position in the full job list sorted by **overall,
+  then success, then fit** score (each descending), with the final all-equal tie
+  broken by id (desc) — a fine-grained, unique rank. Jobs without a score sort
+  last (after all scored jobs). It is derived at read time and never stored.
 - For jobs processed before the analysis phase existed, `analysis` is a
   backward-compatible block built from the legacy `jobs`/`summaries`
   projections (no `recommendation`, grade-derived `summary`).

@@ -459,6 +459,20 @@ class TestSearchJobs:
         rows, total = repo.search_jobs(sort="overall_score", order="asc")
         assert [r["overall_score"] for r in rows] == [40, 90, None]
 
+    def test_sort_overall_tiebroken_by_success_then_fit_desc(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=90)
+        _add(sa_session, id="job-c", overall_score=80, success_score=90, fit_score=10)
+        rows, total = repo.search_jobs(sort="overall_score", order="desc")
+        assert [r["id"] for r in rows] == ["job-c", "job-b", "job-a"]
+
+    def test_sort_fit_tiebroken_by_overall_then_success(self, sa_session, repo):
+        _add(sa_session, id="job-a", fit_score=70, overall_score=60, success_score=50)
+        _add(sa_session, id="job-b", fit_score=70, overall_score=80, success_score=20)
+        _add(sa_session, id="job-c", fit_score=70, overall_score=80, success_score=90)
+        rows, total = repo.search_jobs(sort="fit_score", order="desc")
+        assert [r["id"] for r in rows] == ["job-c", "job-b", "job-a"]
+
     def test_sort_fallback_and_pagination(self, sa_session, repo):
         for i in range(5):
             _add(sa_session, id=f"job-{i}")
@@ -563,6 +577,61 @@ class TestSearchJobsCursor:
         )
         assert total == 3
         assert [i["id"] for i in items] == ["job-3", "job-2", "job-1"]
+
+    def test_cursor_overall_tiebroken_by_success_then_fit_desc(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=90)
+        _add(sa_session, id="job-c", overall_score=80, success_score=90, fit_score=10)
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="overall_score", order="desc"
+        )
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-c", "job-b", "job-a"]
+
+    def test_cursor_overall_tiebroken_asc(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=90)
+        _add(sa_session, id="job-c", overall_score=80, success_score=90, fit_score=10)
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="overall_score", order="asc"
+        )
+        assert [i["id"] for i in items] == ["job-a", "job-b", "job-c"]
+
+    def test_cursor_fit_sort_tiebroken_by_overall_then_success(self, sa_session, repo):
+        _add(sa_session, id="job-a", fit_score=70, overall_score=60, success_score=50)
+        _add(sa_session, id="job-b", fit_score=70, overall_score=80, success_score=20)
+        _add(sa_session, id="job-c", fit_score=70, overall_score=80, success_score=90)
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="fit_score", order="desc"
+        )
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-c", "job-b", "job-a"]
+
+    def test_cursor_success_sort_tiebroken_by_overall_then_fit(self, sa_session, repo):
+        _add(sa_session, id="job-a", success_score=70, overall_score=60, fit_score=50)
+        _add(sa_session, id="job-b", success_score=70, overall_score=80, fit_score=20)
+        _add(sa_session, id="job-c", success_score=70, overall_score=80, fit_score=90)
+        items, total, _, _ = repo.search_jobs_cursor(
+            page_size=10, sort="success_score", order="desc"
+        )
+        assert total == 3
+        assert [i["id"] for i in items] == ["job-c", "job-b", "job-a"]
+
+    def test_cursor_overall_tiebreak_across_pages(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=90)
+        _add(sa_session, id="job-c", overall_score=80, success_score=90, fit_score=10)
+        items, total, cursor, has_more = repo.search_jobs_cursor(
+            page_size=2, sort="overall_score", order="desc"
+        )
+        assert [i["id"] for i in items] == ["job-c", "job-b"]
+        assert has_more is True
+        items, total, cursor2, has_more = repo.search_jobs_cursor(
+            page_size=2, sort="overall_score", order="desc", cursor=cursor
+        )
+        assert [i["id"] for i in items] == ["job-a"]
+        assert has_more is False
+        assert cursor2 is None
 
     def test_filters_with_cursor(self, sa_session, repo):
         ids = [f"job-{i}" for i in range(3)]
@@ -789,46 +858,57 @@ class TestSearchJobsCursorExclude:
         assert items == []
 
 
-# ── overall_score_rank ──────────────────────────────────────────
+# ── score_rank (fine-grained: overall, success, fit, id) ─────────
 
-class TestOverallScoreRank:
+class TestScoreRank:
     def test_top_score_ranks_first(self, sa_session, repo):
         m1 = _add(sa_session, id="job-a", overall_score=90)
         _add(sa_session, id="job-b", overall_score=40)
-        assert repo.overall_score_rank(m1.id) == 1
+        assert repo.score_rank(m1.id) == 1
 
     def test_ranks_after_higher_scores(self, sa_session, repo):
         _add(sa_session, id="job-a", overall_score=90)
         m2 = _add(sa_session, id="job-b", overall_score=40)
         _add(sa_session, id="job-c", overall_score=70)
-        assert repo.overall_score_rank(m2.id) == 3
+        assert repo.score_rank(m2.id) == 3
 
-    def test_ties_share_a_rank(self, sa_session, repo):
-        _add(sa_session, id="job-top-a", overall_score=95)
-        _add(sa_session, id="job-top-b", overall_score=95)
-        m2 = _add(sa_session, id="job-b", overall_score=80)
-        _add(sa_session, id="job-c", overall_score=80)
-        _add(sa_session, id="job-d", overall_score=60)
-        # two jobs score above 80 => both 80s rank 3
-        assert repo.overall_score_rank(m2.id) == 3
+    def test_same_overall_success_breaks_tie(self, sa_session, repo):
+        m_high = _add(sa_session, id="job-high", overall_score=80, success_score=90)
+        _add(sa_session, id="job-low", overall_score=80, success_score=60)
+        assert repo.score_rank(m_high.id) == 1
+        assert repo.score_rank(_add(sa_session, id="job-low2", overall_score=80, success_score=60).id) == 2
+
+    def test_same_overall_and_success_fit_breaks_tie(self, sa_session, repo):
+        m_high = _add(sa_session, id="job-high", overall_score=80, success_score=70, fit_score=90)
+        m_low = _add(sa_session, id="job-low", overall_score=80, success_score=70, fit_score=50)
+        assert repo.score_rank(m_high.id) == 1
+        assert repo.score_rank(m_low.id) == 2
+
+    def test_all_scores_equal_id_desc_breaks_tie(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        m_b = _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=60)
+        m_c = _add(sa_session, id="job-c", overall_score=80, success_score=70, fit_score=60)
+        # id desc: job-c, job-b, job-a
+        assert repo.score_rank(m_c.id) == 1
+        assert repo.score_rank(m_b.id) == 2
 
     def test_null_score_ranks_after_all_scored(self, sa_session, repo):
         _add(sa_session, id="job-a", overall_score=90)
         _add(sa_session, id="job-b", overall_score=40)
         m_null = _add(sa_session, id="job-null")
-        assert repo.overall_score_rank(m_null.id) == 3
+        assert repo.score_rank(m_null.id) == 3
 
     def test_null_score_rank_when_no_scored_jobs(self, sa_session, repo):
         m_null = _add(sa_session, id="job-null")
-        assert repo.overall_score_rank(m_null.id) == 1
+        assert repo.score_rank(m_null.id) == 1
 
     def test_excludes_deleted_jobs(self, sa_session, repo):
         m1 = _add(sa_session, id="job-a", overall_score=90)
         _add(sa_session, id="job-b", overall_score=40, deleted=1)
-        assert repo.overall_score_rank(m1.id) == 1
+        assert repo.score_rank(m1.id) == 1
 
     def test_missing_job_returns_none(self, repo):
-        assert repo.overall_score_rank("does-not-exist") is None
+        assert repo.score_rank("does-not-exist") is None
 
 
 # ── get_by_url_fragment ─────────────────────────────────────────

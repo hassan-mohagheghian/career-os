@@ -55,6 +55,17 @@ describe('CompanyRow scores', () => {
     expect(screen.getByText('A+')).toBeInTheDocument()
   })
 
+  it('renders score values in Overall, Success, Fit order', () => {
+    const { container } = renderRow(makeCompany({ scores: { overall: 80, fit: 88, success: 72, overall_grade: 'A+' } }))
+    const text = container.textContent ?? ''
+    const overall = text.indexOf('80')
+    const success = text.indexOf('72')
+    const fit = text.indexOf('88')
+    expect(overall).toBeGreaterThan(-1)
+    expect(success).toBeGreaterThan(overall)
+    expect(fit).toBeGreaterThan(success)
+  })
+
   it('shows the overall_grade computed by processing when present', () => {
     renderRow(makeCompany({ scores: { overall: 80, fit: 88, success: 72, overall_grade: 'A+' } }))
     expect(screen.getByText('A+')).toBeInTheDocument()

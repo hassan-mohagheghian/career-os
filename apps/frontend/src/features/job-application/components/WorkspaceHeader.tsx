@@ -111,9 +111,9 @@ export function WorkspaceHeader({ job, applicationStatus, onViewDetails, onEdit 
             grade={gradeForScore(job.scores?.overall ?? null)}
             className="w-10 h-8 text-sm"
           />
-          <ScoreCard label="Fit" value={job.scores?.fit ?? null} />
-          <ScoreCard label="Success" value={job.scores?.success ?? null} />
           <ScoreCard label="Overall" value={job.scores?.overall ?? null} />
+          <ScoreCard label="Success" value={job.scores?.success ?? null} />
+          <ScoreCard label="Fit" value={job.scores?.fit ?? null} />
           <RankBadge rank={job.rank ?? null} />
         </div>
       </div>

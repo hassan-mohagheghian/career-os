@@ -212,6 +212,17 @@ Every sort follows a **NULLS LAST** policy: rows where the sort column is
 rows with a value, in both `asc` and `desc` order. The policy applies to every
 sortable column, not just `status`.
 
+Score sorts (`overall_score`, `fit_score`, `success_score`) are **multi-column**
+so that rows tied on the primary score are ordered deterministically, sharing
+the chosen `asc`/`desc` direction:
+
+- `overall_score` → overall, then success, then fit
+- `fit_score` → fit, then overall, then success
+- `success_score` → success, then overall, then fit
+
+For multi-column score sorts the keyset cursor is `v1|v2|v3|job_id` (one value
+per tiebreak column plus the id), still NULLS LAST on every column.
+
 All other sorts behave as before, except that the keyset cursor is now a
 composite `<value>|<job_id>` (the `status` cursor is `<rank>:<job_id>`). The
 composite form is required so that cursor pagination can walk the NULL tail

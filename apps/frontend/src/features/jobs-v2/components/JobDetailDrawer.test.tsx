@@ -197,6 +197,23 @@ describe('JobDetailDrawer rank', () => {
   })
 })
 
+describe('JobDetailDrawer score order', () => {
+  it('renders score cards in Overall, Success, Fit order before the rank', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    const text = document.body.textContent ?? ''
+    const overall = text.indexOf('90')
+    const success = text.indexOf('88')
+    const fit = text.indexOf('85')
+    const rank = text.indexOf('#3')
+    expect(overall).toBeGreaterThan(-1)
+    expect(success).toBeGreaterThan(overall)
+    expect(fit).toBeGreaterThan(success)
+    expect(rank).toBeGreaterThan(fit)
+  })
+})
+
 describe('JobDetailDrawer scores explanation', () => {
   it('opens the scores explanation popover when clicked and shows the factors', async () => {
     vi.mocked(jobApi.getDetail).mockResolvedValue({

@@ -491,14 +491,14 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
             grade={gradeForScore(detail.scores?.overall ?? null)}
             className="w-10 h-8 text-sm"
           />
-          {detail.scores?.fit != null && (
-            <JobScoreCard label="Fit" value={detail.scores.fit} />
+          {detail.scores?.overall != null && (
+            <JobScoreCard label="Overall" value={detail.scores.overall} />
           )}
           {detail.scores?.success != null && (
             <JobScoreCard label="Success" value={detail.scores.success} />
           )}
-          {detail.scores?.overall != null && (
-            <JobScoreCard label="Overall" value={detail.scores.overall} />
+          {detail.scores?.fit != null && (
+            <JobScoreCard label="Fit" value={detail.scores.fit} />
           )}
           <RankBadge rank={detail.rank ?? null} />
           {detail.analysis?.scores_explanation && (

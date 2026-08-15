@@ -94,7 +94,7 @@ Details drawer.
 
 Scores are displayed as compact badges, led by the overall grade badge
 (derived from the overall score via the shared grade helper, `A++` … `D`).
-The score values follow the same Fit → Success → Overall order and the same
+The score values follow the same Overall → Success → Fit order and the same
 color thresholds as the score cards in the Job Details drawer (see
 `jobs/page.md`).
 
@@ -104,20 +104,20 @@ Grade
 
 A+
 
-Fit
+Overall
 
-94
+91
 
 Success
 
 88
 
-Overall
+Fit
 
-91
+94
 
 ```text
-[A+]  F 94   S 88   O 91
+[A+]  O 91   S 88   F 94
 ```
 
 Null scores show `—`; a missing overall score shows `—` for the grade instead

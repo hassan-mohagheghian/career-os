@@ -133,6 +133,21 @@ function renderWorkspace(application: ApplicationDetail | null = sampleApplicati
 }
 
 describe('ApplicationWorkspace', () => {
+  it('renders score cards in Overall, Success, Fit order before the rank', async () => {
+    renderWorkspace()
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    const text = document.body.textContent ?? ''
+    const overall = text.indexOf('90')
+    const success = text.indexOf('88')
+    const fit = text.indexOf('85')
+    const rank = text.indexOf('#3')
+    expect(overall).toBeGreaterThan(-1)
+    expect(success).toBeGreaterThan(overall)
+    expect(fit).toBeGreaterThan(success)
+    expect(rank).toBeGreaterThan(fit)
+  })
+
   it('renders the workspace header and sections for an existing application', async () => {
     renderWorkspace()
 

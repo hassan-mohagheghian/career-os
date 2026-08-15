@@ -66,10 +66,12 @@ DEFAULT_PAGE_SIZE = 25
 
 SORTABLE_SCORE_FIELDS = ("overall_score", "fit_score", "success_score")
 
-SCORE_KEY_MAP = {
-    "overall_score": "overall",
-    "fit_score": "fit",
-    "success_score": "success",
+# Multi-column tiebreak order for score sorts (primary first) so rows tied on
+# the primary score are ordered deterministically.
+SCORE_TIEBREAK_KEYS = {
+    "overall_score": ("overall", "success", "fit"),
+    "fit_score": ("fit", "overall", "success"),
+    "success_score": ("success", "overall", "fit"),
 }
 
 
@@ -150,14 +152,17 @@ def _matches(
     return True
 
 
-def _score_value(row: dict[str, Any], sort: str) -> Any:
-    scores = row.get("_scores") or {}
-    return scores.get(SCORE_KEY_MAP[sort])
-
-
-def _sort_key(row: dict[str, Any], sort: str) -> Any:
+def _sort_key(row: dict[str, Any], sort: str, order: str) -> Any:
     if sort in SORTABLE_SCORE_FIELDS:
-        return _score_value(row, sort)
+        scores = row.get("_scores") or {}
+        keys = SCORE_TIEBREAK_KEYS[sort]
+        primary = scores.get(keys[0])
+        if primary is None:
+            return None
+        # Direction-aware NULL sentinel keeps NULLS LAST in both directions
+        # when the whole tuple is compared with reverse=(order == "desc").
+        sentinel = -1 if order == "desc" else 10_000
+        return tuple(v if v is not None else sentinel for v in (scores.get(k) for k in keys))
     if sort == "name":
         return (row.get("name") or "").lower()
     if sort == "updated_at":
@@ -242,7 +247,7 @@ def list_companies_v2(
     status_lookup = exec_repo.latest_statuses("company")
     rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status, status_lookup, company_type)]
 
-    key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort)
+    key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort, order)
     with_value = [r for r in rows if key(r) is not None]
     without_value = [r for r in rows if key(r) is None]
     with_value.sort(key=key, reverse=(order == "desc"))

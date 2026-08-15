@@ -303,13 +303,13 @@ function CompanyDetailContent({
       <div className="flex justify-between">
         <div className="flex items-center gap-3 mb-1">
           <CompanyGradeBadge grade={overallGrade} className="w-10 h-8 text-sm" />
-          {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
-          {successScore != null && (
-            <CompanyScoreCard label="Success" value={successScore} />
-          )}
           {overallScore != null && (
             <CompanyScoreCard label="Overall" value={overallScore} />
           )}
+          {successScore != null && (
+            <CompanyScoreCard label="Success" value={successScore} />
+          )}
+          {fitScore != null && <CompanyScoreCard label="Fit" value={fitScore} />}
           <CompanyScoresExplanationButton intelScores={rawScores} />
         </div>
         {(company.website ||

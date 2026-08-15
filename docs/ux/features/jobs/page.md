@@ -65,9 +65,9 @@ Jobs Page
 │ # │ Pin │ Job │ Company │ Location │ Scores │ Rec │ Processing │ Updated │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] F 95 │ S 91 │ O 94 │ ★ Apply │ Ready │ 2m │
-│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] F 90 │ S 88 │ O 90 │ ☆ Apply │ Running │ now │
-│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] F 86  │ S 84 │ O 83 │ — Skip │ Failed │ 5m │
+│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] O 94 │ S 91 │ F 95 │ ★ Apply │ Ready │ 2m │
+│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] O 90 │ S 88 │ F 90 │ ☆ Apply │ Running │ now │
+│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] O 83  │ S 84 │ F 86 │ — Skip │ Failed │ 5m │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
@@ -961,7 +961,7 @@ shows a single scrollable page:
 
 ```text
 ┌─ Job Details ───────────────────────────── Application  ↻  ✎  ✕ ┐
-│ [GradeBadge]  Fit: 82   Success: 74   Overall: 78  #3  [Why]│ ← score strip
+│ [GradeBadge]  Overall: 78   Success: 74   Fit: 82  #3  [Why]│ ← score strip
 │                                                         │
 │ Software Engineer (Senior)                              │
 │ Company  Acme GmbH →▾      │  Employment  Permanent   │
@@ -992,12 +992,13 @@ shows a single scrollable page:
 ```
 
 - **Score strip**: a `GradeBadge` for the overall grade plus colored
-  Fit / Success / Overall score cards at the top. Colors use the shared
+  Overall / Success / Fit score cards at the top. Colors use the shared
   `scoreColor` thresholds (≥90 green, ≥70 emerald, ≥50 yellow, ≥30 orange,
   <30 red) — identical to the list `ScoreBadge` colors. A `[#N]` **Rank**
-  indicator after the Overall card shows the job's 1-based position in the full
-  job list sorted by overall score (descending) — higher scores rank lower,
-  ties share a rank. A `[Why]` button sits
+  indicator after the Fit card shows the job's 1-based position in the full
+  job list sorted by overall, then success, then fit score (each descending) —
+  higher scores rank lower, ties broken by success then fit then id, so each
+  job has a unique rank. A `[Why]` button sits
   after the Overall score and
   opens a **Scores Explanation** popover anchored to the button. It
   auto-opens on hover and auto-closes on unhover; clicking the button pins
@@ -1436,6 +1437,13 @@ Sorting is always performed by the backend.
 Every sort follows a NULLS LAST policy: jobs where the sort column is empty
 (for example a job that has not been scored yet) always sort last, in both
 ascending and descending order.
+
+Score sorts are multi-column so ties on the primary score are broken
+deterministically, sharing the chosen ascending/descending direction:
+
+- **Overall Score** → overall, then success, then fit
+- **Fit Score** → fit, then overall, then success
+- **Success Score** → success, then overall, then fit
 
 The Status sort orders rows by the same status each row displays (the latest
 processing execution). Jobs that were never processed always sort last, in both
