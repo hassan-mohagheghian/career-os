@@ -1,5 +1,5 @@
 import type { CompanyListItem } from '@/entities/company/types'
-import { isRecruiterCompany } from '@/entities/company/lib'
+import { isRecruiterCompany, formatCompanyType, companyTypeRowClasses } from '@/entities/company/lib'
 import { ScoreBadge } from '@/features/jobs-v2/components/ScoreBadge'
 import { StatusBadge } from '@/features/jobs-v2/components/StatusBadge'
 import type { ProcessingStatus } from '@/entities/job/types'
@@ -31,6 +31,7 @@ export function CompanyRow({
   const grade = company.scores?.overall_grade ?? (company.scores?.overall != null ? gradeForScore(company.scores.overall) : null)
   const processingStatus = (company.processing?.status ?? null) as ProcessingStatus | null
   const recruiter = isRecruiterCompany(company)
+  const typeTint = companyTypeRowClasses(company.company_type) || (recruiter ? 'bg-purple-500/5 hover:bg-purple-500/10 focus-within:bg-purple-500/10' : '')
   const listedJobs = recruiter ? company.recruiter_job_count : company.job_count
   const listedLabel = recruiter
     ? `${listedJobs} ${listedJobs === 1 ? 'job' : 'jobs'} listed for clients`
@@ -39,8 +40,8 @@ export function CompanyRow({
   return (
     <div
       className={cn(
-        "grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center",
-        recruiter && "bg-purple-500/5 hover:bg-purple-500/10 focus-within:bg-purple-500/10"
+        "group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center",
+        typeTint
       )}
       style={{ gridTemplateColumns: buildCompanyGridTemplate(showRowNumberColumn, showPinnedColumn) }}
       onClick={() => onViewDetails(company.id)}
@@ -73,6 +74,11 @@ export function CompanyRow({
         <span className="text-xs text-muted-foreground truncate block">{company.industry || 'Unknown'}</span>
       </div>
       <div className="py-2 px-3 flex items-center">
+        <Badge variant="secondary" className="text-2xs truncate max-w-full">
+          {formatCompanyType(company.company_type)}
+        </Badge>
+      </div>
+      <div className="py-2 px-3 flex items-center">
         <span className="text-xs text-muted-foreground truncate block">
           {[company.city, company.country].filter(Boolean).join(', ') || 'Unknown'}
         </span>
@@ -102,13 +108,15 @@ export function CompanyRow({
       <div className="py-2 px-3 flex items-center">
         <DateTime value={company.created_at} format="relative" className="text-2xs text-muted-foreground" />
       </div>
-      <div className="py-2 px-3 flex items-center justify-end" onClick={e => e.stopPropagation()}>
-        <CompanyActions
-          onViewDetails={() => onViewDetails(company.id)}
-          onReprocess={() => onReprocess(company.id)}
-          onEdit={() => onEdit(company.id)}
-          onDelete={() => onDelete(company.id)}
-        />
+      <div className="absolute inset-y-0 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center bg-card ring-1 ring-border rounded-md shadow-sm px-1">
+          <CompanyActions
+            onViewDetails={() => onViewDetails(company.id)}
+            onReprocess={() => onReprocess(company.id)}
+            onEdit={() => onEdit(company.id)}
+            onDelete={() => onDelete(company.id)}
+          />
+        </div>
       </div>
     </div>
   )

@@ -47,8 +47,7 @@ def test_uvicorn_args_bounded_graceful_shutdown():
 
 
 def test_start_backend_passes_reload_excludes_to_uvicorn():
-    with patch('apps.start._run_migrations'), \
-         patch('apps.start._save_pid'), \
+    with patch('apps.start._save_pid'), \
          patch('apps.start.subprocess.Popen') as popen:
         _start_backend(5000)
     args = popen.call_args[0][0]

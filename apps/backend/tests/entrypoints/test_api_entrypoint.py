@@ -6,7 +6,6 @@ module does in production.
 
 import os
 import sys
-import subprocess as _subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,44 +16,6 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from apps.backend.entrypoints import api
-
-
-# ── _run_alembic_migrations ───────────────────────────────────────
-
-class TestRunAlembicMigrations:
-    def test_success(self):
-        result = MagicMock()
-        result.returncode = 0
-        result.stdout = 'upgraded'
-        result.stderr = ''
-        with patch('subprocess.run', return_value=result) as run_mock:
-            api._run_alembic_migrations()
-        args = run_mock.call_args[0][0]
-        assert args[-2:] == ['upgrade', 'head']
-        assert args[0].endswith(os.path.join('.venv', 'bin', 'alembic'))
-
-    def test_nonzero_returncode(self):
-        result = MagicMock()
-        result.returncode = 1
-        result.stderr = 'boom'
-        result.stdout = ''
-        with patch('subprocess.run', return_value=result):
-            api._run_alembic_migrations()
-
-    def test_file_not_found(self):
-        with patch('subprocess.run',
-                   side_effect=FileNotFoundError('no alembic')):
-            api._run_alembic_migrations()
-
-    def test_timeout_expired(self):
-        with patch('subprocess.run',
-                   side_effect=_subprocess.TimeoutExpired(['alembic'], timeout=30)):
-            api._run_alembic_migrations()
-
-    def test_generic_exception(self):
-        with patch('subprocess.run',
-                   side_effect=RuntimeError('oops')):
-            api._run_alembic_migrations()
 
 
 # ── _recover_tasks ────────────────────────────────────────────────

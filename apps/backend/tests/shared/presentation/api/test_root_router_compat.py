@@ -239,8 +239,15 @@ def test_create_company_queue_default(client, sa_session):
     from companies.infrastructure.models.company_model import CompanyModel
     company = sa_session.query(CompanyModel).filter(CompanyModel.id == data["id"]).first()
     assert company is not None
-    assert "Berlin product company" in company.notes
-    assert "https://acme.example" in company.notes
+
+    from companies.infrastructure.models.company_model import CompanyLinkModel
+
+    link_rows = (
+        sa_session.query(CompanyLinkModel).filter(CompanyLinkModel.company_id == data["id"]).all()
+    )
+    titles = [r.title for r in link_rows]
+    assert any(t.startswith("note:") and "Berlin product company" in t for t in titles)
+    assert any(r.url == "https://acme.example" for r in link_rows)
 
 
 def test_create_company_without_queue(client, sa_session):

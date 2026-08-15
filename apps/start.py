@@ -166,22 +166,6 @@ def _header(msg: str):
     console.print()
 
 
-def _run_migrations():
-    alembic = _alembic_path()
-    if not Path(alembic).exists():
-        return
-    log.info("Running database migrations")
-    env = os.environ.copy()
-    result = subprocess.run(
-        [alembic, "upgrade", "head"],
-        cwd=str(REPO_ROOT),
-        env=env,
-        capture_output=True,
-    )
-    if result.returncode != 0:
-        log.warning("Alembic migration warning (non-fatal)", stderr=result.stderr.decode() if result.stderr else None)
-
-
 def _check_tool(name: str, *args: str):
     if not shutil.which(name):
         return False, f"{name} not found"
@@ -270,8 +254,6 @@ def _start_backend(port: int):
     python = _python_path()
     _log(f"Using Python: {python}")
 
-    _run_migrations()
-
     env = os.environ.copy()
     proc = subprocess.Popen(
         [python, *_uvicorn_args(port)],
@@ -347,8 +329,6 @@ def backend(
     _log("Starting backend server...")
     python = _python_path()
     _log(f"Using Python: {python}")
-
-    _run_migrations()
 
     env = os.environ.copy()
     proc = subprocess.Popen(

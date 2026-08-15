@@ -62,17 +62,20 @@ Jobs Page
 │ Sort ▼                                         Filters ▼                                   Refresh          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                              │
-│ # │ Pin │ Job │ Company │ Location │ Scores │ Rec │ Processing │ Updated │ Actions │
+│ # │ Pin │ Job │ Company │ Location │ Scores │ Rec │ Processing │ Updated │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] F 95 │ S 91 │ O 94 │ ★ Apply │ Ready │ 2m │ ...   │
-│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] F 90 │ S 88 │ O 90 │ ☆ Apply │ Running │ now │ ... │
-│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] F 86  │ S 84 │ O 83 │ — Skip │ Failed │ 5m │ ...   │
+│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] F 95 │ S 91 │ O 94 │ ★ Apply │ Ready │ 2m │
+│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] F 90 │ S 88 │ O 90 │ ☆ Apply │ Running │ now │
+│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] F 86  │ S 84 │ O 83 │ — Skip │ Failed │ 5m │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+There is no fixed Actions column: hovering a row reveals a floating action
+toolbar at the row's right edge (see # Row Actions).
 
 ---
 
@@ -129,7 +132,7 @@ Controls
 
 | Control        | Description                              |
 | -------------- | ---------------------------------------- |
-| Search         | Search by title, company or keyword.     |
+| Search         | Search by title, company, keyword or job link (URL). |
 | Status         | Filter by latest processing status.      |
 | Location       | Filter by location (substring).          |
 | Remote         | Filter by remote / on-site.              |
@@ -307,9 +310,10 @@ Selecting a row opens the Job Details Drawer.
 | Recommendation | Apply / Consider / Skip badge                       |
 | Processing     | Current Processing Execution state                  |
 | Updated        | Relative update time                                |
-| Actions        | Row actions                                         |
 
-The Row number column is hidden by default; the Pin column is shown by default.
+There is no `Actions` column — row actions are revealed on hover (see
+`# Row Actions` below). The Row number column is hidden by default; the Pin
+column is shown by default.
 Both can be toggled via the toolbar Columns dropdown.
 
 Rows highlight on hover (and while any inner control has focus) with a muted
@@ -639,6 +643,11 @@ clock.
 ---
 
 # Row Actions
+
+There is no fixed Actions column. Hovering a row reveals a floating toolbar of
+icon buttons at the row's right edge (using a `group`/`group-hover` pattern),
+overlaid on the row so the freed column width is given to the data columns. The
+toolbar's contents are context-sensitive to the processing status.
 
 Each row contains two processing systems.
 
@@ -1444,6 +1453,21 @@ Import your first job to begin.
 Actions
 
 - Import Job
+
+---
+
+## Importing a Duplicate Job
+
+When the submitted job post URL already exists, the Import Job drawer keeps the
+entered notes unsaved and shows the conflict note with a link to the existing
+job's **application** page:
+
+```text
+  ✕  A Job with the same primary URL already exists.   [Open application →]
+```
+
+- The link points to `/jobs/{job_id}/application` for the existing job.
+- No new note is written to the job's notes; the provided note is not saved.
 
 ---
 

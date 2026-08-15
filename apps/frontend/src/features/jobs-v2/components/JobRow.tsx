@@ -5,6 +5,7 @@ import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
 import { PinButton } from '@/shared/components/PinButton'
 import { RecommendationBadge } from './RecommendationBadge'
+import { TrackingBadge } from './TrackingBadge'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
@@ -33,7 +34,7 @@ export function JobRow({
 
   return (
     <div
-      className="grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
+      className="group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
       style={{ gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }}
       onClick={() => onViewDetails(job.id)}
     >
@@ -88,6 +89,9 @@ export function JobRow({
         <RecommendationBadge recommendation={job.recommendation} />
       </div>
       <div className="py-2 px-3 flex items-center">
+        <TrackingBadge status={job.tracking_status} />
+      </div>
+      <div className="py-2 px-3 flex items-center">
         <ProcessingStatus status={processingStatus} />
       </div>
       <div className="py-2 px-3 flex items-center">
@@ -96,17 +100,19 @@ export function JobRow({
       <div className="py-2 px-3 flex items-center">
         <DateTime value={job.created_at} format="relative" className="text-2xs text-muted-foreground" />
       </div>
-      <div className="py-2 px-3 flex items-center justify-end" onClick={e => e.stopPropagation()}>
-        <JobActions
-          processingStatus={processingStatus}
-          onProcessV2={() => onProcessV2(job.id)}
-          onViewDetails={() => onViewDetails(job.id)}
-          onEdit={() => onEdit(job.id)}
-          onDelete={() => onDelete(job.id)}
-          onRetry={() => onRetry?.(job.id)}
-          onCancel={() => onCancel?.(job.id)}
-          onApplication={onApplication ? () => onApplication(job.id) : undefined}
-        />
+      <div className="absolute inset-y-0 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center bg-card ring-1 ring-border rounded-md shadow-sm px-1">
+          <JobActions
+            processingStatus={processingStatus}
+            onProcessV2={() => onProcessV2(job.id)}
+            onViewDetails={() => onViewDetails(job.id)}
+            onEdit={() => onEdit(job.id)}
+            onDelete={() => onDelete(job.id)}
+            onRetry={() => onRetry?.(job.id)}
+            onCancel={() => onCancel?.(job.id)}
+            onApplication={onApplication ? () => onApplication(job.id) : undefined}
+          />
+        </div>
       </div>
     </div>
   )

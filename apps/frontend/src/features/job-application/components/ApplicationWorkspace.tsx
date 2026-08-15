@@ -19,6 +19,8 @@ import { ApplicationTracker } from './ApplicationTracker'
 import { RoadmapSection } from './RoadmapSection'
 import { ApplicationDocuments } from './ApplicationDocuments'
 import { GenerationProgress } from './GenerationProgress'
+import { JobDetailDrawer } from '@/features/jobs-v2/components/JobDetailDrawer'
+import { JobEditDrawer } from '@/features/jobs-v2/components/JobEditDrawer'
 import { Button } from '@/shared/ui/button'
 
 interface ApplicationWorkspaceProps {
@@ -77,6 +79,8 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
 
   const [localApplication, setLocalApplication] = useState<ApplicationDetail | null>(null)
   const [generatingType, setGeneratingType] = useState<ApplicationDocumentType | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const app = localApplication ?? application ?? null
   const { generation, clearGeneration } = useApplicationGeneration(app?.id ?? null)
@@ -156,6 +160,17 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
       <WorkspaceHeader
         job={job}
         applicationStatus={app?.status ?? 'recommended'}
+        onViewDetails={() => setDetailOpen(true)}
+        onEdit={() => setEditOpen(true)}
+      />
+
+      <JobDetailDrawer
+        jobId={detailOpen ? jobId : null}
+        onOpenChange={(open) => setDetailOpen(!!open)}
+      />
+      <JobEditDrawer
+        jobId={editOpen ? jobId : null}
+        onOpenChange={(open) => setEditOpen(!!open)}
       />
 
       {generation && (

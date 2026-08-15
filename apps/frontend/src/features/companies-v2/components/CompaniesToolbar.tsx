@@ -19,11 +19,21 @@ const STATUS_LABELS: Record<string, string> = {
   none: 'Not processed',
 }
 
+const COMPANY_TYPE_LABELS: Record<string, string> = {
+  PRODUCT_COMPANY: 'Product',
+  RECRUITING_AGENCY: 'Recruiting agency',
+  STAFFING_COMPANY: 'Staffing',
+  CONSULTING_COMPANY: 'Consulting',
+  UNKNOWN: 'Unknown',
+}
+
 interface CompaniesToolbarProps {
   query: string
   onQueryChange: (value: string) => void
   filterIndustry: string
   onFilterIndustryChange: (value: string) => void
+  filterCompanyType: string
+  onFilterCompanyTypeChange: (value: string) => void
   filterStatus: string
   onFilterStatusChange: (value: string) => void
   filterPinned: boolean
@@ -40,6 +50,7 @@ interface CompaniesToolbarProps {
 export function CompaniesToolbar({
   query, onQueryChange,
   filterIndustry, onFilterIndustryChange,
+  filterCompanyType, onFilterCompanyTypeChange,
   filterStatus, onFilterStatusChange,
   filterPinned, onFilterPinnedChange,
   items, activeFilterCount, onClearFilters,
@@ -85,6 +96,18 @@ export function CompaniesToolbar({
               <SelectItem value="">All</SelectItem>
               {industries.map(ind => (
                 <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterCompanyType} onValueChange={onFilterCompanyTypeChange}>
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
+              <Buildings className="w-3 h-3" />
+              <span>{filterCompanyType ? COMPANY_TYPE_LABELS[filterCompanyType] ?? filterCompanyType : 'Type'}</span>
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="">All</SelectItem>
+              {Object.entries(COMPANY_TYPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

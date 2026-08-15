@@ -54,6 +54,22 @@ from dependencies import (
 )
 router = APIRouter()
 
+# Job-tracking statuses surfaced on the jobs list. Derived from the
+# application funnel; "not_applied" means the job has no application yet.
+TRACKING_STATUSES = {
+    "not_applied",
+    "recommended",
+    "preparing",
+    "ready_to_apply",
+    "applied",
+    "interview",
+    "offer",
+    "accepted",
+    "rejected",
+    "withdrawn",
+}
+
+
 
 def _queue_job_for_processing(job_id: str, exec_repo) -> str:
     """Create a JOB_PROCESSING execution and dispatch it to the worker queue.
@@ -166,7 +182,12 @@ def _items_to_dicts(items: list[Any], plain_key: str) -> list[dict[str, Any]]:
     return result
 
 
-def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any] | None = None, recommendation: str | None = None) -> JobListItemSchema:
+def _v2_job_to_schema(
+    job_dict: dict[str, Any],
+    latest_execution: dict[str, Any] | None = None,
+    recommendation: str | None = None,
+    tracking_status: str | None = None,
+) -> JobListItemSchema:
     scores = ScoresSchema(
         overall=job_dict.get("overall_score"),
         fit=job_dict.get("fit_score"),
@@ -196,6 +217,7 @@ def _v2_job_to_schema(job_dict: dict[str, Any], latest_execution: dict[str, Any]
         scores=scores,
         recommendation=recommendation,
         pinned=bool(job_dict.get("pinned")),
+        tracking_status=tracking_status,
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -210,6 +232,7 @@ def list_jobs_v2(
     sort: str = Query("updated_at"),
     order: str = Query("desc"),
     processing_status: str | None = Query(None),
+    tracking_status: str | None = Query(None),
     company_id: str | None = Query(None),
     location: str | None = Query(None),
     remote: bool | None = Query(None),
@@ -225,6 +248,7 @@ def list_jobs_v2(
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
     analysis_repo: SQLAlchemyJobAnalysisRepository = Depends(get_job_analysis_repo),
+    application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
 ):
     job_ids: list[str] | None = None
     exclude_job_ids: list[str] | None = None
@@ -232,6 +256,15 @@ def list_jobs_v2(
         exclude_job_ids = sorted(exec_repo.target_ids("job"))
     elif processing_status:
         job_ids = sorted(exec_repo.target_ids_with_status("job", processing_status))
+    if tracking_status:
+        if tracking_status == "not_applied":
+            applied_job_ids = set(application_repo.job_ids_with_application())
+            exclude_job_ids = sorted(set(exclude_job_ids or []) | applied_job_ids)
+        elif tracking_status in TRACKING_STATUSES:
+            all_applied = application_repo.job_ids_with_application()
+            statuses = application_repo.statuses_by_job_ids(all_applied)
+            tracking_job_ids = [jid for jid, st in statuses.items() if st == tracking_status]
+            job_ids = sorted(set(tracking_job_ids) & set(job_ids or tracking_job_ids))
     status_lookup = exec_repo.latest_statuses("job") if sort == "status" else None
     request = ListJobsV2Request(
         page=page, page_size=page_size, cursor=cursor, query=query, sort=sort, order=order,
@@ -252,7 +285,16 @@ def list_jobs_v2(
     page_job_ids = [j.get("id") for j in result.items if j.get("id")]
     latest_executions = exec_repo.latest_by_target_ids("job", page_job_ids)
     recommendations = analysis_repo.recommendations_by_job_ids(page_job_ids)
-    items = [_v2_job_to_schema(j, latest_executions.get(j.get("id")), recommendations.get(j.get("id"))) for j in result.items]
+    tracking_statuses = application_repo.statuses_by_job_ids(page_job_ids)
+    items = [
+        _v2_job_to_schema(
+            j,
+            latest_executions.get(j.get("id")),
+            recommendations.get(j.get("id")),
+            tracking_statuses.get(j.get("id")) or "not_applied",
+        )
+        for j in result.items
+    ]
     total_pages = max(1, math.ceil(result.total / page_size)) if result.total else 1
     return JobListResponseSchema(
         items=items,
@@ -363,10 +405,23 @@ def _analysis_to_schema(
     return None
 
 
+def _linked_company_type(
+    job_dict: dict[str, Any],
+    company_repo: SQLAlchemyCompanyRepository,
+) -> str | None:
+    """Return the linked company's type for the job detail response."""
+    company_id = job_dict.get("company_id")
+    if not company_id:
+        return None
+    company = company_repo.get_by_id(company_id)
+    return (company or {}).get("company_type")
+
+
 def _job_detail_payload(
     job_dict: dict[str, Any],
     latest_execution: Any | None,
     related_companies: list[Any] | None = None,
+    company_type: str | None = None,
 ) -> JobDetailResponseSchema:
     """Build the detail response for a freshly read job row."""
     return JobDetailResponseSchema(
@@ -374,6 +429,7 @@ def _job_detail_payload(
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         company_id=job_dict.get("company_id"),
+        company_type=company_type,
         role=job_dict.get("role"),
         location=job_dict.get("location"),
         work_types=_parse_string_list(job_dict.get("work_types")),
@@ -434,6 +490,7 @@ def get_job_detail(
     summary_repo: SQLAlchemySummaryRepository = Depends(get_summary_repo),
     job_company_repo: SQLAlchemyJobCompanyRepository = Depends(get_job_company_repo),
     company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
 ):
     job_dict = repo.get_by_id(job_id)
     if not job_dict:
@@ -443,12 +500,14 @@ def get_job_detail(
     latest_execution = executions[0] if executions else None
     analysis = analysis_repo.get_by_job_id(job_id)
     summary = summary_repo.get_by_job_id(job_id)
+    tracking_statuses = application_repo.statuses_by_job_ids([job_id])
 
     return JobDetailResponseSchema(
         id=job_dict.get("id"),
         title=job_dict.get("title") or job_dict.get("role"),
         company_name=job_dict.get("company"),
         company_id=job_dict.get("company_id"),
+        company_type=_linked_company_type(job_dict, company_repo),
         role=job_dict.get("role"),
         location=job_dict.get("location"),
         work_types=_parse_string_list(job_dict.get("work_types")),
@@ -468,6 +527,7 @@ def get_job_detail(
         description=job_dict.get("description"),
         notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
+        tracking_status=tracking_statuses.get(job_id) or "not_applied",
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -528,6 +588,7 @@ def update_job(
         job_dict,
         latest_execution,
         _related_companies_schema(job_id, job_company_repo, company_repo),
+        company_type=_linked_company_type(job_dict, company_repo),
     )
 
 
@@ -560,6 +621,7 @@ def set_job_company(
         job_dict,
         latest_execution,
         _related_companies_schema(job_id, job_company_repo, company_repo),
+        company_type=_linked_company_type(job_dict, company_repo),
     )
 
 

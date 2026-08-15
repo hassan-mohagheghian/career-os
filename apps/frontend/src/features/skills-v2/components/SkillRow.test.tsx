@@ -186,5 +186,24 @@ describe('SkillRow row-number column', () => {
   it('renders nothing for an absent row number', () => {
     renderRow(makeSkill(), { showRowNumberColumn: true })
     expect(screen.queryByText('1')).not.toBeInTheDocument()
+  })})
+
+describe('SkillRow hover actions', () => {
+  it('wraps the actions in a hover-revealed overlay (hidden by default)', () => {
+    const { container } = renderRow(makeSkill())
+    const overlay = container.querySelector('[class*="group-hover:opacity-100"]')
+    expect(overlay).not.toBeNull()
+    expect(overlay?.classList.contains('opacity-0')).toBe(true)
+  })
+
+  it('calls the delete handler and does not open details when an action is clicked', () => {
+    const onDelete = vi.fn()
+    const onViewDetails = vi.fn()
+    renderRow(makeSkill(), { onDelete, onViewDetails })
+
+    fireEvent.click(screen.getByLabelText('Delete'))
+
+    expect(onDelete).toHaveBeenCalled()
+    expect(onViewDetails).not.toHaveBeenCalled()
   })
 })

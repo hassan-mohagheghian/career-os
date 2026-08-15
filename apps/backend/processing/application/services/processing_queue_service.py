@@ -74,8 +74,8 @@ class ProcessingQueueService:
 
     @staticmethod
     def _company_links(company: dict[str, Any]) -> list[dict[str, Any]]:
-        """Parse a company's stored ``notes`` (URL notes) into link item dicts."""
-        raw = company.get("notes")
+        """Parse a company's ``links`` value into link item dicts."""
+        raw = company.get("links")
         if not raw:
             return []
         items = raw
@@ -87,9 +87,9 @@ class ProcessingQueueService:
         result = []
         for item in items or []:
             if isinstance(item, dict):
-                content = item.get("content") or item.get("url")
-                if item.get("type") == "url" and content:
-                    result.append({"url": content, "title": item.get("title", "")})
+                url = item.get("url")
+                if url:
+                    result.append({"url": url, "title": item.get("title", "")})
             elif isinstance(item, str):
                 result.append({"url": item})
         return result

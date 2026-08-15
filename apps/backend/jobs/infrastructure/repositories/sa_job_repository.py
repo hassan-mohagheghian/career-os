@@ -530,6 +530,7 @@ class SQLAlchemyJobRepository(IJobRepository):
                     JobModel.company.ilike(like),
                     JobModel.location.ilike(like),
                     JobModel.role.ilike(like),
+                    JobModel.url.ilike(like),
                 )
             )
 
@@ -624,6 +625,7 @@ class SQLAlchemyJobRepository(IJobRepository):
                     JobModel.company.ilike(like),
                     JobModel.location.ilike(like),
                     JobModel.role.ilike(like),
+                    JobModel.url.ilike(like),
                 )
             )
 

@@ -26,7 +26,6 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Confidence', field: 'confidence' },
   { label: 'Created', field: 'created_at' },
   { label: 'Mentions', field: 'mention_count' },
-  { label: 'Actions' },
 ]
 
 interface SkillsTableProps {
@@ -115,7 +114,7 @@ export function SkillsTable({
   const renderHeader = () => (
     <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
       {visibleColumnDefs.map((col, i) => (
-        <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
+        <div key={col.label} className="py-2 px-3 flex items-center">
           {col.label === 'Select' ? (
             <Checkbox
               checked={indeterminate ? 'indeterminate' : allVisibleSelected}

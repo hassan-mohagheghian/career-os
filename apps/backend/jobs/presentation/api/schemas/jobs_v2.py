@@ -99,6 +99,7 @@ class JobListItemSchema(BaseModel):
     scores: ScoresSchema | None = None
     recommendation: str | None = None
     pinned: bool = False
+    tracking_status: str | None = None
     updated_at: str | None = None
     created_at: str | None = None
 
@@ -225,6 +226,7 @@ class JobDetailResponseSchema(BaseModel):
     title: str | None = None
     company_name: str | None = Field(default=None, validation_alias="company")
     company_id: str | None = None
+    company_type: str | None = None
     role: str | None = None
     location: str | None = None
     work_types: list[str] | None = None
@@ -240,6 +242,7 @@ class JobDetailResponseSchema(BaseModel):
     description: str | None = None
     notes: list[JobNoteItem] = Field(default_factory=list)
     links: list[JobLinkItem] = Field(default_factory=list)
+    tracking_status: str | None = None
     updated_at: str | None = None
     created_at: str | None = None
 

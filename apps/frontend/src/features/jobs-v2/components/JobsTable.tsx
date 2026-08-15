@@ -52,9 +52,9 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
   { label: 'Rec' },
   { label: 'Status', field: 'status' },
+  { label: 'Tracking' },
   { label: 'Updated', field: 'updated_at' },
   { label: 'Created', field: 'created_at' },
-  { label: 'Actions' },
 ]
 
 export function JobsTable({
@@ -106,7 +106,7 @@ export function JobsTable({
         <div className="w-full">
           <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
             {visibleColumnDefs.map((col, i) => (
-              <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
+              <div key={col.label} className="py-2 px-3 flex items-center">
                 <SortableHeader
                   label={col.label}
                   field={col.field}
@@ -161,7 +161,7 @@ export function JobsTable({
       <div className="w-full">
         <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
           {visibleColumnDefs.map((col, i) => (
-            <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
+            <div key={col.label} className="py-2 px-3 flex items-center">
               <SortableHeader
                 label={col.label}
                 field={col.field}

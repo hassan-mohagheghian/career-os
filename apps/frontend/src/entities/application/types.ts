@@ -3,6 +3,9 @@ export type ApplicationStatus =
   | 'preparing'
   | 'ready_to_apply'
   | 'applied'
+  | 'interview'
+  | 'offer'
+  | 'accepted'
   | 'rejected'
   | 'withdrawn'
 

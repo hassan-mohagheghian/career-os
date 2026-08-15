@@ -23,11 +23,13 @@ import {
 } from "@phosphor-icons/react";
 import { jobApi } from "@/entities/job/api";
 import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
+import { formatCompanyType } from "@/entities/company/lib";
 import DateTime from "@/shared/components/DateTime";
 import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
 import { GradeBadge } from "@/shared/components/GradeBadge";
 import { gradeForScore, scoreColor } from "@/shared/lib/grade";
 import { RecommendationBadge } from "./RecommendationBadge";
+import { TrackingBadge } from "./TrackingBadge";
 import { CompanyPicker } from "./CompanyPicker";
 import { Button } from "@/shared/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -531,6 +533,9 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
                 />
               }
             />
+            {detail.company_type && (
+              <DetailRow label="Type" value={formatCompanyType(detail.company_type)} />
+            )}
             <DetailRow
               label="Location"
               value={<TruncatedValue value={detail.location} />}
@@ -538,6 +543,12 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
             <DetailRow
               label="Visa"
               value={<TruncatedValue value={detail.visa} />}
+            />
+            <DetailRow
+              label="Tracking"
+              value={
+                <TrackingBadge status={detail.tracking_status} className="align-middle" />
+              }
             />
           </div>
           <div className="min-w-0">

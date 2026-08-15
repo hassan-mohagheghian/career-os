@@ -45,6 +45,7 @@ const ROW_NUMBER_COLUMN: ColumnDef = { label: '#' }
 const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Name', field: 'name' },
   { label: 'Industry' },
+  { label: 'Type' },
   { label: 'Location' },
   { label: 'Size' },
   { label: 'Jobs' },
@@ -52,7 +53,6 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Status' },
   { label: 'Updated', field: 'updated_at' },
   { label: 'Created', field: 'created_at' },
-  { label: 'Actions' },
 ]
 
 export function CompaniesTable({
@@ -101,7 +101,7 @@ export function CompaniesTable({
   const renderHeader = () => (
     <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
       {visibleColumnDefs.map((col, i) => (
-        <div key={col.label} className={`py-2 px-3 flex items-center ${i === visibleColumnDefs.length - 1 ? 'justify-end' : ''}`}>
+        <div key={col.label} className="py-2 px-3 flex items-center">
           <SortableHeader
             label={col.label}
             field={col.field}

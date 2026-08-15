@@ -20,6 +20,7 @@ const sampleDetail = {
   title: 'Staff Engineer',
   company_name: 'Acme GmbH',
   company_id: 'company-1',
+  company_type: 'PRODUCT_COMPANY',
   role: 'Staff',
   location: 'Berlin',
   work_types: ['Hybrid'],
@@ -36,6 +37,7 @@ const sampleDetail = {
   analysis: null,
   related_companies: [],
   workflow: [],
+  tracking_status: 'applied',
   updated_at: null,
   created_at: null,
 }
@@ -125,6 +127,13 @@ describe('JobDetailDrawer edit', () => {
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Change company' })).toBeInTheDocument()
   })
+
+  it('shows the company type when it is set', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.getByText('Product Company')).toBeInTheDocument()
+  })
 })
 
 describe('JobDetailDrawer published by', () => {
@@ -158,6 +167,14 @@ describe('JobDetailDrawer published by', () => {
 
     await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
     expect(screen.queryByText('Published by')).not.toBeInTheDocument()
+  })
+})
+
+describe('JobDetailDrawer tracking', () => {
+  it('renders the job tracking badge', async () => {
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Applied')).toBeInTheDocument())
   })
 })
 

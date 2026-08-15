@@ -21,7 +21,6 @@ def _create_company(sa_session, **kwargs) -> CompanyModel:
         country="Germany",
         company_size="500",
         status="completed",
-        notes="[]",
         workflow_log="[]",
         source="web",
         input_type="url",
@@ -648,6 +647,23 @@ class TestCompanyRecruiterForAPI:
         assert items["Product Co"]["job_count"] == 1
         assert items["Product Co"]["recruiter_job_count"] == 0
 
+    def test_list_filters_by_company_type(self, client, sa_session):
+        _create_company(sa_session, name="Product Co", company_type="PRODUCT_COMPANY")
+        _create_company(sa_session, name="RecruitCo", company_type="RECRUITING_AGENCY")
+        _create_company(sa_session, name="StaffCo", company_type="STAFFING_COMPANY")
+
+        product = client.get("/api/companies/list", params={"company_type": "PRODUCT_COMPANY"}).json()
+        assert [i["name"] for i in product["items"]] == ["Product Co"]
+
+        recruiting = client.get("/api/companies/list", params={"company_type": "RECRUITING_AGENCY"}).json()
+        assert [i["name"] for i in recruiting["items"]] == ["RecruitCo"]
+
+        staffing = client.get("/api/companies/list", params={"company_type": "STAFFING_COMPANY"}).json()
+        assert [i["name"] for i in staffing["items"]] == ["StaffCo"]
+
+        empty = client.get("/api/companies/list", params={"company_type": "CONSULTING_COMPANY"}).json()
+        assert empty["items"] == []
+
 
 class TestCompanyCreateAPI:
     def test_create_company_queues_by_default(self, client, sa_session):
@@ -673,8 +689,17 @@ class TestCompanyCreateAPI:
 
         company = sa_session.query(CompanyModel).filter(CompanyModel.id == data["id"]).first()
         assert company is not None
-        assert "Berlin product company" in company.notes
-        assert "https://acme.example" in company.notes
+
+        from companies.infrastructure.models.company_model import CompanyLinkModel
+
+        link_rows = (
+            sa_session.query(CompanyLinkModel)
+            .filter(CompanyLinkModel.company_id == data["id"])
+            .all()
+        )
+        titles = [r.title for r in link_rows]
+        assert any(t.startswith("note:") and "Berlin product company" in t for t in titles)
+        assert any(r.url == "https://acme.example" for r in link_rows)
 
     def test_create_company_without_queue(self, client, sa_session):
         from unittest.mock import patch

@@ -23,6 +23,23 @@ class IApplicationRepository(ABC):
         ...
 
     @abstractmethod
+    def statuses_by_job_ids(self, job_ids: list[str]) -> dict[str, str]:
+        """Map job ids to their application status (``{job_id: status}``).
+
+        Used by the jobs list to surface the job-tracking status. Jobs without
+        an application are omitted from the result.
+        """
+        ...
+
+    @abstractmethod
+    def job_ids_with_application(self) -> list[str]:
+        """List every job id that has at least one application.
+
+        Used to resolve the ``not_applied`` tracking filter.
+        """
+        ...
+
+    @abstractmethod
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         """Create an application. Returns the stored dict."""
         ...

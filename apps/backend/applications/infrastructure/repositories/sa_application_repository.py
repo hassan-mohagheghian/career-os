@@ -46,6 +46,22 @@ class SQLAlchemyApplicationRepository(IApplicationRepository):
             .all()
         ]
 
+    def statuses_by_job_ids(self, job_ids: list[str]) -> dict[str, str]:
+        if not job_ids:
+            return {}
+        rows = (
+            self._session.query(ApplicationModel.job_id, ApplicationModel.status)
+            .filter(ApplicationModel.job_id.in_(job_ids))
+            .all()
+        )
+        return {job_id: status for job_id, status in rows}
+
+    def job_ids_with_application(self) -> list[str]:
+        return [
+            row[0]
+            for row in self._session.query(ApplicationModel.job_id).distinct().all()
+        ]
+
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
         model = dict_to_application_model(data)
         self._session.add(model)

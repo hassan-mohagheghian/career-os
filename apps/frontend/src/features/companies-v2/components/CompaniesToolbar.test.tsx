@@ -38,6 +38,8 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onQueryChange: vi.fn(),
     filterIndustry: '',
     onFilterIndustryChange: vi.fn(),
+    filterCompanyType: '',
+    onFilterCompanyTypeChange: vi.fn(),
     filterStatus: '',
     onFilterStatusChange: vi.fn(),
     filterPinned: false,
@@ -87,6 +89,34 @@ describe('CompaniesToolbar status filter', () => {
   it('shows the active status label', () => {
     renderToolbar({ filterStatus: 'failed' })
     expect(screen.getByText('Failed')).toBeInTheDocument()
+  })
+})
+
+describe('CompaniesToolbar company type filter', () => {
+  it('renders a Type dropdown', () => {
+    renderToolbar()
+    expect(screen.getByText('Type')).toBeInTheDocument()
+  })
+
+  it('reports a selected company type', () => {
+    const onFilterCompanyTypeChange = vi.fn()
+    renderToolbar({ onFilterCompanyTypeChange })
+    fireEvent.click(screen.getByText('Type'))
+    fireEvent.click(screen.getByText('Recruiting agency'))
+    expect(onFilterCompanyTypeChange).toHaveBeenCalledWith('RECRUITING_AGENCY')
+  })
+
+  it('reports the staffing type', () => {
+    const onFilterCompanyTypeChange = vi.fn()
+    renderToolbar({ onFilterCompanyTypeChange })
+    fireEvent.click(screen.getByText('Type'))
+    fireEvent.click(screen.getByText('Staffing'))
+    expect(onFilterCompanyTypeChange).toHaveBeenCalledWith('STAFFING_COMPANY')
+  })
+
+  it('shows the active type label', () => {
+    renderToolbar({ filterCompanyType: 'PRODUCT_COMPANY' })
+    expect(screen.getByText('Product')).toBeInTheDocument()
   })
 })
 

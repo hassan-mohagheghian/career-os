@@ -17,6 +17,7 @@ function makeJob(overrides: Partial<JobListItem> = {}): JobListItem {
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
     pinned: false,
+    tracking_status: null,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
     ...overrides,
@@ -84,6 +85,18 @@ describe('JobRow recommendation', () => {
   })
 })
 
+describe('JobRow tracking status', () => {
+  it('renders the tracking badge', () => {
+    renderRow(makeJob({ tracking_status: 'interview' }))
+    expect(screen.getByText('Interview')).toBeInTheDocument()
+  })
+
+  it('renders Not Applied when there is no tracking status', () => {
+    renderRow(makeJob({ tracking_status: null }))
+    expect(screen.getByText('Not Applied')).toBeInTheDocument()
+  })
+})
+
 describe('JobRow grade', () => {
   it('renders a grade badge derived from the overall score', () => {
     renderRow(makeJob({ scores: { overall: 92, fit: 90, success: 85 } }))
@@ -93,5 +106,27 @@ describe('JobRow grade', () => {
   it('renders an em dash when there is no overall score', () => {
     const { container } = renderRow(makeJob())
     expect(container.textContent).toContain('—')
+  })
+})
+
+describe('JobRow hover actions', () => {
+  it('wraps the actions in a hover-revealed overlay (hidden by default)', () => {
+    const { container } = renderRow(makeJob())
+    expect(container.querySelector('[class*="group-hover:opacity-100"]')).not.toBeNull()
+    expect(container.querySelector('[class*="group-hover:opacity-100"]')?.classList.contains('opacity-0')).toBe(true)
+  })
+
+  it('calls the delete handler and does not open details when an action is clicked', () => {
+    const onDelete = vi.fn()
+    const onViewDetails = vi.fn()
+    renderRow(makeJob({
+      job_status: 'completed',
+      latest_processing_execution: { id: 'e1', status: 'completed', started_at: '2026-08-01T00:00:00Z', finished_at: '2026-08-01T00:00:00Z' },
+    }), { onDelete, onViewDetails })
+
+    fireEvent.click(screen.getByLabelText('Delete'))
+
+    expect(onDelete).toHaveBeenCalled()
+    expect(onViewDetails).not.toHaveBeenCalled()
   })
 })

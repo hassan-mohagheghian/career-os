@@ -25,12 +25,20 @@ class TimestampedEntity:
 
 
 class ApplicationStatus:
-    """Allowed application statuses (MVP set from the Application spec)."""
+    """Allowed application statuses (application funnel for job tracking).
+
+    Order reflects the funnel progression: recommended → preparing →
+    ready_to_apply → applied → interview → offer → accepted, with rejected /
+    withdrawn as terminal states.
+    """
 
     RECOMMENDED = "recommended"
     PREPARING = "preparing"
     READY_TO_APPLY = "ready_to_apply"
     APPLIED = "applied"
+    INTERVIEW = "interview"
+    OFFER = "offer"
+    ACCEPTED = "accepted"
     REJECTED = "rejected"
     WITHDRAWN = "withdrawn"
 
@@ -39,6 +47,9 @@ class ApplicationStatus:
         PREPARING,
         READY_TO_APPLY,
         APPLIED,
+        INTERVIEW,
+        OFFER,
+        ACCEPTED,
         REJECTED,
         WITHDRAWN,
     )

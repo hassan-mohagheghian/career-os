@@ -119,6 +119,7 @@ def _matches(
     pinned: bool | None = None,
     status: str | None = None,
     status_lookup: dict[str, str] | None = None,
+    company_type: str | None = None,
 ) -> bool:
     if pinned is not None and bool(row.get("pinned")) != pinned:
         return False
@@ -142,6 +143,9 @@ def _matches(
             return False
     if industry:
         if (row.get("industry") or "") != industry:
+            return False
+    if company_type:
+        if (row.get("company_type") or "") != company_type:
             return False
     return True
 
@@ -223,6 +227,7 @@ def _to_list_item(
 def list_companies_v2(
     query: str = Query("", description="Substring search over name, industry, city, country, description"),
     industry: str = Query("", description="Exact industry filter"),
+    company_type: str = Query("", description="Exact company type filter (e.g. PRODUCT_COMPANY, RECRUITING_AGENCY)"),
     pinned: bool | None = Query(None, description="Only include pinned companies"),
     status: str | None = Query(None, description="Exact company processing status filter"),
     sort: str = Query("created_at", description="Sort field"),
@@ -235,7 +240,7 @@ def list_companies_v2(
 ) -> CompanyListResponseSchema:
     """List companies with server-side search, filter, sort and cursor pagination."""
     status_lookup = exec_repo.latest_statuses("company")
-    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status, status_lookup)]
+    rows = [r for r in repo.list_all_with_details() if _matches(r, query, industry, pinned, status, status_lookup, company_type)]
 
     key: Callable[[dict[str, Any]], Any] = lambda r: _sort_key(r, sort)
     with_value = [r for r in rows if key(r) is not None]
@@ -533,6 +538,7 @@ def create_company(
     body: CompanyCreateRequest,
     repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
     intel_repo: SQLAlchemyCompanyIntelligenceRepository = Depends(get_company_intelligence_repo),
+    link_repo: SQLAlchemyCompanyLinkRepository = Depends(get_company_link_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ) -> CompanyCreateResponse:
     """Create a company from intake (name + notes + links).
@@ -540,7 +546,7 @@ def create_company(
     When ``body.queue`` is true (default) the company is created and immediately
     queued for processing through the COMPANY_PROCESSING execution lifecycle.
     """
-    service = CompanyService(repo, intel_repo)
+    service = CompanyService(repo, intel_repo, link_repo)
     company = service.create_from_intake(
         name=body.name,
         notes=[n.model_dump() if isinstance(n, CompanyCreateNoteItem) else dict(n) for n in body.notes]
@@ -557,7 +563,6 @@ def create_company(
     return CompanyCreateResponse(
         id=company["id"],
         name=company.get("name") or "",
-        notes=company.get("notes"),
         source=company.get("source"),
         input_type=company.get("input_type"),
         status=company.get("status") or "created",

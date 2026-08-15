@@ -37,8 +37,6 @@ class CompanyModel(Base):
     tech_stack: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     work_environment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     extra: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    notes: Mapped[str] = mapped_column(Text, default="[]")
-    links: Mapped[str] = mapped_column(Text, default="[]")
     source: Mapped[Optional[str]] = mapped_column(String, default="web")
     workflow_log: Mapped[str] = mapped_column(Text, default="[]")
     input_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

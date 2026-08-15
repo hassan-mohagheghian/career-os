@@ -87,7 +87,7 @@ export function SkillRow({
 
   return (
     <div
-      className="grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
+      className="group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
       style={{ gridTemplateColumns }}
       onClick={() => onViewDetails(skill.id)}
     >
@@ -144,14 +144,16 @@ export function SkillRow({
           {skill.mention_count ?? 0}
         </span>
       </div>
-      <div className="py-2 px-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-        <SkillActions
-          onViewDetails={() => onViewDetails(skill.id)}
-          onBreakDown={() => onBreakDown(skill.id)}
-          onMerge={() => onMerge(skill.id)}
-          onEdit={() => onEdit(skill.id)}
-          onDelete={() => onDelete(skill.id)}
-        />
+      <div className="absolute inset-y-0 right-1 flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center bg-card ring-1 ring-border rounded-md shadow-sm px-1">
+          <SkillActions
+            onViewDetails={() => onViewDetails(skill.id)}
+            onBreakDown={() => onBreakDown(skill.id)}
+            onMerge={() => onMerge(skill.id)}
+            onEdit={() => onEdit(skill.id)}
+            onDelete={() => onDelete(skill.id)}
+          />
+        </div>
       </div>
     </div>
   )

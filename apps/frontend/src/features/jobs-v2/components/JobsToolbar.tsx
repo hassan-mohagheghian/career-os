@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import type { ProcessingStatusFilter, RecommendationFilter } from '@/entities/job/types'
+import type { ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter } from '@/entities/job/types'
 import { MagnifyingGlass, MapPin, Funnel, PushPin } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
@@ -25,6 +25,19 @@ const RECOMMENDATION_LABELS: Record<string, string> = {
   skip: 'Skip',
 }
 
+const TRACKING_FILTER_LABELS: Record<string, string> = {
+  not_applied: 'Not Applied',
+  recommended: 'Recommended',
+  preparing: 'Preparing',
+  ready_to_apply: 'Ready to Apply',
+  applied: 'Applied',
+  interview: 'Interview',
+  offer: 'Offer',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
+}
+
 interface JobsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
@@ -40,6 +53,8 @@ interface JobsToolbarProps {
   onFilterPinnedChange: (value: boolean) => void
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
+  filterTrackingStatus: TrackingStatusFilter
+  onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
   showPinnedColumn?: boolean
@@ -56,6 +71,7 @@ export function JobsToolbar({
   filterVisa, onFilterVisaChange,
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
+  filterTrackingStatus, onFilterTrackingStatusChange,
   activeFilterCount, onClearFilters,
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
@@ -140,6 +156,21 @@ export function JobsToolbar({
               <SelectItem value="apply">Apply</SelectItem>
               <SelectItem value="consider">Consider</SelectItem>
               <SelectItem value="skip">Skip</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterTrackingStatus} onValueChange={(v) => onFilterTrackingStatusChange(v as TrackingStatusFilter)}>
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
+              <span>{filterTrackingStatus ? TRACKING_FILTER_LABELS[filterTrackingStatus] ?? filterTrackingStatus : 'Tracking'}</span>
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="not_applied">Not Applied</SelectItem>
+              <SelectItem value="applied">Applied</SelectItem>
+              <SelectItem value="interview">Interview</SelectItem>
+              <SelectItem value="offer">Offer</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="withdrawn">Withdrawn</SelectItem>
             </SelectContent>
           </Select>
           <Button

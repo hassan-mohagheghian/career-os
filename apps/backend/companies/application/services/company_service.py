@@ -13,6 +13,7 @@ from datetime import datetime, UTC
 from typing import Any
 
 from companies.domain.repositories.company_intelligence_repository import ICompanyIntelligenceRepository
+from companies.domain.repositories.company_link_repository import ICompanyLinkRepository
 from companies.domain.repositories.company_repository import ICompanyRepository
 from shared.application.exceptions import NotFoundError
 
@@ -22,13 +23,39 @@ class CompanyService:
         self,
         repository: ICompanyRepository,
         intelligence_repository: ICompanyIntelligenceRepository,
+        link_repository: ICompanyLinkRepository | None = None,
     ):
         self._repository = repository
         self._intelligence = intelligence_repository
+        self._links = link_repository
 
     def get_company(self, company_id: str) -> dict[str, Any] | None:
-        """Load a company by its UUID."""
-        return self._repository.get_by_id(company_id)
+        """Load a company by its UUID.
+
+        When a link repository is available the returned dict also carries
+        ``notes`` (text notes) and ``links`` (URL links) sourced from the
+        ``company_links`` table, so the context preparation phase can collect
+        them as sources.
+        """
+        company = self._repository.get_by_id(company_id)
+        if company is None or self._links is None:
+            return company
+
+        link_rows = self._links.get_by_company_id(company_id)
+        notes = [
+            {"type": "text", "content": row.get("title", "").removeprefix("note:").strip()}
+            for row in link_rows
+            if row.get("title", "").startswith("note:")
+        ]
+        links = [
+            {"url": row.get("url"), "title": row.get("title") or ""}
+            for row in link_rows
+            if not row.get("title", "").startswith("note:")
+        ]
+        merged = dict(company)
+        merged["notes"] = json.dumps(notes, ensure_ascii=False)
+        merged["links"] = json.dumps(links, ensure_ascii=False)
+        return merged
 
     def get_company_or_raise(self, company_id: str) -> dict[str, Any]:
         company = self.get_company(company_id)
@@ -113,27 +140,28 @@ class CompanyService:
     ) -> dict[str, Any]:
         """Create a company row from intake (notes + links) and return it.
 
-        URL-type notes and links are stored in the company `notes`/`links`
-        fields so the context preparation phase can collect them as sources.
+        Text notes are stored as ``note:`` link rows and URL links as URL link
+        rows in the ``company_links`` table — the canonical, separate storage
+        for a company's notes and links. The context preparation phase collects
+        them as sources through ``get_company``.
         """
-        all_notes = list(notes or [])
-        for link in links or []:
-            if isinstance(link, dict):
-                url = link.get("url", "")
-                title = link.get("title", "")
-            else:
-                url = str(link)
-                title = ""
-            if url:
-                all_notes.append({"type": "url", "content": url, "title": title})
-
-        return self._repository.insert({
+        company = self._repository.insert({
             "name": name or "",
-            "notes": json.dumps(all_notes, ensure_ascii=False),
             "source": source,
             "input_type": input_type,
             "status": "created",
         })
+        if self._links is not None:
+            for note in notes or []:
+                content = note.get("content", "") if isinstance(note, dict) else str(note)
+                if content:
+                    self._links.create(company["id"], "", f"note:{content}")
+            for link in links or []:
+                url = link.get("url", "") if isinstance(link, dict) else str(link)
+                title = link.get("title", "") if isinstance(link, dict) else ""
+                if url:
+                    self._links.create(company["id"], url, title)
+        return company
 
     def update_status(self, company_id: str, status: str, **extra: Any) -> bool:
         """Update the company model status (JobStatus vocabulary)."""

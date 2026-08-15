@@ -109,9 +109,8 @@ class TestProcessingQueueServiceCompany:
         companies = {
             company_id: {
                 "name": "Acme GmbH",
-                "notes": json.dumps([
-                    {"type": "url", "content": "https://acme.example", "title": "Website"},
-                    {"type": "text", "content": "Berlin product company"},
+                "links": json.dumps([
+                    {"url": "https://acme.example", "title": "Website"},
                 ]),
             }
         }

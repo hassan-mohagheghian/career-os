@@ -5,7 +5,7 @@ import { JobsPage } from './JobsPage'
 import type { CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
 
 vi.mock('@/shared/components/CreateEntityDrawer', () => ({
-  default: ({ open, onSubmit }: { open: boolean; onSubmit: (data: CreateEntityFormData) => void }) =>
+  default: ({ open, onSubmit, error, errorLink }: { open: boolean; onSubmit: (data: CreateEntityFormData) => void; error?: string | null; errorLink?: { label: string; href: string } | null }) =>
     open ? (
       <div>
         <button onClick={() => onSubmit({ mode: 'job', job_post_url: 'https://example.com/job', links: [], notes: [], queue: true })}>
@@ -14,6 +14,8 @@ vi.mock('@/shared/components/CreateEntityDrawer', () => ({
         <button onClick={() => onSubmit({ mode: 'job', job_post_url: 'https://example.com/job', links: [], notes: [], queue: false })}>
           submit-only
         </button>
+        {error && <span data-testid="create-error">{error}</span>}
+        {errorLink && <a href={errorLink.href} data-testid="create-error-link">{errorLink.label}</a>}
       </div>
     ) : null,
 }))
@@ -122,5 +124,29 @@ describe('JobsPage create & queue flow', () => {
     })
     expect(onJobQueued).not.toHaveBeenCalled()
     expect(onQueueDrawerOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('links the duplicate-job error to the existing job application page', async () => {
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({
+          error: { message: 'A Job with the same primary URL already exists.', details: { job_id: 'job-1' } },
+        }),
+      })
+    ))
+    renderPage()
+
+    fireEvent.click(screen.getByText('submit-only'))
+
+    await waitFor(() => {
+      const link = screen.getByTestId('create-error-link')
+      expect(link).toHaveAttribute('href', '/jobs/job-1/application')
+      expect(link.textContent).toBe('Open application')
+    })
+    expect(screen.getByTestId('create-error').textContent).toBe(
+      'A Job with the same primary URL already exists.'
+    )
   })
 })

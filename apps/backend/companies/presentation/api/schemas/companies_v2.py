@@ -219,7 +219,6 @@ class CompanyCreateResponse(BaseModel):
 
     id: str
     name: str
-    notes: str | None = None
     source: str | None = None
     input_type: str | None = None
     status: str

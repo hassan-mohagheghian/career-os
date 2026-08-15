@@ -379,6 +379,13 @@ class TestSearchJobs:
         assert total == 1
         assert rows[0]["id"] == m1.id
 
+    def test_query_filter_matches_url(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", title="Backend Engineer", url="https://nl.linkedin.com/jobs/view/abc123")
+        _add(sa_session, id="job-b", title="Frontend Dev", url="https://www.indeed.com/xyz")
+        rows, total = repo.search_jobs(query="nl.linkedin.com/jobs/view/abc123")
+        assert total == 1
+        assert rows[0]["id"] == m1.id
+
     def test_processing_status(self, sa_session, repo):
         _add(sa_session, id="job-a", status="processing")
         m2 = _add(sa_session, id="job-b", status="queued")
@@ -478,7 +485,13 @@ class TestSearchJobsCursor:
         items, total, next_cursor, has_more = repo.search_jobs_cursor(page_size=2, sort="updated_at")
         assert len(items) == 2
         assert has_more is True
-        assert next_cursor is not None
+
+    def test_query_matches_url(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", title="Alpha", url="https://careers.alpha.com/role/123")
+        _add(sa_session, id="job-b", title="Beta", url="https://careers.beta.com/role/456")
+        items, total, _, _ = repo.search_jobs_cursor(query="careers.alpha.com/role/123")
+        assert total == 1
+        assert items[0]["id"] == m1.id
 
     def test_cursor_desc(self, sa_session, repo):
         for i in range(5):

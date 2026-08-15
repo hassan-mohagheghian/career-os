@@ -54,16 +54,19 @@ Skills Page
 │ ⛭ Skills (128)                    Loaded 25 of 128          ↻  + Add Skill   │
 ├───────────────────────────────────────────────────────────────────────────────┤
 │ Search .........................            [Category ▾⌕] [Pinned] [Columns] [Clear]│
-│ # │ Select │ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │ Act.│
+│ # │ Select │ Pin │ Name │ Category │ Level │ Roles │ Demand │ Conf. │ Created │ Mentions │
 │───│───────│─────│─────────────────────────────────────────────────────────────│
-│ 1 │       │ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │ ⋯  │
-│ 2 │       │ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │ ⋯  │
-│ 3 │       │ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │ ⋯  │
+│ 1 │       │ ●  │ K8s  │ engineering│ Lv.4 │ DevOps│ 90%   │ 85%   │ 2m      │ 3        │
+│ 2 │       │ ○  │ Kafka│ technical │ Lv.2 │ Data  │ 70%   │ 60%   │ 5m      │ 1        │
+│ 3 │       │ ○  │ DDD  │ domain    │ Lv.3 │ Backend│ —    │ 45%   │ 1h      │ 0        │
 │                                                                               │
 │                                        Loading more skills...                 │
 │                                                                               │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
+
+There is no fixed Actions column: row actions are revealed on hover (see
+`features/skills/skill-row.md#actions`).
 
 With 2+ rows selected, a bulk action bar appears in the toolbar:
 
@@ -262,10 +265,10 @@ Configuration
 | Confidence | AI confidence percentage                           |
 | Created    | Relative creation time                             |
 | Mentions   | Total job/company mentions referencing this skill (sortable) |
-| Actions    | Row actions (Details, Edit, Delete)                |
 
-The Row number, Select and Pin columns are hidden by default; each can be toggled
-via the toolbar Columns dropdown.
+There is no `Actions` column — row actions are revealed on hover (see
+`features/skills/skill-row.md#actions`). The Row number, Select and Pin columns
+are hidden by default; each can be toggled via the toolbar Columns dropdown.
 
 Rows highlight on hover (and while any inner control has focus) with a muted
 background and an inset ring, so the focused row is always visually identifiable
@@ -390,7 +393,8 @@ sortable (see Sorting below).
 
 # Row Actions
 
-Each row provides three icon actions (tooltip buttons):
+There is no fixed Actions column. Hovering a row reveals a floating toolbar of
+icon actions (tooltip buttons) at the row's right edge:
 
 | Action  | Description                        |
 | ------- | ---------------------------------- |

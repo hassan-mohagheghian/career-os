@@ -37,8 +37,8 @@ processing pipeline with live SSE progress.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ ← Back to Job                                          [Open job posting]│
-│ Staff Engineer · Acme GmbH · Berlin                                      │
+│ ← Back to Job      [Job Detail] [Job Edit] [Open job posting]            │
+│ Staff Engineer · [Acme GmbH] · Berlin                    [Product Company]│
 │ [Recommended] [Apply]             [A+] [Fit 85] [Success 88] [Overall 90]│
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ▸ AI generation in progress ▸ 42% · "Generating tailored resume"        │  ← SSE card (while running)
@@ -55,7 +55,7 @@ processing pipeline with live SSE progress.
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │ Kafka → Staff Engineer Roadmap          [ACTIVE]                 │   │
 │  │ Goal: Land a staff-level role                                    │   │
-│  │ ▓▓▓▓▓▓░░░░░░ 25%  1/4 tasks done                                 │   │
+│  │ ▓▓▓▓▓░░░░░░ 25%  1/4 tasks done                                 │   │
 │  │ MILESTONES  (overview — see roadmap-application-overview.md)     │   │
 │  │ ① Skills foundation [IN PROGRESS][HIGH]      1/2  ▓▓▓▓░░░        │   │
 │  │ ② Ship Kafka project [NOT STARTED][CRITICAL]  0/2  ░░░░░░░       │   │
@@ -65,11 +65,33 @@ processing pipeline with live SSE progress.
 │ DOCUMENTS                                                                │
 │ ┌────────────────────────────┐  ┌────────────────────────────┐           │
 │ │ TAILORED RESUME v2  [copy] │  │ COVER LETTER v1    [copy]  │           │
-│ │ [download][edit][🗑][Regen]│  │ [download][edit][🗑][Regen] │           │
+│ │ [👁][download][edit][🗑][Regen]│  │ [👁][download][edit][🗑][Regen] │           │
 │ │ │ markdown preview │       │  │ │ markdown preview │       │           │
 │ └────────────────────────────┘  └────────────────────────────┘           │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Job Detail / Job Edit buttons
+
+The header's top-right action group shows **Job Detail** and **Job Edit**
+buttons (next to "Open job posting"). They open the shared `JobDetailDrawer` and
+`JobEditDrawer` (the same drawers used on the Jobs page) with the current job,
+so the user can inspect or edit the job without leaving the application page.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ← Back to Job              [Job Detail] [Job Edit] [Open job posting]    │
+└──────────────────────────────────────────────────────────────────────────┘
+       │  (click Job Detail / Job Edit opens the respective drawer overlay)
+```
+
+| Button | Behavior |
+| ------ | -------- |
+| Job Detail | Opens `JobDetailDrawer` for the job (same as the Jobs page detail drawer; includes Edit/Reprocess/Application actions). |
+| Job Edit | Opens `JobEditDrawer` for the job; edits are persisted via `PUT /api/jobs/{id}` and the header refetches the job. |
+| Back to Job | `router.push('/jobs?job={id}')`; the Jobs page opens the detail drawer for that job. |
+| Open job posting | External link to `job.url` in a new tab. |
+| Company name | When the job has a `company_id`, the header company name is a **link** to `/companies?company=<id>` (opens the company in the Companies page detail drawer). A **company type badge** renders beside the name when the linked company has a type. |
 
 ## Component Hierarchy
 
@@ -116,7 +138,7 @@ new roadmap/document appears; the card shows the result and a **Dismiss** button
 | Element | Behavior |
 | ------- | -------- |
 | Back to Job | `router.push('/jobs?job={id}')`; the Jobs page opens the detail drawer for that job. |
-| Status select | `PATCH /api/applications/{id}` with the chosen status; list: recommended, preparing, ready_to_apply, applied, rejected, withdrawn. |
+| Status select | `PATCH /api/applications/{id}` with the chosen status; list: recommended, preparing, ready_to_apply, applied, interview, offer, accepted, rejected, withdrawn. |
 | Applied at | Native date input; `PATCH` with `applied_at` (or `null` to clear). |
 | Follow-ups | Add (note + optional date), toggle done, delete — see `application-tracker.md`. |
 | Roadmap Generate | `POST /api/applications/{id}/roadmap/generate` → 202 (`artifact="roadmap"`), SSE progress, roadmap refetch on completion. Label becomes **Regenerate** once a roadmap exists. |

@@ -5,6 +5,19 @@ from jobs.infrastructure.models.job_model import JobModel
 from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
 from companies.infrastructure.models.company_model import CompanyModel
+from applications.infrastructure.models.application_model import ApplicationModel
+
+
+def _create_application(test_db, job_id: str, status: str) -> ApplicationModel:
+    import uuid
+    model = ApplicationModel(
+        id=str(uuid.uuid7()),
+        job_id=job_id,
+        status=status,
+    )
+    test_db.add(model)
+    test_db.commit()
+    return model
 
 
 def _create_job(test_db, **kwargs) -> JobModel:
@@ -537,6 +550,45 @@ class TestJobRecommendationFilterV2API:
         assert resp.status_code == 422
 
 
+class TestJobTrackingFilterV2API:
+    def test_list_item_carries_tracking_status(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Applied Job")
+        _create_job(test_db, id=2, title="Not Applied Job")
+        _create_application(test_db, job.id, "applied")
+
+        resp = client.get("/api/jobs/list")
+        assert resp.status_code == 200
+        by_title = {i["title"]: i for i in resp.json()["items"]}
+        assert by_title["Applied Job"]["tracking_status"] == "applied"
+        assert by_title["Not Applied Job"]["tracking_status"] == "not_applied"
+
+    def test_filter_by_tracking_status(self, client, test_db):
+        applied = _create_job(test_db, id=1, title="Applied")
+        interview = _create_job(test_db, id=2, title="Interview")
+        not_applied = _create_job(test_db, id=3, title="Not Applied")
+        _create_application(test_db, applied.id, "applied")
+        _create_application(test_db, interview.id, "interview")
+
+        resp = client.get("/api/jobs/list?tracking_status=applied")
+        assert [i["title"] for i in resp.json()["items"]] == ["Applied"]
+
+        resp = client.get("/api/jobs/list?tracking_status=interview")
+        assert [i["title"] for i in resp.json()["items"]] == ["Interview"]
+
+        resp = client.get("/api/jobs/list?tracking_status=not_applied")
+        assert [i["title"] for i in resp.json()["items"]] == ["Not Applied"]
+
+    def test_tracking_filter_combines_with_processing_status(self, client, test_db):
+        applied = _create_job(test_db, id=1, title="Applied Processed")
+        other_applied = _create_job(test_db, id=2, title="Applied Other")
+        _create_application(test_db, applied.id, "applied")
+        _create_application(test_db, other_applied.id, "applied")
+        _create_execution(test_db, applied.id, status="completed")
+
+        resp = client.get("/api/jobs/list?tracking_status=applied&processing_status=completed")
+        assert [i["title"] for i in resp.json()["items"]] == ["Applied Processed"]
+
+
 def _create_company(test_db, **kwargs) -> CompanyModel:
     import uuid
 
@@ -552,13 +604,29 @@ def _create_company(test_db, **kwargs) -> CompanyModel:
 class TestJobCompanyV2API:
     def test_set_company_links_job_and_sets_canonical_name(self, client, test_db):
         job = _create_job(test_db, id=1, title="Engineer", company="Old Name")
-        company = _create_company(test_db)
+        company = _create_company(test_db, company_type="PRODUCT_COMPANY")
 
         resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": company.id})
         assert resp.status_code == 200
         body = resp.json()
         assert body["company_id"] == company.id
         assert body["company_name"] == "Acme GmbH"
+        assert body["company_type"] == "PRODUCT_COMPANY"
+
+    def test_job_detail_includes_company_type(self, client, test_db):
+        company = _create_company(test_db, company_type="CONSULTING_COMPANY")
+        job = _create_job(test_db, id=1, title="Engineer", company="Acme GmbH", company_id=company.id)
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["company_type"] == "CONSULTING_COMPANY"
+
+    def test_job_detail_company_type_is_none_when_unlinked(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", company="Acme GmbH")
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        assert resp.json()["company_type"] is None
 
     def test_set_company_null_unlinks_without_touching_name(self, client, test_db):
         company = _create_company(test_db)

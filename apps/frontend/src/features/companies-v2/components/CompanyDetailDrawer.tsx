@@ -24,7 +24,7 @@ import type {
   CompanyIntelligenceScores,
   CompanyScores,
 } from "@/entities/company/types";
-import { isRecruiterCompany } from "@/entities/company/lib";
+import { isRecruiterCompany, formatCompanyType } from "@/entities/company/lib";
 import { useCompanyQuery } from "@/entities/company/hooks";
 import CompanyJobsTab from "./CompanyJobsTab";
 import NotesLinksReadOnly from "@/shared/components/NotesLinksReadOnly";
@@ -33,18 +33,6 @@ import { CompanyScoreCard } from "./CompanyScoreCard";
 import { RelateCompanyDialog } from "./RelateCompanyDialog";
 import { gradeForScore } from "@/shared/lib/grade";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
-
-const COMPANY_TYPE_LABELS: Record<string, string> = {
-  PRODUCT_COMPANY: "Product Company",
-  RECRUITING_AGENCY: "Recruiting Agency",
-  STAFFING_COMPANY: "Staffing Company",
-  CONSULTING_COMPANY: "Consulting Company",
-  UNKNOWN: "Unknown",
-};
-
-function formatCompanyType(type: string | null | undefined) {
-  return (type && COMPANY_TYPE_LABELS[type]) || type || "Unknown";
-}
 
 function strList(value: unknown): string[] {
   return Array.isArray(value)

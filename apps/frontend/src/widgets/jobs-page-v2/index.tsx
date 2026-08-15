@@ -39,6 +39,7 @@ function JobsPageV2Adapter() {
     filterVisa, setFilterVisa,
     filterPinned, setFilterPinned,
     filterRecommendation, setFilterRecommendation,
+    filterTrackingStatus, setFilterTrackingStatus,
     activeFilterCount, clearFilters,
     processMutation,
     deleteMutation,
@@ -159,6 +160,8 @@ function JobsPageV2Adapter() {
         onFilterPinnedChange={setFilterPinned}
         filterRecommendation={filterRecommendation}
         onFilterRecommendationChange={setFilterRecommendation}
+        filterTrackingStatus={filterTrackingStatus}
+        onFilterTrackingStatusChange={setFilterTrackingStatus}
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}

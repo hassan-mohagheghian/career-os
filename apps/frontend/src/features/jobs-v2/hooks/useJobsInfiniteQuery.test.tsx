@@ -27,6 +27,7 @@ function makeJob(id: string): JobListItem {
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
     pinned: false,
+    tracking_status: null,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
   }
@@ -350,6 +351,66 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
     })
     expect(result.current.activeFilterCount).toBe(0)
     expect(result.current.filterRecommendation).toBe('')
+  })
+})
+
+describe('useJobsInfiniteQuery.filterTrackingStatus', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends the tracking filter to the API', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterTrackingStatus('interview')
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ tracking_status: 'interview' })
+      )
+    })
+  })
+
+  it('omits the tracking param when the filter is empty', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
+    expect(lastCall.tracking_status).toBeUndefined()
+  })
+
+  it('counts the tracking filter as an active filter and clears it', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterTrackingStatus('accepted')
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+    expect(result.current.filterTrackingStatus).toBe('')
   })
 })
 

@@ -24,6 +24,7 @@ from candidates.infrastructure import (
 from companies.application.services.company_matching_service import CompanyMatchingService
 from companies.application.services.company_service import CompanyService
 from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
+from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
 from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
 from jobs.application.services.job_service import JobService
 from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
@@ -101,6 +102,7 @@ def _company_service(session: Any) -> CompanyService:
     return CompanyService(
         repository=SQLAlchemyCompanyRepository(session),
         intelligence_repository=SQLAlchemyCompanyIntelligenceRepository(session),
+        link_repository=SQLAlchemyCompanyLinkRepository(session),
     )
 
 
@@ -170,6 +172,7 @@ def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenc
         company_service=CompanyService(
             SQLAlchemyCompanyRepository(session),
             SQLAlchemyCompanyIntelligenceRepository(session),
+            SQLAlchemyCompanyLinkRepository(session),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
@@ -193,6 +196,7 @@ def build_roadmap_generation_graph(session: Any) -> RoadmapGenerationGraph:
         company_service=CompanyService(
             SQLAlchemyCompanyRepository(session),
             SQLAlchemyCompanyIntelligenceRepository(session),
+            SQLAlchemyCompanyLinkRepository(session),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),

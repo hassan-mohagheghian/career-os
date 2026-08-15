@@ -30,7 +30,9 @@ row's columns and inline row actions.
 | Confidence | `confidence`             | Percentage or `—` when null               |
 | Created    | `created_at`             | Relative time via `formatTimeAgo`         |
 | Mentions   | `mention_count`          | Sortable count of job/company mentions    |
-    | Actions    | —                        | Details / Break down / Merge / Edit / Delete icon buttons      |
+
+There is no `Actions` column — row actions (Details / Break down / Merge / Edit
+/ Delete) are revealed on hover (see `# Actions` below).
 
 ---
 
@@ -54,7 +56,9 @@ The level renders as `Lv.{level}` (e.g. `Lv.4`).
 
 # Actions
 
-Each row exposes five icon (tooltip) buttons:
+There is no fixed Actions column. Hovering a row reveals a floating toolbar of
+five icon (tooltip) buttons at the row's right edge (using a
+`group`/`group-hover` pattern, overlaid on the row):
 
 | Action     | Icon     | Behavior                                         |
 | ---------- | -------- | ------------------------------------------------ |

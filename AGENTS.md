@@ -15,10 +15,16 @@ This file gives AI coding agents the context needed to work correctly in this re
 ## Quick Start
 
 ```bash
-./start                                    # backend (5000) + frontend (5173)
+./start migrate                              # apply DB migrations first (standalone step)
+./start                                      # backend (5000) + frontend (5173)
 uv run uvicorn apps.backend.entrypoints.api:fastapi_app --reload --port 5000
 cd apps/frontend && npm run dev               # frontend dev server
 ```
+
+Migrations never run on app startup: the backend `lifespan` and `./start dev` /
+`./start backend` do **not** migrate. Apply them explicitly with `./start
+migrate` (or `./start db up`); in Docker use the standalone `alembic` compose
+service.
 
 ## Tech Stack
 

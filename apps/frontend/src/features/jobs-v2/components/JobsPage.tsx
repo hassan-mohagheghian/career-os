@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import type { JobListItem, ProcessingStatusFilter, RecommendationFilter } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter } from '@/entities/job/types'
 import { Button } from '@/shared/ui/button'
 import { JobsHeader } from './JobsHeader'
 import { JobsToolbar } from './JobsToolbar'
@@ -42,6 +42,8 @@ interface JobsPageProps {
   onFilterPinnedChange: (value: boolean) => void
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
+  filterTrackingStatus: TrackingStatusFilter
+  onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
   onProcessV2: (id: string) => void
@@ -82,6 +84,7 @@ export function JobsPage({
   filterVisa, onFilterVisaChange,
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
+  filterTrackingStatus, onFilterTrackingStatusChange,
   activeFilterCount, onClearFilters,
   onProcessV2, onReprocess, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication, isProcessing,
   showPinnedColumn = true, onTogglePinnedColumn,
@@ -164,6 +167,8 @@ export function JobsPage({
         onFilterPinnedChange={onFilterPinnedChange}
         filterRecommendation={filterRecommendation}
         onFilterRecommendationChange={onFilterRecommendationChange}
+        filterTrackingStatus={filterTrackingStatus}
+        onFilterTrackingStatusChange={onFilterTrackingStatusChange}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
         showPinnedColumn={showPinnedColumn}
@@ -215,7 +220,7 @@ export function JobsPage({
         onSubmit={handleCreateJob}
         submitting={submitting}
         error={createError}
-        errorLink={existingJobId ? { label: 'Open existing job', href: `/jobs?job=${encodeURIComponent(existingJobId)}` } : null}
+        errorLink={existingJobId ? { label: 'Open application', href: `/jobs/${encodeURIComponent(existingJobId)}/application` } : null}
       />
     </div>
   )

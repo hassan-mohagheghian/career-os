@@ -22,6 +22,7 @@ export function useCompaniesInfiniteQuery() {
   })
   const { sort, order } = sortState
   const [filterIndustry, setFilterIndustry] = useState('')
+  const [filterCompanyType, setFilterCompanyType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPinned, setFilterPinned] = useState(false)
 
@@ -31,10 +32,11 @@ export function useCompaniesInfiniteQuery() {
       sort,
       order,
       industry: filterIndustry || undefined,
+      company_type: filterCompanyType || undefined,
       status: filterStatus || undefined,
       pinned: filterPinned || undefined,
     }),
-    [query, sort, order, filterIndustry, filterStatus, filterPinned]
+    [query, sort, order, filterIndustry, filterCompanyType, filterStatus, filterPinned]
   )
 
   const {
@@ -55,6 +57,7 @@ export function useCompaniesInfiniteQuery() {
         cursor: pageParam as string | undefined,
         query: filterKey.query || undefined,
         industry: filterKey.industry,
+        company_type: filterKey.company_type,
         status: filterKey.status,
         pinned: filterKey.pinned,
         sort: filterKey.sort,
@@ -68,11 +71,12 @@ export function useCompaniesInfiniteQuery() {
   const total = data?.pages[0]?.total_items ?? 0
   const loadedCount = items.length
 
-  const activeFilterCount = [query, filterIndustry, filterStatus, filterPinned].filter(Boolean).length
+  const activeFilterCount = [query, filterIndustry, filterCompanyType, filterStatus, filterPinned].filter(Boolean).length
 
   const clearFilters = useCallback(() => {
     setQuery('')
     setFilterIndustry('')
+    setFilterCompanyType('')
     setFilterStatus('')
     setFilterPinned(false)
   }, [])
@@ -162,6 +166,8 @@ export function useCompaniesInfiniteQuery() {
     handleHeaderSort,
     filterIndustry,
     setFilterIndustry: useCallback((v: string) => setFilterIndustry(v), []),
+    filterCompanyType,
+    setFilterCompanyType: useCallback((v: string) => setFilterCompanyType(v), []),
     filterStatus,
     setFilterStatus: useCallback((v: string) => setFilterStatus(v), []),
     filterPinned,

@@ -430,6 +430,42 @@ class TestCompanyContextPreparationGraph:
         assert state.validation_result is not None
         assert state.validation_result.valid is False
 
+    def test_all_links_fail_but_note_present_is_valid(self):
+        company = _company_dict(
+            notes=json.dumps([{"type": "text", "content": "Company notes: builds developer tools"}]),
+            links="[]",
+        )
+        graph = _build_graph(
+            company=company,
+            fetcher=FakeFetcher({}),
+            extractor=FakeExtractor({}),
+        )
+        state = graph.invoke(_initial_state())
+
+        assert state.status == ExecutionStatus.COMPLETED
+        assert state.validation_result is not None and state.validation_result.valid
+        assert state.processing_context is not None
+        assert state.processing_context.notes == ["Company notes: builds developer tools"]
+        assert state.processing_context.combined_text == "[NOTE] Company notes: builds developer tools"
+        assert any("Fetch failed" in e for e in state.errors)
+        assert not any("at least one note is required" in e for e in state.errors)
+
+    def test_all_links_fail_without_note_requires_note(self):
+        company = _company_dict(
+            notes="[]",
+            links="[]",
+        )
+        graph = _build_graph(
+            company=company,
+            fetcher=FakeFetcher({}),
+            extractor=FakeExtractor({}),
+        )
+        state = graph.invoke(_initial_state())
+
+        assert state.status == ExecutionStatus.FAILED
+        assert state.validation_result is not None and not state.validation_result.valid
+        assert any("at least one note is required" in e for e in state.errors)
+
     def test_workflow_progress_tree_uses_company_steps(self):
         graph = _build_graph(company=_company_dict())
         state = graph.invoke(_initial_state())

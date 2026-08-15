@@ -32,8 +32,6 @@ Recommendation
 Processing
 
 Updated
-
-Actions
 ```
 
 The layout is row-based.
@@ -58,7 +56,7 @@ Each row displays:
 - Recommendation
 - Processing Status
 - Last Updated
-- Actions
+- Hover actions (revealed on row hover)
 
 ---
 
@@ -152,8 +150,11 @@ Running executions additionally display:
 
 # Actions
 
-The Actions column contains context-sensitive actions. All actions are
-**icon-only buttons with tooltips**, keeping rows compact and scanable.
+There is **no fixed Actions column**. Hovering a row reveals a floating toolbar
+of context-sensitive actions at the row's right edge (using a
+`group`/`group-hover` pattern, overlaid on the row so the freed column width is
+given to the data columns). All actions are **icon-only buttons with
+tooltips**, keeping rows compact and scanable.
 
 An **Edit** action is always available, allowing the user to update the Job's
 core data (see `features/jobs/edit-job.md`).

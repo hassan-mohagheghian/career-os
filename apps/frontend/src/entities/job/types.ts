@@ -62,6 +62,20 @@ export type ProcessingStatusFilter = ProcessingStatus | 'none' | ''
 
 export type RecommendationFilter = 'apply' | 'consider' | 'skip' | ''
 
+export type TrackingStatus =
+  | 'not_applied'
+  | 'recommended'
+  | 'preparing'
+  | 'ready_to_apply'
+  | 'applied'
+  | 'interview'
+  | 'offer'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn'
+
+export type TrackingStatusFilter = TrackingStatus | ''
+
 export interface JobListItem {
   id: string
   title: string
@@ -74,6 +88,7 @@ export interface JobListItem {
   scores: Scores
   recommendation: string | null
   pinned: boolean
+  tracking_status: TrackingStatus | null
   updated_at: string | null
   created_at: string
 }
@@ -100,6 +115,7 @@ export interface JobSearchQuery {
   success_score_max?: number
   pinned?: boolean
   recommendation?: RecommendationFilter
+  tracking_status?: TrackingStatusFilter
   sort?: string
   order?: 'asc' | 'desc'
 }
@@ -212,6 +228,7 @@ export interface JobDetail {
   title: string | null
   company_name: string | null
   company_id?: string | null
+  company_type?: string | null
   role: string | null
   location: string | null
   work_types: string[] | null
@@ -227,6 +244,7 @@ export interface JobDetail {
   description: string | null
   notes: JobNoteItem[]
   links: JobLinkItem[]
+  tracking_status: TrackingStatus | null
   updated_at: string | null
   created_at: string | null
 }

@@ -56,6 +56,16 @@ vi.mock('@/shared/api/processingEvents', () => ({
   subscribeProcessingEvents: () => () => {},
 }))
 
+vi.mock('@/features/jobs-v2/components/JobDetailDrawer', () => ({
+  JobDetailDrawer: ({ jobId }: { jobId: string | null }) =>
+    jobId ? <div data-testid="job-detail-drawer" /> : null,
+}))
+
+vi.mock('@/features/jobs-v2/components/JobEditDrawer', () => ({
+  JobEditDrawer: ({ jobId }: { jobId: string | null }) =>
+    jobId ? <div data-testid="job-edit-drawer" /> : null,
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
@@ -65,6 +75,7 @@ const sampleJob: JobDetail = {
   title: 'Staff Engineer',
   company_name: 'Acme GmbH',
   company_id: 'company-1',
+  company_type: 'PRODUCT_COMPANY',
   role: 'Staff',
   location: 'Berlin',
   work_types: ['Hybrid'],
@@ -80,6 +91,7 @@ const sampleJob: JobDetail = {
   links: [],
   analysis: null,
   related_companies: [],
+  tracking_status: null,
   updated_at: null,
   created_at: null,
 }
@@ -128,6 +140,27 @@ describe('ApplicationWorkspace', () => {
     expect(screen.getByText('Application')).toBeInTheDocument()
     expect(screen.getByText('Roadmap')).toBeInTheDocument()
     expect(screen.getByText('Documents')).toBeInTheDocument()
+  })
+
+  it('renders Job Detail and Job Edit buttons and opens their drawers', async () => {
+    renderWorkspace()
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+
+    const detailButton = screen.getByRole('button', { name: /Job Detail/i })
+    const editButton = screen.getByRole('button', { name: /Job Edit/i })
+    expect(detailButton).toBeInTheDocument()
+    expect(editButton).toBeInTheDocument()
+
+    expect(screen.queryByTestId('job-detail-drawer')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('job-edit-drawer')).not.toBeInTheDocument()
+
+    fireEvent.click(detailButton)
+    expect(screen.getByTestId('job-detail-drawer')).toBeInTheDocument()
+    expect(screen.queryByTestId('job-edit-drawer')).not.toBeInTheDocument()
+
+    fireEvent.click(editButton)
+    expect(screen.getByTestId('job-edit-drawer')).toBeInTheDocument()
   })
 
   it('shows the empty state and creates an application', async () => {
@@ -222,5 +255,14 @@ describe('ApplicationWorkspace', () => {
     const section = screen.getByText('Documents').closest('div')!
     expect(within(section).getByText('Tailored Resume')).toBeInTheDocument()
     expect(within(section).getByText('Cover Letter')).toBeInTheDocument()
+  })
+
+  it('links the company name and shows its type in the header', async () => {
+    renderWorkspace()
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    const link = screen.getByRole('link', { name: 'Acme GmbH' })
+    expect(link).toHaveAttribute('href', '/companies?company=company-1')
+    expect(screen.getByText('Product Company')).toBeInTheDocument()
   })
 })

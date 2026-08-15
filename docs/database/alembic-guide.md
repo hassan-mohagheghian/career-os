@@ -215,14 +215,31 @@ def upgrade():
     op.execute("UPDATE job.jobs SET new_col = old_col")
 ```
 
+## Migrations are standalone — never run on app startup
+
+Migrations are applied **only** by an explicit standalone migration step. The
+backend (FastAPI `lifespan`) and the `./start dev` / `./start backend`
+commands do **not** run migrations — starting the app never alters the schema.
+
+Locally, apply migrations before starting the apps:
+
+```bash
+./start migrate        # or: ./start db up   (both run `alembic upgrade head`)
+./start dev            # then start the apps
+```
+
 ## Running Migrations with Docker Compose
 
 ```bash
 docker-compose up -d postgres
-docker-compose up alembic-migrate
+docker-compose up alembic
 ```
 
-The `alembic-migrate` service runs `alembic upgrade head` and exits.
+The standalone `alembic` service runs `alembic upgrade head` and exits; the
+`backend` and `background` services depend on it via
+`service_completed_successfully`, so migrations always run before the app
+starts in Docker. This is the only migration path in Docker — the app image
+never runs migrations itself.
 
 ## Troubleshooting
 

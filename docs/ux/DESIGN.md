@@ -75,15 +75,21 @@ Placement is right by default; all variants become full-screen on mobile.
 │ Search .......................................................................       │
 │ Sort ▼                  Filters ▼                                        Refresh     │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Proc.  │ Updated │
+│ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Rec │ Tracking│ Proc.  │ Updated │
 │─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] F 95 S 91 O 94 │ Ready  │ 2m      │
-│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] F 90 S 88 O 90  │ Running│ now     │
-│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] F 86 S 84 O 83   │ Failed │ 5m      │
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] F 95 S 91 O 94 │ Apply│ [Applied]│ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] F 90 S 88 O 90  │ Apply│ [Interview]│ Running│ now    │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] F 86 S 84 O 83   │ Skip │ [Not Applied]│ Failed│ 5m   │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+There is **no dedicated Actions column**. Job row actions (Process / Reprocess /
+Retry / Cancel / Details / Application / Edit / Delete) are revealed as a
+floating toolbar at the right edge of the row on hover (`group-hover`), freeing
+the column width for the data columns. The same hover-reveal pattern applies to
+Companies and Skills rows.
 
 ### Processing Queue Drawer
 
@@ -241,7 +247,9 @@ three per column: `Company` (picker) / `Location` / `Work Types` on the left;
 `Employment` / `Salary` / `Visa` on the right. Rows are aligned one-to-one
 across the columns. `Location` and `Visa` are truncated at 30 characters with
 an ellipsis; hovering reveals the full value in a tooltip and clicking
-expands/collapses the value inline. Tagged skills render as compact badges;
+expands/collapses the value inline. When the job's linked company has a
+**company type**, a `Type` detail row renders right below the Company row.
+Tagged skills render as compact badges;
 `missing`/`low` skills are tinted to signal
 gaps. The **Published by** section is a collapsed-by-default `Collapsible`
 whose folded trigger shows the recruiter company names inline, positioned just
@@ -314,20 +322,25 @@ Full specs: `docs/ux/features/rules/`.
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
 │ Companies (128)                       Loaded 25 of 128      Queue           + Add Company│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search ............................................        [Industry ▾] [Status ▾] [Pinned] [Columns] [Clear]│
+│ Search ............................................        [Industry ▾] [Type ▾] [Status ▾] [Pinned] [Columns] [Clear]│
 ├──────────────────────────────────────────────────────────────────────────────────────────┤
-│ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions │
-│───│─────┼──────┼──────────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────┼─────────│
-│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │ ⋯ │
-│ 2 │ ○  │ Acme │ Software │ Berlin   │ —    │ 0    │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
-│ 3 │ ○  │ Inc  │          │          │      │      │ alias            │           │     │     │   │
-│ 4 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ ○  │ Head │ Recruit  │ Berlin   │ 1-50 │ 7¹  │ [—] F — S — O — │ Completed │ 5m │ 1d │ ⋯ │
-│ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F — S — O — │ Failed   │ 1h │ 2d │ ⋯ │
+│ # │ Pin │ Name │ Industry │ Type │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │
+│───│─────┼──────┼──────────┼──────┼──────────┼──────┼──────┼────────┼─────────┼─────────┼─────────│
+│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12  │ [A+] F 85 S 90 O 88 │ Completed │ 2m │ 2h │
+│ 2 │ ○  │ Acme │ Software │ Product │ Berlin │ —    │ 0   │ [—] F — S — O — │ Completed │ 5m │ 1d │
+│ 3 │ ○  │ Inc  │          │ Unknown │        │      │      │ alias            │           │     │     │
+│ 4 │ ○  │ Beta │ Fintech  │ Consulting │ Munich │ 51-200│ 4 │ [B] F 60 S 55 O 58 │ Completed │ 5m │ 1d │
+│ ○  │ Head │ Recruit  │ Recruiting │ Berlin │ 1-50 │ 7¹ │ [—] F — S — O — │ Completed │ 5m │ 1d │
+│ ○  │ Nova │ Health   │ Unknown │ —    │ —    │ 0   │ [—] F — S — O — │ Failed   │ 1h │ 2d │
 │                                                                                          │
 │                                       Loading more companies...                           │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+There is **no dedicated Actions column**. Row actions (Details / Reprocess /
+Edit / Delete) are revealed as a floating toolbar at the right edge of the row
+on hover (`group-hover`), freeing the column width for the data columns. The
+same hover-reveal pattern applies to Jobs and Skills rows.
 
 Alias companies render a small `alias` badge next to their name; selecting the
 row opens the detail drawer where the relation can be managed.
@@ -337,6 +350,14 @@ count of jobs they hire for (`12`), while recruiter-type companies
 (`RECRUITING_AGENCY` / `STAFFING_COMPANY`) show the number of jobs they list
 for clients (`7¹`, with a `"7 jobs listed for clients"` tooltip). Zero shows
 `—`.
+
+A **Type** column (Product / Recruiting Agency / Staffing / Consulting /
+Unknown) sits between Industry and Location. Rows are tinted by company type:
+**product companies stay white** (no tint, the neutral default) while every
+other type gets its **own unique color** (Recruiting Agency = purple, Staffing
+= orange, Consulting = teal, Unknown = muted) — a light background that
+intensifies on hover/focus. See
+`features/companies/company-row.md#company-type-row-colors`.
 
 ### Add Company Drawer (Create Entity — company mode)
 
@@ -478,7 +499,9 @@ companies. Full specs live in `docs/ux/features/companies/`.
 ### Skills Page
 
 The Skills page is parity with the Jobs/Companies v2 UX (virtualized table,
-infinite scroll, Sheet drawers). It replaces the legacy SkillsTab.
+infinite scroll, Sheet drawers). It replaces the legacy SkillsTab. Row actions
+(Details / Break down / Merge / Edit / Delete) are revealed on hover as a
+floating toolbar at the right edge of the row — there is no fixed Actions column.
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
@@ -625,7 +648,7 @@ asynchronously (`roadmap_generation` / `application_resume` /
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ ← Back to Job                                          [Open job posting]│
+│ ← Back to Job      [Job Detail] [Job Edit] [Open job posting]            │
 │ Staff Engineer · Acme GmbH · Berlin                                      │
 │ [Recommended] [Apply]             [A+] [Fit 85] [Success 88] [Overall 90]│
 ├──────────────────────────────────────────────────────────────────────────┤
@@ -649,13 +672,15 @@ asynchronously (`roadmap_generation` / `application_resume` /
 │ DOCUMENTS                                                               │
 │ ┌──────────────────────────┐  ┌──────────────────────────┐              │
 │ │ TAILORED RESUME v2       │  │ COVER LETTER v1          │              │
-│ │ [copy][↓][✎][🗑][Regen]   │  │ [copy][↓][✎][🗑][Regen]   │              │
+│ │ [👁][copy][↓][✎][🗑][Regen]│  │ [👁][copy][↓][✎][🗑][Regen]│              │
 │ └──────────────────────────┘  └──────────────────────────┘              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 Empty state (no application yet): centered "No application yet" + `[Create Application]`
-→ `POST /api/applications` (status `recommended`). Full specs live in
+→ `POST /api/applications` (status `recommended`). The company name in the
+header is a **link to the company** (`/companies?company=<id>`) and shows a
+company **type badge** next to it when the linked company has a type. Full specs live in
 `docs/ux/features/applications/`, `docs/ux/features/roadmaps/` and
 `docs/ux/flows/applications/`, `docs/ux/flows/roadmaps/`.
 

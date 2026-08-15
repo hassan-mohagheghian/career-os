@@ -63,14 +63,14 @@ Companies Page
 ┌───────────────────────────────────────────────────────────────────────────────────────────────┐
 │ ⛭ Companies (128)                    Loaded 25 of 128          Queue (3)   ↻  + Add Company │
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Search .........................        [Industry ▾] [Status ▾] [Pinned] [Columns] [Clear]│
+│ Search .........................        [Industry ▾] [Type ▾] [Status ▾] [Pinned] [Columns] [Clear]│
 ├───────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                               │
-│ # │ Pin │ Name │ Industry │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │ Actions│
-│───│─────│─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Acme │ Software │ Berlin   │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Completed │ 2m │ 2h │ ⋯ │
-│ 2 │ ○  │ Beta │ Fintech  │ Munich   │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │ ⋯ │
-│ 3 │ ○  │ Nova │ Health   │ —        │ —    │ 0    │ [—] F —   │ S —  │ O —  │ —         │ 1h │ 2d │ ⋯ │
+│ # │ Pin │ Name │ Industry │ Type │ Location │ Size │ Jobs │ Scores │ Status │ Updated │ Created │
+│───│─────│──────│──────────│──────│──────────│──────│──────│────────┼─────────┼─────────┼─────────│
+│ 1 │ ●  │ Acme │ Software │ Product │ Berlin │ 1-50 │ 12   │ [A+] F 85 │ S 90 │ O 88 │ Completed │ 2m │ 2h │
+│ 2 │ ○  │ Beta │ Fintech  │ Consulting │ Munich │ 51-200│ 4    │ [B] F 60  │ S 55 │ O 58 │ Completed │ 5m │ 1d │
+│ 3 │ ○  │ Nova │ Health   │ —    │ —    │ 0    │ [—] F —   │ S —  │ O —  │ —         │ 1h │ 2d │
 │                                                                                               │
 │                                        Loading more companies...                              │
 │                                                                                               │
@@ -122,6 +122,7 @@ Responsibilities
 
 - Search companies.
 - Filter companies by industry.
+- Filter companies by company type (product / recruiting / staffing / consulting).
 - Filter companies by processing status.
 - Filter companies by pinned state.
 - Toggle the Pin column.
@@ -133,6 +134,7 @@ Controls
 | -------- | ---------------------------------------------- |
 | Search   | Search by name, industry, city or description. |
 | Industry | Filter by exact industry.                      |
+| Type     | Filter by company type (Product, Recruiting agency, Staffing, Consulting, Unknown). |
 | Status   | Filter by exact processing status.             |
 | Pinned   | Toggle pinned-only view.                       |
 | Columns  | Show / hide the Row number and Pin columns.    |
@@ -228,6 +230,7 @@ Configuration
 | Pin      | Pushpin toggle for pinned companies                    |
 | Name     | Company logo and name                                  |
 | Industry | Industry classification                                |
+| Type     | Company type badge (Product / Recruiting Agency / Staffing / Consulting / Unknown) |
 | Location | City, Country                                          |
 | Size     | Company size band                                      |
 | Jobs     | Jobs count, adapted to role: hiring jobs for product companies, listed jobs for recruiters |
@@ -235,9 +238,10 @@ Configuration
 | Status   | Processing status from the latest processing execution |
 | Updated  | Relative update time                                   |
 | Created  | Relative creation time                                 |
-| Actions  | Row actions (Details, Reprocess, Edit, Delete)         |
 
-The Row number column is hidden by default; the Pin column is shown by default.
+There is no `Actions` column — row actions are revealed on hover (see
+`features/companies/company-row.md#actions`). The Row number column is hidden
+by default; the Pin column is shown by default.
 Both can be toggled via the toolbar Columns dropdown.
 
 Rows highlight on hover (and while any inner control has focus) with a muted
@@ -279,6 +283,19 @@ Displays the company industry, truncated.
 ```text
 Software Development
 ```
+
+---
+
+## Type
+
+Displays a compact badge with the formatted company type (Product Company,
+Recruiting Agency, Staffing Company, Consulting Company, or Unknown). See
+`features/companies/company-row.md#company-type-column`.
+
+Rows are tinted by company type: **product companies stay white** (no tint),
+while every other type gets its **own unique color** (Recruiting Agency =
+purple, Staffing = orange, Consulting = teal, Unknown = muted). See
+`features/companies/company-row.md#company-type-row-colors`.
 
 ---
 
@@ -389,7 +406,8 @@ Displays relative creation time via the shared `DateTime` component.
 
 # Row Actions
 
-Each row provides four icon actions (tooltip buttons):
+There is no fixed Actions column. Hovering a row reveals a floating toolbar of
+four icon actions (tooltip buttons) at the row's right edge:
 
 | Action    | Description                             |
 | --------- | --------------------------------------- |

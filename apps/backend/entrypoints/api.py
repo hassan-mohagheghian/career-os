@@ -52,10 +52,6 @@ async def lifespan(app: FastAPI):
     # Startup
     log.info("fastapi.startup")
 
-    # Run Alembic migrations for schema management
-    _run_alembic_migrations()
-    log.info("fastapi.alembic_migrations_complete")
-
     # Initialize database tables and seed data
     init_db()
     log.info("fastapi.database_ready")
@@ -68,30 +64,6 @@ async def lifespan(app: FastAPI):
     # Shutdown
     log.info("fastapi.shutdown")
     log.info("fastapi.shutdown_complete")
-
-
-def _run_alembic_migrations():
-    """Run Alembic migrations to ensure database schema is up to date."""
-    import subprocess
-    try:
-        project_dir = os.path.join(_server_dir, '..', '..')
-        result = subprocess.run(
-            [os.path.join(project_dir, '.venv', 'bin', 'alembic'), 'upgrade', 'head'],
-            cwd=project_dir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode != 0:
-            log.warning("alembic.warning", stderr=result.stderr)
-        else:
-            log.info("alembic.success", output=result.stdout.strip())
-    except FileNotFoundError:
-        log.warning("alembic.not_found", message="alembic not found, skipping schema migrations")
-    except subprocess.TimeoutExpired:
-        log.warning("alembic.timeout", message="alembic migration timed out")
-    except Exception as e:
-        log.warning("alembic.error", error=str(e))
 
 
 def _recover_tasks():

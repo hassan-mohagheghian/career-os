@@ -50,6 +50,10 @@ Search is performed against:
 - Company name
 - Location
 - Raw keywords
+- Job posting URL
+
+Pasting a job link (or any unique URL fragment) into `query` matches the job's
+`url` value case-insensitively, so a job can be located by its link.
 
 Search should be case-insensitive.
 
@@ -143,6 +147,27 @@ returns all jobs.
 
 ---
 
+### Tracking Status
+
+```text
+tracking_status=applied
+```
+
+Filters to jobs by their **application funnel** status, derived from the
+application record (logical `job_id` reference — the value is not stored on the
+job). Values:
+
+- `not_applied` — the job has no application record.
+- `recommended`, `preparing`, `ready_to_apply`, `applied`, `interview`,
+  `offer`, `accepted`, `rejected`, `withdrawn` — match jobs whose application
+  status equals the value.
+
+`not_applied` returns jobs with **no** application; any other value returns only
+jobs whose application status matches. Omitted returns all jobs. Combinable with
+`processing_status`.
+
+---
+
 ### Score Range
 
 ```text
@@ -223,6 +248,8 @@ desc
 
       "recommendation": "apply",
 
+      "tracking_status": "applied",
+
       "latest_processing_execution": {
         "id": "...",
         "status": "completed",
@@ -273,6 +300,11 @@ Those are loaded by dedicated endpoints.
 The only analysis-derived value exposed on the list is the lightweight
 `recommendation` field (`apply` / `consider` / `skip`), batch-loaded per page
 (no N+1). Jobs without a completed analysis return `recommendation = null`.
+
+The lightweight `tracking_status` field exposes the job's application funnel
+status (`not_applied` or an application status), batch-loaded per page via the
+application repository (logical `job_id` reference, AGENTS.md rule 15). Jobs
+without an application return `not_applied`. It is **not** stored on the job.
 
 The job detail endpoint (`GET /api/jobs/{job_id}`) is the one that returns the
 full analysis block, not this list:

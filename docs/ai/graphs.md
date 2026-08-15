@@ -64,6 +64,32 @@ through the shared two-phase ProcessingExecution workflow (`COMPANY_PROCESSING`)
 context preparation without an LLM call, then a single-LLM analysis — the same
 pattern used by jobs.
 
+**Company context preparation** (`CompanyContextPreparationGraph`,
+`processing/application/workflows/company_context_preparation/graph.py`) has no
+LLM calls:
+
+```
+START → load_company → collect_sources → fetch_sources → extract_content
+      → build_context → validate_context → persist_context
+      → context_ready | execution_failed → END
+```
+
+A company's text notes and URL links are sourced from the `company_links` table
+(notes = `note:`-prefixed rows, links = URL rows) and merged into the loaded
+company dict by `CompanyService.get_company`, so `collect_sources` sees them.
+`persist_context` writes the combined text to the company row via
+`CompanyService.persist_prepared_context` (`raw_content`) so the analysis phase
+has a durable LLM input.
+
+**Validation fallback rule** (`validate_context`,
+`CompanyContextValidatorService`): a company context is valid when it has at
+least one meaningful extracted content **or** at least one non-empty note, plus
+at least one usable source. So notes are a sufficient fallback when links yield
+no content. When **all** links produce no content, at least one note is
+required — otherwise the run fails with a clear reason
+(`no extracted content and no notes — at least one note is required when links
+produce no content`).
+
 ## Resume / Cover Letter Generation (application documents)
 
 The standalone `resume_generation` and `cover_letter_generation` graphs were

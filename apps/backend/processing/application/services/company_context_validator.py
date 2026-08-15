@@ -26,10 +26,14 @@ class CompanyContextValidatorService:
         ]
         meaningful_notes = [n for n in context.notes if n.strip()]
 
-        if not meaningful_extracted:
+        if not meaningful_extracted and not meaningful_notes:
+            reasons.append(
+                "no extracted content and no notes — at least one note is required "
+                "when links produce no content"
+            )
+        elif not meaningful_extracted:
             reasons.append("no extracted content")
-
-        if not meaningful_notes:
+        elif not meaningful_notes:
             reasons.append("empty notes")
 
         if not context.sources:

@@ -72,6 +72,18 @@ industry=Software Development
 
 Exact match on the company's industry value.
 
+### Company type
+
+```text
+company_type=PRODUCT_COMPANY
+company_type=RECRUITING_AGENCY
+company_type=STAFFING_COMPANY
+```
+
+Exact match on the company's `company_type` classification. The frontend
+offers the standard values: `PRODUCT_COMPANY`, `RECRUITING_AGENCY`,
+`STAFFING_COMPANY`, `CONSULTING_COMPANY`, `UNKNOWN`.
+
 ### Status
 
 ```text

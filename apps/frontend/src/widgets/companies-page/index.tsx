@@ -28,6 +28,7 @@ function CompaniesPageAdapter() {
     query, setQuery,
     sort, order, handleHeaderSort,
     filterIndustry, setFilterIndustry,
+    filterCompanyType, setFilterCompanyType,
     filterStatus, setFilterStatus,
     filterPinned, setFilterPinned,
     activeFilterCount, clearFilters,
@@ -130,6 +131,8 @@ function CompaniesPageAdapter() {
         order={order}
         filterIndustry={filterIndustry}
         onFilterIndustryChange={setFilterIndustry}
+        filterCompanyType={filterCompanyType}
+        onFilterCompanyTypeChange={setFilterCompanyType}
         filterStatus={filterStatus}
         onFilterStatusChange={setFilterStatus}
         filterPinned={filterPinned}

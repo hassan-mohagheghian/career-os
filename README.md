@@ -5,7 +5,8 @@ AI-powered career platform for software engineers — job discovery, company ana
 ## Quick Start
 
 ```bash
-./start
+./start migrate   # apply DB migrations first (migrations never run on app startup)
+./start           # then start the apps
 ```
 
 Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + background workers (TaskIQ + Redis).

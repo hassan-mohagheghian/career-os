@@ -18,6 +18,9 @@ const STATUS_OPTIONS: ApplicationStatus[] = [
   'preparing',
   'ready_to_apply',
   'applied',
+  'interview',
+  'offer',
+  'accepted',
   'rejected',
   'withdrawn',
 ]

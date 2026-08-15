@@ -33,8 +33,8 @@ Returns `201 Created` on success.
 | Field  | Type             | Required | Default | Description                                      |
 | ------ | ---------------- | -------- | ------- | ------------------------------------------------ |
 | name   | string           | No       | ""      | Company name. Fallback to a link/note URL when empty. |
-| notes  | list of `{content}` | No     | []      | Text notes. URL-type entries are collected as sources. |
-| links  | list of `{url, title}` or strings | No | [] | URL links. Stored so context preparation can fetch them as sources. |
+| notes  | list of `{content}` | No     | []      | Text notes, stored as `note:` rows in `company_links`. |
+| links  | list of `{url, title}` or strings | No | [] | URL links, stored as URL rows in `company_links`. Notes and links are kept as separate entities so context preparation can collect them as sources. |
 | source | string           | No       | "web"   | Intake source label.                             |
 | queue  | boolean          | No       | true    | When true, creates a `COMPANY_PROCESSING` execution and enqueues it. |
 
@@ -48,7 +48,6 @@ Empty body (`{}`) is valid — a company is created with a default name and queu
 {
   "id": "019fd121-eac7-7537-aa3a-ddded8bb0cc8",
   "name": "Acme GmbH",
-  "notes": "…",
   "source": "web",
   "input_type": "url",
   "status": "queued",

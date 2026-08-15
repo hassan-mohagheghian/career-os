@@ -48,7 +48,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         if not model:
             return None
 
-        for field in ["name", "industry", "city", "country", "logo_url", "notes", "description", "tech_stack", "website", "domain", "company_size", "company_type"]:
+        for field in ["name", "industry", "city", "country", "logo_url", "description", "tech_stack", "website", "domain", "company_size", "company_type"]:
             if field in data:
                 val = data[field]
                 if isinstance(val, (list, dict)):

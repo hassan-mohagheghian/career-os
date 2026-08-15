@@ -219,3 +219,73 @@ describe('CompanyRow row-number column', () => {
     expect(screen.getByText('5')).toBeInTheDocument()
   })
 })
+
+describe('CompanyRow hover actions', () => {
+  it('wraps the actions in a hover-revealed overlay (hidden by default)', () => {
+    const { container } = renderRow(makeCompany())
+    const overlay = container.querySelector('[class*="group-hover:opacity-100"]')
+    expect(overlay).not.toBeNull()
+    expect(overlay?.classList.contains('opacity-0')).toBe(true)
+  })
+
+  it('calls the delete handler and does not open details when an action is clicked', () => {
+    const onDelete = vi.fn()
+    const onViewDetails = vi.fn()
+    render(
+      <CompanyRow
+        company={makeCompany()}
+        onViewDetails={onViewDetails}
+        onReprocess={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+        onTogglePinned={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByLabelText('Delete'))
+
+    expect(onDelete).toHaveBeenCalled()
+    expect(onViewDetails).not.toHaveBeenCalled()
+  })
+})
+
+describe('CompanyRow company type column', () => {
+  it('renders the formatted company type as a badge', () => {
+    renderRow(makeCompany({ company_type: 'CONSULTING_COMPANY' }))
+    expect(screen.getByText('Consulting Company')).toBeInTheDocument()
+  })
+
+  it('renders Unknown for a null company type', () => {
+    renderRow(makeCompany({ company_type: null }))
+    expect(screen.getByText('Unknown')).toBeInTheDocument()
+  })
+})
+
+describe('CompanyRow company type row colors', () => {
+  it('leaves product companies white (no tint class)', () => {
+    const { container } = renderRow(makeCompany({ company_type: 'PRODUCT_COMPANY' }))
+    const row = container.querySelector('[data-recruiter]')
+    const tinted = ['bg-blue-500/5', 'bg-purple-500/5', 'bg-orange-500/5', 'bg-teal-500/5', 'bg-muted/40']
+    for (const cls of tinted) {
+      expect(row?.className).not.toContain(cls)
+    }
+  })
+
+  it('gives each non-product type a unique row tint', () => {
+    const cases: Array<[string, string]> = [
+      ['RECRUITING_AGENCY', 'bg-purple-500/5'],
+      ['STAFFING_COMPANY', 'bg-orange-500/5'],
+      ['CONSULTING_COMPANY', 'bg-teal-500/5'],
+      ['UNKNOWN', 'bg-muted/40'],
+    ]
+    for (const [type, cls] of cases) {
+      const { container } = renderRow(makeCompany({ company_type: type }))
+      expect(container.querySelector('[class*="bg-"]')?.className).toContain(cls)
+    }
+  })
+
+  it('falls back to the recruiter purple tint when no type but recruiter job count', () => {
+    const { container } = renderRow(makeCompany({ company_type: null, recruiter_job_count: 3 }))
+    expect(container.querySelector('[class*="bg-purple-500/5"]')).not.toBeNull()
+  })
+})

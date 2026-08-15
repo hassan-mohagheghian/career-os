@@ -11,6 +11,7 @@ import {
   Trash,
   Check,
   X,
+  Eye,
 } from '@phosphor-icons/react'
 import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/textarea'
@@ -21,6 +22,7 @@ import {
   useGenerateDocumentMutation,
   useUpdateDocumentMutation,
 } from '@/entities/application/hooks'
+import { DocumentPreviewDialog } from './DocumentPreviewDialog'
 
 interface ApplicationDocumentsProps {
   application: ApplicationDetail
@@ -64,6 +66,7 @@ function DocumentCard({
   const deleteDocument = useDeleteDocumentMutation()
   const { copied, copy } = useCopyToClipboard()
   const [editing, setEditing] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [draft, setDraft] = useState(doc?.content ?? '')
 
   const handleDownload = () => {
@@ -95,6 +98,9 @@ function DocumentCard({
         <div className="flex items-center gap-1 shrink-0">
           {doc ? (
             <>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label="Preview" onClick={() => setPreviewOpen(true)}>
+                <Eye className="w-3.5 h-3.5" />
+              </Button>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label="Copy content" onClick={() => copy(doc.content)}>
                 {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               </Button>
@@ -156,6 +162,13 @@ function DocumentCard({
           Updated <DateTime value={doc.updated_at} />
         </p>
       )}
+
+      <DocumentPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        label={label}
+        content={doc?.content ?? ''}
+      />
     </div>
   )
 }

@@ -20,6 +20,8 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onFilterPinnedChange: vi.fn(),
     filterRecommendation: '',
     onFilterRecommendationChange: vi.fn(),
+    filterTrackingStatus: '',
+    onFilterTrackingStatusChange: vi.fn(),
     activeFilterCount: 0,
     onClearFilters: vi.fn(),
     ...overrides,
@@ -130,6 +132,28 @@ describe('JobsToolbar recommendation filter', () => {
   it('shows the selected recommendation label when active', () => {
     renderToolbar({ filterRecommendation: 'consider' })
     expect(screen.getByText('Consider')).toBeInTheDocument()
+  })
+})
+
+describe('JobsToolbar tracking filter', () => {
+  it('renders a tracking select', () => {
+    renderToolbar()
+    expect(screen.getByText('Tracking')).toBeInTheDocument()
+  })
+
+  it('reports the selected tracking status', () => {
+    const onFilterTrackingStatusChange = vi.fn()
+    renderToolbar({ onFilterTrackingStatusChange })
+
+    fireEvent.click(screen.getByText('Tracking'))
+    fireEvent.click(screen.getByText('Applied'))
+
+    expect(onFilterTrackingStatusChange).toHaveBeenCalledWith('applied')
+  })
+
+  it('shows the selected tracking label when active', () => {
+    renderToolbar({ filterTrackingStatus: 'interview' })
+    expect(screen.getByText('Interview')).toBeInTheDocument()
   })
 })
 

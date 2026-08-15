@@ -60,6 +60,7 @@ docs/ux/
 │   │   └── profile-import.md  Candidate Profile Import page (sources, analyze, review)
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, column toggles, infinite scroll)
+│       ├── tracking.md        Job tracking status (application funnel column + filter)
 │       ├── job-row.md         Job row columns and scores
 │       ├── pinned-job.md      Pin a job for attention (replaces favorite)
 │       ├── add-job.md         Add Job drawer (shared Create Entity, job mode)
