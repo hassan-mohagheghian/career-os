@@ -261,9 +261,10 @@ describe('CompanyRow hover actions', () => {
 })
 
 describe('CompanyRow company type column', () => {
-  it('renders the formatted company type as a badge', () => {
+  it('renders the formatted company type as a badge without the "Company" suffix', () => {
     renderRow(makeCompany({ company_type: 'CONSULTING_COMPANY' }))
-    expect(screen.getByText('Consulting Company')).toBeInTheDocument()
+    expect(screen.getByText('Consulting')).toBeInTheDocument()
+    expect(screen.queryByText('Consulting Company')).not.toBeInTheDocument()
   })
 
   it('renders Unknown for a null company type', () => {

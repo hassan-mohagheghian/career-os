@@ -8,6 +8,7 @@ import { RecommendationBadge } from './RecommendationBadge'
 import { TrackingBadge } from './TrackingBadge'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
+import { RankBadge } from '@/shared/components/RankBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { buildJobGridTemplate } from './jobsColumns'
 
@@ -78,14 +79,15 @@ export function JobRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">
-        <div className="flex items-center gap-2 whitespace-nowrap">
+        <div className="flex items-center gap-2 whitespace-nowrap min-w-0 overflow-hidden">
           <GradeBadge grade={gradeForScore(job.scores?.overall ?? null)} className="w-7 h-5 text-2xs" />
+          <RankBadge rank={job.rank ?? null} variant="inline" />
           <ScoreBadge label="O" value={job.scores?.overall ?? null} />
           <ScoreBadge label="S" value={job.scores?.success ?? null} />
           <ScoreBadge label="F" value={job.scores?.fit ?? null} />
         </div>
       </div>
-      <div className="py-2 px-3 flex items-center">
+      <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
         <RecommendationBadge recommendation={job.recommendation} />
       </div>
       <div className="py-2 px-3 flex items-center">

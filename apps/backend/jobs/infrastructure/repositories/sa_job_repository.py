@@ -875,46 +875,37 @@ class SQLAlchemyJobRepository(IJobRepository):
         return True
 
     def score_rank(self, job_id: str) -> int | None:
-        """1-based rank of a job in the full list sorted by overall, then
-        success, then fit score (each descending, NULLS LAST), with the final
-        all-equal tie broken by id (desc). Jobs without a score sort last."""
-        row = (
-            self._session.query(
-                JobModel.id,
-                JobModel.overall_score,
-                JobModel.success_score,
-                JobModel.fit_score,
-            )
-            .filter(JobModel.id == job_id)
-            .first()
+        """Competition rank of a single job — delegated to ``ranks_by_ids`` so
+        it uses the exact same ``RANK()`` window as the list: a rank computed
+        over the full non-deleted job list sorted by overall, then success, then
+        fit (each descending, NULLS LAST). Jobs with identical scores share a
+        rank. Returns None when the job does not exist."""
+        return self.ranks_by_ids([job_id]).get(job_id)
+
+    def ranks_by_ids(self, job_ids: list[str]) -> dict[str, int]:
+        """Competition ranks (``RANK()``) for a set of jobs. Ranks are computed
+        over the **full** non-deleted job list (sorted by overall, then success,
+        then fit, each descending, NULLS LAST) in a subquery, so each job's rank
+        is absolute (independent of the requested subset / current list sort).
+        Jobs with identical scores share a rank; the next distinct rank skips
+        ahead."""
+        if not job_ids:
+            return {}
+        rank_expr = func.rank().over(
+            order_by=[
+                func.coalesce(JobModel.overall_score, -1).desc(),
+                func.coalesce(JobModel.success_score, -1).desc(),
+                func.coalesce(JobModel.fit_score, -1).desc(),
+            ]
         )
-        if row is None:
-            return None
-        _, o, s, f = row
-        # -1 sentinel: scores are 0-100, so NULL sorts after every real value
-        # (matches the list's NULLS LAST policy).
-        o_eff = o if o is not None else -1
-        s_eff = s if s is not None else -1
-        f_eff = f if f is not None else -1
-        before = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0,
-            or_(
-                func.coalesce(JobModel.overall_score, -1) > o_eff,
-                and_(
-                    func.coalesce(JobModel.overall_score, -1) == o_eff,
-                    func.coalesce(JobModel.success_score, -1) > s_eff,
-                ),
-                and_(
-                    func.coalesce(JobModel.overall_score, -1) == o_eff,
-                    func.coalesce(JobModel.success_score, -1) == s_eff,
-                    func.coalesce(JobModel.fit_score, -1) > f_eff,
-                ),
-                and_(
-                    func.coalesce(JobModel.overall_score, -1) == o_eff,
-                    func.coalesce(JobModel.success_score, -1) == s_eff,
-                    func.coalesce(JobModel.fit_score, -1) == f_eff,
-                    JobModel.id > job_id,
-                ),
-            ),
-        ).scalar()
-        return (before or 0) + 1
+        ranked = (
+            select(JobModel.id, rank_expr.label("rn"))
+            .where(JobModel.deleted == 0)
+            .subquery()
+        )
+        rows = (
+            self._session.query(ranked.c.id, ranked.c.rn)
+            .filter(ranked.c.id.in_(job_ids))
+            .all()
+        )
+        return {row.id: row.rn for row in rows}

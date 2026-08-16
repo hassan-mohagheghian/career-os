@@ -261,6 +261,8 @@ desc
 
       "tracking_status": "applied",
 
+      "rank": 7,
+
       "latest_processing_execution": {
         "id": "...",
         "status": "completed",
@@ -307,6 +309,14 @@ Excluded data includes:
 - LLM output
 
 Those are loaded by dedicated endpoints.
+
+The `rank` field on each list item is the job's position in the full non-deleted
+job list sorted by overall, then success, then fit score (each descending,
+NULLS LAST). It uses **competition ranking** (`RANK()`): jobs with identical
+scores share a rank and the next distinct rank skips ahead. It is absolute —
+independent of the list's current `sort`/`order`/filters. It is computed for the
+whole page in a single PostgreSQL `RANK()` window query (one query per request,
+no N+1); unscored jobs always rank last (NULLS LAST).
 
 The only analysis-derived value exposed on the list is the lightweight
 `recommendation` field (`apply` / `consider` / `skip`), batch-loaded per page

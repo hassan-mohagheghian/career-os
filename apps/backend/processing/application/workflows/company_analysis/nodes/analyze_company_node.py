@@ -93,6 +93,8 @@ class AnalyzeCompanyNode:
         company_text = state.analysis_context.get("company_text") or ""
         company_type = state.analysis_context.get("company_type") or "UNKNOWN"
         scoring_rules = state.analysis_context.get("scoring_rules") or ""
+        resume_text = state.analysis_context.get("resume_text") or ""
+        profile_documents = state.analysis_context.get("profile_documents") or ""
 
         if not company_text:
             state.errors.append(f"[{NODE_ID}] No company content to analyze for {state.company_id}")
@@ -100,7 +102,10 @@ class AnalyzeCompanyNode:
             progress_ops.complete_step(self._events, state, NODE_ID)
             return state
 
-        prompt = build_company_analysis_prompt(company_text, company_type, scoring_rules)
+        prompt = build_company_analysis_prompt(
+            company_text, company_type, scoring_rules, resume_text=resume_text,
+            profile_documents=profile_documents,
+        )
         schema = build_company_analysis_output_schema()
         llm = self._llm or get_llm_service()
 

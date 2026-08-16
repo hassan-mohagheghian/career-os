@@ -12,6 +12,7 @@ import json
 from datetime import datetime, UTC
 from typing import Any
 
+from companies.domain.company_type import normalize_company_type
 from companies.domain.repositories.company_intelligence_repository import ICompanyIntelligenceRepository
 from companies.domain.repositories.company_link_repository import ICompanyLinkRepository
 from companies.domain.repositories.company_repository import ICompanyRepository
@@ -100,7 +101,7 @@ class CompanyService:
             "city": extraction.get("city", ""),
             "description": extraction.get("description", ""),
             "company_size": extraction.get("company_size", ""),
-            "company_type": extraction.get("company_type", ""),
+            "company_type": normalize_company_type(extraction.get("company_type")),
             "logo_url": extraction.get("logo_url", ""),
             "founded_year": extraction.get("founded_year", ""),
             "headquarters_full": extraction.get("headquarters_full", ""),

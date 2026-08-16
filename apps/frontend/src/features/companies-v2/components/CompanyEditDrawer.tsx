@@ -10,14 +10,23 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Textarea } from "@/shared/ui/textarea";
 import { Button } from "@/shared/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { CircleNotch, Pencil, Warning } from "@phosphor-icons/react";
 import type { CompanyDetail, CompanyEditInput } from "@/entities/company/types";
+import { COMPANY_TYPE_LABELS } from "@/entities/company/lib";
 import { companyApi } from "@/entities/company/api";
 import { useQueryClient } from "@tanstack/react-query";
 import CompanyNotesTab from "./CompanyNotesTab";
 
 const COMPANY_KEY = "companies-v2-infinite";
 const COMPANY_DETAIL_KEY = "company-detail";
+const NOT_SET = "__none__";
 
 interface CompanyEditDrawerProps {
   companyId: string | null;
@@ -199,11 +208,22 @@ export function CompanyEditDrawer({
                 />
               </Field>
               <Field label="Company Type">
-                <Input
-                  value={companyType}
-                  onChange={(e) => setCompanyType(e.target.value)}
-                  placeholder="PRODUCT_COMPANY"
-                />
+                <Select
+                  value={companyType || NOT_SET}
+                  onValueChange={(v) => setCompanyType(v === NOT_SET ? '' : v)}
+                >
+                  <SelectTrigger id="company-type" className="w-full justify-between">
+                    <SelectValue placeholder="Not set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NOT_SET}>Not set</SelectItem>
+                    {Object.entries(COMPANY_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
             <Field label="Website">

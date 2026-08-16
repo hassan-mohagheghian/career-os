@@ -130,6 +130,8 @@ def build_company_analysis_graph(session: Any) -> CompanyAnalysisGraph:
         company_service=_company_service(session),
         rule_repo=SQLAlchemyRuleRepository(session),
         llm_service=get_llm_service(),
+        source_repo=SQLAlchemyCandidateSourceRepository(session),
+        candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
         event_publisher=RedisProcessingEventPublisher(),
     )
 

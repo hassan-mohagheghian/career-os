@@ -40,6 +40,56 @@ class ProcessingExecutionRunner:
         self._repository = repository
         self._job_repository = job_repository
 
+    @staticmethod
+    def _should_reuse(has_content: bool, latest_prior_status) -> bool:
+        """Reuse previously prepared (fetched/extracted) content on a reprocess
+        only when the target already has persisted content AND the most recent
+        prior execution failed (an LLM/analysis failure). A first process or a
+        reprocess of a completed target must run from scratch."""
+        return bool(has_content) and latest_prior_status == ExecutionStatus.FAILED
+
+    def _reuse_available(self, execution, session) -> bool:
+        """Whether the current run may reuse already-fetched content.
+
+        True only for job/company targets that already have persisted prepared
+        content whose most recent prior execution FAILED (i.e. it failed at the
+        LLM/analysis step, so fetching again would be wasteful).
+        """
+        target_type = execution.target_type
+        if target_type not in ("job", "company"):
+            return False
+        try:
+            has_content = bool(self._target_content(execution, session).strip())
+        except Exception:
+            has_content = False
+        try:
+            exec_repo = self._repository or SQLAlchemyProcessingExecutionRepository(session)
+            prior = [
+                e for e in exec_repo.list_by_target(target_type, execution.target_id)
+                if e.id != execution.id
+            ]
+        except Exception:
+            prior = []
+        if not prior:
+            return False
+        latest = max(prior, key=lambda e: e.created_at or "")
+        return self._should_reuse(has_content, latest.status)
+
+    @staticmethod
+    def _target_content(execution, session) -> str:
+        """Return the target's persisted prepared content (combined text)."""
+        if execution.target_type == "job":
+            from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
+
+            row = SQLAlchemyJobRepository(session).get_by_id(execution.target_id) or {}
+            return str(row.get("raw_description") or row.get("description") or "")
+        if execution.target_type == "company":
+            from companies.infrastructure.repositories.sa_company_repository import SQLAlchemyCompanyRepository
+
+            row = SQLAlchemyCompanyRepository(session).get_by_id(execution.target_id) or {}
+            return str(row.get("raw_content") or "")
+        return ""
+
     def run(self, execution_id: str) -> dict:
         session = None
         try:
@@ -153,7 +203,6 @@ class ProcessingExecutionRunner:
                 graph_session = get_session_sync()
                 owns_session = True
             try:
-                graph = build_job_context_preparation_graph(graph_session)
                 state = JobProcessingState(
                     execution_id=execution.id,
                     job_id=self._job_id(execution) or "",
@@ -161,10 +210,16 @@ class ProcessingExecutionRunner:
                         execution.id, execution.target_type
                     ),
                 )
-                final = graph.invoke(state)
-                if final.status != ExecutionStatus.FAILED:
+                reuse = self._reuse_available(execution, graph_session)
+                if reuse:
                     analysis_graph = build_job_analysis_graph(graph_session)
-                    final = analysis_graph.invoke(final)
+                    final = analysis_graph.invoke(state)
+                else:
+                    graph = build_job_context_preparation_graph(graph_session)
+                    final = graph.invoke(state)
+                    if final.status != ExecutionStatus.FAILED:
+                        analysis_graph = build_job_analysis_graph(graph_session)
+                        final = analysis_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
                 if final.status == ExecutionStatus.FAILED:
@@ -187,7 +242,6 @@ class ProcessingExecutionRunner:
                 graph_session = get_session_sync()
                 owns_session = True
             try:
-                graph = build_company_context_preparation_graph(graph_session)
                 state = CompanyProcessingState(
                     execution_id=execution.id,
                     company_id=execution.target_id,
@@ -195,10 +249,16 @@ class ProcessingExecutionRunner:
                         execution.id, execution.target_type
                     ),
                 )
-                final = graph.invoke(state)
-                if final.status != ExecutionStatus.FAILED:
+                reuse = self._reuse_available(execution, graph_session)
+                if reuse:
                     analysis_graph = build_company_analysis_graph(graph_session)
-                    final = analysis_graph.invoke(final)
+                    final = analysis_graph.invoke(state)
+                else:
+                    graph = build_company_context_preparation_graph(graph_session)
+                    final = graph.invoke(state)
+                    if final.status != ExecutionStatus.FAILED:
+                        analysis_graph = build_company_analysis_graph(graph_session)
+                        final = analysis_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
                 if final.status == ExecutionStatus.FAILED:

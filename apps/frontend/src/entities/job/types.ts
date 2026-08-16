@@ -88,6 +88,7 @@ export interface JobListItem {
   scores: Scores
   recommendation: string | null
   pinned: boolean
+  rank: number | null
   tracking_status: TrackingStatus | null
   updated_at: string | null
   created_at: string

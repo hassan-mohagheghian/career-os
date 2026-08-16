@@ -399,6 +399,33 @@ class TestCompanyAnalysisPrompt:
         ):
             assert field in prompt
 
+    def test_prompt_includes_candidate_resume_and_profile(self):
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt(
+            "Acme builds dev tools.",
+            "PRODUCT_COMPANY",
+            "python_fit: required",
+            resume_text="Senior Python engineer resume body",
+            profile_documents="CANDIDATE PROFILE (canonical): Backend Lead",
+        )
+
+        assert "CANDIDATE RESUME" in prompt
+        assert "Senior Python engineer resume body" in prompt
+        assert "Backend Lead" in prompt
+
+    def test_prompt_resume_defaults_to_empty_but_renders_sections(self):
+        from processing.application.services.company_analysis_prompt import (
+            build_company_analysis_prompt,
+        )
+
+        prompt = build_company_analysis_prompt("Acme builds dev tools.", "UNKNOWN", "")
+
+        assert "CANDIDATE RESUME" in prompt
+        assert "CANDIDATE PROFILE / LINKEDIN" in prompt
+
 
 # --------------------------------------------------------------------------- #
 # Nodes
@@ -429,6 +456,60 @@ class TestPrepareCompanyNode:
         assert state.analysis_context["company_text"]
         assert state.analysis_context["company_type"] == "UNKNOWN"
         assert "python_fit" in state.analysis_context["scoring_rules"]
+
+
+class FakeSourceRepo:
+    def __init__(self, raw_texts: dict[str, str]):
+        self._raw = raw_texts
+
+    def get_latest_by_type(self, profile_id, source_type):
+        raw = self._raw.get(source_type)
+        if raw is None:
+            return None
+        return {"raw_text": raw}
+
+
+class FakeProfileRepo:
+    def __init__(self, profile=None):
+        self._profile = profile
+
+    def get_current_profile(self):
+        return self._profile
+
+
+class TestPrepareCompanyNodeResume:
+    def test_loads_resume_when_profile_and_source_exist(self):
+        state = _state_with_company()
+        node = PrepareCompanyNode(
+            FakeRuleRepo(),
+            source_repo=FakeSourceRepo({
+                "resume": "Senior Python engineer resume body",
+                "linkedin": "LinkedIn profile body",
+            }),
+            candidate_profile_repo=FakeProfileRepo({"id": "profile-1"}),
+        )
+        state = node(state)
+
+        assert "Senior Python engineer resume body" in state.analysis_context["resume_text"]
+
+    def test_uses_structured_profile_when_available(self):
+        state = _state_with_company()
+        node = PrepareCompanyNode(
+            FakeRuleRepo(),
+            source_repo=FakeSourceRepo({"resume": "raw resume", "linkedin": "raw linkedin"}),
+            candidate_profile_repo=FakeProfileRepo({"id": "profile-1", "headline": "Backend Lead"}),
+        )
+        state = node(state)
+
+        assert "Backend Lead" in state.analysis_context["profile_documents"]
+
+    def test_no_candidate_inputs_yields_placeholders(self):
+        state = _state_with_company()
+        node = PrepareCompanyNode(FakeRuleRepo(), source_repo=None, candidate_profile_repo=None)
+        state = node(state)
+
+        assert state.analysis_context["resume_text"] == "(no resume available)"
+        assert "(no resume or LinkedIn profile available)" in state.analysis_context["profile_documents"]
 
 
 class TestAnalyzeCompanyNode:

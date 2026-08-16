@@ -21,11 +21,13 @@ Company
 
 Location
 
+Rank
+
 Overall
 
-Fit
-
 Success
+
+Fit
 
 Recommendation
 
@@ -122,6 +124,24 @@ Fit
 
 Null scores show `—`; a missing overall score shows `—` for the grade instead
 of `P`.
+
+# Rank
+
+The row's **Rank** (`#N`) is part of the score group, rendered as a compact
+badge styled exactly like the `ScoreBadge`s (small `text-xs`, muted `#` label,
+medium value) and placed right after the grade badge, before the Overall /
+Success / Fit scores. Rank uses **competition ranking** (`RANK()`): jobs with
+identical overall, success and fit scores share a rank, and the next distinct
+rank skips ahead. It is the job's position in the full non-deleted job list
+sorted by overall, then success, then fit score (each descending, NULLS LAST).
+
+```text
+[A+]  #7  O 91   S 88   F 94
+```
+
+The rank is absolute (independent of the list's current sort/filter) and is
+sourced from the `rank` field on the list item. It is display-only; when a job
+has no rank it is omitted.
 
 ---
 

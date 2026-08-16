@@ -552,6 +552,42 @@ class TestCompanyScoresFromProcessing:
         assert item["processing"]["status"] is None
 
 
+class TestCompanyTypePersist:
+    """persist_analysis stores a fixed-vocabulary company_type (invalid →
+    UNKNOWN, missing → None)."""
+
+    @staticmethod
+    def _persist(client, sa_session, company_id: str, extraction_company_type) -> None:
+        CompanyService(
+            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyIntelligenceRepository(sa_session),
+        ).persist_analysis(
+            company_id,
+            extraction={"name": "Acme", "company_type": extraction_company_type},
+            intelligence={},
+            recommendation={},
+            scores={},
+        )
+
+    def test_persist_normalizes_invalid_to_unknown(self, client, sa_session):
+        c = _create_company(sa_session, name="Acme", status="queued")
+        self._persist(client, sa_session, c.id, "recruiting")
+        item = client.get(f"/api/companies/{c.id}").json()
+        assert item["company_type"] == "UNKNOWN"
+
+    def test_persist_keeps_valid_type(self, client, sa_session):
+        c = _create_company(sa_session, name="Acme", status="queued")
+        self._persist(client, sa_session, c.id, "STAFFING_COMPANY")
+        item = client.get(f"/api/companies/{c.id}").json()
+        assert item["company_type"] == "STAFFING_COMPANY"
+
+    def test_persist_missing_type_is_none(self, client, sa_session):
+        c = _create_company(sa_session, name="Acme", status="queued")
+        self._persist(client, sa_session, c.id, None)
+        item = client.get(f"/api/companies/{c.id}").json()
+        assert item["company_type"] is None
+
+
 class TestCompanyRecruiterForAPI:
     def test_detail_exposes_recruiter_for_and_count(self, client, sa_session):
         from jobs.infrastructure.models.job_model import JobModel
@@ -781,6 +817,30 @@ class TestCompanyUpdateAPI:
     def test_update_company_not_found(self, client):
         resp = client.put("/api/companies/does-not-exist", json={"name": "X"})
         assert resp.status_code == 404
+
+    def test_update_company_type_normalizes_valid_and_invalid(self, client, sa_session):
+        c = _create_company(sa_session, name="Type Co", company_type="UNKNOWN")
+
+        resp = client.put(f"/api/companies/{c.id}", json={"company_type": "STAFFING_COMPANY"})
+        assert resp.status_code == 200
+        assert resp.json()["company_type"] == "STAFFING_COMPANY"
+
+        resp = client.put(f"/api/companies/{c.id}", json={"company_type": "staffing_company"})
+        assert resp.json()["company_type"] == "STAFFING_COMPANY"
+
+        resp = client.put(f"/api/companies/{c.id}", json={"company_type": "bogus type"})
+        assert resp.json()["company_type"] == "UNKNOWN"
+
+        sa_session.expire_all()
+        assert sa_session.get(CompanyModel, c.id).company_type == "UNKNOWN"
+
+    def test_update_company_type_empty_clears_to_none(self, client, sa_session):
+        c = _create_company(sa_session, name="Clear Type", company_type="PRODUCT_COMPANY")
+        resp = client.put(f"/api/companies/{c.id}", json={"company_type": ""})
+        assert resp.status_code == 200
+        assert resp.json()["company_type"] is None
+        sa_session.expire_all()
+        assert sa_session.get(CompanyModel, c.id).company_type is None
 
 
 class TestCompanyNotesAPI:

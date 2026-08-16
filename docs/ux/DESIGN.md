@@ -77,9 +77,9 @@ Placement is right by default; all variants become full-screen on mobile.
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Rec │ Tracking│ Proc.  │ Updated │
 │─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] O 94 S 91 F 95 │ Apply│ [Applied]│ Ready  │ 2m      │
-│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] O 90 S 88 F 90  │ Apply│ [Interview]│ Running│ now    │
-│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] O 83 S 84 F 86   │ Skip │ [Not Applied]│ Failed│ 5m   │
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] #2 O 94 S 91 F 95 │ Apply│ [Applied]│ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] #5 O 90 S 88 F 90  │ Apply│ [Interview]│ Running│ now    │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] #9 O 83 S 84 F 86   │ Skip │ [Not Applied]│ Failed│ 5m   │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
@@ -239,9 +239,9 @@ phase completes (data is refetched on the `execution.completed` SSE event).
 ```
 
 The `recommendation` badge maps apply → green, consider → blue, skip → gray.
-The `[#N]` indicator after the Overall score shows the job's 1-based rank in
-the full job list sorted by overall, then success, then fit score (descending);
-ties break by success then fit then id, so each job has a unique rank.
+The `[#N]` indicator after the Overall score shows the job's competition rank
+in the full job list sorted by overall, then success, then fit score
+(descending, NULLS LAST); jobs with identical scores share a rank.
 The `[Why]` button after the Overall score opens a **Scores Explanation**
 popover (Why it fits / Chance of success / Concerns). It auto-opens on hover,
 auto-closes on unhover, and clicking pins/unpins it. Below the title a

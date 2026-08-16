@@ -27,6 +27,7 @@ function makeJob(id: string): JobListItem {
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
     pinned: false,
+    rank: null,
     tracking_status: null,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',

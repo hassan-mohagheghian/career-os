@@ -17,6 +17,7 @@ function makeJob(overrides: Partial<JobListItem> = {}): JobListItem {
     scores: { overall: null, fit: null, success: null },
     recommendation: null,
     pinned: false,
+    rank: null,
     tracking_status: null,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
@@ -112,6 +113,21 @@ describe('JobRow grade', () => {
     expect(overall).toBeGreaterThan(-1)
     expect(success).toBeGreaterThan(overall)
     expect(fit).toBeGreaterThan(success)
+  })
+
+  it('renders a compact rank badge at the start of the score group when present', () => {
+    const { container } = renderRow(makeJob({ rank: 7, scores: { overall: 92, fit: 90, success: 85 } }))
+    expect(screen.getByTestId('job-rank')).toBeInTheDocument()
+    const text = container.textContent ?? ''
+    const rank = text.indexOf('#7')
+    const overall = text.indexOf('92')
+    expect(rank).toBeGreaterThan(-1)
+    expect(overall).toBeGreaterThan(rank)
+  })
+
+  it('does not render the rank badge when rank is absent', () => {
+    renderRow(makeJob({ rank: null }))
+    expect(screen.queryByTestId('job-rank')).not.toBeInTheDocument()
   })
 
   it('renders an em dash when there is no overall score', () => {

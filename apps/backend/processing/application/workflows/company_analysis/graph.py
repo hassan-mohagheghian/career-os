@@ -57,12 +57,16 @@ class CompanyAnalysisGraph:
         rule_repo: Any,
         skill_repo: Any | None = None,
         llm_service: Any | None = None,
+        source_repo: Any | None = None,
+        candidate_profile_repo: Any | None = None,
         event_publisher: Any | None = None,
     ):
         self._company_service = company_service
         self._rules = rule_repo
         self._skills = skill_repo
         self._llm = llm_service
+        self._sources = source_repo
+        self._profiles = candidate_profile_repo
         self._events = event_publisher
         self._graph = self._build()
 
@@ -70,7 +74,10 @@ class CompanyAnalysisGraph:
         graph = StateGraph(CompanyProcessingState)
 
         graph.add_node(NODE_LOAD_CONTEXT, LoadContextNode(self._company_service, self._events))
-        graph.add_node(NODE_PREPARE_COMPANY, PrepareCompanyNode(self._rules, self._events))
+        graph.add_node(
+            NODE_PREPARE_COMPANY,
+            PrepareCompanyNode(self._rules, self._sources, self._profiles, self._events),
+        )
         graph.add_node(NODE_ANALYZE_COMPANY, AnalyzeCompanyNode(self._llm, self._events))
         graph.add_node(NODE_SCORE_COMPANY, ScoreCompanyNode(self._events))
         graph.add_node(NODE_RECOMMEND_COMPANY, RecommendCompanyNode(self._events))

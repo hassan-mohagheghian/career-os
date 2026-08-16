@@ -858,7 +858,7 @@ class TestSearchJobsCursorExclude:
         assert items == []
 
 
-# ── score_rank (fine-grained: overall, success, fit, id) ─────────
+# ── score_rank (competition ranking: overall, success, fit) ─────
 
 class TestScoreRank:
     def test_top_score_ranks_first(self, sa_session, repo):
@@ -884,13 +884,13 @@ class TestScoreRank:
         assert repo.score_rank(m_high.id) == 1
         assert repo.score_rank(m_low.id) == 2
 
-    def test_all_scores_equal_id_desc_breaks_tie(self, sa_session, repo):
+    def test_all_scores_equal_share_rank(self, sa_session, repo):
         _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
         m_b = _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=60)
         m_c = _add(sa_session, id="job-c", overall_score=80, success_score=70, fit_score=60)
-        # id desc: job-c, job-b, job-a
+        # Competition ranking: all three share rank 1.
         assert repo.score_rank(m_c.id) == 1
-        assert repo.score_rank(m_b.id) == 2
+        assert repo.score_rank(m_b.id) == 1
 
     def test_null_score_ranks_after_all_scored(self, sa_session, repo):
         _add(sa_session, id="job-a", overall_score=90)
@@ -909,6 +909,69 @@ class TestScoreRank:
 
     def test_missing_job_returns_none(self, repo):
         assert repo.score_rank("does-not-exist") is None
+
+
+# ── ranks_by_ids ─────────────────────────────────────────────────
+
+class TestRanksByIds:
+    def test_distinct_scores_rank_sequentially(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=70)
+        _add(sa_session, id="job-c", overall_score=50)
+        ranks = repo.ranks_by_ids(["job-a", "job-b", "job-c"])
+        assert ranks == {"job-a": 1, "job-b": 2, "job-c": 3}
+
+    def test_equal_scores_share_rank(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=60)
+        _add(sa_session, id="job-c", overall_score=50, success_score=50, fit_score=50)
+        # job-a and job-b tie for rank 1 (competition ranking); job-c is next.
+        ranks = repo.ranks_by_ids(["job-a", "job-b", "job-c"])
+        assert ranks == {"job-a": 1, "job-b": 1, "job-c": 3}
+
+    def test_same_overall_differs_on_tiebreak_columns(self, sa_session, repo):
+        # RANK() orders by overall, then success, then fit — equal on all three
+        # share a rank; differing on success/fit do not.
+        _add(sa_session, id="job-a", overall_score=80, success_score=90, fit_score=10)
+        _add(sa_session, id="job-b", overall_score=80, success_score=70, fit_score=90)
+        _add(sa_session, id="job-c", overall_score=80, success_score=70, fit_score=60)
+        ranks = repo.ranks_by_ids(["job-a", "job-b", "job-c"])
+        assert ranks == {"job-a": 1, "job-b": 2, "job-c": 3}
+
+    def test_null_scores_rank_last(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=40)
+        _add(sa_session, id="job-null")
+        ranks = repo.ranks_by_ids(["job-a", "job-b", "job-null"])
+        assert ranks == {"job-a": 1, "job-b": 2, "job-null": 3}
+
+    def test_null_scores_share_rank(self, sa_session, repo):
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-null-1")
+        _add(sa_session, id="job-null-2")
+        # Both unscored jobs tie for last rank.
+        ranks = repo.ranks_by_ids(["job-a", "job-null-1", "job-null-2"])
+        assert ranks == {"job-a": 1, "job-null-1": 2, "job-null-2": 2}
+
+    def test_excludes_deleted_jobs(self, sa_session, repo):
+        m1 = _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=40, deleted=1)
+        _add(sa_session, id="job-c", overall_score=30)
+        ranks = repo.ranks_by_ids([m1.id, "job-b", "job-c"])
+        assert ranks == {m1.id: 1, "job-c": 2}
+
+    def test_ranks_are_absolute_over_full_set_not_just_requested(self, sa_session, repo):
+        # ranks_by_ids ranks over all non-deleted jobs; requesting a subset still
+        # yields their true position in the full ordering.
+        _add(sa_session, id="job-a", overall_score=90)
+        _add(sa_session, id="job-b", overall_score=70)
+        _add(sa_session, id="job-c", overall_score=50)
+        _add(sa_session, id="job-d", overall_score=30)
+        ranks = repo.ranks_by_ids(["job-c", "job-b"])
+        assert ranks == {"job-b": 2, "job-c": 3}
+
+    def test_empty_input_returns_empty_dict(self, repo):
+        assert repo.ranks_by_ids([]) == {}
 
 
 # ── get_by_url_fragment ─────────────────────────────────────────

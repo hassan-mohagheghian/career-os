@@ -1,5 +1,5 @@
 import type { CompanyListItem } from '@/entities/company/types'
-import { isRecruiterCompany, formatCompanyType, companyTypeRowClasses } from '@/entities/company/lib'
+import { isRecruiterCompany, formatCompanyTypeShort, companyTypeRowClasses } from '@/entities/company/lib'
 import { ScoreBadge } from '@/features/jobs-v2/components/ScoreBadge'
 import { StatusBadge } from '@/features/jobs-v2/components/StatusBadge'
 import type { ProcessingStatus } from '@/entities/job/types'
@@ -75,7 +75,7 @@ export function CompanyRow({
       </div>
       <div className="py-2 px-3 flex items-center">
         <Badge variant="secondary" className="text-2xs truncate max-w-full">
-          {formatCompanyType(company.company_type)}
+          {formatCompanyTypeShort(company.company_type)}
         </Badge>
       </div>
       <div className="py-2 px-3 flex items-center">

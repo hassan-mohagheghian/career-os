@@ -11,6 +11,14 @@ The candidate has these scoring rules that define what matters most. Use them to
 
 {rules}
 
+The candidate's own background (resume, LinkedIn and candidate profile) is provided below as labeled extra context. Use it to evaluate how well the company and its tech stack match the candidate — but base company facts ONLY on the company content above:
+
+--- CANDIDATE RESUME ---
+{resume_text}
+--- CANDIDATE PROFILE / LINKEDIN ---
+{profile_documents}
+--- END CANDIDATE CONTEXT ---
+
 Perform a SINGLE combined analysis of this company. First extract every piece of information available, then produce a deep intelligence report and scores. Use ALL the extracted data — funding, team size, tech stack, culture signals, international signals, everything. Use the candidate's scoring rules above to evaluate how well this company matches. Output ONLY JSON (no other text) with this structure:
 
 {{

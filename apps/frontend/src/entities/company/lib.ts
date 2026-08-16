@@ -24,6 +24,10 @@ export function formatCompanyType(type: string | null | undefined): string {
   return (type && COMPANY_TYPE_LABELS[type]) || type || 'Unknown'
 }
 
+export function formatCompanyTypeShort(type: string | null | undefined): string {
+  return formatCompanyType(type).replace(/ Company$/, '')
+}
+
 const COMPANY_TYPE_ROW_CLASSES: Record<string, string> = {
   PRODUCT_COMPANY: '',
   RECRUITING_AGENCY: 'bg-purple-500/5 hover:bg-purple-500/10 focus-within:bg-purple-500/10',

@@ -116,14 +116,24 @@ def build_company_analysis_prompt(
     company_type: str,
     rules: str,
     input_type: str = "url",
+    resume_text: str = "",
+    profile_documents: str = "",
 ) -> str:
-    """Build the single combined analysis prompt for a company."""
+    """Build the single combined analysis prompt for a company.
+
+    resume_text and profile_documents carry the candidate's latest resume and
+    LinkedIn profile (and structured candidate profile when available) as labeled
+    extra context, mirroring the job analysis prompt. The resume is authoritative
+    for skills/seniority; LinkedIn supplements it.
+    """
     template = load_prompt(
         _COMBINED_PROMPT_NAME,
         company_content=company_content,
         input_type=input_type,
         company_type=company_type,
         rules=rules,
+        resume_text=resume_text,
+        profile_documents=profile_documents,
     )
     schema = json.dumps(build_company_analysis_output_schema(), indent=2)
     return f"""{template}

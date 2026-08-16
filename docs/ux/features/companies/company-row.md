@@ -37,16 +37,19 @@ reflects the label (`N jobs listed for clients` for recruiters).
 
 # Company Type Column
 
-A compact badge showing the company type (via the shared `formatCompanyType`
-helper, `entities/company/lib.ts`):
+A compact badge showing the company type without the trailing word "Company"
+(via the shared `formatCompanyTypeShort` helper, `entities/company/lib.ts`):
 
 | Type               | Badge label        |
 | ------------------ | ------------------ |
-| `PRODUCT_COMPANY`  | Product Company    |
+| `PRODUCT_COMPANY`  | Product            |
 | `RECRUITING_AGENCY`| Recruiting Agency  |
-| `STAFFING_COMPANY` | Staffing Company   |
-| `CONSULTING_COMPANY`| Consulting Company |
+| `STAFFING_COMPANY` | Staffing           |
+| `CONSULTING_COMPANY`| Consulting         |
 | `UNKNOWN` / null   | Unknown            |
+
+The type is always one of the fixed vocabulary above (`normalize_company_type`),
+so the badge never shows a free-text string.
 
 ---
 

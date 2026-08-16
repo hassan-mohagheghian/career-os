@@ -635,6 +635,56 @@ class TestJobRankV2API:
         assert resp.status_code == 200
         assert resp.json()["rank"] == 2
 
+    def test_job_detail_equal_scores_share_rank(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer", overall_score=85, success_score=70, fit_score=60)
+        _create_job(test_db, id=2, title="Twin", overall_score=85, success_score=70, fit_score=60)
+        _create_job(test_db, id=3, title="Lower", overall_score=30)
+
+        resp = client.get(f"/api/jobs/{job.id}")
+        assert resp.status_code == 200
+        # Competition ranking: job-1 and job-2 tie for rank 1.
+        assert resp.json()["rank"] == 1
+
+
+class TestJobListRankV2API:
+    def test_list_items_carry_rank(self, client, test_db):
+        _create_job(test_db, id=1, title="Low", overall_score=50)
+        job = _create_job(test_db, id=2, title="Top", overall_score=90)
+        _create_job(test_db, id=3, title="Mid", overall_score=70)
+
+        resp = client.get("/api/jobs/list")
+        assert resp.status_code == 200
+        by_title = {i["title"]: i.get("rank") for i in resp.json()["items"]}
+        assert by_title["Top"] == 1
+        assert by_title["Mid"] == 2
+        assert by_title["Low"] == 3
+
+    def test_equal_scores_share_rank(self, client, test_db):
+        _create_job(test_db, id=1, title="A", overall_score=90, success_score=80, fit_score=70)
+        _create_job(test_db, id=2, title="B", overall_score=90, success_score=80, fit_score=70)
+        _create_job(test_db, id=3, title="C", overall_score=40)
+
+        resp = client.get("/api/jobs/list")
+        assert resp.status_code == 200
+        by_title = {i["title"]: i.get("rank") for i in resp.json()["items"]}
+        assert by_title["A"] == 1
+        assert by_title["B"] == 1
+        assert by_title["C"] == 3
+
+    def test_rank_is_absolute_over_full_set(self, client, test_db):
+        # The page is sorted by default (created/updated), so the visible order
+        # is not by score; ranks are still absolute positions in the score order.
+        _create_job(test_db, id=1, title="Low", overall_score=30)
+        _create_job(test_db, id=2, title="Top", overall_score=95)
+        _create_job(test_db, id=3, title="Mid", overall_score=60)
+
+        resp = client.get("/api/jobs/list?sort=created_at&order=desc")
+        assert resp.status_code == 200
+        by_title = {i["title"]: i.get("rank") for i in resp.json()["items"]}
+        assert by_title["Low"] == 3
+        assert by_title["Top"] == 1
+        assert by_title["Mid"] == 2
+
 
 class TestJobCompanyV2API:
     def test_set_company_links_job_and_sets_canonical_name(self, client, test_db):

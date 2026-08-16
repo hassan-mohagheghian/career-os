@@ -187,6 +187,7 @@ def _v2_job_to_schema(
     latest_execution: dict[str, Any] | None = None,
     recommendation: str | None = None,
     tracking_status: str | None = None,
+    rank: int | None = None,
 ) -> JobListItemSchema:
     scores = ScoresSchema(
         overall=job_dict.get("overall_score"),
@@ -217,6 +218,7 @@ def _v2_job_to_schema(
         scores=scores,
         recommendation=recommendation,
         pinned=bool(job_dict.get("pinned")),
+        rank=rank,
         tracking_status=tracking_status,
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
@@ -286,12 +288,14 @@ def list_jobs_v2(
     latest_executions = exec_repo.latest_by_target_ids("job", page_job_ids)
     recommendations = analysis_repo.recommendations_by_job_ids(page_job_ids)
     tracking_statuses = application_repo.statuses_by_job_ids(page_job_ids)
+    ranks = repo.ranks_by_ids(page_job_ids)
     items = [
         _v2_job_to_schema(
             j,
             latest_executions.get(j.get("id")),
             recommendations.get(j.get("id")),
             tracking_statuses.get(j.get("id")) or "not_applied",
+            ranks.get(j.get("id")),
         )
         for j in result.items
     ]

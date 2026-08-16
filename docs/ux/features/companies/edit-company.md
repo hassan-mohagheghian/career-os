@@ -52,8 +52,19 @@ read-only.
 | Country      | No       |                                |
 | Website      | No       |                                |
 | Company Size | No       | Select of size bands           |
-| Company Type | No       | Select (Product/Recruiting/...) |
+| Company Type | No       | Select of the fixed vocabulary (`Product`, `Recruiting Agency`, `Staffing`, `Consulting`, `Unknown`) + `Not set` |
 | Description  | No       | Multiline                      |
+
+### Company Type select
+
+- Only offers the **fixed vocabulary** values (`PRODUCT_COMPANY`,
+  `RECRUITING_AGENCY`, `STAFFING_COMPANY`, `CONSULTING_COMPANY`, `UNKNOWN`) plus
+  `Not set` (clears the field). Selecting `Not set` saves `company_type: null`.
+- The backend (`normalize_company_type`) enforces the same vocabulary on `PUT
+  /api/companies/{id}` and on every processing persist, so any value outside the
+  fixed set is coerced to `UNKNOWN`. This is the manual fallback when processing
+  mis-classifies a company (e.g. detected `Recruiting Agency` but it is actually
+  `Staffing`).
 
 ---
 

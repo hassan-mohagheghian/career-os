@@ -80,10 +80,12 @@ block produced by the Job Analysis phase:
 ```
 
 - `analysis` is `null` until the analysis phase completes for the job.
-- `rank` is the job's 1-based position in the full job list sorted by **overall,
-  then success, then fit** score (each descending), with the final all-equal tie
-  broken by id (desc) — a fine-grained, unique rank. Jobs without a score sort
-  last (after all scored jobs). It is derived at read time and never stored.
+- `rank` is the job's competition rank (`RANK()`) in the full job list sorted by
+  **overall, then success, then fit** score (each descending, NULLS LAST); jobs
+  with identical scores share a rank and the next distinct rank skips ahead.
+  Jobs without a score sort last (after all scored jobs). It is derived at read
+  time, never stored, and uses the same window as the list, so the detail rank
+  always matches the list rank.
 - For jobs processed before the analysis phase existed, `analysis` is a
   backward-compatible block built from the legacy `jobs`/`summaries`
   projections (no `recommendation`, grade-derived `summary`).
@@ -94,6 +96,20 @@ block produced by the Job Analysis phase:
   in the Job Details drawer.
 - The frontend refetches this endpoint on `execution.completed` /
   `execution.failed` SSE events so results appear live in the Job Details drawer.
+
+---
+
+## Company Type
+
+`companies.company_type` is always one of the **fixed vocabulary**
+(`PRODUCT_COMPANY`, `RECRUITING_AGENCY`, `STAFFING_COMPANY`,
+`CONSULTING_COMPANY`, `UNKNOWN`). Both `PUT /api/companies/{id}` (manual edit)
+and processing `persist_analysis` normalize through
+`normalize_company_type`: an empty value clears the field (`null`), a
+recognized value is uppercased, and anything else is stored as `UNKNOWN`. A
+company reprocess (`POST /api/companies/{id}/reprocess`) with more links/notes
+re-detects and corrects an inaccurate type. See
+`docs/domain/companies/company_type.md`.
 
 ---
 

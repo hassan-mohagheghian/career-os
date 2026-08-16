@@ -99,6 +99,7 @@ class JobListItemSchema(BaseModel):
     scores: ScoresSchema | None = None
     recommendation: str | None = None
     pinned: bool = False
+    rank: int | None = None
     tracking_status: str | None = None
     updated_at: str | None = None
     created_at: str | None = None

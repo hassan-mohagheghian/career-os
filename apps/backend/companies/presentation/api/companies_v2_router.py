@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status as http_sta
 from fastapi.responses import Response
 
 from companies.application.services.company_service import CompanyService
+from companies.domain.company_type import normalize_company_type
 from companies.infrastructure import SQLAlchemyCompanyRepository
 from companies.infrastructure.repositories.sa_company_intelligence_repository import (
     SQLAlchemyCompanyIntelligenceRepository,
@@ -590,6 +591,8 @@ def update_company(
 ) -> CompanyDetailResponseSchema:
     """Update a company and return its full detail payload."""
     data = {k: getattr(body, k) for k in body.model_fields_set}
+    if "company_type" in data:
+        data["company_type"] = normalize_company_type(data["company_type"])
     updated = repo.update(id, data)
     if not updated:
         raise HTTPException(status_code=404, detail=f"Company {id} not found")

@@ -41,6 +41,18 @@ and no execution is created.
 
 ---
 
+# Corrective re-detection
+
+A reprocess re-collects the company's research context (website + links +
+notes) and re-persists the queryable fields, including `company_type`. The type
+is always stored as one of the fixed vocabulary
+(`normalize_company_type`; see `docs/domain/companies/company_type.md`), so a
+reprocess with more links/notes can correct an inaccurate type (e.g.
+`RECRUITING_AGENCY` detected as `STAFFING_COMPANY`), and anything unrecognized
+is stored as `UNKNOWN`.
+
+---
+
 # Errors
 
 500

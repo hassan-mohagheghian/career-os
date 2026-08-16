@@ -92,7 +92,7 @@ so the user can inspect or edit the job without leaving the application page.
 | Back to Job | `router.push('/jobs?job={id}')`; the Jobs page opens the detail drawer for that job. |
 | Open job posting | External link to `job.url` in a new tab. |
 | Company name | When the job has a `company_id`, the header company name is a **link** to `/companies?company=<id>` (opens the company in the Companies page detail drawer). A **company type badge** renders beside the name when the linked company has a type. |
-| Rank | A `[#N]` indicator after the Fit score shows the job's 1-based position in the full job list sorted by overall, then success, then fit score (descending); ties break by success then fit then id, so each job has a unique rank. Sourced from `job.rank` on the detail response. |
+| Rank | A `[#N]` indicator after the Fit score shows the job's competition rank in the full job list sorted by overall, then success, then fit score (descending, NULLS LAST); jobs with identical scores share a rank. Sourced from `job.rank` on the detail response. |
 
 ## Component Hierarchy
 

@@ -65,9 +65,9 @@ Jobs Page
 │ # │ Pin │ Job │ Company │ Location │ Scores │ Rec │ Processing │ Updated │
 │──────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │                                                                                                              │
-│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] O 94 │ S 91 │ F 95 │ ★ Apply │ Ready │ 2m │
-│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] O 90 │ S 88 │ F 90 │ ☆ Apply │ Running │ now │
-│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] O 83  │ S 84 │ F 86 │ — Skip │ Failed │ 5m │
+│ 1 │ ●  │ Senior Backend Engineer │ GetYourGuide │ Berlin │ [A+] #2 │ O 94 │ S 91 │ F 95 │ ★ Apply │ Ready │ 2m │
+│ 2 │ ○  │ Backend Engineer        │ Karla        │ Berlin │ [A+] #5 │ O 90 │ S 88 │ F 90 │ ☆ Apply │ Running │ now │
+│ 3 │ ○  │ Python Developer        │ Flexa        │ Remote │ [A] #9  │ O 83 │ S 84 │ F 86 │ — Skip │ Failed │ 5m │
 │                                                                                                              │
 │                                         Loading more jobs...                                                 │
 │                                                                                                              │
@@ -307,6 +307,7 @@ Selecting a row opens the Job Details Drawer.
 | Overall        | Overall AI Score                                    |
 | Fit            | Fit Score                                           |
 | Success        | Success Score                                       |
+| Rank           | Position in the full list sorted by overall, then success, then fit (competition ranking: equal scores share a rank); display-only, absolute, independent of the current sort |
 | Recommendation | Apply / Consider / Skip badge                       |
 | Processing     | Current Processing Execution state                  |
 | Updated        | Relative update time                                |
@@ -995,10 +996,9 @@ shows a single scrollable page:
   Overall / Success / Fit score cards at the top. Colors use the shared
   `scoreColor` thresholds (≥90 green, ≥70 emerald, ≥50 yellow, ≥30 orange,
   <30 red) — identical to the list `ScoreBadge` colors. A `[#N]` **Rank**
-  indicator after the Fit card shows the job's 1-based position in the full
-  job list sorted by overall, then success, then fit score (each descending) —
-  higher scores rank lower, ties broken by success then fit then id, so each
-  job has a unique rank. A `[Why]` button sits
+  indicator after the Fit card shows the job's competition rank in the full
+  job list sorted by overall, then success, then fit score (each descending,
+  NULLS LAST) — jobs with identical scores share a rank. A `[Why]` button sits
   after the Overall score and
   opens a **Scores Explanation** popover anchored to the button. It
   auto-opens on hover and auto-closes on unhover; clicking the button pins

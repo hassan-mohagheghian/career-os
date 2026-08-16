@@ -158,9 +158,20 @@ class IJobRepository(ABC):
 
     @abstractmethod
     def score_rank(self, job_id: str) -> int | None:
-        """Return the job's 1-based rank in the full non-deleted job list sorted
-        by overall, then success, then fit score (each descending), with the
-        final all-equal tie broken by id (desc) — a fine-grained, unique rank.
-        Jobs without a score sort last (after all scored jobs). Returns None when
-        the job does not exist."""
+        """Return the job's competition rank (``RANK()``) in the full non-deleted
+        job list sorted by overall, then success, then fit score (each
+        descending, NULLS LAST). Jobs with identical scores share a rank; the
+        next distinct rank skips ahead. Returns None when the job does not
+        exist. Uses the same window as ``ranks_by_ids`` so the detail rank always
+        matches the list rank."""
         ...
+
+    @abstractmethod
+    def ranks_by_ids(self, job_ids: list[str]) -> dict[str, int]:
+        """Return the competition rank (``RANK()``) of each requested job in the
+        full non-deleted job list sorted by overall, then success, then fit score
+        (each descending, NULLS LAST). Jobs with identical scores share a rank;
+        the next distinct rank skips ahead. Ranks are absolute (over the whole
+        set, independent of the list's current sort/filter). Computed in a single
+        window query. Returns ``{job_id: rank}`` for the found non-deleted jobs.
+        """
