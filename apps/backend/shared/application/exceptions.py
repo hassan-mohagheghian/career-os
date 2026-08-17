@@ -51,8 +51,13 @@ class JobAlreadyExistsError(ConflictError):
     code: str = "JOB_ALREADY_EXISTS"
     detail: str = "A Job with the same primary URL already exists."
 
-    def __init__(self, job_id: str | None = None):
-        super().__init__(details={"job_id": job_id} if job_id else None)
+    def __init__(self, job_id: str | None = None, job: dict | None = None):
+        details: dict = {}
+        if job_id:
+            details["job_id"] = job_id
+        if job:
+            details["job"] = job
+        super().__init__(details=details or None)
 
 
 class ExternalServiceError(AppError):

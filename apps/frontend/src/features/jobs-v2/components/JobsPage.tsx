@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import type { JobListItem, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, CreatedDateFilter } from '@/entities/job/types'
 import { Button } from '@/shared/ui/button'
 import { JobsHeader } from './JobsHeader'
 import { JobsToolbar } from './JobsToolbar'
@@ -44,6 +44,8 @@ interface JobsPageProps {
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   filterTrackingStatus: TrackingStatusFilter
   onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
+  filterCreatedDate: CreatedDateFilter
+  onFilterCreatedDateChange: (value: CreatedDateFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
   onProcessV2: (id: string) => void
@@ -65,6 +67,8 @@ interface JobsPageProps {
   queueReloadKey?: number
   addJobDrawerOpen: boolean
   onAddJobDrawerOpenChange: (open: boolean) => void
+  onOpenAddJob: () => void
+  addJobClipboardUrl: string | null
   onJobQueued?: () => void
   detailJobId: string | null
   onDetailJobIdChange: (id: string | null) => void
@@ -85,17 +89,18 @@ export function JobsPage({
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   filterTrackingStatus, onFilterTrackingStatusChange,
+  filterCreatedDate, onFilterCreatedDateChange,
   activeFilterCount, onClearFilters,
   onProcessV2, onReprocess, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication, isProcessing,
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
-  addJobDrawerOpen, onAddJobDrawerOpenChange, onJobQueued,
+  addJobDrawerOpen, onAddJobDrawerOpenChange, onOpenAddJob, addJobClipboardUrl, onJobQueued,
   detailJobId, onDetailJobIdChange,
   editJobId, onEditJobIdChange,
   processingCount,
 }: JobsPageProps) {
-  const { createJob, submitting, error: createError, existingJobId, clearError } = useCreateJob()
+  const { createJob, submitting, error: createError, existingJobId, existingJob, clearError } = useCreateJob()
 
   const handleCreateJob = useCallback(async (data: CreateEntityFormData) => {
     const result = await createJob({
@@ -124,7 +129,7 @@ export function JobsPage({
           loadedCount={loadedCount}
           processingCount={processingCount}
           onOpenQueue={() => onQueueDrawerOpenChange(true)}
-          onAddJob={() => onAddJobDrawerOpenChange(true)}
+          onAddJob={onOpenAddJob}
           onRefresh={onRefetch}
           isRefreshing={isRefetching}
         />
@@ -148,7 +153,7 @@ export function JobsPage({
         loadedCount={loadedCount}
         processingCount={processingCount}
         onOpenQueue={() => onQueueDrawerOpenChange(true)}
-        onAddJob={() => onAddJobDrawerOpenChange(true)}
+        onAddJob={onOpenAddJob}
         onRefresh={onRefetch}
         isRefreshing={isRefetching}
       />
@@ -169,6 +174,8 @@ export function JobsPage({
         onFilterRecommendationChange={onFilterRecommendationChange}
         filterTrackingStatus={filterTrackingStatus}
         onFilterTrackingStatusChange={onFilterTrackingStatusChange}
+        filterCreatedDate={filterCreatedDate}
+        onFilterCreatedDateChange={onFilterCreatedDateChange}
         activeFilterCount={activeFilterCount}
         onClearFilters={onClearFilters}
         showPinnedColumn={showPinnedColumn}
@@ -220,6 +227,9 @@ export function JobsPage({
         onSubmit={handleCreateJob}
         submitting={submitting}
         error={createError}
+        clipboardUrl={addJobClipboardUrl}
+        existingJob={existingJob}
+        onViewJobDetails={(id) => onDetailJobIdChange(id)}
         errorLink={existingJobId ? { label: 'Open application', href: `/jobs/${encodeURIComponent(existingJobId)}/application` } : null}
       />
     </div>

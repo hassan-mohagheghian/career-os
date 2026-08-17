@@ -240,7 +240,11 @@ Other job boards get their own rule when added. Until a board has a rule, its
 URLs are **not** restricted — creating the same posting URL twice succeeds.
 
 The `details.job_id` field contains the id of the existing job (the one that
-shares the posting URL), so the UI can link to it.
+shares the posting URL), so the UI can link to it. `details.job` additionally
+carries a compact **summary** of the existing job (title, company, company_type,
+location, visa, salary, employment/work types, Overall/Fit/Success scores, rank,
+tracking status, url) — mirroring the top-of-detail header so the UI can render
+the existing job and link to its full details.
 
 Example
 
@@ -250,7 +254,25 @@ Example
     "code": "JOB_ALREADY_EXISTS",
     "message": "A Job with the same primary URL already exists.",
     "details": {
-      "job_id": "job_01JABCDEFG123456789"
+      "job_id": "job_01JABCDEFG123456789",
+      "job": {
+        "id": "job_01JABCDEFG123456789",
+        "title": "Senior Backend Engineer",
+        "company": "Acme GmbH",
+        "company_type": "product",
+        "location": "Berlin",
+        "visa": "Yes",
+        "salary": "€90k",
+        "employment_types": ["Full-time"],
+        "work_types": ["Remote"],
+        "overall_score": 85,
+        "fit_score": 80,
+        "success_score": 90,
+        "rank": 3,
+        "tracking_status": "ready_to_apply",
+        "url": "https://…",
+        "updated_at": "…"
+      }
     }
   }
 }
@@ -324,8 +346,12 @@ On success:
 On duplicate URL (409):
 
 1. Keep the Add Job Drawer open and show the error message.
-2. Render an "Open existing job" link pointing to
-   `/jobs?job=<details.job_id>`, which opens the existing job's detail drawer.
+2. Render an **"Open application"** link pointing to
+   `/jobs/<details.job_id>/application`.
+3. Render a summary card of the existing job from `details.job` (scores, rank,
+   title, identity rows) below the error.
+4. Render a **"View full job details"** button that opens the existing job's
+   detail drawer (`details.job.id`).
 
 ---
 

@@ -43,6 +43,26 @@ describe('useCreateJob', () => {
     expect(result.current.existingJobId).toBe('job-1')
   })
 
+  it('parses the existing job summary from the error details', async () => {
+    const summary = {
+      id: 'job-1',
+      title: 'Senior Backend Engineer',
+      company: 'Acme GmbH',
+      overall_score: 85,
+    }
+    mockCreate.mockRejectedValue(new ApiError(409, 'Duplicate job', {
+      error: { code: 'JOB_ALREADY_EXISTS', message: 'Duplicate job', details: { job_id: 'job-1', job: summary } },
+    }))
+
+    const { result } = renderHook(() => useCreateJob())
+    let response: any = null
+    await act(async () => { response = await result.current.createJob({ job_post_url: 'https://example.com/job' }) })
+
+    expect(response).toBeNull()
+    expect(result.current.existingJobId).toBe('job-1')
+    expect(result.current.existingJob).toEqual(summary)
+  })
+
   it('handles network error', async () => {
     mockCreate.mockRejectedValue(new Error('Network error'))
 

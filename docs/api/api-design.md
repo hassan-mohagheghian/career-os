@@ -183,7 +183,7 @@ class ErrorDetail(BaseModel):
     message: str
     details: dict | None = None
 
-# Example:
+# Example (not found):
 {
     "error": {
         "code": "NOT_FOUND",
@@ -191,7 +191,41 @@ class ErrorDetail(BaseModel):
         "details": {"job_id": "8f5b1c2e-…"}
     }
 }
+
+# Example (duplicate job):
+{
+    "error": {
+        "code": "JOB_ALREADY_EXISTS",
+        "message": "A Job with the same primary URL already exists.",
+        "details": {
+            "job_id": "8f5b1c2e-…",
+            "job": {
+                "id": "8f5b1c2e-…",
+                "title": "Senior Backend Engineer",
+                "company": "Acme GmbH",
+                "company_id": "…",
+                "company_type": "product",
+                "location": "Berlin",
+                "visa": "Yes",
+                "salary": "€90k",
+                "employment_types": ["Full-time"],
+                "work_types": ["Remote"],
+                "overall_score": 85,
+                "fit_score": 80,
+                "success_score": 90,
+                "rank": 3,
+                "tracking_status": "ready_to_apply",
+                "url": "https://…",
+                "updated_at": "…"
+            }
+        }
+    }
+}
 ```
+
+The `job` summary mirrors the top-of-detail header so the UI can render the
+existing job (scores, rank, identity rows) below the duplicate error and link to
+its full details. `job_id` remains available for direct navigation.
 
 ### Error Codes
 

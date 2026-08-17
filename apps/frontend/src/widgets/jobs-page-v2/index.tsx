@@ -11,6 +11,7 @@ import { processingApi } from '@/entities/processing/api'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
 import { toast } from 'sonner'
 import { getSearchParam, setSearchParam } from '@/shared/lib/url'
+import { readClipboardUrl } from '@/shared/lib/clipboard'
 
 const JobsPageContent = dynamic(
   () => import('@/features/jobs-v2/components/JobsPage').then(m => ({ default: m.JobsPage })),
@@ -21,6 +22,7 @@ function JobsPageV2Adapter() {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false)
   const [queueReloadKey, setQueueReloadKey] = useState(0)
   const [addJobDrawerOpen, setAddJobDrawerOpen] = useState(false)
+  const [addJobClipboardUrl, setAddJobClipboardUrl] = useState<string | null>(null)
   const [detailJobId, setDetailJobId] = useState<string | null>(null)
   const [editJobId, setEditJobId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
@@ -40,6 +42,7 @@ function JobsPageV2Adapter() {
     filterPinned, setFilterPinned,
     filterRecommendation, setFilterRecommendation,
     filterTrackingStatus, setFilterTrackingStatus,
+    filterCreatedDate, setFilterCreatedDate,
     activeFilterCount, clearFilters,
     processMutation,
     deleteMutation,
@@ -48,7 +51,13 @@ function JobsPageV2Adapter() {
 
   useProcessingEvents()
 
-  useAddJobShortcut(() => setAddJobDrawerOpen(true))
+  const openAddJob = useCallback(async () => {
+    const url = await readClipboardUrl()
+    setAddJobClipboardUrl(url)
+    setAddJobDrawerOpen(true)
+  }, [])
+
+  useAddJobShortcut(openAddJob)
 
   const processingCount = useMemo(() => {
     return items.filter(i => {
@@ -162,6 +171,8 @@ function JobsPageV2Adapter() {
         onFilterRecommendationChange={setFilterRecommendation}
         filterTrackingStatus={filterTrackingStatus}
         onFilterTrackingStatusChange={setFilterTrackingStatus}
+        filterCreatedDate={filterCreatedDate}
+        onFilterCreatedDateChange={setFilterCreatedDate}
         activeFilterCount={activeFilterCount}
         onClearFilters={clearFilters}
         onProcessV2={handleProcessV2}
@@ -183,6 +194,8 @@ function JobsPageV2Adapter() {
         queueReloadKey={queueReloadKey}
         addJobDrawerOpen={addJobDrawerOpen}
         onAddJobDrawerOpenChange={setAddJobDrawerOpen}
+        onOpenAddJob={openAddJob}
+        addJobClipboardUrl={addJobClipboardUrl}
         onJobQueued={() => setQueueReloadKey(k => k + 1)}
         detailJobId={detailJobId}
         onDetailJobIdChange={setDetailJobId}

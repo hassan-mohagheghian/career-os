@@ -103,6 +103,8 @@ def create_job(
     body: CreateJobRequest,
     repo: SQLAlchemyJobRepository = Depends(get_job_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    company_repo: SQLAlchemyCompanyRepository = Depends(get_company_repo),
+    application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
 ):
     """Create a new job from a job posting URL.
 
@@ -112,7 +114,17 @@ def create_job(
     """
     existing = find_duplicate_job(repo, body.job_post_url)
     if existing:
-        raise JobAlreadyExistsError(job_id=existing.get("id"))
+        raise JobAlreadyExistsError(
+            job_id=existing.get("id"),
+            job=_job_summary(
+                existing,
+                rank=repo.score_rank(existing["id"]),
+                company_type=_linked_company_type(existing, company_repo),
+                tracking_status=application_repo.statuses_by_job_ids([existing["id"]]).get(
+                    existing["id"]
+                ),
+            ),
+        )
 
     links_json = json.dumps([l.model_dump() for l in body.links], ensure_ascii=False)
     notes_json = json.dumps([n.model_dump() for n in body.notes], ensure_ascii=False)
@@ -151,6 +163,38 @@ def _parse_string_list(raw: Any) -> list[str]:
             return [str(x).strip() for x in parsed if str(x).strip()]
         return [str(parsed).strip()] if str(parsed).strip() else []
     return []
+
+
+def _job_summary(
+    job: dict[str, Any],
+    rank: int | None = None,
+    company_type: str | None = None,
+    tracking_status: str | None = None,
+) -> dict[str, Any]:
+    """Build a compact summary of an existing job for the duplicate error.
+
+    Mirrors the top-of-detail header (scores + identity rows) so the UI can
+    render it below the duplicate error message.
+    """
+    return {
+        "id": job.get("id"),
+        "title": job.get("title") or job.get("role"),
+        "company": job.get("company"),
+        "company_id": job.get("company_id"),
+        "company_type": company_type,
+        "location": job.get("location"),
+        "visa": job.get("visa"),
+        "salary": job.get("salary"),
+        "employment_types": _parse_string_list(job.get("employment_types")),
+        "work_types": _parse_string_list(job.get("work_types")),
+        "overall_score": job.get("overall_score"),
+        "fit_score": job.get("fit_score"),
+        "success_score": job.get("success_score"),
+        "rank": rank,
+        "tracking_status": tracking_status,
+        "url": job.get("url"),
+        "updated_at": job.get("updated_at"),
+    }
 
 
 def _parse_items(raw: Any, plain_key: str = "content") -> list[dict[str, Any]]:
@@ -240,6 +284,7 @@ def list_jobs_v2(
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),
     pinned: bool | None = Query(None),
+    created_date: str | None = Query(None, pattern="^(today|yesterday|week|month)$"),
     recommendation: str | None = Query(None, pattern="^(apply|consider|skip)$"),
     overall_score_min: int | None = Query(None),
     overall_score_max: int | None = Query(None),
@@ -280,6 +325,7 @@ def list_jobs_v2(
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
         success_score_min=success_score_min, success_score_max=success_score_max,
         pinned=pinned,
+        created_date=created_date,
         recommendation=recommendation,
     )
     use_case = ListJobsV2UseCase(repo)

@@ -1,9 +1,9 @@
 """SQLAlchemy-based job repository implementation."""
 
 from typing import Any
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 
-from sqlalchemy import func, or_, and_, case, cast, select
+from sqlalchemy import func, or_, and_, case, cast, select, DateTime
 from sqlalchemy.orm import Session
 
 from jobs.domain.repositories.job_repository import IJobRepository
@@ -22,6 +22,30 @@ SCORE_SORT_COLUMNS = {
     "fit_score": [JobModel.fit_score, JobModel.overall_score, JobModel.success_score],
     "success_score": [JobModel.success_score, JobModel.overall_score, JobModel.fit_score],
 }
+
+
+def _created_date_range(key: str | None) -> tuple[datetime | None, datetime | None]:
+    """Return (start, end) naive UTC datetimes for a created_at preset.
+
+    ``created_at`` is a Text column that may hold either a Python-datetime
+    ``str()`` form (`2026-08-17 11:01:16.034846`, space separator, the common
+    fresh-insert case) or an ISO form with a `T` separator. Both are cast to a
+    timestamp and compared against naive UTC datetimes, so the exact text
+    layout never matters.
+    """
+    if not key:
+        return None, None
+    now = datetime.now(UTC).replace(tzinfo=None)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if key == "today":
+        return start_of_day, None
+    if key == "yesterday":
+        return start_of_day - timedelta(days=1), start_of_day
+    if key == "week":
+        return now - timedelta(days=7), None
+    if key == "month":
+        return now - timedelta(days=30), None
+    return None, None
 
 
 class SQLAlchemyJobRepository(IJobRepository):
@@ -623,6 +647,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         success_score_max: int | None = None,
         pinned: bool | None = None,
         recommendation: str | None = None,
+        created_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
         q = self._session.query(JobModel).filter(JobModel.deleted == 0)
 
@@ -686,6 +711,13 @@ class SQLAlchemyJobRepository(IJobRepository):
                     JobAnalysisModel.recommendation == recommendation
                 )
             ))
+
+        created = cast(JobModel.created_at, DateTime)
+        created_start, created_end = _created_date_range(created_date)
+        if created_start is not None:
+            q = q.filter(created >= created_start)
+        if created_end is not None:
+            q = q.filter(created < created_end)
 
         total = q.count()
 

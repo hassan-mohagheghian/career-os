@@ -188,6 +188,81 @@ describe('CreateEntityDrawer — error state', () => {
     )
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
+
+  it('renders a summary of the existing job below the error', () => {
+    const existingJob = {
+      id: 'job-dup',
+      title: 'Senior Backend Engineer',
+      company: 'Acme GmbH',
+      location: 'Berlin',
+      visa: 'Yes',
+      salary: '€90k',
+      employment_types: ['Full-time'],
+      work_types: ['Remote'],
+      overall_score: 85,
+      fit_score: 80,
+      success_score: 90,
+      rank: 3,
+      url: 'https://acme.example/careers/senior',
+      company_id: null,
+      company_type: 'Product',
+      tracking_status: null,
+      updated_at: null,
+    }
+    render(
+      <CreateEntityDrawer
+        open
+        onOpenChange={vi.fn()}
+        mode="job"
+        onSubmit={vi.fn()}
+        error="A Job with the same primary URL already exists."
+        existingJob={existingJob}
+      />
+    )
+    expect(screen.getByText('Senior Backend Engineer')).toBeInTheDocument()
+    expect(screen.getByText('Acme GmbH')).toBeInTheDocument()
+    expect(screen.getByText('Berlin')).toBeInTheDocument()
+    expect(screen.getByText('85')).toBeInTheDocument()
+    expect(screen.getByText('#3')).toBeInTheDocument()
+    const posting = screen.getByRole('link', { name: 'Open job posting' })
+    expect(posting).toHaveAttribute('href', 'https://acme.example/careers/senior')
+  })
+
+  it('invokes onViewJobDetails when View full job details is clicked', () => {
+    const onViewJobDetails = vi.fn()
+    const existingJob = {
+      id: 'job-dup',
+      title: 'Senior Backend Engineer',
+      company: null,
+      company_id: null,
+      company_type: null,
+      location: null,
+      visa: null,
+      salary: null,
+      employment_types: null,
+      work_types: null,
+      overall_score: null,
+      fit_score: null,
+      success_score: null,
+      rank: null,
+      tracking_status: null,
+      url: null,
+      updated_at: null,
+    }
+    render(
+      <CreateEntityDrawer
+        open
+        onOpenChange={vi.fn()}
+        mode="job"
+        onSubmit={vi.fn()}
+        error="A Job with the same primary URL already exists."
+        existingJob={existingJob}
+        onViewJobDetails={onViewJobDetails}
+      />
+    )
+    fireEvent.click(screen.getByText('View full job details'))
+    expect(onViewJobDetails).toHaveBeenCalledWith('job-dup')
+  })
 })
 
 describe('CreateEntityDrawer — clipboard prefill', () => {
@@ -233,32 +308,54 @@ describe('CreateEntityDrawer — clipboard prefill', () => {
     expect(readClipboardUrlMock).toHaveBeenCalledTimes(2)
   })
 
-  it('skips the clipboard prefill on the reopen right after a successful Add', async () => {
-    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
-    const onSubmit = vi.fn()
-    const onOpenChange = vi.fn()
-    const { rerender } = render(
-      <CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />
+  it('prefills the job URL from a gesture-captured clipboardUrl prop', async () => {
+    render(
+      <CreateEntityDrawer open onOpenChange={vi.fn()} mode="job" onSubmit={vi.fn()} clipboardUrl="https://linkedin.com/jobs/view/999" />
     )
+    const urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/999'))
+    expect(readClipboardUrlMock).not.toHaveBeenCalled()
+  })
 
-    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
+  it('prefills the company primary link from a gesture-captured clipboardUrl prop', async () => {
+    render(
+      <CreateEntityDrawer open onOpenChange={vi.fn()} mode="company" onSubmit={vi.fn()} clipboardUrl="https://acme.example" />
+    )
+    const urlInput = screen.getByPlaceholderText('https://acme.example') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://acme.example'))
+    expect(readClipboardUrlMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to reading the clipboard when clipboardUrl is not provided', async () => {
+    readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
+    renderDrawer('job')
     const urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
     await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/123'))
     expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('prefills a gesture-captured clipboardUrl again on the reopen after a successful Add', async () => {
+    const onSubmit = vi.fn()
+    const onOpenChange = vi.fn()
+    const { rerender } = render(
+      <CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} clipboardUrl="https://linkedin.com/jobs/view/999" />
+    )
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} clipboardUrl="https://linkedin.com/jobs/view/999" />)
+    let urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/999'))
 
     fireEvent.click(screen.getByText('Add'))
     expect(onSubmit).toHaveBeenCalled()
     fireEvent.click(screen.getByText('Cancel'))
     expect(onOpenChange).toHaveBeenCalledWith(false)
 
-    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
-    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
-    const reopenedInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
-    await waitFor(() => expect(reopenedInput.value).toBe(''))
-    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
+    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} clipboardUrl="https://linkedin.com/jobs/view/999" />)
+    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} clipboardUrl="https://linkedin.com/jobs/view/999" />)
+    urlInput = screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement
+    await waitFor(() => expect(urlInput.value).toBe('https://linkedin.com/jobs/view/999'))
   })
 
-  it('resumes the clipboard prefill on the open after the skipped one', async () => {
+  it('re-reads and prefills the clipboard again on the reopen after a successful Add', async () => {
     readClipboardUrlMock.mockResolvedValue('https://linkedin.com/jobs/view/123')
     const onSubmit = vi.fn()
     const onOpenChange = vi.fn()
@@ -268,18 +365,13 @@ describe('CreateEntityDrawer — clipboard prefill', () => {
 
     rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
     await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe('https://linkedin.com/jobs/view/123'))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByText('Add'))
     fireEvent.click(screen.getByText('Cancel'))
     rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
     rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
-    await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe(''))
-    expect(readClipboardUrlMock).toHaveBeenCalledTimes(1)
-
-    fireEvent.click(screen.getByText('Cancel'))
-    rerender(<CreateEntityDrawer open={false} onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
-    rerender(<CreateEntityDrawer open onOpenChange={onOpenChange} mode="job" onSubmit={onSubmit} />)
-    await waitFor(() => expect(readClipboardUrlMock).toHaveBeenCalledTimes(2))
     await waitFor(() => expect((screen.getByPlaceholderText('https://linkedin.com/jobs/view/...') as HTMLInputElement).value).toBe('https://linkedin.com/jobs/view/123'))
+    expect(readClipboardUrlMock).toHaveBeenCalledTimes(2)
   })
 })

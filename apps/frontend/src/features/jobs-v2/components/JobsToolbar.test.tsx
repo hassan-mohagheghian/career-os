@@ -22,6 +22,8 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onFilterRecommendationChange: vi.fn(),
     filterTrackingStatus: '',
     onFilterTrackingStatusChange: vi.fn(),
+    filterCreatedDate: '',
+    onFilterCreatedDateChange: vi.fn(),
     activeFilterCount: 0,
     onClearFilters: vi.fn(),
     ...overrides,
@@ -154,6 +156,28 @@ describe('JobsToolbar tracking filter', () => {
   it('shows the selected tracking label when active', () => {
     renderToolbar({ filterTrackingStatus: 'interview' })
     expect(screen.getByText('Interview')).toBeInTheDocument()
+  })
+})
+
+describe('JobsToolbar created-date filter', () => {
+  it('renders a date select', () => {
+    renderToolbar()
+    expect(screen.getByText('Date')).toBeInTheDocument()
+  })
+
+  it('reports the selected created-date preset', () => {
+    const onFilterCreatedDateChange = vi.fn()
+    renderToolbar({ onFilterCreatedDateChange })
+
+    fireEvent.click(screen.getByText('Date'))
+    fireEvent.click(screen.getByText('Yesterday'))
+
+    expect(onFilterCreatedDateChange).toHaveBeenCalledWith('yesterday')
+  })
+
+  it('shows the selected created-date label when active', () => {
+    renderToolbar({ filterCreatedDate: 'week' })
+    expect(screen.getByText('Last Week')).toBeInTheDocument()
   })
 })
 

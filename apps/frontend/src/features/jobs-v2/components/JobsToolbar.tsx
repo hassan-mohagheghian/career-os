@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { DebouncedInput } from '@/shared/ui/debounced-input'
 import { Button } from '@/shared/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import type { ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter } from '@/entities/job/types'
+import type { ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, CreatedDateFilter } from '@/entities/job/types'
 import { MagnifyingGlass, MapPin, Funnel, PushPin } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
@@ -38,6 +38,13 @@ const TRACKING_FILTER_LABELS: Record<string, string> = {
   withdrawn: 'Withdrawn',
 }
 
+const CREATED_DATE_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  week: 'Last Week',
+  month: 'Last Month',
+}
+
 interface JobsToolbarProps {
   query: string
   onQueryChange: (value: string) => void
@@ -55,6 +62,8 @@ interface JobsToolbarProps {
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   filterTrackingStatus: TrackingStatusFilter
   onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
+  filterCreatedDate: CreatedDateFilter
+  onFilterCreatedDateChange: (value: CreatedDateFilter) => void
   activeFilterCount: number
   onClearFilters: () => void
   showPinnedColumn?: boolean
@@ -72,6 +81,7 @@ export function JobsToolbar({
   filterPinned, onFilterPinnedChange,
   filterRecommendation, onFilterRecommendationChange,
   filterTrackingStatus, onFilterTrackingStatusChange,
+  filterCreatedDate, onFilterCreatedDateChange,
   activeFilterCount, onClearFilters,
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
@@ -171,6 +181,18 @@ export function JobsToolbar({
               <SelectItem value="accepted">Accepted</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="withdrawn">Withdrawn</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterCreatedDate} onValueChange={(v) => onFilterCreatedDateChange(v as CreatedDateFilter)}>
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
+              <span>{filterCreatedDate ? CREATED_DATE_LABELS[filterCreatedDate] ?? filterCreatedDate : 'Date'}</span>
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="week">Last Week</SelectItem>
+              <SelectItem value="month">Last Month</SelectItem>
             </SelectContent>
           </Select>
           <Button

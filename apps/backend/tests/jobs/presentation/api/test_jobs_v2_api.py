@@ -1,6 +1,7 @@
 """Tests for the new Jobs V2 API (GET /api/jobs/list)."""
 
 import pytest
+from datetime import datetime, UTC, timedelta
 from jobs.infrastructure.models.job_model import JobModel
 from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
@@ -547,6 +548,33 @@ class TestJobRecommendationFilterV2API:
 
     def test_invalid_recommendation_returns_422(self, client, test_db):
         resp = client.get("/api/jobs/list?recommendation=bogus")
+        assert resp.status_code == 422
+
+
+class TestJobCreatedDateFilterV2API:
+    @staticmethod
+    def _iso(dt: datetime) -> str:
+        return dt.replace(tzinfo=None).isoformat()
+
+    def test_filter_by_today(self, client, test_db):
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        _create_job(test_db, id=1, title="Today Job", created_at=self._iso(today_start + timedelta(hours=10)))
+        _create_job(test_db, id=2, title="Old Job", created_at=self._iso(today_start - timedelta(days=10)))
+
+        resp = client.get("/api/jobs/list?created_date=today")
+        assert resp.status_code == 200
+        assert [i["title"] for i in resp.json()["items"]] == ["Today Job"]
+
+    def test_filter_by_week(self, client, test_db):
+        now = datetime.now(UTC)
+        _create_job(test_db, id=1, title="Week Job", created_at=self._iso(now - timedelta(days=5)))
+        _create_job(test_db, id=2, title="Old Job", created_at=self._iso(now - timedelta(days=10)))
+
+        resp = client.get("/api/jobs/list?created_date=week")
+        assert [i["title"] for i in resp.json()["items"]] == ["Week Job"]
+
+    def test_invalid_created_date_returns_422(self, client, test_db):
+        resp = client.get("/api/jobs/list?created_date=fortnight")
         assert resp.status_code == 422
 
 

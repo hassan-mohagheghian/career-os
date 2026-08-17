@@ -62,6 +62,28 @@ export type ProcessingStatusFilter = ProcessingStatus | 'none' | ''
 
 export type RecommendationFilter = 'apply' | 'consider' | 'skip' | ''
 
+export type CreatedDateFilter = 'today' | 'yesterday' | 'week' | 'month' | ''
+
+export interface JobSummary {
+  id: string
+  title: string | null
+  company: string | null
+  company_id: string | null
+  company_type: string | null
+  location: string | null
+  visa: string | null
+  salary: string | null
+  employment_types: string[] | null
+  work_types: string[] | null
+  overall_score: number | null
+  fit_score: number | null
+  success_score: number | null
+  rank: number | null
+  tracking_status: string | null
+  url: string | null
+  updated_at: string | null
+}
+
 export type TrackingStatus =
   | 'not_applied'
   | 'recommended'
@@ -117,6 +139,7 @@ export interface JobSearchQuery {
   pinned?: boolean
   recommendation?: RecommendationFilter
   tracking_status?: TrackingStatusFilter
+  created_date?: CreatedDateFilter
   sort?: string
   order?: 'asc' | 'desc'
 }

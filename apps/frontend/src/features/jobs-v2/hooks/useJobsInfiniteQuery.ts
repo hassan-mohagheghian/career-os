@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { jobApi } from '@/entities/job/api'
-import type { JobListItem, ProcessingStatus, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, InfiniteJobSearchResult } from '@/entities/job/types'
+import type { JobListItem, ProcessingStatus, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, CreatedDateFilter, InfiniteJobSearchResult } from '@/entities/job/types'
 
 const PAGE_SIZE = 30
 const JOBS_KEY = 'jobs-v2-infinite'
@@ -20,6 +20,7 @@ export function useJobsInfiniteQuery() {
   const [filterPinned, setFilterPinned] = useState(false)
   const [filterRecommendation, setFilterRecommendation] = useState<RecommendationFilter>('')
   const [filterTrackingStatus, setFilterTrackingStatus] = useState<TrackingStatusFilter>('')
+  const [filterCreatedDate, setFilterCreatedDate] = useState<CreatedDateFilter>('')
 
   const filterKey = useMemo(() => ({
     query,
@@ -32,7 +33,8 @@ export function useJobsInfiniteQuery() {
     pinned: filterPinned || undefined,
     recommendation: filterRecommendation || undefined,
     tracking_status: filterTrackingStatus || undefined,
-  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterRecommendation, filterTrackingStatus])
+    created_date: filterCreatedDate || undefined,
+  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterRecommendation, filterTrackingStatus, filterCreatedDate])
 
   const {
     data,
@@ -59,6 +61,7 @@ export function useJobsInfiniteQuery() {
       pinned: filterKey.pinned as boolean | undefined,
       recommendation: filterKey.recommendation as RecommendationFilter | undefined,
       tracking_status: filterKey.tracking_status as TrackingStatusFilter | undefined,
+      created_date: filterKey.created_date as CreatedDateFilter | undefined,
     }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.has_more ? lastPage.next_cursor : undefined,
@@ -79,6 +82,7 @@ export function useJobsInfiniteQuery() {
     filterPinned,
     filterRecommendation,
     filterTrackingStatus,
+    filterCreatedDate,
   ].filter(Boolean).length
 
   const clearFilters = useCallback(() => {
@@ -89,6 +93,7 @@ export function useJobsInfiniteQuery() {
     setFilterPinned(false)
     setFilterRecommendation('')
     setFilterTrackingStatus('')
+    setFilterCreatedDate('')
   }, [])
 
   const handleHeaderSort = useCallback((field: string) => {
@@ -241,6 +246,8 @@ export function useJobsInfiniteQuery() {
     setFilterRecommendation: useCallback((v: RecommendationFilter) => { setFilterRecommendation(v) }, []),
     filterTrackingStatus,
     setFilterTrackingStatus: useCallback((v: TrackingStatusFilter) => { setFilterTrackingStatus(v) }, []),
+    filterCreatedDate,
+    setFilterCreatedDate: useCallback((v: CreatedDateFilter) => { setFilterCreatedDate(v) }, []),
     activeFilterCount,
     clearFilters,
     processMutation,

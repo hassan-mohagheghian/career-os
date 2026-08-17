@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   Drawer,
   DrawerHeader,
@@ -22,6 +22,12 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/shared/lib/utils";
 import { readClipboardUrl } from "@/shared/lib/clipboard";
+import { gradeForScore, scoreColor } from "@/shared/lib/grade";
+import { GradeBadge } from "@/shared/components/GradeBadge";
+import { RankBadge } from "@/shared/components/RankBadge";
+import type { JobSummary, TrackingStatus } from "@/entities/job/types";
+import { formatCompanyType } from "@/entities/company/lib";
+import { TrackingBadge } from "@/features/jobs-v2/components/TrackingBadge";
 
 export type CreateEntityMode = "job" | "company";
 
@@ -54,6 +60,9 @@ interface CreateEntityDrawerProps {
   submitting?: boolean;
   error?: string | null;
   errorLink?: { label: string; href: string } | null;
+  clipboardUrl?: string | null;
+  existingJob?: JobSummary | null;
+  onViewJobDetails?: (jobId: string) => void;
 }
 
 const LINK_PRESETS = ["LinkedIn", "Website", "Careers", "GitHub"];
@@ -66,6 +75,97 @@ function normalizeUrl(value: string): string {
   return url;
 }
 
+function SummaryRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5 min-w-0">
+      <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">
+        {label}
+      </span>
+      <span className="text-xs text-foreground text-right break-words min-w-0">{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function JobScoreCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`text-lg font-bold ${scoreColor(value)}`}>{value}</div>
+      <div className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function JobSummaryCard({
+  job,
+  onViewDetails,
+}: {
+  job: JobSummary;
+  onViewDetails?: (jobId: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border bg-background/50 p-3 space-y-3">
+      <div className="flex justify-between gap-2">
+        <div className="flex items-center gap-3 mb-1 flex-wrap">
+          <GradeBadge grade={gradeForScore(job.overall_score)} className="w-10 h-8 text-sm" />
+          {job.overall_score != null && (
+            <JobScoreCard label="Overall" value={job.overall_score} />
+          )}
+          {job.success_score != null && (
+            <JobScoreCard label="Success" value={job.success_score} />
+          )}
+          {job.fit_score != null && <JobScoreCard label="Fit" value={job.fit_score} />}
+          <RankBadge rank={job.rank ?? null} />
+        </div>
+        {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline mt-2 shrink-0"
+          >
+            <LinkSimple className="w-3.5 h-3.5" /> Open job posting
+          </a>
+        )}
+      </div>
+      <div>
+        <p className="text-base font-semibold text-foreground break-words">
+          {job.title || "Untitled"}
+        </p>
+        <div className="grid grid-cols-2 gap-x-12">
+          <div className="min-w-0">
+            <SummaryRow label="Company" value={job.company} />
+            {job.company_type && (
+              <SummaryRow label="Type" value={formatCompanyType(job.company_type)} />
+            )}
+            <SummaryRow label="Location" value={job.location} />
+            <SummaryRow label="Visa" value={job.visa} />
+            <SummaryRow
+              label="Tracking"
+              value={job.tracking_status ? <TrackingBadge status={job.tracking_status as TrackingStatus} /> : null}
+            />
+          </div>
+          <div className="min-w-0">
+            <SummaryRow label="Employment" value={job.employment_types?.join(", ")} />
+            <SummaryRow label="Salary" value={job.salary} />
+            <SummaryRow label="Work Types" value={job.work_types?.join(", ")} />
+          </div>
+        </div>
+      </div>
+      {onViewDetails && (
+        <button
+          type="button"
+          onClick={() => onViewDetails(job.id)}
+          className="w-full text-xs text-primary font-medium hover:underline text-left"
+        >
+          View full job details
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function CreateEntityDrawer({
   open,
   onOpenChange,
@@ -74,6 +174,9 @@ export default function CreateEntityDrawer({
   submitting = false,
   error = null,
   errorLink = null,
+  clipboardUrl = null,
+  existingJob = null,
+  onViewJobDetails,
 }: CreateEntityDrawerProps) {
   const isCompany = mode === "company";
 
@@ -94,35 +197,42 @@ export default function CreateEntityDrawer({
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNoteContent, setNewNoteContent] = useState("");
 
-  const skipClipboardPrefill = useRef(false);
-
   useEffect(() => {
     if (!open) return;
-    // Clear the link field first so every open starts fresh, then read the
-    // clipboard. Replacing (not `prev || url`) also overwrites any stale value
-    // left behind by a programmatic close that skipped the reset.
+    // Clear the link field first so every open starts fresh, then prefill from
+    // the gesture-captured clipboardUrl (or, as a fallback, read the clipboard).
+    // Replacing (not `prev || url`) also overwrites any stale value left behind
+    // by a programmatic close that skipped the reset.
     if (isCompany) {
       setPrimaryUrl("");
     } else {
       setUrlInput("");
     }
-    if (skipClipboardPrefill.current) {
-      skipClipboardPrefill.current = false;
-      return;
-    }
     let cancelled = false;
-    readClipboardUrl().then((url) => {
-      if (cancelled || !url) return;
+    // Prefer a URL captured inside the user gesture (the open trigger), which
+    // satisfies the clipboard-read permission, over an async effect-time read
+    // that is outside the gesture and can be rejected on the first open.
+    const url = clipboardUrl?.trim() ?? "";
+    if (url) {
       if (isCompany) {
         setPrimaryUrl(url);
       } else {
         setUrlInput(url);
       }
-    });
+    } else {
+      readClipboardUrl().then((readUrl) => {
+        if (cancelled || !readUrl) return;
+        if (isCompany) {
+          setPrimaryUrl(readUrl);
+        } else {
+          setUrlInput(readUrl);
+        }
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [open, isCompany]);
+  }, [open, isCompany, clipboardUrl]);
 
   const urlValid = urlInput.trim().startsWith("http");
 
@@ -186,7 +296,6 @@ export default function CreateEntityDrawer({
 
   const handleSubmit = (queue: boolean) => {
     if (!canSubmit || submitting) return;
-    skipClipboardPrefill.current = true;
     onSubmit(buildData(queue));
   };
 
@@ -607,16 +716,21 @@ export default function CreateEntityDrawer({
           </div>
 
           {error && (
-            <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 rounded p-2">
-              <Warning className="w-3.5 h-3.5 shrink-0" />
-              <span className="flex-1 min-w-0">{error}</span>
-              {errorLink && (
-                <a
-                  href={errorLink.href}
-                  className="shrink-0 font-semibold text-destructive underline underline-offset-2"
-                >
-                  {errorLink.label}
-                </a>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 rounded p-2">
+                <Warning className="w-3.5 h-3.5 shrink-0" />
+                <span className="flex-1 min-w-0">{error}</span>
+                {errorLink && (
+                  <a
+                    href={errorLink.href}
+                    className="shrink-0 font-semibold text-destructive underline underline-offset-2"
+                  >
+                    {errorLink.label}
+                  </a>
+                )}
+              </div>
+              {existingJob && (
+                <JobSummaryCard job={existingJob} onViewDetails={onViewJobDetails} />
               )}
             </div>
           )}

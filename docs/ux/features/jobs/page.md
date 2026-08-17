@@ -139,6 +139,8 @@ Controls
 | Visa           | Filter by visa sponsorship.              |
 | Pinned         | Toggle pinned-only view.                 |
 | Recommendation | Filter by apply / consider / skip.       |
+| Tracking       | Filter by application tracking status.   |
+| Date           | Filter by created-at preset (Today / Yesterday / Last Week / Last Month). |
 | Sort           | Sort current result set.                 |
 | Columns        | Show / hide the Row number and Pin columns. |
 | Clear          | Clears all active filters.               |

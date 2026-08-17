@@ -415,6 +415,66 @@ describe('useJobsInfiniteQuery.filterTrackingStatus', () => {
   })
 })
 
+describe('useJobsInfiniteQuery.filterCreatedDate', () => {
+  let qc: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    vi.mocked(jobApi.searchInfinite).mockResolvedValue(page([makeJob('job-1')], 1))
+  })
+
+  it('sends the created-date filter to the API', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterCreatedDate('week')
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ created_date: 'week' })
+      )
+    })
+  })
+
+  it('omits the created-date param when the filter is empty', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    const lastCall = vi.mocked(jobApi.searchInfinite).mock.calls.at(-1)![0]
+    expect(lastCall.created_date).toBeUndefined()
+  })
+
+  it('counts the created-date filter as an active filter and clears it', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(result.current.activeFilterCount).toBe(0)
+    })
+
+    act(() => {
+      result.current.setFilterCreatedDate('today')
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+
+    act(() => {
+      result.current.clearFilters()
+    })
+    expect(result.current.activeFilterCount).toBe(0)
+    expect(result.current.filterCreatedDate).toBe('')
+  })
+})
+
 describe('useJobsInfiniteQuery.pinnedMutation', () => {
   let qc: QueryClient
 

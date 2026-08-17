@@ -128,7 +128,8 @@ completed analysis) — the full analysis block stays on the detail endpoint.
 
 The list also supports `recommendation=apply|consider|skip` to filter to jobs
 whose analysis produced that recommendation (jobs without analysis never
-match).
+match), and `created_date=today|yesterday|week|month` to filter by the job's
+creation date preset.
 
 ### `PUT /api/jobs/{job_id}/pinned`
 

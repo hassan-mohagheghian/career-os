@@ -31,6 +31,7 @@ class ListJobsV2Request:
     success_score_max: int | None = None
     pinned: bool | None = None
     recommendation: str | None = None
+    created_date: str | None = None
 
 
 @dataclass
@@ -70,6 +71,7 @@ class ListJobsV2UseCase:
             success_score_max=request.success_score_max,
             pinned=request.pinned,
             recommendation=request.recommendation,
+            created_date=request.created_date,
         )
         return ListJobsV2Response(
             items=items,

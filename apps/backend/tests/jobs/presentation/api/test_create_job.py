@@ -135,6 +135,7 @@ def test_create_duplicate_linkedin_job_returns_409(client, test_db):
     assert body["error"]["code"] == "JOB_ALREADY_EXISTS"
     assert body["error"]["message"] == "A Job with the same primary URL already exists."
     assert body["error"]["details"]["job_id"] == first.json()["id"]
+    assert body["error"]["details"]["job"]["id"] == first.json()["id"]
 
 
 def test_create_linkedin_different_job_ids_succeed(client, test_db):

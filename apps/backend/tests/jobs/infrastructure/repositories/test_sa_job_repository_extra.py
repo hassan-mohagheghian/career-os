@@ -11,6 +11,8 @@ import uuid
 
 import pytest
 
+from datetime import datetime, UTC, timedelta
+
 from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
@@ -856,6 +858,86 @@ class TestSearchJobsCursorExclude:
 
         assert total == 0
         assert items == []
+
+
+# ── search_jobs_cursor created_date (today / yesterday / week / month) ──
+
+class TestSearchJobsCursorCreatedDate:
+    @staticmethod
+    def _iso(dt: datetime) -> str:
+        return dt.replace(tzinfo=None).isoformat()
+
+    @staticmethod
+    def _space(dt: datetime) -> str:
+        # str(datetime) layout, as stored for fresh inserts.
+        return str(dt.replace(tzinfo=None))
+
+    def _now(self):
+        return datetime.now(UTC)
+
+    def test_today_matches_space_separated_fresh_insert_format(self, sa_session, repo):
+        today_start = self._now().replace(hour=0, minute=0, second=0, microsecond=0)
+        _add(sa_session, id="job-space", created_at=self._space(today_start + timedelta(hours=11)))
+        _add(sa_session, id="job-old", created_at=self._space(today_start - timedelta(days=3)))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="today")
+        assert total == 1
+        assert items[0]["id"] == "job-space"
+
+    def test_today_includes_start_of_day_and_excludes_yesterday(self, sa_session, repo):
+        now = self._now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_mid = today_start.replace(hour=12)
+        yesterday = today_start - timedelta(days=1) + timedelta(hours=8)
+
+        _add(sa_session, id="job-today", created_at=self._iso(today_mid))
+        _add(sa_session, id="job-yesterday", created_at=self._iso(yesterday))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="today")
+        assert total == 1
+        assert items[0]["id"] == "job-today"
+
+    def test_yesterday_excludes_today(self, sa_session, repo):
+        today_start = self._now().replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_mid = today_start - timedelta(days=1) + timedelta(hours=12)
+        _add(sa_session, id="job-yesterday", created_at=self._iso(yesterday_mid))
+        _add(sa_session, id="job-today", created_at=self._iso(today_start + timedelta(hours=6)))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="yesterday")
+        assert total == 1
+        assert items[0]["id"] == "job-yesterday"
+
+    def test_week_includes_5_days_ago_excludes_10_days_ago(self, sa_session, repo):
+        now = self._now()
+        _add(sa_session, id="job-in", created_at=self._iso(now - timedelta(days=5)))
+        _add(sa_session, id="job-out", created_at=self._iso(now - timedelta(days=10)))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="week")
+        assert total == 1
+        assert items[0]["id"] == "job-in"
+
+    def test_month_includes_20_days_ago_excludes_40_days_ago(self, sa_session, repo):
+        now = self._now()
+        _add(sa_session, id="job-in", created_at=self._iso(now - timedelta(days=20)))
+        _add(sa_session, id="job-out", created_at=self._iso(now - timedelta(days=40)))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="month")
+        assert total == 1
+        assert items[0]["id"] == "job-in"
+
+    def test_unknown_created_date_is_noop(self, sa_session, repo):
+        _add(sa_session, id="job-a", created_at=self._iso(self._now() - timedelta(days=400)))
+        _add(sa_session, id="job-b", created_at=self._iso(self._now()))
+
+        items, total, _, _ = repo.search_jobs_cursor(created_date="all-time")
+        assert total == 2
+
+    def test_none_created_date_is_noop(self, sa_session, repo):
+        _add(sa_session, id="job-a", created_at=self._iso(self._now() - timedelta(days=400)))
+        _add(sa_session, id="job-b", created_at=self._iso(self._now()))
+
+        items, total, _, _ = repo.search_jobs_cursor()
+        assert total == 2
 
 
 # ── score_rank (competition ranking: overall, success, fit) ─────

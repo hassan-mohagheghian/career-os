@@ -168,6 +168,26 @@ jobs whose application status matches. Omitted returns all jobs. Combinable with
 
 ---
 
+### Created Date
+
+```text
+created_date=today
+```
+
+Filters to jobs by their `created_at` date, using one of four presets:
+
+- `today` — created on the current day (from 00:00:00 UTC).
+- `yesterday` — created on the previous calendar day.
+- `week` — created within the last 7 days.
+- `month` — created within the last 30 days.
+
+Omitted returns all jobs. Combinable with the other filters. `created_at` is a
+Text column, so it is cast to a timestamp and compared against naive UTC
+boundaries (handles both the space-separated fresh-insert layout and the ISO `T`
+layout).
+
+---
+
 ### Score Range
 
 ```text

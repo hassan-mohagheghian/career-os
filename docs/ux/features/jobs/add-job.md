@@ -60,7 +60,10 @@ The drawer can be opened two ways:
 | **`N` keyboard shortcut**    | Press `N` anywhere on the Jobs page (jobs-only). Ignored while typing inside an input, textarea, select, or content-editable element, and when a modifier key (Ctrl/Cmd/Alt/Meta) is held. |
 
 When the drawer opens, a URL copied to the clipboard is auto-filled into the
-Job Post URL field (see Clipboard Prefill under Job Post URL).
+Job Post URL field (see Clipboard Prefill under Job Post URL). The clipboard is
+read **inside the opening gesture** (the Add Job click or the `N` keypress), so
+the `clipboard-read` permission is satisfied and the URL fills on the **first**
+open.
 
 ---
 
@@ -143,24 +146,28 @@ Examples
 
 ## Clipboard Prefill
 
-Every time the drawer opens, the Job Post URL field is **cleared first**, then
-the clipboard is read — if it holds a URL (matching `http(s)://…`), that URL is
-pasted into the field. Any stale value from a previous interaction is always
-replaced by the clipboard content. A hint under the field explains this:
+Every time the drawer opens, the Job Post URL field is **cleared first**, then a
+URL is filled from the clipboard — if it holds a URL (matching `http(s)://…`),
+that URL is pasted into the field. Any stale value from a previous interaction is
+always replaced by the clipboard content. A hint under the field explains this:
 
 ```text
 Tip: a copied link is auto-filled from your clipboard.
 ```
 
+The clipboard is captured in the **opening gesture** (Add Job button click or `N`
+keypress) and passed into the drawer, rather than read lazily after render. This
+keeps the read inside the user activation so the browser's `clipboard-read`
+permission is granted on the **first** open — the URL fills immediately instead
+of requiring the user to close and reopen the drawer.
+
 This makes the common "copy a job posting → press N → Add" flow effectively
 three steps. An empty or non-URL clipboard is ignored silently (the field opens
 empty).
 
-After a successful **Add** / **Add & Queue**, the very next open of the drawer
-**skips** the clipboard prefill so the URL field opens empty — the clipboard
-still holds the just-inserted link, so re-reading it would only re-show the
-already added URL. Prefill resumes as normal on the open after that (one-shot
-suppression).
+Because the clipboard is read fresh on **every** open, the prefill is **not**
+suppressed after an Add — if the user copies another job link and opens the
+drawer again, the new link fills immediately (no need to open twice).
 
 ---
 
@@ -389,10 +396,36 @@ A loading indicator is displayed.
 - Validation errors are displayed.
 - Previously entered values are preserved.
 - On duplicate URL (409 `JOB_ALREADY_EXISTS`): the error box shows the message
-  plus an **"Open existing job"** link. The link navigates to
-  `/jobs?job=<id>` (the id returned in `error.details.job_id`), opening the
-  existing job's detail drawer so the user can review or reprocess it instead
-  of importing a second copy.
+  plus an **"Open application"** link (navigates to `/jobs/<id>/application`).
+  Below the error, a **summary card of the existing job** is rendered — the same
+  top-of-detail block used by the job detail drawer — and a **"View full job
+  details"** button opens the existing job's detail drawer so the user can
+  review or reprocess it instead of importing a second copy.
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│ ⚠ A Job with the same primary URL already exists.      Open application ↗ │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ┌────────────────────────────────────────────────────────────────────────┐ │
+│ │ [A ] 85      90        80        #3               Open job posting ↗    │ │
+│ │      Overall  Success   Fit       Rank                                   │ │
+│ │                                                                         │ │
+│ │ Senior Backend Engineer                                                  │ │
+│ │  COMPANY      Acme GmbH             EMPLOYMENT   Full-time               │ │
+│ │  TYPE         Product               SALARY       €90k                    │ │
+│ │  LOCATION     Berlin                WORK TYPES   Remote                  │ │
+│ │  VISA         Yes                                                         │ │
+│ │  TRACKING     Ready to Apply                                              │ │
+│ │                                                                          │ │
+│ │ View full job details ›                                                  │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+The summary payload comes from `error.details.job` (id, title, company,
+company_type, location, visa, salary, employment/work types, Overall/Fit/Success
+scores, rank, tracking status, url). "Open application" still uses
+`error.details.job_id`.
 
 ---
 

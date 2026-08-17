@@ -47,6 +47,7 @@ export const jobApi = {
     if (query.success_score_max !== undefined) params.set('success_score_max', String(query.success_score_max))
     if (query.recommendation) params.set('recommendation', query.recommendation)
     if (query.tracking_status) params.set('tracking_status', query.tracking_status)
+    if (query.created_date) params.set('created_date', query.created_date)
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
     return api.get<JobSearchResult>(`/jobs/list?${params.toString()}`)
@@ -70,6 +71,7 @@ export const jobApi = {
     if (query.pinned !== undefined) params.set('pinned', String(query.pinned))
     if (query.recommendation) params.set('recommendation', query.recommendation)
     if (query.tracking_status) params.set('tracking_status', query.tracking_status)
+    if (query.created_date) params.set('created_date', query.created_date)
     if (query.sort) params.set('sort', query.sort)
     if (query.order) params.set('order', query.order)
     return api.get<JobSearchResult>(`/jobs/list?${params.toString()}`).then(res => {
