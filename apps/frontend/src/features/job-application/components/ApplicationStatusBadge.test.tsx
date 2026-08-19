@@ -6,7 +6,7 @@ import { ApplicationStatusBadge } from './ApplicationStatusBadge'
 describe('ApplicationStatusBadge', () => {
   it('renders the label for each status', () => {
     const cases = [
-      { status: 'recommended', label: 'Recommended' },
+      { status: 'seen', label: 'Seen' },
       { status: 'preparing', label: 'Preparing' },
       { status: 'ready_to_apply', label: 'Ready to Apply' },
       { status: 'applied', label: 'Applied' },

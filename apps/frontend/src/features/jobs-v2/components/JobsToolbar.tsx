@@ -27,7 +27,7 @@ const RECOMMENDATION_LABELS: Record<string, string> = {
 
 const TRACKING_FILTER_LABELS: Record<string, string> = {
   not_applied: 'Not Applied',
-  recommended: 'Recommended',
+  seen: 'Seen',
   preparing: 'Preparing',
   ready_to_apply: 'Ready to Apply',
   applied: 'Applied',

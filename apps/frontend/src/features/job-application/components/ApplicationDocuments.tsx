@@ -5,6 +5,7 @@ import {
   CircleNotch,
   Copy,
   Download,
+  FilePdf,
   FileText,
   NotePencil,
   PencilSimple,
@@ -19,6 +20,7 @@ import DateTime from '@/shared/components/DateTime'
 import type { ApplicationDetail, ApplicationDocument, ApplicationDocumentType } from '@/entities/application/types'
 import {
   useDeleteDocumentMutation,
+  useDownloadDocumentPdf,
   useGenerateDocumentMutation,
   useUpdateDocumentMutation,
 } from '@/entities/application/hooks'
@@ -64,6 +66,7 @@ function DocumentCard({
   const label = documentLabels[type]
   const updateDocument = useUpdateDocumentMutation()
   const deleteDocument = useDeleteDocumentMutation()
+  const downloadPdf = useDownloadDocumentPdf()
   const { copied, copy } = useCopyToClipboard()
   const [editing, setEditing] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -77,6 +80,12 @@ function DocumentCard({
     a.download = `${label.replace(/\s+/g, '-').toLowerCase()}-v${doc?.version ?? 1}.md`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPdf = () => {
+    if (!doc) return
+    const filename = `${label.replace(/\s+/g, '-').toLowerCase()}-v${doc.version}.pdf`
+    downloadPdf.mutate({ documentId: doc.id, filename })
   }
 
   const handleSave = () => {
@@ -106,6 +115,21 @@ function DocumentCard({
               </Button>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label="Download" onClick={handleDownload}>
                 <Download className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 text-2xs px-2"
+                aria-label="Download as PDF"
+                onClick={handleDownloadPdf}
+                disabled={downloadPdf.isPending}
+              >
+                {downloadPdf.isPending ? (
+                  <CircleNotch className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FilePdf className="w-3.5 h-3.5" />
+                )}
+                PDF
               </Button>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label="Edit content" onClick={() => { setDraft(doc.content); setEditing(true) }}>
                 <PencilSimple className="w-3.5 h-3.5" />

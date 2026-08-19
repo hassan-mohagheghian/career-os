@@ -4,9 +4,11 @@
 def __getattr__(name: str):
     _exports = {
         "ApplicationModel": ("applications.infrastructure.models.application_model", "ApplicationModel"),
+        "ApplicationStatusEventModel": ("applications.infrastructure.models.application_model", "ApplicationStatusEventModel"),
         "ApplicationFollowUpModel": ("applications.infrastructure.models.application_model", "ApplicationFollowUpModel"),
         "ApplicationDocumentModel": ("applications.infrastructure.models.application_model", "ApplicationDocumentModel"),
         "SQLAlchemyApplicationRepository": ("applications.infrastructure.repositories.sa_application_repository", "SQLAlchemyApplicationRepository"),
+        "SQLAlchemyStatusEventRepository": ("applications.infrastructure.repositories.sa_status_event_repository", "SQLAlchemyStatusEventRepository"),
         "SQLAlchemyFollowUpRepository": ("applications.infrastructure.repositories.sa_follow_up_repository", "SQLAlchemyFollowUpRepository"),
         "SQLAlchemyDocumentRepository": ("applications.infrastructure.repositories.sa_document_repository", "SQLAlchemyDocumentRepository"),
     }
@@ -20,9 +22,11 @@ def __getattr__(name: str):
 
 __all__ = [
     "ApplicationModel",
+    "ApplicationStatusEventModel",
     "ApplicationFollowUpModel",
     "ApplicationDocumentModel",
     "SQLAlchemyApplicationRepository",
+    "SQLAlchemyStatusEventRepository",
     "SQLAlchemyFollowUpRepository",
     "SQLAlchemyDocumentRepository",
 ]

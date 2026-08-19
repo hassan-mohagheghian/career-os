@@ -34,7 +34,8 @@ export function useApplicationByJobQuery(jobId: string | null) {
 export function useCreateApplicationMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (jobId: string) => applicationApi.create(jobId),
+    mutationFn: ({ jobId, seenAt }: { jobId: string; seenAt?: string | null }) =>
+      applicationApi.create(jobId, seenAt),
     onSuccess: (application) => {
       queryClient.setQueryData([APPLICATION_KEY, application.id], application)
       queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY, 'by-job'] })
@@ -50,6 +51,27 @@ export function useUpdateApplicationMutation() {
     onSuccess: (application) => {
       queryClient.setQueryData([APPLICATION_KEY, application.id], application)
       queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY, 'by-job'] })
+    },
+  })
+}
+
+export function useUpdateTimelineMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ eventId, changedAt }: { eventId: string; changedAt: string | null }) =>
+      applicationApi.updateTimeline(eventId, changedAt),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
+    },
+  })
+}
+
+export function useDeleteTimelineMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (eventId: string) => applicationApi.deleteTimeline(eventId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
     },
   })
 }
@@ -125,5 +147,12 @@ export function useDeleteDocumentMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
     },
+  })
+}
+
+export function useDownloadDocumentPdf() {
+  return useMutation({
+    mutationFn: ({ documentId, filename }: { documentId: string; filename: string }) =>
+      applicationApi.downloadPdf(documentId, filename),
   })
 }

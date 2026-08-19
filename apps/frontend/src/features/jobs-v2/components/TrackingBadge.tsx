@@ -8,7 +8,7 @@ interface TrackingBadgeProps {
 
 const statusConfig: Record<string, { color: string; label: string }> = {
   not_applied: { color: 'bg-gray-500/15 text-gray-500 border-gray-500/20', label: 'Not Applied' },
-  recommended: { color: 'bg-blue-500/15 text-blue-500 border-blue-500/20', label: 'Recommended' },
+  seen: { color: 'bg-slate-500/15 text-slate-500 border-slate-500/20', label: 'Seen' },
   preparing: { color: 'bg-amber-500/15 text-amber-500 border-amber-500/20', label: 'Preparing' },
   ready_to_apply: { color: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/20', label: 'Ready to Apply' },
   applied: { color: 'bg-green-500/15 text-green-500 border-green-500/20', label: 'Applied' },

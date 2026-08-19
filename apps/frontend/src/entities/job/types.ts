@@ -86,7 +86,7 @@ export interface JobSummary {
 
 export type TrackingStatus =
   | 'not_applied'
-  | 'recommended'
+  | 'seen'
   | 'preparing'
   | 'ready_to_apply'
   | 'applied'

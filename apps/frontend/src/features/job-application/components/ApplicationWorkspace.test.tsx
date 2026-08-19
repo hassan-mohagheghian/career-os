@@ -100,10 +100,11 @@ const sampleJob: JobDetail = {
 const sampleApplication: ApplicationDetail = {
   id: 'app-1',
   job_id: 'job-1',
-  status: 'recommended',
+  status: 'seen',
   applied_at: null,
   created_at: null,
   updated_at: null,
+  status_timeline: [],
   follow_ups: [],
   documents: [],
 }
@@ -189,7 +190,7 @@ describe('ApplicationWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Create Application/ }))
     await waitFor(() => {
-      expect(applicationApi.create).toHaveBeenCalledWith('job-1')
+      expect(applicationApi.create).toHaveBeenCalledWith('job-1', null)
     })
   })
 

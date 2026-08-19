@@ -33,6 +33,25 @@ class ApplicationUpdated(DomainEvent):
 
 
 @dataclass(frozen=True)
+class ApplicationStatusChanged(DomainEvent):
+    """The application entered a new status at a specific time."""
+
+    application_id: str = ""
+    status: str = ""
+    changed_at: str | None = None
+    event_type: str = "application.status.changed"
+
+
+@dataclass(frozen=True)
+class ApplicationStatusRemoved(DomainEvent):
+    """A status-timeline node was removed by the user."""
+
+    application_id: str = ""
+    status: str = ""
+    event_type: str = "application.status.removed"
+
+
+@dataclass(frozen=True)
 class ApplicationFollowUpAdded(DomainEvent):
     """A follow-up was added to an application."""
 
@@ -96,6 +115,8 @@ class ApplicationDocumentDeleted(DomainEvent):
 __all__ = [
     "ApplicationCreated",
     "ApplicationUpdated",
+    "ApplicationStatusChanged",
+    "ApplicationStatusRemoved",
     "ApplicationFollowUpAdded",
     "ApplicationFollowUpUpdated",
     "ApplicationFollowUpDeleted",

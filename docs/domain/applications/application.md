@@ -11,6 +11,7 @@ Workspace (`/jobs/{job_id}/application`).
 | Concept | Entity | Description |
 | ------- | ------ | ----------- |
 | Application | `Application` | The aggregate root. Represents a user's application for a single job. |
+| Status event | `ApplicationStatusEvent` | One node of the status timeline: the application entered a `status` at a `changed_at` time. |
 | Follow-up | `ApplicationFollowUp` | A scheduled/recorded touch-point (date, note, completion). Minimal, not a CRM. |
 | Document | `ApplicationDocument` | A versioned generated artifact (tailored resume, cover letter) stored as markdown. |
 
@@ -43,12 +44,22 @@ node. A skill-gap roadmap for an application lives in the Roadmaps context
 
 ## Aggregates and Cross-Context References
 
-- The `Application` is the aggregate root; it **owns** its follow-ups and documents.
+- The `Application` is the aggregate root; it **owns** its follow-ups, documents
+  and status-timeline events.
 - `job_id` is a **logical reference** to the Jobs context — a plain column, **no
   FK**, no `ondelete` cascade (AGENTS.md rule 15). Referential integrity is enforced
   by the application layer / repositories.
 - Database schema: `application` with tables `applications`,
-  `application_follow_ups`, `application_documents`.
+  `application_status_timeline`, `application_follow_ups`, `application_documents`.
+
+## Status Timeline
+
+Every status transition is recorded as an `application_status_timeline` row
+(`status`, `changed_at`). On application creation a `recommended` event is
+written with `changed_at = created_at`. Each status change appends a new event;
+the time defaults to **now** but can be overridden (`timeline_at` on the PATCH
+body) or corrected/removed later via the timeline endpoints. The application's
+`status` field mirrors the latest timeline entry.
 
 ## Business Rules
 

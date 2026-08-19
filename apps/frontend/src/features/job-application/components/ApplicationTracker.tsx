@@ -6,15 +6,16 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import DateTime from '@/shared/components/DateTime'
-import type { ApplicationDetail, ApplicationFollowUp, ApplicationStatus } from '@/entities/application/types'
-import { useUpdateApplicationMutation, useAddFollowUpMutation, useUpdateFollowUpMutation, useDeleteFollowUpMutation } from '@/entities/application/hooks'
+import { toDatetimeLocalInput, toIsoFromLocalInput } from '@/shared/lib/datetimeInput'
+import type { ApplicationDetail, ApplicationFollowUp, ApplicationStatus, ApplicationStatusEvent } from '@/entities/application/types'
+import { useUpdateApplicationMutation, useAddFollowUpMutation, useUpdateFollowUpMutation, useDeleteFollowUpMutation, useUpdateTimelineMutation, useDeleteTimelineMutation } from '@/entities/application/hooks'
+import { ApplicationStatusBadge } from './ApplicationStatusBadge'
 
 interface ApplicationTrackerProps {
   application: ApplicationDetail
 }
 
 const STATUS_OPTIONS: ApplicationStatus[] = [
-  'recommended',
   'preparing',
   'ready_to_apply',
   'applied',
@@ -30,12 +31,20 @@ export function ApplicationTracker({ application }: ApplicationTrackerProps) {
   const addFollowUp = useAddFollowUpMutation()
   const updateFollowUp = useUpdateFollowUpMutation()
   const deleteFollowUp = useDeleteFollowUpMutation()
+  const updateTimeline = useUpdateTimelineMutation()
+  const deleteTimeline = useDeleteTimelineMutation()
 
   const [note, setNote] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
 
   const handleStatusChange = (status: ApplicationStatus) => {
     updateApplication.mutate({ applicationId: application.id, data: { status } })
+  }
+
+  const handleTimelineChange = (event: ApplicationStatusEvent, value: string) => {
+    const changedAt = toIsoFromLocalInput(value)
+    if (changedAt === null) return
+    updateTimeline.mutate({ eventId: event.id, changedAt })
   }
 
   const handleAddFollowUp = () => {
@@ -56,41 +65,59 @@ export function ApplicationTracker({ application }: ApplicationTrackerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="application-status" className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
-            Status
-          </label>
-          <Select value={application.status} onValueChange={handleStatusChange}>
-            <SelectTrigger id="application-status" size="sm" className="w-full justify-between">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status.replace(/_/g, ' ')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="application-applied-at" className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
-            Applied at
-          </label>
-          <Input
-            id="application-applied-at"
-            type="date"
-            value={application.applied_at?.slice(0, 10) ?? ''}
-            onChange={(e) =>
-              updateApplication.mutate({
-                applicationId: application.id,
-                data: { applied_at: e.target.value || null },
-              })
-            }
-            className="h-7 text-xs"
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="application-status" className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
+          Status
+        </label>
+        <Select value={application.status} onValueChange={handleStatusChange}>
+          <SelectTrigger id="application-status" size="sm" className="w-full justify-between">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((status) => (
+              <SelectItem key={status} value={status}>
+                {status.replace(/_/g, ' ')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="border-t border-border/40 pt-3 space-y-2">
+        <p className="text-2xs font-medium text-muted-foreground uppercase tracking-wide">
+          Application Timeline
+        </p>
+        {application.status_timeline.length === 0 && (
+          <p className="text-xs text-muted-foreground">No status changes recorded yet.</p>
+        )}
+        <ul className="space-y-1.5">
+          {application.status_timeline.map((event) => (
+            <li key={event.id} className="flex items-center gap-2 group">
+              <ApplicationStatusBadge status={event.status} className="w-28 justify-center shrink-0" />
+              <Input
+                type="datetime-local"
+                aria-label={`${event.status.replace(/_/g, ' ')} changed at`}
+                value={toDatetimeLocalInput(event.changed_at)}
+                onChange={(e) => handleTimelineChange(event, e.target.value)}
+                className="h-7 text-xs flex-1"
+              />
+              {event.status !== 'seen' && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${event.status.replace(/_/g, ' ')} timeline entry`}
+                  onClick={() => deleteTimeline.mutate(event.id)}
+                  className="text-muted-foreground/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p className="text-2xs text-muted-foreground">
+          'Seen' is the mandatory starting point. Selecting a new status records its time
+          automatically; edit or remove entries here (the last entry sets the status).
+        </p>
       </div>
 
       <div className="border-t border-border/40 pt-3 space-y-2">

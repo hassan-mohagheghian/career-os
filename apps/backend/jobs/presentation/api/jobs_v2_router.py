@@ -58,7 +58,7 @@ router = APIRouter()
 # application funnel; "not_applied" means the job has no application yet.
 TRACKING_STATUSES = {
     "not_applied",
-    "recommended",
+    "seen",
     "preparing",
     "ready_to_apply",
     "applied",

@@ -9,6 +9,7 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
+    ApplicationStatusEventModel,
     _now_iso,
 )
 
@@ -39,7 +40,7 @@ def dict_to_application_model(data: dict[str, Any]) -> ApplicationModel:
     return ApplicationModel(
         id=data.get("id"),
         job_id=data.get("job_id", ""),
-        status=data.get("status", "recommended"),
+        status=data.get("status", "seen"),
         applied_at=data.get("applied_at"),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
@@ -65,6 +66,28 @@ def dict_to_follow_up_model(data: dict[str, Any]) -> ApplicationFollowUpModel:
         scheduled_at=data.get("scheduled_at"),
         note=data.get("note", ""),
         completed_at=data.get("completed_at"),
+        created_at=data.get("created_at") or _now_iso(),
+        updated_at=data.get("updated_at") or _now_iso(),
+    )
+
+
+def status_event_model_to_dict(model: ApplicationStatusEventModel) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "application_id": model.application_id,
+        "status": model.status,
+        "changed_at": model.changed_at,
+        "created_at": model.created_at,
+        "updated_at": model.updated_at,
+    }
+
+
+def dict_to_status_event_model(data: dict[str, Any]) -> ApplicationStatusEventModel:
+    return ApplicationStatusEventModel(
+        id=data.get("id"),
+        application_id=data.get("application_id", ""),
+        status=data.get("status", ""),
+        changed_at=data.get("changed_at"),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
     )

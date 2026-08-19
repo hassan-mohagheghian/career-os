@@ -18,6 +18,7 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
+    ApplicationStatusEventModel,
 )
 from jobs.infrastructure.models.job_model import JobModel
 from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
@@ -51,11 +52,20 @@ def _create_application(sa_session, job_id: str, **kwargs) -> ApplicationModel:
     defaults = dict(
         id=str(uuid.uuid7()),
         job_id=job_id,
-        status="recommended",
+        status="seen",
     )
     defaults.update(kwargs)
     app = ApplicationModel(**defaults)
     sa_session.add(app)
+    sa_session.flush()
+    sa_session.add(
+        ApplicationStatusEventModel(
+            id=str(uuid.uuid7()),
+            application_id=app.id,
+            status=app.status,
+            changed_at="2026-08-01T09:00:00+00:00",
+        )
+    )
     sa_session.commit()
     return app
 
@@ -67,9 +77,21 @@ class TestApplicationAPI:
         assert resp.status_code == 201
         body = resp.json()
         assert body["job_id"] == job.id
-        assert body["status"] == "recommended"
+        assert body["status"] == "seen"
         assert body["follow_ups"] == []
         assert body["documents"] == []
+        assert len(body["status_timeline"]) == 1
+        assert body["status_timeline"][0]["status"] == "seen"
+        assert body["status_timeline"][0]["changed_at"] is not None
+
+    def test_create_application_with_seen_at(self, client, sa_session):
+        job = _create_job(sa_session)
+        resp = client.post(
+            "/api/applications",
+            json={"job_id": job.id, "seen_at": "2026-07-01T08:00:00+00:00"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["status_timeline"][0]["changed_at"] == "2026-07-01T08:00:00+00:00"
 
     def test_create_is_idempotent(self, client, sa_session):
         job = _create_job(sa_session)
@@ -96,6 +118,93 @@ class TestApplicationAPI:
         body = resp.json()
         assert body["status"] == "applied"
         assert body["applied_at"] == "2026-08-01"
+        timeline = body["status_timeline"]
+        assert [e["status"] for e in timeline] == ["seen", "applied"]
+        assert timeline[1]["changed_at"] is not None
+
+    def test_update_status_with_timeline_at(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        resp = client.patch(
+            f"/api/applications/{app.id}",
+            json={"status": "applied", "timeline_at": "2026-08-05T09:00:00+00:00"},
+        )
+        assert resp.status_code == 200
+        timeline = resp.json()["status_timeline"]
+        applied = next(e for e in timeline if e["status"] == "applied")
+        assert applied["changed_at"] == "2026-08-05T09:00:00+00:00"
+
+    def test_update_status_event_changed_at(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        event = ApplicationStatusEventModel(
+            id=str(uuid.uuid7()),
+            application_id=app.id,
+            status="applied",
+            changed_at="2026-08-01T09:00:00+00:00",
+        )
+        sa_session.add(event)
+        sa_session.commit()
+        resp = client.patch(
+            f"/api/applications/timeline/{event.id}",
+            json={"changed_at": "2026-08-02T10:30:00+00:00"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["changed_at"] == "2026-08-02T10:30:00+00:00"
+
+    def test_update_status_event_missing_404(self, client):
+        resp = client.patch("/api/applications/timeline/nope", json={"changed_at": "2026-08-02"})
+        assert resp.status_code == 404
+
+    def test_delete_status_event(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        event = ApplicationStatusEventModel(
+            id=str(uuid.uuid7()),
+            application_id=app.id,
+            status="applied",
+            changed_at="2026-08-01T09:00:00+00:00",
+        )
+        sa_session.add(event)
+        sa_session.commit()
+        event_id = str(event.id)
+        resp = client.delete(f"/api/applications/timeline/{event_id}")
+        assert resp.status_code == 204
+        assert sa_session.query(ApplicationStatusEventModel).filter(
+            ApplicationStatusEventModel.id == event_id
+        ).first() is None
+
+    def test_delete_status_event_missing_404(self, client):
+        resp = client.delete("/api/applications/timeline/nope")
+        assert resp.status_code == 404
+
+    def test_delete_last_node_rolls_back_status(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        event = ApplicationStatusEventModel(
+            id=str(uuid.uuid7()),
+            application_id=app.id,
+            status="applied",
+            changed_at="2026-08-05T09:00:00+00:00",
+        )
+        sa_session.add(event)
+        sa_session.commit()
+        event_id = str(event.id)
+        resp = client.delete(f"/api/applications/timeline/{event_id}")
+        assert resp.status_code == 204
+        sa_session.expire_all()
+        assert sa_session.get(ApplicationModel, app.id).status == "seen"
+
+    def test_delete_seen_node_rejected(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        seen = sa_session.query(ApplicationStatusEventModel).filter(
+            ApplicationStatusEventModel.application_id == app.id
+        ).first()
+        resp = client.delete(f"/api/applications/timeline/{seen.id}")
+        assert resp.status_code == 422
+        sa_session.expire_all()
+        assert sa_session.get(ApplicationStatusEventModel, seen.id) is not None
 
     def test_update_invalid_status_422(self, client, sa_session):
         job = _create_job(sa_session)
@@ -163,6 +272,46 @@ class TestDocumentAPI:
         resp = client.patch(f"/api/applications/documents/{doc.id}", json={"content": "## Final letter"})
         assert resp.status_code == 200
         assert resp.json()["content"] == "## Final letter"
+
+    def test_document_detail_substitutes_placeholders(self, client, sa_session):
+        from placeholders.infrastructure.models.placeholder_model import PlaceholderModel
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        sa_session.add(PlaceholderModel(key="name", value="Hassan"))
+        sa_session.add(
+            ApplicationDocumentModel(
+                id=str(uuid.uuid7()),
+                application_id=app.id,
+                document_type="tailored_resume",
+                version=1,
+                content="# {{name}}\n\nEngineer",
+            )
+        )
+        sa_session.commit()
+        detail = client.get(f"/api/applications/by-job/{job.id}").json()
+        assert detail["documents"][0]["content"] == "# Hassan\n\nEngineer"
+
+    def test_download_document_pdf(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        doc = ApplicationDocumentModel(
+            id=str(uuid.uuid7()),
+            application_id=app.id,
+            document_type="tailored_resume",
+            version=1,
+            content="# Hassan\n\nSenior Engineer",
+        )
+        sa_session.add(doc)
+        sa_session.commit()
+        resp = client.get(f"/api/applications/documents/{doc.id}/pdf")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/pdf")
+        assert resp.content.startswith(b"%PDF")
+        assert "filename=" in resp.headers["content-disposition"]
+
+    def test_download_document_pdf_missing_404(self, client):
+        resp = client.get("/api/applications/documents/nope/pdf")
+        assert resp.status_code == 404
 
     def test_update_document_empty_400(self, client, sa_session):
         job = _create_job(sa_session)

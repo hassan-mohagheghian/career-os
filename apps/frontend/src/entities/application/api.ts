@@ -4,6 +4,7 @@ import type {
   ApplicationDocument,
   ApplicationDocumentType,
   ApplicationFollowUp,
+  ApplicationStatusEvent,
   CreateFollowUpInput,
   DeleteResponse,
   GenerateResponse,
@@ -14,10 +15,14 @@ import type {
 export const applicationApi = {
   getByJob: (jobId: string) => api.get<ApplicationDetail>(`/applications/by-job/${jobId}`),
   get: (applicationId: string) => api.get<ApplicationDetail>(`/applications/${applicationId}`),
-  create: (jobId: string) =>
-    api.post<ApplicationDetail>(`/applications`, { job_id: jobId }),
+  create: (jobId: string, seenAt?: string | null) =>
+    api.post<ApplicationDetail>(`/applications`, { job_id: jobId, seen_at: seenAt ?? null }),
   update: (applicationId: string, data: UpdateApplicationInput) =>
     api.patch<ApplicationDetail>(`/applications/${applicationId}`, data),
+  updateTimeline: (eventId: string, changedAt: string | null) =>
+    api.patch<ApplicationStatusEvent>(`/applications/timeline/${eventId}`, { changed_at: changedAt }),
+  deleteTimeline: (eventId: string) =>
+    api.delete<void>(`/applications/timeline/${eventId}`),
   addFollowUp: (applicationId: string, input: CreateFollowUpInput) =>
     api.post<ApplicationFollowUp>(`/applications/${applicationId}/follow-ups`, input),
   updateFollowUp: (followUpId: string, input: UpdateFollowUpInput) =>
@@ -32,4 +37,13 @@ export const applicationApi = {
     api.patch<ApplicationDocument>(`/applications/documents/${documentId}`, { content }),
   deleteDocument: (documentId: string) =>
     api.delete<DeleteResponse>(`/applications/documents/${documentId}`),
+  downloadPdf: async (documentId: string, filename: string): Promise<void> => {
+    const blob = await api.download(`/applications/documents/${documentId}/pdf`)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }

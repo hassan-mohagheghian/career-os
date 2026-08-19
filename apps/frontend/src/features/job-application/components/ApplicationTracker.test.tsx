@@ -10,6 +10,8 @@ vi.mock('@/entities/application/api', () => ({
   applicationApi: {
     create: vi.fn(),
     update: vi.fn(),
+    updateTimeline: vi.fn(),
+    deleteTimeline: vi.fn(),
     addFollowUp: vi.fn(),
     updateFollowUp: vi.fn(),
     deleteFollowUp: vi.fn(),
@@ -19,10 +21,28 @@ vi.mock('@/entities/application/api', () => ({
 const sampleApplication: ApplicationDetail = {
   id: 'app-1',
   job_id: 'job-1',
-  status: 'recommended',
+  status: 'applied',
   applied_at: null,
   created_at: null,
   updated_at: null,
+  status_timeline: [
+    {
+      id: 'ev-1',
+      application_id: 'app-1',
+      status: 'seen',
+      changed_at: '2026-08-01T09:00:00Z',
+      created_at: null,
+      updated_at: null,
+    },
+    {
+      id: 'ev-2',
+      application_id: 'app-1',
+      status: 'applied',
+      changed_at: '2026-08-05T09:00:00Z',
+      created_at: null,
+      updated_at: null,
+    },
+  ],
   follow_ups: [
     {
       id: 'fu-1',
@@ -53,10 +73,10 @@ function renderTracker(application: ApplicationDetail = sampleApplication) {
 }
 
 describe('ApplicationTracker', () => {
-  it('renders the current status and applied date controls', () => {
+  it('renders the current status control', () => {
     renderTracker()
     expect(screen.getByLabelText('Status')).toBeInTheDocument()
-    expect(screen.getByLabelText('Applied at')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Applied at')).not.toBeInTheDocument()
   })
 
   it('renders follow-ups and toggles completion', async () => {
@@ -99,5 +119,41 @@ describe('ApplicationTracker', () => {
   it('shows an empty follow-ups message', () => {
     renderTracker({ ...sampleApplication, follow_ups: [] })
     expect(screen.getByText('No follow-ups scheduled yet.')).toBeInTheDocument()
+  })
+
+  it('renders the status timeline with an editable time per status', () => {
+    renderTracker()
+    expect(screen.getByText('Application Timeline')).toBeInTheDocument()
+    expect(screen.getByLabelText('seen changed at')).toBeInTheDocument()
+    expect(screen.getByLabelText('applied changed at')).toBeInTheDocument()
+  })
+
+  it('does not show a delete button for the mandatory seen node', () => {
+    renderTracker()
+    expect(screen.queryByRole('button', { name: 'Delete seen timeline entry' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete applied timeline entry' })).toBeInTheDocument()
+  })
+
+  it('edits a timeline changed time', async () => {
+    renderTracker()
+    fireEvent.change(screen.getByLabelText('seen changed at'), {
+      target: { value: '2026-08-02T10:30' },
+    })
+    await waitFor(() => {
+      expect(applicationApi.updateTimeline).toHaveBeenCalledWith('ev-1', expect.stringMatching(/2026-08-02T10:30/))
+    })
+  })
+
+  it('deletes a timeline entry', async () => {
+    renderTracker()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete applied timeline entry' }))
+    await waitFor(() => {
+      expect(applicationApi.deleteTimeline).toHaveBeenCalledWith('ev-2')
+    })
+  })
+
+  it('shows an empty timeline message', () => {
+    renderTracker({ ...sampleApplication, status_timeline: [] })
+    expect(screen.getByText('No status changes recorded yet.')).toBeInTheDocument()
   })
 })

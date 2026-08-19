@@ -18,6 +18,7 @@ from processing.presentation.api.executions_router import router as executions_r
 from candidates.presentation.api.candidates_router import router as candidates_router
 from applications.presentation.api.applications_router import router as applications_router
 from roadmaps.presentation.api.roadmaps_router import router as roadmaps_router
+from placeholders.presentation.api.placeholders_router import router as placeholders_router
 
 # DI dependencies — wired through bounded context infrastructure
 from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo
@@ -52,6 +53,7 @@ api_router.include_router(executions_router, prefix="/processing", tags=["proces
 api_router.include_router(candidates_router, prefix="/candidates", tags=["candidates"])
 api_router.include_router(applications_router, prefix="/applications", tags=["applications"])
 api_router.include_router(roadmaps_router, prefix="/roadmaps", tags=["roadmaps"])
+api_router.include_router(placeholders_router, prefix="/placeholders", tags=["placeholders"])
 
 # ── Flask compat routes ─────────────────────────────────────────
 

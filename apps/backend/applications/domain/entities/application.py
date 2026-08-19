@@ -27,12 +27,14 @@ class TimestampedEntity:
 class ApplicationStatus:
     """Allowed application statuses (application funnel for job tracking).
 
-    Order reflects the funnel progression: recommended → preparing →
+    ``seen`` is the mandatory initial state: it is auto-recorded as the first
+    timeline node when the application is created, cannot be deleted, and is not
+    user-selectable. The actionable funnel is seen → preparing →
     ready_to_apply → applied → interview → offer → accepted, with rejected /
     withdrawn as terminal states.
     """
 
-    RECOMMENDED = "recommended"
+    SEEN = "seen"
     PREPARING = "preparing"
     READY_TO_APPLY = "ready_to_apply"
     APPLIED = "applied"
@@ -43,7 +45,18 @@ class ApplicationStatus:
     WITHDRAWN = "withdrawn"
 
     ALL = (
-        RECOMMENDED,
+        SEEN,
+        PREPARING,
+        READY_TO_APPLY,
+        APPLIED,
+        INTERVIEW,
+        OFFER,
+        ACCEPTED,
+        REJECTED,
+        WITHDRAWN,
+    )
+
+    SELECTABLE = (
         PREPARING,
         READY_TO_APPLY,
         APPLIED,
@@ -73,7 +86,7 @@ class Application(TimestampedEntity):
 
     id: str = field(default_factory=lambda: str(uuid.uuid7()))
     job_id: str = ""
-    status: str = ApplicationStatus.RECOMMENDED
+    status: str = ApplicationStatus.SEEN
     applied_at: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,6 +95,30 @@ class Application(TimestampedEntity):
             "job_id": self.job_id,
             "status": self.status,
             "applied_at": self.applied_at,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+@dataclass
+class ApplicationStatusEvent(TimestampedEntity):
+    """A single point on the application status timeline.
+
+    Records that the application entered ``status`` at ``changed_at``. The full
+    ordered list of events traces the application's lifecycle over time.
+    """
+
+    id: str = field(default_factory=lambda: str(uuid.uuid7()))
+    application_id: str = ""
+    status: str = ApplicationStatus.SEEN
+    changed_at: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "application_id": self.application_id,
+            "status": self.status,
+            "changed_at": self.changed_at,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -137,6 +174,7 @@ class ApplicationDocument(TimestampedEntity):
 
 __all__ = [
     "Application",
+    "ApplicationStatusEvent",
     "ApplicationFollowUp",
     "ApplicationDocument",
     "ApplicationStatus",

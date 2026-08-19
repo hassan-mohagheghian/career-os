@@ -41,6 +41,7 @@ import processing.infrastructure.models.processing_execution_model  # noqa: F401
 import candidates.infrastructure.models.candidate_model  # noqa: F401
 import applications.infrastructure.models.application_model  # noqa: F401
 import roadmaps.infrastructure.models.roadmap_model  # noqa: F401
+import placeholders.infrastructure.models.placeholder_model  # noqa: F401
 
 config = context.config
 config.set_main_option('sqlalchemy.url', DATABASE_URL)

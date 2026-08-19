@@ -27,7 +27,7 @@ Per AGENTS.md rule 16, event-driven design is **incremental**:
 
 ```mermaid
 flowchart LR
-    A[ApplicationService / FollowUpService / DocumentService / workflow PersistNode] -->|emit| P[ApplicationEventPublisher port]
+    A[ApplicationService / StatusEventService / FollowUpService / DocumentService / workflow PersistNode] -->|emit| P[ApplicationEventPublisher port]
     P -->|default| C[InMemoryEventCollector]
     C -->|read / assert| T[Tests + callers]
     P -.->|future transport phase| R[(Redis / Outbox / SSE)]
@@ -49,6 +49,24 @@ flowchart LR
 - **Trigger**: `ApplicationService.update` changes `status` or `applied_at`.
 - **Payload**: `application_id`, `job_id`, `status`.
 - **Fires when**: the tracker updates the application core.
+- **Consumers**: none yet.
+
+### `application.status.changed`
+
+- **Event**: `ApplicationStatusChanged`
+- **Trigger**: `ApplicationService.update` records a new timeline node, or
+  `StatusEventService.update_changed_at` edits a node's `changed_at`.
+- **Payload**: `application_id`, `status`, `changed_at`.
+- **Fires when**: the application enters a new status (time defaults to now, or
+  the user-supplied `timeline_at`), or a recorded time is corrected.
+- **Consumers**: none yet.
+
+### `application.status.removed`
+
+- **Event**: `ApplicationStatusRemoved`
+- **Trigger**: `StatusEventService.delete` removes a timeline node.
+- **Payload**: `application_id`, `status`.
+- **Fires when**: the user deletes a status-timeline entry from the tracker.
 - **Consumers**: none yet.
 
 ### `application.follow_up.added`

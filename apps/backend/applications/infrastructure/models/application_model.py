@@ -32,8 +32,22 @@ class ApplicationModel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
     job_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
-    status: Mapped[str] = mapped_column(String, default="recommended")
+    status: Mapped[str] = mapped_column(String, default="seen")
     applied_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
+    updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
+
+
+class ApplicationStatusEventModel(Base):
+    __tablename__ = "application_status_timeline"
+    __table_args__ = {"schema": "application"}
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("application.applications.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    changed_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
 

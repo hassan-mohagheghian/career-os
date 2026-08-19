@@ -183,5 +183,5 @@ Generate clicked → ProcessingExecution (roadmap_generation / application_resum
 
 ### Job Application Flow
 ```
-Create application (recommended) → prepare (plan + documents) → applied (+ applied_at) → follow-ups
+Create application (recommended) → prepare (plan + documents) → applied (timeline records the date) → follow-ups
 ```

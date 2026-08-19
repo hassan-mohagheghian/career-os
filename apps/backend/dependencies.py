@@ -141,6 +141,11 @@ def get_application_repo(session: Session = Depends(get_session)):
     return SQLAlchemyApplicationRepository(session)
 
 
+def get_status_event_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyStatusEventRepository
+    return SQLAlchemyStatusEventRepository(session)
+
+
 def get_follow_up_repo(session: Session = Depends(get_session)):
     from applications.infrastructure import SQLAlchemyFollowUpRepository
     return SQLAlchemyFollowUpRepository(session)
@@ -153,10 +158,20 @@ def get_document_repo(session: Session = Depends(get_session)):
 
 def get_application_service(
     application_repo=Depends(get_application_repo),
+    status_event_repo=Depends(get_status_event_repo),
 ):
     from applications.application.services.application_service import ApplicationService
     from applications.domain.event_publisher import InMemoryEventCollector
-    return ApplicationService(application_repo, InMemoryEventCollector())
+    return ApplicationService(application_repo, InMemoryEventCollector(), status_event_repo)
+
+
+def get_status_event_service(
+    status_event_repo=Depends(get_status_event_repo),
+    application_repo=Depends(get_application_repo),
+):
+    from applications.application.services.status_event_service import StatusEventService
+    from applications.domain.event_publisher import InMemoryEventCollector
+    return StatusEventService(status_event_repo, application_repo, InMemoryEventCollector())
 
 
 def get_follow_up_service(
@@ -190,6 +205,21 @@ def get_roadmap_service(
     from roadmaps.application.services.roadmap_service import RoadmapService
     from roadmaps.domain.event_publisher import InMemoryEventCollector
     return RoadmapService(roadmap_repo, skill_repo, InMemoryEventCollector())
+
+
+# ── Placeholders Context Dependencies ─────────────────────────────
+
+def get_placeholder_repo(session: Session = Depends(get_session)):
+    from placeholders.infrastructure import SQLAlchemyPlaceholderRepository
+    return SQLAlchemyPlaceholderRepository(session)
+
+
+def get_placeholder_service(
+    placeholder_repo=Depends(get_placeholder_repo),
+):
+    from placeholders.application.services.placeholder_service import PlaceholderService
+    from placeholders.domain.event_publisher import InMemoryEventCollector
+    return PlaceholderService(placeholder_repo, InMemoryEventCollector())
 
 
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──

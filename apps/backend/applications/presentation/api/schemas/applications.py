@@ -11,6 +11,7 @@ from applications.domain.entities.application import ApplicationStatus, Document
 
 class CreateApplicationRequest(BaseModel):
     job_id: str
+    seen_at: str | None = None
 
     @field_validator("job_id")
     @classmethod
@@ -23,6 +24,7 @@ class CreateApplicationRequest(BaseModel):
 class UpdateApplicationRequest(BaseModel):
     status: str | None = None
     applied_at: str | None = None
+    timeline_at: str | None = None
 
 
 class CreateFollowUpRequest(BaseModel):
@@ -36,6 +38,10 @@ class UpdateFollowUpRequest(BaseModel):
     completed: bool | None = None
 
 
+class UpdateStatusEventRequest(BaseModel):
+    changed_at: str | None = None
+
+
 class UpdateDocumentRequest(BaseModel):
     content: str
 
@@ -45,6 +51,15 @@ class UpdateDocumentRequest(BaseModel):
         if not str(v).strip():
             raise ValueError("content must not be empty")
         return v
+
+
+class ApplicationStatusEventSchema(BaseModel):
+    id: str
+    application_id: str
+    status: str = ApplicationStatus.SEEN
+    changed_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class ApplicationFollowUpSchema(BaseModel):
@@ -74,10 +89,11 @@ class ApplicationDocumentSchema(BaseModel):
 class ApplicationDetailResponse(BaseModel):
     id: str
     job_id: str
-    status: str = ApplicationStatus.RECOMMENDED
+    status: str = ApplicationStatus.SEEN
     applied_at: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    status_timeline: list[ApplicationStatusEventSchema] = Field(default_factory=list)
     follow_ups: list[ApplicationFollowUpSchema] = Field(default_factory=list)
     documents: list[ApplicationDocumentSchema] = Field(default_factory=list)
 
@@ -96,14 +112,16 @@ def build_detail_response(
     application: dict[str, Any],
     follow_ups: list[dict[str, Any]],
     documents: list[dict[str, Any]],
+    status_timeline: list[dict[str, Any]] | None = None,
 ) -> ApplicationDetailResponse:
     return ApplicationDetailResponse(
         id=application["id"],
         job_id=application.get("job_id", ""),
-        status=application.get("status", ApplicationStatus.RECOMMENDED),
+        status=application.get("status", ApplicationStatus.SEEN),
         applied_at=application.get("applied_at"),
         created_at=application.get("created_at"),
         updated_at=application.get("updated_at"),
+        status_timeline=[ApplicationStatusEventSchema(**e) for e in (status_timeline or [])],
         follow_ups=[ApplicationFollowUpSchema(**f) for f in follow_ups],
         documents=[ApplicationDocumentSchema(**d) for d in documents],
     )
@@ -114,7 +132,9 @@ __all__ = [
     "UpdateApplicationRequest",
     "CreateFollowUpRequest",
     "UpdateFollowUpRequest",
+    "UpdateStatusEventRequest",
     "UpdateDocumentRequest",
+    "ApplicationStatusEventSchema",
     "ApplicationFollowUpSchema",
     "ApplicationDocumentSchema",
     "ApplicationDetailResponse",

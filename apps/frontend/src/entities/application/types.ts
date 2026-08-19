@@ -1,5 +1,5 @@
 export type ApplicationStatus =
-  | 'recommended'
+  | 'seen'
   | 'preparing'
   | 'ready_to_apply'
   | 'applied'
@@ -23,6 +23,15 @@ export interface ApplicationFollowUp {
   updated_at: string | null
 }
 
+export interface ApplicationStatusEvent {
+  id: string
+  application_id: string
+  status: ApplicationStatus
+  changed_at: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface ApplicationDocument {
   id: string
   application_id: string
@@ -40,6 +49,7 @@ export interface ApplicationDetail {
   applied_at: string | null
   created_at: string | null
   updated_at: string | null
+  status_timeline: ApplicationStatusEvent[]
   follow_ups: ApplicationFollowUp[]
   documents: ApplicationDocument[]
 }
@@ -57,6 +67,7 @@ export interface DeleteResponse {
 export interface UpdateApplicationInput {
   status?: ApplicationStatus
   applied_at?: string | null
+  timeline_at?: string | null
 }
 
 export interface CreateFollowUpInput {

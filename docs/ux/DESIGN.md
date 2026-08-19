@@ -27,6 +27,7 @@ SIDEBAR RAIL
   ├── Companies      Company intelligence + processing queue
   ├── Skills         Skill management, aliases, insights
   ├── Candidate      Candidate profile import + review
+  ├── Placeholders   Personal-detail {{token}} values for generated documents
   ├── Rules          Scoring rules configuration
   └── AI ▾           Inline expandable submenu
       └── LLM Configurations
@@ -658,7 +659,10 @@ asynchronously (`roadmap_generation` / `application_resume` /
 │ ▸ AI generation in progress ▸ 42% · "Generating tailored resume"        │  ← SSE card
 ├──────────────────────────────────────────────────────────────────────────┤
 │ APPLICATION                                                            │
-│  Status [Recommended ▾]    Applied at [ 2026-08-11 ]                     │
+│  Status [Recommended ▾]                                                │
+│  APPLICATION TIMELINE                                                   │
+│  [ Recommended ] [ 2026-08-11 09:00 ▾ ]                          [🗑]   │
+│  [ Preparing   ] [ 2026-08-12 14:30 ▾ ]                          [🗑]   │
 │  FOLLOW-UPS  ☑ Follow up after interview · Sep 1  [🗑]  [note][📅][Add]  │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ PREPARATION / ROADMAP                                             [⚡ Gen] │
@@ -686,6 +690,34 @@ header is a **link to the company** (`/companies?company=<id>`) and shows a
 company **type badge** next to it when the linked company has a type. Full specs live in
 `docs/ux/features/applications/`, `docs/ux/features/roadmaps/` and
 `docs/ux/flows/applications/`, `docs/ux/flows/roadmaps/`.
+
+### Placeholders
+
+The Placeholders page (175) stores the user's personal details once so they are
+injected into every generated document. Each document card in the workspace has a
+**Download PDF** action that fetches a server-rendered PDF with these values filled.
+
+```text
+PLACEHOLDERS (/placeholders)
+┌──────────────────────────────────────────────────────────┐
+│ Placeholders                                             │
+│ Personal details injected into generated resumes and     │
+│ cover letters. Fill once, then use Download PDF on a     │
+│ generated document.                                      │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ Your details                                         │ │
+│ │ Full name          [ Hassan                 ]        │ │
+│ │ Professional title [ Senior Backend Engineer]        │ │
+│ │ Email              [ hassan@example.com     ]        │ │
+│ │ Phone / Location / LinkedIn / GitHub / Headline ...  │ │
+│ │ Professional summary [ 8+ years ...          ]       │ │
+│ │                                            [ Save ]  │ │
+│ └──────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+
+DOCUMENT CARD (workspace) — Download PDF action
+│ [📄] Tailored Resume v2  [👁][copy][↓][PDF][✎][🗑][Regen] │
+```
 
 ### Roadmaps
 

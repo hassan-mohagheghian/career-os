@@ -94,10 +94,13 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
   }, [application])
 
   const handleCreate = () => {
-    createApplication.mutate(jobId, {
-      onSuccess: () => toast.success('Application created'),
-      onError: () => toast.error('Failed to create application'),
-    })
+    createApplication.mutate(
+      { jobId, seenAt: job?.created_at ?? null },
+      {
+        onSuccess: () => toast.success('Application created'),
+        onError: () => toast.error('Failed to create application'),
+      },
+    )
   }
 
   const handleGenerateRoadmap = useCallback(() => {
@@ -159,7 +162,7 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
       <WorkspaceHeader
         job={job}
-        applicationStatus={app?.status ?? 'recommended'}
+        applicationStatus={app?.status ?? 'seen'}
         onViewDetails={() => setDetailOpen(true)}
         onEdit={() => setEditOpen(true)}
       />

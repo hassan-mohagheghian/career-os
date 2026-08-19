@@ -17,7 +17,7 @@ function ok(body: unknown) {
 
 describe('applicationApi', () => {
   it('creates an application with a job_id', async () => {
-    const detail = { id: 'app-1', job_id: 'job-1', status: 'recommended', follow_ups: [], documents: [] }
+    const detail = { id: 'app-1', job_id: 'job-1', status: 'seen', follow_ups: [], documents: [] }
     fetchMock.mockResolvedValue(ok(detail))
 
     const result = await applicationApi.create('job-1')
@@ -25,8 +25,18 @@ describe('applicationApi', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/applications')
     expect(options.method).toBe('POST')
-    expect(JSON.parse(options.body)).toEqual({ job_id: 'job-1' })
+    expect(JSON.parse(options.body)).toEqual({ job_id: 'job-1', seen_at: null })
     expect(result.id).toBe('app-1')
+  })
+
+  it('creates an application with a seen_at timestamp', async () => {
+    const detail = { id: 'app-1', job_id: 'job-1', status: 'seen', follow_ups: [], documents: [] }
+    fetchMock.mockResolvedValue(ok(detail))
+
+    await applicationApi.create('job-1', '2026-07-01T08:00:00Z')
+
+    const [, options] = fetchMock.mock.calls[0]
+    expect(JSON.parse(options.body)).toEqual({ job_id: 'job-1', seen_at: '2026-07-01T08:00:00Z' })
   })
 
   it('updates an application status', async () => {
@@ -39,6 +49,28 @@ describe('applicationApi', () => {
     expect(url).toBe('/api/applications/app-1')
     expect(options.method).toBe('PATCH')
     expect(JSON.parse(options.body)).toEqual({ status: 'applied', applied_at: '2026-08-11T10:00:00Z' })
+  })
+
+  it('updates a timeline event changed_at', async () => {
+    const event = { id: 'ev-1', application_id: 'app-1', status: 'applied', changed_at: '2026-08-02T10:30:00+02:00' }
+    fetchMock.mockResolvedValue(ok(event))
+
+    await applicationApi.updateTimeline('ev-1', '2026-08-02T10:30:00+02:00')
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/applications/timeline/ev-1')
+    expect(options.method).toBe('PATCH')
+    expect(JSON.parse(options.body)).toEqual({ changed_at: '2026-08-02T10:30:00+02:00' })
+  })
+
+  it('deletes a timeline event', async () => {
+    fetchMock.mockResolvedValue(ok({}))
+
+    await applicationApi.deleteTimeline('ev-1')
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/applications/timeline/ev-1')
+    expect(options.method).toBe('DELETE')
   })
 
   it('gets the application for a job', async () => {
@@ -107,5 +139,27 @@ describe('applicationApi', () => {
     fetchMock.mockResolvedValue({ ok: false, status: 409, json: () => Promise.resolve({ error: 'an execution is already running' }) })
 
     await expect(applicationApi.generateRoadmap('app-1')).rejects.toThrow(/already running/)
+  })
+
+  it('downloads a document as PDF', async () => {
+    const blob = new Blob(['%PDF-fake'], { type: 'application/pdf' })
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: () => Promise.resolve(blob),
+    })
+    const createSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake')
+    const clickSpy = vi.fn()
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(document, 'createElement').mockReturnValue({ click: clickSpy, href: '', download: '' } as unknown as HTMLAnchorElement)
+
+    await applicationApi.downloadPdf('doc-1', 'resume.pdf')
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/applications/documents/doc-1/pdf')
+    expect(clickSpy).toHaveBeenCalled()
+    expect(revokeSpy).toHaveBeenCalled()
+
+    createSpy.mockRestore()
+    revokeSpy.mockRestore()
   })
 })

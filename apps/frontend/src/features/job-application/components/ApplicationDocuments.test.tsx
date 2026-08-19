@@ -9,6 +9,7 @@ vi.mock('@/entities/application/hooks', () => ({
   useUpdateDocumentMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteDocumentMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useGenerateDocumentMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useDownloadDocumentPdf: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('react-markdown', () => ({
@@ -20,10 +21,11 @@ vi.mock('react-markdown', () => ({
 const application: ApplicationDetail = {
   id: 'app-1',
   job_id: 'job-1',
-  status: 'recommended',
+  status: 'seen',
   applied_at: null,
   created_at: null,
   updated_at: null,
+  status_timeline: [],
   follow_ups: [],
   documents: [
     {
@@ -82,5 +84,26 @@ describe('ApplicationDocuments', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
+  })
+
+  it('renders a Download as PDF button when a document exists', () => {
+    renderDocs()
+
+    const pdfButton = screen.getByRole('button', { name: 'Download as PDF' })
+    expect(pdfButton).toBeInTheDocument()
+  })
+
+  it('does not render a Download as PDF button when there is no document', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ApplicationDocuments
+          application={{ ...application, documents: [] }}
+          generatingType={null}
+          onGenerate={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+
+    expect(screen.queryByRole('button', { name: 'Download as PDF' })).not.toBeInTheDocument()
   })
 })

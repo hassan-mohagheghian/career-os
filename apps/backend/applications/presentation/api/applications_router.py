@@ -9,21 +9,24 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status as http_status
 from fastapi import Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response as _FastAPIResponse
 
 from applications.application.services.application_service import ApplicationService
 from applications.application.services.document_service import DocumentService
 from applications.application.services.follow_up_service import FollowUpService
+from applications.application.services.status_event_service import StatusEventService
 from applications.domain.entities.application import ApplicationStatus, DocumentType
 from applications.infrastructure import (
     SQLAlchemyApplicationRepository,
     SQLAlchemyDocumentRepository,
     SQLAlchemyFollowUpRepository,
+    SQLAlchemyStatusEventRepository,
 )
 from applications.presentation.api.schemas.applications import (
     ApplicationDetailResponse,
     ApplicationDocumentSchema,
     ApplicationFollowUpSchema,
+    ApplicationStatusEventSchema,
     CreateApplicationRequest,
     CreateFollowUpRequest,
     DeleteResponse,
@@ -31,6 +34,7 @@ from applications.presentation.api.schemas.applications import (
     UpdateApplicationRequest,
     UpdateDocumentRequest,
     UpdateFollowUpRequest,
+    UpdateStatusEventRequest,
     build_detail_response,
 )
 from dependencies import (
@@ -40,7 +44,10 @@ from dependencies import (
     get_document_service,
     get_follow_up_repo,
     get_follow_up_service,
+    get_placeholder_service,
     get_processing_execution_repo,
+    get_status_event_repo,
+    get_status_event_service,
 )
 from processing.application.services.dispatch_processing_execution import (
     DispatchProcessingExecutionService,
@@ -61,11 +68,23 @@ _EXECUTION_TYPE_BY_DOCUMENT = {
 }
 
 
+def _fill_documents(
+    documents: list[dict],
+    placeholder_service,
+) -> list[dict]:
+    """Substitute ``{{placeholder}}`` tokens in each document's content."""
+    if not placeholder_service:
+        return documents
+    return [{**d, "content": placeholder_service.fill(d.get("content") or "")} for d in documents]
+
+
 def _detail(
     application_repo: SQLAlchemyApplicationRepository,
     follow_up_repo: SQLAlchemyFollowUpRepository,
     document_repo: SQLAlchemyDocumentRepository,
+    status_event_repo: SQLAlchemyStatusEventRepository,
     application_id: str,
+    placeholder_service=None,
 ) -> ApplicationDetailResponse:
     application = application_repo.get_by_id(application_id)
     if not application:
@@ -73,7 +92,8 @@ def _detail(
     return build_detail_response(
         application,
         follow_up_repo.list_for_application(application_id),
-        document_repo.list_for_application(application_id),
+        _fill_documents(document_repo.list_for_application(application_id), placeholder_service),
+        status_event_repo.list_for_application(application_id),
     )
 
 
@@ -95,6 +115,8 @@ def get_application_by_job(
     application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
+    status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    placeholder_service=Depends(get_placeholder_service),
 ):
     application = application_repo.get_by_job_id(job_id)
     if not application:
@@ -102,7 +124,8 @@ def get_application_by_job(
     return build_detail_response(
         application,
         follow_up_repo.list_for_application(application["id"]),
-        document_repo.list_for_application(application["id"]),
+        _fill_documents(document_repo.list_for_application(application["id"]), placeholder_service),
+        status_event_repo.list_for_application(application["id"]),
     )
 
 
@@ -112,12 +135,15 @@ def create_application(
     service: ApplicationService = Depends(get_application_service),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
+    status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    placeholder_service=Depends(get_placeholder_service),
 ):
-    stored = service.create(body.job_id)
+    stored = service.create(body.job_id, seen_at=body.seen_at)
     return build_detail_response(
         stored,
         follow_up_repo.list_for_application(stored["id"]),
-        document_repo.list_for_application(stored["id"]),
+        _fill_documents(document_repo.list_for_application(stored["id"]), placeholder_service),
+        status_event_repo.list_for_application(stored["id"]),
     )
 
 
@@ -129,6 +155,8 @@ def update_application(
     application_repo: SQLAlchemyApplicationRepository = Depends(get_application_repo),
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
+    status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    placeholder_service=Depends(get_placeholder_service),
 ):
     data = body.model_dump(exclude_unset=True)
     service.update(application_id, data)
@@ -136,8 +164,28 @@ def update_application(
         application_repo,
         follow_up_repo,
         document_repo,
+        status_event_repo,
         application_id,
+        placeholder_service,
     )
+
+
+@router.patch("/timeline/{event_id}", response_model=ApplicationStatusEventSchema)
+def update_status_event(
+    event_id: str,
+    body: UpdateStatusEventRequest,
+    service: StatusEventService = Depends(get_status_event_service),
+):
+    return service.update_changed_at(event_id, body.changed_at or "")
+
+
+@router.delete("/timeline/{event_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_status_event(
+    event_id: str,
+    service: StatusEventService = Depends(get_status_event_service),
+):
+    service.delete(event_id)
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{application_id}/follow-ups", status_code=http_status.HTTP_201_CREATED, response_model=ApplicationFollowUpSchema)
@@ -218,3 +266,30 @@ def delete_document(
 ):
     service.delete(document_id)
     return DeleteResponse(status="deleted")
+
+
+@router.get("/documents/{document_id}/pdf")
+def download_document_pdf(
+    document_id: str,
+    document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
+    placeholder_service=Depends(get_placeholder_service),
+):
+    """Export a generated document as a PDF with placeholders filled in.
+
+    Returns a binary ``application/pdf`` response so the frontend can save it
+    directly as a file download.
+    """
+    from shared.infrastructure.pdf_renderer import MarkdownPdfRenderer
+
+    document = document_repo.get_by_id(document_id)
+    if not document:
+        raise NotFoundError(f"Document {document_id} not found")
+    content = placeholder_service.fill(document.get("content") or "")
+    document_type = document.get("document_type") or "document"
+    filename = f"{document_type}-v{document.get('version') or 1}.pdf"
+    pdf_bytes = MarkdownPdfRenderer().render(content, title=document_type.replace("_", " ").title())
+    return _FastAPIResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

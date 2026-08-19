@@ -47,4 +47,12 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  download: async (path: string): Promise<Blob> => {
+    const res = await fetch(`${API_BASE}${path}`)
+    if (!res.ok) {
+      const body = await res.json().catch(() => undefined)
+      throw new ApiError(res.status, extractErrorMessage(body) ?? res.statusText, body)
+    }
+    return res.blob()
+  },
 }

@@ -326,6 +326,17 @@ class TestPrompts:
         assert schema["required"] == ["content"]
         assert schema["properties"]["content"]["type"] == "string"
 
+    def test_resume_prompt_instructs_contact_placeholders(self):
+        prompt = build_resume_prompt(_context())
+        assert "{{name}}" in prompt
+        assert "{{email}}" in prompt
+        assert "PLACEHOLDERS" in prompt
+
+    def test_cover_letter_prompt_instructs_placeholders(self):
+        prompt = build_cover_letter_prompt(_context())
+        assert "{{name}}" in prompt
+        assert "{{linkedin}}" in prompt
+
     def test_prompt_version_constant(self):
         assert APPLICATION_INTELLIGENCE_PROMPT_VERSION == "1.0.0"
 

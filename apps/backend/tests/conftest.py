@@ -32,6 +32,7 @@ import processing.infrastructure.models.processing_execution_model
 import candidates.infrastructure.models.candidate_model  # noqa: F401
 import applications.infrastructure.models.application_model  # noqa: F401
 import roadmaps.infrastructure.models.roadmap_model  # noqa: F401
+import placeholders.infrastructure.models.placeholder_model  # noqa: F401
 
 
 def _get_test_db_url() -> str:

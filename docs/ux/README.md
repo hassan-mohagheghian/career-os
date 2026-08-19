@@ -33,8 +33,10 @@ docs/ux/
 ├── features/
 │   ├── applications/
 │   │   ├── workspace.md         Job Application Workspace page (header, sections, SSE progress)
-│   │   ├── application-tracker.md  Status select, applied date, follow-ups
-│   │   └── application-documents.md  Tailored resume / cover letter cards
+│   │   ├── application-tracker.md  Status select, status timeline (edit/delete nodes), follow-ups
+│   │   └── application-documents.md  Tailored resume / cover letter cards (incl. Download PDF)
+│   ├── placeholders/
+│   │   └── placeholders.md      Placeholders page (personal-detail form)
 │   ├── roadmaps/
 │   │   ├── my-roadmaps.md       My Roadmaps list page (cards, create/edit/delete, empty)
 │   │   ├── roadmap-detail.md    Roadmap detail page (goal header, milestone journey, tasks, notes/resources/skills)

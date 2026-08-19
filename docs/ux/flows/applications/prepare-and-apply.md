@@ -28,12 +28,12 @@ Workspace at /jobs/{id}/application
         │
         ▼
   APPLICATION  tracker section
-        │  set status, applied date
+        │  set status (records a timeline node), follow-ups
         ▼
   PREPARATION / DOCUMENTS      (see generate-application-artifacts.md)
         │
         ▼
-  status → "applied" (+ applied_at)  ← follow-ups scheduled
+  status → "applied" (timeline records the applied date)  ← follow-ups scheduled
 ```
 
 ## Flow Steps
@@ -42,13 +42,13 @@ Workspace at /jobs/{id}/application
 2. **Create the application** (if none exists): the workspace shows the empty state with
    `[Create Application]`. `POST /api/applications {job_id}` creates the record with
    status `recommended` (201) and the three sections appear.
-3. **Track the pipeline**: the tracker section shows status and applied date.
+3. **Track the pipeline**: the tracker section shows status and its timeline.
    - The user moves status through `recommended → preparing → ready_to_apply → applied`
-     (or `rejected` / `withdrawn`).
-   - Optionally sets **Applied at**.
+     (or `rejected` / `withdrawn`). Each change appends a timeline node with the time set
+     to *now* (editable in the timeline box).
 4. **Schedule follow-ups**: add a note + optional date; toggle ☐/☑ as actions happen.
 5. **Generate the roadmap and documents** (see the generation flow), then mark the
-   application **Applied** with the date.
+   application **Applied** — the timeline records the applied date.
 
 ## State Diagram
 
@@ -58,7 +58,7 @@ stateDiagram-v2
     NoApplication --> Recommended: Create Application
     Recommended --> Preparing: status change
     Preparing --> ReadyToApply: status change
-    ReadyToApply --> Applied: status change + applied_at
+    ReadyToApply --> Applied: status change
     Applied --> Rejected: status change
     Applied --> Withdrawn: status change
     Applied --> Applied: add/complete follow-ups
@@ -82,9 +82,9 @@ sequenceDiagram
         W->>API: POST {job_id}
         API-->>W: 201 {status: "recommended"}
     else application exists
-        API-->>W: 200 detail (follow_ups, documents) + GET /api/roadmaps/by-application
+        API-->>W: 200 detail (status_timeline, follow_ups, documents) + GET /api/roadmaps/by-application
     end
-    U->>W: set status / applied_at
+    U->>W: set status
     W->>API: PATCH /applications/{id}
     U->>W: add follow-up
     W->>API: POST /{id}/follow-ups

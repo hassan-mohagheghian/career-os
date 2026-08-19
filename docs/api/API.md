@@ -173,7 +173,7 @@ For endpoint-by-endpoint documentation see `docs/api/api-design.md` (conventions
 ## Applications (Job Application Workspace)
 
 The Applications API (`/api/applications`) backs the Job Application Workspace.
-It tracks a per-job application (status, applied date, follow-ups) and queues
+It tracks a per-job application (status, status timeline, follow-ups) and queues
 AI generation of a tailored resume, cover letter and a job-preparation roadmap
 through the processing pipeline (see `docs/api/applications/README.md`,
 `docs/ai/application-intelligence.md` and `docs/ai/roadmap-generation.md`).
@@ -182,9 +182,20 @@ Endpoints:
 
 - `GET /api/applications/by-job/{job_id}` — application detail for a job.
 - `POST /api/applications` — create an application (`{ "job_id" }`, default status `recommended`).
-- `PATCH /api/applications/{application_id}` — update `status` / `applied_at`.
+- `PATCH /api/applications/{application_id}` — update `status` / `applied_at` (status change records a timeline node).
+- `PATCH` / `DELETE` `/api/applications/timeline/{timeline_id}` — edit `changed_at` / remove a status-timeline node.
 - `POST /api/applications/{application_id}/follow-ups` — add a follow-up.
 - `PATCH` / `DELETE` `/api/applications/follow-ups/{follow_up_id}` — update / delete a follow-up.
 - `POST /api/applications/{application_id}/roadmap/generate` — queue roadmap generation (202).
 - `POST /api/applications/{application_id}/documents/{type}/generate` — queue resume / cover letter (202).
 - `PATCH` / `DELETE` `/api/applications/documents/{document_id}` — edit / delete a document.
+- `GET /api/applications/documents/{document_id}/pdf` — download a document as a PDF (placeholders filled).
+
+## Placeholders API (`/api/placeholders`)
+
+User-supplied personal details injected into generated documents (`{{token}}`).
+
+- `GET /api/placeholders` — list canonical keys (with labels) + saved values.
+- `PUT /api/placeholders` — upsert a flat `{key: value}` map.
+
+See `docs/api/placeholders/README.md`.

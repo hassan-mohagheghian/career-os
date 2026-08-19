@@ -19,6 +19,9 @@ from typing import Any
 APPLICATION_INTELLIGENCE_PROMPT_VERSION = "1.0.0"
 APPLICATION_INTELLIGENCE_SCHEMA_VERSION = "1.0.0"
 
+# Literal contact placeholder tokens the LLM is told to emit (not an f-string).
+CONTACT_PLACEHOLDERS = "{{name}}, {{title}}, {{email}}, {{phone}}, {{location}}, {{linkedin}}, {{github}}"
+
 
 def build_document_output_schema() -> dict[str, Any]:
     """JSON schema for generated documents (tailored resume / cover letter).
@@ -53,6 +56,11 @@ Write a complete, professional resume as MARKDOWN (not JSON) that:
 
 {_sections(context, ["job", "company", "candidate"])}
 
+PLACEHOLDERS:
+- In the contact/header block ONLY, use placeholder tokens for the candidate's personal details exactly as: {CONTACT_PLACEHOLDERS}.
+- The user fills these values on the Placeholders page before download — never hardcode a personal detail you are not certain about; keep the token so it can be filled.
+- Do NOT use placeholder tokens anywhere else (skills, experience, projects stay concrete from the profile).
+
 CONSTRAINTS:
 - Output ONLY the resume markdown content inside the JSON envelope "content". No preamble, no code fences.
 - Keep the resume to at most one page of focused content — every bullet must be high-signal for this specific application.
@@ -77,6 +85,11 @@ Write a complete, professional cover letter as MARKDOWN (not JSON) that:
 5. Closes with a call to action and a professional signature (## Signature).
 
 {_sections(context, ["job", "company", "candidate"])}
+
+PLACEHOLDERS:
+- In the signature block ONLY, use placeholder tokens for the candidate's personal details exactly as: {CONTACT_PLACEHOLDERS}.
+- The user fills these values on the Placeholders page before download — never hardcode a personal detail you are not certain about; keep the token so it can be filled.
+- Do NOT use placeholder tokens anywhere else in the body.
 
 CONSTRAINTS:
 - Output ONLY the cover letter markdown content inside the JSON envelope "content". No preamble, no code fences.

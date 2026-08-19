@@ -13,7 +13,7 @@ content with a version number.
 DOCUMENTS
 ┌────────────────────────────────────────┐  ┌────────────────────────────────────────┐
 │ [📄] Tailored Resume        v2   [🗑]  │  │ [📄] Cover Letter           v1   [🗑]  │
-│      [👁] [copy] [↓] [✎]  [⚡ Regenerate]│  │      [👁] [copy] [↓] [✎]  [⚡ Regenerate]│
+│      [👁] [copy] [↓] [PDF] [✎] [⚡ Regenerate]│  │      [👁] [copy] [↓] [PDF] [✎] [⚡ Regenerate]│
 │ ┌────────────────────────────────────┐ │  │ ┌────────────────────────────────────┐ │
 │ │ # Staff Engineer Resume            │ │  │ │ Dear Hiring Team,                 │ │
 │ │ ... markdown preview (max-h, scroll)│ │  │ │ ...                              │ │
@@ -22,7 +22,8 @@ DOCUMENTS
 └────────────────────────────────────────┘  └────────────────────────────────────────┘
 ```
 
-> `[👁]` is the new **Preview** action (added in Prompt 161).
+> `[👁]` is the new **Preview** action (added in Prompt 161); `[PDF]` is the
+> **Download as PDF** action (added in Prompt 175).
 
 ## Component Hierarchy
 
@@ -36,7 +37,7 @@ Each `DocumentCard`:
 
 ```text
 DocumentCard
-├── Header          icon + label + version + actions (preview, copy, download, edit, delete, generate)
+├── Header          icon + label + version + actions (preview, copy, download, PDF, edit, delete, generate)
 ├── Edit panel      Textarea + [Cancel] [Save]  (when editing)
 ├── Preview         scrollable markdown <pre>   (when not editing)
 ├── Meta line       "Updated <DateTime>"
@@ -87,6 +88,7 @@ with PDF-like typography.
 | Preview | `[👁]` opens the A4 preview dialog rendering the markdown as a selectable PDF-like page. |
 | Copy | Copies the full markdown content to the clipboard; icon becomes a green check briefly. |
 | Download | Blob-downloads the content as `{label}-v{version}.md` (text/markdown). |
+| Download PDF | `[PDF]` calls `GET /api/applications/documents/{id}/pdf`; downloads the server-rendered PDF as `{label}-v{version}.pdf`. The document's `{{token}}` placeholders are filled with the user's saved Placeholder values before rendering (see the Placeholders page). |
 | Edit | Opens an inline `Textarea` prefilled with the content; [Save] → `PATCH /api/applications/documents/{id} {content}`; [Cancel] discards. |
 | Delete | `DELETE /api/applications/documents/{id}` → removes the document card back to the generate state. |
 
@@ -122,4 +124,5 @@ stateDiagram-v2
 # Related Documents
 
 - `docs/ux/features/applications/workspace.md` (page container)
+- `docs/ux/features/placeholders/placeholders.md` (the `{{token}}` values the PDF fills)
 - `docs/ux/flows/applications/generate-application-artifacts.md` (generation journey)

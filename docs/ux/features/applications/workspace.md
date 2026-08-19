@@ -45,10 +45,13 @@ processing pipeline with live SSE progress.
 │                                                                            (completed → "Generated successfully" + Dismiss)
 ├──────────────────────────────────────────────────────────────────────────┤
 │ APPLICATION                                                            │
-│  Status [Recommended ▾]    Applied at [ 2026-08-11 ]                     │
-│  FOLLOW-UPS                                                              │
-│  ☑ Follow up after interview · Sep 1, 2026                        [🗑]   │
-│  [ Note (e.g. follow up after interview) ][ date ] [Add]                 │
+│  Status [ Recommended ▾]                                              │
+│  APPLICATION TIMELINE                                                  │
+│  [ Recommended ] [ 2026-08-11 09:00 ▾ ]                         [🗑]   │
+│  [ Preparing   ] [ 2026-08-12 14:30 ▾ ]                         [🗑]   │
+│  FOLLOW-UPS                                                            │
+│  ☑ Follow up after interview · Sep 1, 2026                      [🗑]   │
+│  [ Note (e.g. follow up after interview) ][ date ] [Add]               │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ROADMAP                                                        [⚡ Gen]│
 │  No roadmap yet. Generate a step-by-step job-preparation roadmap        │
@@ -104,7 +107,7 @@ app/jobs/[job_id]/application/page.tsx        (dynamic route, first dynamic rout
         │   ├── WorkspaceHeader         → back link, identity, status/recommendation badges, scores
         │   ├── GenerationProgress      → SSE generation status card
         │   ├── ApplicationSection      → titled card wrapper
-        │   ├── ApplicationTracker      → status select, applied date, follow-ups
+│         ├── ApplicationTracker      → status select, status timeline, follow-ups
 │         ├── RoadmapSection          → roadmap state + brief overview + generate/regenerate/delete
         │   └── ApplicationDocuments    → resume / cover letter cards
         └── hooks/useApplicationGeneration → SSE subscription for the application
@@ -139,8 +142,8 @@ new roadmap/document appears; the card shows the result and a **Dismiss** button
 | Element | Behavior |
 | ------- | -------- |
 | Back to Job | `router.push('/jobs?job={id}')`; the Jobs page opens the detail drawer for that job. |
-| Status select | `PATCH /api/applications/{id}` with the chosen status; list: recommended, preparing, ready_to_apply, applied, interview, offer, accepted, rejected, withdrawn. |
-| Applied at | Native date input; `PATCH` with `applied_at` (or `null` to clear). |
+| Status select | `PATCH /api/applications/{id}` with the chosen status; list: recommended, preparing, ready_to_apply, applied, interview, offer, accepted, rejected, withdrawn. The change is recorded in the status timeline (time = now). |
+| Status timeline | Each status node shows its time in an editable `datetime-local` input (`PATCH /api/applications/timeline/{id}`); a trash icon deletes the node (`DELETE /api/applications/timeline/{id}`). See `application-tracker.md`. |
 | Follow-ups | Add (note + optional date), toggle done, delete — see `application-tracker.md`. |
 | Roadmap Generate | `POST /api/applications/{id}/roadmap/generate` → 202 (`artifact="roadmap"`), SSE progress, roadmap refetch on completion. Label becomes **Regenerate** once a roadmap exists. |
 | Roadmap Overview | When a roadmap exists the section shows a brief overview (title, goal, overall progress, first 5 milestones with status/priority/task progress) — see `roadmaps/roadmap-application-overview.md`. |
