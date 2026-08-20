@@ -255,8 +255,8 @@ class PendingCompanyRepository(IPendingRepository):
     def _to_dict(m: CompanyModel) -> dict:
         return {
             'id': m.id,
-            'input_text': m.notes or '[]',
-            'notes': m.notes or '[]',
+            'input_text': m.input_text or '[]',
+            'notes': m.input_text or '[]',
             'links': m.links or '[]',
             'source': m.source or 'web',
             'input_type': m.input_type or 'url',
