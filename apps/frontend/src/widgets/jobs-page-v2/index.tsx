@@ -12,6 +12,7 @@ import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDial
 import { toast } from 'sonner'
 import { getSearchParam, setSearchParam } from '@/shared/lib/url'
 import { readClipboardUrl } from '@/shared/lib/clipboard'
+import { DropJobOverlay } from '@/features/jobs-v2/components/DropJobOverlay'
 
 const JobsPageContent = dynamic(
   () => import('@/features/jobs-v2/components/JobsPage').then(m => ({ default: m.JobsPage })),
@@ -53,6 +54,11 @@ function JobsPageV2Adapter() {
 
   const openAddJob = useCallback(async () => {
     const url = await readClipboardUrl()
+    setAddJobClipboardUrl(url)
+    setAddJobDrawerOpen(true)
+  }, [])
+
+  const openAddJobWithUrl = useCallback((url: string) => {
     setAddJobClipboardUrl(url)
     setAddJobDrawerOpen(true)
   }, [])
@@ -139,72 +145,75 @@ function JobsPageV2Adapter() {
   }, [detailJobId])
 
   return (
-    <div className="flex flex-col h-full">
-      <JobsPageContent
-        items={items}
-        total={total}
-        loadedCount={loadedCount}
-        isLoading={isLoading}
-        isFetchingNextPage={isFetchingNextPage}
-        hasNextPage={hasNextPage}
-        onFetchNextPage={fetchNextPage}
-        isError={isError}
-        error={error}
-        onRefetch={refetch}
-        isRefetching={isRefetching}
-        query={query}
-        onQueryChange={setQuery}
-        sort={sort}
-        onSortChange={handleHeaderSort}
-        order={order}
-        filterProcessingStatus={filterProcessingStatus}
-        onFilterProcessingStatusChange={setFilterProcessingStatus}
-        filterLocation={filterLocation}
-        onFilterLocationChange={setFilterLocation}
-        filterRemote={filterRemote}
-        onFilterRemoteChange={setFilterRemote}
-        filterVisa={filterVisa}
-        onFilterVisaChange={setFilterVisa}
-        filterPinned={filterPinned}
-        onFilterPinnedChange={setFilterPinned}
-        filterRecommendation={filterRecommendation}
-        onFilterRecommendationChange={setFilterRecommendation}
-        filterTrackingStatus={filterTrackingStatus}
-        onFilterTrackingStatusChange={setFilterTrackingStatus}
-        filterCreatedDate={filterCreatedDate}
-        onFilterCreatedDateChange={setFilterCreatedDate}
-        activeFilterCount={activeFilterCount}
-        onClearFilters={clearFilters}
-        onProcessV2={handleProcessV2}
-        onReprocess={handleProcessV2}
-        onViewDetails={handleViewDetails}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onTogglePinned={handleTogglePinned}
-        onRetry={handleRetry}
-        onCancel={handleCancel}
-        onApplication={handleOpenApplication}
-        showPinnedColumn={showPinnedColumn}
-        onTogglePinnedColumn={setShowPinnedColumn}
-        showRowNumberColumn={showRowNumberColumn}
-        onToggleRowNumberColumn={setShowRowNumberColumn}
-        isProcessing={processMutation.isPending}
-        queueDrawerOpen={queueDrawerOpen}
-        onQueueDrawerOpenChange={setQueueDrawerOpen}
-        queueReloadKey={queueReloadKey}
-        addJobDrawerOpen={addJobDrawerOpen}
-        onAddJobDrawerOpenChange={setAddJobDrawerOpen}
-        onOpenAddJob={openAddJob}
-        addJobClipboardUrl={addJobClipboardUrl}
-        onJobQueued={() => setQueueReloadKey(k => k + 1)}
-        detailJobId={detailJobId}
-        onDetailJobIdChange={setDetailJobId}
-        editJobId={editJobId}
-        onEditJobIdChange={setEditJobId}
-        processingCount={processingCount}
-      />
-      <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
-    </div>
+    <DropJobOverlay onDropUrl={openAddJobWithUrl}>
+      <div className="flex flex-col h-full">
+        <JobsPageContent
+          items={items}
+          total={total}
+          loadedCount={loadedCount}
+          isLoading={isLoading}
+          isFetchingNextPage={isFetchingNextPage}
+          hasNextPage={hasNextPage}
+          onFetchNextPage={fetchNextPage}
+          isError={isError}
+          error={error}
+          onRefetch={refetch}
+          isRefetching={isRefetching}
+          query={query}
+          onQueryChange={setQuery}
+          sort={sort}
+          onSortChange={handleHeaderSort}
+          order={order}
+          filterProcessingStatus={filterProcessingStatus}
+          onFilterProcessingStatusChange={setFilterProcessingStatus}
+          filterLocation={filterLocation}
+          onFilterLocationChange={setFilterLocation}
+          filterRemote={filterRemote}
+          onFilterRemoteChange={setFilterRemote}
+          filterVisa={filterVisa}
+          onFilterVisaChange={setFilterVisa}
+          filterPinned={filterPinned}
+          onFilterPinnedChange={setFilterPinned}
+          filterRecommendation={filterRecommendation}
+          onFilterRecommendationChange={setFilterRecommendation}
+          filterTrackingStatus={filterTrackingStatus}
+          onFilterTrackingStatusChange={setFilterTrackingStatus}
+          filterCreatedDate={filterCreatedDate}
+          onFilterCreatedDateChange={setFilterCreatedDate}
+          activeFilterCount={activeFilterCount}
+          onClearFilters={clearFilters}
+          onProcessV2={handleProcessV2}
+          onReprocess={handleProcessV2}
+          onViewDetails={handleViewDetails}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onTogglePinned={handleTogglePinned}
+          onRetry={handleRetry}
+          onCancel={handleCancel}
+          onApplication={handleOpenApplication}
+          showPinnedColumn={showPinnedColumn}
+          onTogglePinnedColumn={setShowPinnedColumn}
+          showRowNumberColumn={showRowNumberColumn}
+          onToggleRowNumberColumn={setShowRowNumberColumn}
+          isProcessing={processMutation.isPending}
+          queueDrawerOpen={queueDrawerOpen}
+          onQueueDrawerOpenChange={setQueueDrawerOpen}
+          queueReloadKey={queueReloadKey}
+          addJobDrawerOpen={addJobDrawerOpen}
+          onAddJobDrawerOpenChange={setAddJobDrawerOpen}
+          onOpenAddJob={openAddJob}
+          onAddJobUrl={openAddJobWithUrl}
+          addJobClipboardUrl={addJobClipboardUrl}
+          onJobQueued={() => setQueueReloadKey(k => k + 1)}
+          detailJobId={detailJobId}
+          onDetailJobIdChange={setDetailJobId}
+          editJobId={editJobId}
+          onEditJobIdChange={setEditJobId}
+          processingCount={processingCount}
+        />
+        <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
+      </div>
+    </DropJobOverlay>
   )
 }
 

@@ -11,6 +11,8 @@ import { JobDetailDrawer } from './JobDetailDrawer'
 import { JobEditDrawer } from './JobEditDrawer'
 import CreateEntityDrawer, { type CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
 import { useCreateJob } from '@/features/jobs-v2/hooks/useCreateJob'
+import { useJobTimeline } from '@/features/jobs-v2/hooks/useJobTimeline'
+import { JobTimeline } from './JobTimeline'
 import { toast } from 'sonner'
 
 interface JobsPageProps {
@@ -68,6 +70,7 @@ interface JobsPageProps {
   addJobDrawerOpen: boolean
   onAddJobDrawerOpenChange: (open: boolean) => void
   onOpenAddJob: () => void
+  onAddJobUrl: (url: string) => void
   addJobClipboardUrl: string | null
   onJobQueued?: () => void
   detailJobId: string | null
@@ -95,12 +98,13 @@ export function JobsPage({
   showPinnedColumn = true, onTogglePinnedColumn,
   showRowNumberColumn = false, onToggleRowNumberColumn,
   queueDrawerOpen, onQueueDrawerOpenChange, queueReloadKey,
-  addJobDrawerOpen, onAddJobDrawerOpenChange, onOpenAddJob, addJobClipboardUrl, onJobQueued,
+  addJobDrawerOpen, onAddJobDrawerOpenChange, onOpenAddJob, onAddJobUrl, addJobClipboardUrl, onJobQueued,
   detailJobId, onDetailJobIdChange,
   editJobId, onEditJobIdChange,
   processingCount,
 }: JobsPageProps) {
   const { createJob, submitting, error: createError, existingJobId, existingJob, clearError } = useCreateJob()
+  const timeline = useJobTimeline()
 
   const handleCreateJob = useCallback(async (data: CreateEntityFormData) => {
     const result = await createJob({
@@ -130,6 +134,7 @@ export function JobsPage({
           processingCount={processingCount}
           onOpenQueue={() => onQueueDrawerOpenChange(true)}
           onAddJob={onOpenAddJob}
+          onAddJobUrl={onAddJobUrl}
           onRefresh={onRefetch}
           isRefreshing={isRefetching}
         />
@@ -154,57 +159,63 @@ export function JobsPage({
         processingCount={processingCount}
         onOpenQueue={() => onQueueDrawerOpenChange(true)}
         onAddJob={onOpenAddJob}
+        onAddJobUrl={onAddJobUrl}
         onRefresh={onRefetch}
         isRefreshing={isRefetching}
       />
-      <JobsToolbar
-        query={query}
-        onQueryChange={onQueryChange}
-        filterProcessingStatus={filterProcessingStatus}
-        onFilterProcessingStatusChange={onFilterProcessingStatusChange}
-        filterLocation={filterLocation}
-        onFilterLocationChange={onFilterLocationChange}
-        filterRemote={filterRemote}
-        onFilterRemoteChange={onFilterRemoteChange}
-        filterVisa={filterVisa}
-        onFilterVisaChange={onFilterVisaChange}
-        filterPinned={filterPinned}
-        onFilterPinnedChange={onFilterPinnedChange}
-        filterRecommendation={filterRecommendation}
-        onFilterRecommendationChange={onFilterRecommendationChange}
-        filterTrackingStatus={filterTrackingStatus}
-        onFilterTrackingStatusChange={onFilterTrackingStatusChange}
-        filterCreatedDate={filterCreatedDate}
-        onFilterCreatedDateChange={onFilterCreatedDateChange}
-        activeFilterCount={activeFilterCount}
-        onClearFilters={onClearFilters}
-        showPinnedColumn={showPinnedColumn}
-        onTogglePinnedColumn={onTogglePinnedColumn}
-        showRowNumberColumn={showRowNumberColumn}
-        onToggleRowNumberColumn={onToggleRowNumberColumn}
-      />
-      <JobsTable
-        items={items}
-        total={total}
-        loadedCount={loadedCount}
-        isLoading={isLoading}
-        isFetchingNextPage={isFetchingNextPage}
-        hasNextPage={hasNextPage}
-        onFetchNextPage={onFetchNextPage}
-        onProcessV2={onProcessV2}
-        onViewDetails={onViewDetails}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onTogglePinned={onTogglePinned}
-        onRetry={onRetry}
-        onCancel={onCancel}
-        onApplication={onApplication}
-        showPinnedColumn={showPinnedColumn}
-        showRowNumberColumn={showRowNumberColumn}
-        sort={sort}
-        order={order}
-        onSortChange={onSortChange}
-      />
+      <div className="flex flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+          <JobsToolbar
+            query={query}
+            onQueryChange={onQueryChange}
+            filterProcessingStatus={filterProcessingStatus}
+            onFilterProcessingStatusChange={onFilterProcessingStatusChange}
+            filterLocation={filterLocation}
+            onFilterLocationChange={onFilterLocationChange}
+            filterRemote={filterRemote}
+            onFilterRemoteChange={onFilterRemoteChange}
+            filterVisa={filterVisa}
+            onFilterVisaChange={onFilterVisaChange}
+            filterPinned={filterPinned}
+            onFilterPinnedChange={onFilterPinnedChange}
+            filterRecommendation={filterRecommendation}
+            onFilterRecommendationChange={onFilterRecommendationChange}
+            filterTrackingStatus={filterTrackingStatus}
+            onFilterTrackingStatusChange={onFilterTrackingStatusChange}
+            filterCreatedDate={filterCreatedDate}
+            onFilterCreatedDateChange={onFilterCreatedDateChange}
+            activeFilterCount={activeFilterCount}
+            onClearFilters={onClearFilters}
+            showPinnedColumn={showPinnedColumn}
+            onTogglePinnedColumn={onTogglePinnedColumn}
+            showRowNumberColumn={showRowNumberColumn}
+            onToggleRowNumberColumn={onToggleRowNumberColumn}
+          />
+          <JobsTable
+            items={items}
+            total={total}
+            loadedCount={loadedCount}
+            isLoading={isLoading}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
+            onFetchNextPage={onFetchNextPage}
+            onProcessV2={onProcessV2}
+            onViewDetails={onViewDetails}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onTogglePinned={onTogglePinned}
+            onRetry={onRetry}
+            onCancel={onCancel}
+            onApplication={onApplication}
+            showPinnedColumn={showPinnedColumn}
+            showRowNumberColumn={showRowNumberColumn}
+            sort={sort}
+            order={order}
+            onSortChange={onSortChange}
+          />
+        </div>
+        <JobTimeline days={timeline.data?.days ?? []} isLoading={timeline.isLoading} />
+      </div>
       <ProcessingDrawer
         open={queueDrawerOpen}
         onOpenChange={onQueueDrawerOpenChange}
