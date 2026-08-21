@@ -1,5 +1,6 @@
 """SQLAlchemy-based job repository implementation."""
 
+import json
 from typing import Any
 from datetime import datetime, UTC, timedelta
 
@@ -198,6 +199,22 @@ class SQLAlchemyJobRepository(IJobRepository):
             "apply_now": apply_now or 0,
             "remote": remote or 0,
         }
+
+    def count_created_by_day(self) -> list[dict[str, Any]]:
+        """Return ``{date: "YYYY-MM-DD", count}`` for non-deleted jobs, newest first.
+
+        ``created_at`` is a Text ISO column, so the day key is the first 10
+        characters (``substr``) grouped directly.
+        """
+        day = func.substr(JobModel.created_at, 1, 10)
+        rows = (
+            self._session.query(day.label("date"), func.count(JobModel.id).label("count"))
+            .filter(JobModel.deleted == 0, JobModel.created_at.isnot(None))
+            .group_by(day)
+            .order_by(day.desc())
+            .all()
+        )
+        return [{"date": r.date, "count": r.count} for r in rows]
 
     def delete_by_id(self, uuid: str) -> bool:
         """Hard-delete a job by UUID and its related tables.
@@ -646,6 +663,8 @@ class SQLAlchemyJobRepository(IJobRepository):
         success_score_min: int | None = None,
         success_score_max: int | None = None,
         pinned: bool | None = None,
+        dismissed: bool | None = None,
+        tags: list[str] | None = None,
         recommendation: str | None = None,
         created_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
@@ -704,6 +723,14 @@ class SQLAlchemyJobRepository(IJobRepository):
 
         if pinned is not None:
             q = q.filter(JobModel.pinned == (1 if pinned else 0))
+
+        if dismissed is not None:
+            q = q.filter(JobModel.dismissed == (1 if dismissed else 0))
+
+        if tags:
+            import json as _json
+            for tag in tags:
+                q = q.filter(JobModel.tags.contains(f'"{tag}"'))
 
         if recommendation:
             q = q.filter(JobModel.id.in_(
@@ -902,6 +929,26 @@ class SQLAlchemyJobRepository(IJobRepository):
         if not model:
             return False
         model.pinned = 1 if pinned else 0
+        model.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        self._session.commit()
+        return True
+
+    def set_dismissed(self, job_id: str, dismissed: bool) -> bool:
+        """Set or clear the dismissed flag on a job. Returns True if the job exists."""
+        model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
+        if not model:
+            return False
+        model.dismissed = 1 if dismissed else 0
+        model.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        self._session.commit()
+        return True
+
+    def set_tags(self, job_id: str, tags: list[str]) -> bool:
+        """Set the tags on a job. Returns True if the job exists."""
+        model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
+        if not model:
+            return False
+        model.tags = json.dumps(tags, ensure_ascii=False)
         model.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self._session.commit()
         return True

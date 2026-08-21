@@ -52,18 +52,25 @@ The user should be able to:
 
 # Opening the Drawer
 
-The drawer can be opened two ways:
+The drawer can be opened four ways:
 
 | Method                       | Description                                                    |
 | ---------------------------- | -------------------------------------------------------------- |
 | **Add Job button**           | Click the header button (shows an `N` shortcut hint).          |
 | **`N` keyboard shortcut**    | Press `N` anywhere on the Jobs page (jobs-only). Ignored while typing inside an input, textarea, select, or content-editable element, and when a modifier key (Ctrl/Cmd/Alt/Meta) is held. |
+| **Drag and drop**            | Drag a link from another tab onto the Add Job button or anywhere on the page (see `flows/jobs/drag-drop-job.md`). |
+| **Ctrl/Cmd+V paste**         | Copy a job link anywhere, then press Ctrl+V / Cmd+V on the Jobs page with no editable element focused — the clipboard payload arrives via the `paste` event, so no `clipboard-read` permission is needed (see `flows/jobs/paste-to-add-job.md`). |
 
 When the drawer opens, a URL copied to the clipboard is auto-filled into the
 Job Post URL field (see Clipboard Prefill under Job Post URL). The clipboard is
 read **inside the opening gesture** (the Add Job click or the `N` keypress), so
 the `clipboard-read` permission is satisfied and the URL fills on the **first**
-open.
+open. The drag-and-drop and Ctrl/Cmd+V entry points bypass the permission
+entirely: they hand the captured URL straight to the drawer as a prop.
+
+The **Job Post URL** input is **auto-focused** when the drawer opens, so the user
+can type or press **Enter** (add & queue) immediately without clicking into the
+field.
 
 ---
 
@@ -164,6 +171,11 @@ of requiring the user to close and reopen the drawer.
 This makes the common "copy a job posting → press N → Add" flow effectively
 three steps. An empty or non-URL clipboard is ignored silently (the field opens
 empty).
+
+The drag-and-drop and Ctrl/Cmd+V entry points skip this clipboard read: their
+URL is already known when the drawer is told to open, and it flows in through
+the same `clipboardUrl` prop. Pasting (or dropping) while the drawer is already
+open replaces the field value through the same reactive path.
 
 Because the clipboard is read fresh on **every** open, the prefill is **not**
 suppressed after an Add — if the user copies another job link and opens the
@@ -340,6 +352,7 @@ Rules
 | ------------- | --------------------------------------------------------------- |
 | Add           | Add a Job to the Jobs list                                      |
 | Add & Queue   | Add a Job and immediately place it into the Processing Queue    |
+| Enter (in Job Post URL or Job Title) | Shortcut for **Add & Queue** — adds the job and starts processing. |
 | Cancel        | Close the Drawer                                                |
 | Add Link      | Append a new Additional Link                                    |
 | Remove Link   | Remove one Additional Link                                      |
@@ -555,6 +568,10 @@ Live progress streamed over SSE
 - Screen-reader labels
 - Required fields announced
 - Validation messages associated with their inputs
+- **Enter shortcut**: pressing Enter while the **Job Post URL** or **Job Title**
+  input is focused adds the job and immediately queues processing (same as the
+  "Add & Queue" button). The shortcut is ignored when the URL is invalid or empty.
+  Note: Enter inside an open "Add Link" input submits that link (not the job).
 
 ---
 

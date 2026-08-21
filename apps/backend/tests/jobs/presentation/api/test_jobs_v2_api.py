@@ -484,6 +484,124 @@ class TestJobPinnedV2API:
         assert resp.status_code == 404
 
 
+class TestJobDismissedV2API:
+    def test_list_item_carries_dismissed_default_false(self, client, test_db):
+        _create_job(test_db, id=1, title="Engineer")
+
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["dismissed"] is False
+
+    def test_default_list_includes_dismissed(self, client, test_db):
+        _create_job(test_db, id=1, title="Visible")
+        _create_job(test_db, id=2, title="Dismissed", dismissed=1)
+
+        data = client.get("/api/jobs/list").json()
+        titles = [i["title"] for i in data["items"]]
+        assert "Visible" in titles
+        assert "Dismissed" in titles
+
+    def test_filter_show_only_dismissed(self, client, test_db):
+        _create_job(test_db, id=1, title="Visible")
+        _create_job(test_db, id=2, title="Dismissed", dismissed=1)
+
+        data = client.get("/api/jobs/list?dismissed=true").json()
+        assert [i["title"] for i in data["items"]] == ["Dismissed"]
+        assert all(i["dismissed"] for i in data["items"])
+
+    def test_set_dismissed_persists_and_toggles(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Recommended")
+
+        resp = client.put(f"/api/jobs/{job.id}/dismissed", json={"dismissed": True})
+        assert resp.status_code == 200
+        assert resp.json() == {"dismissed": True}
+
+        # Visible in the default list with dismissed flag.
+        data = client.get("/api/jobs/list").json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["dismissed"] is True
+
+        resp = client.put(f"/api/jobs/{job.id}/dismissed", json={"dismissed": False})
+        assert resp.status_code == 200
+        data = client.get("/api/jobs/list").json()
+        assert [i["title"] for i in data["items"]] == ["Recommended"]
+        assert data["items"][0]["dismissed"] is False
+
+    def test_set_dismissed_with_note_appends_to_job_notes(self, client, test_db):
+        job = _create_job(test_db, id=1, title="To Dismiss")
+
+        resp = client.put(f"/api/jobs/{job.id}/dismissed", json={"dismissed": True, "note": "Not relevant to my search"})
+        assert resp.status_code == 200
+
+        detail = client.get(f"/api/jobs/{job.id}").json()
+        assert len(detail["notes"]) == 1
+        assert detail["notes"][0]["content"] == "Not relevant to my search"
+
+    def test_set_dismissed_without_note_does_not_add_note(self, client, test_db):
+        job = _create_job(test_db, id=1, title="To Dismiss")
+
+        resp = client.put(f"/api/jobs/{job.id}/dismissed", json={"dismissed": True})
+        assert resp.status_code == 200
+
+        detail = client.get(f"/api/jobs/{job.id}").json()
+        assert detail["notes"] == []
+
+    def test_set_dismissed_missing_job_returns_404(self, client, test_db):
+        resp = client.put("/api/jobs/does-not-exist/dismissed", json={"dismissed": True})
+        assert resp.status_code == 404
+
+
+class TestJobTagsV2API:
+    def test_list_item_carries_empty_tags(self, client, test_db):
+        _create_job(test_db, id=1, title="Engineer")
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["tags"] == []
+
+    def test_set_tags_persists(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer")
+        resp = client.put(f"/api/jobs/{job.id}/tags", json={"tags": ["python", "remote"]})
+        assert resp.status_code == 200
+        assert resp.json() == {"tags": ["python", "remote"]}
+
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["tags"] == ["python", "remote"]
+
+    def test_set_tags_replaces_existing(self, client, test_db):
+        job = _create_job(test_db, id=1, title="Engineer")
+        client.put(f"/api/jobs/{job.id}/tags", json={"tags": ["python", "remote"]})
+        client.put(f"/api/jobs/{job.id}/tags", json={"tags": ["java"]})
+
+        data = client.get("/api/jobs/list").json()
+        assert data["items"][0]["tags"] == ["java"]
+
+    def test_filter_by_single_tag(self, client, test_db):
+        j1 = _create_job(test_db, id=1, title="Python Dev")
+        j2 = _create_job(test_db, id=2, title="Java Dev")
+        client.put(f"/api/jobs/{j1.id}/tags", json={"tags": ["python"]})
+        client.put(f"/api/jobs/{j2.id}/tags", json={"tags": ["java"]})
+
+        data = client.get("/api/jobs/list?tags=python").json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["title"] == "Python Dev"
+
+    def test_filter_by_multiple_tags_intersects(self, client, test_db):
+        j1 = _create_job(test_db, id=1, title="A")
+        j2 = _create_job(test_db, id=2, title="B")
+        j3 = _create_job(test_db, id=3, title="C")
+        client.put(f"/api/jobs/{j1.id}/tags", json={"tags": ["python", "remote"]})
+        client.put(f"/api/jobs/{j2.id}/tags", json={"tags": ["python"]})
+        client.put(f"/api/jobs/{j3.id}/tags", json={"tags": ["remote"]})
+
+        data = client.get("/api/jobs/list?tags=python,remote").json()
+        titles = [i["title"] for i in data["items"]]
+        assert "A" in titles
+        assert "B" not in titles
+        assert "C" not in titles
+
+    def test_set_tags_missing_job_returns_404(self, client, test_db):
+        resp = client.put("/api/jobs/does-not-exist/tags", json={"tags": ["x"]})
+        assert resp.status_code == 404
+
+
 class TestJobRecommendationV2API:
     def test_list_item_carries_recommendation_field(self, client, test_db):
         _create_job(test_db, id=1, title="Engineer")
@@ -768,3 +886,33 @@ class TestJobCompanyV2API:
         job = _create_job(test_db, id=1, title="Engineer")
         resp = client.put(f"/api/jobs/{job.id}/company", json={"company_id": "does-not-exist"})
         assert resp.status_code == 404
+
+
+class TestJobTimeline:
+    def test_returns_per_day_counts_newest_first(self, client, test_db):
+        _create_job(test_db, url="https://a.com/1", created_at="2026-08-19T09:00:00.000Z")
+        _create_job(test_db, url="https://a.com/2", created_at="2026-08-19T10:00:00.000Z")
+        _create_job(test_db, url="https://a.com/3", created_at="2026-08-18T11:00:00.000Z")
+
+        resp = client.get("/api/jobs/timeline")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["days"] == [
+            {"date": "2026-08-19", "count": 2},
+            {"date": "2026-08-18", "count": 1},
+        ]
+        assert body["total"] == 3
+
+    def test_excludes_deleted_jobs(self, client, test_db):
+        _create_job(test_db, url="https://a.com/1", created_at="2026-08-19T09:00:00.000Z")
+        _create_job(test_db, url="https://a.com/2", created_at="2026-08-19T10:00:00.000Z", deleted=1)
+
+        resp = client.get("/api/jobs/timeline").json()
+        assert resp["total"] == 1
+        assert resp["days"] == [{"date": "2026-08-19", "count": 1}]
+
+    def test_empty_timeline(self, client):
+        resp = client.get("/api/jobs/timeline")
+        assert resp.status_code == 200
+        assert resp.json()["days"] == []
+        assert resp.json()["total"] == 0

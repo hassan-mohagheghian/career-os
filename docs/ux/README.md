@@ -35,6 +35,7 @@ docs/ux/
 │   │   ├── workspace.md         Job Application Workspace page (header, sections, SSE progress)
 │   │   ├── application-tracker.md  Status select, status timeline (edit/delete nodes), follow-ups
 │   │   └── application-documents.md  Tailored resume / cover letter cards (incl. Download PDF)
+│   │   └── application-notes.md  Free-text activity notes (add / delete, newest first)
 │   ├── placeholders/
 │   │   └── placeholders.md      Placeholders page (personal-detail form)
 │   ├── roadmaps/
@@ -58,13 +59,18 @@ docs/ux/
 │   │   ├── relate-company.md  Related companies: main/alias relations, Relate Company dialog
 │   │   ├── add-company.md     Add Company drawer (shared Create Entity, company mode)
 │   │   ├── edit-company.md    Edit Company drawer
+│   ├── cities/
+│   │   └── page.md            Cities page (read-only catalog, sortable columns, infinite scroll)
 │   ├── candidate/
 │   │   └── profile-import.md  Candidate Profile Import page (sources, analyze, review)
 │   └── jobs/
 │       ├── page.md            Jobs page (list, toolbar, column toggles, infinite scroll)
+│       ├── job-created-timeline.md  Jobs created-per-day side panel (month dividers, own scroll)
 │       ├── tracking.md        Job tracking status (application funnel column + filter)
 │       ├── job-row.md         Job row columns and scores
 │       ├── pinned-job.md      Pin a job for attention (replaces favorite)
+│       ├── dismissed-job.md  Hide a job from the default list
+│       ├── job-tags.md       User-defined tags with multi-select filter
 │       ├── add-job.md         Add Job drawer (shared Create Entity, job mode)
 │       ├── edit-job.md        Edit Job drawer
 │       ├── delete-job.md      Delete Job
@@ -101,6 +107,8 @@ docs/ux/
     │   ├── process-job.md     Start processing
     │   ├── process-job-live.md
     │   ├── processing-queue.md
+    │   ├── drag-drop-job.md   Import by dragging a link onto the page
+    │   ├── paste-to-add-job.md  Import by pressing Ctrl/Cmd+V with a copied link
     │   └── ...
     ├── rules/
         └── reorder-rules.md   Move up/down + drag reorder, priority math, clamping
@@ -116,6 +124,8 @@ The current product focus is the **Jobs** workspace:
 
 - Browse jobs with infinite scrolling (`docs/ux/features/jobs/page.md`).
 - Import jobs via the Add Job drawer (`docs/ux/features/jobs/add-job.md`).
+- Import a job by dragging a link into the page (`docs/ux/flows/jobs/drag-drop-job.md`).
+- Import a job by pressing Ctrl/Cmd+V with a copied link (`docs/ux/flows/jobs/paste-to-add-job.md`).
 - Edit job core data (`docs/ux/features/jobs/edit-job.md`).
 - Delete a job and all its processing data (`docs/ux/features/jobs/delete-job.md`).
 - Monitor AI processing through the Processing Queue (`docs/ux/features/jobs/processing-queue.md`, `docs/ux/flows/jobs/processing-queue.md`).

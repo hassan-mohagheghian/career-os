@@ -38,6 +38,9 @@ api_router.include_router(jobs_v2_router, prefix="/jobs", tags=["jobs-v2"])
 from companies.presentation.api.companies_v2_router import router as companies_v2_router
 api_router.include_router(companies_v2_router, prefix="/companies", tags=["companies-v2"])
 
+from cities.presentation.api.cities_router import router as cities_router
+api_router.include_router(cities_router, prefix="/cities", tags=["cities"])
+
 # ── Feature routers ──────────────────────────────────────────────
 
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])

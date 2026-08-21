@@ -62,6 +62,8 @@ The prefill is **not** suppressed after an Add — the clipboard is read fresh o
 every open, so if the user copies another link and opens the drawer again, the
 new link fills immediately (no need to open twice).
 
+The **Primary Link** input is **auto-focused** when the drawer opens.
+
 A title can be selected from the preset chips **Website** and **LinkedIn**.
 Clicking a chip toggles it on/off. Only one primary title can be active.
 

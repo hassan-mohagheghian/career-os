@@ -81,6 +81,24 @@ class ApplicationFollowUpDeleted(DomainEvent):
 
 
 @dataclass(frozen=True)
+class ApplicationNoteAdded(DomainEvent):
+    """A free-text activity note was added to an application."""
+
+    application_id: str = ""
+    note_id: str = ""
+    event_type: str = "application.note.added"
+
+
+@dataclass(frozen=True)
+class ApplicationNoteDeleted(DomainEvent):
+    """An application note was removed."""
+
+    application_id: str = ""
+    note_id: str = ""
+    event_type: str = "application.note.deleted"
+
+
+@dataclass(frozen=True)
 class ApplicationDocumentGenerated(DomainEvent):
     """An application document version was persisted."""
 
@@ -120,6 +138,8 @@ __all__ = [
     "ApplicationFollowUpAdded",
     "ApplicationFollowUpUpdated",
     "ApplicationFollowUpDeleted",
+    "ApplicationNoteAdded",
+    "ApplicationNoteDeleted",
     "ApplicationDocumentGenerated",
     "ApplicationDocumentUpdated",
     "ApplicationDocumentDeleted",

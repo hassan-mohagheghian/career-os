@@ -48,7 +48,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Type' },
   { label: 'Location' },
   { label: 'Size' },
-  { label: 'Jobs' },
+  { label: 'Jobs', field: 'job_count' },
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
   { label: 'Status' },
   { label: 'Updated', field: 'updated_at' },

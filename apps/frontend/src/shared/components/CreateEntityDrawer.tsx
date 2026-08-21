@@ -299,6 +299,13 @@ export default function CreateEntityDrawer({
     onSubmit(buildData(queue));
   };
 
+  const handleJobEnterKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSubmit(true);
+    }
+  };
+
   const handleOpenChange = (next: boolean) => {
     onOpenChange(next);
     if (!next) {
@@ -356,6 +363,7 @@ export default function CreateEntityDrawer({
                       !primaryUrl.trim().startsWith("http") &&
                       "border-destructive",
                   )}
+                  autoFocus
                 />
                 {primaryUrl && !primaryUrl.trim().startsWith("http") && (
                   <p className="text-xs text-destructive mt-1">
@@ -420,6 +428,8 @@ export default function CreateEntityDrawer({
                     "w-full",
                     urlInput && !urlValid && "border-destructive",
                   )}
+                  onKeyDown={handleJobEnterKey}
+                  autoFocus
                 />
                 {urlInput && !urlValid && (
                   <p className="text-xs text-destructive mt-1">
@@ -443,6 +453,7 @@ export default function CreateEntityDrawer({
                   value={titleInput}
                   onChange={(e) => setTitleInput(e.target.value)}
                   placeholder="Senior Backend Engineer"
+                  onKeyDown={handleJobEnterKey}
                 />
               </div>
 

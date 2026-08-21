@@ -68,6 +68,7 @@ class JobAnalysisGraph:
         llm_service: Any | None = None,
         event_publisher: Any | None = None,
         candidate_profile_repo: Any | None = None,
+        city_service: Any | None = None,
     ):
         self._job_service = job_service
         self._skills = skill_repo
@@ -81,6 +82,7 @@ class JobAnalysisGraph:
         self._llm = llm_service
         self._events = event_publisher
         self._profiles = candidate_profile_repo
+        self._city_service = city_service
         self._graph = self._build()
 
     def _build(self):
@@ -96,7 +98,7 @@ class JobAnalysisGraph:
         graph.add_node(NODE_SCORE, ScoreNode(self._events))
         graph.add_node(NODE_RECOMMEND, RecommendNode(self._events))
         graph.add_node(NODE_SUMMARIZE, SummarizeNode(self._events))
-        graph.add_node(NODE_PERSIST, PersistNode(self._jobs, self._summaries, self._analysis, self._events))
+        graph.add_node(NODE_PERSIST, PersistNode(self._jobs, self._summaries, self._analysis, self._events, self._city_service))
         graph.add_node(NODE_PERSIST_SKILLS, PersistSkillsNode(self._skills, self._events))
         graph.add_node(NODE_LINK_COMPANY, LinkCompanyNode(self._matching, self._jobs, self._job_companies, self._events))
         graph.add_node(NODE_ANALYSIS_READY, AnalysisReadyNode(self._events))

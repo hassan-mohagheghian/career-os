@@ -113,7 +113,8 @@ class SQLAlchemyCandidateProfileRepository(ICandidateProfileRepository):
         )
         if not model:
             return None
-        for field in ["version", "name", "title", "headline", "summary", "location"]:
+        for field in ["version", "name", "title", "headline", "summary", "location",
+                      "city", "country", "original_text", "address", "city_id"]:
             if field in data:
                 setattr(model, field, data[field])
         model.updated_at = _now_iso()

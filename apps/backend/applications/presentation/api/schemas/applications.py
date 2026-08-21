@@ -38,6 +38,17 @@ class UpdateFollowUpRequest(BaseModel):
     completed: bool | None = None
 
 
+class CreateNoteRequest(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        if not str(v).strip():
+            raise ValueError("content must not be empty")
+        return v.strip()
+
+
 class UpdateStatusEventRequest(BaseModel):
     changed_at: str | None = None
 
@@ -76,6 +87,14 @@ class ApplicationFollowUpSchema(BaseModel):
         return self.completed_at is not None
 
 
+class ApplicationNoteSchema(BaseModel):
+    id: str
+    application_id: str
+    content: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
 class ApplicationDocumentSchema(BaseModel):
     id: str
     application_id: str
@@ -95,6 +114,7 @@ class ApplicationDetailResponse(BaseModel):
     updated_at: str | None = None
     status_timeline: list[ApplicationStatusEventSchema] = Field(default_factory=list)
     follow_ups: list[ApplicationFollowUpSchema] = Field(default_factory=list)
+    notes: list[ApplicationNoteSchema] = Field(default_factory=list)
     documents: list[ApplicationDocumentSchema] = Field(default_factory=list)
 
 
@@ -113,6 +133,7 @@ def build_detail_response(
     follow_ups: list[dict[str, Any]],
     documents: list[dict[str, Any]],
     status_timeline: list[dict[str, Any]] | None = None,
+    notes: list[dict[str, Any]] | None = None,
 ) -> ApplicationDetailResponse:
     return ApplicationDetailResponse(
         id=application["id"],
@@ -123,6 +144,7 @@ def build_detail_response(
         updated_at=application.get("updated_at"),
         status_timeline=[ApplicationStatusEventSchema(**e) for e in (status_timeline or [])],
         follow_ups=[ApplicationFollowUpSchema(**f) for f in follow_ups],
+        notes=[ApplicationNoteSchema(**n) for n in (notes or [])],
         documents=[ApplicationDocumentSchema(**d) for d in documents],
     )
 
@@ -132,10 +154,12 @@ __all__ = [
     "UpdateApplicationRequest",
     "CreateFollowUpRequest",
     "UpdateFollowUpRequest",
+    "CreateNoteRequest",
     "UpdateStatusEventRequest",
     "UpdateDocumentRequest",
     "ApplicationStatusEventSchema",
     "ApplicationFollowUpSchema",
+    "ApplicationNoteSchema",
     "ApplicationDocumentSchema",
     "ApplicationDetailResponse",
     "GenerateResponse",

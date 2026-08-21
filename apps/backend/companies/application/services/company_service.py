@@ -25,10 +25,12 @@ class CompanyService:
         repository: ICompanyRepository,
         intelligence_repository: ICompanyIntelligenceRepository,
         link_repository: ICompanyLinkRepository | None = None,
+        city_service: Any | None = None,
     ):
         self._repository = repository
         self._intelligence = intelligence_repository
         self._links = link_repository
+        self._city_service = city_service
 
     def get_company(self, company_id: str) -> dict[str, Any] | None:
         """Load a company by its UUID.
@@ -115,6 +117,19 @@ class CompanyService:
             "updated_at": now,
         }
         self._repository.update_fields(company_id, **fields)
+
+        if self._city_service is not None:
+            city = fields.get("city") or ""
+            country = fields.get("country") or ""
+            if city or country:
+                city_row = self._city_service.ensure(
+                    city,
+                    country,
+                    original_text=f"{city}, {country}" if city else country,
+                    address=fields.get("headquarters_full") or "",
+                )
+                if city_row is not None:
+                    self._repository.update_fields(company_id, city_id=city_row["id"])
 
         intel_data = {
             "overview": json.dumps(intelligence.get("overview", {}), ensure_ascii=False),

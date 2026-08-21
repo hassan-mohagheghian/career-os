@@ -5,6 +5,7 @@ import { applicationApi } from './api'
 import type {
   ApplicationDocumentType,
   CreateFollowUpInput,
+  CreateNoteInput,
   UpdateApplicationInput,
   UpdateFollowUpInput,
 } from './types'
@@ -102,6 +103,27 @@ export function useDeleteFollowUpMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (followUpId: string) => applicationApi.deleteFollowUp(followUpId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
+    },
+  })
+}
+
+export function useAddNoteMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ applicationId, input }: { applicationId: string; input: CreateNoteInput }) =>
+      applicationApi.addNote(applicationId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
+    },
+  })
+}
+
+export function useDeleteNoteMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (noteId: string) => applicationApi.deleteNote(noteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [APPLICATION_KEY] })
     },

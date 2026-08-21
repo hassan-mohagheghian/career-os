@@ -113,6 +113,7 @@ class CompanyJobRefSchema(BaseModel):
     fit_score: int | None = None
     success_score: int | None = None
     overall_score: int | None = None
+    rank: int | None = None
 
 
 class CompanyIntelligenceSchema(BaseModel):

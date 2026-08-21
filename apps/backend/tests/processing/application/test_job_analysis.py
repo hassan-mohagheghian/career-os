@@ -983,6 +983,47 @@ class TestPersistNode:
         state = node(state)
         assert state.persisted is True
 
+    def test_persists_city_wiring_when_city_service_provided(self):
+        class FakeCityService:
+            def __init__(self):
+                self.calls = []
+
+            def normalize_and_ensure(self, raw, address=""):
+                self.calls.append(raw)
+                return {"id": "city-1", "city": "Berlin", "country": "Germany"}
+
+        city_service = FakeCityService()
+        job_repo, summary_repo, analysis_repo = FakeJobRepo(), FakeSummaryRepo(), FakeAnalysisRepo()
+        node = PersistNode(job_repo, summary_repo, analysis_repo, city_service=city_service)
+        state = _state()
+        state.analysis_context["raw_payload"] = _payload()
+        state.analysis_result = scoring.build_analysis_result(_payload())
+
+        state = node(state)
+
+        assert state.persisted is True
+        assert city_service.calls == ["Berlin, Germany"]
+        assert job_repo.updated["city_id"] == "city-1"
+        assert job_repo.updated["city"] == "Berlin"
+        assert job_repo.updated["country"] == "Germany"
+
+    def test_persist_skips_city_wiring_when_location_missing(self):
+        class FakeCityService:
+            def normalize_and_ensure(self, raw, address=""):
+                raise AssertionError("should not normalize without a location")
+
+        job_repo, summary_repo, analysis_repo = FakeJobRepo(), FakeSummaryRepo(), FakeAnalysisRepo()
+        node = PersistNode(job_repo, summary_repo, analysis_repo, city_service=FakeCityService())
+        payload = _payload(location=None)
+        state = _state()
+        state.analysis_context["raw_payload"] = payload
+        state.analysis_result = scoring.build_analysis_result(payload)
+
+        state = node(state)
+
+        assert state.persisted is True
+        assert "city_id" not in job_repo.updated
+
 
 class TestPersistSkillsNode:
     def test_resolves_and_links_each_skill(self):

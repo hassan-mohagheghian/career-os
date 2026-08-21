@@ -1,6 +1,7 @@
 import {
   Briefcase,
   Buildings,
+  MapPin,
   TreeStructure,
   Gear,
   Brain,
@@ -25,6 +26,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: 'jobs', label: 'Jobs', icon: Briefcase },
   { id: 'companies', label: 'Companies', icon: Buildings },
+  { id: 'cities', label: 'Cities', icon: MapPin },
   { id: 'skills', label: 'Skills', icon: TreeStructure },
   { id: 'candidate', label: 'Candidate', icon: UserCircle },
   { id: 'roadmaps', label: 'Roadmaps', icon: Signpost },

@@ -18,6 +18,7 @@ import { WorkspaceHeader } from './WorkspaceHeader'
 import { ApplicationTracker } from './ApplicationTracker'
 import { RoadmapSection } from './RoadmapSection'
 import { ApplicationDocuments } from './ApplicationDocuments'
+import { ApplicationNotes } from './ApplicationNotes'
 import { GenerationProgress } from './GenerationProgress'
 import { JobDetailDrawer } from '@/features/jobs-v2/components/JobDetailDrawer'
 import { JobEditDrawer } from '@/features/jobs-v2/components/JobEditDrawer'
@@ -204,6 +205,10 @@ export function ApplicationWorkspace({ jobId }: ApplicationWorkspaceProps) {
               generatingType={generatingType}
               onGenerate={handleGenerateDocument}
             />
+          </ApplicationSection>
+
+          <ApplicationSection title="Notes">
+            <ApplicationNotes application={app} />
           </ApplicationSection>
         </>
       )}

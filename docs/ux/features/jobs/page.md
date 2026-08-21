@@ -265,6 +265,15 @@ textarea, select, or content-editable element) opens the Add Job drawer. This
 is a jobs-only shortcut; there is no equivalent on the Companies or Skills
 pages. The hint is shown on the Add Job button and its tooltip.
 
+## Paste Shortcut — Add Job
+
+Pressing **Ctrl+V / Cmd+V** anywhere on the Jobs page with a copied
+`http(s)` link (and no editable element focused) opens the Add Job drawer
+pre-filled with that URL. The URL is taken directly from the `paste` event,
+so no clipboard permission is involved; non-URL clipboard content and pastes
+inside inputs are left to the browser's native behavior. Like `N`, this is a
+jobs-only shortcut. See `flows/jobs/paste-to-add-job.md`.
+
 ## Automatic Refresh
 
 Live SSE updates mutate the affected row in place (status, timestamps,
@@ -310,6 +319,7 @@ Selecting a row opens the Job Details Drawer.
 | Fit            | Fit Score                                           |
 | Success        | Success Score                                       |
 | Rank           | Position in the full list sorted by overall, then success, then fit (competition ranking: equal scores share a rank); display-only, absolute, independent of the current sort |
+| Tags           | User-defined labels (up to 3 shown, +N overflow) |
 | Recommendation | Apply / Consider / Skip badge                       |
 | Processing     | Current Processing Execution state                  |
 | Updated        | Relative update time                                |
@@ -542,9 +552,20 @@ Company
 
 # Processing Column
 
-The Processing column represents the current Processing Execution.
+The Processing column represents the current Processing Execution. For
+dismissed jobs, this column shows a red "Dismissed" badge instead.
 
 Examples
+
+## Dismissed
+
+```text
+Dismissed
+```
+
+Red badge: `bg-red-500/10 text-red-500 border-red-500/20`.
+
+---
 
 ## Ready
 
@@ -1364,6 +1385,23 @@ pinned Pinned only
 When active it counts as an active filter and is cleared by the toolbar's
 Clear action alongside the others. Pinning or unpinning a job while the
 filter is active refetches the list so rows update immediately.
+
+## Tags Filter
+
+A multi-select dropdown in the toolbar restricts the list to jobs that have
+all selected tags (intersection logic).
+
+```text
+Tags (2)
+  ☑ python
+  ☑ remote
+  ☐ java
+```
+
+The dropdown collects unique tags from loaded jobs. Selecting multiple tags
+shows only jobs that contain every selected tag. When active it counts as an
+active filter and is cleared by the toolbar's Clear action alongside the
+others.
 
 ## Recommendation Filter
 

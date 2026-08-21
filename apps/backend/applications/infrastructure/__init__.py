@@ -7,10 +7,12 @@ def __getattr__(name: str):
         "ApplicationStatusEventModel": ("applications.infrastructure.models.application_model", "ApplicationStatusEventModel"),
         "ApplicationFollowUpModel": ("applications.infrastructure.models.application_model", "ApplicationFollowUpModel"),
         "ApplicationDocumentModel": ("applications.infrastructure.models.application_model", "ApplicationDocumentModel"),
+        "ApplicationNoteModel": ("applications.infrastructure.models.application_model", "ApplicationNoteModel"),
         "SQLAlchemyApplicationRepository": ("applications.infrastructure.repositories.sa_application_repository", "SQLAlchemyApplicationRepository"),
         "SQLAlchemyStatusEventRepository": ("applications.infrastructure.repositories.sa_status_event_repository", "SQLAlchemyStatusEventRepository"),
         "SQLAlchemyFollowUpRepository": ("applications.infrastructure.repositories.sa_follow_up_repository", "SQLAlchemyFollowUpRepository"),
         "SQLAlchemyDocumentRepository": ("applications.infrastructure.repositories.sa_document_repository", "SQLAlchemyDocumentRepository"),
+        "SQLAlchemyNoteRepository": ("applications.infrastructure.repositories.sa_note_repository", "SQLAlchemyNoteRepository"),
     }
     if name in _exports:
         module_path, attr = _exports[name]
@@ -25,8 +27,10 @@ __all__ = [
     "ApplicationStatusEventModel",
     "ApplicationFollowUpModel",
     "ApplicationDocumentModel",
+    "ApplicationNoteModel",
     "SQLAlchemyApplicationRepository",
     "SQLAlchemyStatusEventRepository",
     "SQLAlchemyFollowUpRepository",
     "SQLAlchemyDocumentRepository",
+    "SQLAlchemyNoteRepository",
 ]

@@ -25,6 +25,7 @@ SIDEBAR RAIL
   ├── Job Search (brand → /jobs)
   ├── Jobs           Job list (infinite scroll) + Processing Queue drawer
   ├── Companies      Company intelligence + processing queue
+  ├── Cities         Normalized city catalog (read-only)
   ├── Skills         Skill management, aliases, insights
   ├── Candidate      Candidate profile import + review
   ├── Placeholders   Personal-detail {{token}} values for generated documents
@@ -76,15 +77,20 @@ Placement is right by default; all variants become full-screen on mobile.
 │ Search .......................................................................       │
 │ Sort ▼                  Filters ▼                                        Refresh     │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Rec │ Tracking│ Proc.  │ Updated │
-│─────────────────────────────────────────────────────────────────────────────────────│
-│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] #2 O 94 S 91 F 95 │ Apply│ [Applied]│ Ready  │ 2m      │
-│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] #5 O 90 S 88 F 90  │ Apply│ [Interview]│ Running│ now    │
-│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] #9 O 83 S 84 F 86   │ Skip │ [Not Applied]│ Failed│ 5m   │
+│ # │ Pin │ Job                  │ Company    │ Location │ Scores        │ Tags         │ Rec │ Tracking│ Proc.  │ Updated │
+│─────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+│ 1 │ ●  │ Senior Backend Eng.  │ GetYourGuid│ Berlin   │ [A++] #2 O 94 S 91 F 95 │ [python] [remote] │ Apply│ [Applied]│ Ready  │ 2m      │
+│ 2 │ ○  │ Backend Engineer     │ Karla      │ Berlin   │ [A+] #5 O 90 S 88 F 90  │ [java]    │ Apply│ [Interview]│ Running│ now    │
+│ 3 │ ○  │ Python Developer     │ Flexa      │ Remote   │ [A] #9 O 83 S 84 F 86   │            │ Skip │ [Not Applied]│ Dismissed│ 5m   │
 │                                                                                     │
 │                                       Loading more jobs...                          │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+A **Jobs Created Timeline** panel (`job-created-timeline.md`) sits on the right
+edge of the page, beside the list. It shows the number of jobs created per day
+(newest first) with month dividers ("Aug 2026"), has its own scroll, and is
+independent of the list's filters/pagination.
 
 There is **no dedicated Actions column**. Job row actions (Process / Reprocess /
 Retry / Cancel / Details / Application / Edit / Delete) are revealed as a
@@ -147,6 +153,58 @@ Companies and Skills rows.
 On duplicate URL (409) the error box adds an **Open existing job** link that
 navigates to `/jobs?job=<id>` (id from `error.details.job_id`) and opens the
 existing job's detail drawer.
+
+### Drag-and-Drop Job Import
+
+The Jobs page accepts a link dragged from another browser tab. Dropping it on
+the **Add Job** button or **anywhere on the page** opens the Add Job drawer
+pre-filled with that URL — nothing is auto-created or auto-queued; the user then
+presses **Add** or **Add & Queue** (see `flows/jobs/drag-drop-job.md`).
+
+```text
+ Drag a link from another tab ──► Jobs page
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        ▼                          ▼                          ▼
+   Drop on Add Job            Drop on page            Drop elsewhere
+   button highlights          "Drop to add job"       (non-URL) ignored
+   (emerald ring)             overlay shown
+        │                          │
+        └─────────────┬────────────┘
+                      ▼
+        Add Job drawer opens, Job Post URL pre-filled
+                      │
+              ┌───────┴───────┐
+              ▼               ▼
+           [Add]          [Add & Queue]
+        (save only)     (save + queue)
+```
+
+The page-wide drop surface and the button are the only drop targets; non-URL
+drops are silently ignored.
+
+### Paste-to-Add Job (Ctrl/Cmd+V)
+
+The Jobs page also accepts a copied link via **Ctrl+V / Cmd+V**: with no
+editable element focused, the Add Job drawer opens pre-filled with the pasted
+URL. The payload comes from the `paste` event (no clipboard permission);
+non-URL content and pastes inside inputs keep the browser's native behavior.
+Nothing is auto-created or auto-queued (see `flows/jobs/paste-to-add-job.md`).
+
+```text
+ Copy a job link anywhere ──► Jobs page ──► Ctrl/Cmd+V
+                                              │
+              ┌───────────────────────────────┼──────────────────────────┐
+              ▼                               ▼                          ▼
+     Focus in an input/            clipboard holds http(s) URL   clipboard without URL
+     textarea (search, drawer)     drawer opens, Job Post        nothing happens
+     native paste into field       URL pre-filled                (native behavior)
+              │                               │
+              │                    ┌──────────┴──────────┐
+              │                    ▼                     ▼
+              │                 [Add]               [Add & Queue]
+              │              (save only)          (save + queue)
+```
 
 ### Edit Job Drawer
 
@@ -497,6 +555,36 @@ infinite scroll, Sheet drawers). Company processing runs through the shared
 `ProcessingExecution` / SSE lifecycle (context preparation without LLM, then a
 single-LLM analysis), monitored via the shared Processing Drawer filtered to
 companies. Full specs live in `docs/ux/features/companies/`.
+
+---
+
+### Cities Page
+
+```text
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ ⛭ Cities (240)              Loaded 25 of 240                          ↻       │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Search city, country, original text…                                         │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ City        │ Country  │ Jobs  │ Original                                     │
+│─────────────│──────────│───────│──────────────────────────────────────────────│
+│ Berlin      │ Germany  │ 161   │ Berlin, Germany                              │
+│ Munich      │ Germany  │ 101   │ München, Germany                             │
+│ Amsterdam   │ NL       │ 90    │ Amsterdam                                    │
+│ Hamburg     │ Germany  │ 50    │ Hamburg, Germany                             │
+│ (Remote)    │          │ 41    │ Remote                                       │
+│ Utrecht     │ NL       │ 16    │ Utrecht, Netherlands                         │
+│                                                                               │
+│                                        Loading more cities...                 │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+The Cities page is the read-only catalog of normalized `{city, country}` rows
+produced by the `CityNormalizer` during processing. It mirrors the Companies
+v2 list UX: cursor-paginated, infinite scroll, sortable column headers via the
+shared `SortableHeader`, debounced search. Jobs column is the default sort
+(desc). There is no detail drawer and no row actions — the catalog is derived,
+not edited. Full spec lives in `docs/ux/features/cities/page.md`.
 
 ---
 

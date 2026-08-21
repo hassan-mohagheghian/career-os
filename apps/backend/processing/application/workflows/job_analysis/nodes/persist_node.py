@@ -27,11 +27,13 @@ class PersistNode:
         summary_repo: Any,
         analysis_repo: Any,
         event_publisher: Any | None = None,
+        city_service: Any | None = None,
     ):
         self._jobs = job_repo
         self._summaries = summary_repo
         self._analysis = analysis_repo
         self._events = event_publisher
+        self._city_service = city_service
 
     def __call__(self, state: JobProcessingState) -> JobProcessingState:
         progress_ops.start_step(self._events, state, NODE_ID)
@@ -78,6 +80,14 @@ class PersistNode:
         ):
             if score is not None:
                 updates[key] = score
+        if self._city_service is not None and fields.get("location"):
+            city_row = self._city_service.normalize_and_ensure(
+                fields["location"], address=fields.get("location") or ""
+            )
+            if city_row is not None:
+                updates["city_id"] = city_row["id"]
+                updates["city"] = city_row["city"]
+                updates["country"] = city_row["country"]
         if updates:
             updates["updated_at"] = datetime.now(UTC)
             self._jobs.update_fields(job_id, **updates)

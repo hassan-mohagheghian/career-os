@@ -6,6 +6,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useJobsInfiniteQuery } from '@/features/jobs-v2/hooks/useJobsInfiniteQuery'
 import { useAddJobShortcut } from '@/features/jobs-v2/hooks/useAddJobShortcut'
+import { useAddJobPasteShortcut } from '@/features/jobs-v2/hooks/useAddJobPasteShortcut'
 import { useProcessingEvents } from '@/shared/hooks/useProcessingEvents'
 import { processingApi } from '@/entities/processing/api'
 import ConfirmDialog, { useConfirmDialog } from '@/shared/components/ConfirmDialog'
@@ -13,6 +14,7 @@ import { toast } from 'sonner'
 import { getSearchParam, setSearchParam } from '@/shared/lib/url'
 import { readClipboardUrl } from '@/shared/lib/clipboard'
 import { DropJobOverlay } from '@/features/jobs-v2/components/DropJobOverlay'
+import { DismissDialog } from '@/features/jobs-v2/components/DismissDialog'
 
 const JobsPageContent = dynamic(
   () => import('@/features/jobs-v2/components/JobsPage').then(m => ({ default: m.JobsPage })),
@@ -28,6 +30,9 @@ function JobsPageV2Adapter() {
   const [editJobId, setEditJobId] = useState<string | null>(null)
   const [showPinnedColumn, setShowPinnedColumn] = useState(true)
   const [showRowNumberColumn, setShowRowNumberColumn] = useState(true)
+  const [dismissDialogOpen, setDismissDialogOpen] = useState(false)
+  const [dismissJobId, setDismissJobId] = useState<string | null>(null)
+  const [dismissJobTitle, setDismissJobTitle] = useState('')
   const { dialog: confirmDialog, showConfirm, onClose: closeConfirm } = useConfirmDialog()
   const router = useRouter()
 
@@ -41,6 +46,7 @@ function JobsPageV2Adapter() {
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
     filterPinned, setFilterPinned,
+    filterTags, setFilterTags,
     filterRecommendation, setFilterRecommendation,
     filterTrackingStatus, setFilterTrackingStatus,
     filterCreatedDate, setFilterCreatedDate,
@@ -48,7 +54,15 @@ function JobsPageV2Adapter() {
     processMutation,
     deleteMutation,
     pinnedMutation,
+    dismissedMutation,
+    tagsMutation,
   } = useJobsInfiniteQuery()
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>()
+    items.forEach(j => (j.tags ?? []).forEach(t => tagSet.add(t)))
+    return [...tagSet].sort()
+  }, [items])
 
   useProcessingEvents()
 
@@ -64,6 +78,7 @@ function JobsPageV2Adapter() {
   }, [])
 
   useAddJobShortcut(openAddJob)
+  useAddJobPasteShortcut(openAddJobWithUrl)
 
   const processingCount = useMemo(() => {
     return items.filter(i => {
@@ -131,6 +146,27 @@ function JobsPageV2Adapter() {
     pinnedMutation.mutate({ jobId: id, pinned: !job.pinned })
   }, [items, pinnedMutation])
 
+  const handleToggleDismissed = useCallback((id: string) => {
+    const job = items.find(j => j.id === id)
+    if (!job) return
+    setDismissJobId(id)
+    setDismissJobTitle(job.title || 'Untitled')
+    setDismissDialogOpen(true)
+  }, [items])
+
+  const handleDismissConfirm = useCallback((note: string) => {
+    if (!dismissJobId) return
+    dismissedMutation.mutate(
+      { jobId: dismissJobId, dismissed: true, note: note || undefined },
+      {
+        onSuccess: () => {
+          setDismissDialogOpen(false)
+          setDismissJobId(null)
+        },
+      },
+    )
+  }, [dismissJobId, dismissedMutation])
+
   const handleOpenApplication = useCallback((id: string) => {
     router.push(`/jobs/${id}/application`)
   }, [router])
@@ -174,6 +210,9 @@ function JobsPageV2Adapter() {
           onFilterVisaChange={setFilterVisa}
           filterPinned={filterPinned}
           onFilterPinnedChange={setFilterPinned}
+          filterTags={filterTags}
+          onFilterTagsChange={setFilterTags}
+          allTags={allTags}
           filterRecommendation={filterRecommendation}
           onFilterRecommendationChange={setFilterRecommendation}
           filterTrackingStatus={filterTrackingStatus}
@@ -188,6 +227,7 @@ function JobsPageV2Adapter() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onTogglePinned={handleTogglePinned}
+          onToggleDismissed={handleToggleDismissed}
           onRetry={handleRetry}
           onCancel={handleCancel}
           onApplication={handleOpenApplication}
@@ -212,6 +252,13 @@ function JobsPageV2Adapter() {
           processingCount={processingCount}
         />
         <ConfirmDialog dialog={confirmDialog} onClose={closeConfirm} />
+        <DismissDialog
+          open={dismissDialogOpen}
+          onOpenChange={setDismissDialogOpen}
+          jobTitle={dismissJobTitle}
+          onDismiss={handleDismissConfirm}
+          isPending={dismissedMutation.isPending}
+        />
       </div>
     </DropJobOverlay>
   )

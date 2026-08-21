@@ -90,6 +90,22 @@ flowchart LR
 - **Payload**: `application_id`, `follow_up_id`.
 - **Consumers**: none yet.
 
+### `application.note.added`
+
+- **Event**: `ApplicationNoteAdded`
+- **Trigger**: `NoteService.add`.
+- **Payload**: `application_id`, `note_id`.
+- **Fires when**: the user adds a free-text activity note to the application.
+- **Consumers**: none yet.
+
+### `application.note.deleted`
+
+- **Event**: `ApplicationNoteDeleted`
+- **Trigger**: `NoteService.delete`.
+- **Payload**: `application_id`, `note_id`.
+- **Fires when**: the user deletes an application note.
+- **Consumers**: none yet.
+
 ### `application.document.generated`
 
 - **Event**: `ApplicationDocumentGenerated`

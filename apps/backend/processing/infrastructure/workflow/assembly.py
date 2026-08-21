@@ -21,6 +21,9 @@ from candidates.infrastructure import (
     SQLAlchemyCandidateProfileRepository,
     SQLAlchemyCandidateSourceRepository,
 )
+from cities.application.services.city_service import CityService
+from cities.domain.event_publisher import InMemoryEventCollector as CityInMemoryEventCollector
+from cities.infrastructure import SQLAlchemyCityRepository
 from companies.application.services.company_matching_service import CompanyMatchingService
 from companies.application.services.company_service import CompanyService
 from companies.infrastructure.repositories.sa_company_intelligence_repository import SQLAlchemyCompanyIntelligenceRepository
@@ -95,6 +98,7 @@ def build_job_analysis_graph(session: Any) -> JobAnalysisGraph:
         llm_service=get_llm_service(),
         event_publisher=event_publisher,
         candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
+        city_service=_city_service(session),
     )
 
 
@@ -103,6 +107,14 @@ def _company_service(session: Any) -> CompanyService:
         repository=SQLAlchemyCompanyRepository(session),
         intelligence_repository=SQLAlchemyCompanyIntelligenceRepository(session),
         link_repository=SQLAlchemyCompanyLinkRepository(session),
+        city_service=_city_service(session),
+    )
+
+
+def _city_service(session: Any) -> CityService:
+    return CityService(
+        SQLAlchemyCityRepository(session),
+        CityInMemoryEventCollector(),
     )
 
 
@@ -153,6 +165,7 @@ def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
         skill_repo=SQLAlchemySkillRepository(session),
         llm=get_llm_service(),
         event_publisher=InMemoryEventCollector(),
+        city_service=_city_service(session),
     )
     return CandidateProcessingGraph(
         extract_service=extract_service,
@@ -175,6 +188,7 @@ def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenc
             SQLAlchemyCompanyRepository(session),
             SQLAlchemyCompanyIntelligenceRepository(session),
             SQLAlchemyCompanyLinkRepository(session),
+            city_service=_city_service(session),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
@@ -199,6 +213,7 @@ def build_roadmap_generation_graph(session: Any) -> RoadmapGenerationGraph:
             SQLAlchemyCompanyRepository(session),
             SQLAlchemyCompanyIntelligenceRepository(session),
             SQLAlchemyCompanyLinkRepository(session),
+            city_service=_city_service(session),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),

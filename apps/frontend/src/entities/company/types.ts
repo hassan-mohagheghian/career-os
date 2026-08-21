@@ -112,6 +112,7 @@ export interface CompanyLinkedJob {
   fit_score: number | null
   success_score: number | null
   overall_score: number | null
+  rank: number | null
 }
 
 export interface RecruiterJobRef {

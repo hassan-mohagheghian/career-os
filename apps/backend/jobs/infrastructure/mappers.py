@@ -61,6 +61,8 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "response_status": model.response_status,
         "rescoring": model.rescoring,
         "pinned": model.pinned,
+        "dismissed": model.dismissed,
+        "tags": model.tags,
         "status": model.status,
         "queue_order": model.queue_order,
         "current_node": model.current_node,

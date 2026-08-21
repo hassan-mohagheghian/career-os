@@ -20,6 +20,7 @@ interface JobsTableProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onTogglePinned: (id: string, pinned: boolean) => void
+  onToggleDismissed: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   onApplication?: (id: string) => void
@@ -50,6 +51,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Company', field: 'company' },
   { label: 'Location' },
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
+  { label: 'Tags' },
   { label: 'Rec' },
   { label: 'Status', field: 'status' },
   { label: 'Tracking' },
@@ -59,7 +61,7 @@ const COLUMN_DEFS: ColumnDef[] = [
 
 export function JobsTable({
   items, total, loadedCount = 0, isLoading, isFetchingNextPage = false, hasNextPage = false, onFetchNextPage = () => {},
-  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication,
+  onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onToggleDismissed, onRetry, onCancel, onApplication,
   showPinnedColumn = true, showRowNumberColumn = false,
   sort = 'updated_at', order = 'desc', onSortChange = () => {},
 }: JobsTableProps) {
@@ -196,6 +198,7 @@ export function JobsTable({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onTogglePinned={(_id, pinned) => onTogglePinned(job.id, pinned)}
+                  onToggleDismissed={() => onToggleDismissed(job.id)}
                   onRetry={onRetry}
                   onCancel={onCancel}
                   onApplication={onApplication}

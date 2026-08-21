@@ -4,8 +4,10 @@ import type {
   ApplicationDocument,
   ApplicationDocumentType,
   ApplicationFollowUp,
+  ApplicationNote,
   ApplicationStatusEvent,
   CreateFollowUpInput,
+  CreateNoteInput,
   DeleteResponse,
   GenerateResponse,
   UpdateApplicationInput,
@@ -29,6 +31,10 @@ export const applicationApi = {
     api.patch<ApplicationFollowUp>(`/applications/follow-ups/${followUpId}`, input),
   deleteFollowUp: (followUpId: string) =>
     api.delete<void>(`/applications/follow-ups/${followUpId}`),
+  addNote: (applicationId: string, input: CreateNoteInput) =>
+    api.post<ApplicationNote>(`/applications/${applicationId}/notes`, input),
+  deleteNote: (noteId: string) =>
+    api.delete<void>(`/applications/notes/${noteId}`),
   generateRoadmap: (applicationId: string) =>
     api.post<GenerateResponse>(`/applications/${applicationId}/roadmap/generate`),
   generateDocument: (applicationId: string, documentType: ApplicationDocumentType) =>

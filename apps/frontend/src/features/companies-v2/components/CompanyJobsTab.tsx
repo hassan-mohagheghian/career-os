@@ -3,6 +3,7 @@ import { MapPin, ArrowSquareOut, ArrowRight } from '@phosphor-icons/react'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { GradeBadge } from '@/shared/components/GradeBadge'
+import { RankBadge } from '@/shared/components/RankBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 
 export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOpenJob, onNavigateToJob }: {
@@ -41,6 +42,7 @@ export default function CompanyJobsTab({ companyId, companyName, jobs = [], onOp
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold truncate flex-1">{j.role || 'Untitled Job'}</span>
                 {validOverall != null && <GradeBadge grade={gradeForScore(validOverall)} className="shrink-0" />}
+                {j.rank != null && <RankBadge rank={j.rank} variant="inline" className="shrink-0" />}
               </div>
               {j.location && <div className="text-2xs text-muted-foreground mt-0.5"><MapPin className="w-2 h-2 inline mr-0.5" />{j.location}</div>}
               {(j.fit_score != null || j.success_score != null) && (

@@ -36,6 +36,11 @@ describe('CreateEntityDrawer — job mode', () => {
     expect(screen.getByText('Notes')).toBeInTheDocument()
   })
 
+  it('focuses the Job Post URL input on open', () => {
+    renderDrawer('job')
+    expect(screen.getByPlaceholderText('https://linkedin.com/jobs/view/...')).toHaveFocus()
+  })
+
   it('disables submit until a valid URL is entered', () => {
     renderDrawer('job')
     const addButton = screen.getByText('Add') as HTMLButtonElement
@@ -67,6 +72,39 @@ describe('CreateEntityDrawer — job mode', () => {
     })
     fireEvent.click(screen.getByText('Add & Queue'))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ queue: true, job_post_url: 'https://example.com/job' }))
+  })
+
+  it('Enter in the URL input adds and queues the job', () => {
+    const onSubmit = vi.fn()
+    renderDrawer('job', onSubmit)
+    fireEvent.change(screen.getByPlaceholderText('https://linkedin.com/jobs/view/...'), {
+      target: { value: 'https://example.com/job' },
+    })
+    fireEvent.keyDown(screen.getByPlaceholderText('https://linkedin.com/jobs/view/...'), {
+      key: 'Enter',
+    })
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ queue: true, job_post_url: 'https://example.com/job' }))
+  })
+
+  it('Enter in the job title input adds and queues the job', () => {
+    const onSubmit = vi.fn()
+    renderDrawer('job', onSubmit)
+    fireEvent.change(screen.getByPlaceholderText('https://linkedin.com/jobs/view/...'), {
+      target: { value: 'https://example.com/job' },
+    })
+    fireEvent.keyDown(screen.getByPlaceholderText('Senior Backend Engineer'), {
+      key: 'Enter',
+    })
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ queue: true, job_post_url: 'https://example.com/job' }))
+  })
+
+  it('Enter with an invalid URL does not submit', () => {
+    const onSubmit = vi.fn()
+    renderDrawer('job', onSubmit)
+    fireEvent.keyDown(screen.getByPlaceholderText('https://linkedin.com/jobs/view/...'), {
+      key: 'Enter',
+    })
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })
 

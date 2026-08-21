@@ -1,6 +1,4 @@
-"""Dashboard data, generation history, cities."""
-
-import json
+"""Dashboard data, generation history."""
 
 from fastapi import APIRouter, Depends, Query
 
@@ -100,53 +98,3 @@ def get_local_active_count(
         return {'active_count': count}
     finally:
         session.close()
-
-
-@router.get("/cities")
-def get_cities(job_repo: SQLAlchemyJobRepository = Depends(get_job_repo)):
-    """Get all unique cities with job counts."""
-    location_data = job_repo.get_location_data()
-
-    city_counts = {}
-    for row in location_data:
-        locations = []
-        if row.get("locations"):
-            try:
-                locations = (
-                    json.loads(row["locations"])
-                    if isinstance(row["locations"], str)
-                    else row["locations"]
-                )
-            except (json.JSONDecodeError, TypeError):
-                pass
-        if not locations and row.get("location"):
-            locations = [row["location"]]
-        for loc in locations:
-            if loc and loc != "Not specified":
-                city_counts[loc] = city_counts.get(loc, 0) + 1
-
-    city_info = {
-        "Berlin": {"icon": "🐻", "info": "Largest tech hub. 350K+ tech workers."},
-        "Munich": {"icon": "🦁", "info": "Highest salaries. Enterprise & automotive."},
-        "Hamburg": {"icon": "🎵", "info": "Growing tech scene. AdTech, energy."},
-        "Heidelberg": {"icon": "🏛️", "info": "Enterprise AI startup scene."},
-        "Frankfurt": {"icon": "🏦", "info": "FinTech capital. Banking infrastructure."},
-        "Cologne": {"icon": "🗼", "info": "Media & commerce tech."},
-        "Stuttgart": {"icon": "🏭", "info": "Engineering & automotive."},
-        "Remote": {"icon": "🏠", "info": "Best for visa from Iran."},
-        "Remote Germany": {"icon": "🏠", "info": "Best for visa from Iran."},
-        "Germany": {"icon": "🇩🇪", "info": "Country-wide opportunities."},
-    }
-
-    total_jobs = len(city_counts)
-    cities = []
-    for city, count in sorted(city_counts.items(), key=lambda x: -x[1]):
-        info = city_info.get(city, {"icon": "📍", "info": "Tech hub."})
-        cities.append({
-            "icon": info["icon"],
-            "name": city,
-            "info": info["info"],
-            "jobs": f"{count}/{total_jobs} jobs",
-        })
-
-    return {"items": cities}

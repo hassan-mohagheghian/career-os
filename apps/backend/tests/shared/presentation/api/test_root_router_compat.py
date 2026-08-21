@@ -276,3 +276,12 @@ def test_create_company_empty_body(client, sa_session):
     assert resp.status_code == 201
     assert resp.json()["status"] == "queued"
     enqueue.assert_called_once()
+
+
+# ── legacy cities removal ──────────────────────────────────────
+
+
+def test_dashboard_legacy_cities_endpoint_removed(client):
+    """The legacy shared.cities dashboard endpoint is gone (replaced by /api/cities/list)."""
+    resp = client.get("/api/cities")
+    assert resp.status_code == 404

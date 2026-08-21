@@ -58,6 +58,9 @@ interface JobsToolbarProps {
   onFilterVisaChange: (value: boolean | '') => void
   filterPinned: boolean
   onFilterPinnedChange: (value: boolean) => void
+  filterTags: string[]
+  onFilterTagsChange: (value: string[]) => void
+  allTags: string[]
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   filterTrackingStatus: TrackingStatusFilter
@@ -79,6 +82,7 @@ export function JobsToolbar({
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   filterPinned, onFilterPinnedChange,
+  filterTags, onFilterTagsChange, allTags,
   filterRecommendation, onFilterRecommendationChange,
   filterTrackingStatus, onFilterTrackingStatusChange,
   filterCreatedDate, onFilterCreatedDateChange,
@@ -207,6 +211,41 @@ export function JobsToolbar({
             <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
             Pinned
           </Button>
+          {allTags.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn('h-7 w-auto gap-1 text-2xs', filterTags.length > 0 && 'text-primary')}
+                onClick={() => {
+                  const el = document.getElementById('tags-filter-dropdown')
+                  if (el) el.hidden = !el.hidden
+                }}
+                aria-label="Filter by tags"
+              >
+                Tags
+                {filterTags.length > 0 && <span className="ml-0.5 text-primary">({filterTags.length})</span>}
+              </Button>
+              <div id="tags-filter-dropdown" hidden className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-md shadow-md p-2 min-w-[160px] max-h-[200px] overflow-y-auto">
+                {allTags.map((tag) => (
+                  <label key={tag} className="flex items-center gap-2 py-1 px-1 cursor-pointer hover:bg-muted/50 rounded text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filterTags.includes(tag)}
+                      onChange={() => {
+                        const next = filterTags.includes(tag)
+                          ? filterTags.filter(t => t !== tag)
+                          : [...filterTags, tag]
+                        onFilterTagsChange(next)
+                      }}
+                      className="rounded border-border"
+                    />
+                    <span className="truncate">{tag}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {(onTogglePinnedColumn || onToggleRowNumberColumn) && (
             <ColumnsDropdown
               options={[

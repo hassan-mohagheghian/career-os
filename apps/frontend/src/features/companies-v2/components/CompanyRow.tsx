@@ -4,6 +4,7 @@ import { ScoreBadge } from '@/features/jobs-v2/components/ScoreBadge'
 import { StatusBadge } from '@/features/jobs-v2/components/StatusBadge'
 import type { ProcessingStatus } from '@/entities/job/types'
 import { Badge } from '@/shared/ui/badge'
+import { formatCityLocation } from '@/shared/lib/formatLocation'
 import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { gradeForScore } from '@/shared/lib/grade'
@@ -80,7 +81,7 @@ export function CompanyRow({
       </div>
       <div className="py-2 px-3 flex items-center">
         <span className="text-xs text-muted-foreground truncate block">
-          {[company.city, company.country].filter(Boolean).join(', ') || 'Unknown'}
+          {formatCityLocation(company.city, company.country) || 'Unknown'}
         </span>
       </div>
       <div className="py-2 px-3 flex items-center">

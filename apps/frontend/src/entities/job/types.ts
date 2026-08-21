@@ -31,6 +31,16 @@ export interface JobAgg {
   [key: string]: number
 }
 
+export interface JobTimelineDay {
+  date: string
+  count: number
+}
+
+export interface JobTimeline {
+  days: JobTimelineDay[]
+  total: number
+}
+
 export interface JobWithLocations extends Job {
   parsedLocations: string[]
 }
@@ -110,6 +120,8 @@ export interface JobListItem {
   scores: Scores
   recommendation: string | null
   pinned: boolean
+  dismissed: boolean
+  tags: string[]
   rank: number | null
   tracking_status: TrackingStatus | null
   updated_at: string | null
@@ -137,6 +149,8 @@ export interface JobSearchQuery {
   success_score_min?: number
   success_score_max?: number
   pinned?: boolean
+  dismissed?: boolean
+  tags?: string
   recommendation?: RecommendationFilter
   tracking_status?: TrackingStatusFilter
   created_date?: CreatedDateFilter
@@ -269,6 +283,7 @@ export interface JobDetail {
   description: string | null
   notes: JobNoteItem[]
   links: JobLinkItem[]
+  tags: string[]
   tracking_status: TrackingStatus | null
   updated_at: string | null
   created_at: string | null
@@ -287,4 +302,5 @@ export interface JobEditInput {
   description?: string | null
   notes?: JobNoteItem[]
   links?: JobLinkItem[]
+  tags?: string[]
 }

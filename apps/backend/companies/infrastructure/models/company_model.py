@@ -23,6 +23,7 @@ class CompanyModel(Base):
     industry: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    city_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     raw_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     company_size: Mapped[Optional[str]] = mapped_column(String, nullable=True)

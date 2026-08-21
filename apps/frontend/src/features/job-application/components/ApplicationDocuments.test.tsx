@@ -27,6 +27,7 @@ const application: ApplicationDetail = {
   updated_at: null,
   status_timeline: [],
   follow_ups: [],
+  notes: [],
   documents: [
     {
       id: 'doc-1',

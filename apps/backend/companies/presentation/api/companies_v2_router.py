@@ -166,6 +166,8 @@ def _sort_key(row: dict[str, Any], sort: str, order: str) -> Any:
         return tuple(v if v is not None else sentinel for v in (scores.get(k) for k in keys))
     if sort == "name":
         return (row.get("name") or "").lower()
+    if sort == "job_count":
+        return row.get("job_count") or 0
     if sort == "updated_at":
         return row.get("updated_at")
     return row.get("created_at")
@@ -361,6 +363,7 @@ def _build_company_detail(
     intel = intel_repo.get_by_company_id(id)
     links = link_repo.get_by_company_id(id)
     jobs = job_repo.get_jobs_by_company_id(id)
+    company_job_ranks = job_repo.ranks_by_ids([j["id"] for j in jobs])
     latest_execution = exec_repo.latest_by_target_ids("company", [id]).get(id)
 
     parent_company_id = company.get("parent_company_id")
@@ -397,6 +400,7 @@ def _build_company_detail(
             fit_score=j.get("fit_score"),
             success_score=j.get("success_score"),
             overall_score=j.get("overall_score"),
+            rank=company_job_ranks.get(j["id"]),
         )
         for j in jobs
     ]
@@ -445,6 +449,7 @@ def _build_company_detail(
     recruiter_job_by_id = {
         j["id"]: j for j in job_repo.get_jobs_by_ids(recruiter_job_ids)
     }
+    recruiter_job_ranks = job_repo.ranks_by_ids(recruiter_job_ids)
     recruiter_jobs = sorted(
         (
             CompanyJobRefSchema(
@@ -456,6 +461,7 @@ def _build_company_detail(
                 fit_score=j.get("fit_score"),
                 success_score=j.get("success_score"),
                 overall_score=j.get("overall_score"),
+                rank=recruiter_job_ranks.get(j["id"]),
             )
             for j in recruiter_job_by_id.values()
         ),

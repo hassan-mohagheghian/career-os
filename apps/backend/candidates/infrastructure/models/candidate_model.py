@@ -46,6 +46,11 @@ class CandidateProfileModel(Base):
     headline: Mapped[str] = mapped_column(String, default="")
     summary: Mapped[str] = mapped_column(Text, default="")
     location: Mapped[str] = mapped_column(String, default="")
+    city: Mapped[str] = mapped_column(String, default="")
+    country: Mapped[str] = mapped_column(String, default="")
+    original_text: Mapped[str] = mapped_column(String, default="")
+    address: Mapped[str] = mapped_column(String, default="")
+    city_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
 

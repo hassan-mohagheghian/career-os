@@ -61,7 +61,8 @@ SCHEMAS = {
         "roadmap_resources",
     ],
     "placeholders": ["placeholders"],
-    "shared": ["rules", "cities", "metadata", "generation_history", "alembic_version"],
+    "city": ["cities"],
+    "shared": ["rules", "metadata", "generation_history", "alembic_version"],
 }
 
 

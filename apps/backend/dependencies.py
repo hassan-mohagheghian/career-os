@@ -156,6 +156,11 @@ def get_document_repo(session: Session = Depends(get_session)):
     return SQLAlchemyDocumentRepository(session)
 
 
+def get_note_repo(session: Session = Depends(get_session)):
+    from applications.infrastructure import SQLAlchemyNoteRepository
+    return SQLAlchemyNoteRepository(session)
+
+
 def get_application_service(
     application_repo=Depends(get_application_repo),
     status_event_repo=Depends(get_status_event_repo),
@@ -191,6 +196,15 @@ def get_document_service(
     return DocumentService(document_repo, InMemoryEventCollector())
 
 
+def get_note_service(
+    note_repo=Depends(get_note_repo),
+    application_repo=Depends(get_application_repo),
+):
+    from applications.application.services.note_service import NoteService
+    from applications.domain.event_publisher import InMemoryEventCollector
+    return NoteService(note_repo, application_repo, InMemoryEventCollector())
+
+
 # ── Roadmaps Context Dependencies ────────────────────────────────
 
 def get_roadmap_repo(session: Session = Depends(get_session)):
@@ -220,6 +234,21 @@ def get_placeholder_service(
     from placeholders.application.services.placeholder_service import PlaceholderService
     from placeholders.domain.event_publisher import InMemoryEventCollector
     return PlaceholderService(placeholder_repo, InMemoryEventCollector())
+
+
+# ── Cities Context Dependencies ─────────────────────────────────
+
+def get_city_repo(session: Session = Depends(get_session)):
+    from cities.infrastructure import SQLAlchemyCityRepository
+    return SQLAlchemyCityRepository(session)
+
+
+def get_city_service(
+    city_repo=Depends(get_city_repo),
+):
+    from cities.application.services.city_service import CityService
+    from cities.domain.event_publisher import InMemoryEventCollector
+    return CityService(city_repo, InMemoryEventCollector())
 
 
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──

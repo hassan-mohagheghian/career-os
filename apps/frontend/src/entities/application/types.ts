@@ -32,6 +32,14 @@ export interface ApplicationStatusEvent {
   updated_at: string | null
 }
 
+export interface ApplicationNote {
+  id: string
+  application_id: string
+  content: string
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface ApplicationDocument {
   id: string
   application_id: string
@@ -51,6 +59,7 @@ export interface ApplicationDetail {
   updated_at: string | null
   status_timeline: ApplicationStatusEvent[]
   follow_ups: ApplicationFollowUp[]
+  notes: ApplicationNote[]
   documents: ApplicationDocument[]
 }
 
@@ -79,4 +88,8 @@ export interface UpdateFollowUpInput {
   scheduled_at?: string | null
   note?: string
   completed?: boolean
+}
+
+export interface CreateNoteInput {
+  content: string
 }

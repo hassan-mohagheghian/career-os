@@ -30,6 +30,8 @@ class ListJobsV2Request:
     success_score_min: int | None = None
     success_score_max: int | None = None
     pinned: bool | None = None
+    dismissed: bool | None = None
+    tags: list[str] | None = None
     recommendation: str | None = None
     created_date: str | None = None
 
@@ -70,6 +72,8 @@ class ListJobsV2UseCase:
             success_score_min=request.success_score_min,
             success_score_max=request.success_score_max,
             pinned=request.pinned,
+            dismissed=request.dismissed,
+            tags=request.tags,
             recommendation=request.recommendation,
             created_date=request.created_date,
         )

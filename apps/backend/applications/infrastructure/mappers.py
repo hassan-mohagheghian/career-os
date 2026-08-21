@@ -9,6 +9,7 @@ from applications.infrastructure.models.application_model import (
     ApplicationDocumentModel,
     ApplicationFollowUpModel,
     ApplicationModel,
+    ApplicationNoteModel,
     ApplicationStatusEventModel,
     _now_iso,
 )
@@ -66,6 +67,26 @@ def dict_to_follow_up_model(data: dict[str, Any]) -> ApplicationFollowUpModel:
         scheduled_at=data.get("scheduled_at"),
         note=data.get("note", ""),
         completed_at=data.get("completed_at"),
+        created_at=data.get("created_at") or _now_iso(),
+        updated_at=data.get("updated_at") or _now_iso(),
+    )
+
+
+def note_model_to_dict(model: ApplicationNoteModel) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "application_id": model.application_id,
+        "content": model.content,
+        "created_at": model.created_at,
+        "updated_at": model.updated_at,
+    }
+
+
+def dict_to_note_model(data: dict[str, Any]) -> ApplicationNoteModel:
+    return ApplicationNoteModel(
+        id=data.get("id"),
+        application_id=data.get("application_id", ""),
+        content=data.get("content", ""),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
     )

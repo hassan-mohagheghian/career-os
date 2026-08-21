@@ -54,6 +54,7 @@ const sampleApplication: ApplicationDetail = {
       updated_at: null,
     },
   ],
+  notes: [],
   documents: [],
 }
 

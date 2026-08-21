@@ -99,6 +99,8 @@ class JobListItemSchema(BaseModel):
     scores: ScoresSchema | None = None
     recommendation: str | None = None
     pinned: bool = False
+    dismissed: bool = False
+    tags: list[str] = Field(default_factory=list)
     rank: int | None = None
     tracking_status: str | None = None
     updated_at: str | None = None
@@ -111,6 +113,13 @@ class PinJobRequest(BaseModel):
     """Schema for pinning or unpinning a job."""
 
     pinned: bool
+
+
+class DismissJobRequest(BaseModel):
+    """Schema for dismissing or undismissing a job."""
+
+    dismissed: bool
+    note: str | None = None
 
 
 class SetJobCompanyRequest(BaseModel):
@@ -130,6 +139,12 @@ class SetJobCompanyRequest(BaseModel):
         return str(v).strip()
 
 
+class SetJobTagsRequest(BaseModel):
+    """Schema for setting tags on a job."""
+
+    tags: list[str] = Field(default_factory=list)
+
+
 class PaginationSchema(BaseModel):
     page: int
     page_size: int
@@ -147,6 +162,16 @@ class JobListResponseSchema(BaseModel):
     items: list[JobListItemSchema] = Field(default_factory=list)
     pagination: PaginationSchema | None = None
     cursor_pagination: CursorPaginationSchema | None = None
+
+
+class JobTimelineDaySchema(BaseModel):
+    date: str
+    count: int
+
+
+class JobTimelineResponseSchema(BaseModel):
+    days: list[JobTimelineDaySchema] = Field(default_factory=list)
+    total: int = 0
 
 
 class JobDetailWorkflowStepSchema(BaseModel):

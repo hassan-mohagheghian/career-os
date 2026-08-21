@@ -21,6 +21,8 @@ vi.mock('@/entities/application/api', () => ({
     addFollowUp: vi.fn(),
     updateFollowUp: vi.fn(),
     deleteFollowUp: vi.fn(),
+    addNote: vi.fn(),
+    deleteNote: vi.fn(),
     generateRoadmap: vi.fn(),
     generateDocument: vi.fn(),
     updateDocument: vi.fn(),
@@ -90,6 +92,7 @@ const sampleJob: JobDetail = {
   description: 'A great role.',
   notes: [],
   links: [],
+  tags: [],
   analysis: null,
   related_companies: [],
   tracking_status: null,
@@ -106,6 +109,7 @@ const sampleApplication: ApplicationDetail = {
   updated_at: null,
   status_timeline: [],
   follow_ups: [],
+  notes: [],
   documents: [],
 }
 

@@ -26,7 +26,7 @@ The workspace reads intelligence but never duplicates analysis:
 | ---- | --------------- | -------- |
 | Job identity + scores + recommendation | `GET /api/jobs/{id}` | Header |
 | Job analysis (skills, summary, resume_fit) | `GET /api/jobs/{id}` (analysis) | AI generation context |
-| Application record + follow-ups + documents | `GET /api/applications/by-job/{id}` | Application/Documents sections |
+| Application record + follow-ups + documents + notes | `GET /api/applications/by-job/{id}` | Application/Documents/Notes sections |
 | Roadmap | `GET /api/roadmaps/by-application/{id}` (404 when none) | Roadmap section |
 
 Application generation (`roadmap`, `tailored_resume`, `cover_letter`) is queued via
@@ -71,6 +71,17 @@ processing pipeline with live SSE progress.
 │ │ [👁][download][edit][🗑][Regen]│  │ [👁][download][edit][🗑][Regen] │           │
 │ │ │ markdown preview │       │  │ │ markdown preview │       │           │
 │ └────────────────────────────┘  └────────────────────────────┘           │
+├──────────────────────────────────────────────────────────────────────────┤
+│ NOTES                                                                    │
+│ ┌──────────────────────────────────────────────────────────────────────┐ │
+│ │ What happened? (call, email, interview impression, decision…)        │ │
+│ │                                                          [Add Note]  │ │
+│ └──────────────────────────────────────────────────────────────────────┘ │
+│  Recruiter call — positive, next step: tech interview                    │
+│  Aug 21, 2026 14:02                                               [🗑]   │
+│ ──────────────────────────────────────────────────────────────────────── │
+│  Sent tailored resume via LinkedIn                                       │
+│  Aug 20, 2026 09:47                                               [🗑]   │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -110,6 +121,7 @@ app/jobs/[job_id]/application/page.tsx        (dynamic route, first dynamic rout
 │         ├── ApplicationTracker      → status select, status timeline, follow-ups
 │         ├── RoadmapSection          → roadmap state + brief overview + generate/regenerate/delete
         │   └── ApplicationDocuments    → resume / cover letter cards
+        │   └── ApplicationNotes       → free-text activity notes (add / delete, newest first)
         └── hooks/useApplicationGeneration → SSE subscription for the application
 ```
 
@@ -149,6 +161,7 @@ new roadmap/document appears; the card shows the result and a **Dismiss** button
 | Roadmap Overview | When a roadmap exists the section shows a brief overview (title, goal, overall progress, first 5 milestones with status/priority/task progress) — see `roadmaps/roadmap-application-overview.md`. |
 | Document Generate | `POST /api/applications/{id}/documents/{tailored_resume\|cover_letter}/generate` → 202, SSE progress, refetch on completion. Label becomes **Regenerate** once the document exists. |
 | Document actions | Copy, download as `.md`, edit in place (textarea + Save/Cancel), delete. |
+| Notes | Free-text activity notes with creation time, newest first; add via textarea + Add Note (or Enter), delete per note — see `application-notes.md`. |
 
 ## Loading States
 
@@ -174,6 +187,7 @@ new roadmap/document appears; the card shows the result and a **Dismiss** button
 - `docs/ux/features/roadmaps/roadmap-generation.md`
 - `docs/ux/features/roadmaps/roadmap-application-overview.md`
 - `docs/ux/features/applications/application-documents.md`
+- `docs/ux/features/applications/application-notes.md`
 - `docs/ux/flows/applications/prepare-and-apply.md`
 - `docs/ux/flows/applications/generate-application-artifacts.md`
 - `docs/ux/flows/roadmaps/generate-roadmap-from-application.md`

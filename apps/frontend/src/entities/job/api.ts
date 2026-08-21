@@ -1,5 +1,5 @@
 import { api } from '@/shared/api'
-import type { JobSearchQuery, JobSearchResult, InfiniteJobSearchResult, JobDetail, JobEditInput } from './types'
+import type { JobSearchQuery, JobSearchResult, InfiniteJobSearchResult, JobDetail, JobEditInput, JobTimeline } from './types'
 
 export interface CreateJobLinkItem {
   title?: string
@@ -69,6 +69,7 @@ export const jobApi = {
     if (query.success_score_min !== undefined) params.set('success_score_min', String(query.success_score_min))
     if (query.success_score_max !== undefined) params.set('success_score_max', String(query.success_score_max))
     if (query.pinned !== undefined) params.set('pinned', String(query.pinned))
+    if (query.tags) params.set('tags', query.tags)
     if (query.recommendation) params.set('recommendation', query.recommendation)
     if (query.tracking_status) params.set('tracking_status', query.tracking_status)
     if (query.created_date) params.set('created_date', query.created_date)
@@ -88,9 +89,14 @@ export const jobApi = {
     api.post<{ execution_id: string; status: string }>(`/jobs/${jobId}/process`),
   setPinned: (jobId: string, pinned: boolean) =>
     api.put<{ pinned: boolean }>(`/jobs/${jobId}/pinned`, { pinned }),
+  setDismissed: (jobId: string, dismissed: boolean, note?: string) =>
+    api.put<{ dismissed: boolean }>(`/jobs/${jobId}/dismissed`, { dismissed, note: note || null }),
+  setTags: (jobId: string, tags: string[]) =>
+    api.put<{ tags: string[] }>(`/jobs/${jobId}/tags`, { tags }),
   getDetail: (jobId: string) => api.get<JobDetail>(`/jobs/${jobId}`),
   updateJob: (jobId: string, data: JobEditInput) => api.patch<JobDetail>(`/jobs/${jobId}`, data),
   setCompany: (jobId: string, companyId: string | null) =>
     api.put<JobDetail>(`/jobs/${jobId}/company`, { company_id: companyId }),
   deleteJob: (jobId: string) => api.delete<void>(`/jobs/${jobId}`),
+  timeline: () => api.get<JobTimeline>('/jobs/timeline'),
 }

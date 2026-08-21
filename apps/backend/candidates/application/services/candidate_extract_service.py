@@ -112,6 +112,7 @@ class CandidateExtractService:
         llm: Any | None = None,
         event_publisher: CandidateEventPublisher | None = None,
         merge_service: ProfileMergeService | None = None,
+        city_service: Any | None = None,
     ):
         self._profile_repo = profile_repo
         self._source_repo = source_repo
@@ -119,6 +120,7 @@ class CandidateExtractService:
         self._llm = llm
         self.event_publisher = event_publisher or InMemoryEventCollector()
         self._merge_service = merge_service or ProfileMergeService()
+        self._city_service = city_service
 
     def process(self, adapter: CandidateSourceAdapter) -> dict[str, Any]:
         """Fetch a source via ``adapter`` and extract/persist it."""
@@ -242,6 +244,16 @@ class CandidateExtractService:
 
         core = {field: merged_profile.get(field, "") for field in CORE_FIELDS}
         core["version"] = new_version
+        if self._city_service is not None and (merged_profile.get("location") or "").strip():
+            city_row = self._city_service.normalize_and_ensure(
+                merged_profile.get("location"), address=merged_profile.get("location") or ""
+            )
+            if city_row is not None:
+                core["city_id"] = city_row["id"]
+                core["city"] = city_row["city"]
+                core["country"] = city_row["country"]
+                core["original_text"] = merged_profile.get("location") or ""
+                core["address"] = merged_profile.get("location") or ""
         self._profile_repo.update_core(profile_id, core)
         for kind in CHILD_KINDS:
             self._profile_repo.replace_children(profile_id, kind, merged_profile.get(kind, []))

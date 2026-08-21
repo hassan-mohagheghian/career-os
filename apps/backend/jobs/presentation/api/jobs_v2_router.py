@@ -32,7 +32,10 @@ from jobs.presentation.api.schemas.jobs_v2 import (
     JobNoteItem,
     JobLinkItem,
     PinJobRequest,
+    DismissJobRequest,
     SetJobCompanyRequest,
+    SetJobTagsRequest,
+    JobTimelineResponseSchema,
 )
 from jobs.application.use_cases.list_jobs_v2 import ListJobsV2UseCase, ListJobsV2Request
 from jobs.infrastructure import SQLAlchemyJobRepository
@@ -262,6 +265,8 @@ def _v2_job_to_schema(
         scores=scores,
         recommendation=recommendation,
         pinned=bool(job_dict.get("pinned")),
+        dismissed=bool(job_dict.get("dismissed")),
+        tags=_parse_string_list(job_dict.get("tags")),
         rank=rank,
         tracking_status=tracking_status,
         updated_at=job_dict.get("updated_at"),
@@ -286,6 +291,8 @@ def list_jobs_v2(
     pinned: bool | None = Query(None),
     created_date: str | None = Query(None, pattern="^(today|yesterday|week|month)$"),
     recommendation: str | None = Query(None, pattern="^(apply|consider|skip)$"),
+    dismissed: bool | None = Query(None),
+    tags: str | None = Query(None),
     overall_score_min: int | None = Query(None),
     overall_score_max: int | None = Query(None),
     fit_score_min: int | None = Query(None),
@@ -325,6 +332,8 @@ def list_jobs_v2(
         fit_score_min=fit_score_min, fit_score_max=fit_score_max,
         success_score_min=success_score_min, success_score_max=success_score_max,
         pinned=pinned,
+        dismissed=dismissed if dismissed is not None else None,
+        tags=[t.strip() for t in tags.split(",") if t.strip()] if tags else None,
         created_date=created_date,
         recommendation=recommendation,
     )
@@ -533,6 +542,15 @@ def _related_companies_schema(
     ]
 
 
+@router.get("/timeline", response_model=JobTimelineResponseSchema)
+def get_job_timeline(
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """Per-day created-job counts, newest first (independent of list filters)."""
+    days = repo.count_created_by_day()
+    return JobTimelineResponseSchema(days=days, total=sum(d["count"] for d in days))
+
+
 @router.get("/{job_id}", response_model=JobDetailResponseSchema)
 def get_job_detail(
     job_id: str,
@@ -690,3 +708,37 @@ def set_job_pinned(
     if not repo.set_pinned(job_id, body.pinned):
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     return {"pinned": body.pinned}
+
+
+@router.put("/{job_id}/dismissed")
+def set_job_dismissed(
+    job_id: str,
+    body: DismissJobRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """Set or clear the dismissed flag on a job. When a note is provided and
+    the job is being dismissed, the note is appended to the job's notes."""
+    job_dict = repo.get_by_id(job_id)
+    if not job_dict:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    if not repo.set_dismissed(job_id, body.dismissed):
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    if body.dismissed and body.note and body.note.strip():
+        notes = _parse_items(job_dict.get("notes"), plain_key="content")
+        notes.append({"content": body.note.strip()})
+        repo.update_by_id(job_id, {"notes": json.dumps(notes, ensure_ascii=False)})
+    return {"dismissed": body.dismissed}
+
+
+@router.put("/{job_id}/tags")
+def set_job_tags(
+    job_id: str,
+    body: SetJobTagsRequest,
+    repo: SQLAlchemyJobRepository = Depends(get_job_repo),
+):
+    """Set tags on a job. Replaces the existing tags."""
+    if not repo.get_by_id(job_id):
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    if not repo.set_tags(job_id, body.tags):
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return {"tags": body.tags}

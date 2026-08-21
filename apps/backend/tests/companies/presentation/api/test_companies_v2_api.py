@@ -251,6 +251,32 @@ class TestCompanyListV2API:
         names = [i["name"] for i in data["items"]]
         assert names == ["New Co", "Old Co"]
 
+    def test_sort_by_job_count_desc(self, client, sa_session):
+        c1 = _create_company(sa_session, name="Few Jobs")
+        c2 = _create_company(sa_session, name="Many Jobs")
+        c3 = _create_company(sa_session, name="No Jobs")
+        for _ in range(3):
+            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0))
+        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0))
+        sa_session.commit()
+
+        data = client.get("/api/companies/list?sort=job_count&order=desc").json()
+        names = [i["name"] for i in data["items"]]
+        assert names.index("Many Jobs") < names.index("Few Jobs")
+        assert names.index("Few Jobs") < names.index("No Jobs")
+
+    def test_sort_by_job_count_asc(self, client, sa_session):
+        c1 = _create_company(sa_session, name="Few Jobs")
+        c2 = _create_company(sa_session, name="Many Jobs")
+        for _ in range(3):
+            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0))
+        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0))
+        sa_session.commit()
+
+        data = client.get("/api/companies/list?sort=job_count&order=asc").json()
+        names = [i["name"] for i in data["items"]]
+        assert names.index("Few Jobs") < names.index("Many Jobs")
+
     def test_scores_and_processing_shape(self, client, sa_session):
         c = _create_company(
             sa_session,
@@ -667,6 +693,7 @@ class TestCompanyRecruiterForAPI:
             "fit_score": None,
             "success_score": None,
             "overall_score": None,
+            "rank": 1,
         }]
         assert detail["recruiter_for"] == []
 

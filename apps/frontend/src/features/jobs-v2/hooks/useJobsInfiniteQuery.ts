@@ -18,6 +18,7 @@ export function useJobsInfiniteQuery() {
   const [filterRemote, setFilterRemote] = useState<boolean | ''>('')
   const [filterVisa, setFilterVisa] = useState<boolean | ''>('')
   const [filterPinned, setFilterPinned] = useState(false)
+  const [filterTags, setFilterTags] = useState<string[]>([])
   const [filterRecommendation, setFilterRecommendation] = useState<RecommendationFilter>('')
   const [filterTrackingStatus, setFilterTrackingStatus] = useState<TrackingStatusFilter>('')
   const [filterCreatedDate, setFilterCreatedDate] = useState<CreatedDateFilter>('')
@@ -31,10 +32,11 @@ export function useJobsInfiniteQuery() {
     remote: filterRemote === '' ? undefined : filterRemote,
     visa: filterVisa === '' ? undefined : filterVisa,
     pinned: filterPinned || undefined,
+    tags: filterTags.length ? filterTags.join(',') : undefined,
     recommendation: filterRecommendation || undefined,
     tracking_status: filterTrackingStatus || undefined,
     created_date: filterCreatedDate || undefined,
-  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterRecommendation, filterTrackingStatus, filterCreatedDate])
+  }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterTags, filterRecommendation, filterTrackingStatus, filterCreatedDate])
 
   const {
     data,
@@ -215,6 +217,40 @@ export function useJobsInfiniteQuery() {
     },
   })
 
+  const dismissedMutation = useMutation({
+    mutationFn: ({ jobId, dismissed, note }: { jobId: string; dismissed: boolean; note?: string }) => jobApi.setDismissed(jobId, dismissed, note),
+    onMutate: async ({ jobId, dismissed }) => {
+      await queryClient.cancelQueries({ queryKey: [JOBS_KEY] })
+      const previousData = queryClient.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: [JOBS_KEY] })
+      queryClient.setQueriesData<{ pages: { items: JobListItem[] }[] }>(
+        { queryKey: [JOBS_KEY] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.id === jobId ? { ...item, dismissed } : item
+              ),
+            })),
+          }
+        }
+      )
+      return { previousData }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        for (const [key, data] of context.previousData) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+    },
+  })
+
   return {
     items,
     total,
@@ -248,10 +284,46 @@ export function useJobsInfiniteQuery() {
     setFilterTrackingStatus: useCallback((v: TrackingStatusFilter) => { setFilterTrackingStatus(v) }, []),
     filterCreatedDate,
     setFilterCreatedDate: useCallback((v: CreatedDateFilter) => { setFilterCreatedDate(v) }, []),
+    filterTags,
+    setFilterTags: useCallback((v: string[]) => { setFilterTags(v) }, []),
     activeFilterCount,
     clearFilters,
     processMutation,
     deleteMutation,
     pinnedMutation,
+    dismissedMutation,
+    tagsMutation: useMutation({
+      mutationFn: ({ jobId, tags }: { jobId: string; tags: string[] }) => jobApi.setTags(jobId, tags),
+      onMutate: async ({ jobId, tags }) => {
+        await queryClient.cancelQueries({ queryKey: [JOBS_KEY] })
+        const previousData = queryClient.getQueriesData<{ pages: { items: JobListItem[] }[] }>({ queryKey: [JOBS_KEY] })
+        queryClient.setQueriesData<{ pages: { items: JobListItem[] }[] }>(
+          { queryKey: [JOBS_KEY] },
+          (old) => {
+            if (!old) return old
+            return {
+              ...old,
+              pages: old.pages.map(page => ({
+                ...page,
+                items: page.items.map((item) =>
+                  item.id === jobId ? { ...item, tags } : item
+                ),
+              })),
+            }
+          }
+        )
+        return { previousData }
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousData) {
+          for (const [key, data] of context.previousData) {
+            queryClient.setQueryData(key, data)
+          }
+        }
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: [JOBS_KEY] })
+      },
+    }),
   }
 }

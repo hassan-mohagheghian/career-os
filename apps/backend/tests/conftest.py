@@ -33,6 +33,7 @@ import candidates.infrastructure.models.candidate_model  # noqa: F401
 import applications.infrastructure.models.application_model  # noqa: F401
 import roadmaps.infrastructure.models.roadmap_model  # noqa: F401
 import placeholders.infrastructure.models.placeholder_model  # noqa: F401
+import cities.infrastructure.models.city_model  # noqa: F401
 
 
 def _get_test_db_url() -> str:
@@ -118,7 +119,7 @@ def client(sa_session):
         get_processing_execution_repo,
         get_candidate_repo, get_candidate_profile_repo, get_candidate_source_repo,
         get_application_repo, get_follow_up_repo, get_document_repo,
-        get_roadmap_repo, get_roadmap_service,
+        get_roadmap_repo, get_roadmap_service, get_city_repo,
     )
     from exceptions import AppError
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
@@ -138,6 +139,7 @@ def client(sa_session):
     from roadmaps.infrastructure.repositories.sa_roadmap_repository import SQLAlchemyRoadmapRepository
     from roadmaps.application.services.roadmap_service import RoadmapService
     from roadmaps.domain.event_publisher import InMemoryEventCollector as RoadmapInMemoryEventCollector
+    from cities.infrastructure.repositories.sa_city_repository import SQLAlchemyCityRepository
     from shared.presentation.api.root_router import api_router
 
     app = FastAPI(title="Test API")
@@ -173,6 +175,7 @@ def client(sa_session):
     app.dependency_overrides[get_follow_up_repo] = lambda: SQLAlchemyFollowUpRepository(sa_session)
     app.dependency_overrides[get_document_repo] = lambda: SQLAlchemyDocumentRepository(sa_session)
     app.dependency_overrides[get_roadmap_repo] = lambda: SQLAlchemyRoadmapRepository(sa_session)
+    app.dependency_overrides[get_city_repo] = lambda: SQLAlchemyCityRepository(sa_session)
     app.dependency_overrides[get_roadmap_service] = lambda: RoadmapService(
         SQLAlchemyRoadmapRepository(sa_session),
         SQLAlchemySkillRepository(sa_session),

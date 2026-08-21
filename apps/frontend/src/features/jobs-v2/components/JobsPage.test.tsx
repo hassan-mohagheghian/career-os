@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { JobsPage } from './JobsPage'
 import type { CreateEntityFormData } from '@/shared/components/CreateEntityDrawer'
 
@@ -76,7 +77,12 @@ function renderPage(overrides: Record<string, unknown> = {}) {
     processingCount: 0,
     ...overrides,
   }
-  return render(<JobsPage {...(props as any)} />)
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={qc}>
+      <JobsPage {...(props as any)} />
+    </QueryClientProvider>
+  )
 }
 
 describe('JobsPage create & queue flow', () => {

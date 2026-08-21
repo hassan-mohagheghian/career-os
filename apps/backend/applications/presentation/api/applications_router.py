@@ -14,21 +14,25 @@ from fastapi.responses import JSONResponse, Response as _FastAPIResponse
 from applications.application.services.application_service import ApplicationService
 from applications.application.services.document_service import DocumentService
 from applications.application.services.follow_up_service import FollowUpService
+from applications.application.services.note_service import NoteService
 from applications.application.services.status_event_service import StatusEventService
 from applications.domain.entities.application import ApplicationStatus, DocumentType
 from applications.infrastructure import (
     SQLAlchemyApplicationRepository,
     SQLAlchemyDocumentRepository,
     SQLAlchemyFollowUpRepository,
+    SQLAlchemyNoteRepository,
     SQLAlchemyStatusEventRepository,
 )
 from applications.presentation.api.schemas.applications import (
     ApplicationDetailResponse,
     ApplicationDocumentSchema,
     ApplicationFollowUpSchema,
+    ApplicationNoteSchema,
     ApplicationStatusEventSchema,
     CreateApplicationRequest,
     CreateFollowUpRequest,
+    CreateNoteRequest,
     DeleteResponse,
     GenerateResponse,
     UpdateApplicationRequest,
@@ -44,6 +48,8 @@ from dependencies import (
     get_document_service,
     get_follow_up_repo,
     get_follow_up_service,
+    get_note_repo,
+    get_note_service,
     get_placeholder_service,
     get_processing_execution_repo,
     get_status_event_repo,
@@ -85,6 +91,7 @@ def _detail(
     status_event_repo: SQLAlchemyStatusEventRepository,
     application_id: str,
     placeholder_service=None,
+    note_repo: SQLAlchemyNoteRepository | None = None,
 ) -> ApplicationDetailResponse:
     application = application_repo.get_by_id(application_id)
     if not application:
@@ -94,6 +101,7 @@ def _detail(
         follow_up_repo.list_for_application(application_id),
         _fill_documents(document_repo.list_for_application(application_id), placeholder_service),
         status_event_repo.list_for_application(application_id),
+        notes=note_repo.list_for_application(application_id) if note_repo else None,
     )
 
 
@@ -116,6 +124,7 @@ def get_application_by_job(
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
     status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    note_repo: SQLAlchemyNoteRepository = Depends(get_note_repo),
     placeholder_service=Depends(get_placeholder_service),
 ):
     application = application_repo.get_by_job_id(job_id)
@@ -126,6 +135,7 @@ def get_application_by_job(
         follow_up_repo.list_for_application(application["id"]),
         _fill_documents(document_repo.list_for_application(application["id"]), placeholder_service),
         status_event_repo.list_for_application(application["id"]),
+        notes=note_repo.list_for_application(application["id"]),
     )
 
 
@@ -136,6 +146,7 @@ def create_application(
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
     status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    note_repo: SQLAlchemyNoteRepository = Depends(get_note_repo),
     placeholder_service=Depends(get_placeholder_service),
 ):
     stored = service.create(body.job_id, seen_at=body.seen_at)
@@ -144,6 +155,7 @@ def create_application(
         follow_up_repo.list_for_application(stored["id"]),
         _fill_documents(document_repo.list_for_application(stored["id"]), placeholder_service),
         status_event_repo.list_for_application(stored["id"]),
+        notes=note_repo.list_for_application(stored["id"]),
     )
 
 
@@ -156,6 +168,7 @@ def update_application(
     follow_up_repo: SQLAlchemyFollowUpRepository = Depends(get_follow_up_repo),
     document_repo: SQLAlchemyDocumentRepository = Depends(get_document_repo),
     status_event_repo: SQLAlchemyStatusEventRepository = Depends(get_status_event_repo),
+    note_repo: SQLAlchemyNoteRepository = Depends(get_note_repo),
     placeholder_service=Depends(get_placeholder_service),
 ):
     data = body.model_dump(exclude_unset=True)
@@ -167,6 +180,7 @@ def update_application(
         status_event_repo,
         application_id,
         placeholder_service,
+        note_repo=note_repo,
     )
 
 
@@ -218,6 +232,24 @@ def delete_follow_up(
     service: FollowUpService = Depends(get_follow_up_service),
 ):
     service.delete(follow_up_id)
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{application_id}/notes", status_code=http_status.HTTP_201_CREATED, response_model=ApplicationNoteSchema)
+def add_note(
+    application_id: str,
+    body: CreateNoteRequest,
+    service: NoteService = Depends(get_note_service),
+):
+    return service.add(application_id, body.content)
+
+
+@router.delete("/notes/{note_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_note(
+    note_id: str,
+    service: NoteService = Depends(get_note_service),
+):
+    service.delete(note_id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 

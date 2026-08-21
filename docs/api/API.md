@@ -18,6 +18,7 @@ REST API served by FastAPI on port 5000. All endpoints return JSON. Real-time pr
 | Execution Detail    | `/api/processing/executions/{execution_id}` | Execution status + workflow progress  |
 | Execution Actions   | `/api/processing/executions/{id}/...`       | Start, cancel, retry, remove queue entry |
 | Companies           | `/api/companies`                            | Company intelligence CRUD             |
+| Cities              | `/api/cities`                               | Normalized city catalog (read-only)   |
 | Skills              | `/api/skills`                               | Skill CRUD, aliases, merge, breakdown, jobs referencing a skill |
 | Insights            | `/api/insights`                             | Career intelligence sections          |
 | Candidate Profile   | `/api/candidates/sources`                   | Resume / LinkedIn profile upload as analysis input |
@@ -131,6 +132,22 @@ whose analysis produced that recommendation (jobs without analysis never
 match), and `created_date=today|yesterday|week|month` to filter by the job's
 creation date preset.
 
+### `GET /api/jobs/timeline`
+
+Returns the number of non-deleted jobs created per calendar day, newest first,
+grouped by the day portion of `created_at`. Display-only; independent of list
+filters.
+
+```json
+{
+  "days": [ { "date": "2026-08-19", "count": 3 }, { "date": "2026-08-18", "count": 5 } ],
+  "total": 8
+}
+```
+
+`total` is the sum of all day counts. The frontend renders this in the narrow
+"Jobs added" side panel on the Jobs page.
+
 ### `PUT /api/jobs/{job_id}/pinned`
 
 Request: `{ "pinned": true }` → Response `200`: `{ "pinned": true }`, or
@@ -168,7 +185,7 @@ and marks it `processed`.
 ## Full Reference
 
 For endpoint-by-endpoint documentation see `docs/api/api-design.md` (conventions) and the per-context docs under `docs/api/`.
-- `docs/api/` — per-domain API specs (`jobs/`, `processing/`, `companies/`, `applications/`, `sse/`, ...)
+- `docs/api/` — per-domain API specs (`jobs/`, `processing/`, `companies/`, `cities/`, `applications/`, `sse/`, ...)
 
 ## Applications (Job Application Workspace)
 

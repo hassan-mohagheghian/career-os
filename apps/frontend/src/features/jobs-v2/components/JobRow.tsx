@@ -4,6 +4,7 @@ import { ScoreBadge } from './ScoreBadge'
 import { ProcessingStatus } from './ProcessingStatus'
 import { JobActions } from './JobActions'
 import { PinButton } from '@/shared/components/PinButton'
+import { cn } from '@/shared/lib/utils'
 import { RecommendationBadge } from './RecommendationBadge'
 import { TrackingBadge } from './TrackingBadge'
 import DateTime from '@/shared/components/DateTime'
@@ -19,6 +20,7 @@ interface JobRowProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onTogglePinned: (id: string, pinned: boolean) => void
+  onToggleDismissed: (id: string) => void
   onRetry?: (id: string) => void
   onCancel?: (id: string) => void
   onApplication?: (id: string) => void
@@ -28,7 +30,7 @@ interface JobRowProps {
 }
 
 export function JobRow({
-  job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onRetry, onCancel, onApplication,
+  job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onToggleDismissed, onRetry, onCancel, onApplication,
   showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
@@ -47,6 +49,17 @@ export function JobRow({
       {showPinnedColumn && (
         <div className="py-2 px-2 flex items-center justify-center" onClick={e => e.stopPropagation()}>
           <PinButton pinned={job.pinned} onToggle={() => onTogglePinned(job.id, !job.pinned)} entityLabel="job" />
+          {!job.dismissed && (
+            <button
+              type="button"
+              aria-label="Dismiss job"
+              onClick={() => onToggleDismissed(job.id)}
+              className="inline-flex items-center justify-center w-6 h-6 rounded text-muted-foreground/50 hover:text-orange-500 transition-colors"
+              title="Dismiss — mark as dismissed"
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
       <div className="py-2 px-3 flex items-center">
@@ -88,13 +101,31 @@ export function JobRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
+        <div className="flex items-center gap-1 flex-wrap">
+          {(job.tags ?? []).slice(0, 3).map((tag) => (
+            <span key={tag} className="inline-flex items-center text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50 whitespace-nowrap">
+              {tag}
+            </span>
+          ))}
+          {(job.tags ?? []).length > 3 && (
+            <span className="text-2xs text-muted-foreground">+{(job.tags ?? []).length - 3}</span>
+          )}
+        </div>
+      </div>
+      <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
         <RecommendationBadge recommendation={job.recommendation} />
       </div>
       <div className="py-2 px-3 flex items-center">
         <TrackingBadge status={job.tracking_status} />
       </div>
       <div className="py-2 px-3 flex items-center">
-        <ProcessingStatus status={processingStatus} />
+        {job.dismissed ? (
+          <span className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 whitespace-nowrap font-medium">
+            Dismissed
+          </span>
+        ) : (
+          <ProcessingStatus status={processingStatus} />
+        )}
       </div>
       <div className="py-2 px-3 flex items-center">
         <DateTime value={job.updated_at} format="relative" className="text-2xs text-muted-foreground" />

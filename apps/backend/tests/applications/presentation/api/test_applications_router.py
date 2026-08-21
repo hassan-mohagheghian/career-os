@@ -255,6 +255,57 @@ class TestFollowUpAPI:
         ).first() is None
 
 
+class TestNoteAPI:
+    def test_add_note_and_list_in_detail(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        resp = client.post(
+            f"/api/applications/{app.id}/notes",
+            json={"content": "Called recruiter, positive signal"},
+        )
+        assert resp.status_code == 201
+        note = resp.json()
+        assert note["content"] == "Called recruiter, positive signal"
+        assert note["application_id"] == app.id
+        assert note["created_at"]
+
+        detail = client.get(f"/api/applications/by-job/{job.id}").json()
+        assert len(detail["notes"]) == 1
+        assert detail["notes"][0]["content"] == "Called recruiter, positive signal"
+
+    def test_notes_newest_first(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        first = client.post(f"/api/applications/{app.id}/notes", json={"content": "first"}).json()
+        second = client.post(f"/api/applications/{app.id}/notes", json={"content": "second"}).json()
+        detail = client.get(f"/api/applications/by-job/{job.id}").json()
+        ids = [n["id"] for n in detail["notes"]]
+        assert ids == [second["id"], first["id"]]
+
+    def test_add_note_empty_content_422(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        resp = client.post(f"/api/applications/{app.id}/notes", json={"content": "   "})
+        assert resp.status_code == 422
+
+    def test_add_note_missing_application_404(self, client):
+        resp = client.post("/api/applications/nope/notes", json={"content": "hi"})
+        assert resp.status_code == 404
+
+    def test_delete_note(self, client, sa_session):
+        job = _create_job(sa_session)
+        app = _create_application(sa_session, job.id)
+        note = client.post(f"/api/applications/{app.id}/notes", json={"content": "n"}).json()
+        resp = client.delete(f"/api/applications/notes/{note['id']}")
+        assert resp.status_code == 204
+        detail = client.get(f"/api/applications/by-job/{job.id}").json()
+        assert detail["notes"] == []
+
+    def test_delete_note_missing_404(self, client):
+        resp = client.delete("/api/applications/notes/nope")
+        assert resp.status_code == 404
+
+
 class TestDocumentAPI:
     def test_update_document(self, client, sa_session):
         job = _create_job(sa_session)

@@ -7,6 +7,7 @@ import {
   DrawerContent,
 } from "@/shared/components/Drawer";
 import { Badge } from "@/shared/ui/badge";
+import { formatCityLocation } from "@/shared/lib/formatLocation";
 import { Button } from "@/shared/ui/button";
 import {
   CircleNotch,
@@ -356,7 +357,7 @@ function CompanyDetailContent({
         {(company.city || company.country) && (
           <Badge variant="secondary" className="text-2xs">
             <MapPin className="w-2.5 h-2.5 mr-1" />
-            {[company.city, company.country].filter(Boolean).join(", ")}
+            {formatCityLocation(company.city, company.country)}
           </Badge>
         )}
         {company.company_size && (

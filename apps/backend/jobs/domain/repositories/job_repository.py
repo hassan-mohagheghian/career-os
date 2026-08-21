@@ -44,6 +44,11 @@ class IJobRepository(ABC):
         ...
 
     @abstractmethod
+    def count_created_by_day(self) -> list[dict[str, Any]]:
+        """Per-day created-job counts (newest first)."""
+        ...
+
+    @abstractmethod
     def update_by_id(self, uuid: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """Partially update a job's core data by UUID. Returns updated job or None."""
         ...

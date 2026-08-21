@@ -67,6 +67,19 @@ class ApplicationFollowUpModel(Base):
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
 
 
+class ApplicationNoteModel(Base):
+    __tablename__ = "application_notes"
+    __table_args__ = {"schema": "application"}
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
+    application_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("application.applications.id"), nullable=False, index=True
+    )
+    content: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
+    updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
+
+
 class ApplicationDocumentModel(Base):
     __tablename__ = "application_documents"
     __table_args__ = {"schema": "application"}
