@@ -159,28 +159,4 @@ describe('JobRow hover actions', () => {
     expect(onDelete).toHaveBeenCalled()
     expect(onViewDetails).not.toHaveBeenCalled()
   })
-
-  describe('tags', () => {
-    it('renders up to 3 tags as badges', () => {
-      renderRow(makeJob({ tags: ['python', 'remote', 'senior'] }))
-      expect(screen.getByText('python')).toBeInTheDocument()
-      expect(screen.getByText('remote')).toBeInTheDocument()
-      expect(screen.getByText('senior')).toBeInTheDocument()
-    })
-
-    it('shows overflow count when more than 3 tags', () => {
-      renderRow(makeJob({ tags: ['a', 'b', 'c', 'd'] }))
-      expect(screen.getByText('a')).toBeInTheDocument()
-      expect(screen.getByText('b')).toBeInTheDocument()
-      expect(screen.getByText('c')).toBeInTheDocument()
-      expect(screen.getByText('+1')).toBeInTheDocument()
-      expect(screen.queryByText('d')).not.toBeInTheDocument()
-    })
-
-    it('renders nothing when no tags', () => {
-      const { container } = renderRow(makeJob({ tags: [] }))
-      const tagsCell = container.querySelectorAll('.flex.items-center.gap-1.flex-wrap')[0]
-      expect(tagsCell?.children.length).toBe(0)
-    })
-  })
 })

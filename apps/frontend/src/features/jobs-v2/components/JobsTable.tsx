@@ -51,7 +51,6 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Company', field: 'company' },
   { label: 'Location' },
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
-  { label: 'Tags' },
   { label: 'Rec' },
   { label: 'Status', field: 'status' },
   { label: 'Tracking' },

@@ -46,7 +46,6 @@ function JobsPageV2Adapter() {
     filterRemote, setFilterRemote,
     filterVisa, setFilterVisa,
     filterPinned, setFilterPinned,
-    filterTags, setFilterTags,
     filterRecommendation, setFilterRecommendation,
     filterTrackingStatus, setFilterTrackingStatus,
     filterCreatedDate, setFilterCreatedDate,
@@ -55,14 +54,7 @@ function JobsPageV2Adapter() {
     deleteMutation,
     pinnedMutation,
     dismissedMutation,
-    tagsMutation,
   } = useJobsInfiniteQuery()
-
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>()
-    items.forEach(j => (j.tags ?? []).forEach(t => tagSet.add(t)))
-    return [...tagSet].sort()
-  }, [items])
 
   useProcessingEvents()
 
@@ -210,9 +202,6 @@ function JobsPageV2Adapter() {
           onFilterVisaChange={setFilterVisa}
           filterPinned={filterPinned}
           onFilterPinnedChange={setFilterPinned}
-          filterTags={filterTags}
-          onFilterTagsChange={setFilterTags}
-          allTags={allTags}
           filterRecommendation={filterRecommendation}
           onFilterRecommendationChange={setFilterRecommendation}
           filterTrackingStatus={filterTrackingStatus}

@@ -42,9 +42,6 @@ interface JobsPageProps {
   onFilterVisaChange: (value: boolean | '') => void
   filterPinned: boolean
   onFilterPinnedChange: (value: boolean) => void
-  filterTags: string[]
-  onFilterTagsChange: (value: string[]) => void
-  allTags: string[]
   filterRecommendation: RecommendationFilter
   onFilterRecommendationChange: (value: RecommendationFilter) => void
   filterTrackingStatus: TrackingStatusFilter
@@ -94,7 +91,6 @@ export function JobsPage({
   filterRemote, onFilterRemoteChange,
   filterVisa, onFilterVisaChange,
   filterPinned, onFilterPinnedChange,
-  filterTags, onFilterTagsChange, allTags,
   filterRecommendation, onFilterRecommendationChange,
   filterTrackingStatus, onFilterTrackingStatusChange,
   filterCreatedDate, onFilterCreatedDateChange,
@@ -183,9 +179,6 @@ export function JobsPage({
             onFilterVisaChange={onFilterVisaChange}
             filterPinned={filterPinned}
             onFilterPinnedChange={onFilterPinnedChange}
-            filterTags={filterTags}
-            onFilterTagsChange={onFilterTagsChange}
-            allTags={allTags}
             filterRecommendation={filterRecommendation}
             onFilterRecommendationChange={onFilterRecommendationChange}
             filterTrackingStatus={filterTrackingStatus}

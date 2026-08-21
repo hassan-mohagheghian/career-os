@@ -101,18 +101,6 @@ export function JobRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
-        <div className="flex items-center gap-1 flex-wrap">
-          {(job.tags ?? []).slice(0, 3).map((tag) => (
-            <span key={tag} className="inline-flex items-center text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50 whitespace-nowrap">
-              {tag}
-            </span>
-          ))}
-          {(job.tags ?? []).length > 3 && (
-            <span className="text-2xs text-muted-foreground">+{(job.tags ?? []).length - 3}</span>
-          )}
-        </div>
-      </div>
-      <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
         <RecommendationBadge recommendation={job.recommendation} />
       </div>
       <div className="py-2 px-3 flex items-center">
