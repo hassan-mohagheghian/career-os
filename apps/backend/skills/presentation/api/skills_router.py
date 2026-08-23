@@ -7,9 +7,10 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Query
 
-from dependencies import get_skill_repo, get_skill_category_service, get_skill_normalization_service, get_job_repo
+from dependencies import get_skill_repo, get_skill_category_service, get_skill_normalization_service, get_job_repo, get_skill_resource_service, get_skill_note_repo, get_skill_link_repo
 from skills.application.use_cases.skill_category_service import SkillCategoryService
 from skills.application.use_cases.skill_normalization_service import SkillNormalizationService
+from skills.application.services.skill_resource_service import SkillResourceService
 from skills.infrastructure import SQLAlchemySkillRepository
 from skills.presentation.api.schemas.skills import (
     SkillCreate,
@@ -30,6 +31,10 @@ from skills.presentation.api.schemas.skills import (
     SkillListResponseSchema,
     SkillJobRefSchema,
     SkillJobsResponseSchema,
+    CreateSkillNoteRequest,
+    SkillNoteSchema,
+    CreateSkillLinkRequest,
+    SkillLinkSchema,
 )
 from shared.application.exceptions import NotFoundError, BadRequestError, ConflictError
 
@@ -224,11 +229,18 @@ def get_skill_breakdowns(
 
 
 @router.get("/{id}")
-def get_skill(id: int, repo: SQLAlchemySkillRepository = Depends(get_skill_repo)):
-    """Get a single skill with aliases and tags."""
+def get_skill(
+    id: int,
+    repo: SQLAlchemySkillRepository = Depends(get_skill_repo),
+    note_repo=Depends(get_skill_note_repo),
+    link_repo=Depends(get_skill_link_repo),
+):
+    """Get a single skill with aliases, tags, notes, and links."""
     skill = repo.get_by_id(id)
     if not skill:
         raise NotFoundError(f"Skill {id} not found")
+    skill["notes"] = note_repo.list_for_skill(id)
+    skill["links"] = link_repo.list_for_skill(id)
     return skill
 
 
@@ -476,3 +488,41 @@ def update_category(
     if not result:
         raise NotFoundError(f"Skill {id} not found")
     return result
+
+
+@router.post("/{id}/notes", status_code=201, response_model=SkillNoteSchema)
+def add_skill_note(
+    id: int,
+    body: CreateSkillNoteRequest,
+    service: SkillResourceService = Depends(get_skill_resource_service),
+):
+    """Add a free-text note to a skill."""
+    return service.add_note(id, body.content)
+
+
+@router.delete("/notes/{note_id}", status_code=204)
+def delete_skill_note(
+    note_id: int,
+    service: SkillResourceService = Depends(get_skill_resource_service),
+):
+    """Delete a skill note."""
+    service.delete_note(note_id)
+
+
+@router.post("/{id}/links", status_code=201, response_model=SkillLinkSchema)
+def add_skill_link(
+    id: int,
+    body: CreateSkillLinkRequest,
+    service: SkillResourceService = Depends(get_skill_resource_service),
+):
+    """Add a titled resource link to a skill."""
+    return service.add_link(id, body.title, body.url)
+
+
+@router.delete("/links/{link_id}", status_code=204)
+def delete_skill_link(
+    link_id: int,
+    service: SkillResourceService = Depends(get_skill_resource_service),
+):
+    """Delete a skill link."""
+    service.delete_link(link_id)

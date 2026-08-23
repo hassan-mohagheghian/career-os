@@ -22,6 +22,7 @@ import { CategoryBadges, OriginBadge } from "./SkillRow";
 import { useSkillReferencedJobs } from "@/entities/skill/hooks";
 import { GradeBadge } from "@/shared/components/GradeBadge";
 import { gradeForScore } from "@/shared/lib/grade";
+import { SkillResources } from "./SkillResources";
 
 interface SkillDetailDrawerProps {
   skillId: number | null;
@@ -283,6 +284,8 @@ export function SkillDetailDrawer({
               <p className="text-xs text-muted-foreground">{skill.evidence}</p>
             </div>
           )}
+
+          <SkillResources skill={skill} />
 
           {skillId != null && (
             <ReferencedJobsList skillId={skillId} onOpenJob={onOpenJob} />

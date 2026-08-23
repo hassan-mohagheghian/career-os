@@ -5,7 +5,9 @@ import type {
   SkillBreakdownResult,
   SkillCategoryInfo,
   SkillCreateInput,
+  SkillLink,
   SkillListItem,
+  SkillNote,
   SkillReferencedJobs,
   SkillSearchQuery,
   SkillUpdateInput,
@@ -44,4 +46,8 @@ export const skillApi = {
   getBreakdowns: (id: number) => api.get<SkillBreakdownInfo>(`/skills/${id}/breakdowns`),
   promoteAliasToCanonical: (id: number, aliasName: string) => api.patch<SkillListItem>(`/skills/${id}/canonical`, { alias_name: aliasName }),
   referencedJobs: (id: number) => api.get<SkillReferencedJobs>(`/skills/${id}/jobs`),
+  addNote: (id: number, content: string) => api.post<SkillNote>(`/skills/${id}/notes`, { content }),
+  deleteNote: (noteId: number) => api.delete<void>(`/skills/notes/${noteId}`),
+  addLink: (id: number, title: string, url: string) => api.post<SkillLink>(`/skills/${id}/links`, { title, url }),
+  deleteLink: (linkId: number) => api.delete<void>(`/skills/links/${linkId}`),
 }

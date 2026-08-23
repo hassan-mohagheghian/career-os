@@ -32,6 +32,14 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 │ ┌─ Why This Skill Matters ───────────────────────────────┐  │
 │ │ Critical for cloud-native platform engineering.         │  │
 │ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Notes ────────────────────────────────────────────────┐  │
+│ │ Learned decorators today. Need to study async next.    │  │
+│ │ 2 hours ago                                            │  │
+│ └────────────────────────────────────────────────────────┘  │
+│ ┌─ Links ────────────────────────────────────────────────┐  │
+│ │ 🔗 Official Docs                                      │  │
+│ │    https://docs.python.org/3/                          │  │
+│ └────────────────────────────────────────────────────────┘  │
 │ ┌─ Referenced Jobs (2) ──────────────────────────────────┐  │
 │ │ · SRE Engineer        Berlin          [B]             │  │
 │ │   Fit 8  Success 7  Overall 9                          │  │
@@ -46,6 +54,7 @@ The Skill Detail drawer shows everything the AI knows about a skill.
 ```mermaid
 flowchart LR
   SkillRow[Skill row] -->|click row| SkillDetail[Skill Detail drawer]
+  SkillDetail -->|Notes & Links| SkillResources[Notes / Links]
   SkillDetail -->|Referenced Jobs list| JobRow[Job row]
   JobRow -->|click job| JobsPage["Jobs page - ?job=<id> drawer"]
 ```
@@ -79,6 +88,8 @@ categories.
 | Tags              | `tags` (badges)     |
 | Also Known As     | `aliases` (badges)  |
 | Why This Matters  | `evidence`          |
+| Notes             | Free-text entries (newest first) |
+| Links             | Titled URLs (newest first) |
 | Referenced Jobs   | `GET /skills/{id}/jobs` (jobs-only mentions) |
 
 The **Categories** section is rendered right below the stats row, above Relevant
@@ -126,3 +137,4 @@ Sections with no data are omitted (no empty boxes).
 - `docs/ux/features/skills/page.md`
 - `docs/ux/features/skills/edit-skill.md`
 - `docs/ux/features/skills/skill-row.md`
+- `docs/ux/features/skills/skill-resources.md`

@@ -7,9 +7,13 @@ def __getattr__(name: str):
         "SkillAliasModel": ("skills.infrastructure.models.skill_model", "SkillAliasModel"),
         "SkillRelationshipModel": ("skills.infrastructure.models.skill_model", "SkillRelationshipModel"),
         "SkillMentionModel": ("skills.infrastructure.models.skill_model", "SkillMentionModel"),
+        "SkillNoteModel": ("skills.infrastructure.models.skill_model", "SkillNoteModel"),
+        "SkillLinkModel": ("skills.infrastructure.models.skill_model", "SkillLinkModel"),
         "SQLAlchemySkillRepository": ("skills.infrastructure.repositories.sa_skill_repository", "SQLAlchemySkillRepository"),
         "SQLAlchemySkillAliasRepository": ("skills.infrastructure.repositories.sa_skill_alias_repository", "SQLAlchemySkillAliasRepository"),
         "SQLAlchemySkillRelationshipRepository": ("skills.infrastructure.repositories.sa_skill_relationship_repository", "SQLAlchemySkillRelationshipRepository"),
+        "SQLAlchemySkillNoteRepository": ("skills.infrastructure.repositories.sa_skill_note_repository", "SQLAlchemySkillNoteRepository"),
+        "SQLAlchemySkillLinkRepository": ("skills.infrastructure.repositories.sa_skill_link_repository", "SQLAlchemySkillLinkRepository"),
         "skill_model_to_dict": ("skills.infrastructure.mappers", "skill_model_to_dict"),
         "dict_to_skill_model": ("skills.infrastructure.mappers", "dict_to_skill_model"),
     }

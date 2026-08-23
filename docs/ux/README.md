@@ -83,6 +83,7 @@ docs/ux/
 │       ├── page.md            Skills page (list, toolbar, multi-select, column toggles, infinite scroll, drawers)
 │       ├── skill-row.md       Skill row columns, select checkbox, origin/alias badges, mentions, actions
 │       ├── skill-detail.md    Skill Detail drawer (level, roles, tags, aliases, referenced jobs)
+│       ├── skill-resources.md Notes & links for tracking learning progress
 │       ├── add-skill.md       Add Skill drawer (name, level, category, roles, path)
 │       ├── edit-skill.md      Edit Skill drawer (aliases, merge, make canonical)
 │       └── breakdown-skill-dialog.md  Break down a composite skill into atomic children

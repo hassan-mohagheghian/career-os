@@ -1,6 +1,6 @@
 """Skill schemas for request/response validation."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SkillCreate(BaseModel):
@@ -128,6 +128,8 @@ class SkillListItemSchema(BaseModel):
     source_type: str = "user_input"
     mention_count: int = 0
     pinned: bool = False
+    notes: list[SkillNoteSchema] = []
+    links: list[SkillLinkSchema] = []
     created_at: str | None = None
 
 
@@ -192,3 +194,49 @@ class SkillRelationshipCreate(BaseModel):
     related_name: str
     relation_type: str
     confidence: float = 0
+
+
+class CreateSkillNoteRequest(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        if not str(v).strip():
+            raise ValueError("content must not be empty")
+        return v.strip()
+
+
+class SkillNoteSchema(BaseModel):
+    id: int
+    skill_id: int
+    content: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class CreateSkillLinkRequest(BaseModel):
+    title: str
+    url: str
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        if not str(v).strip():
+            raise ValueError("title must not be empty")
+        return v.strip()
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not str(v).strip():
+            raise ValueError("url must not be empty")
+        return v.strip()
+
+
+class SkillLinkSchema(BaseModel):
+    id: int
+    skill_id: int
+    title: str
+    url: str
+    created_at: str | None = None

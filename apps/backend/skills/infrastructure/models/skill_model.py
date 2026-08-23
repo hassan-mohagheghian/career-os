@@ -48,6 +48,14 @@ class SkillModel(Base):
         back_populates="skill", cascade="all, delete-orphan"
     )
 
+    notes: Mapped[list["SkillNoteModel"]] = relationship(
+        back_populates="skill", cascade="all, delete-orphan"
+    )
+
+    links: Mapped[list["SkillLinkModel"]] = relationship(
+        back_populates="skill", cascade="all, delete-orphan"
+    )
+
 
 class SkillAliasModel(Base):
     __tablename__ = "skill_aliases"
@@ -163,3 +171,31 @@ class SkillMentionModel(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
     skill: Mapped["SkillModel"] = relationship(back_populates="mentions")
+
+
+class SkillNoteModel(Base):
+    """Free-text activity note on a skill."""
+    __tablename__ = "skill_notes"
+    __table_args__ = {"schema": "skill"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+    skill: Mapped["SkillModel"] = relationship(back_populates="notes")
+
+
+class SkillLinkModel(Base):
+    """A titled resource link on a skill (documentation, tutorial, etc.)."""
+    __tablename__ = "skill_links"
+    __table_args__ = {"schema": "skill"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    skill_id: Mapped[int] = mapped_column(Integer, ForeignKey("skill.skills.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    url: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
+
+    skill: Mapped["SkillModel"] = relationship(back_populates="links")

@@ -14,6 +14,8 @@ export interface SkillListItem {
   source_type: string
   mention_count: number
   pinned: boolean
+  notes?: SkillNote[]
+  links?: SkillLink[]
   created_at: string | null
 }
 
@@ -33,6 +35,8 @@ export interface Skill {
   source_type: string
   mention_count?: number
   pinned?: boolean
+  notes?: SkillNote[]
+  links?: SkillLink[]
   created_at: string | null
   [key: string]: unknown
 }
@@ -116,6 +120,22 @@ export interface SkillCategoryInfo {
   count: number
   avg_demand: number | null
   avg_level: number | null
+}
+
+export interface SkillNote {
+  id: number
+  skill_id: number
+  content: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface SkillLink {
+  id: number
+  skill_id: number
+  title: string
+  url: string
+  created_at: string | null
 }
 
 export const SKILL_CATEGORIES = ['technical', 'engineering', 'professional', 'domain', 'career'] as const

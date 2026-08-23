@@ -245,3 +245,37 @@ export function useSkillReferencedJobs(skillId: number | null) {
     enabled: skillId != null,
   })
 }
+
+export function useAddSkillNoteMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ skillId, content }: { skillId: number; content: string }) =>
+      skillApi.addNote(skillId, content),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}
+
+export function useDeleteSkillNoteMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (noteId: number) => skillApi.deleteNote(noteId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}
+
+export function useAddSkillLinkMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ skillId, title, url }: { skillId: number; title: string; url: string }) =>
+      skillApi.addLink(skillId, title, url),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}
+
+export function useDeleteSkillLinkMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (linkId: number) => skillApi.deleteLink(linkId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [SKILLS_KEY] }),
+  })
+}

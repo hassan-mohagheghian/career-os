@@ -10,6 +10,10 @@ vi.mock('@/entities/skill/hooks', () => ({
     isLoading: false,
     isError: false,
   }),
+  useAddSkillNoteMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteSkillNoteMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useAddSkillLinkMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteSkillLinkMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 let mockReferencedJobs: SkillReferencedJobs = { jobs: [], total: 0 }

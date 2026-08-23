@@ -8,7 +8,7 @@ import json
 from typing import Any
 from datetime import datetime
 
-from skills.infrastructure.models.skill_model import SkillModel
+from skills.infrastructure.models.skill_model import SkillModel, SkillNoteModel, SkillLinkModel
 
 
 def _to_str(value: Any) -> Any:
@@ -59,3 +59,45 @@ def dict_to_skill_model(data: dict[str, Any]) -> SkillModel:
             else:
                 skill_data[k] = v
     return SkillModel(**skill_data)
+
+
+def skill_note_model_to_dict(model: SkillNoteModel) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "skill_id": model.skill_id,
+        "content": model.content,
+        "created_at": _to_str(model.created_at),
+        "updated_at": _to_str(model.updated_at),
+    }
+
+
+def dict_to_skill_note_model(data: dict[str, Any]) -> SkillNoteModel:
+    now = datetime.utcnow().isoformat()
+    return SkillNoteModel(
+        id=data.get("id"),
+        skill_id=data.get("skill_id", 0),
+        content=data.get("content", ""),
+        created_at=data.get("created_at") or now,
+        updated_at=data.get("updated_at") or now,
+    )
+
+
+def skill_link_model_to_dict(model: SkillLinkModel) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "skill_id": model.skill_id,
+        "title": model.title,
+        "url": model.url,
+        "created_at": _to_str(model.created_at),
+    }
+
+
+def dict_to_skill_link_model(data: dict[str, Any]) -> SkillLinkModel:
+    now = datetime.utcnow().isoformat()
+    return SkillLinkModel(
+        id=data.get("id"),
+        skill_id=data.get("skill_id", 0),
+        title=data.get("title", ""),
+        url=data.get("url", ""),
+        created_at=data.get("created_at") or now,
+    )

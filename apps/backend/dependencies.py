@@ -61,6 +61,25 @@ def get_skill_normalization_service(repo=Depends(get_skill_repo)):
     return SkillNormalizationService(repo, InMemoryEventCollector())
 
 
+def get_skill_note_repo(session: Session = Depends(get_session)):
+    from skills.infrastructure.repositories.sa_skill_note_repository import SQLAlchemySkillNoteRepository
+    return SQLAlchemySkillNoteRepository(session)
+
+
+def get_skill_link_repo(session: Session = Depends(get_session)):
+    from skills.infrastructure.repositories.sa_skill_link_repository import SQLAlchemySkillLinkRepository
+    return SQLAlchemySkillLinkRepository(session)
+
+
+def get_skill_resource_service(
+    note_repo=Depends(get_skill_note_repo),
+    link_repo=Depends(get_skill_link_repo),
+    skill_repo=Depends(get_skill_repo),
+):
+    from skills.application.services.skill_resource_service import SkillResourceService
+    return SkillResourceService(note_repo, link_repo, skill_repo)
+
+
 def get_skill_alias_repo(session: Session = Depends(get_session)):
     from skills.infrastructure import SQLAlchemySkillAliasRepository
     return SQLAlchemySkillAliasRepository(session)

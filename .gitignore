@@ -74,6 +74,8 @@ apps/backend/logs/
 # Runtime process IDs
 .client.pid
 .server.pid
+.client.prod.pid
+.server.prod.pid
 .background.pid
 .scheduler.pid
 

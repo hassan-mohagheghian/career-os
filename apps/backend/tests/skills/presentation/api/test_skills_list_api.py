@@ -388,3 +388,93 @@ def test_merge_rejects_target_in_sources(client, sa_session):
     target = _create_skill(sa_session, name="React")
     resp = client.post("/api/skills/merge", json={"target_id": target.id, "source_ids": [target.id]})
     assert resp.status_code == 400
+
+
+class TestSkillNotesAndLinks:
+    def test_add_note(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        resp = client.post(f"/api/skills/{skill.id}/notes", json={"content": "Started learning decorators"})
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["content"] == "Started learning decorators"
+        assert data["skill_id"] == skill.id
+
+    def test_add_note_empty_content_rejected(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        resp = client.post(f"/api/skills/{skill.id}/notes", json={"content": "   "})
+        assert resp.status_code == 422
+
+    def test_add_note_missing_skill_404(self, client, sa_session):
+        resp = client.post("/api/skills/99999/notes", json={"content": "test"})
+        assert resp.status_code == 404
+
+    def test_delete_note(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        created = client.post(f"/api/skills/{skill.id}/notes", json={"content": "test note"}).json()
+        resp = client.delete(f"/api/skills/notes/{created['id']}")
+        assert resp.status_code == 204
+
+    def test_delete_note_missing_404(self, client, sa_session):
+        resp = client.delete("/api/skills/notes/99999")
+        assert resp.status_code == 404
+
+    def test_get_skill_includes_notes(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        client.post(f"/api/skills/{skill.id}/notes", json={"content": "note one"})
+        client.post(f"/api/skills/{skill.id}/notes", json={"content": "note two"})
+        detail = client.get(f"/api/skills/{skill.id}").json()
+        assert len(detail["notes"]) == 2
+        contents = [n["content"] for n in detail["notes"]]
+        assert "note one" in contents
+        assert "note two" in contents
+
+    def test_add_link(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        resp = client.post(f"/api/skills/{skill.id}/links", json={"title": "Docs", "url": "https://docs.python.org"})
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["title"] == "Docs"
+        assert data["url"] == "https://docs.python.org"
+        assert data["skill_id"] == skill.id
+
+    def test_add_link_empty_title_rejected(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        resp = client.post(f"/api/skills/{skill.id}/links", json={"title": "", "url": "https://example.com"})
+        assert resp.status_code == 422
+
+    def test_add_link_empty_url_rejected(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        resp = client.post(f"/api/skills/{skill.id}/links", json={"title": "Docs", "url": ""})
+        assert resp.status_code == 422
+
+    def test_add_link_missing_skill_404(self, client, sa_session):
+        resp = client.post("/api/skills/99999/links", json={"title": "Docs", "url": "https://example.com"})
+        assert resp.status_code == 404
+
+    def test_delete_link(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        created = client.post(f"/api/skills/{skill.id}/links", json={"title": "Docs", "url": "https://example.com"}).json()
+        resp = client.delete(f"/api/skills/links/{created['id']}")
+        assert resp.status_code == 204
+
+    def test_delete_link_missing_404(self, client, sa_session):
+        resp = client.delete("/api/skills/links/99999")
+        assert resp.status_code == 404
+
+    def test_get_skill_includes_links(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        client.post(f"/api/skills/{skill.id}/links", json={"title": "Docs", "url": "https://docs.python.org"})
+        client.post(f"/api/skills/{skill.id}/links", json={"title": "Tutorial", "url": "https://tutorial.python.org"})
+        detail = client.get(f"/api/skills/{skill.id}").json()
+        assert len(detail["links"]) == 2
+        titles = [l["title"] for l in detail["links"]]
+        assert "Docs" in titles
+        assert "Tutorial" in titles
+
+    def test_notes_newest_first(self, client, sa_session):
+        skill = _create_skill(sa_session, name="Python")
+        client.post(f"/api/skills/{skill.id}/notes", json={"content": "first"})
+        client.post(f"/api/skills/{skill.id}/notes", json={"content": "second"})
+        detail = client.get(f"/api/skills/{skill.id}").json()
+        assert detail["notes"][0]["content"] == "second"
+        assert detail["notes"][1]["content"] == "first"

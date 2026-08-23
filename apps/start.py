@@ -49,6 +49,8 @@ PID_FILE = REPO_ROOT / ".server.pid"
 CLIENT_PID_FILE = REPO_ROOT / ".client.pid"
 PID_BG_FILE = REPO_ROOT / ".background.pid"
 PID_SCHED_FILE = REPO_ROOT / ".scheduler.pid"
+PROD_PID_FILE = REPO_ROOT / ".server.prod.pid"
+PROD_CLIENT_PID_FILE = REPO_ROOT / ".client.prod.pid"
 
 
 def read_version() -> str:
@@ -195,11 +197,11 @@ def dev(
         False, "--background", "-b", help="Also start the background worker + scheduler"
     ),
 ):
-    """Start backend + frontend"""
+    """Start backend + frontend in development mode (hot-reload)"""
     port_be = backend_port or _load_port_from_env("BACKEND_PORT", 5000)
     port_fe = frontend_port or _load_port_from_env("FRONTEND_PORT", 5173)
 
-    _log("Starting all services...")
+    _log("Starting all services (dev mode)...")
     console.print()
 
     _start_backend(port_be)
@@ -237,6 +239,60 @@ def dev(
     _ok("All processes stopped.")
 
 
+@app.command()
+def prod(
+    backend_port: Optional[int] = typer.Option(
+        None, "--backend-port", help="Backend port"
+    ),
+    frontend_port: Optional[int] = typer.Option(
+        None, "--frontend-port", help="Frontend port"
+    ),
+    with_background: bool = typer.Option(
+        False, "--background", "-b", help="Also start the background worker + scheduler"
+    ),
+):
+    """Start backend + frontend in production mode"""
+    port_be = backend_port or _load_port_from_env("BACKEND_PORT", 5000)
+    port_fe = frontend_port or _load_port_from_env("FRONTEND_PORT", 3000)
+
+    _log("Starting all services (production mode)...")
+    console.print()
+
+    _start_backend_prod(port_be)
+    import time
+    time.sleep(2)
+    _start_frontend_prod(port_fe)
+
+    if with_background:
+        time.sleep(1)
+        _start_background()
+
+    console.print()
+    _ok("All services started!")
+    console.print()
+    console.print(f"  Backend:  http://localhost:{port_be}")
+    console.print(f"  Frontend: http://localhost:{port_fe}")
+    if with_background:
+        console.print("  Background: worker + scheduler running")
+    console.print()
+    console.print("  Press Ctrl+C to stop all services")
+    console.print()
+
+    try:
+        signal.signal(signal.SIGINT, lambda s, f: (_stop_service("backend", PROD_PID_FILE), _stop_service("frontend", PROD_CLIENT_PID_FILE), _stop_service("background", PID_BG_FILE), _stop_service("scheduler", PID_SCHED_FILE), _kill_by_pattern("mimo run"), _ok("All processes stopped."), sys.exit(0)))
+        signal.pause()
+    except KeyboardInterrupt:
+        pass
+
+    _stop_service("backend", PROD_PID_FILE)
+    _stop_service("frontend", PROD_CLIENT_PID_FILE)
+    if with_background:
+        _stop_service("background", PID_BG_FILE)
+        _stop_service("scheduler", PID_SCHED_FILE)
+    _kill_by_pattern("mimo run")
+    _ok("All processes stopped.")
+
+
 def _uvicorn_args(port: int) -> list[str]:
     """Build the uvicorn dev-server args with code reload that ignores test files."""
     return [
@@ -245,6 +301,16 @@ def _uvicorn_args(port: int) -> list[str]:
         "--reload-exclude", str(SERVER_DIR / "tests"),
         "--reload-exclude", "test_*.py",
         "--reload-exclude", "*_test.py",
+        "--timeout-graceful-shutdown", "5",
+    ]
+
+
+def _uvicorn_prod_args(port: int) -> list[str]:
+    """Build the uvicorn production args (no reload)."""
+    return [
+        "-m", "uvicorn", "apps.backend.entrypoints.api:app",
+        "--host", "0.0.0.0", "--port", str(port),
+        "--workers", "4",
         "--timeout-graceful-shutdown", "5",
     ]
 
@@ -272,6 +338,42 @@ def _start_frontend(port: int):
         cwd=str(CLIENT_DIR),
     )
     _save_pid(CLIENT_PID_FILE, proc.pid)
+    _ok(f"Frontend started (PID: {proc.pid}) on http://localhost:{port}")
+
+
+def _start_backend_prod(port: int):
+    _log("Starting backend (production)...")
+    python = _python_path()
+    _log(f"Using Python: {python}")
+
+    env = os.environ.copy()
+    proc = subprocess.Popen(
+        [python, *_uvicorn_prod_args(port)],
+        cwd=str(REPO_ROOT),
+        env=env,
+    )
+    _save_pid(PROD_PID_FILE, proc.pid)
+    _ok(f"Backend started (PID: {proc.pid}) on http://localhost:{port}")
+
+
+def _start_frontend_prod(port: int):
+    _log("Building frontend for production...")
+    build_result = subprocess.run(
+        ["npm", "run", "build"],
+        cwd=str(CLIENT_DIR),
+    )
+    if build_result.returncode != 0:
+        _err("Frontend build failed.")
+        raise typer.Exit(code=1)
+    _ok("Frontend build complete.")
+
+    _log("Starting frontend (production)...")
+    port_str = str(port)
+    proc = subprocess.Popen(
+        ["npm", "run", "start", "--", "--port", port_str],
+        cwd=str(CLIENT_DIR),
+    )
+    _save_pid(PROD_CLIENT_PID_FILE, proc.pid)
     _ok(f"Frontend started (PID: {proc.pid}) on http://localhost:{port}")
 
 
@@ -777,10 +879,12 @@ def version():
 
 @app.command()
 def stop():
-    """Stop all running processes"""
+    """Stop all running processes (dev and production)"""
     _log("Stopping all processes...")
     _stop_service("backend", PID_FILE)
     _stop_service("frontend", CLIENT_PID_FILE)
+    _stop_service("backend (prod)", PROD_PID_FILE)
+    _stop_service("frontend (prod)", PROD_CLIENT_PID_FILE)
     _stop_service("background", PID_BG_FILE)
     _stop_service("scheduler", PID_SCHED_FILE)
     _kill_by_pattern("mimo run")
@@ -795,16 +899,30 @@ def status():
     backend_pid = _read_pid(PID_FILE)
     if backend_pid is not None and _is_process_alive(backend_pid):
         port = _load_port_from_env("BACKEND_PORT", 5000)
-        _ok(f"Backend:  Running (PID: {backend_pid}) — http://localhost:{port}")
+        _ok(f"Backend (dev):  Running (PID: {backend_pid}) — http://localhost:{port}")
     else:
-        _warn("Backend:  Not running")
+        _warn("Backend (dev):  Not running")
 
     frontend_pid = _read_pid(CLIENT_PID_FILE)
     if frontend_pid is not None and _is_process_alive(frontend_pid):
         port = _load_port_from_env("FRONTEND_PORT", 5173)
-        _ok(f"Frontend: Running (PID: {frontend_pid}) — http://localhost:{port}")
+        _ok(f"Frontend (dev): Running (PID: {frontend_pid}) — http://localhost:{port}")
     else:
-        _warn("Frontend: Not running")
+        _warn("Frontend (dev): Not running")
+
+    prod_be_pid = _read_pid(PROD_PID_FILE)
+    if prod_be_pid is not None and _is_process_alive(prod_be_pid):
+        port = _load_port_from_env("BACKEND_PORT", 5000)
+        _ok(f"Backend (prod):  Running (PID: {prod_be_pid}) — http://localhost:{port}")
+    else:
+        _warn("Backend (prod):  Not running")
+
+    prod_fe_pid = _read_pid(PROD_CLIENT_PID_FILE)
+    if prod_fe_pid is not None and _is_process_alive(prod_fe_pid):
+        port = _load_port_from_env("FRONTEND_PORT", 3000)
+        _ok(f"Frontend (prod): Running (PID: {prod_fe_pid}) — http://localhost:{port}")
+    else:
+        _warn("Frontend (prod): Not running")
 
     background_pid = _read_pid(PID_BG_FILE)
     if background_pid is not None and _is_process_alive(background_pid):
