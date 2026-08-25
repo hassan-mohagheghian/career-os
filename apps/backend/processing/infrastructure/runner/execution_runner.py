@@ -102,7 +102,8 @@ class ProcessingExecutionRunner:
                 job_repo = None
             execution = repo.get_by_id(execution_id)
             if not execution:
-                raise RuntimeError(f"ProcessingExecution {execution_id} not found")
+                log.warning("processing.execution.not_found", execution_id=execution_id)
+                return {"status": "skipped", "execution_id": execution_id}
 
             job_id = self._job_id(execution)
             started_at = datetime.now(UTC)
