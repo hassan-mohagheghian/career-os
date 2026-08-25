@@ -179,6 +179,139 @@ def _check_tool(name: str, *args: str):
         return False, f"{name} not found"
 
 
+# ── Database helpers ──────────────────────────────────────────────
+
+def _parse_database_url(url: str) -> dict:
+    """Parse a DATABASE_URL into components."""
+    import re
+    url = url.strip()
+    # Strip SQLAlchemy dialect suffix for libpq compatibility
+    raw_url = re.sub(r'\+psycopg(?=://)', '', url)
+    m = re.match(
+        r"postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)",
+        raw_url,
+    )
+    if not m:
+        raise ValueError(f"Cannot parse DATABASE_URL: {url}")
+    return {
+        "user": m.group(1),
+        "password": m.group(2),
+        "host": m.group(3),
+        "port": m.group(4) or "5432",
+        "database": m.group(5),
+        "raw_url": raw_url,
+    }
+
+
+def _ensure_database(target_db: str, source_url: str) -> str:
+    """Create the target database if it doesn't exist. Returns the new DATABASE_URL."""
+    import psycopg
+    components = _parse_database_url(source_url)
+    raw_base = components["raw_url"].rsplit("/", 1)[0]
+    target_raw_url = raw_base + "/" + target_db
+    # Re-add the +psycopg suffix for the SQLAlchemy DATABASE_URL
+    target_url = source_url.strip().rsplit("/", 1)[0] + "/" + target_db
+
+    try:
+        conn = psycopg.connect(
+            host=components["host"],
+            port=components["port"],
+            user=components["user"],
+            password=components["password"],
+            dbname="postgres",
+        )
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (target_db,))
+        exists = cur.fetchone()
+        if not exists:
+            cur.execute(f'CREATE DATABASE "{target_db}"')
+            _ok(f"Created database: {target_db}")
+        else:
+            _log(f"Database already exists: {target_db}")
+        cur.close()
+        conn.close()
+    except Exception as e:
+        _err(f"Failed to create database: {e}")
+        raise typer.Exit(code=1)
+
+    return target_url
+
+
+def _migrate_database(target_url: str):
+    """Run Alembic migrations against the target database."""
+    alembic = _alembic_path()
+    env = os.environ.copy()
+    env["DATABASE_URL"] = target_url
+    result = subprocess.run(
+        [alembic, "upgrade", "head"],
+        cwd=str(REPO_ROOT),
+        env=env,
+    )
+    if result.returncode != 0:
+        _err("Alembic migration failed.")
+        raise typer.Exit(code=1)
+    _ok("Migrations applied to target database.")
+
+
+def _clone_rules(source_url: str, target_url: str):
+    """Clone all rules from the source database to the target database."""
+    import psycopg
+    import psycopg.rows
+    import re
+
+    # Strip +psycopg dialect suffix for libpq connections
+    src_raw = re.sub(r'\+psycopg(?=://)', '', source_url.strip())
+    tgt_raw = re.sub(r'\+psycopg(?=://)', '', target_url.strip())
+
+    source_conn = psycopg.connect(src_raw)
+    source_cur = source_conn.cursor(row_factory=psycopg.rows.dict_row)
+    source_cur.execute(
+        "SELECT category, rule_type, scope, key, value, description, priority, enabled "
+        "FROM shared.rules ORDER BY priority DESC"
+    )
+    rules = source_cur.fetchall()
+    source_cur.close()
+    source_conn.close()
+
+    if not rules:
+        _log("No rules to clone.")
+        return
+
+    target_conn = psycopg.connect(tgt_raw)
+    target_conn.autocommit = True
+    target_cur = target_conn.cursor()
+
+    for rule in rules:
+        target_cur.execute(
+            "INSERT INTO shared.rules (category, rule_type, scope, key, value, description, priority, enabled) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+            "ON CONFLICT (category, key) DO NOTHING",
+            (
+                rule["category"], rule["rule_type"], rule["scope"], rule["key"],
+                rule["value"], rule["description"], rule["priority"], rule["enabled"],
+            ),
+        )
+
+    target_cur.close()
+    target_conn.close()
+    _ok(f"Cloned {len(rules)} rules to target database.")
+
+
+def _prepare_database(db_name: str) -> str:
+    """Create target DB, run migrations, clone rules. Returns the new DATABASE_URL."""
+    source_url = os.environ.get("DATABASE_URL", "")
+    if not source_url:
+        _err("DATABASE_URL not set in environment.")
+        raise typer.Exit(code=1)
+
+    _header(f"Preparing database: {db_name}")
+    target_url = _ensure_database(db_name, source_url)
+    _migrate_database(target_url)
+    _clone_rules(source_url, target_url)
+    return target_url
+
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
@@ -196,15 +329,23 @@ def dev(
     with_background: bool = typer.Option(
         False, "--background", "-b", help="Also start the background worker + scheduler"
     ),
+    db: Optional[str] = typer.Option(
+        None, "--db", help="Use a different database (clones rules from default DB)"
+    ),
 ):
     """Start backend + frontend in development mode (hot-reload)"""
     port_be = backend_port or _load_port_from_env("BACKEND_PORT", 5000)
     port_fe = frontend_port or _load_port_from_env("FRONTEND_PORT", 5173)
 
+    db_env_override = {}
+    if db:
+        target_url = _prepare_database(db)
+        db_env_override["DATABASE_URL"] = target_url
+
     _log("Starting all services (dev mode)...")
     console.print()
 
-    _start_backend(port_be)
+    _start_backend(port_be, env_extra=db_env_override)
     import time
     time.sleep(2)
     _start_frontend(port_fe)
@@ -250,15 +391,23 @@ def prod(
     with_background: bool = typer.Option(
         False, "--background", "-b", help="Also start the background worker + scheduler"
     ),
+    db: Optional[str] = typer.Option(
+        None, "--db", help="Use a different database (clones rules from default DB)"
+    ),
 ):
     """Start backend + frontend in production mode"""
     port_be = backend_port or _load_port_from_env("BACKEND_PORT", 5000)
     port_fe = frontend_port or _load_port_from_env("FRONTEND_PORT", 3000)
 
+    db_env_override = {}
+    if db:
+        target_url = _prepare_database(db)
+        db_env_override["DATABASE_URL"] = target_url
+
     _log("Starting all services (production mode)...")
     console.print()
 
-    _start_backend_prod(port_be)
+    _start_backend_prod(port_be, env_extra=db_env_override)
     import time
     time.sleep(2)
     _start_frontend_prod(port_fe)
@@ -315,12 +464,14 @@ def _uvicorn_prod_args(port: int) -> list[str]:
     ]
 
 
-def _start_backend(port: int):
+def _start_backend(port: int, env_extra: dict | None = None):
     _log("Starting backend server...")
     python = _python_path()
     _log(f"Using Python: {python}")
 
     env = os.environ.copy()
+    if env_extra:
+        env.update(env_extra)
     proc = subprocess.Popen(
         [python, *_uvicorn_args(port)],
         cwd=str(REPO_ROOT),
@@ -341,12 +492,14 @@ def _start_frontend(port: int):
     _ok(f"Frontend started (PID: {proc.pid}) on http://localhost:{port}")
 
 
-def _start_backend_prod(port: int):
+def _start_backend_prod(port: int, env_extra: dict | None = None):
     _log("Starting backend (production)...")
     python = _python_path()
     _log(f"Using Python: {python}")
 
     env = os.environ.copy()
+    if env_extra:
+        env.update(env_extra)
     proc = subprocess.Popen(
         [python, *_uvicorn_prod_args(port)],
         cwd=str(REPO_ROOT),
