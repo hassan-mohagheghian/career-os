@@ -352,7 +352,7 @@ def dev(
 
     if with_background:
         time.sleep(1)
-        _start_background()
+        _start_background(env_extra=db_env_override)
 
     console.print()
     _ok("All services started!")
@@ -414,7 +414,7 @@ def prod(
 
     if with_background:
         time.sleep(1)
-        _start_background()
+        _start_background(env_extra=db_env_override)
 
     console.print()
     _ok("All services started!")
@@ -538,10 +538,12 @@ def _background_env() -> dict:
     return env
 
 
-def _start_background():
+def _start_background(env_extra: dict | None = None):
     _log("Starting background worker...")
     python = _python_path()
     env = _background_env()
+    if env_extra:
+        env.update(env_extra)
     proc = subprocess.Popen(
         [
             python, "-m", "apps.backend.entrypoints.worker",
