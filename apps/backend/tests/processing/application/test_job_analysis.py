@@ -11,6 +11,7 @@ Covers:
 
 import json
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -775,7 +776,8 @@ class TestAnalyzeNode:
     def test_unparseable_content_fails(self):
         state = _state()
         state.analysis_context["job_text"] = "job text"
-        state = AnalyzeNode(FakeLLM(content="not a dict"))(state)
+        with patch("processing.application.workflows.job_analysis.nodes.analyze_node._STEP_BUDGET_SECONDS", 0.1):
+            state = AnalyzeNode(FakeLLM(content="not a dict"))(state)
         assert state.status == ExecutionStatus.FAILED
 
     def test_retries_once_on_json_parse_failure_then_succeeds(self):
@@ -813,7 +815,8 @@ class TestAnalyzeNode:
         del invalid["skills"]
         state = _state()
         state.analysis_context["job_text"] = "job text"
-        state = AnalyzeNode(FakeLLM(content=json.dumps(invalid)))(state)
+        with patch("processing.application.workflows.job_analysis.nodes.analyze_node._STEP_BUDGET_SECONDS", 0.1):
+            state = AnalyzeNode(FakeLLM(content=json.dumps(invalid)))(state)
 
         assert state.status == ExecutionStatus.FAILED
         assert "raw_payload" not in state.analysis_context
@@ -843,15 +846,39 @@ class TestAnalyzeNode:
         assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
         assert "SHORTER, COMPLETE JSON" in llm.calls[1]["prompt"]
 
+    def test_retries_format_errors_then_succeeds(self):
+        class FlakyLLM(FakeLLM):
+            def __init__(self):
+                super().__init__(content=_payload())
+                self._fail_count = 0
+                self._fail_until = 3
+
+            def generate_structured(self, prompt, schema=None, timeout=None):
+                if self._fail_count < self._fail_until:
+                    self._fail_count += 1
+                    self.calls.append({"prompt": prompt, "schema": schema, "timeout": timeout})
+                    return type("Resp", (), {"content": json.dumps({"scores": {"fit": 80}})})
+                return super().generate_structured(prompt, schema=schema, timeout=timeout)
+
+        state = _state()
+        state.analysis_context["job_text"] = "job text"
+        llm = FlakyLLM()
+        with patch("processing.application.workflows.job_analysis.nodes.analyze_node._STEP_BUDGET_SECONDS", 30):
+            state = AnalyzeNode(llm)(state)
+
+        assert len(llm.calls) == 4
+        assert state.status != ExecutionStatus.FAILED
+        assert state.analysis_context["raw_payload"]["scores"]["fit"] == 85
+
     def test_schema_invalid_twice_fails(self):
         state = _state()
         state.analysis_context["job_text"] = "job text"
         invalid = _payload()
         invalid["recommendation"] = "maybe"
         llm = FakeLLM(content=json.dumps(invalid))
-        state = AnalyzeNode(llm)(state)
+        with patch("processing.application.workflows.job_analysis.nodes.analyze_node._STEP_BUDGET_SECONDS", 0.1):
+            state = AnalyzeNode(llm)(state)
 
-        assert len(llm.calls) == 2
         assert state.status == ExecutionStatus.FAILED
         assert any("does not match the required format" in e for e in state.errors)
 

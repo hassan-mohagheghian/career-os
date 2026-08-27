@@ -9,6 +9,7 @@ Covers:
 """
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -531,7 +532,8 @@ class TestAnalyzeCompanyNode:
 
     def test_invalid_payload_fails_cleanly(self):
         node = AnalyzeCompanyNode(FakeLLMService({"not": "valid"}))
-        state = node(self._ready_state())
+        with patch("processing.application.workflows.company_analysis.nodes.analyze_company_node._STEP_BUDGET_SECONDS", 0.1):
+            state = node(self._ready_state())
 
         assert state.status == ExecutionStatus.FAILED
         assert any("does not match the required format" in e for e in state.errors)
@@ -733,5 +735,6 @@ class TestCompanyAnalysisGraph:
         assert state.status == ExecutionStatus.FAILED
     def test_invalid_llm_payload_fails(self):
         graph = self._graph(llm=FakeLLMService({"bad": "payload"}))
-        state = graph.invoke(_state_with_company())
+        with patch("processing.application.workflows.company_analysis.nodes.analyze_company_node._STEP_BUDGET_SECONDS", 0.1):
+            state = graph.invoke(_state_with_company())
         assert state.status == ExecutionStatus.FAILED

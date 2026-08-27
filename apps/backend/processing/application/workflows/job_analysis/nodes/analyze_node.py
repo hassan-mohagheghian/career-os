@@ -11,10 +11,12 @@ Emits mid-call progress updates so the frontend sees live progress.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from ai.infrastructure.service import get_llm_service
 from pydantic import ValidationError
+from shared.infrastructure.taskiq.config import WORKER_JOB_TIMEOUT
 
 from processing.application.services.job_analysis_prompt import (
     JOB_ANALYSIS_PROMPT_VERSION,
@@ -77,6 +79,10 @@ _RETRY_SHORTEN_HINT = (
     "string and bracket must be closed."
 )
 
+_MAX_ATTEMPTS = 10
+_BACKOFF_CAP = 16.0
+_STEP_BUDGET_SECONDS = max(60, WORKER_JOB_TIMEOUT - 60)
+
 
 class AnalyzeNode:
     def __init__(self, llm_service: Any | None = None, event_publisher: Any | None = None):
@@ -93,6 +99,7 @@ class AnalyzeNode:
         resume_text = state.analysis_context.get("resume_text") or ""
         profile_documents = state.analysis_context.get("profile_documents") or ""
         breakdown_map = state.analysis_context.get("breakdown_map") or []
+        target_countries = state.analysis_context.get("target_countries") or "your target countries"
 
         if not job_text:
             state.errors.append(f"[{NODE_ID}] No job text to analyze for {state.job_id}")
@@ -107,6 +114,7 @@ class AnalyzeNode:
             resume_text,
             profile_documents,
             skill_breakdowns=breakdown_map,
+            target_countries=target_countries,
         )
         schema = build_job_analysis_output_schema()
         llm = self._llm or get_llm_service()
@@ -125,31 +133,41 @@ class AnalyzeNode:
     def _obtain_valid_payload(
         self, llm: Any, prompt: str, schema: dict[str, Any]
     ) -> tuple[dict[str, Any] | None, str]:
-        """Run the LLM (with one retry) until the response validates against the schema."""
-        first_reason = ""
-        resp = None
-        try:
-            resp = llm.generate_structured(prompt, schema=schema, timeout=240)
-        except Exception as e:
-            if not _is_json_parse_error(e):
-                return None, f"LLM call failed: {e}"
-            first_reason = "the response was not parseable JSON"
+        """Run the LLM with retries until the response validates or the time budget is exhausted.
 
-        payload, reason = self._validate(resp)
-        if payload is not None:
-            return payload, ""
+        Uses exponential backoff between retries and respects a total time
+        budget derived from ``WORKER_JOB_TIMEOUT`` so that transient format
+        errors do not fail the execution in seconds.
+        """
+        deadline = time.monotonic() + _STEP_BUDGET_SECONDS
+        last_reason = ""
 
-        try:
-            resp = llm.generate_structured(
-                prompt + _RETRY_SHORTEN_HINT, schema=schema, timeout=240
-            )
-        except Exception as e:
-            return None, reason or first_reason or f"LLM retry failed: {e}"
+        for attempt in range(_MAX_ATTEMPTS):
+            if attempt > 0:
+                backoff = min(2.0 ** (attempt - 1), _BACKOFF_CAP)
+                time.sleep(backoff)
 
-        payload, retry_reason = self._validate(resp)
-        if payload is not None:
-            return payload, ""
-        return None, reason or retry_reason or first_reason or "unparseable response"
+            if time.monotonic() >= deadline:
+                break
+
+            remaining = deadline - time.monotonic()
+            call_timeout = max(30, min(int(remaining), 240))
+            prompt_to_use = prompt if attempt == 0 else prompt + _RETRY_SHORTEN_HINT
+
+            try:
+                resp = llm.generate_structured(prompt_to_use, schema=schema, timeout=call_timeout)
+            except Exception as e:
+                if not _is_json_parse_error(e):
+                    return None, f"LLM call failed: {e}"
+                last_reason = "the response was not parseable JSON"
+                continue
+
+            payload, reason = self._validate(resp)
+            if payload is not None:
+                return payload, ""
+            last_reason = reason
+
+        return None, last_reason or "exhausted retries"
 
     @staticmethod
     def _validate(resp: Any) -> tuple[dict[str, Any] | None, str]:
