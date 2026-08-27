@@ -148,6 +148,7 @@ class AnalyzeCompanyTool(BaseTool):
                 company_data=json.dumps(company_data, ensure_ascii=False)[:4000],
                 company_type=company_type,
                 rules=rules,
+                target_countries="your target countries",
             )
 
             llm = get_llm_service()

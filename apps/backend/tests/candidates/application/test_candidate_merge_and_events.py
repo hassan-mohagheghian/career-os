@@ -145,14 +145,14 @@ class TestExtractPure:
         assert service._profile_repo.children == {}
         assert service._profile_repo.versions == []
 
-    def test_extract_skip_already_processed(self):
+    def test_extract_reprocesses_already_processed_source(self):
         service, _ = _make_service([_payload()])
         service._source_repo.create(
             {"profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed"}
         )
         result = service.extract(_content("resume", 1))
-        assert result["status"] == "skipped"
-        assert result["reason"] == "already_processed"
+        assert result["status"] == "extracted"
+        assert result["source_type"] == "resume"
 
     def test_extract_empty_text_marks_failed_and_skips(self):
         service, _ = _make_service([_payload()])
@@ -253,14 +253,14 @@ class TestEventEmission:
         assert inferred[0].skill_name == "Python"
         assert inferred[0].skill_id == service._skill_repo.ids["Python"]
 
-    def test_skip_emits_source_skipped_event(self):
-        service, _ = _make_service([_payload()])
+    def test_reprocess_extracts_from_already_processed_source(self):
+        service, _ = _make_service([_payload(), _payload()])
         service._source_repo.create(
             {"profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed"}
         )
         result = service.extract(_content("resume", 1))
 
-        assert result["status"] == "skipped"
-        skipped = [e for e in service.event_publisher.events if e.event_type == "candidate.source.skipped"]
-        assert len(skipped) == 1
-        assert skipped[0].reason == "already_processed"
+        assert result["status"] == "extracted"
+        assert result["source_type"] == "resume"
+        assert result["version"] == 1
+        assert "payload" in result

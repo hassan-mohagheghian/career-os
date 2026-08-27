@@ -8,19 +8,20 @@ from processing.domain.entities.processing_execution import ProcessingExecution
 
 class IProcessingExecutionRepository(ABC):
     @abstractmethod
-    def save(self, execution: ProcessingExecution) -> ProcessingExecution:
-        ...
+    def save(self, execution: ProcessingExecution) -> ProcessingExecution: ...
 
     @abstractmethod
-    def get_by_id(self, execution_id: str) -> ProcessingExecution | None:
-        ...
+    def get_by_id(self, execution_id: str) -> ProcessingExecution | None: ...
 
     @abstractmethod
-    def list_by_target(self, target_type: str, target_id: str) -> list[ProcessingExecution]:
-        ...
+    def list_by_target(
+        self, target_type: str, target_id: str
+    ) -> list[ProcessingExecution]: ...
 
     @abstractmethod
-    def active_execution(self, target_type: str, target_id: str) -> ProcessingExecution | None:
+    def active_execution(
+        self, target_type: str, target_id: str
+    ) -> ProcessingExecution | None:
         """Return the most recent active execution for a target, if any.
 
         Active means the execution is still in flight or awaiting action:
@@ -61,9 +62,21 @@ class IProcessingExecutionRepository(ABC):
         ...
 
     @abstractmethod
-    def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
+    def list_recent(self, limit: int = 50) -> list[ProcessingExecution]: ...
+
+    @abstractmethod
+    def update_status(self, execution_id: str, status: str, **extra: Any) -> bool: ...
+
+    @abstractmethod
+    def stale_queued_executions(
+        self, older_than_seconds: int = 60
+    ) -> list[ProcessingExecution]:
+        """Return QUEUED executions stuck for longer than the given threshold."""
         ...
 
     @abstractmethod
-    def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:
+    def stale_running_executions(
+        self, older_than_seconds: int = 600
+    ) -> list[ProcessingExecution]:
+        """Return RUNNING executions stuck for longer than the given threshold."""
         ...

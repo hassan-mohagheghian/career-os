@@ -118,6 +118,7 @@ def build_company_analysis_prompt(
     input_type: str = "url",
     resume_text: str = "",
     profile_documents: str = "",
+    target_countries: str = "your target countries",
 ) -> str:
     """Build the single combined analysis prompt for a company.
 
@@ -134,6 +135,7 @@ def build_company_analysis_prompt(
         rules=rules,
         resume_text=resume_text,
         profile_documents=profile_documents,
+        target_countries=target_countries,
     )
     schema = json.dumps(build_company_analysis_output_schema(), indent=2)
     return f"""{template}

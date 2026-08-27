@@ -70,6 +70,14 @@ class SQLAlchemyCandidateSourceRepository(ICandidateSourceRepository):
         )
         return row is not None
 
+    def has_any_sources(self, profile_id: str) -> bool:
+        row = (
+            self._session.query(CandidateSourceModel)
+            .filter(CandidateSourceModel.profile_id == profile_id)
+            .first()
+        )
+        return row is not None
+
     def update(self, source_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
         model = self._session.query(CandidateSourceModel).filter(CandidateSourceModel.id == source_id).first()
         if not model:

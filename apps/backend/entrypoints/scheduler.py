@@ -7,8 +7,10 @@ Usage:
 
 Schedules are attached to tasks via the `schedule` label and collected by the
 `LabelScheduleSource` at startup (see docs/queue/processing/taskiq-processing.md).
-Currently only ``periodic_db_backup`` carries a schedule (see
-``DB_BACKUP_INTERVAL_MINUTES`` in .env).
+
+Scheduled tasks:
+- ``periodic_db_backup``       → periodic PostgreSQL backup (see ``DB_BACKUP_INTERVAL_MINUTES``)
+- ``reconcile_stuck_executions`` → every 30s sweep to recover stuck QUEUED/RUNNING executions
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from shared.infrastructure.taskiq.config import broker
 from shared.infrastructure.taskiq.tasks import (  # noqa: F401  (register tasks on broker)
     periodic_db_backup,
     process_execution_task,
+    reconcile_stuck_executions,
 )
 
 

@@ -22,6 +22,7 @@ class ProcessingExecution(BaseEntity):
         retry_count: int = 0,
         error_message: str | None = None,
         workflow_progress: dict[str, Any] | None = None,
+        heartbeat_at: datetime | None = None,
     ):
         if id is None:
             id = str(uuid.uuid4())
@@ -35,6 +36,7 @@ class ProcessingExecution(BaseEntity):
         self._retry_count = retry_count
         self._error_message = error_message
         self._workflow_progress = workflow_progress
+        self._heartbeat_at = heartbeat_at
 
     @property
     def status(self) -> ExecutionStatus:
@@ -85,6 +87,14 @@ class ProcessingExecution(BaseEntity):
     def workflow_progress(self, value: dict[str, Any] | None) -> None:
         self._workflow_progress = value
 
+    @property
+    def heartbeat_at(self) -> datetime | None:
+        return self._heartbeat_at
+
+    @heartbeat_at.setter
+    def heartbeat_at(self, value: datetime | None) -> None:
+        self._heartbeat_at = value
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -98,6 +108,7 @@ class ProcessingExecution(BaseEntity):
             "retry_count": self._retry_count,
             "error_message": self._error_message,
             "workflow_progress": self._workflow_progress,
+            "heartbeat_at": self._heartbeat_at.isoformat() if self._heartbeat_at else None,
         }
 
     @classmethod
@@ -122,4 +133,5 @@ class ProcessingExecution(BaseEntity):
             retry_count=data.get("retry_count", 0),
             error_message=data.get("error_message"),
             workflow_progress=data.get("workflow_progress"),
+            heartbeat_at=datetime.fromisoformat(data["heartbeat_at"]) if data.get("heartbeat_at") else None,
         )

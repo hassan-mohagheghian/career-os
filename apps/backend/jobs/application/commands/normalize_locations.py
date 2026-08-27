@@ -18,13 +18,7 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 log = get_logger('jobs.commands.normalize_locs')
 import jobs.infrastructure.models.job_model
 from jobs.infrastructure.models.job_model import JobModel
-
-CITY_PATTERNS = [
-    'Berlin', 'Munich', 'München', 'Hamburg', 'Heidelberg', 'Frankfurt',
-    'Cologne', 'Köln', 'Stuttgart', 'Leipzig', 'Dortmund', 'Magdeburg',
-    'Madrid', 'Barcelona', 'Paris', 'London', 'Amsterdam', 'Vienna', 'Wien',
-    'Zurich', 'Zürich', 'Remote', 'Germany', 'Europe',
-]
+from cities.domain.entities.city import CityNormalizer
 
 WORK_TYPE_PATTERNS = {
     'Remote': ['remote', 'fully remote', 'work from anywhere', 'work from home'],
@@ -43,18 +37,9 @@ def extract_cities(location_str):
         part = part.strip()
         if not part:
             continue
-        for city in CITY_PATTERNS:
-            if city.lower() in part.lower():
-                if city.lower() == 'münchen':
-                    city = 'Munich'
-                elif city.lower() == 'köln':
-                    city = 'Cologne'
-                elif city.lower() == 'zürich':
-                    city = 'Zurich'
-                elif city.lower() == 'wien':
-                    city = 'Vienna'
-                if city not in cities:
-                    cities.append(city)
+        canonical, _ = CityNormalizer.normalize(part)
+        if canonical and canonical not in cities:
+            cities.append(canonical)
     return cities if cities else [location_str] if location_str else []
 
 

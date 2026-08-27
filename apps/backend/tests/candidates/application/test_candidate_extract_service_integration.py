@@ -124,7 +124,7 @@ class TestExtractServiceIntegration:
         assert source["status"] == "processed"
         assert source["processed_at"]
 
-    def test_reprocess_same_version_skipped(self, sa_session):
+    def test_reprocess_same_version_extracts_again(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
         skill_repo = SQLAlchemySkillRepository(sa_session)
@@ -141,8 +141,7 @@ class TestExtractServiceIntegration:
         second = service.process(_resume_adapter(source_repo, profile["id"]))
 
         assert first["status"] == "processed"
-        assert second["status"] == "skipped"
-        assert second["reason"] == "already_processed"
+        assert second["status"] == "processed"
 
     def test_first_merge_persists_version_v1_snapshot(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)

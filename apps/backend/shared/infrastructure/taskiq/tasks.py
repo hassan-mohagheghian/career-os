@@ -8,6 +8,8 @@ Each task mirrors the previous ARQ task it replaces:
 
 - process_execution_task → drives the ProcessingExecution lifecycle through
   the TaskIQ worker → LangGraph workflow flow.
+- reconcile_stuck_executions → periodic sweep that re-enqueues stuck QUEUED
+  executions and fails stale RUNNING executions (worker crash recovery).
 - periodic_db_backup     → scheduled PostgreSQL backup during dev (see
   ``DB_BACKUP_INTERVAL_MINUTES`` / ``DB_BACKUP_KEEP_COUNT`` in .env).
 """
@@ -22,6 +24,7 @@ from shared.infrastructure.taskiq.config import (
     broker,
     WORKER_MAX_RETRIES,
     WORKER_RETRY_BACKOFF,
+    WORKER_JOB_TIMEOUT,
 )
 
 log = get_logger("taskiq.tasks")
@@ -48,7 +51,101 @@ async def periodic_db_backup() -> dict:
         raise
 
 
-@broker.task(retry_on_error=True, retry_count=WORKER_MAX_RETRIES, retry_delay=WORKER_RETRY_BACKOFF)
+STALE_QUEUED_THRESHOLD_SECONDS = 60
+
+
+@broker.task(
+    schedule=[{"interval": 30}],
+)
+async def reconcile_stuck_executions() -> dict:
+    """Periodic sweep to recover stuck executions.
+
+    - Re-enqueues QUEUED executions stuck for > 60s (likely lost from the
+      Redis Stream after a worker crash or restart).
+    - Fails RUNNING executions stuck for > WORKER_JOB_TIMEOUT seconds
+      (worker process died mid-execution).
+    """
+    log.info("taskiq.task.reconcile.start")
+    try:
+        from shared.infrastructure.database.session import get_session_sync
+        from processing.infrastructure.repositories.sa_processing_execution_repository import (
+            SQLAlchemyProcessingExecutionRepository,
+        )
+        from processing.domain.enums import ExecutionStatus
+        from shared.infrastructure.events import processing_events
+
+        session = get_session_sync()
+        try:
+            repo = SQLAlchemyProcessingExecutionRepository(session)
+
+            reenqueued = 0
+            stale_queued = repo.stale_queued_executions(STALE_QUEUED_THRESHOLD_SECONDS)
+            for execution in stale_queued:
+                log.info(
+                    "taskiq.task.reconcile.reenqueue",
+                    execution_id=execution.id,
+                    target_type=execution.target_type,
+                    target_id=execution.target_id,
+                )
+                try:
+                    from shared.infrastructure.taskiq.client import enqueue_execution
+
+                    await enqueue_execution(execution.id)
+                    reenqueued += 1
+                except Exception as e:
+                    log.error(
+                        "taskiq.task.reconcile.reenqueue_failed",
+                        execution_id=execution.id,
+                        error=str(e),
+                    )
+
+            timed_out = 0
+            stale_running = repo.stale_running_executions(WORKER_JOB_TIMEOUT)
+            for execution in stale_running:
+                from datetime import datetime, UTC
+
+                log.info(
+                    "taskiq.task.reconcile.timeout",
+                    execution_id=execution.id,
+                    target_type=execution.target_type,
+                    target_id=execution.target_id,
+                )
+                execution.status = ExecutionStatus.FAILED
+                execution.finished_at = datetime.now(UTC)
+                execution.error_message = f"Execution timed out after {WORKER_JOB_TIMEOUT}s (worker crash suspected)"
+                if execution.workflow_progress:
+                    execution.workflow_progress["status"] = "failed"
+                repo.save(execution)
+                await processing_events.publish(
+                    processing_events.EXECUTION_FAILED,
+                    execution.id,
+                    execution.target_id if execution.target_type == "job" else None,
+                    ExecutionStatus.FAILED.value,
+                    message=execution.error_message,
+                    target_type=execution.target_type,
+                    target_id=execution.target_id,
+                    updated_at=execution.finished_at.isoformat(),
+                )
+                timed_out += 1
+        finally:
+            session.close()
+
+        log.info(
+            "taskiq.task.reconcile.complete",
+            reenqueued=reenqueued,
+            timed_out=timed_out,
+        )
+        return {"status": "completed", "reenqueued": reenqueued, "timed_out": timed_out}
+    except Exception as e:
+        log.error("taskiq.task.reconcile.failed", error=str(e))
+        raise
+
+
+@broker.task(
+    retry_on_error=True,
+    retry_count=WORKER_MAX_RETRIES,
+    retry_delay=WORKER_RETRY_BACKOFF,
+)
 async def process_execution_task(execution_id: str) -> dict:
     """Run a ProcessingExecution through its LangGraph workflow.
 
@@ -57,15 +154,24 @@ async def process_execution_task(execution_id: str) -> dict:
     - Mark execution running
     - Start LangGraph workflow for the execution's target
     - Complete or fail the execution
+
+    Crash detection is handled by ``reconcile_stuck_executions`` which
+    checks the worker heartbeat (``heartbeat_at``) instead of an absolute
+    timeout. This avoids killing active workers whose LLM calls exceed
+    ``WORKER_JOB_TIMEOUT``.
     """
     log.info("taskiq.task.execution.start", execution_id=execution_id)
     try:
-        from processing.infrastructure.runner.execution_runner import ProcessingExecutionRunner
+        from processing.infrastructure.runner.execution_runner import (
+            ProcessingExecutionRunner,
+        )
 
         runner = ProcessingExecutionRunner()
         result = await asyncio.to_thread(runner.run, execution_id)
         log.info("taskiq.task.execution.complete", execution_id=execution_id)
         return {"status": "completed", "execution_id": execution_id, **result}
     except Exception as e:
-        log.error("taskiq.task.execution.failed", execution_id=execution_id, error=str(e))
+        log.error(
+            "taskiq.task.execution.failed", execution_id=execution_id, error=str(e)
+        )
         raise

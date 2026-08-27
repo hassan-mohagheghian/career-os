@@ -57,6 +57,9 @@ from candidates.domain.services.profile_merge_service import (
     CORE_FIELDS,
     ProfileMergeService,
 )
+from shared.infrastructure.process.logging_config import get_logger
+
+log = get_logger("candidate.extract")
 
 SKILL_ORIGIN_EXPLICIT = "explicit"
 
@@ -165,24 +168,18 @@ class CandidateExtractService:
         version = content.version
         raw_text = content.raw_text or ""
 
+        log.info(
+            "candidate.extract.start",
+            source_type=source_type,
+            version=version,
+            raw_text_length=len(raw_text),
+        )
+
         existing_profile = self._profile_repo.get_current_profile()
         profile = self._profile_repo.get_or_create_current()
         profile_id = profile["id"]
         if existing_profile is None:
             self._emit(CandidateProfileCreated(aggregate_id=profile_id, profile_id=profile_id))
-
-        existing = self._source_repo.get_by_type_and_version(profile_id, source_type, version)
-        if existing and existing.get("status") == "processed":
-            self._emit(
-                CandidateSourceSkipped(
-                    aggregate_id=profile_id,
-                    profile_id=profile_id,
-                    source_type=source_type,
-                    version=version,
-                    reason="already_processed",
-                )
-            )
-            return {"status": "skipped", "reason": "already_processed", "source_type": source_type, "version": version}
 
         if not raw_text.strip():
             self._record_source(profile_id, source_type, version, status="failed", error="empty source text")
@@ -201,7 +198,10 @@ class CandidateExtractService:
         schema = build_candidate_extract_output_schema()
         llm = self._llm or get_llm_service()
 
+        log.info("candidate.extract.llm_call_start", source_type=source_type, version=version)
         payload, reason = self._obtain_valid_payload(llm, prompt, schema)
+        log.info("candidate.extract.llm_call_end", source_type=source_type, version=version, success=payload is not None)
+
         if payload is None:
             self._record_source(profile_id, source_type, version, status="failed", error=reason)
             raise CandidateExtractionError(

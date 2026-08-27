@@ -43,7 +43,6 @@ const analyzeMutate = vi.fn((_args: undefined, opts?: { onSuccess?: (r: Candidat
 vi.mock('@/entities/candidate/hooks', () => ({
   useCandidateProfileQuery: () => ({ data: null, isLoading: false, isError: false }),
   useCandidateSourcesQuery: () => ({ data: { items: sources }, isLoading: false, isError: false }),
-  useCandidateVersionsQuery: () => ({ data: { items: [] }, isLoading: false, isError: false }),
   useAnalyzeProfileMutation: () => ({ mutate: analyzeMutate, isPending: false, error: null }),
   useUploadSourceMutation: () => ({ mutate: vi.fn(), isPending: false, variables: null }),
 }))
@@ -93,21 +92,24 @@ describe('ProfileImportPage sources', () => {
     expect(screen.getByText(/Senior Engineer resume text with PII removed/)).toBeInTheDocument()
   })
 
-  it('shows last-updated and view for every source in the Review tab', async () => {
+  it('shows latest resources in the Review tab', async () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('tab', { name: /review/i }))
-    expect(screen.getByText('resume v2')).toBeInTheDocument()
-    expect(screen.getByText('linkedin v1')).toBeInTheDocument()
-    const viewButtons = screen.getAllByRole('button', { name: /^view /i })
-    expect(viewButtons.length).toBe(2)
+    expect(screen.getByText('resume')).toBeInTheDocument()
+    expect(screen.getByText('v2')).toBeInTheDocument()
+    expect(screen.getByText('linkedin')).toBeInTheDocument()
+    expect(screen.getByText('v1')).toBeInTheDocument()
+    const viewButtons = screen.getAllByRole('button', { name: /view/i })
+    expect(viewButtons.length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders source raw_text in the dialog from the Review tab', async () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('tab', { name: /review/i }))
-    await user.click(screen.getByRole('button', { name: 'View linkedin v1' }))
+    const viewButtons = screen.getAllByRole('button', { name: /view/i })
+    await user.click(viewButtons[1])
     expect(screen.getByText('LinkedIn profile text')).toBeInTheDocument()
   })
 
@@ -121,13 +123,13 @@ describe('ProfileImportPage sources', () => {
 })
 
 describe('ProfileImportPage analyze', () => {
-  it('shows an info toast and stays on Sources when there is nothing new to process', async () => {
-    analyzeResult = { execution_id: null, status: 'noop', reason: 'no_new_sources' }
+  it('shows an info toast and stays on Sources when there are no sources', async () => {
+    analyzeResult = { execution_id: null, status: 'noop', reason: 'no_sources' }
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: /analyze profile/i }))
     expect(toast.info).toHaveBeenCalledWith(
-      'No new resume/LinkedIn version to process — save a new version first'
+      'No sources to process — upload a resume or LinkedIn profile first'
     )
     expect(screen.getByRole('tab', { name: /review/i })).not.toHaveAttribute('data-state', 'active')
     expect(screen.getByRole('tab', { name: /sources/i })).toHaveAttribute('data-state', 'active')

@@ -162,20 +162,23 @@ class TestAnalyze:
         publish.assert_called_once()
 
     def test_noop_when_all_sources_processed(self, client, sa_session):
-        _seed_profile(sa_session)
+        profile_id = _seed_profile(sa_session)
+        source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
+        source_repo.create(
+            {"profile_id": profile_id, "source_type": "resume", "version": 1, "status": "processed"}
+        )
         with (
             patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
             patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
         ):
             response = client.post("/api/candidates/analyze")
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["status"] == "noop"
-        assert data["reason"] == "no_new_sources"
-        assert data["execution_id"] is None
-        enqueue.assert_not_called()
-        publish.assert_not_called()
+        assert "execution_id" in data
+        assert data["status"] == "queued"
+        enqueue.assert_called_once()
+        publish.assert_called_once()
 
     def test_noop_when_no_profile(self, client):
         with (
@@ -187,6 +190,26 @@ class TestAnalyze:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "noop"
-        assert data["reason"] == "no_new_sources"
+        assert data["reason"] == "no_profile"
+        enqueue.assert_not_called()
+        publish.assert_not_called()
+
+    def test_noop_when_no_sources(self, client, sa_session):
+        profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
+        profile = profile_repo.get_or_create_current()
+        profile_repo.update_core(
+            profile["id"],
+            {"name": "Jane Doe", "title": "Backend Engineer", "headline": "Go + Python", "summary": "8y exp.", "location": "Berlin"},
+        )
+        with (
+            patch("shared.infrastructure.taskiq.client.enqueue_execution_sync") as enqueue,
+            patch("shared.infrastructure.events.processing_events.publish_sync") as publish,
+        ):
+            response = client.post("/api/candidates/analyze")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "noop"
+        assert data["reason"] == "no_sources"
         enqueue.assert_not_called()
         publish.assert_not_called()

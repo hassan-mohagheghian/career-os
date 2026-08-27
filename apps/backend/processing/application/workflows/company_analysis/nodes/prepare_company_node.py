@@ -63,8 +63,28 @@ class PrepareCompanyNode:
         )
         if profile:
             state.analysis_context["profile_documents"] = build_candidate_profile_text(profile)
+        state.analysis_context["target_countries"] = self._derive_target_countries(profile)
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state
+
+    @staticmethod
+    def _derive_target_countries(profile: dict[str, Any] | None) -> str:
+        """Derive target countries from the candidate profile location.
+
+        Falls back to a generic default when the profile has no location or the
+        country cannot be determined.
+        """
+        if not profile:
+            return "your target countries"
+        country = (profile.get("country") or "").strip()
+        if country:
+            return country
+        location = (profile.get("location") or "").strip()
+        if not location:
+            return "your target countries"
+        from cities.domain.entities.city import CityNormalizer
+        _, detected_country = CityNormalizer.normalize(location)
+        return detected_country or "your target countries"
 
     def _load_candidate_inputs(
         self, state: CompanyProcessingState

@@ -113,10 +113,15 @@ def analyze_profile(
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
     profile = profile_repo.get_current_profile()
-    if profile is None or not source_repo.has_unprocessed_sources(profile["id"]):
+    if profile is None:
         return JSONResponse(
             status_code=http_status.HTTP_200_OK,
-            content=CandidateAnalyzeResponse(status="noop", reason="no_new_sources").model_dump(),
+            content=CandidateAnalyzeResponse(status="noop", reason="no_profile").model_dump(),
+        )
+    if not source_repo.has_any_sources(profile["id"]):
+        return JSONResponse(
+            status_code=http_status.HTTP_200_OK,
+            content=CandidateAnalyzeResponse(status="noop", reason="no_sources").model_dump(),
         )
     use_case = CreateProcessingExecutionUseCase(exec_repo)
     request = CreateProcessingExecutionRequest(

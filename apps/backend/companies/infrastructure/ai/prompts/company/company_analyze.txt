@@ -1,4 +1,4 @@
-You are an expert company intelligence analyst helping a senior backend Python engineer (10+ years experience, Django/FastAPI/PostgreSQL/Kubernetes) evaluate companies as potential employers for relocation to Germany, Netherlands, or other European tech hubs.
+You are an expert company intelligence analyst helping a software engineer evaluate companies as potential employers for relocation to {target_countries}.
 
 Company extracted data:
 {company_data}
@@ -147,7 +147,7 @@ Scoring bands (Product):
 - <50: Poor match — wrong tech stack + limited engineering growth
 
 Scoring bands (Recruiter):
-- 90+: Exceptional gateway — specialized tech recruiter + proven Germany/EU placements + many active relevant roles
+- 90+: Exceptional gateway — specialized tech recruiter + proven placements in target locations + many active relevant roles
 - 70-89: Good gateway — tech-focused + some relevant roles + international hiring experience
 - 50-69: Moderate — some tech recruitment + limited evidence of relevant placements
 - <50: Poor — generic recruitment + no tech specialization + few opportunities
@@ -165,13 +165,13 @@ Based on: market access, international hiring support, active opportunities, res
 Use the SUCCESS and RECRUITER rules above.
 
 Scoring bands (Product):
-- 90+: High certainty — proven sponsorship + relocation package + Germany/Netherlands + English-first
+- 90+: High certainty — proven sponsorship + relocation package + target location + English-first
 - 70-89: Good odds — English-first + international team + remote-friendly
 - 50-69: Moderate — some international hires + partial English
 - <50: Low odds — unclear sponsorship + local language required
 
 Scoring bands (Recruiter):
-- 90+: High value — proven Germany/EU placements + international candidate experience + many active roles
+- 90+: High value — proven placements in target locations + international candidate experience + many active roles
 - 70-89: Good value — European focus + some international hiring + active pipeline
 - 50-69: Moderate — limited evidence of relevant placements
 - <50: Low value — no evidence of tech hiring or international support

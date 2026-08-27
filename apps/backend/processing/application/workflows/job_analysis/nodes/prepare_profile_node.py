@@ -75,8 +75,24 @@ class PrepareProfileNode:
             state.analysis_context["profile_documents"] = build_profile_documents_text(resume_raw, linkedin_raw)
         state.analysis_context["scoring_rules"] = build_scoring_rules_text(rule_rows)
         state.analysis_context["resume_text"] = build_resume_text(resume_raw)
+        state.analysis_context["target_countries"] = self._derive_target_countries(profile)
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state
+
+    @staticmethod
+    def _derive_target_countries(profile: dict[str, Any] | None) -> str:
+        """Derive target countries from the candidate profile location."""
+        if not profile:
+            return "your target countries"
+        country = (profile.get("country") or "").strip()
+        if country:
+            return country
+        location = (profile.get("location") or "").strip()
+        if not location:
+            return "your target countries"
+        from cities.domain.entities.city import CityNormalizer
+        _, detected_country = CityNormalizer.normalize(location)
+        return detected_country or "your target countries"
 
     def _latest_raw_text(self, profile_id: str, source_type: str) -> str | None:
         if not profile_id:

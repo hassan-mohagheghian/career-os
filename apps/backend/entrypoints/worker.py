@@ -16,15 +16,24 @@ Environment variables:
 
 from __future__ import annotations
 
-from taskiq.cli.worker.args import LogLevel, WorkerArgs
-from taskiq.cli.worker.run import run_worker
+import sys
 
-from shared.infrastructure.taskiq.config import LOG_LEVEL, WORKER_CONCURRENCY
+from dotenv import load_dotenv
+
+load_dotenv()  # noqa: E402 — must run before taskiq/config imports read env
+
+from taskiq.cli.worker.args import LogLevel, WorkerArgs  # noqa: E402
+from taskiq.cli.worker.run import run_worker  # noqa: E402
+
+from shared.infrastructure.taskiq.config import LOG_LEVEL, WORKER_CONCURRENCY  # noqa: E402
+from shared.infrastructure.process.logging_config import get_logger  # noqa: E402
 
 BROKER = "shared.infrastructure.taskiq.config:broker"
 TASK_MODULES = ["shared.infrastructure.taskiq.tasks"]
 
 APP_DIR = "apps.backend"
+
+log = get_logger("worker.startup")
 
 
 def create_worker_args() -> WorkerArgs:
@@ -39,6 +48,16 @@ def create_worker_args() -> WorkerArgs:
 
 
 def main() -> None:
+    log.info(
+        "worker.startup",
+        workers=WORKER_CONCURRENCY,
+        broker=BROKER,
+        modules=TASK_MODULES,
+    )
+    print(
+        f"[worker] Starting {WORKER_CONCURRENCY} worker processes (broker={BROKER})",
+        file=sys.stderr,
+    )
     run_worker(create_worker_args())
 
 

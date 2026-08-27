@@ -22,15 +22,13 @@ import DateTime from '@/shared/components/DateTime'
 import {
   useCandidateProfileQuery,
   useCandidateSourcesQuery,
-  useCandidateVersionsQuery,
   useAnalyzeProfileMutation,
   useUploadSourceMutation,
 } from '@/entities/candidate/hooks'
-import type { CandidateProfile, CandidateSource, CandidateVersion } from '@/entities/candidate/types'
+import type { CandidateProfile, CandidateSource } from '@/entities/candidate/types'
 
 const PROFILE_KEY = 'candidate-profile'
 const SOURCES_KEY = 'candidate-sources'
-const VERSIONS_KEY = 'candidate-versions'
 
 export function ProfileImportPage() {
   const queryClient = useQueryClient()
@@ -44,7 +42,6 @@ export function ProfileImportPage() {
 
   const profileQuery = useCandidateProfileQuery()
   const sourcesQuery = useCandidateSourcesQuery()
-  const versionsQuery = useCandidateVersionsQuery()
   const analyzeMutation = useAnalyzeProfileMutation()
   const uploadSourceMutation = useUploadSourceMutation()
   const uploadingType = uploadSourceMutation.isPending ? uploadSourceMutation.variables?.sourceType : null
@@ -58,7 +55,6 @@ export function ProfileImportPage() {
   const refreshProfile = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [PROFILE_KEY] })
     queryClient.invalidateQueries({ queryKey: [SOURCES_KEY] })
-    queryClient.invalidateQueries({ queryKey: [VERSIONS_KEY] })
   }, [queryClient])
 
   const handleSaveResume = useCallback(() => {
@@ -91,7 +87,13 @@ export function ProfileImportPage() {
     analyzeMutation.mutate(undefined, {
       onSuccess: (result) => {
         if (result.status === 'noop') {
-          toast.info('No new resume/LinkedIn version to process — save a new version first')
+          if (result.reason === 'no_sources') {
+            toast.info('No sources to process — upload a resume or LinkedIn profile first')
+          } else if (result.reason === 'no_profile') {
+            toast.info('No profile found — upload sources and run analysis first')
+          } else {
+            toast.info('Nothing to process')
+          }
           return
         }
         toast.success('Profile analysis queued')
@@ -105,7 +107,6 @@ export function ProfileImportPage() {
   }, [analyzeMutation])
 
   const sources = sourcesQuery.data?.items ?? []
-  const versions = versionsQuery.data?.items ?? []
 
   const latestSourceByType = useMemo(() => {
     const latest = new Map<string, CandidateSource>()
@@ -211,10 +212,7 @@ export function ProfileImportPage() {
             onAnalyze={handleAnalyze}
           />
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SourcesCard sources={sources} onView={setViewSource} />
-            <VersionsCard versions={versions} />
-          </div>
+          <LatestResources sources={sources} onView={setViewSource} />
 
           <SkillCloud skills={skills} />
           <ExperienceList experiences={experiences} />
@@ -380,65 +378,47 @@ function SourceContentDialog({ source, onOpenChange }: { source: CandidateSource
   )
 }
 
-function SourcesCard({ sources, onView }: { sources: CandidateSource[]; onView: (source: CandidateSource) => void }) {
-  if (sources.length === 0) {
+function LatestResources({ sources, onView }: { sources: CandidateSource[]; onView: (source: CandidateSource) => void }) {
+  const latestByType = useMemo(() => {
+    const map = new Map<string, CandidateSource>()
+    for (const s of sources) {
+      if (!map.has(s.source_type)) map.set(s.source_type, s)
+    }
+    return map
+  }, [sources])
+
+  const items = ['resume', 'linkedin', 'github'].filter((t) => latestByType.has(t))
+
+  if (items.length === 0) {
     return (
       <Card>
-        <CardHeader><CardTitle className="text-base">Connected Sources</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Latest Resources</CardTitle></CardHeader>
         <CardContent className="text-sm text-muted-foreground">No sources imported yet.</CardContent>
       </Card>
     )
   }
+
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Connected Sources</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">Latest Resources</CardTitle></CardHeader>
       <CardContent>
-        <ScrollArea className="h-[220px]">
-          <ul className="space-y-2">
-            {sources.map((s) => (
-              <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
+        <ul className="space-y-2">
+          {items.map((type) => {
+            const s = latestByType.get(type)!
+            return (
+              <li key={type} className="flex items-center justify-between gap-2 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="shrink-0 capitalize">{s.source_type} v{s.version}</span>
+                  <span className="shrink-0 capitalize font-medium">{s.source_type}</span>
+                  <span className="text-xs text-muted-foreground">v{s.version}</span>
                   <DateTime value={s.updated_at ?? s.created_at} format="relative" className="text-xs text-muted-foreground" />
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <Badge variant={s.status === 'processed' ? 'default' : 'secondary'}>{s.status}</Badge>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onView(s)} aria-label={`View ${s.source_type} v${s.version}`}>
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                </span>
+                <Button variant="ghost" size="sm" className="h-7 shrink-0 gap-1.5" onClick={() => onView(s)}>
+                  <Eye className="h-3.5 w-3.5" /> View
+                </Button>
               </li>
-            ))}
-          </ul>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  )
-}
-
-function VersionsCard({ versions }: { versions: CandidateVersion[] }) {
-  if (versions.length === 0) {
-    return (
-      <Card>
-        <CardHeader><CardTitle className="text-base">Version History</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground">No profile versions yet.</CardContent>
-      </Card>
-    )
-  }
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Version History</CardTitle></CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[220px]">
-          <ul className="space-y-2">
-            {versions.map((v) => (
-              <li key={v.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium">v{v.version}</span>
-                <span className="truncate text-muted-foreground">{v.change_summary || (v.created_at ? new Date(v.created_at).toLocaleString() : '')}</span>
-              </li>
-            ))}
-          </ul>
-        </ScrollArea>
+            )
+          })}
+        </ul>
       </CardContent>
     </Card>
   )

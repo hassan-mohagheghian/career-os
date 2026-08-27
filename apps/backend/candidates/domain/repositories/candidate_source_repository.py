@@ -43,3 +43,9 @@ class ICandidateSourceRepository(ABC):
         processed yet (pending / failed) — i.e. something left for the next
         candidate processing run to extract."""
         ...
+
+    @abstractmethod
+    def has_any_sources(self, profile_id: str) -> bool:
+        """Return True when the profile has at least one source row
+        (any status) — used to gate re-processing."""
+        ...

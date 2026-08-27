@@ -22,3 +22,4 @@ class ProcessingExecutionModel(Base):
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     workflow_progress: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(Text, nullable=True)

@@ -156,14 +156,13 @@ class TestProcessSkipped:
         assert result["status"] == "skipped"
         assert result["reason"] == "no_content"
 
-    def test_already_processed_skipped(self):
-        service, _ = _make_service(llm_content=None)
+    def test_reprocess_already_processed_source(self):
+        service, _ = _make_service(llm_content=_valid_llm_payload())
         service._source_repo.create(
             {"profile_id": "profile-1", "source_type": "resume", "version": 2, "status": "processed"}
         )
         result = service.process(FakeAdapter(content=SourceContent("resume", "text", 2)))
-        assert result["status"] == "skipped"
-        assert result["reason"] == "already_processed"
+        assert result["status"] == "processed"
 
 
 class TestProcessHappyPath:

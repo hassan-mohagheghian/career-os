@@ -19,6 +19,7 @@ ProcessingExecution state and publishes processing events for SSE delivery.
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime, UTC
 
 from processing.application.workflows import progress_ops
@@ -31,6 +32,8 @@ from shared.infrastructure.events import processing_events
 from shared.infrastructure.process.logging_config import get_logger
 
 log = get_logger("processing.runner")
+
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 
 class ProcessingExecutionRunner:
@@ -76,6 +79,35 @@ class ProcessingExecutionRunner:
         return self._should_reuse(has_content, latest.status)
 
     @staticmethod
+    def _start_heartbeat(
+        execution_id: str,
+        repo_factory,
+        stop_event: threading.Event,
+    ) -> threading.Thread:
+        """Start a daemon thread that updates heartbeat_at periodically."""
+        def _heartbeat_loop():
+            while not stop_event.wait(HEARTBEAT_INTERVAL_SECONDS):
+                try:
+                    session = repo_factory()
+                    try:
+                        repo = SQLAlchemyProcessingExecutionRepository(session)
+                        execution = repo.get_by_id(execution_id)
+                        if execution and execution.status == ExecutionStatus.RUNNING:
+                            execution.heartbeat_at = datetime.now(UTC)
+                            repo.save(execution)
+                    finally:
+                        session.close()
+                except Exception:
+                    log.debug(
+                        "processing.heartbeat.write_failed",
+                        execution_id=execution_id,
+                    )
+
+        thread = threading.Thread(target=_heartbeat_loop, daemon=True)
+        thread.start()
+        return thread
+
+    @staticmethod
     def _target_content(execution, session) -> str:
         """Return the target's persisted prepared content (combined text)."""
         if execution.target_type == "job":
@@ -92,6 +124,8 @@ class ProcessingExecutionRunner:
 
     def run(self, execution_id: str) -> dict:
         session = None
+        heartbeat_stop = threading.Event()
+        heartbeat_thread = None
         try:
             if self._repository is not None:
                 repo = self._repository
@@ -110,6 +144,7 @@ class ProcessingExecutionRunner:
 
             execution.status = ExecutionStatus.RUNNING
             execution.started_at = started_at
+            execution.heartbeat_at = started_at
             execution.workflow_progress = progress_ops.build_initial_progress(
                 execution.id, execution.target_type
             ).to_dict()
@@ -122,6 +157,10 @@ class ProcessingExecutionRunner:
                 target_type=execution.target_type,
                 target_id=execution.target_id,
                 updated_at=started_at.isoformat(),
+            )
+
+            heartbeat_thread = self._start_heartbeat(
+                execution_id, get_session_sync, heartbeat_stop,
             )
 
             try:
@@ -169,6 +208,9 @@ class ProcessingExecutionRunner:
             log.info("processing.execution.completed", execution_id=execution.id)
             return result
         finally:
+            heartbeat_stop.set()
+            if heartbeat_thread is not None:
+                heartbeat_thread.join(timeout=5)
             if session is not None:
                 session.close()
 

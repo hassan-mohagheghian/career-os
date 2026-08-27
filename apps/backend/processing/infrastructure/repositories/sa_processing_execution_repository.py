@@ -8,8 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from processing.domain.entities.processing_execution import ProcessingExecution
-from processing.domain.repositories.processing_execution_repository import IProcessingExecutionRepository
-from processing.infrastructure.models.processing_execution_model import ProcessingExecutionModel
+from processing.domain.repositories.processing_execution_repository import (
+    IProcessingExecutionRepository,
+)
+from processing.infrastructure.models.processing_execution_model import (
+    ProcessingExecutionModel,
+)
 
 
 def _ts(value: Any) -> str | None:
@@ -33,6 +37,7 @@ def model_to_dict(model: ProcessingExecutionModel) -> dict[str, Any]:
         "retry_count": model.retry_count,
         "error_message": model.error_message,
         "workflow_progress": _loads(model.workflow_progress),
+        "heartbeat_at": _ts(model.heartbeat_at),
     }
 
 
@@ -56,9 +61,11 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         self._session = session
 
     def save(self, execution: ProcessingExecution) -> ProcessingExecution:
-        model = self._session.query(ProcessingExecutionModel).filter(
-            ProcessingExecutionModel.id == execution.id
-        ).first()
+        model = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(ProcessingExecutionModel.id == execution.id)
+            .first()
+        )
 
         if model:
             model.status = execution.status.value
@@ -67,6 +74,7 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
             model.retry_count = execution.retry_count
             model.error_message = execution.error_message
             model.workflow_progress = _dumps(execution.workflow_progress)
+            model.heartbeat_at = execution.heartbeat_at
         else:
             model = ProcessingExecutionModel(
                 id=execution.id,
@@ -80,6 +88,7 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
                 retry_count=execution.retry_count,
                 error_message=execution.error_message,
                 workflow_progress=_dumps(execution.workflow_progress),
+                heartbeat_at=execution.heartbeat_at,
             )
             self._session.add(model)
 
@@ -88,23 +97,34 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         return ProcessingExecution.from_dict(model_to_dict(model))
 
     def get_by_id(self, execution_id: str) -> ProcessingExecution | None:
-        model = self._session.query(ProcessingExecutionModel).filter(
-            ProcessingExecutionModel.id == execution_id
-        ).first()
+        model = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(ProcessingExecutionModel.id == execution_id)
+            .first()
+        )
         if not model:
             return None
         return ProcessingExecution.from_dict(model_to_dict(model))
 
-    def list_by_target(self, target_type: str, target_id: str) -> list[ProcessingExecution]:
-        models = self._session.query(ProcessingExecutionModel).filter(
-            ProcessingExecutionModel.target_type == target_type,
-            ProcessingExecutionModel.target_id == target_id,
-        ).order_by(ProcessingExecutionModel.created_at.desc()).all()
+    def list_by_target(
+        self, target_type: str, target_id: str
+    ) -> list[ProcessingExecution]:
+        models = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.target_type == target_type,
+                ProcessingExecutionModel.target_id == target_id,
+            )
+            .order_by(ProcessingExecutionModel.created_at.desc())
+            .all()
+        )
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     _ACTIVE_STATUSES = ("queued", "starting", "running", "failed")
 
-    def active_execution(self, target_type: str, target_id: str) -> ProcessingExecution | None:
+    def active_execution(
+        self, target_type: str, target_id: str
+    ) -> ProcessingExecution | None:
         model = (
             self._session.query(ProcessingExecutionModel)
             .filter(
@@ -204,21 +224,30 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         return {row[0] for row in rows}
 
     def delete_by_target(self, target_type: str, target_id: str) -> int:
-        return self._session.query(ProcessingExecutionModel).filter(
-            ProcessingExecutionModel.target_type == target_type,
-            ProcessingExecutionModel.target_id == target_id,
-        ).delete(synchronize_session=False)
+        return (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.target_type == target_type,
+                ProcessingExecutionModel.target_id == target_id,
+            )
+            .delete(synchronize_session=False)
+        )
 
     def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
-        models = self._session.query(ProcessingExecutionModel).order_by(
-            ProcessingExecutionModel.created_at.desc()
-        ).limit(limit).all()
+        models = (
+            self._session.query(ProcessingExecutionModel)
+            .order_by(ProcessingExecutionModel.created_at.desc())
+            .limit(limit)
+            .all()
+        )
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:
-        model = self._session.query(ProcessingExecutionModel).filter(
-            ProcessingExecutionModel.id == execution_id
-        ).first()
+        model = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(ProcessingExecutionModel.id == execution_id)
+            .first()
+        )
         if not model:
             return False
         model.status = status
@@ -227,3 +256,55 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
                 setattr(model, key, value)
         self._session.commit()
         return True
+
+    def stale_queued_executions(
+        self, older_than_seconds: int = 60
+    ) -> list[ProcessingExecution]:
+        from datetime import datetime, timedelta, UTC
+
+        cutoff = (datetime.now(UTC) - timedelta(seconds=older_than_seconds)).isoformat()
+        models = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.status == "queued",
+                ProcessingExecutionModel.created_at < cutoff,
+            )
+            .order_by(ProcessingExecutionModel.created_at.asc())
+            .all()
+        )
+        return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
+
+    def stale_running_executions(
+        self, older_than_seconds: int = 600
+    ) -> list[ProcessingExecution]:
+        """Return RUNNING executions whose worker has likely crashed.
+
+        An execution is considered stale when:
+        - heartbeat_at is set and older than ``older_than_seconds`` (worker
+          stopped sending heartbeats), OR
+        - heartbeat_at is NULL and started_at is older than
+          ``older_than_seconds`` (legacy rows without heartbeat support).
+        """
+        from datetime import datetime, timedelta, UTC
+
+        cutoff = (datetime.now(UTC) - timedelta(seconds=older_than_seconds)).isoformat()
+        models = (
+            self._session.query(ProcessingExecutionModel)
+            .filter(
+                ProcessingExecutionModel.status == "running",
+                (
+                    (
+                        ProcessingExecutionModel.heartbeat_at.isnot(None)
+                        & (ProcessingExecutionModel.heartbeat_at < cutoff)
+                    )
+                    | (
+                        ProcessingExecutionModel.heartbeat_at.is_(None)
+                        & ProcessingExecutionModel.started_at.isnot(None)
+                        & (ProcessingExecutionModel.started_at < cutoff)
+                    )
+                ),
+            )
+            .order_by(ProcessingExecutionModel.started_at.asc())
+            .all()
+        )
+        return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]

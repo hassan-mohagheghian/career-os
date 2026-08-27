@@ -118,6 +118,7 @@ def build_job_analysis_prompt(
     resume_text: str,
     profile_documents: str = "",
     skill_breakdowns: list[dict[str, Any]] | None = None,
+    target_countries: str = "your target countries",
 ) -> str:
     """Build the single combined analysis prompt for a job.
 
@@ -147,7 +148,7 @@ def build_job_analysis_prompt(
                 + "\n"
             )
 
-    return f"""You are a senior career advisor for a software engineer seeking a visa-sponsored role in Europe (Germany, Netherlands).
+    return f"""You are a senior career advisor for a software engineer seeking a visa-sponsored role in {target_countries}.
 
 Analyze the job posting below and the user's profile, then produce a complete structured analysis.
 

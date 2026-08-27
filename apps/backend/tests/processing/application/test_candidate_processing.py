@@ -178,10 +178,10 @@ class TestCandidateSourcePreparation:
         assert {s["source_type"] for s in final.pending_sources} == {"resume", "linkedin"}
         assert final.pending_sources[0]["raw_text"]
 
-    def test_prep_skips_already_known_source_versions(self):
+    def test_prep_includes_all_latest_sources(self):
         source_repo = FakeSourceRepo(
             [
-                {"id": "s1", "profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed"},
+                {"id": "s1", "profile_id": "profile-1", "source_type": "resume", "version": 1, "status": "processed", "raw_text": "My resume"},
                 {"source_type": "linkedin", "version": 1, "raw_text": "LinkedIn profile", "status": "pending"},
             ]
         )
@@ -192,7 +192,7 @@ class TestCandidateSourcePreparation:
         final = graph.invoke(_state())
 
         types = {s["source_type"] for s in final.pending_sources}
-        assert "resume" not in types
+        assert "resume" in types
         assert "linkedin" in types
 
     def test_prep_processes_pending_sources_even_if_version_known(self):

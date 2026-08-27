@@ -1,11 +1,11 @@
 """PrepareSourcesNode — collects the raw contents of every available candidate
 source through the source adapters (resume, linkedin, ...).
 
-No LLM is involved in this phase. The source repo is consulted so already-known
-source versions are not fetched again; the extract phase (CandidateExtractService)
-performs the authoritative already-processed check and skip. Emits workflow
-progress events and updates the WorkflowProgress tree for the prepare_sources
-step.
+No LLM is involved in this phase. The latest version of each source type is
+always fetched so the user can re-process their profile without restriction.
+The extract phase (CandidateExtractService) persists the results and marks
+sources as processed. Emits workflow progress events and updates the
+WorkflowProgress tree for the prepare_sources step.
 """
 
 from __future__ import annotations
@@ -33,7 +33,6 @@ class PrepareSourcesNode:
     def __call__(self, state: CandidateProcessingState) -> CandidateProcessingState:
         progress_ops.start_step(self._events, state, NODE_ID)
         pending: list[dict[str, Any]] = []
-        known = self._known_source_versions(state.profile_id)
 
         for source_type in SOURCE_TYPES:
             adapter = build_adapter(source_type, self._source_repo, state.profile_id)
@@ -46,8 +45,6 @@ class PrepareSourcesNode:
                 continue
             if content is None:
                 continue
-            if (content.source_type, content.version) in known:
-                continue
             pending.append(
                 {
                     "source_type": content.source_type,
@@ -59,18 +56,3 @@ class PrepareSourcesNode:
         state.pending_sources = pending
         progress_ops.complete_step(self._events, state, NODE_ID)
         return state
-
-    def _known_source_versions(self, profile_id: str) -> set[tuple[str, int]]:
-        if not profile_id:
-            return set()
-        try:
-            rows = self._source_repo.list_for_profile(profile_id)
-        except Exception:  # noqa: BLE001 — best-effort lookup
-            return set()
-        # Only processed sources count as "known". Pending sources (e.g. just
-        # uploaded via POST /candidates/sources) must still be fetched/extracted.
-        return {
-            (str(r.get("source_type")), int(r.get("version") or 0))
-            for r in rows
-            if r.get("status") == "processed"
-        }

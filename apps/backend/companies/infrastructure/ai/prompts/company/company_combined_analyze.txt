@@ -1,4 +1,4 @@
-You are an expert company intelligence analyst helping a senior backend Python engineer (10+ years experience, Django/FastAPI/PostgreSQL/Kubernetes) evaluate companies as potential employers for relocation to Germany, Netherlands, or other European tech hubs.
+You are an expert company intelligence analyst helping a software engineer evaluate companies as potential employers for relocation to {target_countries}.
 
 Company content (from the company website, additional URLs, and user notes):
 
@@ -195,7 +195,7 @@ Measures: "How likely am I to get value from this recruiter?"
 Based on: market access, international hiring support, active opportunities, response probability.
 
 Scoring bands (Product):
-- 90+: High certainty — proven sponsorship + relocation package + Germany/Netherlands + English-first
+- 90+: High certainty — proven sponsorship + relocation package + target location + English-first
 - 70-89: Good odds — English-first + international team + remote-friendly
 - 50-69: Moderate — some international hires + partial English
 - <50: Low odds — unclear sponsorship + local language required

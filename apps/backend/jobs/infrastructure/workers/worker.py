@@ -643,17 +643,7 @@ def _mark_old_job_deleted(url, exclude_id=None):
 def _normalize_job_data(d):
     """Normalize job location and work_types fields."""
     import re
-
-    # Known cities
-    CITIES = {
-        'berlin': 'Berlin', 'munich': 'Munich', 'münchen': 'Munich',
-        'hamburg': 'Hamburg', 'heidelberg': 'Heidelberg', 'frankfurt': 'Frankfurt',
-        'cologne': 'Cologne', 'köln': 'Cologne', 'stuttgart': 'Stuttgart',
-        'leipzig': 'Leipzig', 'dortmund': 'Dortmund', 'magdeburg': 'Magdeburg',
-        'madrid': 'Madrid', 'barcelona': 'Barcelona', 'paris': 'Paris',
-        'london': 'London', 'amsterdam': 'Amsterdam', 'vienna': 'Vienna',
-        'wien': 'Vienna', 'zurich': 'Zurich', 'zürich': 'Zurich',
-    }
+    from cities.domain.entities.city import CityNormalizer
 
     def extract_cities(text):
         if not text:
@@ -662,9 +652,12 @@ def _normalize_job_data(d):
         text = re.sub(r'\(.*?\)', '', text)  # Remove parentheses
         parts = re.split(r'[,/\|]', text)
         for part in parts:
-            part = part.strip().lower()
-            if part in CITIES and CITIES[part] not in cities:
-                cities.append(CITIES[part])
+            part = part.strip()
+            if not part:
+                continue
+            canonical, _ = CityNormalizer.normalize(part)
+            if canonical and canonical not in cities:
+                cities.append(canonical)
         return cities
 
     # Normalize location
