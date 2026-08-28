@@ -251,3 +251,71 @@ describe('JobDetailDrawer scores explanation', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('JobDetailDrawer processing failure', () => {
+  const failedDetail = {
+    ...sampleDetail,
+    latest_processing_execution: {
+      id: 'exec-1',
+      status: 'failed',
+      error: {
+        message: 'Execution timed out after 600s (worker stopped responding).',
+      },
+      started_at: null,
+      finished_at: null,
+      current_step: null,
+      workflow: { steps: [] },
+    },
+  }
+
+  it('shows a fade-in error banner with the failure message', async () => {
+    vi.mocked(jobApi.getDetail).mockResolvedValue(failedDetail as any)
+    renderDrawer('job-1')
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    expect(screen.getByText('Processing failed')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Execution timed out after 600s (worker stopped responding).',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('processing-error-banner').className).toContain(
+      'animate-in',
+    )
+  })
+
+  it('calls onReprocess when Retry is clicked', async () => {
+    const onReprocess = vi.fn()
+    vi.mocked(jobApi.getDetail).mockResolvedValue(failedDetail as any)
+    renderDrawer('job-1', vi.fn(), onReprocess)
+
+    await waitFor(() => expect(screen.getByText('Staff Engineer')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onReprocess).toHaveBeenCalledWith('job-1')
+  })
+
+  it('refetches the detail when Check status is clicked', async () => {
+    vi.mocked(jobApi.getDetail).mockReset()
+    vi.mocked(jobApi.getDetail).mockResolvedValue({
+      ...sampleDetail,
+      latest_processing_execution: {
+        id: 'exec-1',
+        status: 'failed',
+        error: {
+          message: 'Execution timed out after 600s (worker stopped responding).',
+        },
+        started_at: null,
+        finished_at: null,
+        current_step: null,
+        workflow: { steps: [] },
+      },
+    } as any)
+    renderDrawer('job-1')
+
+    await waitFor(() =>
+      expect(screen.getByTestId('processing-error-banner')).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Check processing status' }))
+    await waitFor(() => expect(jobApi.getDetail).toHaveBeenCalledTimes(2))
+  })
+})

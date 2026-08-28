@@ -17,6 +17,8 @@ Each task mirrors the previous ARQ task it replaces:
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, UTC, timedelta
+from typing import Optional
 
 from shared.infrastructure.config.app_config import DB_BACKUP_INTERVAL_MINUTES
 from shared.infrastructure.process.logging_config import get_logger
@@ -28,6 +30,40 @@ from shared.infrastructure.taskiq.config import (
 )
 
 log = get_logger("taskiq.tasks")
+
+
+# A worker is considered still alive if its heartbeat is within this window
+# (~3 heartbeats at HEARTBEAT_INTERVAL_SECONDS = 30). Beyond it, the worker
+# has stopped reporting progress (crash / OOM).
+HEARTBEAT_RECENT_WINDOW_SECONDS = 90
+
+
+def _build_timeout_message(
+    heartbeat_at: Optional[datetime],
+    timeout: int,
+) -> str:
+    """Build a precise, state-managed timeout message.
+
+    Distinguishes a worker that stopped responding (crash / OOM) from one that
+    is still reporting progress but exceeded the wall-clock budget (slow /
+    stuck). ``heartbeat_at`` may be a ``datetime`` or an ISO-8601 string.
+    """
+    if heartbeat_at is not None:
+        try:
+            hb = (
+                heartbeat_at
+                if isinstance(heartbeat_at, datetime)
+                else datetime.fromisoformat(heartbeat_at)
+            )
+            recent = (datetime.now(UTC) - hb).total_seconds() < HEARTBEAT_RECENT_WINDOW_SECONDS
+            if recent:
+                return (
+                    f"Execution exceeded {timeout}s but the worker is still "
+                    f"reporting progress (may be slow or stuck). Check status or retry."
+                )
+        except (ValueError, TypeError):
+            pass
+    return f"Execution timed out after {timeout}s (worker stopped responding)."
 
 
 @broker.task(
@@ -112,7 +148,9 @@ async def reconcile_stuck_executions() -> dict:
                 )
                 execution.status = ExecutionStatus.FAILED
                 execution.finished_at = datetime.now(UTC)
-                execution.error_message = f"Execution timed out after {WORKER_JOB_TIMEOUT}s (worker crash suspected)"
+                execution.error_message = _build_timeout_message(
+                    execution.heartbeat_at, WORKER_JOB_TIMEOUT
+                )
                 if execution.workflow_progress:
                     execution.workflow_progress["status"] = "failed"
                 repo.save(execution)

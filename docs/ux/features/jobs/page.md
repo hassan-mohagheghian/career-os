@@ -716,6 +716,40 @@ The Queue drawer updates automatically.
 
 ---
 
+# Processing Failure Banner
+
+When a job's latest Processing Execution fails (e.g. it exceeds the
+`WORKER_JOB_TIMEOUT` of 600s and `reconcile_stuck_executions` marks it failed),
+the Job Details drawer shows a prominent, gracefully fading error banner at the
+top of the content — instead of only a bare red line inside the collapsed
+Processing section. The error fades in (`animate-in fade-in-0`) so it does not
+pop abruptly, and offers two actions:
+
+- **Retry** — re-runs processing for the job (when an `onReprocess` handler is
+  wired into the drawer).
+- **Check status** — refetches the job detail (and any new execution state) via
+  the jobs detail API / SSE.
+
+The backend distinguishes a worker that *stopped responding* (crash / OOM) from
+one that is *still reporting progress but slow/stuck* via the execution
+heartbeat, and the banner shows the matching message.
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│ ⨯ Processing failed                                      │
+│ Execution timed out after 600s (worker stopped           │
+│ responding).                                             │
+│                                                          │
+│ [ ↻ Retry ]   [ ⟳ Check status ]                         │
+└──────────────────────────────────────────────────────────┘
+   (red-tinted card, fades in; Retry hidden if no handler)
+```
+
+The same failure message also remains visible inside the collapsed **Processing**
+section (with the fade-in), so it is not lost if the banner is dismissed.
+
+---
+
 # Legacy Process Button
 
 The previous implementation remains available.

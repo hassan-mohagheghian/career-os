@@ -20,6 +20,7 @@ import {
   Question,
   PaperPlaneTilt,
   Repeat,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { jobApi } from "@/entities/job/api";
 import type { JobDetail, JobDetailWorkflowStep } from "@/entities/job/types";
@@ -454,7 +455,9 @@ function ProcessingSection({
           <DetailRow label="Status" value={exec?.status} />
           <DetailRow label="Current Step" value={exec?.current_step} />
           {exec?.error && (
-            <p className="text-2xs text-red-500 pt-1">{exec.error.message}</p>
+            <p className="text-2xs text-red-500 pt-1 animate-in fade-in-0 duration-300">
+              {exec.error.message}
+            </p>
           )}
           {steps.length > 0 && (
             <div className="mt-2">
@@ -469,8 +472,67 @@ function ProcessingSection({
   );
 }
 
-function JobDetailContent({ detail }: { detail: JobDetail }) {
+function ProcessingErrorBanner({
+  message,
+  onRetry,
+  onCheckStatus,
+}: {
+  message: string;
+  onRetry?: () => void;
+  onCheckStatus: () => void;
+}) {
+  return (
+    <div
+      data-testid="processing-error-banner"
+      className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 animate-in fade-in-0 duration-300"
+    >
+      <div className="flex items-start gap-2">
+        <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-2xs font-medium text-red-500 uppercase tracking-wide">
+            Processing failed
+          </p>
+          <p className="text-xs text-foreground break-words mt-0.5">{message}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1"
+            onClick={onRetry}
+          >
+            <Repeat className="w-3.5 h-3.5" /> Retry
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1 text-muted-foreground"
+          onClick={onCheckStatus}
+          aria-label="Check processing status"
+        >
+          <ArrowsClockwise className="w-3.5 h-3.5" /> Check status
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function JobDetailContent({
+  detail,
+  onReprocess,
+}: {
+  detail: JobDetail;
+  onReprocess?: (id: string) => void;
+}) {
   const queryClient = useQueryClient();
+  const handleCheckStatus = () =>
+    queryClient.invalidateQueries({ queryKey: ["job-detail", detail.id] });
+  const exec = detail.latest_processing_execution;
+  const execError =
+    exec?.status === "failed" && exec.error?.message ? exec.error.message : null;
   const setCompany = useMutation({
     mutationFn: (companyId: string | null) =>
       jobApi.setCompany(detail.id, companyId),
@@ -485,6 +547,13 @@ function JobDetailContent({ detail }: { detail: JobDetail }) {
 
   return (
     <div className="space-y-1 min-w-0">
+      {execError && (
+        <ProcessingErrorBanner
+          message={execError}
+          onRetry={onReprocess ? () => onReprocess(detail.id) : undefined}
+          onCheckStatus={handleCheckStatus}
+        />
+      )}
       <div className="flex   justify-between">
         <div className="flex items-center gap-3 mb-1">
           <GradeBadge
@@ -717,7 +786,9 @@ export function JobDetailDrawer({
             <p className="text-sm text-red-500">Unable to load job details.</p>
           </div>
         )}
-        {detail && !isLoading && <JobDetailContent detail={detail} />}
+        {detail && !isLoading && (
+          <JobDetailContent detail={detail} onReprocess={onReprocess} />
+        )}
       </DrawerContent>
     </Drawer>
   );
