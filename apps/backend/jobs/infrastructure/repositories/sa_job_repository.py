@@ -665,7 +665,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         pinned: bool | None = None,
         dismissed: bool | None = None,
         tags: list[str] | None = None,
-        recommendation: str | None = None,
+        recommendation: list[str] | None = None,
         created_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
         q = self._session.query(JobModel).filter(JobModel.deleted == 0)
@@ -735,7 +735,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         if recommendation:
             q = q.filter(JobModel.id.in_(
                 select(JobAnalysisModel.job_id).where(
-                    JobAnalysisModel.recommendation == recommendation
+                    JobAnalysisModel.recommendation.in_(recommendation)
                 )
             ))
 

@@ -32,7 +32,7 @@ class ListJobsV2Request:
     pinned: bool | None = None
     dismissed: bool | None = None
     tags: list[str] | None = None
-    recommendation: str | None = None
+    recommendation: list[str] | None = None
     created_date: str | None = None
 
 

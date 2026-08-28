@@ -70,7 +70,7 @@ export type ProcessingStatus = 'created' | 'queued' | 'starting' | 'running' | '
 
 export type ProcessingStatusFilter = ProcessingStatus | 'none' | ''
 
-export type RecommendationFilter = 'apply' | 'consider' | 'skip' | ''
+export type RecommendationFilter = 'apply' | 'consider' | 'skip'
 
 export type CreatedDateFilter = 'today' | 'yesterday' | 'week' | 'month' | ''
 
@@ -106,7 +106,7 @@ export type TrackingStatus =
   | 'rejected'
   | 'withdrawn'
 
-export type TrackingStatusFilter = TrackingStatus | ''
+export type TrackingStatusFilter = TrackingStatus
 
 export interface JobListItem {
   id: string
@@ -151,8 +151,8 @@ export interface JobSearchQuery {
   pinned?: boolean
   dismissed?: boolean
   tags?: string
-  recommendation?: RecommendationFilter
-  tracking_status?: TrackingStatusFilter
+  recommendation?: RecommendationFilter[]
+  tracking_status?: TrackingStatusFilter[]
   created_date?: CreatedDateFilter
   sort?: string
   order?: 'asc' | 'desc'

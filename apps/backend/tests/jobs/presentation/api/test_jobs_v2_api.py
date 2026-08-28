@@ -668,6 +668,18 @@ class TestJobRecommendationFilterV2API:
         resp = client.get("/api/jobs/list?recommendation=bogus")
         assert resp.status_code == 422
 
+    def test_filter_by_recommendation_multi(self, client, test_db):
+        apply_job = _create_job(test_db, id=1, title="Apply Job")
+        consider_job = _create_job(test_db, id=2, title="Consider Job")
+        skip_job = _create_job(test_db, id=3, title="Skip Job")
+        _create_analysis(test_db, apply_job.id, recommendation="apply")
+        _create_analysis(test_db, consider_job.id, recommendation="consider")
+        _create_analysis(test_db, skip_job.id, recommendation="skip")
+
+        resp = client.get("/api/jobs/list?recommendation=apply&recommendation=consider")
+        assert resp.status_code == 200
+        assert {i["title"] for i in resp.json()["items"]} == {"Apply Job", "Consider Job"}
+
 
 class TestJobCreatedDateFilterV2API:
     @staticmethod
@@ -733,6 +745,31 @@ class TestJobTrackingFilterV2API:
 
         resp = client.get("/api/jobs/list?tracking_status=applied&processing_status=completed")
         assert [i["title"] for i in resp.json()["items"]] == ["Applied Processed"]
+
+    def test_filter_by_tracking_status_multi(self, client, test_db):
+        applied = _create_job(test_db, id=1, title="Applied")
+        interview = _create_job(test_db, id=2, title="Interview")
+        _create_job(test_db, id=3, title="Not Applied")
+        _create_application(test_db, applied.id, "applied")
+        _create_application(test_db, interview.id, "interview")
+
+        resp = client.get("/api/jobs/list?tracking_status=applied&tracking_status=interview")
+        assert resp.status_code == 200
+        assert {i["title"] for i in resp.json()["items"]} == {"Applied", "Interview"}
+
+    def test_filter_by_tracking_status_comma_form(self, client, test_db):
+        applied = _create_job(test_db, id=1, title="Applied")
+        interview = _create_job(test_db, id=2, title="Interview")
+        _create_application(test_db, applied.id, "applied")
+        _create_application(test_db, interview.id, "interview")
+
+        resp = client.get("/api/jobs/list?tracking_status=applied,interview")
+        assert resp.status_code == 200
+        assert {i["title"] for i in resp.json()["items"]} == {"Applied", "Interview"}
+
+    def test_invalid_tracking_status_returns_422(self, client, test_db):
+        resp = client.get("/api/jobs/list?tracking_status=bogus")
+        assert resp.status_code == 422
 
 
 def _create_company(test_db, **kwargs) -> CompanyModel:

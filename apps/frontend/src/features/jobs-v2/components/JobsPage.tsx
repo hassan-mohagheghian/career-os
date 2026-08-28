@@ -42,10 +42,10 @@ interface JobsPageProps {
   onFilterVisaChange: (value: boolean | '') => void
   filterPinned: boolean
   onFilterPinnedChange: (value: boolean) => void
-  filterRecommendation: RecommendationFilter
-  onFilterRecommendationChange: (value: RecommendationFilter) => void
-  filterTrackingStatus: TrackingStatusFilter
-  onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
+  filterRecommendation: RecommendationFilter[]
+  onFilterRecommendationChange: (value: RecommendationFilter[]) => void
+  filterTrackingStatus: TrackingStatusFilter[]
+  onFilterTrackingStatusChange: (value: TrackingStatusFilter[]) => void
   filterCreatedDate: CreatedDateFilter
   onFilterCreatedDateChange: (value: CreatedDateFilter) => void
   activeFilterCount: number

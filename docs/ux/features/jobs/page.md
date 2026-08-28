@@ -138,8 +138,8 @@ Controls
 | Remote         | Filter by remote / on-site.              |
 | Visa           | Filter by visa sponsorship.              |
 | Pinned         | Toggle pinned-only view.                 |
-| Recommendation | Filter by apply / consider / skip.       |
-| Tracking       | Filter by application tracking status.   |
+| Recommendation | Multi-select filter by apply / consider / skip (OR). |
+| Tracking       | Multi-select filter by application tracking status (OR). |
 | Date           | Filter by created-at preset (Today / Yesterday / Last Week / Last Month). |
 | Sort           | Sort current result set.                 |
 | Columns        | Show / hide the Row number and Pin columns. |
@@ -1405,18 +1405,56 @@ others.
 
 ## Recommendation Filter
 
-A dropdown in the toolbar restricts the list to jobs whose analysis produced
-the selected recommendation.
+A multi-select popover in the toolbar restricts the list to jobs whose
+analysis produced **any** of the selected recommendations (OR semantics).
 
 ```text
-All
-Apply
-Consider
-Skip
+┌──────────────────────┐
+│ Recommendation  ▾    │  trigger (shows count + labels when active)
+├──────────────────────┤
+│ ▢ Apply              │
+│ ▢ Consider           │
+│ ▢ Skip               │
+│ Clear                │  clears this filter
+└──────────────────────┘
 ```
 
-Jobs without a completed analysis never match. When active it counts as an
-active filter and is cleared by the toolbar's Clear action alongside the
+Selecting one or more options sends `recommendation=apply&recommendation=skip`
+(repeated query params) to the backend, which matches jobs whose analysis
+recommendation is in the chosen set. Jobs without a completed analysis never
+match. When active it counts as an active filter and is cleared by the
+toolbar's Clear action alongside the others.
+
+## Tracking Filter
+
+A multi-select popover in the toolbar restricts the list to jobs whose
+application tracking status is **any** of the selected statuses (OR semantics).
+The full set of tracking statuses is available (the legacy single-select
+dropdown omitted `Seen`, `Preparing` and `Ready to Apply`):
+
+```text
+┌──────────────────────┐
+│ Tracking  ▾          │  trigger (shows count + labels when active)
+├──────────────────────┤
+│ ▢ Not Applied        │
+│ ▢ Seen               │
+│ ▢ Preparing          │
+│ ▢ Ready to Apply     │
+│ ▢ Applied            │
+│ ▢ Interview          │
+│ ▢ Offer              │
+│ ▢ Accepted           │
+│ ▢ Rejected           │
+│ ▢ Withdrawn          │
+│ Clear                │  clears this filter
+└──────────────────────┘
+```
+
+Selecting `Not Applied` together with specific statuses unions jobs that have
+no application with jobs whose latest application status matches. The selected
+values are sent as repeated `tracking_status=applied&tracking_status=interview`
+query params (comma-separated values are also accepted). When active it counts
+as an active filter and is cleared by the toolbar's Clear action alongside the
 others.
 
 ## Processing Status Filter

@@ -168,6 +168,31 @@ def _parse_string_list(raw: Any) -> list[str]:
     return []
 
 
+def _normalize_filter_values(raw: list[str] | None, allowed: set[str]) -> list[str] | None:
+    """Validate and flatten a multi-value filter param into a clean list.
+
+    Accepts repeated query params (FastAPI list) and/or comma-separated
+    values, drops empty pieces, and rejects any value outside ``allowed``
+    with a 422 (consistent with the previous single-value pattern check).
+    Returns ``None`` when nothing valid was supplied.
+    """
+    if not raw:
+        return None
+    items: list[str] = []
+    for part in raw:
+        for piece in part.split(","):
+            piece = piece.strip()
+            if not piece:
+                continue
+            if piece not in allowed:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid filter value: {piece}",
+                )
+            items.append(piece)
+    return items or None
+
+
 def _job_summary(
     job: dict[str, Any],
     rank: int | None = None,
@@ -283,14 +308,14 @@ def list_jobs_v2(
     sort: str = Query("updated_at"),
     order: str = Query("desc"),
     processing_status: str | None = Query(None),
-    tracking_status: str | None = Query(None),
+    tracking_status: list[str] | None = Query(None),
     company_id: str | None = Query(None),
     location: str | None = Query(None),
     remote: bool | None = Query(None),
     visa: bool | None = Query(None),
     pinned: bool | None = Query(None),
     created_date: str | None = Query(None, pattern="^(today|yesterday|week|month)$"),
-    recommendation: str | None = Query(None, pattern="^(apply|consider|skip)$"),
+    recommendation: list[str] | None = Query(None),
     dismissed: bool | None = Query(None),
     tags: str | None = Query(None),
     overall_score_min: int | None = Query(None),
@@ -310,15 +335,29 @@ def list_jobs_v2(
         exclude_job_ids = sorted(exec_repo.target_ids("job"))
     elif processing_status:
         job_ids = sorted(exec_repo.target_ids_with_status("job", processing_status))
-    if tracking_status:
-        if tracking_status == "not_applied":
-            applied_job_ids = set(application_repo.job_ids_with_application())
-            exclude_job_ids = sorted(set(exclude_job_ids or []) | applied_job_ids)
-        elif tracking_status in TRACKING_STATUSES:
-            all_applied = application_repo.job_ids_with_application()
-            statuses = application_repo.statuses_by_job_ids(all_applied)
-            tracking_job_ids = [jid for jid, st in statuses.items() if st == tracking_status]
-            job_ids = sorted(set(tracking_job_ids) & set(job_ids or tracking_job_ids))
+    tracking_values = _normalize_filter_values(tracking_status, TRACKING_STATUSES)
+    if tracking_values:
+        specific = [s for s in tracking_values if s != "not_applied"]
+        not_applied_selected = "not_applied" in tracking_values
+        applied_job_ids = set(application_repo.job_ids_with_application())
+        statuses_map = (
+            application_repo.statuses_by_job_ids(list(applied_job_ids))
+            if applied_job_ids
+            else {}
+        )
+        specific_ids = {jid for jid, st in statuses_map.items() if st in set(specific)}
+        matched: set[str] = set(specific_ids)
+        if not_applied_selected:
+            all_job_ids = {j["id"] for j in repo.get_all_active()}
+            matched |= all_job_ids - applied_job_ids
+        if job_ids is None:
+            job_ids = sorted(matched)
+        else:
+            job_ids = sorted(set(job_ids) & matched)
+
+    recommendation_values = _normalize_filter_values(
+        recommendation, {"apply", "consider", "skip"}
+    )
     status_lookup = exec_repo.latest_statuses("job") if sort == "status" else None
     request = ListJobsV2Request(
         page=page, page_size=page_size, cursor=cursor, query=query, sort=sort, order=order,
@@ -335,7 +374,7 @@ def list_jobs_v2(
         dismissed=dismissed if dismissed is not None else None,
         tags=[t.strip() for t in tags.split(",") if t.strip()] if tags else None,
         created_date=created_date,
-        recommendation=recommendation,
+        recommendation=recommendation_values,
     )
     use_case = ListJobsV2UseCase(repo)
     result = use_case.execute(request)

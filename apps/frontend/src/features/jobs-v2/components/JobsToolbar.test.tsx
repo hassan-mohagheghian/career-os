@@ -18,9 +18,9 @@ function renderToolbar(overrides: Record<string, unknown> = {}) {
     onFilterVisaChange: vi.fn(),
     filterPinned: false,
     onFilterPinnedChange: vi.fn(),
-    filterRecommendation: '',
+    filterRecommendation: [],
     onFilterRecommendationChange: vi.fn(),
-    filterTrackingStatus: '',
+    filterTrackingStatus: [],
     onFilterTrackingStatusChange: vi.fn(),
     filterCreatedDate: '',
     onFilterCreatedDateChange: vi.fn(),
@@ -116,45 +116,47 @@ describe('JobsToolbar pinned filter', () => {
 })
 
 describe('JobsToolbar recommendation filter', () => {
-  it('renders a recommendation select', () => {
+  it('renders a recommendation filter', () => {
     renderToolbar()
     expect(screen.getByText('Recommendation')).toBeInTheDocument()
   })
 
-  it('reports the selected recommendation', () => {
+  it('reports the selected recommendation (multi-select)', async () => {
+    const user = userEvent.setup()
     const onFilterRecommendationChange = vi.fn()
     renderToolbar({ onFilterRecommendationChange })
 
-    fireEvent.click(screen.getByText('Recommendation'))
-    fireEvent.click(screen.getByText('Apply'))
+    await user.click(screen.getByText('Recommendation'))
+    await user.click(screen.getByText('Apply'))
 
-    expect(onFilterRecommendationChange).toHaveBeenCalledWith('apply')
+    expect(onFilterRecommendationChange).toHaveBeenCalledWith(['apply'])
   })
 
   it('shows the selected recommendation label when active', () => {
-    renderToolbar({ filterRecommendation: 'consider' })
+    renderToolbar({ filterRecommendation: ['consider'] })
     expect(screen.getByText('Consider')).toBeInTheDocument()
   })
 })
 
 describe('JobsToolbar tracking filter', () => {
-  it('renders a tracking select', () => {
+  it('renders a tracking filter', () => {
     renderToolbar()
     expect(screen.getByText('Tracking')).toBeInTheDocument()
   })
 
-  it('reports the selected tracking status', () => {
+  it('reports the selected tracking status (multi-select)', async () => {
+    const user = userEvent.setup()
     const onFilterTrackingStatusChange = vi.fn()
     renderToolbar({ onFilterTrackingStatusChange })
 
-    fireEvent.click(screen.getByText('Tracking'))
-    fireEvent.click(screen.getByText('Applied'))
+    await user.click(screen.getByText('Tracking'))
+    await user.click(screen.getByText('Applied'))
 
-    expect(onFilterTrackingStatusChange).toHaveBeenCalledWith('applied')
+    expect(onFilterTrackingStatusChange).toHaveBeenCalledWith(['applied'])
   })
 
   it('shows the selected tracking label when active', () => {
-    renderToolbar({ filterTrackingStatus: 'interview' })
+    renderToolbar({ filterTrackingStatus: ['interview'] })
     expect(screen.getByText('Interview')).toBeInTheDocument()
   })
 })

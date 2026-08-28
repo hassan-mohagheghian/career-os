@@ -316,12 +316,12 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
     })
 
     act(() => {
-      result.current.setFilterRecommendation('apply')
+      result.current.setFilterRecommendation(['apply'])
     })
 
     await waitFor(() => {
       expect(jobApi.searchInfinite).toHaveBeenCalledWith(
-        expect.objectContaining({ recommendation: 'apply' })
+        expect.objectContaining({ recommendation: ['apply'] })
       )
     })
   })
@@ -337,6 +337,24 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
     expect(lastCall.recommendation).toBeUndefined()
   })
 
+  it('sends multiple recommendation values to the API (OR)', async () => {
+    const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalled()
+    })
+
+    act(() => {
+      result.current.setFilterRecommendation(['apply', 'consider'])
+    })
+
+    await waitFor(() => {
+      expect(jobApi.searchInfinite).toHaveBeenCalledWith(
+        expect.objectContaining({ recommendation: ['apply', 'consider'] })
+      )
+    })
+  })
+
   it('counts the recommendation filter as an active filter and clears it', async () => {
     const { result } = renderHook(() => useJobsInfiniteQuery(), { wrapper: wrapper(qc) })
 
@@ -345,7 +363,7 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
     })
 
     act(() => {
-      result.current.setFilterRecommendation('skip')
+      result.current.setFilterRecommendation(['skip'])
     })
     expect(result.current.activeFilterCount).toBe(1)
 
@@ -353,7 +371,7 @@ describe('useJobsInfiniteQuery.filterRecommendation', () => {
       result.current.clearFilters()
     })
     expect(result.current.activeFilterCount).toBe(0)
-    expect(result.current.filterRecommendation).toBe('')
+    expect(result.current.filterRecommendation).toEqual([])
   })
 })
 
@@ -376,12 +394,12 @@ describe('useJobsInfiniteQuery.filterTrackingStatus', () => {
     })
 
     act(() => {
-      result.current.setFilterTrackingStatus('interview')
+      result.current.setFilterTrackingStatus(['interview'])
     })
 
     await waitFor(() => {
       expect(jobApi.searchInfinite).toHaveBeenCalledWith(
-        expect.objectContaining({ tracking_status: 'interview' })
+        expect.objectContaining({ tracking_status: ['interview'] })
       )
     })
   })
@@ -405,7 +423,7 @@ describe('useJobsInfiniteQuery.filterTrackingStatus', () => {
     })
 
     act(() => {
-      result.current.setFilterTrackingStatus('accepted')
+      result.current.setFilterTrackingStatus(['accepted'])
     })
     expect(result.current.activeFilterCount).toBe(1)
 
@@ -413,7 +431,7 @@ describe('useJobsInfiniteQuery.filterTrackingStatus', () => {
       result.current.clearFilters()
     })
     expect(result.current.activeFilterCount).toBe(0)
-    expect(result.current.filterTrackingStatus).toBe('')
+    expect(result.current.filterTrackingStatus).toEqual([])
   })
 })
 

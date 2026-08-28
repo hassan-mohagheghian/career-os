@@ -147,7 +147,7 @@ class IJobRepository(ABC):
         success_score_min: int | None = None,
         success_score_max: int | None = None,
         pinned: bool | None = None,
-        recommendation: str | None = None,
+        recommendation: list[str] | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
         """Search jobs with cursor-based pagination. Returns (items, total, next_cursor, has_more).
 

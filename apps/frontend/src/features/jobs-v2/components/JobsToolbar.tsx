@@ -1,93 +1,129 @@
-'use client'
+"use client";
 
-import { useRef } from 'react'
-import { DebouncedInput } from '@/shared/ui/debounced-input'
-import { Button } from '@/shared/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/shared/ui/select'
-import type { ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, CreatedDateFilter } from '@/entities/job/types'
-import { MagnifyingGlass, MapPin, Funnel, PushPin } from '@phosphor-icons/react'
-import { cn } from '@/shared/lib/utils'
-import { ColumnsDropdown } from '@/shared/components/ColumnsDropdown'
-import { useFocusSearchShortcut } from '@/shared/hooks'
+import { useRef } from "react";
+import { DebouncedInput } from "@/shared/ui/debounced-input";
+import { Button } from "@/shared/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/shared/ui/select";
+import { MultiSelectFilter } from "./MultiSelectFilter";
+import type {
+  ProcessingStatusFilter,
+  RecommendationFilter,
+  TrackingStatusFilter,
+  CreatedDateFilter,
+} from "@/entities/job/types";
+import {
+  MagnifyingGlass,
+  MapPin,
+  Funnel,
+  PushPin,
+} from "@phosphor-icons/react";
+import { cn } from "@/shared/lib/utils";
+import { ColumnsDropdown } from "@/shared/components/ColumnsDropdown";
+import { useFocusSearchShortcut } from "@/shared/hooks";
 
 const STATUS_FILTER_LABELS: Record<string, string> = {
-  created: 'Created',
-  queued: 'Queued',
-  running: 'Running',
-  completed: 'Completed',
-  failed: 'Failed',
-  none: 'Not processed',
-}
+  created: "Created",
+  queued: "Queued",
+  running: "Running",
+  completed: "Completed",
+  failed: "Failed",
+  none: "Not processed",
+};
 
-const RECOMMENDATION_LABELS: Record<string, string> = {
-  apply: 'Apply',
-  consider: 'Consider',
-  skip: 'Skip',
-}
+const RECOMMENDATION_LABELS: Record<RecommendationFilter, string> = {
+  apply: "Apply",
+  consider: "Consider",
+  skip: "Skip",
+};
 
-const TRACKING_FILTER_LABELS: Record<string, string> = {
-  not_applied: 'Not Applied',
-  seen: 'Seen',
-  preparing: 'Preparing',
-  ready_to_apply: 'Ready to Apply',
-  applied: 'Applied',
-  interview: 'Interview',
-  offer: 'Offer',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  withdrawn: 'Withdrawn',
-}
+const RECOMMENDATION_OPTIONS = Object.entries(RECOMMENDATION_LABELS).map(
+  ([value, label]) => ({ value, label }),
+);
+
+const TRACKING_FILTER_LABELS: Record<TrackingStatusFilter, string> = {
+  not_applied: "Not Applied",
+  seen: "Seen",
+  preparing: "Preparing",
+  ready_to_apply: "Ready to Apply",
+  applied: "Applied",
+  interview: "Interview",
+  offer: "Offer",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
+};
+
+const TRACKING_OPTIONS = Object.entries(TRACKING_FILTER_LABELS).map(
+  ([value, label]) => ({ value, label }),
+);
 
 const CREATED_DATE_LABELS: Record<string, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  week: 'Last Week',
-  month: 'Last Month',
-}
+  today: "Today",
+  yesterday: "Yesterday",
+  week: "Last Week",
+  month: "Last Month",
+};
 
 interface JobsToolbarProps {
-  query: string
-  onQueryChange: (value: string) => void
-  filterProcessingStatus: ProcessingStatusFilter
-  onFilterProcessingStatusChange: (value: ProcessingStatusFilter) => void
-  filterLocation: string
-  onFilterLocationChange: (value: string) => void
-  filterRemote: boolean | ''
-  onFilterRemoteChange: (value: boolean | '') => void
-  filterVisa: boolean | ''
-  onFilterVisaChange: (value: boolean | '') => void
-  filterPinned: boolean
-  onFilterPinnedChange: (value: boolean) => void
-  filterRecommendation: RecommendationFilter
-  onFilterRecommendationChange: (value: RecommendationFilter) => void
-  filterTrackingStatus: TrackingStatusFilter
-  onFilterTrackingStatusChange: (value: TrackingStatusFilter) => void
-  filterCreatedDate: CreatedDateFilter
-  onFilterCreatedDateChange: (value: CreatedDateFilter) => void
-  activeFilterCount: number
-  onClearFilters: () => void
-  showPinnedColumn?: boolean
-  onTogglePinnedColumn?: (value: boolean) => void
-  showRowNumberColumn?: boolean
-  onToggleRowNumberColumn?: (value: boolean) => void
+  query: string;
+  onQueryChange: (value: string) => void;
+  filterProcessingStatus: ProcessingStatusFilter;
+  onFilterProcessingStatusChange: (value: ProcessingStatusFilter) => void;
+  filterLocation: string;
+  onFilterLocationChange: (value: string) => void;
+  filterRemote: boolean | "";
+  onFilterRemoteChange: (value: boolean | "") => void;
+  filterVisa: boolean | "";
+  onFilterVisaChange: (value: boolean | "") => void;
+  filterPinned: boolean;
+  onFilterPinnedChange: (value: boolean) => void;
+  filterRecommendation: RecommendationFilter[];
+  onFilterRecommendationChange: (value: RecommendationFilter[]) => void;
+  filterTrackingStatus: TrackingStatusFilter[];
+  onFilterTrackingStatusChange: (value: TrackingStatusFilter[]) => void;
+  filterCreatedDate: CreatedDateFilter;
+  onFilterCreatedDateChange: (value: CreatedDateFilter) => void;
+  activeFilterCount: number;
+  onClearFilters: () => void;
+  showPinnedColumn?: boolean;
+  onTogglePinnedColumn?: (value: boolean) => void;
+  showRowNumberColumn?: boolean;
+  onToggleRowNumberColumn?: (value: boolean) => void;
 }
 
 export function JobsToolbar({
-  query, onQueryChange,
-  filterProcessingStatus, onFilterProcessingStatusChange,
-  filterLocation, onFilterLocationChange,
-  filterRemote, onFilterRemoteChange,
-  filterVisa, onFilterVisaChange,
-  filterPinned, onFilterPinnedChange,
-  filterRecommendation, onFilterRecommendationChange,
-  filterTrackingStatus, onFilterTrackingStatusChange,
-  filterCreatedDate, onFilterCreatedDateChange,
-  activeFilterCount, onClearFilters,
-  showPinnedColumn = true, onTogglePinnedColumn,
-  showRowNumberColumn = false, onToggleRowNumberColumn,
+  query,
+  onQueryChange,
+  filterProcessingStatus,
+  onFilterProcessingStatusChange,
+  filterLocation,
+  onFilterLocationChange,
+  filterRemote,
+  onFilterRemoteChange,
+  filterVisa,
+  onFilterVisaChange,
+  filterPinned,
+  onFilterPinnedChange,
+  filterRecommendation,
+  onFilterRecommendationChange,
+  filterTrackingStatus,
+  onFilterTrackingStatusChange,
+  filterCreatedDate,
+  onFilterCreatedDateChange,
+  activeFilterCount,
+  onClearFilters,
+  showPinnedColumn = true,
+  onTogglePinnedColumn,
+  showRowNumberColumn = false,
+  onToggleRowNumberColumn,
 }: JobsToolbarProps) {
-  const searchRef = useRef<HTMLInputElement>(null)
-  useFocusSearchShortcut(searchRef)
+  const searchRef = useRef<HTMLInputElement>(null);
+  useFocusSearchShortcut(searchRef);
 
   return (
     <div className="px-3 py-2 border-b border-border/40">
@@ -98,7 +134,9 @@ export function JobsToolbar({
             value={query}
             onValueChange={onQueryChange}
             placeholder="Search by title, company, or keyword..."
-            icon={<MagnifyingGlass className="w-3.5 h-3.5 text-muted-foreground" />}
+            icon={
+              <MagnifyingGlass className="w-3.5 h-3.5 text-muted-foreground" />
+            }
             clearable
             clearLabel="Clear search"
             activeClassName="border-emerald-500/30"
@@ -108,21 +146,6 @@ export function JobsToolbar({
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <Select value={filterProcessingStatus} onValueChange={(v) => onFilterProcessingStatusChange(v as ProcessingStatusFilter)}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <Funnel className="w-3 h-3" />
-              <span>{filterProcessingStatus ? STATUS_FILTER_LABELS[filterProcessingStatus] ?? filterProcessingStatus : 'Status'}</span>
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectItem value="">All</SelectItem>
-              <SelectItem value="created">Created</SelectItem>
-              <SelectItem value="queued">Queued</SelectItem>
-              <SelectItem value="running">Running</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="none">Not processed</SelectItem>
-            </SelectContent>
-          </Select>
           <div className="relative w-36">
             <DebouncedInput
               value={filterLocation}
@@ -137,9 +160,45 @@ export function JobsToolbar({
               aria-label="Filter by location"
             />
           </div>
-          <Select value={filterRemote !== '' ? String(filterRemote) : ''} onValueChange={(v) => onFilterRemoteChange(v === '' ? '' : v === 'true')}>
+          <Select
+            value={filterProcessingStatus}
+            onValueChange={(v) =>
+              onFilterProcessingStatusChange(v as ProcessingStatusFilter)
+            }
+          >
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <span>{filterRemote !== '' ? (filterRemote ? 'Remote' : 'On-site') : 'Remote'}</span>
+              <Funnel className="w-3 h-3" />
+              <span>
+                {filterProcessingStatus
+                  ? (STATUS_FILTER_LABELS[filterProcessingStatus] ??
+                    filterProcessingStatus)
+                  : "Status"}
+              </span>
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="created">Created</SelectItem>
+              <SelectItem value="queued">Queued</SelectItem>
+              <SelectItem value="running">Running</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="none">Not processed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filterRemote !== "" ? String(filterRemote) : ""}
+            onValueChange={(v) =>
+              onFilterRemoteChange(v === "" ? "" : v === "true")
+            }
+          >
+            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
+              <span>
+                {filterRemote !== ""
+                  ? filterRemote
+                    ? "Remote"
+                    : "On-site"
+                  : "Remote"}
+              </span>
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
@@ -147,9 +206,16 @@ export function JobsToolbar({
               <SelectItem value="false">On-site</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterVisa !== '' ? String(filterVisa) : ''} onValueChange={(v) => onFilterVisaChange(v === '' ? '' : v === 'true')}>
+          <Select
+            value={filterVisa !== "" ? String(filterVisa) : ""}
+            onValueChange={(v) =>
+              onFilterVisaChange(v === "" ? "" : v === "true")
+            }
+          >
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <span>{filterVisa !== '' ? (filterVisa ? 'Visa' : 'No Visa') : 'Visa'}</span>
+              <span>
+                {filterVisa !== "" ? (filterVisa ? "Visa" : "No Visa") : "Visa"}
+              </span>
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
@@ -157,35 +223,31 @@ export function JobsToolbar({
               <SelectItem value="false">No Visa</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterRecommendation} onValueChange={(v) => onFilterRecommendationChange(v as RecommendationFilter)}>
+          <MultiSelectFilter
+            label="Recommendation"
+            options={RECOMMENDATION_OPTIONS}
+            selected={filterRecommendation}
+            onChange={onFilterRecommendationChange}
+          />
+          <MultiSelectFilter
+            label="Tracking"
+            options={TRACKING_OPTIONS}
+            selected={filterTrackingStatus}
+            onChange={onFilterTrackingStatusChange}
+          />
+          <Select
+            value={filterCreatedDate}
+            onValueChange={(v) =>
+              onFilterCreatedDateChange(v as CreatedDateFilter)
+            }
+          >
             <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <span>{filterRecommendation ? RECOMMENDATION_LABELS[filterRecommendation] ?? filterRecommendation : 'Recommendation'}</span>
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectItem value="">All</SelectItem>
-              <SelectItem value="apply">Apply</SelectItem>
-              <SelectItem value="consider">Consider</SelectItem>
-              <SelectItem value="skip">Skip</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterTrackingStatus} onValueChange={(v) => onFilterTrackingStatusChange(v as TrackingStatusFilter)}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <span>{filterTrackingStatus ? TRACKING_FILTER_LABELS[filterTrackingStatus] ?? filterTrackingStatus : 'Tracking'}</span>
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectItem value="">All</SelectItem>
-              <SelectItem value="not_applied">Not Applied</SelectItem>
-              <SelectItem value="applied">Applied</SelectItem>
-              <SelectItem value="interview">Interview</SelectItem>
-              <SelectItem value="offer">Offer</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="withdrawn">Withdrawn</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterCreatedDate} onValueChange={(v) => onFilterCreatedDateChange(v as CreatedDateFilter)}>
-            <SelectTrigger className="h-7 w-auto text-2xs gap-1 text-primary">
-              <span>{filterCreatedDate ? CREATED_DATE_LABELS[filterCreatedDate] ?? filterCreatedDate : 'Date'}</span>
+              <span>
+                {filterCreatedDate
+                  ? (CREATED_DATE_LABELS[filterCreatedDate] ??
+                    filterCreatedDate)
+                  : "Date"}
+              </span>
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem value="">All</SelectItem>
@@ -198,34 +260,61 @@ export function JobsToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className={cn('h-7 w-auto gap-1 text-2xs', filterPinned && 'text-primary')}
+            className={cn(
+              "h-7 w-auto gap-1 text-2xs",
+              filterPinned && "text-primary",
+            )}
             onClick={() => onFilterPinnedChange(!filterPinned)}
             aria-label="Show pinned only"
             aria-pressed={filterPinned}
-            title={filterPinned ? 'Showing pinned only' : 'Show pinned only'}
+            title={filterPinned ? "Showing pinned only" : "Show pinned only"}
           >
-            <PushPin className="w-3 h-3" weight={filterPinned ? 'fill' : 'regular'} />
+            <PushPin
+              className="w-3 h-3"
+              weight={filterPinned ? "fill" : "regular"}
+            />
             Pinned
           </Button>
           {(onTogglePinnedColumn || onToggleRowNumberColumn) && (
             <ColumnsDropdown
               options={[
-                ...(onToggleRowNumberColumn ? [{ key: 'rowNumber', label: 'Row number', checked: showRowNumberColumn }] : []),
-                ...(onTogglePinnedColumn ? [{ key: 'pinned', label: 'Pinned', checked: showPinnedColumn }] : []),
+                ...(onToggleRowNumberColumn
+                  ? [
+                      {
+                        key: "rowNumber",
+                        label: "Row number",
+                        checked: showRowNumberColumn,
+                      },
+                    ]
+                  : []),
+                ...(onTogglePinnedColumn
+                  ? [
+                      {
+                        key: "pinned",
+                        label: "Pinned",
+                        checked: showPinnedColumn,
+                      },
+                    ]
+                  : []),
               ]}
               onToggle={(key, checked) => {
-                if (key === 'rowNumber') onToggleRowNumberColumn?.(checked)
-                else onTogglePinnedColumn(checked)
+                if (key === "rowNumber") onToggleRowNumberColumn?.(checked);
+                else onTogglePinnedColumn(checked);
               }}
             />
           )}
           {activeFilterCount > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 text-2xs text-emerald-500" onClick={onClearFilters}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-2xs text-emerald-500"
+              onClick={onClearFilters}
+            >
               Clear
             </Button>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }

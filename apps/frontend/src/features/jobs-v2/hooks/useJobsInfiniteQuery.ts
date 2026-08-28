@@ -19,8 +19,8 @@ export function useJobsInfiniteQuery() {
   const [filterVisa, setFilterVisa] = useState<boolean | ''>('')
   const [filterPinned, setFilterPinned] = useState(false)
   const [filterTags, setFilterTags] = useState<string[]>([])
-  const [filterRecommendation, setFilterRecommendation] = useState<RecommendationFilter>('')
-  const [filterTrackingStatus, setFilterTrackingStatus] = useState<TrackingStatusFilter>('')
+  const [filterRecommendation, setFilterRecommendation] = useState<RecommendationFilter[]>([])
+  const [filterTrackingStatus, setFilterTrackingStatus] = useState<TrackingStatusFilter[]>([])
   const [filterCreatedDate, setFilterCreatedDate] = useState<CreatedDateFilter>('')
 
   const filterKey = useMemo(() => ({
@@ -33,8 +33,8 @@ export function useJobsInfiniteQuery() {
     visa: filterVisa === '' ? undefined : filterVisa,
     pinned: filterPinned || undefined,
     tags: filterTags.length ? filterTags.join(',') : undefined,
-    recommendation: filterRecommendation || undefined,
-    tracking_status: filterTrackingStatus || undefined,
+    recommendation: filterRecommendation.length ? filterRecommendation : undefined,
+    tracking_status: filterTrackingStatus.length ? filterTrackingStatus : undefined,
     created_date: filterCreatedDate || undefined,
   }), [query, sort, order, filterProcessingStatus, filterLocation, filterRemote, filterVisa, filterPinned, filterTags, filterRecommendation, filterTrackingStatus, filterCreatedDate])
 
@@ -61,8 +61,8 @@ export function useJobsInfiniteQuery() {
       remote: filterKey.remote as boolean | undefined,
       visa: filterKey.visa as boolean | undefined,
       pinned: filterKey.pinned as boolean | undefined,
-      recommendation: filterKey.recommendation as RecommendationFilter | undefined,
-      tracking_status: filterKey.tracking_status as TrackingStatusFilter | undefined,
+      recommendation: filterKey.recommendation as RecommendationFilter[] | undefined,
+      tracking_status: filterKey.tracking_status as TrackingStatusFilter[] | undefined,
       created_date: filterKey.created_date as CreatedDateFilter | undefined,
     }),
     initialPageParam: undefined,
@@ -82,8 +82,8 @@ export function useJobsInfiniteQuery() {
     filterRemote !== '',
     filterVisa !== '',
     filterPinned,
-    filterRecommendation,
-    filterTrackingStatus,
+    filterRecommendation.length > 0,
+    filterTrackingStatus.length > 0,
     filterCreatedDate,
   ].filter(Boolean).length
 
@@ -93,8 +93,8 @@ export function useJobsInfiniteQuery() {
     setFilterRemote('')
     setFilterVisa('')
     setFilterPinned(false)
-    setFilterRecommendation('')
-    setFilterTrackingStatus('')
+    setFilterRecommendation([])
+    setFilterTrackingStatus([])
     setFilterCreatedDate('')
   }, [])
 
@@ -279,9 +279,9 @@ export function useJobsInfiniteQuery() {
     filterPinned,
     setFilterPinned: useCallback((v: boolean) => { setFilterPinned(v) }, []),
     filterRecommendation,
-    setFilterRecommendation: useCallback((v: RecommendationFilter) => { setFilterRecommendation(v) }, []),
+    setFilterRecommendation: useCallback((v: RecommendationFilter[]) => { setFilterRecommendation(v) }, []),
     filterTrackingStatus,
-    setFilterTrackingStatus: useCallback((v: TrackingStatusFilter) => { setFilterTrackingStatus(v) }, []),
+    setFilterTrackingStatus: useCallback((v: TrackingStatusFilter[]) => { setFilterTrackingStatus(v) }, []),
     filterCreatedDate,
     setFilterCreatedDate: useCallback((v: CreatedDateFilter) => { setFilterCreatedDate(v) }, []),
     filterTags,
