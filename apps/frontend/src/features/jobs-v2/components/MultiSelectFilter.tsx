@@ -2,6 +2,7 @@
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover'
 import { Checkbox } from '@/shared/ui/checkbox'
+import { RiArrowDownSLine } from '@remixicon/react'
 import { cn } from '@/shared/lib/utils'
 
 export interface MultiSelectFilterOption<T extends string = string> {
@@ -34,28 +35,25 @@ export function MultiSelectFilter<T extends string = string>({
     }
   }
 
-  const triggerLabel = selected.length
-    ? selected.map((v) => options.find((o) => o.value === v)?.label ?? v).join(', ')
-    : label
-
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
           className={cn(
-            'inline-flex h-7 w-auto items-center gap-1 text-2xs text-primary',
+            'inline-flex h-7 items-center gap-1.5 rounded-none border border-input bg-transparent px-2.5 text-2xs whitespace-nowrap text-primary transition-colors outline-none select-none hover:bg-muted focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50',
             className,
           )}
           aria-label={`${label} filter`}
           aria-pressed={selected.length > 0}
         >
-          <span>{triggerLabel}</span>
+          <span>{label}</span>
           {selected.length > 0 && (
             <span className="rounded-none bg-emerald-500/15 px-1 text-[10px] font-medium text-emerald-500">
               {selected.length}
             </span>
           )}
+          <RiArrowDownSLine className="pointer-events-none size-4 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1.5">

@@ -1443,15 +1443,19 @@ A multi-select popover in the toolbar restricts the list to jobs whose
 analysis produced **any** of the selected recommendations (OR semantics).
 
 ```text
-┌──────────────────────┐
-│ Recommendation  ▾    │  trigger (shows count + labels when active)
-├──────────────────────┤
-│ ▢ Apply              │
-│ ▢ Consider           │
-│ ▢ Skip               │
-│ Clear                │  clears this filter
-└──────────────────────┘
+┌────────────────────────┐
+│ Recommendation [2] ▾    │  bordered box + chevron; [n] = selection count
+├────────────────────────┤
+│ ▢ Apply                │
+│ ▢ Consider             │
+│ ▢ Skip                 │
+│ Clear                  │  clears this filter
+└────────────────────────┘
 ```
+When nothing is selected the trigger shows only the label (`Recommendation ▾`).
+The box mirrors the other toolbar filter boxes (bordered, down-chevron); once
+selections exist it shows a small count badge (the number of selected values)
+instead of the joined labels, keeping the toolbar compact.
 
 Selecting one or more options sends `recommendation=apply&recommendation=skip`
 (repeated query params) to the backend, which matches jobs whose analysis
@@ -1467,22 +1471,26 @@ The full set of tracking statuses is available (the legacy single-select
 dropdown omitted `Seen`, `Preparing` and `Ready to Apply`):
 
 ```text
-┌──────────────────────┐
-│ Tracking  ▾          │  trigger (shows count + labels when active)
-├──────────────────────┤
-│ ▢ Not Applied        │
-│ ▢ Seen               │
-│ ▢ Preparing          │
-│ ▢ Ready to Apply     │
-│ ▢ Applied            │
-│ ▢ Interview          │
-│ ▢ Offer              │
-│ ▢ Accepted           │
-│ ▢ Rejected           │
-│ ▢ Withdrawn          │
-│ Clear                │  clears this filter
-└──────────────────────┘
+┌────────────────────────┐
+│ Tracking [3] ▾         │  bordered box + chevron; [n] = selection count
+├────────────────────────┤
+│ ▢ Not Applied          │
+│ ▢ Seen                 │
+│ ▢ Preparing            │
+│ ▢ Ready to Apply       │
+│ ▢ Applied              │
+│ ▢ Interview            │
+│ ▢ Offer                │
+│ ▢ Accepted             │
+│ ▢ Rejected             │
+│ ▢ Withdrawn            │
+│ Clear                  │  clears this filter
+└────────────────────────┘
 ```
+When nothing is selected the trigger shows only the label (`Tracking ▾`). The box
+mirrors the other toolbar filter boxes (bordered, down-chevron); once selections
+exist it shows a small count badge (the number of selected statuses) instead of
+the joined labels, keeping the toolbar compact.
 
 Selecting `Not Applied` together with specific statuses unions jobs that have
 no application with jobs whose latest application status matches. The selected

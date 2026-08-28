@@ -132,9 +132,10 @@ describe('JobsToolbar recommendation filter', () => {
     expect(onFilterRecommendationChange).toHaveBeenCalledWith(['apply'])
   })
 
-  it('shows the selected recommendation label when active', () => {
+  it('shows a selection count badge for recommendation', () => {
     renderToolbar({ filterRecommendation: ['consider'] })
-    expect(screen.getByText('Consider')).toBeInTheDocument()
+    expect(screen.getByText('Recommendation')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 })
 
@@ -155,9 +156,10 @@ describe('JobsToolbar tracking filter', () => {
     expect(onFilterTrackingStatusChange).toHaveBeenCalledWith(['applied'])
   })
 
-  it('shows the selected tracking label when active', () => {
+  it('shows a selection count badge for tracking', () => {
     renderToolbar({ filterTrackingStatus: ['interview'] })
-    expect(screen.getByText('Interview')).toBeInTheDocument()
+    expect(screen.getByText('Tracking')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 })
 
