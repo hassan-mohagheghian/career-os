@@ -108,6 +108,14 @@ app/
       database: `uv run alembic upgrade head` from an empty DB must succeed (this
       is exactly what CI does). A migration that only works because the schema
       already existed locally is not merge-ready.
+    - **Keep a single head.** `uv run alembic heads` MUST show exactly **one** head
+      across the whole repo (CI runs `alembic upgrade head` in the singular, which
+      aborts with "Multiple head revisions are present" if a second head exists).
+      A new context branch legitimately starts as its own head, but it must be
+      **merged** into the main head with a merge migration before the change is
+      merge-ready: `uv run alembic merge -m "<msg>" <head_a> <head_b>` (creates a
+      no-op revision with `down_revision = (<head_a>, <head_b>)`). Never leave two
+      heads in the graph.
     - **Never hand-write the revision graph.** `revision`, `down_revision`,
       `branch_labels` must come from `alembic revision --autogenerate` (with
       `ALEMBIC_TARGET_SCHEMA=<ctx> --version-path apps/alembic/<ctx>/versions
