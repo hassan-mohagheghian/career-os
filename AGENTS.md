@@ -93,9 +93,12 @@ app/
       DBs still recognize it).
     - **Schema creation.** Every `upgrade()` MUST begin with
       `op.execute("CREATE SCHEMA IF NOT EXISTS <ctx>")` for the schema it owns.
-      Make destructive/creating steps idempotent (guard `op.create_table` /
-      `op.add_column` with an `inspect(bind).has_table` / `has_column` check) so
-      the migration is safe to re-apply on a DB that already has the object.
+      Make destructive/creating steps idempotent so the migration is safe to
+      re-apply on a DB that already has the object: guard `op.create_table` with
+      `inspect(bind).has_table(...)`, and guard `op.add_column` by reading
+      `inspect(bind).get_columns(...)` and checking the column name. (Note:
+      `PGInspector` in this SQLAlchemy version has **no** `has_column` method —
+      use `get_columns` and compare names. `has_table` is available.)
     - **Branch root.** The first migration of a context is a branch root:
       `down_revision = None` and `branch_labels = ("<ctx>",)`. Children set
       `branch_labels = None` (they inherit it). **Never** set `down_revision` to a

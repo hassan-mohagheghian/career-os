@@ -25,16 +25,20 @@ def upgrade() -> None:
     op.execute("CREATE SCHEMA IF NOT EXISTS processing")
     bind = op.get_bind()
     insp = inspect(bind)
-    if not insp.has_column("processing_executions", "heartbeat_at", schema="processing"):
-        op.add_column(
-            "processing_executions",
-            sa.Column("heartbeat_at", sa.Text, nullable=True),
-            schema="processing",
-        )
+    if insp.has_table("processing_executions", schema="processing"):
+        cols = {c["name"] for c in insp.get_columns("processing_executions", schema="processing")}
+        if "heartbeat_at" not in cols:
+            op.add_column(
+                "processing_executions",
+                sa.Column("heartbeat_at", sa.Text, nullable=True),
+                schema="processing",
+            )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     insp = inspect(bind)
-    if insp.has_column("processing_executions", "heartbeat_at", schema="processing"):
-        op.drop_column("processing_executions", "heartbeat_at", schema="processing")
+    if insp.has_table("processing_executions", schema="processing"):
+        cols = {c["name"] for c in insp.get_columns("processing_executions", schema="processing")}
+        if "heartbeat_at" in cols:
+            op.drop_column("processing_executions", "heartbeat_at", schema="processing")
