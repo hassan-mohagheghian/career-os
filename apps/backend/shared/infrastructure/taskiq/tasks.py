@@ -17,7 +17,7 @@ Each task mirrors the previous ARQ task it replaces:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, UTC
 from typing import Optional
 
 from shared.infrastructure.config.app_config import DB_BACKUP_INTERVAL_MINUTES
@@ -27,43 +27,26 @@ from shared.infrastructure.taskiq.config import (
     WORKER_MAX_RETRIES,
     WORKER_RETRY_BACKOFF,
     WORKER_JOB_TIMEOUT,
+    RECONCILE_INTERVAL_SECONDS,
 )
 
 log = get_logger("taskiq.tasks")
 
 
-# A worker is considered still alive if its heartbeat is within this window
-# (~3 heartbeats at HEARTBEAT_INTERVAL_SECONDS = 30). Beyond it, the worker
-# has stopped reporting progress (crash / OOM).
-HEARTBEAT_RECENT_WINDOW_SECONDS = 90
+def _elapsed_seconds(started_at: Optional[datetime]) -> int:
+    """Real wall-clock seconds since the execution started (0 if unknown)."""
+    if started_at is None:
+        return 0
+    try:
+        delta = (datetime.now(UTC) - started_at).total_seconds()
+    except TypeError:
+        return 0
+    return int(max(0, delta))
 
 
-def _build_timeout_message(
-    heartbeat_at: Optional[datetime],
-    timeout: int,
-) -> str:
-    """Build a precise, state-managed timeout message.
-
-    Distinguishes a worker that stopped responding (crash / OOM) from one that
-    is still reporting progress but exceeded the wall-clock budget (slow /
-    stuck). ``heartbeat_at`` may be a ``datetime`` or an ISO-8601 string.
-    """
-    if heartbeat_at is not None:
-        try:
-            hb = (
-                heartbeat_at
-                if isinstance(heartbeat_at, datetime)
-                else datetime.fromisoformat(heartbeat_at)
-            )
-            recent = (datetime.now(UTC) - hb).total_seconds() < HEARTBEAT_RECENT_WINDOW_SECONDS
-            if recent:
-                return (
-                    f"Execution exceeded {timeout}s but the worker is still "
-                    f"reporting progress (may be slow or stuck). Check status or retry."
-                )
-        except (ValueError, TypeError):
-            pass
-    return f"Execution timed out after {timeout}s (worker stopped responding)."
+def _timeout_message(elapsed: int) -> str:
+    """Plain, honest timeout message (no worker-liveness claim)."""
+    return f"Execution timed out after {elapsed}s. Check status or retry."
 
 
 @broker.task(
@@ -91,7 +74,7 @@ STALE_QUEUED_THRESHOLD_SECONDS = 60
 
 
 @broker.task(
-    schedule=[{"interval": 30}],
+    schedule=[{"interval": RECONCILE_INTERVAL_SECONDS}],
 )
 async def reconcile_stuck_executions() -> dict:
     """Periodic sweep to recover stuck executions.
@@ -138,19 +121,17 @@ async def reconcile_stuck_executions() -> dict:
             timed_out = 0
             stale_running = repo.stale_running_executions(WORKER_JOB_TIMEOUT)
             for execution in stale_running:
-                from datetime import datetime, UTC
-
+                elapsed = _elapsed_seconds(execution.started_at)
                 log.info(
                     "taskiq.task.reconcile.timeout",
                     execution_id=execution.id,
                     target_type=execution.target_type,
                     target_id=execution.target_id,
+                    elapsed_seconds=elapsed,
                 )
                 execution.status = ExecutionStatus.FAILED
                 execution.finished_at = datetime.now(UTC)
-                execution.error_message = _build_timeout_message(
-                    execution.heartbeat_at, WORKER_JOB_TIMEOUT
-                )
+                execution.error_message = _timeout_message(elapsed)
                 if execution.workflow_progress:
                     execution.workflow_progress["status"] = "failed"
                 repo.save(execution)
@@ -193,10 +174,9 @@ async def process_execution_task(execution_id: str) -> dict:
     - Start LangGraph workflow for the execution's target
     - Complete or fail the execution
 
-    Crash detection is handled by ``reconcile_stuck_executions`` which
-    checks the worker heartbeat (``heartbeat_at``) instead of an absolute
-    timeout. This avoids killing active workers whose LLM calls exceed
-    ``WORKER_JOB_TIMEOUT``.
+    Crash detection is handled by ``reconcile_stuck_executions`` which fails
+    any RUNNING execution that has exceeded ``WORKER_JOB_TIMEOUT``
+    (wall-clock budget since ``started_at``).
     """
     log.info("taskiq.task.execution.start", execution_id=execution_id)
     try:

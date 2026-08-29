@@ -36,6 +36,10 @@ WORKER_MAX_RETRIES = int(os.environ.get("WORKER_MAX_RETRIES", "3"))
 WORKER_RETRY_BACKOFF = float(os.environ.get("WORKER_RETRY_BACKOFF", "10.0"))
 WORKER_JOB_TIMEOUT = int(os.environ.get("WORKER_JOB_TIMEOUT", "600"))
 
+# How often `reconcile_stuck_executions` runs to detect dead / long-running
+# workers (seconds). Exposed so operators can tune sweep cadence without a deploy.
+RECONCILE_INTERVAL_SECONDS = int(os.environ.get("RECONCILE_INTERVAL_SECONDS", "30"))
+
 LOG_LEVEL = os.environ.get("WORKER_LOG_LEVEL", "INFO")
 
 

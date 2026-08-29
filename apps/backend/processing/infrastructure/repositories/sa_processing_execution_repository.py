@@ -262,49 +262,56 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
     ) -> list[ProcessingExecution]:
         from datetime import datetime, timedelta, UTC
 
-        cutoff = (datetime.now(UTC) - timedelta(seconds=older_than_seconds)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
         models = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.status == "queued",
-                ProcessingExecutionModel.created_at < cutoff,
+                ProcessingExecutionModel.created_at.isnot(None),
             )
             .order_by(ProcessingExecutionModel.created_at.asc())
             .all()
         )
-        return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
+        result = []
+        for m in models:
+            try:
+                created = datetime.fromisoformat(m.created_at)
+            except (ValueError, TypeError):
+                continue
+            if created < cutoff:
+                result.append(ProcessingExecution.from_dict(model_to_dict(m)))
+        return result
 
     def stale_running_executions(
         self, older_than_seconds: int = 600
     ) -> list[ProcessingExecution]:
-        """Return RUNNING executions whose worker has likely crashed.
+        """Return RUNNING executions older than ``older_than_seconds``.
 
-        An execution is considered stale when:
-        - heartbeat_at is set and older than ``older_than_seconds`` (worker
-          stopped sending heartbeats), OR
-        - heartbeat_at is NULL and started_at is older than
-          ``older_than_seconds`` (legacy rows without heartbeat support).
+        Used by ``reconcile_stuck_executions`` to fail executions that have
+        exceeded the wall-clock budget (``WORKER_JOB_TIMEOUT`` since
+        ``started_at``).
+
+        Timestamps are stored as TEXT in the DB, so we parse them in Python
+        rather than comparing strings (which is locale/format-sensitive).
         """
         from datetime import datetime, timedelta, UTC
 
-        cutoff = (datetime.now(UTC) - timedelta(seconds=older_than_seconds)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
         models = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.status == "running",
-                (
-                    (
-                        ProcessingExecutionModel.heartbeat_at.isnot(None)
-                        & (ProcessingExecutionModel.heartbeat_at < cutoff)
-                    )
-                    | (
-                        ProcessingExecutionModel.heartbeat_at.is_(None)
-                        & ProcessingExecutionModel.started_at.isnot(None)
-                        & (ProcessingExecutionModel.started_at < cutoff)
-                    )
-                ),
+                ProcessingExecutionModel.started_at.isnot(None),
             )
             .order_by(ProcessingExecutionModel.started_at.asc())
             .all()
         )
-        return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
+        result = []
+        for m in models:
+            try:
+                started = datetime.fromisoformat(m.started_at)
+            except (ValueError, TypeError):
+                continue
+            if started < cutoff:
+                result.append(ProcessingExecution.from_dict(model_to_dict(m)))
+        return result

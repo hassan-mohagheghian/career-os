@@ -126,7 +126,7 @@ function WorkflowStepItem({
   );
 }
 
-function WorkflowPanel({
+export function WorkflowPanel({
   workflow,
   entry,
 }: {
@@ -406,18 +406,6 @@ export function ProcessingDrawer({
     clearWorkflow,
   ]);
 
-  const renderDetail = useCallback(
-    (entry: QueueEntry) => {
-      return (
-        <WorkflowPanel
-          workflow={workflows[entry.execution_id] ?? null}
-          entry={entry}
-        />
-      );
-    },
-    [workflows],
-  );
-
   const runAction = useCallback(
     async (label: string, action: () => Promise<unknown>) => {
       try {
@@ -429,6 +417,27 @@ export function ProcessingDrawer({
       }
     },
     [loadSnapshot],
+  );
+
+  const handleRetry = useCallback(
+    (entry: QueueEntry) => {
+      return runAction("Retrying execution", () =>
+        processingApi.retry(entry.execution_id),
+      );
+    },
+    [runAction],
+  );
+
+  const renderDetail = useCallback(
+    (entry: QueueEntry) => {
+      return (
+        <WorkflowPanel
+          workflow={workflows[entry.execution_id] ?? null}
+          entry={entry}
+        />
+      );
+    },
+    [workflows],
   );
 
   const handleStart = useCallback(
@@ -444,15 +453,6 @@ export function ProcessingDrawer({
     (entry: QueueEntry) => {
       return runAction("Cancelled execution", () =>
         processingApi.cancel(entry.execution_id),
-      );
-    },
-    [runAction],
-  );
-
-  const handleRetry = useCallback(
-    (entry: QueueEntry) => {
-      return runAction("Retrying execution", () =>
-        processingApi.retry(entry.execution_id),
       );
     },
     [runAction],

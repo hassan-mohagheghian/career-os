@@ -200,3 +200,62 @@ class TestTargetIds:
 
     def test_empty(self, sa_session):
         assert _repo(sa_session).target_ids(TARGET_TYPE) == set()
+
+
+def _add_running(sa_session, target_id, started_at, heartbeat_at, status="running"):
+    from datetime import datetime, UTC
+
+    model = ProcessingExecutionModel(
+        id=str(uuid.uuid7()),
+        execution_type="job_processing",
+        status=status,
+        target_type=TARGET_TYPE,
+        target_id=target_id,
+        created_at=started_at,
+        started_at=started_at,
+        heartbeat_at=heartbeat_at,
+    )
+    sa_session.add(model)
+    sa_session.commit()
+    return model
+
+
+class TestStaleRunningExecutions:
+    def test_returns_running_older_than_threshold(self, sa_session):
+        from datetime import datetime, timedelta, UTC
+
+        start = str(datetime.now(UTC) - timedelta(seconds=700))
+        hb = str(datetime.now(UTC) - timedelta(seconds=30))
+        _add_running(sa_session, "job-a", start, hb)
+
+        result = _repo(sa_session).stale_running_executions(600)
+        assert len(result) == 1
+        assert result[0].target_id == "job-a"
+
+    def test_excludes_recent_start(self, sa_session):
+        from datetime import datetime, timedelta, UTC
+
+        start = str(datetime.now(UTC) - timedelta(seconds=120))
+        hb = str(datetime.now(UTC) - timedelta(seconds=10))
+        _add_running(sa_session, "job-b", start, hb)
+
+        assert _repo(sa_session).stale_running_executions(600) == []
+
+    def test_excludes_non_running(self, sa_session):
+        from datetime import datetime, timedelta, UTC
+
+        start = str(datetime.now(UTC) - timedelta(seconds=700))
+        hb = str(datetime.now(UTC) - timedelta(seconds=30))
+        _add_running(sa_session, "job-d", start, hb, status="completed")
+
+        assert _repo(sa_session).stale_running_executions(600) == []
+
+    def test_excludes_23s_old_execution(self, sa_session):
+        """Regression: a 23s-old execution must NOT be timed out at 600s."""
+        from datetime import datetime, timedelta, UTC
+
+        start = str(datetime.now(UTC) - timedelta(seconds=23))
+        hb = str(datetime.now(UTC) - timedelta(seconds=10))
+        _add_running(sa_session, "job-fresh", start, hb)
+
+        assert _repo(sa_session).stale_running_executions(600) == []

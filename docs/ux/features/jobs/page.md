@@ -730,9 +730,8 @@ pop abruptly, and offers two actions:
 - **Check status** — refetches the job detail (and any new execution state) via
   the jobs detail API / SSE.
 
-The backend distinguishes a worker that *stopped responding* (crash / OOM) from
-one that is *still reporting progress but slow/stuck* via the execution
-heartbeat, and the banner shows the matching message.
+The backend fails a RUNNING execution once it exceeds `WORKER_JOB_TIMEOUT`
+(default 600s) since `started_at`, showing a plain timeout message.
 
 ```text
 ┌──────────────────────────────────────────────────────────┐

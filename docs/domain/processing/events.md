@@ -111,7 +111,11 @@ Payload:
 
 ## ProcessingExecutionFailed
 
-Triggered when execution fails.
+Triggered when execution fails — either from a workflow error (the runner publishes
+the exception message) or from `reconcile_stuck_executions` when a RUNNING execution
+has exceeded `WORKER_JOB_TIMEOUT` (default 600s) since `started_at`. The reconcile
+timeout message is plain and honest: `"Execution timed out after {elapsed}s. Check
+status or retry."` (it makes no claim about worker liveness).
 
 Payload:
 
