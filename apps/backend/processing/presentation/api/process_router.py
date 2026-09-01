@@ -24,5 +24,5 @@ def process_job(
     # New processing features reference jobs by their UUID `id`.
     target_id = job.get("id") or str(jobId)
 
-    result = ExecutionActionService(exec_repo).reprocess("job", target_id)
+    result = ExecutionActionService(exec_repo, user_id=job_repo._user_id).reprocess("job", target_id)
     return ProcessJobResponse(execution_id=result["execution_id"], status=ExecutionStatus.QUEUED.value)

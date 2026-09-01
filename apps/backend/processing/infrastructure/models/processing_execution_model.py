@@ -16,6 +16,7 @@ class ProcessingExecutionModel(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="created")
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)
     target_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
     started_at: Mapped[Optional[datetime]] = mapped_column(Text, nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(Text, nullable=True)

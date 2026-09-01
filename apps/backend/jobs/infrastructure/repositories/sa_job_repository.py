@@ -978,7 +978,7 @@ class SQLAlchemyJobRepository(IJobRepository):
 
     def ranks_by_ids(self, job_ids: list[str]) -> dict[str, int]:
         """Competition ranks (``RANK()``) for a set of jobs. Ranks are computed
-        over the **full** non-deleted job list (sorted by overall, then success,
+        over the user's non-deleted job list (sorted by overall, then success,
         then fit, each descending, NULLS LAST) in a subquery, so each job's rank
         is absolute (independent of the requested subset / current list sort).
         Jobs with identical scores share a rank; the next distinct rank skips
@@ -992,9 +992,14 @@ class SQLAlchemyJobRepository(IJobRepository):
                 func.coalesce(JobModel.fit_score, -1).desc(),
             ]
         )
+        user_filter = [JobModel.deleted == 0]
+        if self._user_id:
+            user_filter.append(JobModel.user_id == self._user_id)
         ranked = (
             select(JobModel.id, rank_expr.label("rn"))
-            .where(JobModel.deleted == 0)
+            .where(JobModel.id.in_(
+                select(JobModel.id).where(*user_filter)
+            ))
             .subquery()
         )
         rows = (

@@ -18,6 +18,7 @@ class CreateProcessingExecutionRequest:
     execution_type: ExecutionType
     target_type: str
     target_id: str
+    user_id: str = ""
 
 
 @dataclass
@@ -54,6 +55,7 @@ class CreateProcessingExecutionUseCase:
             execution_type=request.execution_type,
             target_type=request.target_type,
             target_id=request.target_id,
+            user_id=request.user_id,
         )
         saved = self._repository.save(execution)
         return CreateProcessingExecutionResponse(

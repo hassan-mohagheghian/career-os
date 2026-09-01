@@ -58,9 +58,9 @@ from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleR
 from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
 
 
-def build_job_context_preparation_graph(session: Any) -> JobContextPreparationGraph:
+def build_job_context_preparation_graph(session: Any, user_id: str = "") -> JobContextPreparationGraph:
     """Build the graph with production infrastructure adapters."""
-    job_repo = SQLAlchemyJobRepository(session)
+    job_repo = SQLAlchemyJobRepository(session, user_id=user_id)
     job_service = JobService(job_repo)
 
     fetcher = CompositeContentFetcher(
@@ -79,46 +79,46 @@ def build_job_context_preparation_graph(session: Any) -> JobContextPreparationGr
     )
 
 
-def build_job_analysis_graph(session: Any) -> JobAnalysisGraph:
+def build_job_analysis_graph(session: Any, user_id: str = "") -> JobAnalysisGraph:
     """Build the Job Analysis graph with production infrastructure adapters."""
-    job_repo = SQLAlchemyJobRepository(session)
+    job_repo = SQLAlchemyJobRepository(session, user_id=user_id)
     job_service = JobService(job_repo)
     event_publisher = RedisProcessingEventPublisher()
 
     return JobAnalysisGraph(
         job_service=job_service,
-        skill_repo=SQLAlchemySkillRepository(session),
+        skill_repo=SQLAlchemySkillRepository(session, user_id=user_id),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
-        rule_repo=SQLAlchemyRuleRepository(session),
+        rule_repo=SQLAlchemyRuleRepository(session, user_id=user_id),
         job_repo=job_repo,
         summary_repo=SQLAlchemySummaryRepository(session),
         analysis_repo=SQLAlchemyJobAnalysisRepository(session),
-        matching_service=CompanyMatchingService(SQLAlchemyCompanyRepository(session)),
+        matching_service=CompanyMatchingService(SQLAlchemyCompanyRepository(session, user_id=user_id)),
         job_company_repo=SQLAlchemyJobCompanyRepository(session),
         llm_service=get_llm_service(),
         event_publisher=event_publisher,
         candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
-        city_service=_city_service(session),
+        city_service=_city_service(session, user_id),
     )
 
 
-def _company_service(session: Any) -> CompanyService:
+def _company_service(session: Any, user_id: str = "") -> CompanyService:
     return CompanyService(
-        repository=SQLAlchemyCompanyRepository(session),
+        repository=SQLAlchemyCompanyRepository(session, user_id=user_id),
         intelligence_repository=SQLAlchemyCompanyIntelligenceRepository(session),
         link_repository=SQLAlchemyCompanyLinkRepository(session),
-        city_service=_city_service(session),
+        city_service=_city_service(session, user_id),
     )
 
 
-def _city_service(session: Any) -> CityService:
+def _city_service(session: Any, user_id: str = "") -> CityService:
     return CityService(
-        SQLAlchemyCityRepository(session),
+        SQLAlchemyCityRepository(session, user_id=user_id),
         CityInMemoryEventCollector(),
     )
 
 
-def build_company_context_preparation_graph(session: Any) -> CompanyContextPreparationGraph:
+def build_company_context_preparation_graph(session: Any, user_id: str = "") -> CompanyContextPreparationGraph:
     """Build the Company context preparation graph (no LLM)."""
     fetcher = CompositeContentFetcher(
         [HTTPXContentFetcher(), PlaywrightContentFetcher()]
@@ -129,18 +129,18 @@ def build_company_context_preparation_graph(session: Any) -> CompanyContextPrepa
     event_publisher = RedisProcessingEventPublisher()
 
     return CompanyContextPreparationGraph(
-        company_service=_company_service(session),
+        company_service=_company_service(session, user_id),
         fetcher=fetcher,
         extractor=extractor,
         event_publisher=event_publisher,
     )
 
 
-def build_company_analysis_graph(session: Any) -> CompanyAnalysisGraph:
+def build_company_analysis_graph(session: Any, user_id: str = "") -> CompanyAnalysisGraph:
     """Build the Company analysis graph with production infrastructure adapters."""
     return CompanyAnalysisGraph(
-        company_service=_company_service(session),
-        rule_repo=SQLAlchemyRuleRepository(session),
+        company_service=_company_service(session, user_id),
+        rule_repo=SQLAlchemyRuleRepository(session, user_id=user_id),
         llm_service=get_llm_service(),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
         candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
@@ -148,7 +148,7 @@ def build_company_analysis_graph(session: Any) -> CompanyAnalysisGraph:
     )
 
 
-def build_candidate_source_preparation_graph(session: Any) -> CandidateSourcePreparationGraph:
+def build_candidate_source_preparation_graph(session: Any, user_id: str = "") -> CandidateSourcePreparationGraph:
     """Build the Candidate source preparation graph (no LLM)."""
     return CandidateSourcePreparationGraph(
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
@@ -157,15 +157,15 @@ def build_candidate_source_preparation_graph(session: Any) -> CandidateSourcePre
     )
 
 
-def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
+def build_candidate_processing_graph(session: Any, user_id: str = "") -> CandidateProcessingGraph:
     """Build the Candidate extraction/merge graph with production adapters."""
     extract_service = CandidateExtractService(
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
-        skill_repo=SQLAlchemySkillRepository(session),
+        skill_repo=SQLAlchemySkillRepository(session, user_id=user_id),
         llm=get_llm_service(),
         event_publisher=InMemoryEventCollector(),
-        city_service=_city_service(session),
+        city_service=_city_service(session, user_id),
     )
     return CandidateProcessingGraph(
         extract_service=extract_service,
@@ -173,22 +173,17 @@ def build_candidate_processing_graph(session: Any) -> CandidateProcessingGraph:
     )
 
 
-def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenceGraph:
-    """Build the Application Intelligence graph with production adapters.
-
-    Generates application documents (tailored resume / cover letter) as a
-    consumer of the existing job analysis, company intelligence and candidate
-    profile.
-    """
+def build_application_intelligence_graph(session: Any, user_id: str = "") -> ApplicationIntelligenceGraph:
+    """Build the Application Intelligence graph with production adapters."""
     return ApplicationIntelligenceGraph(
         application_repo=SQLAlchemyApplicationRepository(session),
-        job_service=JobService(SQLAlchemyJobRepository(session)),
+        job_service=JobService(SQLAlchemyJobRepository(session, user_id=user_id)),
         analysis_repo=SQLAlchemyJobAnalysisRepository(session),
         company_service=CompanyService(
-            SQLAlchemyCompanyRepository(session),
+            SQLAlchemyCompanyRepository(session, user_id=user_id),
             SQLAlchemyCompanyIntelligenceRepository(session),
             SQLAlchemyCompanyLinkRepository(session),
-            city_service=_city_service(session),
+            city_service=_city_service(session, user_id),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
@@ -198,28 +193,23 @@ def build_application_intelligence_graph(session: Any) -> ApplicationIntelligenc
     )
 
 
-def build_roadmap_generation_graph(session: Any) -> RoadmapGenerationGraph:
-    """Build the Roadmap Generation graph with production infrastructure adapters.
-
-    Generates a job-preparation roadmap as a consumer of the existing job
-    analysis, company intelligence and candidate profile, persisting it into the
-    Roadmaps context through RoadmapService.
-    """
+def build_roadmap_generation_graph(session: Any, user_id: str = "") -> RoadmapGenerationGraph:
+    """Build the Roadmap Generation graph with production infrastructure adapters."""
     return RoadmapGenerationGraph(
         application_repo=SQLAlchemyApplicationRepository(session),
-        job_service=JobService(SQLAlchemyJobRepository(session)),
+        job_service=JobService(SQLAlchemyJobRepository(session, user_id=user_id)),
         analysis_repo=SQLAlchemyJobAnalysisRepository(session),
         company_service=CompanyService(
-            SQLAlchemyCompanyRepository(session),
+            SQLAlchemyCompanyRepository(session, user_id=user_id),
             SQLAlchemyCompanyIntelligenceRepository(session),
             SQLAlchemyCompanyLinkRepository(session),
-            city_service=_city_service(session),
+            city_service=_city_service(session, user_id),
         ),
         intelligence_repo=SQLAlchemyCompanyIntelligenceRepository(session),
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
         roadmap_service=RoadmapService(
-            SQLAlchemyRoadmapRepository(session),
-            SQLAlchemySkillRepository(session),
+            SQLAlchemyRoadmapRepository(session, user_id=user_id),
+            SQLAlchemySkillRepository(session, user_id=user_id),
             RoadmapInMemoryEventCollector(),
         ),
         llm_service=get_llm_service(),

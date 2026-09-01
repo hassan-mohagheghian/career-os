@@ -233,6 +233,7 @@ class ProcessingExecutionRunner:
 
         JOB_PROCESSING executions run the JobContextPreparationGraph (no LLM).
         """
+        user_id = getattr(execution, "user_id", "")
         if execution.execution_type == ExecutionType.JOB_PROCESSING:
             from processing.domain.workflow.job_processing_state import JobProcessingState
             from processing.infrastructure.workflow import (
@@ -255,13 +256,13 @@ class ProcessingExecutionRunner:
                 )
                 reuse = self._reuse_available(execution, graph_session)
                 if reuse:
-                    analysis_graph = build_job_analysis_graph(graph_session)
+                    analysis_graph = build_job_analysis_graph(graph_session, user_id=user_id)
                     final = analysis_graph.invoke(state)
                 else:
-                    graph = build_job_context_preparation_graph(graph_session)
+                    graph = build_job_context_preparation_graph(graph_session, user_id=user_id)
                     final = graph.invoke(state)
                     if final.status != ExecutionStatus.FAILED:
-                        analysis_graph = build_job_analysis_graph(graph_session)
+                        analysis_graph = build_job_analysis_graph(graph_session, user_id=user_id)
                         final = analysis_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
@@ -294,13 +295,13 @@ class ProcessingExecutionRunner:
                 )
                 reuse = self._reuse_available(execution, graph_session)
                 if reuse:
-                    analysis_graph = build_company_analysis_graph(graph_session)
+                    analysis_graph = build_company_analysis_graph(graph_session, user_id=user_id)
                     final = analysis_graph.invoke(state)
                 else:
-                    graph = build_company_context_preparation_graph(graph_session)
+                    graph = build_company_context_preparation_graph(graph_session, user_id=user_id)
                     final = graph.invoke(state)
                     if final.status != ExecutionStatus.FAILED:
-                        analysis_graph = build_company_analysis_graph(graph_session)
+                        analysis_graph = build_company_analysis_graph(graph_session, user_id=user_id)
                         final = analysis_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
@@ -324,7 +325,7 @@ class ProcessingExecutionRunner:
                 graph_session = get_session_sync()
                 owns_session = True
             try:
-                graph = build_candidate_source_preparation_graph(graph_session)
+                graph = build_candidate_source_preparation_graph(graph_session, user_id=user_id)
                 state = CandidateProcessingState(
                     execution_id=execution.id,
                     profile_id=execution.target_id or "",
@@ -334,7 +335,7 @@ class ProcessingExecutionRunner:
                 )
                 final = graph.invoke(state)
                 if final.status != ExecutionStatus.FAILED:
-                    processing_graph = build_candidate_processing_graph(graph_session)
+                    processing_graph = build_candidate_processing_graph(graph_session, user_id=user_id)
                     final = processing_graph.invoke(final)
                 if final.workflow_progress is not None:
                     execution.workflow_progress = final.workflow_progress.to_dict()
@@ -360,7 +361,7 @@ class ProcessingExecutionRunner:
                 graph_session = get_session_sync()
                 owns_session = True
             try:
-                graph = build_application_intelligence_graph(graph_session)
+                graph = build_application_intelligence_graph(graph_session, user_id=user_id)
                 state = ApplicationIntelligenceState(
                     execution_id=execution.id,
                     application_id=execution.target_id,
@@ -395,7 +396,7 @@ class ProcessingExecutionRunner:
                 graph_session = get_session_sync()
                 owns_session = True
             try:
-                graph = build_roadmap_generation_graph(graph_session)
+                graph = build_roadmap_generation_graph(graph_session, user_id=user_id)
                 state = RoadmapGenerationState(
                     execution_id=execution.id,
                     application_id=execution.target_id,

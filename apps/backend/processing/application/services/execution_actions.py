@@ -32,8 +32,9 @@ from shared.infrastructure.events import processing_events
 
 
 class ExecutionActionService:
-    def __init__(self, repository: IProcessingExecutionRepository):
+    def __init__(self, repository: IProcessingExecutionRepository, user_id: str = ""):
         self._repository = repository
+        self._user_id = user_id
 
     def start(self, execution_id: str) -> dict[str, Any]:
         """Re-dispatch a queued execution so a worker picks it up.
@@ -190,6 +191,7 @@ class ExecutionActionService:
             execution_type=execution_type,
             target_type=target_type,
             target_id=target_id,
+            user_id=self._user_id,
         )
         created = use_case.execute(request)
         DispatchProcessingExecutionService(self._repository).dispatch(created.execution_id)

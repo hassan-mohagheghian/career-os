@@ -90,7 +90,8 @@ def retry_execution(
     execution_id: str,
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
 ):
-    return ExecutionActionService(exec_repo).retry(execution_id)
+    existing = exec_repo.get_by_id(execution_id)
+    return ExecutionActionService(exec_repo, user_id=existing.user_id if existing else "").retry(execution_id)
 
 
 @router.get("/queue")

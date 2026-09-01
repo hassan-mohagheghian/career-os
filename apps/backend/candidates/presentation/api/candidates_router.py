@@ -24,6 +24,7 @@ from processing.application.services.dispatch_processing_execution import (
 )
 from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
 from dependencies import (
+    get_candidate_repo,
     get_candidate_profile_repo,
     get_candidate_source_repo,
     get_processing_execution_repo,
@@ -111,6 +112,7 @@ def analyze_profile(
     profile_repo: SQLAlchemyCandidateProfileRepository = Depends(get_candidate_profile_repo),
     source_repo: SQLAlchemyCandidateSourceRepository = Depends(get_candidate_source_repo),
     exec_repo: SQLAlchemyProcessingExecutionRepository = Depends(get_processing_execution_repo),
+    candidate_repo=Depends(get_candidate_repo),
 ):
     profile = profile_repo.get_current_profile()
     if profile is None:
@@ -128,6 +130,7 @@ def analyze_profile(
         execution_type=ExecutionType.CANDIDATE_PROCESSING,
         target_type="candidate",
         target_id="candidate",
+        user_id=candidate_repo._user_id,
     )
     response = use_case.execute(request)
     DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)

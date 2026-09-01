@@ -105,12 +105,13 @@ def _detail(
     )
 
 
-def _dispatch(exec_repo: SQLAlchemyProcessingExecutionRepository, execution_type: ExecutionType, application_id: str) -> str:
+def _dispatch(exec_repo: SQLAlchemyProcessingExecutionRepository, execution_type: ExecutionType, application_id: str, user_id: str = "") -> str:
     use_case = CreateProcessingExecutionUseCase(exec_repo)
     request = CreateProcessingExecutionRequest(
         execution_type=execution_type,
         target_type="application",
         target_id=application_id,
+        user_id=user_id,
     )
     response = use_case.execute(request)
     DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
@@ -261,7 +262,7 @@ def generate_roadmap(
 ):
     if not application_repo.get_by_id(application_id):
         raise NotFoundError(f"Application {application_id} not found")
-    execution_id = _dispatch(exec_repo, ExecutionType.ROADMAP_GENERATION, application_id)
+    execution_id = _dispatch(exec_repo, ExecutionType.ROADMAP_GENERATION, application_id, user_id=application_repo._user_id)
     return GenerateResponse(execution_id=execution_id, status="queued", artifact="roadmap")
 
 
@@ -278,7 +279,7 @@ def generate_document(
         )
     if not application_repo.get_by_id(application_id):
         raise NotFoundError(f"Application {application_id} not found")
-    execution_id = _dispatch(exec_repo, _EXECUTION_TYPE_BY_DOCUMENT[document_type], application_id)
+    execution_id = _dispatch(exec_repo, _EXECUTION_TYPE_BY_DOCUMENT[document_type], application_id, user_id=application_repo._user_id)
     return GenerateResponse(execution_id=execution_id, status="queued", artifact=document_type)
 
 

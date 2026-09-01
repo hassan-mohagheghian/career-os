@@ -23,6 +23,7 @@ class ProcessingExecution(BaseEntity):
         error_message: str | None = None,
         workflow_progress: dict[str, Any] | None = None,
         heartbeat_at: datetime | None = None,
+        user_id: str = "",
     ):
         if id is None:
             id = str(uuid.uuid4())
@@ -37,6 +38,7 @@ class ProcessingExecution(BaseEntity):
         self._error_message = error_message
         self._workflow_progress = workflow_progress
         self._heartbeat_at = heartbeat_at
+        self.user_id = user_id
 
     @property
     def status(self) -> ExecutionStatus:
@@ -102,6 +104,7 @@ class ProcessingExecution(BaseEntity):
             "status": self._status.value,
             "target_type": self.target_type,
             "target_id": self.target_id,
+            "user_id": self.user_id,
             "created_at": self._created_at.isoformat() if self._created_at else None,
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "finished_at": self._finished_at.isoformat() if self._finished_at else None,
@@ -127,6 +130,7 @@ class ProcessingExecution(BaseEntity):
             target_type=data["target_type"],
             target_id=str(data["target_id"]),
             status=ExecutionStatus(data["status"]),
+            user_id=data.get("user_id", ""),
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
             started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
             finished_at=datetime.fromisoformat(data["finished_at"]) if data.get("finished_at") else None,

@@ -74,7 +74,7 @@ TRACKING_STATUSES = {
 
 
 
-def _queue_job_for_processing(job_id: str, exec_repo) -> str:
+def _queue_job_for_processing(job_id: str, exec_repo, user_id: str = "") -> str:
     """Create a JOB_PROCESSING execution and dispatch it to the worker queue.
 
     Returns the created execution id. Mirrors the ``process_job`` endpoint so a
@@ -95,6 +95,7 @@ def _queue_job_for_processing(job_id: str, exec_repo) -> str:
         execution_type=ExecutionType.JOB_PROCESSING,
         target_type="job",
         target_id=job_id,
+        user_id=user_id,
     )
     response = use_case.execute(request)
     DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
@@ -140,7 +141,7 @@ def create_job(
     )
 
     if body.queue:
-        execution_id = _queue_job_for_processing(job["id"], exec_repo)
+        execution_id = _queue_job_for_processing(job["id"], exec_repo, user_id=repo._user_id)
         return CreateJobResponse(id=job["id"], status="queued", execution_id=execution_id)
 
     return CreateJobResponse(id=job["id"], status=job["status"])

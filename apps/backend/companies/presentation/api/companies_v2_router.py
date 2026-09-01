@@ -76,7 +76,7 @@ SCORE_TIEBREAK_KEYS = {
 }
 
 
-def _queue_company_for_processing(company_id: str, exec_repo) -> str:
+def _queue_company_for_processing(company_id: str, exec_repo, user_id: str = "") -> str:
     """Create a COMPANY_PROCESSING execution and dispatch it to the worker queue.
 
     Mirrors the job intake flow: create execution → mark queued → enqueue TaskIQ.
@@ -95,6 +95,7 @@ def _queue_company_for_processing(company_id: str, exec_repo) -> str:
         execution_type=ExecutionType.COMPANY_PROCESSING,
         target_type="company",
         target_id=company_id,
+        user_id=user_id,
     )
     response = use_case.execute(request)
     DispatchProcessingExecutionService(exec_repo).dispatch(response.execution_id)
@@ -570,7 +571,7 @@ def create_company(
     )
     execution_id = None
     if body.queue:
-        execution_id = _queue_company_for_processing(company["id"], exec_repo)
+        execution_id = _queue_company_for_processing(company["id"], exec_repo, user_id=repo._user_id)
         company["status"] = "queued"
     return CompanyCreateResponse(
         id=company["id"],
@@ -638,7 +639,7 @@ def reprocess_company(
     if not company:
         return {"error": "Not found"}
 
-    result = ExecutionActionService(exec_repo).reprocess("company", id)
+    result = ExecutionActionService(exec_repo, user_id=repo._user_id).reprocess("company", id)
     repo.update_fields(id, status="queued", error=None, updated_at=datetime.now(UTC).isoformat())
     return {"status": "queued", "execution_id": result["execution_id"]}
 
