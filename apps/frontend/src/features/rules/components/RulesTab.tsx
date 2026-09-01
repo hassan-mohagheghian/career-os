@@ -12,6 +12,12 @@ import RuleFormDrawer from './RuleFormDrawer'
 
 const API = '/api'
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('js_auth_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 const SCOPE_CONFIG = {
   SHARED: { label: 'Shared', color: 'bg-purple-500/15 text-purple-500 border-purple-500/30', icon: <Users className="w-4 h-4" />, header: 'text-purple-500', headerBg: 'bg-purple-500/5', headerBorder: 'border-purple-500/20', desc: 'Applied to all entity types' },
   JOB: { label: 'Job', color: 'bg-blue-500/15 text-blue-500 border-blue-500/30', icon: <Briefcase className="w-4 h-4" />, header: 'text-blue-500', headerBg: 'bg-blue-500/5', headerBorder: 'border-blue-500/20', desc: 'Applied only to job scoring' },
@@ -133,8 +139,12 @@ export default function RulesTab({ rules, onUpdate }) {
   const [form, setForm] = useState<{ open: boolean; id: string | null; initial: any }>({ open: false, id: null, initial: null })
   const [filter, setFilter] = useState('all')
 
-  const api = async (method, path, body) => {
-    await fetch(`${API}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
+  const api = async (method, path, body?) => {
+    await fetch(`${API}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: body ? JSON.stringify(body) : undefined,
+    })
     onUpdate()
   }
 
@@ -173,7 +183,7 @@ export default function RulesTab({ rules, onUpdate }) {
   const allRules = []
   const scopeGroups = {}
   for (const [scope, items] of Object.entries(rules)) {
-    const sorted = (items || []).sort((a, b) => b.priority - a.priority)
+    const sorted = (Array.isArray(items) ? items : []).sort((a, b) => b.priority - a.priority)
     scopeGroups[scope] = sorted
     allRules.push(...sorted)
   }

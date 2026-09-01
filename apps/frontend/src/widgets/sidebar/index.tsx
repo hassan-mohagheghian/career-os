@@ -2,12 +2,9 @@
 
 import { useState, useEffect, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useTheme } from 'next-themes'
 import dynamic from 'next/dynamic'
 import {
   CaretDown,
-  Sun,
-  Moon,
   List,
   TextAlignLeft,
   SidebarSimple,
@@ -135,21 +132,6 @@ function NavRow({
   )
 }
 
-function ThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme()
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className={className}
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      title="Toggle theme"
-    >
-      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-    </Button>
-  )
-}
-
 export default function Sidebar({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -262,16 +244,6 @@ export default function Sidebar({ children }: { children: ReactNode }) {
             </div>
           )}
           <div className={cn("flex items-center justify-center gap-1", collapsed && "flex-col")}>
-            {mounted && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex">
-                    <ThemeToggle className={collapsed ? "w-11 h-10" : "h-9 w-9"} />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="right">Toggle theme</TooltipContent>
-              </Tooltip>
-            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex">
@@ -327,7 +299,6 @@ export default function Sidebar({ children }: { children: ReactNode }) {
             Job Search
           </span>
           <div className="ml-auto flex items-center gap-1.5">
-            {mounted && <ThemeToggle className="h-8 w-8 border" />}
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setHistoryOpen(true)} title="Generation History">
               <List className="w-4 h-4" />
             </Button>
@@ -378,7 +349,6 @@ export default function Sidebar({ children }: { children: ReactNode }) {
               <TooltipContent>Sign out</TooltipContent>
             </Tooltip>
           )}
-          {mounted && <ThemeToggle className="h-9 w-9" />}
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setHistoryOpen(true)} title="Generation History">
             <List className="w-4 h-4" />
           </Button>

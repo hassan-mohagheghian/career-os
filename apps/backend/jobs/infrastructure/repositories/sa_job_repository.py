@@ -251,7 +251,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         self._session.commit()
 
     def get_all_active(self) -> list[dict[str, Any]]:
-        rows = self._session.query(JobModel).filter(JobModel.deleted == 0).all()
+        rows = self._base_query().all()
         return [{"id": r.id, "url": r.url, "company": r.company} for r in rows]
 
     # ── Extended methods for services ───────────────────────────────
@@ -387,7 +387,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         return count
 
     def delete_all_active(self) -> int:
-        count = self._session.query(JobModel).filter(JobModel.deleted == 0).delete(synchronize_session=False)
+        count = self._base_query().delete(synchronize_session=False)
         self._session.commit()
         return count
 
@@ -396,15 +396,13 @@ class SQLAlchemyJobRepository(IJobRepository):
     EXCLUDED_STATUSES = {"processed"}
 
     def list_pending(self) -> list[dict[str, Any]]:
-        rows = self._session.query(JobModel).filter(
-            JobModel.deleted == 0,
+        rows = self._base_query().filter(
             ~JobModel.status.in_(self.EXCLUDED_STATUSES)
         ).order_by(JobModel.created_at.desc()).all()
         return [job_model_to_dict(r) for r in rows]
 
     def count_pending(self) -> int:
-        return self._session.query(JobModel).filter(
-            JobModel.deleted == 0,
+        return self._base_query().filter(
             ~JobModel.status.in_(self.EXCLUDED_STATUSES)
         ).count()
 
@@ -685,7 +683,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         recommendation: list[str] | None = None,
         created_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], int, str | None, bool]:
-        q = self._session.query(JobModel).filter(JobModel.deleted == 0)
+        q = self._base_query()
 
         if query:
             like = f"%{query}%"

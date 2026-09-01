@@ -12,10 +12,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
 }))
 
-vi.mock('next-themes', () => ({
-  useTheme: () => ({ theme: 'light', setTheme: vi.fn() }),
-}))
-
 vi.mock('next/dynamic', () => ({
   __esModule: true,
   default: () => () => null,
