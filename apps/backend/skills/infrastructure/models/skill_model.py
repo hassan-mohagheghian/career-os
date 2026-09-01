@@ -38,6 +38,7 @@ class SkillModel(Base):
     evidence: Mapped[str] = mapped_column(Text, default="[]")
     source_type: Mapped[str] = mapped_column(String, default="service")
     tags: Mapped[str] = mapped_column(Text, default="[]")
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     created_at: Mapped[Optional[datetime]] = mapped_column(Text, default=datetime.utcnow)
 
     aliases: Mapped[list["SkillAliasModel"]] = relationship(

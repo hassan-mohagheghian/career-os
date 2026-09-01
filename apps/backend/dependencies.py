@@ -10,6 +10,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from shared.infrastructure.database.session import get_session, get_session_sync
+from auth.domain.user import User
+from auth.presentation.api.auth_router import get_current_user
 
 
 # ── Re-export shared session dependencies ──────────────────────────
@@ -20,33 +22,33 @@ get_session_sync = get_session_sync
 
 # ── Jobs Context Dependencies ─────────────────────────────────────
 
-def get_job_repo(session: Session = Depends(get_session)):
+def get_job_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure import SQLAlchemyJobRepository
-    return SQLAlchemyJobRepository(session)
+    return SQLAlchemyJobRepository(session, user_id=current_user.id)
 
 
 # ── Companies Context Dependencies ────────────────────────────────
 
-def get_company_repo(session: Session = Depends(get_session)):
+def get_company_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from companies.infrastructure import SQLAlchemyCompanyRepository
-    return SQLAlchemyCompanyRepository(session)
+    return SQLAlchemyCompanyRepository(session, user_id=current_user.id)
 
 
-def get_company_link_repo(session: Session = Depends(get_session)):
+def get_company_link_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from companies.infrastructure import SQLAlchemyCompanyLinkRepository
     return SQLAlchemyCompanyLinkRepository(session)
 
 
-def get_company_intelligence_repo(session: Session = Depends(get_session)):
+def get_company_intelligence_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from companies.infrastructure import SQLAlchemyCompanyIntelligenceRepository
     return SQLAlchemyCompanyIntelligenceRepository(session)
 
 
 # ── Skills Context Dependencies ───────────────────────────────────
 
-def get_skill_repo(session: Session = Depends(get_session)):
+def get_skill_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from skills.infrastructure import SQLAlchemySkillRepository
-    return SQLAlchemySkillRepository(session)
+    return SQLAlchemySkillRepository(session, user_id=current_user.id)
 
 
 def get_skill_category_service(repo=Depends(get_skill_repo)):
@@ -61,12 +63,12 @@ def get_skill_normalization_service(repo=Depends(get_skill_repo)):
     return SkillNormalizationService(repo, InMemoryEventCollector())
 
 
-def get_skill_note_repo(session: Session = Depends(get_session)):
+def get_skill_note_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from skills.infrastructure.repositories.sa_skill_note_repository import SQLAlchemySkillNoteRepository
     return SQLAlchemySkillNoteRepository(session)
 
 
-def get_skill_link_repo(session: Session = Depends(get_session)):
+def get_skill_link_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from skills.infrastructure.repositories.sa_skill_link_repository import SQLAlchemySkillLinkRepository
     return SQLAlchemySkillLinkRepository(session)
 
@@ -80,36 +82,36 @@ def get_skill_resource_service(
     return SkillResourceService(note_repo, link_repo, skill_repo)
 
 
-def get_skill_alias_repo(session: Session = Depends(get_session)):
+def get_skill_alias_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from skills.infrastructure import SQLAlchemySkillAliasRepository
     return SQLAlchemySkillAliasRepository(session)
 
 
-def get_skill_relationship_repo(session: Session = Depends(get_session)):
+def get_skill_relationship_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from skills.infrastructure import SQLAlchemySkillRelationshipRepository
     return SQLAlchemySkillRelationshipRepository(session)
 
 
 # ── Rules Context Dependencies ───────────────────────────────────
 
-def get_rule_repo(session: Session = Depends(get_session)):
+def get_rule_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from rules.infrastructure import SQLAlchemyRuleRepository
-    return SQLAlchemyRuleRepository(session)
+    return SQLAlchemyRuleRepository(session, user_id=current_user.id)
 
 
 # ── Candidates Context Dependencies ──────────────────────────────
 
-def get_candidate_repo(session: Session = Depends(get_session)):
+def get_candidate_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from candidates.infrastructure import SQLAlchemyCandidateRepository
-    return SQLAlchemyCandidateRepository(session)
+    return SQLAlchemyCandidateRepository(session, user_id=current_user.id)
 
 
-def get_candidate_profile_repo(session: Session = Depends(get_session)):
+def get_candidate_profile_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from candidates.infrastructure import SQLAlchemyCandidateProfileRepository
     return SQLAlchemyCandidateProfileRepository(session)
 
 
-def get_candidate_source_repo(session: Session = Depends(get_session)):
+def get_candidate_source_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from candidates.infrastructure import SQLAlchemyCandidateSourceRepository
     return SQLAlchemyCandidateSourceRepository(session)
 
@@ -129,53 +131,53 @@ def get_candidate_extract_service(
 
 # ── Jobs Context Dependencies ─────────────────────────────────────
 
-def get_summary_repo(session: Session = Depends(get_session)):
+def get_summary_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure import SQLAlchemyJobRepository
     # Summary uses the same repository as jobs during migration
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
     return SQLAlchemySummaryRepository(session)
 
 
-def get_job_analysis_repo(session: Session = Depends(get_session)):
+def get_job_analysis_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
     return SQLAlchemyJobAnalysisRepository(session)
 
 
-def get_job_company_repo(session: Session = Depends(get_session)):
+def get_job_company_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure.repositories.sa_job_company_repository import SQLAlchemyJobCompanyRepository
     return SQLAlchemyJobCompanyRepository(session)
 
 
 # ── Processing Context Dependencies ──────────────────────────────
 
-def get_processing_execution_repo(session: Session = Depends(get_session)):
+def get_processing_execution_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
     return SQLAlchemyProcessingExecutionRepository(session)
 
 
 # ── Applications Context Dependencies ────────────────────────────
 
-def get_application_repo(session: Session = Depends(get_session)):
+def get_application_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from applications.infrastructure import SQLAlchemyApplicationRepository
-    return SQLAlchemyApplicationRepository(session)
+    return SQLAlchemyApplicationRepository(session, user_id=current_user.id)
 
 
-def get_status_event_repo(session: Session = Depends(get_session)):
+def get_status_event_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from applications.infrastructure import SQLAlchemyStatusEventRepository
     return SQLAlchemyStatusEventRepository(session)
 
 
-def get_follow_up_repo(session: Session = Depends(get_session)):
+def get_follow_up_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from applications.infrastructure import SQLAlchemyFollowUpRepository
     return SQLAlchemyFollowUpRepository(session)
 
 
-def get_document_repo(session: Session = Depends(get_session)):
+def get_document_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from applications.infrastructure import SQLAlchemyDocumentRepository
     return SQLAlchemyDocumentRepository(session)
 
 
-def get_note_repo(session: Session = Depends(get_session)):
+def get_note_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from applications.infrastructure import SQLAlchemyNoteRepository
     return SQLAlchemyNoteRepository(session)
 
@@ -226,9 +228,9 @@ def get_note_service(
 
 # ── Roadmaps Context Dependencies ────────────────────────────────
 
-def get_roadmap_repo(session: Session = Depends(get_session)):
+def get_roadmap_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from roadmaps.infrastructure import SQLAlchemyRoadmapRepository
-    return SQLAlchemyRoadmapRepository(session)
+    return SQLAlchemyRoadmapRepository(session, user_id=current_user.id)
 
 
 def get_roadmap_service(
@@ -242,9 +244,9 @@ def get_roadmap_service(
 
 # ── Placeholders Context Dependencies ─────────────────────────────
 
-def get_placeholder_repo(session: Session = Depends(get_session)):
+def get_placeholder_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from placeholders.infrastructure import SQLAlchemyPlaceholderRepository
-    return SQLAlchemyPlaceholderRepository(session)
+    return SQLAlchemyPlaceholderRepository(session, user_id=current_user.id)
 
 
 def get_placeholder_service(
@@ -257,9 +259,9 @@ def get_placeholder_service(
 
 # ── Cities Context Dependencies ─────────────────────────────────
 
-def get_city_repo(session: Session = Depends(get_session)):
+def get_city_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from cities.infrastructure import SQLAlchemyCityRepository
-    return SQLAlchemyCityRepository(session)
+    return SQLAlchemyCityRepository(session, user_id=current_user.id)
 
 
 def get_city_service(
@@ -272,6 +274,6 @@ def get_city_service(
 
 # ── Pending Context Dependencies (DEPRECATED - will be removed) ──
 
-def get_pending_repo(session: Session = Depends(get_session)):
+def get_pending_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-    return SQLAlchemyJobRepository(session)
+    return SQLAlchemyJobRepository(session, user_id=current_user.id)

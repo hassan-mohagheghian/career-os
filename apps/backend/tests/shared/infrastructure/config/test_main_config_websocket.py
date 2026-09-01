@@ -218,35 +218,35 @@ class TestSASkillRepositoryExtended:
     def test_bulk_categorize(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
         from skills.infrastructure.models.skill_model import SkillModel
-        sa_session.add(SkillModel(name="Python"))
-        sa_session.add(SkillModel(name="Java"))
+        sa_session.add(SkillModel(name="Python", user_id="test-user"))
+        sa_session.add(SkillModel(name="Java", user_id="test-user"))
         sa_session.commit()
         ids = [s.id for s in sa_session.query(SkillModel).all()]
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         count = repo.bulk_categorize(ids, "engineering")
         assert count == 2
 
     def test_get_relationships_empty(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.get_relationships("Python")
         assert result == []
 
     def test_create_relationship_exception(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.create_relationship({})
         assert result is False
 
     def test_merge_with_references(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
         from skills.infrastructure.models.skill_model import SkillModel
-        sa_session.add(SkillModel(name="Python"))
-        sa_session.add(SkillModel(name="Python3"))
+        sa_session.add(SkillModel(name="Python", user_id="test-user"))
+        sa_session.add(SkillModel(name="Python3", user_id="test-user"))
         sa_session.commit()
         target = sa_session.query(SkillModel).filter(SkillModel.name == "Python").first()
         source = sa_session.query(SkillModel).filter(SkillModel.name == "Python3").first()
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.merge(target.id, [source.id])
         assert result["status"] == "merged"
 
@@ -256,17 +256,17 @@ class TestSASkillRepositoryExtended:
 class TestSARuleExtended:
     def test_get_enabled_by_scopes_empty(self, sa_session):
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
-        repo = SQLAlchemyRuleRepository(sa_session)
+        repo = SQLAlchemyRuleRepository(sa_session, user_id="test-user")
         assert repo.get_enabled_by_scopes(["JOB"]) == []
 
     def test_bulk_update_multiple(self, sa_session):
         from rules.infrastructure.repositories.sa_rule_repository import SQLAlchemyRuleRepository
         from rules.infrastructure.models.rule_model import RuleModel
-        p1 = RuleModel(category="fit", key="a", value="1")
-        p2 = RuleModel(category="fit", key="b", value="2")
+        p1 = RuleModel(category="fit", key="a", value="1", user_id="test-user")
+        p2 = RuleModel(category="fit", key="b", value="2", user_id="test-user")
         sa_session.add_all([p1, p2])
         sa_session.commit()
-        repo = SQLAlchemyRuleRepository(sa_session)
+        repo = SQLAlchemyRuleRepository(sa_session, user_id="test-user")
         count = repo.bulk_update([
             {"id": p1.id, "value": "10"},
             {"id": p2.id, "value": "20"},
@@ -285,7 +285,7 @@ class TestSACompanyLinkExtended:
     def test_get_by_id(self, sa_session):
         from companies.infrastructure.repositories.sa_company_link_repository import SQLAlchemyCompanyLinkRepository
         from companies.infrastructure.models.company_model import CompanyLinkModel, CompanyModel
-        company = CompanyModel(name="TestCorp", website="https://ex.com")
+        company = CompanyModel(name="TestCorp", website="https://ex.com", user_id="test-user")
         sa_session.add(company)
         sa_session.flush()
         link = CompanyLinkModel(company_id=company.id, url="https://ex.com/link")

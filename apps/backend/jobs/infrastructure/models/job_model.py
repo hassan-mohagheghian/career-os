@@ -74,3 +74,4 @@ class JobModel(Base):
     failure_timestamp: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     easy_apply: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True, default=None)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")

@@ -35,6 +35,7 @@ def test_create_and_get_job(client, test_db):
         work_types='["Remote"]',
         employment_types='["Full-time"]',
         rescoring=0,
+        user_id="test-user",
     )
     test_db.add(job)
     test_db.commit()
@@ -88,6 +89,7 @@ def test_get_job_detail(client, test_db):
         work_types='["On-site"]',
         employment_types='["Full-time"]',
         rescoring=0,
+        user_id="test-user",
     )
     test_db.add(job)
     test_db.commit()
@@ -119,6 +121,7 @@ def test_get_job_detail_includes_company_id(client, test_db):
         work_types='["On-site"]',
         employment_types='["Full-time"]',
         rescoring=0,
+        user_id="test-user",
     )
     test_db.add(job)
     test_db.commit()
@@ -148,9 +151,10 @@ def test_get_job_detail_includes_related_companies(client, test_db):
         work_types='["On-site"]',
         employment_types='["Full-time"]',
         rescoring=0,
+        user_id="test-user",
     )
     test_db.add(job)
-    recruiter = CompanyModel(id="company-recruiter", name="RecruitCo")
+    recruiter = CompanyModel(id="company-recruiter", name="RecruitCo", user_id="test-user")
     test_db.add(recruiter)
     test_db.commit()
     test_db.add(JobCompanyModel(

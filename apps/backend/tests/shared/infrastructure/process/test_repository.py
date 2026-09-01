@@ -15,7 +15,7 @@ def pending_repo(sa_session: Session):
 
 
 def _add(sa_session: Session, **kw) -> JobModel:
-    m = JobModel(id=str(uuid.uuid7()), **kw)
+    m = JobModel(id=str(uuid.uuid7()), user_id="test-user", **kw)
     sa_session.add(m)
     sa_session.commit()
     sa_session.refresh(m)

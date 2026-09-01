@@ -100,6 +100,7 @@ class TestWorkerBase:
             id=str(uuid.uuid7()), url=url, status=status, source='cli',
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat(),
+            user_id="test-user",
         )
         sa_session.add(m)
         sa_session.commit()

@@ -38,6 +38,7 @@ class RoadmapModel(Base):
     source: Mapped[str] = mapped_column(String, nullable=False, default="MANUAL")
     application_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="ACTIVE")
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False, default=_now_iso)
 

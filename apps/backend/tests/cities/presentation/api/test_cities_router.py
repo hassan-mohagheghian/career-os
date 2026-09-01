@@ -6,7 +6,7 @@ from jobs.infrastructure.models.job_model import JobModel
 
 
 def _create_city(sa_session, city="Berlin", country="Germany", original_text=None, address=None):
-    service = CityService(SQLAlchemyCityRepository(sa_session))
+    service = CityService(SQLAlchemyCityRepository(sa_session, user_id="test-user"))
     return service.ensure(city, country, original_text=original_text, address=address)
 
 
@@ -16,6 +16,7 @@ def _create_job(sa_session, city_id, deleted=0):
         location="Berlin",
         city_id=city_id,
         deleted=deleted,
+        user_id="test-user",
     )
     sa_session.add(job)
     sa_session.commit()
@@ -78,7 +79,7 @@ class TestCitiesListAPI:
 class TestCitiesMergeAPI:
     def _create(self, sa_session, city, country):
         from cities.application.services.city_service import CityService
-        service = CityService(SQLAlchemyCityRepository(sa_session))
+        service = CityService(SQLAlchemyCityRepository(sa_session, user_id="test-user"))
         return service.ensure(city, country, original_text=f"{city}, {country}")
 
     def test_merge_ok(self, client, sa_session):
@@ -108,7 +109,7 @@ class TestCitiesMergeAPI:
 class TestCitiesAliasesAPI:
     def _create(self, sa_session, city, country):
         from cities.application.services.city_service import CityService
-        service = CityService(SQLAlchemyCityRepository(sa_session))
+        service = CityService(SQLAlchemyCityRepository(sa_session, user_id="test-user"))
         return service.ensure(city, country)
 
     def test_add_alias(self, client, sa_session):
@@ -136,7 +137,7 @@ class TestCitiesAliasesAPI:
 class TestCitiesCanonicalAPI:
     def _create(self, sa_session, city, country):
         from cities.application.services.city_service import CityService
-        service = CityService(SQLAlchemyCityRepository(sa_session))
+        service = CityService(SQLAlchemyCityRepository(sa_session, user_id="test-user"))
         return service.ensure(city, country)
 
     def test_promote_canonical_ok(self, client, sa_session):

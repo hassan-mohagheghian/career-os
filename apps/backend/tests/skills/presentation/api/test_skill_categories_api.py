@@ -6,7 +6,7 @@ from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel
 def _create_skill(sa_session, **kwargs):
     defaults = dict(
         name="Python", level=1, category="", hidden=0, source="user",
-        source_type="user_input",
+        source_type="user_input", user_id="test-user",
     )
     defaults.update(kwargs)
     m = SkillModel(**defaults)

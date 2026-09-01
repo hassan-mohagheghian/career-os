@@ -4,7 +4,7 @@ from skills.infrastructure.models.skill_model import SkillModel, SkillAliasModel
 
 
 def _create_skill(sa_session, name: str, hidden: int = 0) -> SkillModel:
-    model = SkillModel(name=name, hidden=hidden, source="user", source_type="user_input")
+    model = SkillModel(name=name, hidden=hidden, source="user", source_type="user_input", user_id="test-user")
     sa_session.add(model)
     sa_session.commit()
     sa_session.refresh(model)

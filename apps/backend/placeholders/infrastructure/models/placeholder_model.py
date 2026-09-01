@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 
-from sqlalchemy import String, Text
+from sqlalchemy import String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.infrastructure.database.sqlalchemy_config import Base
@@ -21,9 +21,13 @@ def _now_iso() -> str:
 
 class PlaceholderModel(Base):
     __tablename__ = "placeholders"
-    __table_args__ = {"schema": "placeholders"}
+    __table_args__ = (
+        UniqueConstraint("key", "user_id", name="uq_placeholders_key_user"),
+        {"schema": "placeholders"},
+    )
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     value: Mapped[str] = mapped_column(Text, default="")
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
 

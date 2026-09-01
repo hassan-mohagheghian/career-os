@@ -27,7 +27,7 @@ uq_city_country = "uq_cities_city_country"
 class CityModel(Base):
     __tablename__ = "cities"
     __table_args__ = (
-        UniqueConstraint("city", "country", name=uq_city_country),
+        UniqueConstraint("city", "country", "user_id", name=uq_city_country),
         {"schema": "city"},
     )
 
@@ -37,6 +37,7 @@ class CityModel(Base):
     original_text: Mapped[str] = mapped_column(Text, nullable=True)
     address: Mapped[str] = mapped_column(Text, nullable=True)
     hidden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
 

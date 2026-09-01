@@ -29,8 +29,8 @@ def _merge(session, target_id, source_ids):
 
 class TestMergeSkills:
     def test_merge_removes_source(self, sa_session):
-        s1 = SkillModel(name="PostgreSQL", level=3, source="user")
-        s2 = SkillModel(name="postgres", level=2, source="service")
+        s1 = SkillModel(name="PostgreSQL", level=3, source="user", user_id="test-user")
+        s2 = SkillModel(name="postgres", level=2, source="service", user_id="test-user")
         sa_session.add_all([s1, s2])
         sa_session.commit()
 
@@ -42,7 +42,7 @@ class TestMergeSkills:
         assert tech[0][0] == "PostgreSQL"
 
     def test_hide_skill(self, sa_session):
-        m = SkillModel(name="CSS", level=1, source="service")
+        m = SkillModel(name="CSS", level=1, source="service", user_id="test-user")
         sa_session.add(m)
         sa_session.commit()
 
@@ -56,7 +56,7 @@ class TestMergeSkills:
         assert len(visible) == 0
 
     def test_merge_skips_self(self, sa_session):
-        m = SkillModel(name="Python", level=4, source="user")
+        m = SkillModel(name="Python", level=4, source="user", user_id="test-user")
         sa_session.add(m)
         sa_session.commit()
 
@@ -65,9 +65,9 @@ class TestMergeSkills:
         assert sa_session.query(SkillModel).count() == 1
 
     def test_merge_multiple_sources(self, sa_session):
-        s1 = SkillModel(name="React", level=4, source="user")
-        s2 = SkillModel(name="ReactJS", level=3, source="service")
-        s3 = SkillModel(name="react.js", level=2, source="service")
+        s1 = SkillModel(name="React", level=4, source="user", user_id="test-user")
+        s2 = SkillModel(name="ReactJS", level=3, source="service", user_id="test-user")
+        s3 = SkillModel(name="react.js", level=2, source="service", user_id="test-user")
         sa_session.add_all([s1, s2, s3])
         sa_session.commit()
 
@@ -79,8 +79,8 @@ class TestMergeSkills:
         assert tech[0][0] == "React"
 
     def test_merge_user_into_service(self, sa_session):
-        s1 = SkillModel(name="PostgreSQL", level=3, source="user")
-        s2 = SkillModel(name="postgres", level=2, source="service")
+        s1 = SkillModel(name="PostgreSQL", level=3, source="user", user_id="test-user")
+        s2 = SkillModel(name="postgres", level=2, source="service", user_id="test-user")
         sa_session.add_all([s1, s2])
         sa_session.commit()
 
@@ -91,8 +91,8 @@ class TestMergeSkills:
 
 class TestSkillTaxonomy:
     def test_category_filter(self, sa_session):
-        sa_session.add(SkillModel(name="Python", level=4, category="technical"))
-        sa_session.add(SkillModel(name="Leadership", level=3, category="professional"))
+        sa_session.add(SkillModel(name="Python", level=4, category="technical", user_id="test-user"))
+        sa_session.add(SkillModel(name="Leadership", level=3, category="professional", user_id="test-user"))
         sa_session.commit()
 
         tech = sa_session.query(SkillModel.name).filter(SkillModel.category == "technical").all()
@@ -104,8 +104,8 @@ class TestSkillTaxonomy:
         assert prof[0][0] == "Leadership"
 
     def test_hidden_skills_list(self, sa_session):
-        sa_session.add(SkillModel(name="CSS", level=1, hidden=0))
-        sa_session.add(SkillModel(name="jQuery", level=1, hidden=1))
+        sa_session.add(SkillModel(name="CSS", level=1, hidden=0, user_id="test-user"))
+        sa_session.add(SkillModel(name="jQuery", level=1, hidden=1, user_id="test-user"))
         sa_session.commit()
 
         hidden = sa_session.query(SkillModel.name).filter(SkillModel.hidden == 1).all()
@@ -113,7 +113,7 @@ class TestSkillTaxonomy:
         assert hidden[0][0] == "jQuery"
 
     def test_restore_hidden_skill(self, sa_session):
-        m = SkillModel(name="jQuery", level=1, hidden=1)
+        m = SkillModel(name="jQuery", level=1, hidden=1, user_id="test-user")
         sa_session.add(m)
         sa_session.commit()
 

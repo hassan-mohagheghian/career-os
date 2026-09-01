@@ -4,8 +4,7 @@ Routes are organized by bounded context. Each context owns its
 presentation/api/ layer with routers and schemas.
 """
 
-import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 # Bounded context routers — imported from their owning context's presentation layer
 from skills.presentation.api.skills_router import router as skills_router
@@ -21,14 +20,15 @@ from roadmaps.presentation.api.roadmaps_router import router as roadmaps_router
 from placeholders.presentation.api.placeholders_router import router as placeholders_router
 
 # DI dependencies — wired through bounded context infrastructure
-from dependencies import get_session_sync, get_job_repo, get_skill_repo, get_company_repo
-
-# Bounded context infrastructure — for inline routes in this file
-from jobs.infrastructure import SQLAlchemyJobRepository
-from skills.infrastructure import SQLAlchemySkillRepository
+from dependencies import get_job_repo, get_skill_repo, get_summary_repo, get_skill_relationship_repo
 
 
 api_router = APIRouter(prefix="/api")
+
+# ── Auth (PUBLIC — no get_current_user required) ────────────────
+
+from auth.presentation.api.auth_router import router as auth_router
+api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 # ── V2 routers (registered before legacy to prevent path conflicts) ──
 
@@ -61,77 +61,45 @@ api_router.include_router(placeholders_router, prefix="/placeholders", tags=["pl
 # ── Flask compat routes ─────────────────────────────────────────
 
 @api_router.get("/summaries")
-def summaries_compat():
-    from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySummaryRepository(session)
-        return repo.get_all()
-    finally:
-        session.close()
+def summaries_compat(summary_repo=Depends(get_summary_repo)):
+    return summary_repo.get_all()
 
 
 @api_router.get("/tech-stack")
-def tech_stack_compat():
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRepository(session)
-        return repo.list_visible()
-    finally:
-        session.close()
+def tech_stack_compat(skill_repo=Depends(get_skill_repo)):
+    return skill_repo.list_visible()
 
 
 # ── Skill relationships compat routes ───────────────────────────
 
 @api_router.get("/skill-relationships/{skill_name}")
-def get_skill_relationships_compat(skill_name: str):
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRepository(session)
-        return repo.get_relationships(skill_name)
-    finally:
-        session.close()
+def get_skill_relationships_compat(skill_name: str, skill_repo=Depends(get_skill_repo)):
+    return skill_repo.get_relationships(skill_name)
 
 
 @api_router.post("/skill-relationships")
-def create_skill_relationship_compat(data: dict):
+def create_skill_relationship_compat(data: dict, skill_repo=Depends(get_skill_repo)):
     from shared.application.exceptions import ConflictError
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRepository(session)
-        success = repo.create_relationship(data)
-        if not success:
-            raise ConflictError("Relationship already exists")
-        return {"status": "created"}
-    finally:
-        session.close()
+    success = skill_repo.create_relationship(data)
+    if not success:
+        raise ConflictError("Relationship already exists")
+    return {"status": "created"}
 
 
 @api_router.delete("/skill-relationships/{id}")
-def delete_skill_relationship_compat(id: int):
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemySkillRepository(session)
-        repo.delete_relationship(id)
-        return {"status": "deleted"}
-    finally:
-        session.close()
+def delete_skill_relationship_compat(id: int, skill_repo=Depends(get_skill_repo)):
+    skill_repo.delete_relationship(id)
+    return {"status": "deleted"}
 
 
 # ── Job-Company link ─────────────────────────────────────────────
 
 @api_router.post("/jobs/{job_id}/link-company")
-def link_job_to_company(job_id: str, data: dict):
-    session = get_session_sync()
-    try:
-        repo = SQLAlchemyJobRepository(session)
-        company_id = data.get("company_id")
-        if company_id:
-            repo.update_fields(job_id, company_id=company_id)
-            session.commit()
-        return {"status": "linked"}
-    finally:
-        session.close()
+def link_job_to_company(job_id: str, data: dict, job_repo=Depends(get_job_repo)):
+    company_id = data.get("company_id")
+    if company_id:
+        job_repo.update_fields(job_id, company_id=company_id)
+    return {"status": "linked"}
 
 
 

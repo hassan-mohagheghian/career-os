@@ -15,6 +15,7 @@ def _create_application(test_db, job_id: str, status: str) -> ApplicationModel:
         id=str(uuid.uuid7()),
         job_id=job_id,
         status=status,
+        user_id="test-user",
     )
     test_db.add(model)
     test_db.commit()
@@ -39,6 +40,7 @@ def _create_job(test_db, **kwargs) -> JobModel:
         overall_score=85,
         fit_score=80,
         success_score=90,
+        user_id="test-user",
     )
     defaults.update(kwargs)
     if defaults["id"] is None:
@@ -775,7 +777,7 @@ class TestJobTrackingFilterV2API:
 def _create_company(test_db, **kwargs) -> CompanyModel:
     import uuid
 
-    defaults = dict(name="Acme GmbH")
+    defaults = dict(name="Acme GmbH", user_id="test-user")
     defaults.update(kwargs)
     defaults.setdefault("id", str(uuid.uuid7()))
     company = CompanyModel(**defaults)

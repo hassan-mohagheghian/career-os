@@ -36,7 +36,7 @@ def _roadmap_data(**overrides):
 
 @pytest.fixture
 def repo(sa_session):
-    return SQLAlchemyRoadmapRepository(sa_session)
+    return SQLAlchemyRoadmapRepository(sa_session, user_id="test-user")
 
 
 class TestRoadmapRepository:

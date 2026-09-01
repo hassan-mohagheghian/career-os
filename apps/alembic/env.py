@@ -43,6 +43,7 @@ import applications.infrastructure.models.application_model  # noqa: F401
 import roadmaps.infrastructure.models.roadmap_model  # noqa: F401
 import placeholders.infrastructure.models.placeholder_model  # noqa: F401
 import cities.infrastructure.models.city_model  # noqa: F401
+import auth.infrastructure.user_model  # noqa: F401
 
 config = context.config
 config.set_main_option('sqlalchemy.url', DATABASE_URL)

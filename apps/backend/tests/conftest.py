@@ -159,26 +159,33 @@ def client(sa_session):
 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_session_sync] = override_get_session_sync
-    app.dependency_overrides[get_job_repo] = lambda: SQLAlchemyJobRepository(sa_session)
-    app.dependency_overrides[get_skill_repo] = lambda: SQLAlchemySkillRepository(sa_session)
-    app.dependency_overrides[get_company_repo] = lambda: SQLAlchemyCompanyRepository(sa_session)
-    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyJobRepository(sa_session)
-    app.dependency_overrides[get_rule_repo] = lambda: SQLAlchemyRuleRepository(sa_session)
+
+    # Override auth — all tests run as "test-user"
+    from auth.presentation.api.auth_router import get_current_user as _get_current_user
+    from auth.domain.user import User as _User
+    _test_user = _User(id="test-user", username="test", display_name="Test User", password_hash="")
+    app.dependency_overrides[_get_current_user] = lambda: _test_user
+
+    app.dependency_overrides[get_job_repo] = lambda: SQLAlchemyJobRepository(sa_session, user_id="test-user")
+    app.dependency_overrides[get_skill_repo] = lambda: SQLAlchemySkillRepository(sa_session, user_id="test-user")
+    app.dependency_overrides[get_company_repo] = lambda: SQLAlchemyCompanyRepository(sa_session, user_id="test-user")
+    app.dependency_overrides[get_pending_repo] = lambda: SQLAlchemyJobRepository(sa_session, user_id="test-user")
+    app.dependency_overrides[get_rule_repo] = lambda: SQLAlchemyRuleRepository(sa_session, user_id="test-user")
     app.dependency_overrides[get_summary_repo] = lambda: SQLAlchemySummaryRepository(sa_session)
     app.dependency_overrides[get_company_link_repo] = lambda: SQLAlchemyCompanyLinkRepository(sa_session)
     app.dependency_overrides[get_company_intelligence_repo] = lambda: SQLAlchemyCompanyIntelligenceRepository(sa_session)
     app.dependency_overrides[get_processing_execution_repo] = lambda: SQLAlchemyProcessingExecutionRepository(sa_session)
-    app.dependency_overrides[get_candidate_repo] = lambda: SQLAlchemyCandidateRepository(sa_session)
+    app.dependency_overrides[get_candidate_repo] = lambda: SQLAlchemyCandidateRepository(sa_session, user_id="test-user")
     app.dependency_overrides[get_candidate_profile_repo] = lambda: SQLAlchemyCandidateProfileRepository(sa_session)
     app.dependency_overrides[get_candidate_source_repo] = lambda: SQLAlchemyCandidateSourceRepository(sa_session)
-    app.dependency_overrides[get_application_repo] = lambda: SQLAlchemyApplicationRepository(sa_session)
+    app.dependency_overrides[get_application_repo] = lambda: SQLAlchemyApplicationRepository(sa_session, user_id="test-user")
     app.dependency_overrides[get_follow_up_repo] = lambda: SQLAlchemyFollowUpRepository(sa_session)
     app.dependency_overrides[get_document_repo] = lambda: SQLAlchemyDocumentRepository(sa_session)
-    app.dependency_overrides[get_roadmap_repo] = lambda: SQLAlchemyRoadmapRepository(sa_session)
-    app.dependency_overrides[get_city_repo] = lambda: SQLAlchemyCityRepository(sa_session)
+    app.dependency_overrides[get_roadmap_repo] = lambda: SQLAlchemyRoadmapRepository(sa_session, user_id="test-user")
+    app.dependency_overrides[get_city_repo] = lambda: SQLAlchemyCityRepository(sa_session, user_id="test-user")
     app.dependency_overrides[get_roadmap_service] = lambda: RoadmapService(
-        SQLAlchemyRoadmapRepository(sa_session),
-        SQLAlchemySkillRepository(sa_session),
+        SQLAlchemyRoadmapRepository(sa_session, user_id="test-user"),
+        SQLAlchemySkillRepository(sa_session, user_id="test-user"),
         RoadmapInMemoryEventCollector(),
     )
     app.include_router(api_router)

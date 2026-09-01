@@ -21,7 +21,7 @@ from shared.infrastructure.process.models import ItemStatus, WorkflowLogEntry
 
 
 def _job(sa_session, **kwargs):
-    defaults = {"id": str(uuid.uuid7()), "url": "https://example.com/j", "status": "queued"}
+    defaults = {"id": str(uuid.uuid7()), "url": "https://example.com/j", "status": "queued", "user_id": "test-user"}
     defaults.update(kwargs)
     m = JobModel(**defaults)
     sa_session.add(m)
@@ -31,7 +31,7 @@ def _job(sa_session, **kwargs):
 
 
 def _company(sa_session, **kwargs):
-    defaults = {"name": "Corp", "status": "queued"}
+    defaults = {"name": "Corp", "status": "queued", "user_id": "test-user"}
     defaults.update(kwargs)
     m = CompanyModel(**defaults)
     sa_session.add(m)

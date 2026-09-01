@@ -2,10 +2,8 @@
 
 These routes live at the bottom of root_router.py (after the include_router calls)
 and are mounted under the /api prefix. They are tested through the ``client``
-fixture from tests/conftest.py, which wires a real SQLAlchemy test session.
-
-Compat routes that call ``get_session_sync()`` directly (rather than via FastAPI DI)
-are pointed at the test session by patching ``root_router.get_session_sync``.
+fixture from tests/conftest.py, which wires a real SQLAlchemy test session via
+FastAPI DI dependency overrides.
 """
 
 from unittest.mock import patch
@@ -16,13 +14,6 @@ from jobs.infrastructure.models.job_model import JobModel
 from companies.infrastructure.models.company_model import CompanyModel
 from skills.infrastructure.models.skill_model import SkillModel, SkillRelationshipModel
 from jobs.infrastructure.models.misc_models import SummaryModel
-from shared.presentation.api import root_router as root_router_module
-
-
-@pytest.fixture(autouse=True)
-def _patch_get_session_sync(sa_session, monkeypatch):
-    """Route the compat routes' direct get_session_sync() calls at the test DB."""
-    monkeypatch.setattr(root_router_module, "get_session_sync", lambda: sa_session)
 
 
 def _mark_all_jobs_processed(sa_session):
@@ -40,7 +31,7 @@ def _mark_all_companies_processed(sa_session):
 
 
 def _seed_company(sa_session, name="Co"):
-    co = CompanyModel(name=name)
+    co = CompanyModel(name=name, user_id="test-user")
     sa_session.add(co)
     sa_session.commit()
     return co.id
@@ -58,8 +49,8 @@ def test_summaries_compat(client, sa_session):
 
 
 def test_tech_stack_compat(client, sa_session):
-    sa_session.add(SkillModel(name="TechStackPy", hidden=0))
-    sa_session.add(SkillModel(name="HiddenSkill", hidden=1))
+    sa_session.add(SkillModel(name="TechStackPy", hidden=0, user_id="test-user"))
+    sa_session.add(SkillModel(name="HiddenSkill", hidden=1, user_id="test-user"))
     sa_session.commit()
     resp = client.get("/api/tech-stack")
     assert resp.status_code == 200
@@ -115,7 +106,7 @@ def test_delete_skill_relationship_compat(client, sa_session):
 
 
 def test_link_job_to_company_with_company_id(client, sa_session):
-    sa_session.add(JobModel(id="job-501", url="https://example.com/link1", company="Co"))
+    sa_session.add(JobModel(id="job-501", url="https://example.com/link1", company="Co", user_id="test-user"))
     sa_session.commit()
     co_id = _seed_company(sa_session, name="LinkedCo")
     resp = client.post("/api/jobs/job-501/link-company", json={"company_id": co_id})
@@ -126,7 +117,7 @@ def test_link_job_to_company_with_company_id(client, sa_session):
 
 
 def test_link_job_to_company_without_company_id(client, sa_session):
-    sa_session.add(JobModel(id="job-502", url="https://example.com/link2", company="Co"))
+    sa_session.add(JobModel(id="job-502", url="https://example.com/link2", company="Co", user_id="test-user"))
     sa_session.commit()
     resp = client.post("/api/jobs/job-502/link-company", json={"company_id": None})
     assert resp.status_code == 200

@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { TooltipProvider } from '@/shared/ui/tooltip'
 import { Toaster } from '@/shared/ui/sonner'
+import { AuthProvider } from '@/shared/lib/auth-context'
+import { AuthGuard } from '@/shared/lib/auth-guard'
 import { useState, type ReactNode } from 'react'
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -21,13 +23,17 @@ export function Providers({ children }: { children: ReactNode }) {
   )
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <AuthGuard>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            <TooltipProvider>
+              {children}
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </AuthGuard>
+    </AuthProvider>
   )
 }

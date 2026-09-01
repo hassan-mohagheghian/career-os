@@ -109,6 +109,7 @@ def _seed_initial_rules(session):
         session.add(RuleModel(
             category=cat, rule_type=rule_type, scope=scope, key=key,
             value=value, description=desc, priority=priority,
+            user_id="",
         ))
     session.commit()
     log.info("Seeded scoring rules", count=len(rules))

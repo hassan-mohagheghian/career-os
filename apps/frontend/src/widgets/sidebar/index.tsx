@@ -12,9 +12,11 @@ import {
   TextAlignLeft,
   SidebarSimple,
   Briefcase,
+  SignOut,
 } from '@phosphor-icons/react'
 import { Button } from '@/shared/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { useAuth } from '@/shared/lib/auth-context'
 import {
   Tooltip,
   TooltipContent,
@@ -151,6 +153,7 @@ function ThemeToggle({ className }: { className?: string }) {
 export default function Sidebar({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { user, logout } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
@@ -227,6 +230,37 @@ export default function Sidebar({ children }: { children: ReactNode }) {
         </nav>
 
         <div className={cn("shrink-0 border-t p-2 space-y-1", collapsed && "px-1.5")}>
+          {user && (
+            <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-md text-xs", collapsed && "justify-center")}>
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-[10px] shrink-0">
+                {user.display_name.charAt(0).toUpperCase()}
+              </div>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium truncate">{user.display_name}</div>
+                  <div className="text-muted-foreground truncate">@{user.username}</div>
+                </div>
+              )}
+              {!collapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => { logout(); router.push('/login') }}
+                        title="Sign out"
+                      >
+                        <SignOut className="w-3.5 h-3.5" />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Sign out</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          )}
           <div className={cn("flex items-center justify-center gap-1", collapsed && "flex-col")}>
             {mounted && (
               <Tooltip>
@@ -326,6 +360,24 @@ export default function Sidebar({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t p-2 flex items-center justify-center gap-1 shrink-0">
+          {user && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => { logout(); router.push('/login') }}
+                    title="Sign out"
+                  >
+                    <SignOut className="w-4 h-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Sign out</TooltipContent>
+            </Tooltip>
+          )}
           {mounted && <ThemeToggle className="h-9 w-9" />}
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setHistoryOpen(true)} title="Generation History">
             <List className="w-4 h-4" />

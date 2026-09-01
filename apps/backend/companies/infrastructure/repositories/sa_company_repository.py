@@ -15,17 +15,24 @@ from companies.infrastructure.mappers import company_model_to_dict, company_inte
 class SQLAlchemyCompanyRepository(ICompanyRepository):
     """SQLAlchemy implementation of company repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def list_all(self) -> list[dict[str, Any]]:
-        rows = self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.name.isnot(None), CompanyModel.name != ''
-        ).order_by(CompanyModel.name).all()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.order_by(CompanyModel.name).all()
         return [company_model_to_dict(r) for r in rows]
 
     def get_by_id(self, company_id: str) -> dict[str, Any] | None:
-        model = self._session.query(CompanyModel).filter(CompanyModel.id == company_id).first()
+        q = self._session.query(CompanyModel).filter(CompanyModel.id == company_id)
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         return company_model_to_dict(model)
@@ -37,6 +44,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
             city=data.get("city"),
             country=data.get("country"),
             logo_url=data.get("logo_url"),
+            user_id=self._user_id,
         )
         self._session.add(model)
         self._session.commit()
@@ -76,6 +84,8 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
 
     def insert(self, data: dict[str, Any]) -> dict[str, Any]:
         model = CompanyModel(**{k: v for k, v in data.items() if hasattr(CompanyModel, k)})
+        if self._user_id and not model.user_id:
+            model.user_id = self._user_id
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
@@ -89,25 +99,37 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
     ACTIVE_STATUSES = {'processing'}
 
     def get_pending_count(self) -> int:
-        return self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.status == 'pending',
-        ).count()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        return q.count()
 
     def list_by_status(self, status: str) -> list[dict[str, Any]]:
-        rows = self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.status == status,
-        ).order_by(CompanyModel.created_at.desc()).all()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.order_by(CompanyModel.created_at.desc()).all()
         return [company_model_to_dict(r) for r in rows]
 
     def get_processing_count(self) -> int:
-        return self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.status.in_(self.ACTIVE_STATUSES),
-        ).count()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        return q.count()
 
     def get_queued_count(self) -> int:
-        return self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.status == 'queued',
-        ).count()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        return q.count()
 
     def update_status(self, company_id: str, status: str, **extra: Any) -> bool:
         extra.setdefault("updated_at", datetime.now(UTC).isoformat())
@@ -131,9 +153,12 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         return None
 
     def get_processing_items(self) -> list[dict[str, Any]]:
-        rows = self._session.query(CompanyModel).filter(
+        q = self._session.query(CompanyModel).filter(
             CompanyModel.status.in_(self.ACTIVE_STATUSES),
-        ).all()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.all()
         return [company_model_to_dict(r) for r in rows]
 
     def update_fields(self, company_id: str, **fields: Any) -> bool:
@@ -143,7 +168,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         return True
 
     def list_for_matching(self) -> list[dict[str, Any]]:
-        rows = self._session.query(
+        q = self._session.query(
             CompanyModel.id,
             CompanyModel.name,
             CompanyModel.website,
@@ -152,7 +177,10 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).filter(
             CompanyModel.name.isnot(None),
             CompanyModel.name != '',
-        ).all()
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.all()
         return [
             {
                 "id": r.id,
@@ -170,7 +198,10 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).scalar() or 0
 
     def get_total_count(self) -> int:
-        return self._session.query(func.count(CompanyModel.id)).scalar() or 0
+        q = self._session.query(func.count(CompanyModel.id))
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        return q.scalar() or 0
 
     def set_pinned(self, company_id: str, pinned: bool) -> bool:
         """Set or clear the pinned flag on a company. Returns True if the company exists."""
@@ -184,12 +215,15 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
 
     def get_all_with_job_counts(self) -> list[dict[str, Any]]:
         from jobs.infrastructure.models.job_model import JobModel
-        rows = self._session.query(
+        q = self._session.query(
             CompanyModel,
             func.count(JobModel.id).label("job_count"),
         ).outerjoin(
             JobModel, (JobModel.company_id == CompanyModel.id) & (JobModel.deleted == 0)
-        ).group_by(CompanyModel.id).order_by(CompanyModel.name).all()
+        ).group_by(CompanyModel.id).order_by(CompanyModel.name)
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.all()
         result = []
         for company, job_count in rows:
             d = company_model_to_dict(company)
@@ -204,7 +238,7 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         (a parsed dict). Sort/pagination is applied by the v2 list use case.
         """
         from jobs.infrastructure.models.job_model import JobModel
-        rows = self._session.query(
+        q = self._session.query(
             CompanyModel,
             func.count(JobModel.id).label("job_count"),
             CompanyIntelligenceModel.scores,
@@ -216,7 +250,10 @@ class SQLAlchemyCompanyRepository(ICompanyRepository):
         ).filter(
             CompanyModel.name.isnot(None),
             CompanyModel.name != '',
-        ).group_by(
+        )
+        if self._user_id:
+            q = q.filter(CompanyModel.user_id == self._user_id)
+        rows = q.group_by(
             CompanyModel.id,
             CompanyIntelligenceModel.scores,
         ).all()

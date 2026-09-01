@@ -20,50 +20,55 @@ from applications.infrastructure.models.application_model import (
 class SQLAlchemyApplicationRepository(IApplicationRepository):
     """SQLAlchemy implementation of the application repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def get_by_id(self, application_id: str) -> dict[str, Any] | None:
-        model = (
-            self._session.query(ApplicationModel)
-            .filter(ApplicationModel.id == application_id)
-            .first()
+        q = self._session.query(ApplicationModel).filter(
+            ApplicationModel.id == application_id
         )
+        if self._user_id:
+            q = q.filter(ApplicationModel.user_id == self._user_id)
+        model = q.first()
         return application_model_to_dict(model) if model else None
 
     def get_by_job_id(self, job_id: str) -> dict[str, Any] | None:
-        model = (
-            self._session.query(ApplicationModel)
-            .filter(ApplicationModel.job_id == job_id)
-            .first()
+        q = self._session.query(ApplicationModel).filter(
+            ApplicationModel.job_id == job_id
         )
+        if self._user_id:
+            q = q.filter(ApplicationModel.user_id == self._user_id)
+        model = q.first()
         return application_model_to_dict(model) if model else None
 
     def list_ids_by_job(self, job_id: str) -> list[str]:
-        return [
-            row[0]
-            for row in self._session.query(ApplicationModel.id)
-            .filter(ApplicationModel.job_id == job_id)
-            .all()
-        ]
+        q = self._session.query(ApplicationModel.id).filter(
+            ApplicationModel.job_id == job_id
+        )
+        if self._user_id:
+            q = q.filter(ApplicationModel.user_id == self._user_id)
+        return [row[0] for row in q.all()]
 
     def statuses_by_job_ids(self, job_ids: list[str]) -> dict[str, str]:
         if not job_ids:
             return {}
-        rows = (
-            self._session.query(ApplicationModel.job_id, ApplicationModel.status)
-            .filter(ApplicationModel.job_id.in_(job_ids))
-            .all()
+        q = self._session.query(ApplicationModel.job_id, ApplicationModel.status).filter(
+            ApplicationModel.job_id.in_(job_ids)
         )
+        if self._user_id:
+            q = q.filter(ApplicationModel.user_id == self._user_id)
+        rows = q.all()
         return {job_id: status for job_id, status in rows}
 
     def job_ids_with_application(self) -> list[str]:
-        return [
-            row[0]
-            for row in self._session.query(ApplicationModel.job_id).distinct().all()
-        ]
+        q = self._session.query(ApplicationModel.job_id).distinct()
+        if self._user_id:
+            q = q.filter(ApplicationModel.user_id == self._user_id)
+        return [row[0] for row in q.all()]
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
+        data.setdefault("user_id", self._user_id)
         model = dict_to_application_model(data)
         self._session.add(model)
         self._session.commit()

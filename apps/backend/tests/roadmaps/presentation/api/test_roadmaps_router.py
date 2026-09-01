@@ -75,6 +75,7 @@ class TestRoadmapCRUD:
             title="App roadmap",
             application_id="app-1",
             source="APPLICATION",
+            user_id="test-user",
         )
         sa_session.add(roadmap)
         sa_session.commit()

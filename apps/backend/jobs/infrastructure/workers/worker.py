@@ -250,12 +250,13 @@ def _insert_job(d):
         'success_score': d.get('success_score'),
         'overall_score': d.get('overall_score'),
         'company_id': d.get('company_id'),
+        'user_id': d.get('user_id', ''),
     }
 
     session = get_session_sync()
     try:
         from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepository
-        job_repo = SQLAlchemyJobRepository(session)
+        job_repo = SQLAlchemyJobRepository(session, user_id=d.get('user_id', ''))
         job_repo.upsert(job_data)
     finally:
         session.close()

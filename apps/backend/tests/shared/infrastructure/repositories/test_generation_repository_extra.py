@@ -29,6 +29,7 @@ def _job(sa_session, job_id='job-1', **kwargs):
         "status": "done",
         "created_at": "2026-07-27T10:00:00",
         "updated_at": "2026-07-27T10:05:00",
+        "user_id": "test-user",
     }
     defaults.update(kwargs)
     m = JobModel(**defaults)
@@ -44,6 +45,7 @@ def _company(sa_session, **kwargs):
         "status": "done",
         "created_at": "2026-07-27T10:00:00",
         "updated_at": "2026-07-27T10:03:00",
+        "user_id": "test-user",
     }
     defaults.update(kwargs)
     m = CompanyModel(**defaults)

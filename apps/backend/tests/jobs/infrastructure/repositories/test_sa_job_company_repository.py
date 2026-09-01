@@ -28,6 +28,7 @@ def _add_job(session, company_id=None) -> JobModel:
         company_id=company_id,
         workflow_log="[]",
         rescoring=0,
+        user_id="test-user",
     )
     session.add(job)
     session.commit()
@@ -36,7 +37,7 @@ def _add_job(session, company_id=None) -> JobModel:
 
 
 def _add_company(session, name="Acme GmbH") -> CompanyModel:
-    company = CompanyModel(name=name)
+    company = CompanyModel(name=name, user_id="test-user")
     session.add(company)
     session.commit()
     session.refresh(company)

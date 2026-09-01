@@ -56,6 +56,9 @@ async def lifespan(app: FastAPI):
     init_db()
     log.info("fastapi.database_ready")
 
+    # Seed default user
+    _seed_default_user()
+
     # Recover interrupted tasks
     _recover_tasks()
 
@@ -103,6 +106,32 @@ def _recover_tasks():
             session.close()
     except Exception as e:
         log.warning("fastapi.recovery_failed", error=str(e))
+
+
+def _seed_default_user():
+    """Create the default user from env vars if it doesn't exist."""
+    try:
+        from dependencies import get_session_sync
+        from auth.infrastructure.user_repository import SQLAlchemyUserRepository
+        from auth.application.auth_service import AuthService
+
+        session = get_session_sync()
+        try:
+            repo = SQLAlchemyUserRepository(session)
+            auth_service = AuthService(repo)
+            user = auth_service.seed_default_user()
+            session.commit()
+            if user:
+                log.info("fastapi.default_user_created", username=user.username)
+            else:
+                log.info("fastapi.default_user_exists")
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+    except Exception as e:
+        log.warning("fastapi.seed_user_failed", error=str(e))
 
 
 # ── App Factory ──────────────────────────────────────────────────
@@ -172,6 +201,9 @@ def create_app() -> FastAPI:
 
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str):
+            if full_path.startswith("api/"):
+                from fastapi import HTTPException
+                raise HTTPException(status_code=404, detail="Not found")
             file_path = os.path.join(STATIC_FOLDER, full_path)
             if os.path.isfile(file_path):
                 return FileResponse(file_path)

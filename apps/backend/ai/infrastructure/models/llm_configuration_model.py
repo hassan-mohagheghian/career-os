@@ -18,5 +18,6 @@ class LLMConfigurationModel(Base):
     model: Mapped[str] = mapped_column(String(255), nullable=False)
     model_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

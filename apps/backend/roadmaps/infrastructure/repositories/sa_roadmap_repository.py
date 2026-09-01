@@ -34,37 +34,39 @@ from roadmaps.infrastructure.models.roadmap_model import (
 class SQLAlchemyRoadmapRepository(IRoadmapRepository):
     """SQLAlchemy implementation of the roadmap repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     # ── Roadmap ─────────────────────────────────────────────────────
 
     def get_by_id(self, roadmap_id: str) -> dict[str, Any] | None:
-        model = (
-            self._session.query(RoadmapModel)
-            .filter(RoadmapModel.id == roadmap_id)
-            .first()
+        q = self._session.query(RoadmapModel).filter(
+            RoadmapModel.id == roadmap_id
         )
+        if self._user_id:
+            q = q.filter(RoadmapModel.user_id == self._user_id)
+        model = q.first()
         return roadmap_model_to_dict(model) if model else None
 
     def get_by_application_id(self, application_id: str) -> dict[str, Any] | None:
-        model = (
-            self._session.query(RoadmapModel)
-            .filter(RoadmapModel.application_id == application_id)
-            .order_by(RoadmapModel.created_at.desc())
-            .first()
+        q = self._session.query(RoadmapModel).filter(
+            RoadmapModel.application_id == application_id
         )
+        if self._user_id:
+            q = q.filter(RoadmapModel.user_id == self._user_id)
+        model = q.order_by(RoadmapModel.created_at.desc()).first()
         return roadmap_model_to_dict(model) if model else None
 
     def list(self) -> list[dict[str, Any]]:
-        rows = (
-            self._session.query(RoadmapModel)
-            .order_by(RoadmapModel.created_at.desc())
-            .all()
-        )
+        q = self._session.query(RoadmapModel)
+        if self._user_id:
+            q = q.filter(RoadmapModel.user_id == self._user_id)
+        rows = q.order_by(RoadmapModel.created_at.desc()).all()
         return [roadmap_model_to_dict(r) for r in rows]
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
+        data.setdefault("user_id", self._user_id)
         model = dict_to_roadmap_model(data)
         self._session.add(model)
         self._session.commit()

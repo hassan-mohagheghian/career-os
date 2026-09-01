@@ -39,6 +39,7 @@ def _create_job(sa_session, **kwargs) -> JobModel:
         workflow_log="[]",
         locations="[]",
         rescoring=0,
+        user_id="test-user",
     )
     defaults.update(kwargs)
     defaults.pop("num", None)
@@ -53,6 +54,7 @@ def _create_application(sa_session, job_id: str, **kwargs) -> ApplicationModel:
         id=str(uuid.uuid7()),
         job_id=job_id,
         status="seen",
+        user_id="test-user",
     )
     defaults.update(kwargs)
     app = ApplicationModel(**defaults)
@@ -328,7 +330,7 @@ class TestDocumentAPI:
         from placeholders.infrastructure.models.placeholder_model import PlaceholderModel
         job = _create_job(sa_session)
         app = _create_application(sa_session, job.id)
-        sa_session.add(PlaceholderModel(key="name", value="Hassan"))
+        sa_session.add(PlaceholderModel(key="name", value="Hassan", user_id="test-user"))
         sa_session.add(
             ApplicationDocumentModel(
                 id=str(uuid.uuid7()),

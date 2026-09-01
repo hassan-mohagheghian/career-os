@@ -1,4 +1,5 @@
 const API_BASE = '/api'
+const TOKEN_KEY = 'js_auth_token'
 
 export class ApiError extends Error {
   constructor(
@@ -23,11 +24,25 @@ function extractErrorMessage(body: unknown): string | undefined {
   return undefined
 }
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem(TOKEN_KEY)
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders(), ...options?.headers },
     ...options,
   })
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem('js_auth_user')
+      window.location.href = '/login'
+    }
+    throw new ApiError(401, 'Unauthorized')
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => undefined)
     throw new ApiError(res.status, extractErrorMessage(body) ?? res.statusText, body)
@@ -55,4 +70,19 @@ export const api = {
     }
     return res.blob()
   },
+}
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post<{ token: string; user: { id: string; username: string; display_name: string; created_at: string } }>(
+      '/auth/login',
+      { username, password },
+    ),
+  register: (username: string, password: string, display_name: string) =>
+    api.post<{ token: string; user: { id: string; username: string; display_name: string; created_at: string } }>(
+      '/auth/register',
+      { username, password, display_name },
+    ),
+  me: () =>
+    api.get<{ id: string; username: string; display_name: string; created_at: string }>('/auth/me'),
 }

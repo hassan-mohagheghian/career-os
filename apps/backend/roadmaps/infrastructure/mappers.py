@@ -41,6 +41,7 @@ def dict_to_roadmap_model(data: dict[str, Any]) -> RoadmapModel:
         status=data.get("status", "ACTIVE"),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
+        user_id=data.get("user_id", ""),
     )
 
 

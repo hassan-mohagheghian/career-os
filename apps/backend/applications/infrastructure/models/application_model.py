@@ -36,6 +36,7 @@ class ApplicationModel(Base):
     applied_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[str] = mapped_column(Text, default=_now_iso)
     updated_at: Mapped[str] = mapped_column(Text, default=_now_iso)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
 
 
 class ApplicationStatusEventModel(Base):

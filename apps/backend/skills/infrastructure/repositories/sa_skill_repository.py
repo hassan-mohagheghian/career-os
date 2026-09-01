@@ -25,8 +25,9 @@ from skills.infrastructure.mappers import skill_model_to_dict
 class SQLAlchemySkillRepository(ISkillRepository):
     """SQLAlchemy implementation of skill repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def _get_aliases(self, skill_id: int) -> list[str]:
         aliases = self._session.query(SkillAliasModel).filter(
@@ -242,6 +243,8 @@ class SQLAlchemySkillRepository(ISkillRepository):
 
     def list_visible(self, category: str = "") -> list[dict[str, Any]]:
         query = self._session.query(SkillModel).filter(SkillModel.hidden == 0)
+        if self._user_id:
+            query = query.filter(SkillModel.user_id == self._user_id)
         query = query.order_by(SkillModel.level.desc().nulls_last())
         rows = query.all()
         eff = self._effective_categories(rows)
@@ -254,21 +257,30 @@ class SQLAlchemySkillRepository(ISkillRepository):
         return result
 
     def list_hidden(self) -> list[dict[str, Any]]:
-        rows = self._session.query(SkillModel).filter(
+        q = self._session.query(SkillModel).filter(
             SkillModel.hidden == 1
-        ).order_by(SkillModel.name).all()
+        )
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        rows = q.order_by(SkillModel.name).all()
         eff = self._effective_categories(rows)
         return [self._to_dict(r, eff.get(r.id, [])) for r in rows]
 
     def get_by_id(self, skill_id: int) -> dict[str, Any] | None:
-        model = self._session.query(SkillModel).filter(SkillModel.id == skill_id).first()
+        q = self._session.query(SkillModel).filter(SkillModel.id == skill_id)
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         categories = self._effective_categories([model]).get(model.id, [])
         return self._to_dict(model, categories)
 
     def get_by_name(self, name: str) -> dict[str, Any] | None:
-        model = self._session.query(SkillModel).filter(SkillModel.name == name).first()
+        q = self._session.query(SkillModel).filter(SkillModel.name == name)
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         categories = self._effective_categories([model]).get(model.id, [])
@@ -289,6 +301,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
             source=data.get("source", "user"),
             source_type=data.get("source_type", "user_input"),
             category=categories[0] if categories else (data.get("category") or ""),
+            user_id=self._user_id,
         )
         self._session.add(model)
         self._session.flush()
@@ -533,23 +546,35 @@ class SQLAlchemySkillRepository(ISkillRepository):
         if not name:
             raise ValueError("Skill name is required")
 
-        existing = self._session.query(SkillModel).filter(SkillModel.name == name).first()
+        existing_q = self._session.query(SkillModel).filter(SkillModel.name == name)
+        if self._user_id:
+            existing_q = existing_q.filter(SkillModel.user_id == self._user_id)
+        existing = existing_q.first()
         if not existing:
             existing = self._session.query(SkillModel).join(
                 SkillAliasModel, SkillAliasModel.skill_id == SkillModel.id
-            ).filter(SkillAliasModel.alias_name == name).first()
+            ).filter(SkillAliasModel.alias_name == name)
+            if self._user_id:
+                existing = existing.filter(SkillModel.user_id == self._user_id)
+            existing = existing.first()
         if not existing:
             slug = slugify(name)
             if slug:
                 existing = self._session.query(SkillModel).filter(
                     SkillModel.slug == slug
-                ).first()
+                )
+                if self._user_id:
+                    existing = existing.filter(SkillModel.user_id == self._user_id)
+                existing = existing.first()
         if not existing:
             slug = slugify(name)
             if slug:
                 existing = self._session.query(SkillModel).join(
                     SkillAliasModel, SkillAliasModel.skill_id == SkillModel.id
-                ).filter(SkillAliasModel.normalized_name == slug).first()
+                ).filter(SkillAliasModel.normalized_name == slug)
+                if self._user_id:
+                    existing = existing.filter(SkillModel.user_id == self._user_id)
+                existing = existing.first()
 
         if existing:
             return existing.id
@@ -568,6 +593,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
             market_relevance=data.get("market_relevance", 0),
             evidence=data.get("evidence", "[]"),
             tags=data.get("tags", "[]"),
+            user_id=self._user_id,
         )
         self._session.add(m)
         self._session.flush()
@@ -992,15 +1018,24 @@ class SQLAlchemySkillRepository(ISkillRepository):
     # ── Extended methods for services ───────────────────────────────
 
     def get_all(self) -> list[dict[str, Any]]:
-        rows = self._session.query(SkillModel).all()
+        q = self._session.query(SkillModel)
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        rows = q.all()
         return [skill_model_to_dict(r) for r in rows]
 
     def get_level_by_name(self, name: str) -> int | None:
-        m = self._session.query(SkillModel.level).filter(SkillModel.name == name).first()
+        q = self._session.query(SkillModel.level).filter(SkillModel.name == name)
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        m = q.first()
         return m[0] if m else None
 
     def update_fields_by_name(self, name: str, **fields) -> bool:
-        m = self._session.query(SkillModel).filter(SkillModel.name == name).first()
+        q = self._session.query(SkillModel).filter(SkillModel.name == name)
+        if self._user_id:
+            q = q.filter(SkillModel.user_id == self._user_id)
+        m = q.first()
         if not m:
             return False
         for k, v in fields.items():
@@ -1025,6 +1060,7 @@ class SQLAlchemySkillRepository(ISkillRepository):
             market_relevance=data.get("market_relevance", 0),
             evidence=data.get("evidence", "[]"),
             tags=data.get("tags", "[]"),
+            user_id=self._user_id,
         )
         self._session.add(m)
         self._session.flush()

@@ -6,7 +6,7 @@ from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySki
 
 class TestResolveSkill:
     def test_creates_new_skill(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill_id = repo.resolve_skill({"name": "Kubernetes", "category": "engineering", "source_type": "ai_generated"})
 
         row = sa_session.query(SkillModel).filter(SkillModel.id == skill_id).first()
@@ -16,23 +16,23 @@ class TestResolveSkill:
         assert row.source_type == "ai_generated"
 
     def test_matches_existing_by_name(self, sa_session):
-        existing = SkillModel(name="Python", source="user", source_type="user_input")
+        existing = SkillModel(name="Python", source="user", source_type="user_input", user_id="test-user")
         sa_session.add(existing)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill_id = repo.resolve_skill({"name": "Python"})
         assert skill_id == existing.id
         assert sa_session.query(SkillModel).count() == 1
 
     def test_matches_existing_by_alias(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill_id = repo.resolve_skill({"name": "ReactJS"})
         assert skill_id == skill.id
         assert sa_session.query(SkillModel).count() == 1
@@ -40,22 +40,22 @@ class TestResolveSkill:
 
 class TestSkillMentions:
     def test_upsert_and_count(self, sa_session):
-        skill = SkillModel(name="Kafka", source="user")
+        skill = SkillModel(name="Kafka", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1", status="matched", evidence="[]")
         repo.upsert_mentions(skill.id, "company", "company-uuid-1")
 
         assert repo.get_mention_counts([skill.id]) == {skill.id: 2}
 
     def test_upsert_is_idempotent_per_source(self, sa_session):
-        skill = SkillModel(name="Docker", source="user")
+        skill = SkillModel(name="Docker", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1", status="matched")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1", status="low")
 
@@ -65,11 +65,11 @@ class TestSkillMentions:
         assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
 
     def test_delete_mentions_for_source(self, sa_session):
-        skill = SkillModel(name="Go", source="user")
+        skill = SkillModel(name="Go", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1")
         repo.upsert_mentions(skill.id, "job", "job-uuid-2")
         repo.delete_mentions_for_source("job", "job-uuid-1")
@@ -77,18 +77,18 @@ class TestSkillMentions:
         assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
 
     def test_mention_counts_empty_for_unknown_ids(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.get_mention_counts([]) == {}
         assert repo.get_mention_counts([9999]) == {}
 
 
 class TestGetJobMentionIds:
     def test_returns_distinct_job_source_ids(self, sa_session):
-        skill = SkillModel(name="Kafka", source="user")
+        skill = SkillModel(name="Kafka", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1")
         repo.upsert_mentions(skill.id, "job", "job-uuid-1")
         repo.upsert_mentions(skill.id, "job", "job-uuid-2")
@@ -97,11 +97,11 @@ class TestGetJobMentionIds:
         assert repo.get_job_mention_ids(skill.id) == ["job-uuid-1", "job-uuid-2"]
 
     def test_empty_when_no_job_mentions(self, sa_session):
-        skill = SkillModel(name="Kafka", source="user")
+        skill = SkillModel(name="Kafka", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "company", "company-uuid-1")
         assert repo.get_job_mention_ids(skill.id) == []
 
@@ -111,17 +111,17 @@ class TestAliasMentionFolding:
     rows whose name matches one of the skill's aliases."""
 
     def test_folds_mentions_from_alias_skill_rows(self, sa_session):
-        k8s = SkillModel(name="K8s", source="user")
+        k8s = SkillModel(name="K8s", source="user", user_id="test-user")
         sa_session.add(k8s)
         sa_session.commit()
 
-        kubernetes = SkillModel(name="Kubernetes", source="user")
+        kubernetes = SkillModel(name="Kubernetes", source="user", user_id="test-user")
         sa_session.add(kubernetes)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=kubernetes.id, alias_name="K8s", normalized_name="k8s"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(kubernetes.id, "job", "job-1")
         repo.upsert_mentions(k8s.id, "job", "job-2")
         repo.upsert_mentions(k8s.id, "company", "company-1")
@@ -130,25 +130,25 @@ class TestAliasMentionFolding:
         assert repo.get_mention_counts([k8s.id]) == {k8s.id: 2}
 
     def test_alias_without_skill_row_does_not_fold(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-1")
 
         assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
 
     def test_alias_matching_own_name_not_double_counted(self, sa_session):
-        skill = SkillModel(name="Go", source="user")
+        skill = SkillModel(name="Go", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="Go", normalized_name="go"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", "job-1")
 
         assert repo.get_mention_counts([skill.id]) == {skill.id: 1}
@@ -156,56 +156,56 @@ class TestAliasMentionFolding:
 
 class TestSkillAliases:
     def test_add_alias(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         updated = repo.add_alias(skill.id, "ReactJS")
         assert updated is not None
         assert "ReactJS" in updated["aliases"]
 
     def test_add_alias_idempotent(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         updated = repo.add_alias(skill.id, "ReactJS")
         assert updated["aliases"].count("ReactJS") == 1
         assert sa_session.query(SkillAliasModel).count() == 1
 
     def test_add_alias_missing_skill(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.add_alias(9999, "ReactJS") is None
 
     def test_remove_alias(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         updated = repo.remove_alias(skill.id, "ReactJS")
         assert "ReactJS" not in updated["aliases"]
         assert sa_session.query(SkillAliasModel).count() == 0
 
     def test_remove_alias_missing_skill(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.remove_alias(9999, "ReactJS") is None
 
 
 class TestMergeFoldsMentions:
     def test_merge_repoints_mentions(self, sa_session):
-        target = SkillModel(name="React", source="user")
-        source = SkillModel(name="ReactJS", source="user")
+        target = SkillModel(name="React", source="user", user_id="test-user")
+        source = SkillModel(name="ReactJS", source="user", user_id="test-user")
         sa_session.add_all([target, source])
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(source.id, "job", "job-1")
         repo.upsert_mentions(source.id, "company", "company-1")
 
@@ -218,12 +218,12 @@ class TestMergeFoldsMentions:
         assert {r.source_type for r in rows} == {"job", "company"}
 
     def test_merge_skips_duplicate_mention_keys(self, sa_session):
-        target = SkillModel(name="React", source="user")
-        source = SkillModel(name="ReactJS", source="user")
+        target = SkillModel(name="React", source="user", user_id="test-user")
+        source = SkillModel(name="ReactJS", source="user", user_id="test-user")
         sa_session.add_all([target, source])
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(target.id, "job", "job-1", status="matched")
         repo.upsert_mentions(source.id, "job", "job-1", status="low")
 

@@ -45,6 +45,7 @@ def dict_to_application_model(data: dict[str, Any]) -> ApplicationModel:
         applied_at=data.get("applied_at"),
         created_at=data.get("created_at") or _now_iso(),
         updated_at=data.get("updated_at") or _now_iso(),
+        user_id=data.get("user_id", ""),
     )
 
 

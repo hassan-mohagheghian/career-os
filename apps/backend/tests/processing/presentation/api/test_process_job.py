@@ -20,6 +20,7 @@ def _seed_job(sa_session, **extra) -> str:
         work_types='["Remote"]',
         employment_types='["Full-time"]',
         rescoring=0,
+        user_id="test-user",
         **extra,
     )
     sa_session.add(job)

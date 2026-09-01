@@ -45,14 +45,14 @@ class TestSkillCategoryService:
     def _service(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         collector = InMemoryEventCollector()
         return SkillCategoryService(repo, collector), collector
 
     def _skill(self, sa_session):
         from skills.infrastructure.models.skill_model import SkillModel
 
-        m = SkillModel(name="Python", source="user", source_type="user_input")
+        m = SkillModel(name="Python", source="user", source_type="user_input", user_id="test-user")
         sa_session.add(m)
         sa_session.commit()
         sa_session.refresh(m)
@@ -99,14 +99,14 @@ class TestSkillNormalizationService:
     def _service(self, sa_session):
         from skills.infrastructure.repositories.sa_skill_repository import SQLAlchemySkillRepository
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         collector = InMemoryEventCollector()
         return SkillNormalizationService(repo, collector), collector
 
     def _skill(self, sa_session, name="Python"):
         from skills.infrastructure.models.skill_model import SkillModel
 
-        m = SkillModel(name=name, source="user", source_type="user_input")
+        m = SkillModel(name=name, source="user", source_type="user_input", user_id="test-user")
         sa_session.add(m)
         sa_session.commit()
         sa_session.refresh(m)

@@ -27,16 +27,18 @@ from candidates.infrastructure.models.candidate_model import CandidateProfileMod
 
 
 class SQLAlchemyCityRepository(ICityRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def find_by_city_country(self, city: str, country: str) -> dict[str, Any] | None:
-        model = self._session.scalar(
-            select(CityModel).where(
-                func.lower(CityModel.city) == (city or "").lower(),
-                func.lower(CityModel.country) == (country or "").lower(),
-            )
+        q = select(CityModel).where(
+            func.lower(CityModel.city) == (city or "").lower(),
+            func.lower(CityModel.country) == (country or "").lower(),
         )
+        if self._user_id:
+            q = q.where(CityModel.user_id == self._user_id)
+        model = self._session.scalar(q)
         return city_model_to_dict(model, aliases=self._get_aliases(model.id)) if model else None
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -48,6 +50,7 @@ class SQLAlchemyCityRepository(ICityRepository):
             address=data.get("address"),
             created_at=now,
             updated_at=now,
+            user_id=self._user_id,
         )
         self._session.add(model)
         self._session.flush()
@@ -63,7 +66,7 @@ class SQLAlchemyCityRepository(ICityRepository):
         self, sort: str = "jobs", order: str = "desc"
     ) -> list[dict[str, Any]]:
         count_col = func.count(JobModel.id).label("job_count")
-        rows = self._session.execute(
+        city_q = (
             select(
                 CityModel,
                 count_col,
@@ -71,7 +74,11 @@ class SQLAlchemyCityRepository(ICityRepository):
             .outerjoin(JobModel, JobModel.city_id == CityModel.id)
             .where((JobModel.deleted == 0) | (JobModel.deleted.is_(None)))
             .where(CityModel.hidden == 0)
-            .group_by(CityModel.id)
+        )
+        if self._user_id:
+            city_q = city_q.where(CityModel.user_id == self._user_id)
+        rows = self._session.execute(
+            city_q.group_by(CityModel.id)
         ).all()
 
         alias_rows = self._session.execute(

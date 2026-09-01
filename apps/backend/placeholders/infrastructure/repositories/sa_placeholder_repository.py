@@ -14,24 +14,38 @@ from placeholders.infrastructure.models.placeholder_model import PlaceholderMode
 
 
 class SQLAlchemyPlaceholderRepository(IPlaceholderRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def get_all(self) -> list[dict[str, Any]]:
-        rows = self._session.scalars(
-            select(PlaceholderModel).order_by(PlaceholderModel.key)
-        ).all()
+        q = select(PlaceholderModel).order_by(PlaceholderModel.key)
+        if self._user_id:
+            q = q.where(PlaceholderModel.user_id == self._user_id)
+        rows = self._session.scalars(q).all()
         return [placeholder_model_to_dict(r) for r in rows]
 
     def get_by_key(self, key: str) -> dict[str, Any] | None:
-        model = self._session.get(PlaceholderModel, key)
+        if self._user_id:
+            model = self._session.query(PlaceholderModel).filter(
+                PlaceholderModel.key == key,
+                PlaceholderModel.user_id == self._user_id,
+            ).first()
+        else:
+            model = self._session.get(PlaceholderModel, key)
         return placeholder_model_to_dict(model) if model else None
 
     def upsert(self, key: str, value: str) -> dict[str, Any]:
-        model = self._session.get(PlaceholderModel, key)
+        if self._user_id:
+            model = self._session.query(PlaceholderModel).filter(
+                PlaceholderModel.key == key,
+                PlaceholderModel.user_id == self._user_id,
+            ).first()
+        else:
+            model = self._session.get(PlaceholderModel, key)
         now = datetime.now(UTC).isoformat()
         if model is None:
-            model = PlaceholderModel(key=key, value=value, updated_at=now)
+            model = PlaceholderModel(key=key, user_id=self._user_id, value=value, updated_at=now)
             self._session.add(model)
         else:
             model.value = value

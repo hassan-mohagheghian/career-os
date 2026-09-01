@@ -33,3 +33,11 @@ DB_BACKUP_KEEP_COUNT = int(os.environ.get('DB_BACKUP_KEEP_COUNT', '3'))
 _DB_BACKUP_DIR = os.environ.get('DB_BACKUP_DIR', os.path.join(_PROJECT_ROOT, 'backups'))
 DB_BACKUP_DIR = os.path.abspath(_DB_BACKUP_DIR) if os.path.isabs(_DB_BACKUP_DIR) else os.path.join(_PROJECT_ROOT, _DB_BACKUP_DIR)
 DB_BACKUP_CONTAINER = os.environ.get('DB_BACKUP_CONTAINER', 'job-search-postgres-1')
+
+# Authentication
+JWT_SECRET = os.environ.get('JWT_SECRET', 'js-auth-secret-change-in-production-2026')
+JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
+JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', '24'))
+DEFAULT_USER_USERNAME = os.environ.get('DEFAULT_USER_USERNAME', 'hassan')
+DEFAULT_USER_PASSWORD = os.environ.get('DEFAULT_USER_PASSWORD', 'hassan')
+DEFAULT_USER_DISPLAY_NAME = os.environ.get('DEFAULT_USER_DISPLAY_NAME', 'Hassan')

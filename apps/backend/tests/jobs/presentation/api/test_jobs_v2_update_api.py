@@ -22,6 +22,7 @@ def _create_job(test_db, **kwargs) -> JobModel:
         workflow_log="[]",
         locations="[]",
         rescoring=0,
+        user_id="test-user",
     )
     defaults.update(kwargs)
     if defaults["id"] is None:

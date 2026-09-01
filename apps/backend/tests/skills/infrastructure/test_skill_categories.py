@@ -11,7 +11,7 @@ from skills.infrastructure.models.skill_model import (
 def _skill(sa_session, **kwargs):
     defaults = dict(
         name="Python", level=1, category="", hidden=0, source="user",
-        source_type="user_input",
+        source_type="user_input", user_id="test-user",
     )
     defaults.update(kwargs)
     m = SkillModel(**defaults)
@@ -40,7 +40,7 @@ def _category(sa_session, name):
 
 class TestCategoryCatalog:
     def test_create_category(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.create_category("data")
         assert result["name"] == "data"
         assert result["created"] is True
@@ -50,22 +50,22 @@ class TestCategoryCatalog:
         assert again["created"] is False
 
     def test_create_category_blank_returns_none(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.create_category("   ") is None
 
     def test_delete_category_unused(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.create_category("data")
         result = repo.delete_category("data")
         assert result["status"] == "deleted"
 
     def test_delete_category_not_found(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.delete_category("nope")
         assert result["status"] == "not_found"
 
     def test_delete_category_in_use(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = _skill(sa_session)
         repo.set_categories(skill.id, ["data"])
         result = repo.delete_category("data")
@@ -75,7 +75,7 @@ class TestCategoryCatalog:
 
 class TestMultiCategory:
     def test_set_categories_replaces_and_syncs_primary(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = _skill(sa_session)
         updated = repo.set_categories(skill.id, ["technical", "engineering"])
         assert updated["categories"] == ["technical", "engineering"]
@@ -85,14 +85,14 @@ class TestMultiCategory:
         assert row.category == "technical"
 
     def test_set_categories_auto_creates_catalog_rows(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = _skill(sa_session)
         repo.set_categories(skill.id, ["brand-new-cat"])
         names = [c["category"] for c in repo.get_categories()]
         assert "brand-new-cat" in names
 
     def test_set_categories_empty_clears(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = _skill(sa_session)
         repo.set_categories(skill.id, ["technical"])
         cleared = repo.set_categories(skill.id, [])
@@ -100,11 +100,11 @@ class TestMultiCategory:
         assert cleared["category"] == ""
 
     def test_set_categories_missing_skill(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.set_categories(9999, ["technical"]) is None
 
     def test_get_by_id_includes_categories(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = _skill(sa_session)
         repo.set_categories(skill.id, ["technical", "domain"])
         got = repo.get_by_id(skill.id)
@@ -113,14 +113,14 @@ class TestMultiCategory:
     def test_primary_category_backfill_in_effective_categories(self, sa_session):
         _category(sa_session, "technical")
         skill = _skill(sa_session, category="technical")
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         got = repo.get_by_id(skill.id)
         assert "technical" in got["categories"]
 
 
 class TestGetCategories:
     def test_counts_visible_skills_only(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         a = _skill(sa_session, name="A", hidden=0)
         b = _skill(sa_session, name="B", hidden=1)
         repo.set_categories(a.id, ["technical"])
@@ -129,7 +129,7 @@ class TestGetCategories:
         assert counts.get("technical", 0) == 1
 
     def test_includes_unused_catalog_categories_with_zero_count(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.create_category("security")
         security = next(c for c in repo.get_categories() if c["category"] == "security")
         assert security["count"] == 0
@@ -137,7 +137,7 @@ class TestGetCategories:
 
 class TestAliasInheritance:
     def test_alias_row_inherits_canonical_categories(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         kubernetes = _skill(sa_session, name="Kubernetes")
         k8s = _skill(sa_session, name="K8s")
         _alias(sa_session, kubernetes.id, "K8s")
@@ -146,7 +146,7 @@ class TestAliasInheritance:
         assert got["categories"] == ["engineering", "technical"]
 
     def test_alias_primary_falls_back_to_canonical(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         kubernetes = _skill(sa_session, name="Kubernetes")
         k8s = _skill(sa_session, name="K8s")
         _alias(sa_session, kubernetes.id, "K8s")
@@ -155,7 +155,7 @@ class TestAliasInheritance:
         assert got["category"] == "engineering"
 
     def test_own_categories_merge_with_inherited(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         kubernetes = _skill(sa_session, name="Kubernetes")
         k8s = _skill(sa_session, name="K8s")
         _alias(sa_session, kubernetes.id, "K8s")

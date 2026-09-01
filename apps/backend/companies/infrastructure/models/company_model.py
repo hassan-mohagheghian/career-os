@@ -61,6 +61,7 @@ class CompanyModel(Base):
         nullable=True,
         index=True,
     )
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")
 
     # Relationships
     intelligence: Mapped[Optional["CompanyIntelligenceModel"]] = relationship(

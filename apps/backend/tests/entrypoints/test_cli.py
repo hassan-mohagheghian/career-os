@@ -128,7 +128,7 @@ class TestResetPending:
 class TestDeletePending:
     def test_marks_deleted_in_db(self, mock_get_session):
         job_id = str(uuid.uuid7())
-        job = JobModel(id=job_id, url='https://ex.com/job/1', status='queued', deleted=0)
+        job = JobModel(id=job_id, url='https://ex.com/job/1', status='queued', deleted=0, user_id="test-user")
         mock_get_session.add(job)
         mock_get_session.commit()
         cli.delete_pending(job_id)
@@ -253,7 +253,7 @@ class TestListCommand:
 
     def test_all_includes_done_from_db(self, mock_get_session):
         job = JobModel(id=str(uuid.uuid7()), url='https://ex.com/done/1', company='DoneCo', role='SDE',
-                       status='completed', deleted=0)
+                       status='completed', deleted=0, user_id="test-user")
         mock_get_session.add(job)
         mock_get_session.commit()
         with patch('apps.backend.entrypoints.cli.get_pending', return_value=[]):

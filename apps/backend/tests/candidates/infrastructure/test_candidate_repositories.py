@@ -16,7 +16,7 @@ from skills.infrastructure import SQLAlchemySkillRepository
 
 class TestCandidateRepository:
     def test_create_and_get_candidate(self, sa_session):
-        repo = SQLAlchemyCandidateRepository(sa_session)
+        repo = SQLAlchemyCandidateRepository(sa_session, user_id="test-user")
         created = repo.create_candidate({"name": "Hassan", "headline": "Backend Engineer"})
         assert created["id"]
         assert created["name"] == "Hassan"
@@ -25,18 +25,18 @@ class TestCandidateRepository:
         assert loaded["id"] == created["id"]
 
     def test_get_candidate_none_when_empty(self, sa_session):
-        repo = SQLAlchemyCandidateRepository(sa_session)
+        repo = SQLAlchemyCandidateRepository(sa_session, user_id="test-user")
         assert repo.get_candidate() is None
 
     def test_update_candidate(self, sa_session):
-        repo = SQLAlchemyCandidateRepository(sa_session)
+        repo = SQLAlchemyCandidateRepository(sa_session, user_id="test-user")
         created = repo.create_candidate({"name": "Hassan"})
         updated = repo.update_candidate(created["id"], {"location": "Berlin"})
         assert updated["location"] == "Berlin"
         assert updated["name"] == "Hassan"
 
     def test_update_missing_candidate_returns_none(self, sa_session):
-        repo = SQLAlchemyCandidateRepository(sa_session)
+        repo = SQLAlchemyCandidateRepository(sa_session, user_id="test-user")
         assert repo.update_candidate("missing", {"name": "x"}) is None
 
 
@@ -69,7 +69,7 @@ class TestCandidateProfileRepository:
         assert updated["title"] == "Staff Engineer"
 
     def test_skill_persistence_links_to_skill_skills(self, sa_session):
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill = skill_repo.create({"name": "Python", "level": 4, "category": "Technical"})
 
         repo = SQLAlchemyCandidateProfileRepository(sa_session)

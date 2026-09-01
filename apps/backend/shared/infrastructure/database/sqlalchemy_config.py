@@ -27,6 +27,7 @@ class Base(DeclarativeBase):
 
 
 SCHEMAS = {
+    "auth": ["users"],
     "job": ["jobs", "summaries"],
     "company": ["companies", "company_intelligence", "company_links"],
     "skill": ["skills", "skill_aliases", "skill_relationships"],

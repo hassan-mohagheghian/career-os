@@ -7,19 +7,19 @@ from companies.infrastructure.models.company_model import CompanyModel
 
 
 def _city(sa_session, city, country):
-    service = CityService(SQLAlchemyCityRepository(sa_session))
+    service = CityService(SQLAlchemyCityRepository(sa_session, user_id="test-user"))
     return service.ensure(city, country, original_text=f"{city}, {country}")
 
 
 def _job(sa_session, city_id, location="Berlin", deleted=0):
-    job = JobModel(url="https://example.com/job", location=location, city_id=city_id, deleted=deleted)
+    job = JobModel(url="https://example.com/job", location=location, city_id=city_id, deleted=deleted, user_id="test-user")
     sa_session.add(job)
     sa_session.commit()
     return job
 
 
 def _company(sa_session, city_id, name="Co", city="Berlin", country="Germany"):
-    co = CompanyModel(name=name, city_id=city_id, city=city, country=country)
+    co = CompanyModel(name=name, city_id=city_id, city=city, country=country, user_id="test-user")
     sa_session.add(co)
     sa_session.commit()
     return co
@@ -27,7 +27,7 @@ def _company(sa_session, city_id, name="Co", city="Berlin", country="Germany"):
 
 class TestMerge:
     def test_merge_repoints_references_and_hides_source(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         target = _city(sa_session, "Munich", "Germany")
         source = _city(sa_session, "München", "Germany")
         job = _job(sa_session, source["id"], location="München")
@@ -52,7 +52,7 @@ class TestMerge:
         assert repo.get_by_id(source["id"])["hidden"] is True
 
     def test_merge_folds_job_count_into_target_and_hides_source_from_list(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         target = _city(sa_session, "Munich", "Germany")
         source = _city(sa_session, "München", "Germany")
         _job(sa_session, target["id"])
@@ -68,7 +68,7 @@ class TestMerge:
         assert munich["aliases"] == ["München"]
 
     def test_merge_skips_missing_and_self(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         target = _city(sa_session, "Munich", "Germany")
 
         result = repo.merge(target["id"], [target["id"], "missing-id"])
@@ -77,13 +77,13 @@ class TestMerge:
         assert result["merged"] == []
 
     def test_merge_returns_error_when_target_missing(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         assert repo.merge("nope", ["also-nope"])["error"] == "Target city not found"
 
 
 class TestAliases:
     def test_add_and_remove_alias(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         city = _city(sa_session, "Munich", "Germany")
 
         updated = repo.add_alias(city["id"], "München")
@@ -96,13 +96,13 @@ class TestAliases:
         assert updated["aliases"] == []
 
     def test_add_alias_missing_city_returns_none(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         assert repo.add_alias("nope", "X") is None
 
 
 class TestPromoteCanonical:
     def test_promote_swaps_name_and_keeps_old_as_alias(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         city = _city(sa_session, "Munich", "Germany")
         repo.add_alias(city["id"], "München")
 
@@ -112,12 +112,12 @@ class TestPromoteCanonical:
         assert updated["aliases"] == ["Munich"]
 
     def test_promote_missing_alias_returns_none(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         city = _city(sa_session, "Munich", "Germany")
         assert repo.promote_alias_to_canonical(city["id"], "Nope") is None
 
     def test_promote_conflict_returns_error(self, sa_session):
-        repo = SQLAlchemyCityRepository(sa_session)
+        repo = SQLAlchemyCityRepository(sa_session, user_id="test-user")
         city = _city(sa_session, "Munich", "Germany")
         other = _city(sa_session, "München", "Germany")
         repo.add_alias(city["id"], "München")

@@ -52,11 +52,22 @@ def _created_date_range(key: str | None) -> tuple[datetime | None, datetime | No
 class SQLAlchemyJobRepository(IJobRepository):
     """SQLAlchemy implementation of job repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
+
+    def _base_query(self):
+        """Base query: user-scoped, non-deleted jobs."""
+        q = self._session.query(JobModel).filter(JobModel.deleted == 0)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        return q
 
     def get_by_id(self, uuid: str) -> dict[str, Any] | None:
-        m = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        q = self._session.query(JobModel).filter(JobModel.id == uuid)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        m = q.first()
         if not m:
             return None
         return job_model_to_dict(m)
@@ -64,21 +75,19 @@ class SQLAlchemyJobRepository(IJobRepository):
     def get_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         if not job_ids:
             return []
-        rows = (
-            self._session.query(JobModel)
-            .filter(JobModel.id.in_(job_ids), JobModel.deleted == 0)
-            .all()
-        )
+        q = self._session.query(JobModel).filter(JobModel.id.in_(job_ids), JobModel.deleted == 0)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        rows = q.all()
         return [{"id": m.id, "title": m.title, "location": m.location} for m in rows]
 
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         if not job_ids:
             return []
-        rows = (
-            self._session.query(JobModel)
-            .filter(JobModel.id.in_(job_ids), JobModel.deleted == 0)
-            .all()
-        )
+        q = self._session.query(JobModel).filter(JobModel.id.in_(job_ids), JobModel.deleted == 0)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        rows = q.all()
         return [job_model_to_dict(m) for m in rows]
 
     def list_jobs(
@@ -89,7 +98,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         sort_dir: str = "desc",
         filters: dict[str, Any] | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
-        query = self._session.query(JobModel).filter(JobModel.deleted == 0)
+        query = self._base_query()
 
         if filters:
             if filters.get("filter_cities"):
@@ -182,22 +191,17 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [job_model_to_dict(r) for r in rows], total
 
     def get_stats(self) -> dict[str, int]:
-        total = self._session.query(func.count(JobModel.id)).filter(JobModel.deleted == 0).scalar()
-        high_match = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0, JobModel.match == "High"
-        ).scalar()
-        apply_now = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0, JobModel.score.in_(["A", "A+", "A++"])
-        ).scalar()
-        remote = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0, JobModel.work_types.contains('"Remote"')
-        ).scalar()
+        q = self._base_query()
+        total = q.count()
+        high_match = q.filter(JobModel.match == "High").count()
+        apply_now = q.filter(JobModel.score.in_(["A", "A+", "A++"])).count()
+        remote = q.filter(JobModel.work_types.contains('"Remote"')).count()
 
         return {
-            "total": total or 0,
-            "high_match": high_match or 0,
-            "apply_now": apply_now or 0,
-            "remote": remote or 0,
+            "total": total,
+            "high_match": high_match,
+            "apply_now": apply_now,
+            "remote": remote,
         }
 
     def count_created_by_day(self) -> list[dict[str, Any]]:
@@ -207,9 +211,9 @@ class SQLAlchemyJobRepository(IJobRepository):
         characters (``substr``) grouped directly.
         """
         day = func.substr(JobModel.created_at, 1, 10)
+        q = self._base_query().filter(JobModel.created_at.isnot(None))
         rows = (
-            self._session.query(day.label("date"), func.count(JobModel.id).label("count"))
-            .filter(JobModel.deleted == 0, JobModel.created_at.isnot(None))
+            q.with_entities(day.label("date"), func.count(JobModel.id).label("count"))
             .group_by(day)
             .order_by(day.desc())
             .all()
@@ -295,6 +299,7 @@ class SQLAlchemyJobRepository(IJobRepository):
             notes=notes,
             status="imported",
             source=source,
+            user_id=self._user_id,
         )
         self._session.add(model)
         self._session.commit()
@@ -302,26 +307,36 @@ class SQLAlchemyJobRepository(IJobRepository):
         return job_model_to_dict(model)
 
     def get_by_url(self, url: str) -> dict[str, Any] | None:
-        m = self._session.query(JobModel).filter(JobModel.url == url).first()
+        q = self._session.query(JobModel).filter(JobModel.url == url)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        m = q.first()
         return job_model_to_dict(m) if m else None
 
     def get_id_by_url(self, url: str) -> str | None:
-        m = self._session.query(JobModel.id).filter(JobModel.url == url).first()
+        q = self._session.query(JobModel.id).filter(JobModel.url == url)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        m = q.first()
         return m[0] if m else None
 
     def get_by_url_fragment(self, fragment: str) -> dict[str, Any] | None:
-        m = (
-            self._session.query(JobModel)
-            .filter(JobModel.deleted == 0, JobModel.url.contains(fragment))
-            .first()
+        q = self._session.query(JobModel).filter(
+            JobModel.deleted == 0, JobModel.url.contains(fragment)
         )
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        m = q.first()
         return job_model_to_dict(m) if m else None
 
     def upsert(self, data: dict[str, Any]) -> dict[str, Any]:
         job_id = data.get("id") or data.get("url")
-        existing = self._session.query(JobModel).filter(
+        q = self._session.query(JobModel).filter(
             or_(JobModel.id == job_id, JobModel.url == job_id)
-        ).first() if job_id else None
+        )
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        existing = q.first() if job_id else None
         if existing:
             existing.updated_at = datetime.now(UTC).isoformat()
             for k, v in data.items():
@@ -331,6 +346,8 @@ class SQLAlchemyJobRepository(IJobRepository):
             self._session.refresh(existing)
             return job_model_to_dict(existing)
         m = JobModel(**{k: v for k, v in data.items() if hasattr(JobModel, k)})
+        if self._user_id and not m.user_id:
+            m.user_id = self._user_id
         self._session.add(m)
         self._session.commit()
         self._session.refresh(m)

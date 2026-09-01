@@ -25,7 +25,7 @@ _counter = 0
 def _insert_pending_job(session, url, status):
     global _counter
     _counter += 1
-    m = JobModel(id=str(uuid.uuid7()), url=url, source='cli', status=status)
+    m = JobModel(id=str(uuid.uuid7()), url=url, source='cli', status=status, user_id="test-user")
     session.add(m)
     session.commit()
     session.refresh(m)

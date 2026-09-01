@@ -24,6 +24,7 @@ def _create_company(sa_session, **kwargs) -> CompanyModel:
         workflow_log="[]",
         source="web",
         input_type="url",
+        user_id="test-user",
     )
     defaults.update(kwargs)
     model = CompanyModel(**defaults)
@@ -256,8 +257,8 @@ class TestCompanyListV2API:
         c2 = _create_company(sa_session, name="Many Jobs")
         c3 = _create_company(sa_session, name="No Jobs")
         for _ in range(3):
-            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0))
-        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0))
+            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0, user_id="test-user"))
+        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0, user_id="test-user"))
         sa_session.commit()
 
         data = client.get("/api/companies/list?sort=job_count&order=desc").json()
@@ -269,8 +270,8 @@ class TestCompanyListV2API:
         c1 = _create_company(sa_session, name="Few Jobs")
         c2 = _create_company(sa_session, name="Many Jobs")
         for _ in range(3):
-            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0))
-        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0))
+            sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c2.id, title="SWE", status="imported", deleted=0, user_id="test-user"))
+        sa_session.add(JobModel(id=str(uuid.uuid4()), company_id=c1.id, title="SWE", status="imported", deleted=0, user_id="test-user"))
         sa_session.commit()
 
         data = client.get("/api/companies/list?sort=job_count&order=asc").json()
@@ -444,7 +445,7 @@ class TestCompanyRelationsAPI:
     def test_relate_sets_main_and_repoints_jobs(self, client, sa_session):
         main = self._create(sa_session, "Acme GmbH")
         alias = self._create(sa_session, "Acme Inc")
-        job = JobModel(company_id=alias.id, deleted=0)
+        job = JobModel(company_id=alias.id, deleted=0, user_id="test-user")
         sa_session.add(job)
         sa_session.commit()
         job_id = job.id
@@ -462,7 +463,7 @@ class TestCompanyRelationsAPI:
         main = self._create(sa_session, "Acme GmbH")
         middle = self._create(sa_session, "Acme Europe")
         leaf = self._create(sa_session, "Acme Berlin", parent=middle.id)
-        job = JobModel(company_id=leaf.id, deleted=0)
+        job = JobModel(company_id=leaf.id, deleted=0, user_id="test-user")
         sa_session.add(job)
         sa_session.commit()
 
@@ -521,7 +522,7 @@ class TestCompanyScoresFromProcessing:
         scores = self._processed_scores()
 
         CompanyService(
-            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyRepository(sa_session, user_id="test-user"),
             SQLAlchemyCompanyIntelligenceRepository(sa_session),
         ).persist_analysis(
             company.id,
@@ -543,7 +544,7 @@ class TestCompanyScoresFromProcessing:
         scores = self._processed_scores()
 
         CompanyService(
-            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyRepository(sa_session, user_id="test-user"),
             SQLAlchemyCompanyIntelligenceRepository(sa_session),
         ).persist_analysis(
             company.id,
@@ -585,7 +586,7 @@ class TestCompanyTypePersist:
     @staticmethod
     def _persist(client, sa_session, company_id: str, extraction_company_type) -> None:
         CompanyService(
-            SQLAlchemyCompanyRepository(sa_session),
+            SQLAlchemyCompanyRepository(sa_session, user_id="test-user"),
             SQLAlchemyCompanyIntelligenceRepository(sa_session),
         ).persist_analysis(
             company_id,
@@ -623,9 +624,9 @@ class TestCompanyRecruiterForAPI:
         hiring_a = _create_company(sa_session, name="Acme GmbH")
         hiring_b = _create_company(sa_session, name="Beta GmbH")
 
-        job1 = JobModel(company_id=hiring_a.id, title="Senior Backend Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0)
-        job2 = JobModel(company_id=hiring_a.id, title="Platform Engineer", location="Munich", deleted=0, workflow_log="[]", rescoring=0)
-        job3 = JobModel(company_id=hiring_b.id, title="Data Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0)
+        job1 = JobModel(company_id=hiring_a.id, title="Senior Backend Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
+        job2 = JobModel(company_id=hiring_a.id, title="Platform Engineer", location="Munich", deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
+        job3 = JobModel(company_id=hiring_b.id, title="Data Engineer", location="Berlin", deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
         sa_session.add_all([job1, job2, job3])
         sa_session.commit()
         sa_session.add_all([
@@ -674,7 +675,7 @@ class TestCompanyRecruiterForAPI:
         from jobs.infrastructure.models.job_company_model import JobCompanyModel
 
         recruiter = _create_company(sa_session, name="A2G Consulting BV", company_type="STAFFING_COMPANY")
-        job = JobModel(title="Senior Python Software Engineer", company_id=None, deleted=0, workflow_log="[]", rescoring=0)
+        job = JobModel(title="Senior Python Software Engineer", company_id=None, deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
         sa_session.add(job)
         sa_session.commit()
         sa_session.add_all([
@@ -702,7 +703,7 @@ class TestCompanyRecruiterForAPI:
         from jobs.infrastructure.models.job_company_model import JobCompanyModel
 
         company = _create_company(sa_session, name="Mixed Co")
-        job = JobModel(company_id=company.id, deleted=0, workflow_log="[]", rescoring=0)
+        job = JobModel(company_id=company.id, deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
         sa_session.add(job)
         sa_session.commit()
         sa_session.add_all([
@@ -722,9 +723,9 @@ class TestCompanyRecruiterForAPI:
         recruiter = _create_company(sa_session, name="RecruitCo", company_type="RECRUITING_AGENCY")
         hiring = _create_company(sa_session, name="Acme GmbH")
         product = _create_company(sa_session, name="Product Co", company_type="PRODUCT_COMPANY")
-        job1 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0)
-        job2 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0)
-        job3 = JobModel(company_id=product.id, deleted=0, workflow_log="[]", rescoring=0)
+        job1 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
+        job2 = JobModel(company_id=hiring.id, deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
+        job3 = JobModel(company_id=product.id, deleted=0, workflow_log="[]", rescoring=0, user_id="test-user")
         sa_session.add_all([job1, job2, job3])
         sa_session.commit()
         sa_session.add_all([

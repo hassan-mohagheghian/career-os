@@ -19,7 +19,7 @@ def _seed_job(sa_session, id=None, url='https://example.com/job', **kw):
         id=id or str(uuid.uuid7()), company='Acme', role='Engineer', location='Berlin',
         match='High', score='A', url=url, status='processing',
         raw_description='Engineer role responsibilities requirements python',
-        rescoring=0,
+        rescoring=0, user_id='test-user',
     )
     data.update(kw)
     m = JobModel(**data)
@@ -353,9 +353,9 @@ class TestLoadRules:
     def test_with_rules(self, mock_get_session_worker):
         sa_session = mock_get_session_worker
         sa_session.add(RuleModel(category='fit', rule_type='job', scope='JOB', key='python',
-                                 value='Strong', priority=10))
+                                 value='Strong', priority=10, user_id='test-user'))
         sa_session.add(RuleModel(category='company', rule_type='job', scope='SHARED', key='scale',
-                                 value='Large', priority=20))
+                                 value='Large', priority=20, user_id='test-user'))
         sa_session.commit()
         from jobs.infrastructure.workers.worker import _load_rules
         result = _load_rules('job')

@@ -17,6 +17,7 @@ def _create_skill(sa_session, **kwargs) -> SkillModel:
         hidden=0,
         source="user",
         source_type="user_input",
+        user_id="test-user",
     )
     defaults.update(kwargs)
     model = SkillModel(**defaults)
@@ -45,6 +46,7 @@ def _create_jobs(sa_session, titles: list[tuple[str, str]]) -> list:
             deleted=0,
             workflow_log="[]",
             rescoring=0,
+            user_id="test-user",
         )
         sa_session.add(job)
         jobs.append(job)
@@ -93,7 +95,7 @@ class TestSkillJobsAPI:
 
         skill = _create_skill(sa_session, name="Python")
         job, = _create_jobs(sa_session, [("Backend Dev", "Berlin")])
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(skill.id, "job", job.id)
         repo.upsert_mentions(skill.id, "job", job.id)
 

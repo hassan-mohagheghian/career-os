@@ -27,7 +27,7 @@ class TestSlugify:
 
 class TestSlugOnModel:
     def test_slug_derived_from_name(self, sa_session):
-        skill = SkillModel(name="NoSQL", source="user")
+        skill = SkillModel(name="NoSQL", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
         assert skill.slug == "nosql"
@@ -35,40 +35,40 @@ class TestSlugOnModel:
 
 class TestResolveSkillBySlug:
     def test_resolves_by_canonical_slug(self, sa_session):
-        existing = SkillModel(name="NoSQL", source="user")
+        existing = SkillModel(name="NoSQL", source="user", user_id="test-user")
         sa_session.add(existing)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         skill_id = repo.resolve_skill({"name": "nosql", "category": "database"})
         assert skill_id == existing.id
 
     def test_resolves_case_insensitively(self, sa_session):
-        existing = SkillModel(name="React", source="user")
+        existing = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(existing)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.resolve_skill({"name": "REACT"}) == existing.id
 
     def test_resolves_by_alias_slug(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.resolve_skill({"name": "reactjs"}) == skill.id
 
 
 class TestBreakDown:
     def test_break_down_splits_and_hides_origin(self, sa_session):
-        origin = SkillModel(name="Data Engineering", source="user")
+        origin = SkillModel(name="Data Engineering", source="user", user_id="test-user")
         sa_session.add(origin)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.break_down(origin.id, ["Spark", "Airflow"])
 
         assert "error" not in result
@@ -82,10 +82,10 @@ class TestBreakDown:
         assert origin.hidden == 1
 
     def test_break_down_duplicates_mentions_to_children(self, sa_session):
-        origin = SkillModel(name="Data Engineering", source="user")
+        origin = SkillModel(name="Data Engineering", source="user", user_id="test-user")
         sa_session.add(origin)
         sa_session.commit()
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(origin.id, "job", "job-1")
 
         result = repo.break_down(origin.id, ["Spark", "Airflow"])
@@ -94,24 +94,24 @@ class TestBreakDown:
             assert repo.get_mention_counts([child["id"]])[child["id"]] == 1
 
     def test_break_down_requires_two_distinct_children(self, sa_session):
-        origin = SkillModel(name="Data Engineering", source="user")
+        origin = SkillModel(name="Data Engineering", source="user", user_id="test-user")
         sa_session.add(origin)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.break_down(origin.id, ["Spark"])
         assert "error" in result
 
     def test_break_down_missing_origin(self, sa_session):
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.break_down(9999, ["Spark", "Airflow"])
         assert "error" in result
 
     def test_get_breakdown_map(self, sa_session):
-        origin = SkillModel(name="Data Engineering", source="user")
+        origin = SkillModel(name="Data Engineering", source="user", user_id="test-user")
         sa_session.add(origin)
         sa_session.commit()
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.break_down(origin.id, ["Spark", "Airflow"])
 
         mapping = repo.get_breakdown_map()
@@ -120,10 +120,10 @@ class TestBreakDown:
         assert {c["name"] for c in mapping[0]["children"]} == {"Spark", "Airflow"}
 
     def test_list_breakdowns_for_origin_and_child(self, sa_session):
-        origin = SkillModel(name="Data Engineering", source="user")
+        origin = SkillModel(name="Data Engineering", source="user", user_id="test-user")
         sa_session.add(origin)
         sa_session.commit()
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.break_down(origin.id, ["Spark", "Airflow"])
 
         child_id = result["children"][0]["id"]
@@ -135,13 +135,13 @@ class TestBreakDown:
 
 class TestPromoteAliasToCanonical:
     def test_promotes_alias(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=skill.id, alias_name="ReactJS", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         result = repo.promote_alias_to_canonical(skill.id, "ReactJS")
 
         assert result is not None
@@ -149,33 +149,33 @@ class TestPromoteAliasToCanonical:
         assert "React" in result["aliases"]
 
     def test_promote_returns_none_when_alias_missing(self, sa_session):
-        skill = SkillModel(name="React", source="user")
+        skill = SkillModel(name="React", source="user", user_id="test-user")
         sa_session.add(skill)
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.promote_alias_to_canonical(skill.id, "DoesNotExist") is None
 
     def test_promote_returns_none_on_slug_collision(self, sa_session):
-        a = SkillModel(name="React", source="user")
-        b = SkillModel(name="ReactJS", source="user")
+        a = SkillModel(name="React", source="user", user_id="test-user")
+        b = SkillModel(name="ReactJS", source="user", user_id="test-user")
         sa_session.add_all([a, b])
         sa_session.flush()
         sa_session.add(SkillAliasModel(skill_id=a.id, alias_name="reactjs", normalized_name="reactjs"))
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         assert repo.promote_alias_to_canonical(a.id, "reactjs") is None
 
 
 class TestNormalizeAll:
     def test_merges_slug_collisions(self, sa_session):
-        s1 = SkillModel(name="NoSQL", slug="nosql", source="user")
-        s2 = SkillModel(name="nosql", slug="legacy-nosql", source="service")
+        s1 = SkillModel(name="NoSQL", slug="nosql", source="user", user_id="test-user")
+        s2 = SkillModel(name="nosql", slug="legacy-nosql", source="service", user_id="test-user")
         sa_session.add_all([s1, s2])
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         stats = repo.normalize_all()
 
         assert stats["skills_hidden"] == 1
@@ -189,7 +189,7 @@ class TestNormalizeAll:
         sa_session.add_all([c1, c2])
         sa_session.commit()
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         stats = repo.normalize_all()
 
         assert stats["categories_removed"] == 1

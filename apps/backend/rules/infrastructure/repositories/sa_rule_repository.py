@@ -11,8 +11,9 @@ from rules.infrastructure.models.rule_model import RuleModel
 class SQLAlchemyRuleRepository(IRuleRepository):
     """SQLAlchemy implementation of rule repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def _to_dict(self, m: RuleModel) -> dict[str, Any]:
         return {
@@ -29,7 +30,10 @@ class SQLAlchemyRuleRepository(IRuleRepository):
         }
 
     def get_all(self) -> list[dict[str, Any]]:
-        rows = self._session.query(RuleModel).order_by(RuleModel.priority.desc()).all()
+        q = self._session.query(RuleModel)
+        if self._user_id:
+            q = q.filter(RuleModel.user_id == self._user_id)
+        rows = q.order_by(RuleModel.priority.desc()).all()
         return [self._to_dict(r) for r in rows]
 
     def get_by_id(self, rule_id: int) -> dict[str, Any] | None:
@@ -37,10 +41,13 @@ class SQLAlchemyRuleRepository(IRuleRepository):
         return self._to_dict(m) if m else None
 
     def get_enabled_by_scopes(self, scopes: list[str]) -> list[dict[str, Any]]:
-        rows = self._session.query(RuleModel).filter(
+        q = self._session.query(RuleModel).filter(
             RuleModel.enabled == 1,
             RuleModel.scope.in_(scopes),
-        ).order_by(RuleModel.priority.desc()).all()
+        )
+        if self._user_id:
+            q = q.filter(RuleModel.user_id == self._user_id)
+        rows = q.order_by(RuleModel.priority.desc()).all()
         return [self._to_dict(r) for r in rows]
 
     def create(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -53,6 +60,7 @@ class SQLAlchemyRuleRepository(IRuleRepository):
             description=data.get("description", ""),
             priority=data.get("priority", 50),
             enabled=data.get("enabled", 1),
+            user_id=self._user_id,
         )
         self._session.add(m)
         self._session.commit()

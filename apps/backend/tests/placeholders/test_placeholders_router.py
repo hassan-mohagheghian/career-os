@@ -7,7 +7,7 @@ from placeholders.infrastructure.models.placeholder_model import PlaceholderMode
 
 class TestPlaceholdersAPI:
     def test_list_returns_keys_and_values(self, client, sa_session):
-        sa_session.add(PlaceholderModel(key="name", value="Hassan"))
+        sa_session.add(PlaceholderModel(key="name", value="Hassan", user_id="test-user"))
         sa_session.commit()
         resp = client.get("/api/placeholders")
         assert resp.status_code == 200
@@ -25,7 +25,7 @@ class TestPlaceholdersAPI:
         assert fetched["values"]["email"] == "h@x.com"
 
     def test_update_overwrites_existing(self, client, sa_session):
-        sa_session.add(PlaceholderModel(key="name", value="Old"))
+        sa_session.add(PlaceholderModel(key="name", value="Old", user_id="test-user"))
         sa_session.commit()
         client.put("/api/placeholders", json={"name": "New"})
         assert client.get("/api/placeholders").json()["values"]["name"] == "New"

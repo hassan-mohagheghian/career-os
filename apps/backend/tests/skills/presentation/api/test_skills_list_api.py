@@ -17,6 +17,7 @@ def _create_skill(sa_session, **kwargs) -> SkillModel:
         hidden=0,
         source="user",
         source_type="user_input",
+        user_id="test-user",
     )
     defaults.update(kwargs)
     model = SkillModel(**defaults)
@@ -126,7 +127,7 @@ class TestSkillListV2API:
     def test_multi_category_filter_or_semantics(self, client, sa_session):
         from skills.infrastructure import SQLAlchemySkillRepository
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         python = _create_skill(sa_session, name="Python", category="")
         docker = _create_skill(sa_session, name="Docker", category="")
         leadership = _create_skill(sa_session, name="Leadership", category="")
@@ -141,7 +142,7 @@ class TestSkillListV2API:
     def test_multi_category_filter_matches_any_category(self, client, sa_session):
         from skills.infrastructure import SQLAlchemySkillRepository
 
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         fullstack = _create_skill(sa_session, name="Fullstack", category="")
         repo.set_categories(fullstack.id, ["technical", "domain"])
 
@@ -191,7 +192,7 @@ class TestSkillListV2API:
         python = _create_skill(sa_session, name="Python")
         k8s = _create_skill(sa_session, name="Kubernetes")
         go = _create_skill(sa_session, name="Go")
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(python.id, "job", "job-1")
         repo.upsert_mentions(python.id, "job", "job-2")
         repo.upsert_mentions(python.id, "company", "company-1")
@@ -210,7 +211,7 @@ class TestSkillListV2API:
 
         low = _create_skill(sa_session, name="Low")
         high = _create_skill(sa_session, name="High")
-        repo = SQLAlchemySkillRepository(sa_session)
+        repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
         repo.upsert_mentions(high.id, "job", "job-1")
         repo.upsert_mentions(high.id, "job", "job-2")
         repo.upsert_mentions(low.id, "job", "job-3")
@@ -285,7 +286,7 @@ def test_list_mention_count(client, sa_session):
 
     python = _create_skill(sa_session, name="Python")
     k8s = _create_skill(sa_session, name="Kubernetes")
-    repo = SQLAlchemySkillRepository(sa_session)
+    repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
     repo.upsert_mentions(python.id, "job", "job-1", status="", evidence="[]")
     repo.upsert_mentions(python.id, "company", "company-1", status="", evidence="[]")
     repo.upsert_mentions(k8s.id, "job", "job-2", status="", evidence="[]")
@@ -301,7 +302,7 @@ def test_list_mention_count_folds_aliases(client, sa_session):
     kubernetes = _create_skill(sa_session, name="Kubernetes")
     k8s = _create_skill(sa_session, name="K8s")
     _create_alias(sa_session, kubernetes.id, "K8s")
-    repo = SQLAlchemySkillRepository(sa_session)
+    repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
     repo.upsert_mentions(kubernetes.id, "job", "job-1")
     repo.upsert_mentions(k8s.id, "job", "job-2")
     repo.upsert_mentions(k8s.id, "company", "company-1")
@@ -319,7 +320,7 @@ def test_list_sort_by_mention_count_folds_aliases(client, sa_session):
     k8s = _create_skill(sa_session, name="K8s")
     go = _create_skill(sa_session, name="Go")
     _create_alias(sa_session, kubernetes.id, "K8s")
-    repo = SQLAlchemySkillRepository(sa_session)
+    repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
     repo.upsert_mentions(kubernetes.id, "job", "job-1")
     repo.upsert_mentions(k8s.id, "job", "job-2")
     repo.upsert_mentions(k8s.id, "company", "company-1")
@@ -366,7 +367,7 @@ def test_merge_folds_mentions_via_api(client, sa_session):
 
     target = _create_skill(sa_session, name="React")
     source = _create_skill(sa_session, name="ReactJS")
-    repo = SQLAlchemySkillRepository(sa_session)
+    repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
     repo.upsert_mentions(source.id, "job", "job-1")
 
     resp = client.post("/api/skills/merge", json={"target_id": target.id, "source_ids": [source.id]})

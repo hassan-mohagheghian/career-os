@@ -21,7 +21,7 @@ from jobs.infrastructure.repositories.sa_job_repository import SQLAlchemyJobRepo
 
 @pytest.fixture
 def repo(sa_session):
-    return SQLAlchemyJobRepository(sa_session)
+    return SQLAlchemyJobRepository(sa_session, user_id="test-user")
 
 
 def _add(session, id=None, url=None, **kwargs):
@@ -29,6 +29,7 @@ def _add(session, id=None, url=None, **kwargs):
         "id": id or str(uuid.uuid7()),
         "url": url or "https://example.com/job",
         "deleted": 0,
+        "user_id": "test-user",
     }
     defaults.update(kwargs)
     m = JobModel(**defaults)
@@ -65,7 +66,7 @@ class TestGetById:
 
     def test_with_linked_company(self, sa_session, repo):
         co = CompanyModel(name="Google", industry="Tech", city="Berlin",
-                          country="DE", logo_url="http://x/logo.png")
+                          country="DE", logo_url="http://x/logo.png", user_id="test-user")
         sa_session.add(co)
         sa_session.commit()
         sa_session.refresh(co)

@@ -12,8 +12,9 @@ from candidates.infrastructure.mappers import candidate_model_to_dict, dict_to_c
 class SQLAlchemyCandidateRepository(ICandidateRepository):
     """SQLAlchemy implementation of the candidate repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def get_candidate(self) -> dict[str, Any] | None:
         model = (

@@ -78,7 +78,7 @@ class TestExtractServiceIntegration:
     def test_full_round_trip(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
 
         profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
@@ -127,7 +127,7 @@ class TestExtractServiceIntegration:
     def test_reprocess_same_version_extracts_again(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
 
         profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
@@ -146,7 +146,7 @@ class TestExtractServiceIntegration:
     def test_first_merge_persists_version_v1_snapshot(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
 
         profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 
@@ -169,7 +169,7 @@ class TestExtractServiceIntegration:
     def test_second_source_bumps_version_to_v2(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
 
         profile = _seed_sources(
             sa_session,
@@ -197,7 +197,7 @@ class TestExtractServiceIntegration:
     def test_domain_events_collected_integration(self, sa_session):
         profile_repo = SQLAlchemyCandidateProfileRepository(sa_session)
         source_repo = SQLAlchemyCandidateSourceRepository(sa_session)
-        skill_repo = SQLAlchemySkillRepository(sa_session)
+        skill_repo = SQLAlchemySkillRepository(sa_session, user_id="test-user")
 
         profile = _seed_sources(sa_session, source_repo, profile_repo, [("resume", 1, "My resume text")])
 

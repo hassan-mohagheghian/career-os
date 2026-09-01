@@ -55,6 +55,7 @@ class TestGenerationHistoryRepository:
             session_id='sess_1',
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:05:00',
+            user_id="test-user",
         )
         sa_session.add(m)
         sa_session.commit()
@@ -73,6 +74,7 @@ class TestGenerationHistoryRepository:
             workflow_log='[]',
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:03:00',
+            user_id="test-user",
         )
         sa_session.add(m)
         sa_session.commit()
@@ -94,6 +96,7 @@ class TestGenerationHistoryRepository:
             workflow_log='[]', queue_order=0,
             created_at='2026-07-27T10:00:00',
             updated_at='2026-07-27T10:01:00',
+            user_id="test-user",
         )
         sa_session.add(m)
         sa_session.commit()
