@@ -3,7 +3,9 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { JobListItem } from '@/entities/job/types'
 import { JobRow } from './JobRow'
 import { SortableHeader, type ScoreSortOption } from './SortableHeader'
-import { buildJobGridTemplate } from './jobsColumns'
+import { ColumnResizeHandle } from './ColumnResizeHandle'
+import { COLUMN_GRID_TEMPLATE, LEADING_COLUMN_WIDTH } from './jobsColumns'
+import { useColumnResize } from '../hooks/useColumnResize'
 
 const ESTIMATED_ROW_HEIGHT = 40
 
@@ -69,12 +71,20 @@ export function JobsTable({
 
   const rowCount = isLoading ? 8 : items.length
 
+  const defaultTemplate = [
+    ...(showRowNumberColumn ? [LEADING_COLUMN_WIDTH] : []),
+    ...(showPinnedColumn ? [LEADING_COLUMN_WIDTH] : []),
+    COLUMN_GRID_TEMPLATE,
+  ].join(' ')
+
+  const { gridTemplate, onResize, onResizeStart, onResizeEnd } = useColumnResize(defaultTemplate)
+
   const visibleColumnDefs = [
     ...(showRowNumberColumn ? [ROW_NUMBER_COLUMN] : []),
     ...(showPinnedColumn ? [PIN_COLUMN] : []),
     ...COLUMN_DEFS,
   ]
-  const gridStyle = { gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }
+  const gridStyle = { gridTemplateColumns: gridTemplate }
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -109,7 +119,7 @@ export function JobsTable({
         <div className="w-full">
           <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
             {visibleColumnDefs.map((col, i) => (
-              <div key={col.label} className="py-2 px-3 flex items-center">
+              <div key={col.label} className="py-2 px-3 flex items-center relative group/header">
                 <SortableHeader
                   label={col.label}
                   field={col.field}
@@ -117,6 +127,12 @@ export function JobsTable({
                   sort={sort}
                   order={order}
                   onSortChange={onSortChange}
+                />
+                <ColumnResizeHandle
+                  colIndex={i}
+                  onResize={onResize}
+                  onResizeStart={onResizeStart}
+                  onResizeEnd={onResizeEnd}
                 />
               </div>
             ))}
@@ -131,6 +147,7 @@ export function JobsTable({
                   left: 0,
                   width: '100%',
                   transform: `translateY(${virtualItem.start}px)`,
+                  gridTemplateColumns: gridTemplate,
                 }}
                 data-index={virtualItem.index}
                 ref={virtualizer.measureElement}
@@ -164,7 +181,7 @@ export function JobsTable({
       <div className="w-full">
         <div className="sticky top-0 z-10 bg-card grid border-b border-border/40" style={gridStyle}>
           {visibleColumnDefs.map((col, i) => (
-            <div key={col.label} className="py-2 px-3 flex items-center">
+            <div key={col.label} className="py-2 px-3 flex items-center relative group/header">
               <SortableHeader
                 label={col.label}
                 field={col.field}
@@ -172,6 +189,12 @@ export function JobsTable({
                 sort={sort}
                 order={order}
                 onSortChange={onSortChange}
+              />
+              <ColumnResizeHandle
+                colIndex={i}
+                onResize={onResize}
+                onResizeStart={onResizeStart}
+                onResizeEnd={onResizeEnd}
               />
             </div>
           ))}
@@ -207,6 +230,7 @@ export function JobsTable({
                   showPinnedColumn={showPinnedColumn}
                   showRowNumberColumn={showRowNumberColumn}
                   rowNumber={virtualItem.index + 1}
+                  gridTemplate={gridTemplate}
                 />
               </div>
             )

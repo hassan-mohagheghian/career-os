@@ -11,7 +11,6 @@ import DateTime from '@/shared/components/DateTime'
 import { GradeBadge } from '@/shared/components/GradeBadge'
 import { RankBadge } from '@/shared/components/RankBadge'
 import { gradeForScore } from '@/shared/lib/grade'
-import { buildJobGridTemplate } from './jobsColumns'
 import { ClampText } from './ClampText'
 
 interface JobRowProps {
@@ -28,11 +27,12 @@ interface JobRowProps {
   showPinnedColumn?: boolean
   showRowNumberColumn?: boolean
   rowNumber?: number
+  gridTemplate?: string
 }
 
 export function JobRow({
   job, onProcessV2, onViewDetails, onEdit, onDelete, onTogglePinned, onToggleDismissed, onRetry, onCancel, onApplication,
-  showPinnedColumn = true, showRowNumberColumn = false, rowNumber,
+  showPinnedColumn = true, showRowNumberColumn = false, rowNumber, gridTemplate,
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
@@ -46,7 +46,7 @@ export function JobRow({
   return (
     <div
       className="group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-start"
-      style={{ gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }}
+      style={gridTemplate ? { gridTemplateColumns: gridTemplate } : undefined}
       onClick={() => onViewDetails(job.id)}
     >
       {showRowNumberColumn && (
