@@ -141,6 +141,7 @@ def build_company_analysis_graph(session: Any, user_id: str = "") -> CompanyAnal
     return CompanyAnalysisGraph(
         company_service=_company_service(session, user_id),
         rule_repo=SQLAlchemyRuleRepository(session, user_id=user_id),
+        skill_repo=SQLAlchemySkillRepository(session, user_id=user_id),
         llm_service=get_llm_service(),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
         candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
