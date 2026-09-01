@@ -124,6 +124,7 @@ export interface JobListItem {
   tags: string[]
   rank: number | null
   tracking_status: TrackingStatus | null
+  easy_apply: boolean | null
   updated_at: string | null
   created_at: string
 }
@@ -285,6 +286,7 @@ export interface JobDetail {
   links: JobLinkItem[]
   tags: string[]
   tracking_status: TrackingStatus | null
+  easy_apply: boolean | null
   updated_at: string | null
   created_at: string | null
 }

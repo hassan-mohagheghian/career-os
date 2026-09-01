@@ -73,6 +73,7 @@ def job_model_to_dict(model: JobModel) -> dict[str, Any]:
         "failure_step": model.failure_step,
         "failure_timestamp": model.failure_timestamp,
         "session_id": model.session_id,
+        "easy_apply": model.easy_apply,
     }
 
 

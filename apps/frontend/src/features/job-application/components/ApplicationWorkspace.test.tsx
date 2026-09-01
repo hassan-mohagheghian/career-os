@@ -96,6 +96,7 @@ const sampleJob: JobDetail = {
   analysis: null,
   related_companies: [],
   tracking_status: null,
+  easy_apply: null,
   updated_at: null,
   created_at: null,
 }

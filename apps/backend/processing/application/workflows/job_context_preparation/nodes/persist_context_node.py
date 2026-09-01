@@ -29,8 +29,9 @@ class PersistContextNode:
             state.errors.append(f"[{NODE_ID}] No combined text to persist for {state.job_id}")
         else:
             try:
+                easy_apply = context.metadata.get("easy_apply")
                 self._job_service.persist_prepared_context(
-                    state.job_id, context.combined_text
+                    state.job_id, context.combined_text, easy_apply=easy_apply
                 )
             except Exception as e:
                 state.errors.append(f"[{NODE_ID}] Failed to persist context: {e}")

@@ -57,6 +57,7 @@ The user should be able to:
 - Edit the description
 - Add, edit, and remove **notes**
 - Add, edit, and remove **additional links**
+- Add, edit, and remove **tags**
 - Save changes and see them reflected in the row
 
 ---
@@ -136,6 +137,14 @@ The user should be able to:
 │ │                                                                        │ │
 │ └────────────────────────────────────────────────────────────────────────┘ │
 │                                                                            │
+│ Tags                                                                       │
+│ ┌────────────────────────────────────────────────────────────────────────┐ │
+│ │ [python] [×]  [remote] [×]  [senior] [×]                              │ │
+│ │ ┌──────────────────────────────────────────────┐ [+]                   │ │
+│ │ │ Add a tag...                                 │ [ + ]                 │ │
+│ │ └──────────────────────────────────────────────┘                       │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                            │
 │────────────────────────────────────────────────────────────────────────────│
 │                                                                             │
 │                                                             [Cancel]  [Save]│
@@ -162,6 +171,7 @@ Edit Job
 ├── Notes
 ├── Additional Links
 ├── Description
+├── Tags
 ```
 
 ---
@@ -182,6 +192,7 @@ Edit Job
 | Notes           | No       | note list |
 | Additional Links| No       | link list |
 | Description     | No       | textarea |
+| Tags            | No       | tag list |
 
 ---
 
@@ -262,6 +273,35 @@ Additional Links
 - Every link URL must start with `http://` or `https://`.
 - Adding a link appends it; the **＋** button is disabled until a valid URL is entered.
 - Removing is immediate in the form.
+- Changes are only persisted on **Save**.
+
+---
+
+# Description
+
+Optional textarea for the job description.
+
+---
+
+# Tags
+
+Existing tags are pre-filled as a list of removable badges.
+
+Users can add a tag (free-form string), or remove an existing one with the
+**×** button. Pressing Enter in the input also adds the tag.
+
+```text
+Tags
+[python] [×]  [remote] [×]
+┌────────────────────────────────┐  [+]
+│ Add a tag...                   │
+└────────────────────────────────┘
+```
+
+- Tags are free-form strings (no predefined set).
+- Duplicate tags are prevented.
+- Adding a tag appends it to the list.
+- Removing a tag deletes it from the list.
 - Changes are only persisted on **Save**.
 
 ---

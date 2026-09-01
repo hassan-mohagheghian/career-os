@@ -31,6 +31,7 @@ function makeJob(id: string): JobListItem {
     tags: [],
     rank: null,
     tracking_status: null,
+    easy_apply: null,
     updated_at: null,
     created_at: '2026-08-01T00:00:00Z',
   }

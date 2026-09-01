@@ -74,6 +74,7 @@ class Job(BaseEntity):
         failure_step: str | None = None,
         failure_timestamp: str | None = None,
         session_id: str | None = None,
+        easy_apply: int | None = None,
     ):
         # Use id as the identity (UUID from new schema)
         super().__init__(id=id, created_at=created_at, updated_at=updated_at)
@@ -124,6 +125,7 @@ class Job(BaseEntity):
         self.failure_step = failure_step
         self.failure_timestamp = failure_timestamp
         self.session_id = session_id
+        self.easy_apply = easy_apply
 
     def is_deleted(self) -> bool:
         return self.deleted == 1
@@ -192,6 +194,7 @@ class Job(BaseEntity):
             "failure_step": self.failure_step,
             "failure_timestamp": self.failure_timestamp,
             "session_id": self.session_id,
+            "easy_apply": self.easy_apply,
         }
 
     @classmethod
@@ -248,4 +251,5 @@ class Job(BaseEntity):
             failure_step=data.get("failure_step"),
             failure_timestamp=data.get("failure_timestamp"),
             session_id=data.get("session_id"),
+            easy_apply=data.get("easy_apply"),
         )

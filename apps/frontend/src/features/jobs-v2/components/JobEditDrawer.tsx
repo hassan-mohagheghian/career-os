@@ -88,6 +88,8 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState<JobNoteItem[]>([]);
   const [links, setLinks] = useState<JobLinkItem[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkTitle, setLinkTitle] = useState("");
@@ -116,6 +118,7 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
         setDescription(d.description ?? "");
         setNotes(d.notes ?? []);
         setLinks(d.links ?? []);
+        setTags(d.tags ?? []);
       })
       .catch(() => active && setError("Unable to load job details."))
       .finally(() => active && setLoading(false));
@@ -147,6 +150,7 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
       description: description.trim() || null,
       notes,
       links,
+      tags: tags.length > 0 ? tags : null,
     };
     try {
       await jobApi.updateJob(jobId, payload);
@@ -433,6 +437,62 @@ export function JobEditDrawer({ jobId, onOpenChange }: JobEditDrawerProps) {
                 placeholder="Job description..."
                 className="min-h-[80px] text-xs resize-none"
               />
+            </Field>
+
+            <Field label="Tags">
+              <div className="space-y-1.5">
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {tags.map((t, i) => (
+                      <span
+                        key={`${t}-${i}`}
+                        className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                      >
+                        {t}
+                        <button
+                          onClick={() => setTags(tags.filter((_, j) => j !== i))}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-1">
+                  <Input
+                    value={tagDraft}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    placeholder="Add a tag..."
+                    className="h-8 text-xs flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && tagDraft.trim()) {
+                        e.preventDefault()
+                        if (!tags.includes(tagDraft.trim())) {
+                          setTags([...tags, tagDraft.trim()])
+                        }
+                        setTagDraft("")
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2 shrink-0"
+                    disabled={!tagDraft.trim() || tags.includes(tagDraft.trim())}
+                    aria-label="Add tag"
+                    onClick={() => {
+                      if (tagDraft.trim() && !tags.includes(tagDraft.trim())) {
+                        setTags([...tags, tagDraft.trim()])
+                        setTagDraft("")
+                      }
+                    }}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
             </Field>
 
             {error && detail && (

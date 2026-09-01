@@ -12,6 +12,7 @@ import { GradeBadge } from '@/shared/components/GradeBadge'
 import { RankBadge } from '@/shared/components/RankBadge'
 import { gradeForScore } from '@/shared/lib/grade'
 import { buildJobGridTemplate } from './jobsColumns'
+import { ClampText } from './ClampText'
 
 interface JobRowProps {
   job: JobListItem
@@ -35,9 +36,16 @@ export function JobRow({
 }: JobRowProps) {
   const processingStatus: PStatus | null = job.latest_processing_execution?.status ?? null
 
+  const allTags: { label: string; color: string }[] = [
+    ...(job.tags ?? []).map(t => ({ label: t, color: 'bg-muted text-muted-foreground border-border' })),
+    ...(job.dismissed ? [{ label: 'Dismissed', color: 'bg-red-500/10 text-red-500 border-red-500/20' }] : []),
+    ...(job.visa_sponsorship ? [{ label: 'Visa', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' }] : []),
+    ...(job.easy_apply ? [{ label: 'Easy Apply', color: 'bg-sky-500/10 text-sky-500 border-sky-500/20' }] : []),
+  ]
+
   return (
     <div
-      className="group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-center"
+      className="group relative grid border-b border-border/40 hover:bg-muted/50 hover:ring-1 hover:ring-inset hover:ring-border/60 focus-within:bg-muted/50 cursor-pointer transition-colors items-start"
       style={{ gridTemplateColumns: buildJobGridTemplate(showRowNumberColumn, showPinnedColumn) }}
       onClick={() => onViewDetails(job.id)}
     >
@@ -70,23 +78,14 @@ export function JobRow({
         </div>
       </div>
       <div className="py-2 px-3 flex items-center">
-        <span className="text-xs text-muted-foreground truncate block">
-          {job.company_name || 'Unknown'}
-        </span>
+        <ClampText text={job.company_name || 'Unknown'} className="text-xs text-muted-foreground" />
       </div>
       <div className="py-2 px-3 flex items-center">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-xs text-muted-foreground truncate">
-            {job.location || 'Unknown'}
-          </span>
+          <ClampText text={job.location || 'Unknown'} className="text-xs text-muted-foreground" />
           {job.remote && (
             <span className="text-2xs px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 whitespace-nowrap">
               Remote
-            </span>
-          )}
-          {job.visa_sponsorship && (
-            <span className="text-2xs px-1 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 whitespace-nowrap">
-              Visa
             </span>
           )}
         </div>
@@ -103,17 +102,26 @@ export function JobRow({
       <div className="py-2 px-3 flex items-center min-w-0 overflow-hidden">
         <RecommendationBadge recommendation={job.recommendation} />
       </div>
+      <div className="py-2 px-3 flex items-start">
+        <div className="flex flex-wrap items-center gap-1 min-w-0">
+          {allTags.map((tag, i) => (
+            <span
+              key={`${tag.label}-${i}`}
+              className={cn(
+                'text-2xs px-1 py-0.5 rounded border whitespace-nowrap font-medium',
+                tag.color
+              )}
+            >
+              {tag.label}
+            </span>
+          ))}
+        </div>
+      </div>
       <div className="py-2 px-3 flex items-center">
         <TrackingBadge status={job.tracking_status} />
       </div>
       <div className="py-2 px-3 flex items-center">
-        {job.dismissed ? (
-          <span className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 whitespace-nowrap font-medium">
-            Dismissed
-          </span>
-        ) : (
-          <ProcessingStatus status={processingStatus} />
-        )}
+        <ProcessingStatus status={processingStatus} />
       </div>
       <div className="py-2 px-3 flex items-center">
         <DateTime value={job.updated_at} format="relative" className="text-2xs text-muted-foreground" />

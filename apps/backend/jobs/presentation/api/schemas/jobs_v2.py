@@ -103,6 +103,7 @@ class JobListItemSchema(BaseModel):
     tags: list[str] = Field(default_factory=list)
     rank: int | None = None
     tracking_status: str | None = None
+    easy_apply: bool | None = None
     updated_at: str | None = None
     created_at: str | None = None
 
@@ -270,6 +271,7 @@ class JobDetailResponseSchema(BaseModel):
     notes: list[JobNoteItem] = Field(default_factory=list)
     links: list[JobLinkItem] = Field(default_factory=list)
     tracking_status: str | None = None
+    easy_apply: bool | None = None
     updated_at: str | None = None
     created_at: str | None = None
 

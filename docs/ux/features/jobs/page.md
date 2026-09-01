@@ -319,8 +319,9 @@ Selecting a row opens the Job Details Drawer.
 | Fit            | Fit Score                                           |
 | Success        | Success Score                                       |
 | Rank           | Position in the full list sorted by overall, then success, then fit (competition ranking: equal scores share a rank); display-only, absolute, independent of the current sort |
-| Tags           | User-defined labels (up to 3 shown, +N overflow) |
-| Recommendation | Apply / Consider / Skip badge                       |
+| Rec            | Apply / Consider / Skip badge                       |
+| Tags           | User-defined labels + dismissed/visa/easy_apply badges (up to 2 visible lines, truncated with expand icon) |
+| Tracking       | Application tracking status                         |
 | Processing     | Current Processing Execution state                  |
 | Updated        | Relative update time                                |
 
@@ -328,6 +329,11 @@ There is no `Actions` column — row actions are revealed on hover (see
 `# Row Actions` below). The Row number column is hidden by default; the Pin
 column is shown by default.
 Both can be toggled via the toolbar Columns dropdown.
+
+Rows support **dynamic height**: when a cell's content (especially Tags) exceeds
+one line, the row grows to fit up to two lines. Content exceeding two lines is
+truncated with `...` and a downward caret icon. The caret is visual only — the
+full content is available via browser title tooltip on hover.
 
 Rows highlight on hover (and while any inner control has focus) with a muted
 background and an inset ring, so the focused row is always visually identifiable
@@ -1024,7 +1030,7 @@ shows a single scrollable page:
 │ Company  Acme GmbH →▾      │  Employment  Permanent   │
 │ Location Berlin, DE…        │  Salary      €90k–€110k  │
 │ Work Types Full-time, Remote│  Visa        EU Blue Ca… │
-│                             │  hover/click → full      │
+│ Apply     [Easy Apply]      │  hover/click → full      │
 │ 🔗 Open job posting                                     │
 │                                                         │
 │ ┌─ Recommendation ─────────────────────────────┐        │
@@ -1077,12 +1083,12 @@ shows a single scrollable page:
   current step, any error, and the workflow steps.
 - **Tagged Skills** render as compact badges (`[Skill · Ln · Category]`).
   Below the title a balanced two-column block (each half the drawer width)
-  shows six labeled rows, three per column: left `Company` (picker),
-  `Location`, `Work Types`; right `Employment`, `Salary`, `Visa`. Rows are
-  aligned one-to-one across the columns (`Company↔Employment`,
-  `Location↔Salary`, `Work Types↔Visa`). Both `Location` and `Visa` are
-  truncated at 30 characters with an ellipsis; hovering reveals the full
-  value in a tooltip, and clicking expands/collapses the value inline.
+  shows labeled rows: left `Company` (picker), `Location`, `Work Types`,
+  `Apply` (Easy Apply badge when applicable); right `Employment`, `Salary`,
+  `Visa`. Rows are aligned one-to-one across the columns. Both `Location`
+  and `Visa` are truncated at 30 characters with an ellipsis; hovering
+  reveals the full value in a tooltip, and clicking expands/collapses the
+  value inline.
 
 ## Job Details — Set Company
 

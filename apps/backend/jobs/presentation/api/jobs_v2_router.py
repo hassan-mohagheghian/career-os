@@ -294,6 +294,7 @@ def _v2_job_to_schema(
         tags=_parse_string_list(job_dict.get("tags")),
         rank=rank,
         tracking_status=tracking_status,
+        easy_apply=bool(job_dict.get("easy_apply")),
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )
@@ -550,6 +551,7 @@ def _job_detail_payload(
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
+        easy_apply=bool(job_dict.get("easy_apply")),
     )
 
 
@@ -638,6 +640,7 @@ def get_job_detail(
         notes=[JobNoteItem(**x) for x in _parse_items(job_dict.get("notes"), plain_key="content")],
         links=[JobLinkItem(**x) for x in _parse_items(job_dict.get("links"), plain_key="url")],
         tracking_status=tracking_statuses.get(job_id) or "not_applied",
+        easy_apply=bool(job_dict.get("easy_apply")),
         updated_at=job_dict.get("updated_at"),
         created_at=job_dict.get("created_at"),
     )

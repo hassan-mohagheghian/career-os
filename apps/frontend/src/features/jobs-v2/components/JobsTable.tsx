@@ -52,6 +52,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   { label: 'Location' },
   { label: 'Scores', scoreOptions: SCORE_SORT_OPTIONS },
   { label: 'Rec' },
+  { label: 'Tags' },
   { label: 'Status', field: 'status' },
   { label: 'Tracking' },
   { label: 'Updated', field: 'updated_at' },
@@ -80,6 +81,7 @@ export function JobsTable({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 10,
+    measureElement: (element) => element.getBoundingClientRect().height,
   })
 
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -128,10 +130,10 @@ export function JobsTable({
                   top: 0,
                   left: 0,
                   width: '100%',
-                  height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
-                  gridTemplateColumns: gridStyle.gridTemplateColumns,
                 }}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
                 className="grid border-b border-border/40"
               >
                 {visibleColumnDefs.map((_, j) => (
@@ -186,9 +188,10 @@ export function JobsTable({
                   top: 0,
                   left: 0,
                   width: '100%',
-                  height: virtualItem.size,
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
               >
                 <JobRow
                   job={job}

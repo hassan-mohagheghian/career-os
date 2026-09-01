@@ -615,6 +615,16 @@ function JobDetailContent({
               label="Visa"
               value={<TruncatedValue value={detail.visa} />}
             />
+            {detail.easy_apply && (
+              <div className="flex items-center justify-between gap-4 py-1.5">
+                <span className="text-2xs text-muted-foreground uppercase tracking-wide shrink-0">
+                  Apply
+                </span>
+                <span className="inline-flex items-center gap-1 text-2xs px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-500 border border-sky-500/20 whitespace-nowrap font-medium">
+                  Easy Apply
+                </span>
+              </div>
+            )}
             <DetailRow
               label="Tracking"
               value={

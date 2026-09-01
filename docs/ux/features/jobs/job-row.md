@@ -31,6 +31,8 @@ Fit
 
 Recommendation
 
+Tags
+
 Processing
 
 Updated
@@ -39,6 +41,12 @@ Updated
 The layout is row-based.
 
 Cards are intentionally not used.
+
+Rows support dynamic height: when content in any column (especially Tags)
+exceeds a single line, the row grows to accommodate up to two lines. Content
+exceeding two lines is truncated with `...` and a downward caret icon at the
+cell's end. The caret is purely visual — hovering the cell reveals the full
+content via the browser's native title tooltip.
 
 ---
 
@@ -51,11 +59,11 @@ Each row displays:
 - Company
 - Location
 - Remote badge
-- Visa badge
 - Fit Score
 - Success Score
 - Overall Score
 - Recommendation
+- Tags (user-defined labels + dismissed/visa/easy_apply badges)
 - Processing Status
 - Last Updated
 - Hover actions (revealed on row hover)

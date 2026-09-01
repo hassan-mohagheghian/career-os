@@ -95,12 +95,12 @@ class FakeJobService:
             raise self._error
         return self._job
 
-    def persist_prepared_context(self, job_id, combined_text):
+    def persist_prepared_context(self, job_id, combined_text, easy_apply=None):
         if self._persist_error is not None:
             raise self._persist_error
         if self._error is not None:
             raise self._error
-        self.persisted = (job_id, combined_text)
+        self.persisted = (job_id, combined_text, easy_apply)
 
 
 class FakeFetcher:
@@ -541,7 +541,7 @@ class TestPersistContextNode:
         state = PersistContextNode(service, RecordingEventPublisher())(state)
 
         assert service.persisted is not None
-        job_id, text = service.persisted
+        job_id, text, easy_apply = service.persisted
         assert job_id == "job-uuid-1"
         assert "[NOTE] Must know Python and Postgres" in text
         assert state.errors == []

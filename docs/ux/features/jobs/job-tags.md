@@ -4,8 +4,9 @@
 
 Tags let the user apply custom labels to jobs for personal categorization.
 Jobs can be tagged with any free-form string. The Tags column shows applied
-tags, and the toolbar provides a multi-select filter to narrow the list by
-one or more tags.
+tags alongside system badges (Dismissed, Visa, Easy Apply). The toolbar
+provides a multi-select filter to narrow the list by one or more user-defined
+tags.
 
 ---
 
@@ -34,20 +35,30 @@ The user should be able to:
 
 # Tags Column
 
-Each job row shows up to 3 tags as compact badges. If a job has more than 3
-tags, a `+N` indicator shows the remaining count.
+Each job row shows a Tags column that displays:
+
+1. **User-defined tags** — free-form labels applied by the user
+2. **System badges** — auto-populated from job state:
+   - Dismissed (red) — if the job is dismissed
+   - Visa (blue) — if the job has visa sponsorship
+   - Easy Apply (sky) — if the job supports LinkedIn Easy Apply
+
+Tags overflow to a second line when needed (up to 2 visible lines). Content
+exceeding 2 lines is truncated with `...` and a downward caret icon.
 
 ```text
 [python] [remote] [senior]
 ```
 
-or with overflow:
+or with system badges:
 
 ```text
-[python] [remote] +2
+[visa] [easy apply] [python]
 ```
 
-Tags are stored as a JSON array of strings on the job.
+Tags are stored as a JSON array of strings on the job. System badges are
+derived from the job's `dismissed`, `visa_sponsorship`, and `easy_apply`
+flags and are not stored in the tags array.
 
 ---
 
@@ -67,6 +78,9 @@ Selecting multiple tags applies an **intersection** filter: only jobs that
 have ALL selected tags are shown. The filter counts as an active filter and
 is cleared by the toolbar's Clear action alongside the others.
 
+Note: the filter operates on user-defined tags only. System badges (dismissed,
+visa, easy_apply) have their own dedicated filters in the toolbar.
+
 ---
 
 # Data Model
@@ -79,6 +93,9 @@ table. The column default is `"[]"`.
 ```
 
 No separate tags table exists. Tags are free-form user-defined strings.
+
+System badges (Dismissed, Visa, Easy Apply) are derived from boolean columns
+on the jobs table (`deleted`, `visa_sponsorship`, `easy_apply`).
 
 ---
 
