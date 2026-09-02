@@ -58,8 +58,9 @@ def _dumps(value: dict[str, Any] | None) -> str | None:
 
 
 class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def save(self, execution: ProcessingExecution) -> ProcessingExecution:
         model = (
@@ -111,15 +112,16 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
     def list_by_target(
         self, target_type: str, target_id: str
     ) -> list[ProcessingExecution]:
-        models = (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.target_type == target_type,
                 ProcessingExecutionModel.target_id == target_id,
             )
-            .order_by(ProcessingExecutionModel.created_at.desc())
-            .all()
         )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        models = q.order_by(ProcessingExecutionModel.created_at.desc()).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     _ACTIVE_STATUSES = ("queued", "starting", "running", "failed")
@@ -127,14 +129,18 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
     def active_execution(
         self, target_type: str, target_id: str
     ) -> ProcessingExecution | None:
-        model = (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.target_type == target_type,
                 ProcessingExecutionModel.target_id == target_id,
                 ProcessingExecutionModel.status.in_(self._ACTIVE_STATUSES),
             )
-            .order_by(
+        )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        model = (
+            q.order_by(
                 ProcessingExecutionModel.created_at.desc(),
                 ProcessingExecutionModel.id.desc(),
             )
@@ -155,13 +161,17 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         """
         if not target_ids:
             return {}
-        models = (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.target_type == target_type,
                 ProcessingExecutionModel.target_id.in_(target_ids),
             )
-            .order_by(
+        )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        models = (
+            q.order_by(
                 ProcessingExecutionModel.target_id.asc(),
                 ProcessingExecutionModel.created_at.desc(),
                 ProcessingExecutionModel.id.desc(),
@@ -199,13 +209,16 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
                 ProcessingExecutionModel.id.desc(),
             ),
         )
+        base_filter = [ProcessingExecutionModel.target_type == target_type]
+        if self._user_id:
+            base_filter.append(ProcessingExecutionModel.user_id == self._user_id)
         ranked = (
             select(
                 ProcessingExecutionModel.target_id.label("target_id"),
                 ProcessingExecutionModel.status.label("status"),
                 row_number.label("rn"),
             )
-            .where(ProcessingExecutionModel.target_type == target_type)
+            .where(*base_filter)
             .subquery()
         )
         rows = (
@@ -217,31 +230,32 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
 
     def target_ids(self, target_type: str) -> set[str]:
         """Return distinct target ids that have at least one execution."""
-        rows = (
+        q = (
             self._session.query(ProcessingExecutionModel.target_id)
             .filter(ProcessingExecutionModel.target_type == target_type)
-            .distinct()
-            .all()
         )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        rows = q.distinct().all()
         return {row[0] for row in rows}
 
     def delete_by_target(self, target_type: str, target_id: str) -> int:
-        return (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(
                 ProcessingExecutionModel.target_type == target_type,
                 ProcessingExecutionModel.target_id == target_id,
             )
-            .delete(synchronize_session=False)
         )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        return q.delete(synchronize_session=False)
 
     def list_recent(self, limit: int = 50) -> list[ProcessingExecution]:
-        models = (
-            self._session.query(ProcessingExecutionModel)
-            .order_by(ProcessingExecutionModel.created_at.desc())
-            .limit(limit)
-            .all()
-        )
+        q = self._session.query(ProcessingExecutionModel)
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        models = q.order_by(ProcessingExecutionModel.created_at.desc()).limit(limit).all()
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:

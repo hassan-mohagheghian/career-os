@@ -12,7 +12,11 @@ from skills.domain.slug_utils import slugify
 
 class SkillModel(Base):
     __tablename__ = "skills"
-    __table_args__ = {"schema": "skill"}
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="uq_skill_name_user"),
+        UniqueConstraint("slug", "user_id", name="uq_skill_slug_user"),
+        {"schema": "skill"},
+    )
 
     def __init__(self, **kwargs):
         name = kwargs.get("name")
@@ -21,8 +25,8 @@ class SkillModel(Base):
         super().__init__(**kwargs)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    slug: Mapped[str] = mapped_column(String, nullable=False, index=True)
     level: Mapped[int] = mapped_column(Integer, default=1)
     ml: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     mc: Mapped[Optional[str]] = mapped_column(String, nullable=True)

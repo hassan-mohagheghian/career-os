@@ -132,10 +132,8 @@ def get_candidate_extract_service(
 # ── Jobs Context Dependencies ─────────────────────────────────────
 
 def get_summary_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    from jobs.infrastructure import SQLAlchemyJobRepository
-    # Summary uses the same repository as jobs during migration
     from jobs.infrastructure.repositories.sa_summary_repository import SQLAlchemySummaryRepository
-    return SQLAlchemySummaryRepository(session)
+    return SQLAlchemySummaryRepository(session, user_id=current_user.id)
 
 
 def get_job_analysis_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
@@ -152,7 +150,7 @@ def get_job_company_repo(session: Session = Depends(get_session), current_user: 
 
 def get_processing_execution_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from processing.infrastructure import SQLAlchemyProcessingExecutionRepository
-    return SQLAlchemyProcessingExecutionRepository(session)
+    return SQLAlchemyProcessingExecutionRepository(session, user_id=current_user.id)
 
 
 # ── Applications Context Dependencies ────────────────────────────

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Boolean, DateTime
+from sqlalchemy import String, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.infrastructure.database.sqlalchemy_config import Base
@@ -11,10 +11,13 @@ from shared.infrastructure.database.sqlalchemy_config import Base
 
 class LLMConfigurationModel(Base):
     __tablename__ = "llm_configurations"
-    __table_args__ = {"schema": "ai"}
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="uq_llm_config_name_user"),
+        {"schema": "ai"},
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     model: Mapped[str] = mapped_column(String(255), nullable=False)
     model_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)

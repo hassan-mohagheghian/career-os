@@ -22,3 +22,4 @@ class SummaryModel(Base):
     resumeFit: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")

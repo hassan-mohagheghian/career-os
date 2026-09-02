@@ -17,22 +17,25 @@ class SQLAlchemyCandidateRepository(ICandidateRepository):
         self._user_id = user_id
 
     def get_candidate(self) -> dict[str, Any] | None:
-        model = (
-            self._session.query(CandidateModel)
-            .order_by(CandidateModel.created_at.asc())
-            .first()
-        )
+        q = self._session.query(CandidateModel).order_by(CandidateModel.created_at.asc())
+        if self._user_id:
+            q = q.filter(CandidateModel.user_id == self._user_id)
+        model = q.first()
         return candidate_model_to_dict(model) if model else None
 
     def create_candidate(self, data: dict[str, Any]) -> dict[str, Any]:
         model = dict_to_candidate_model(data)
+        model.user_id = self._user_id
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
         return candidate_model_to_dict(model)
 
     def update_candidate(self, candidate_id: str, data: dict[str, Any]) -> dict[str, Any] | None:
-        model = self._session.query(CandidateModel).filter(CandidateModel.id == candidate_id).first()
+        q = self._session.query(CandidateModel).filter(CandidateModel.id == candidate_id)
+        if self._user_id:
+            q = q.filter(CandidateModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         for field in ["name", "headline", "summary", "location"]:

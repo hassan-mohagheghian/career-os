@@ -452,7 +452,7 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [job_model_to_dict(r) for r in rows]
 
     def create_pending_job(self, url: str, source: str, company: str, status: str = "created") -> dict[str, Any]:
-        model = JobModel(url=url, source=source, company=company, status=status)
+        model = JobModel(url=url, source=source, company=company, status=status, user_id=self._user_id)
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
