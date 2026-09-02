@@ -91,8 +91,8 @@ def build_job_analysis_graph(session: Any, user_id: str = "") -> JobAnalysisGrap
         source_repo=SQLAlchemyCandidateSourceRepository(session),
         rule_repo=SQLAlchemyRuleRepository(session, user_id=user_id),
         job_repo=job_repo,
-        summary_repo=SQLAlchemySummaryRepository(session),
-        analysis_repo=SQLAlchemyJobAnalysisRepository(session),
+        summary_repo=SQLAlchemySummaryRepository(session, user_id=user_id),
+        analysis_repo=SQLAlchemyJobAnalysisRepository(session, user_id=user_id),
         matching_service=CompanyMatchingService(SQLAlchemyCompanyRepository(session, user_id=user_id)),
         job_company_repo=SQLAlchemyJobCompanyRepository(session),
         llm_service=get_llm_service(),
@@ -179,7 +179,7 @@ def build_application_intelligence_graph(session: Any, user_id: str = "") -> App
     return ApplicationIntelligenceGraph(
         application_repo=SQLAlchemyApplicationRepository(session),
         job_service=JobService(SQLAlchemyJobRepository(session, user_id=user_id)),
-        analysis_repo=SQLAlchemyJobAnalysisRepository(session),
+        analysis_repo=SQLAlchemyJobAnalysisRepository(session, user_id=user_id),
         company_service=CompanyService(
             SQLAlchemyCompanyRepository(session, user_id=user_id),
             SQLAlchemyCompanyIntelligenceRepository(session),
@@ -199,7 +199,7 @@ def build_roadmap_generation_graph(session: Any, user_id: str = "") -> RoadmapGe
     return RoadmapGenerationGraph(
         application_repo=SQLAlchemyApplicationRepository(session),
         job_service=JobService(SQLAlchemyJobRepository(session, user_id=user_id)),
-        analysis_repo=SQLAlchemyJobAnalysisRepository(session),
+        analysis_repo=SQLAlchemyJobAnalysisRepository(session, user_id=user_id),
         company_service=CompanyService(
             SQLAlchemyCompanyRepository(session, user_id=user_id),
             SQLAlchemyCompanyIntelligenceRepository(session),
