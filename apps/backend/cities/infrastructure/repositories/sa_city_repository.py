@@ -16,6 +16,7 @@ from datetime import datetime, UTC
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from cities.domain.repositories.city_repository import ICityRepository
@@ -53,7 +54,16 @@ class SQLAlchemyCityRepository(ICityRepository):
             user_id=self._user_id,
         )
         self._session.add(model)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError:
+            self._session.rollback()
+            existing = self.find_by_city_country(
+                data.get("city") or "", data.get("country") or ""
+            )
+            if existing is not None:
+                return existing
+            raise
         return city_model_to_dict(model)
 
     def get_by_id(self, city_id: str) -> dict[str, Any] | None:
