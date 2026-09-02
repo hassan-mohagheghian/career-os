@@ -17,6 +17,18 @@ vi.mock('next/dynamic', () => ({
   default: () => () => null,
 }))
 
+vi.mock('@/shared/lib/auth-context', () => ({
+  useAuth: () => ({
+    user: { id: 'test-user', username: 'hassan', display_name: 'Hassan' },
+    token: 'test-token',
+    isLoading: false,
+    isAuthenticated: true,
+    login: vi.fn(),
+    logout: vi.fn(),
+    setUser: vi.fn(),
+  }),
+}))
+
 const renderSidebar = () =>
   render(
     <TooltipProvider>
@@ -68,9 +80,8 @@ describe('Sidebar', () => {
     expect(pushMock).toHaveBeenCalledWith('/ai/llm-configurations')
   })
 
-  it('renders the bottom cluster with theme toggle and history button', () => {
+  it('renders the bottom cluster with history button', () => {
     renderSidebar()
-    expect(screen.getAllByTitle('Toggle theme').length).toBeGreaterThan(0)
     expect(screen.getAllByTitle('Generation History').length).toBeGreaterThan(0)
   })
 })
