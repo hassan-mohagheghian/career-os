@@ -17,7 +17,7 @@ class JobAnalysisModel(Base):
 
     __tablename__ = "job_analysis"
     __table_args__ = (
-        UniqueConstraint("job_id", name="uq_job_analysis_job_id"),
+        UniqueConstraint("job_id", "user_id", name="uq_job_analysis_job_user"),
         {"schema": "job"},
     )
 
@@ -33,3 +33,4 @@ class JobAnalysisModel(Base):
     prompt_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     schema_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     generated_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True, default="")

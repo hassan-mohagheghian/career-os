@@ -138,7 +138,7 @@ def get_summary_repo(session: Session = Depends(get_session), current_user: User
 
 def get_job_analysis_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     from jobs.infrastructure.repositories.sa_job_analysis_repository import SQLAlchemyJobAnalysisRepository
-    return SQLAlchemyJobAnalysisRepository(session)
+    return SQLAlchemyJobAnalysisRepository(session, user_id=current_user.id)
 
 
 def get_job_company_repo(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):

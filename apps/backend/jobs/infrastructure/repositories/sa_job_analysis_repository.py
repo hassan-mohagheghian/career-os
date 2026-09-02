@@ -12,8 +12,9 @@ from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
 class SQLAlchemyJobAnalysisRepository(IJobAnalysisRepository):
     """SQLAlchemy implementation of the job analysis repository."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, user_id: str = ""):
         self._session = session
+        self._user_id = user_id
 
     def _to_dict(self, m: JobAnalysisModel) -> dict[str, Any]:
         return {
@@ -31,11 +32,17 @@ class SQLAlchemyJobAnalysisRepository(IJobAnalysisRepository):
         }
 
     def get_by_job_id(self, job_id: str) -> dict[str, Any] | None:
-        m = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id).first()
+        q = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id)
+        if self._user_id:
+            q = q.filter(JobAnalysisModel.user_id == self._user_id)
+        m = q.first()
         return self._to_dict(m) if m else None
 
     def upsert_by_job_id(self, job_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        existing = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id).first()
+        q = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id)
+        if self._user_id:
+            q = q.filter(JobAnalysisModel.user_id == self._user_id)
+        existing = q.first()
         if existing:
             for field in [
                 "payload", "fit_score", "success_score", "overall_score",
@@ -47,14 +54,21 @@ class SQLAlchemyJobAnalysisRepository(IJobAnalysisRepository):
             self._session.commit()
             self._session.refresh(existing)
             return self._to_dict(existing)
-        m = JobAnalysisModel(job_id=job_id, **{k: v for k, v in data.items() if hasattr(JobAnalysisModel, k)})
+        m = JobAnalysisModel(
+            job_id=job_id,
+            user_id=self._user_id,
+            **{k: v for k, v in data.items() if hasattr(JobAnalysisModel, k)},
+        )
         self._session.add(m)
         self._session.commit()
         self._session.refresh(m)
         return self._to_dict(m)
 
     def delete_by_job_id(self, job_id: str) -> bool:
-        m = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id).first()
+        q = self._session.query(JobAnalysisModel).filter(JobAnalysisModel.job_id == job_id)
+        if self._user_id:
+            q = q.filter(JobAnalysisModel.user_id == self._user_id)
+        m = q.first()
         if not m:
             return False
         self._session.delete(m)
@@ -64,8 +78,11 @@ class SQLAlchemyJobAnalysisRepository(IJobAnalysisRepository):
     def recommendations_by_job_ids(self, job_ids: list[str]) -> dict[str, str]:
         if not job_ids:
             return {}
-        rows = self._session.query(JobAnalysisModel.job_id, JobAnalysisModel.recommendation).filter(
+        q = self._session.query(JobAnalysisModel.job_id, JobAnalysisModel.recommendation).filter(
             JobAnalysisModel.job_id.in_(job_ids),
             JobAnalysisModel.recommendation.isnot(None),
-        ).all()
+        )
+        if self._user_id:
+            q = q.filter(JobAnalysisModel.user_id == self._user_id)
+        rows = q.all()
         return {job_id: recommendation for job_id, recommendation in rows}

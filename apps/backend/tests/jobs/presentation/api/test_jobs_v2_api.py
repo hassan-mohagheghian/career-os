@@ -65,6 +65,7 @@ def _create_execution(test_db, job_id: str, status: str = "completed", execution
         status=status,
         target_type="job",
         target_id=job_id,
+        user_id="test-user",
         created_at=created_at,
         started_at=created_at,
         finished_at=created_at,
@@ -74,8 +75,8 @@ def _create_execution(test_db, job_id: str, status: str = "completed", execution
     return model
 
 
-def _create_analysis(test_db, job_id: str, recommendation: str):
-    model = JobAnalysisModel(job_id=job_id, recommendation=recommendation, payload=None)
+def _create_analysis(test_db, job_id: str, recommendation: str, user_id: str = "test-user"):
+    model = JobAnalysisModel(job_id=job_id, recommendation=recommendation, payload=None, user_id=user_id)
     test_db.add(model)
     test_db.commit()
     return model

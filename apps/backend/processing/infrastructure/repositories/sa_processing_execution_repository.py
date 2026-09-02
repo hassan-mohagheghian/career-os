@@ -100,11 +100,13 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         return ProcessingExecution.from_dict(model_to_dict(model))
 
     def get_by_id(self, execution_id: str) -> ProcessingExecution | None:
-        model = (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(ProcessingExecutionModel.id == execution_id)
-            .first()
         )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         return ProcessingExecution.from_dict(model_to_dict(model))
@@ -259,11 +261,13 @@ class SQLAlchemyProcessingExecutionRepository(IProcessingExecutionRepository):
         return [ProcessingExecution.from_dict(model_to_dict(m)) for m in models]
 
     def update_status(self, execution_id: str, status: str, **extra: Any) -> bool:
-        model = (
+        q = (
             self._session.query(ProcessingExecutionModel)
             .filter(ProcessingExecutionModel.id == execution_id)
-            .first()
         )
+        if self._user_id:
+            q = q.filter(ProcessingExecutionModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return False
         model.status = status

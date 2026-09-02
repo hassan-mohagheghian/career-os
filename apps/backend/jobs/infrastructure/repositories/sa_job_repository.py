@@ -229,7 +229,10 @@ class SQLAlchemyJobRepository(IJobRepository):
         """
         from jobs.infrastructure.models.misc_models import SummaryModel
         from jobs.infrastructure.models.job_analysis_model import JobAnalysisModel
-        model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        q = self._session.query(JobModel).filter(JobModel.id == uuid)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return False
         self._session.query(JobModel).filter(JobModel.id == uuid).delete()
@@ -239,15 +242,17 @@ class SQLAlchemyJobRepository(IJobRepository):
         return True
 
     def mark_deleted(self, job_id: str) -> None:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update(
-            {"deleted": 1, "updated_at": datetime.now(UTC).isoformat()}
-        )
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        q.update({"deleted": 1, "updated_at": datetime.now(UTC).isoformat()})
         self._session.commit()
 
     def mark_rescoring(self, job_id: str, rescoring: bool = True) -> None:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update(
-            {"rescoring": int(rescoring), "updated_at": datetime.now(UTC).isoformat()}
-        )
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        q.update({"rescoring": int(rescoring), "updated_at": datetime.now(UTC).isoformat()})
         self._session.commit()
 
     def get_all_active(self) -> list[dict[str, Any]]:
@@ -280,7 +285,10 @@ class SQLAlchemyJobRepository(IJobRepository):
         Returns the updated job dict, or ``None`` if the job does not exist.
         """
         updates = {k: v for k, v in data.items() if k in self.EDITABLE_FIELDS and v is not None}
-        model = self._session.query(JobModel).filter(JobModel.id == uuid).first()
+        q = self._session.query(JobModel).filter(JobModel.id == uuid)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return None
         if updates:
@@ -356,7 +364,10 @@ class SQLAlchemyJobRepository(IJobRepository):
     def update_fields(self, item_id: str, **fields) -> bool:
         fields.setdefault("updated_at", datetime.now(UTC).isoformat())
         valid_fields = {k: v for k, v in fields.items() if hasattr(JobModel, k)}
-        self._session.query(JobModel).filter(JobModel.id == item_id).update(valid_fields)
+        q = self._session.query(JobModel).filter(JobModel.id == item_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        q.update(valid_fields)
         self._session.commit()
         return True
 
@@ -372,14 +383,17 @@ class SQLAlchemyJobRepository(IJobRepository):
         return self.update_fields(job_id, **fields)
 
     def update_workflow_log(self, job_id: str, log_json: str) -> bool:
-        self._session.query(JobModel).filter(JobModel.id == job_id).update(
-            {"workflow_log": log_json, "updated_at": datetime.now(UTC).isoformat()}
-        )
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        q.update({"workflow_log": log_json, "updated_at": datetime.now(UTC).isoformat()})
         self._session.commit()
         return True
 
     def set_deleted_by_url(self, url: str, exclude_id: str | None = None) -> int:
         q = self._session.query(JobModel).filter(JobModel.url == url)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
         if exclude_id is not None:
             q = q.filter(JobModel.id != exclude_id)
         count = q.update({"deleted": 1, "updated_at": datetime.now(UTC).isoformat()})
@@ -531,35 +545,31 @@ class SQLAlchemyJobRepository(IJobRepository):
         return [job_model_to_dict(r) for r in rows]
 
     def get_dashboard_counts(self) -> dict[str, int]:
-        total = self._session.query(func.count(JobModel.id)).filter(JobModel.deleted == 0).scalar() or 0
-        high = self._session.query(func.count(JobModel.id)).filter(
-            JobModel.deleted == 0, JobModel.match == "High"
-        ).scalar() or 0
+        base = self._base_query()
+        total = base.count() or 0
+        high = base.filter(JobModel.match == "High").count() or 0
         return {"jobs_total": total, "jobs_high_match": high}
 
     def get_location_data(self) -> list[dict[str, Any]]:
-        rows = self._session.query(JobModel.location, JobModel.locations).filter(
-            JobModel.deleted == 0
-        ).all()
+        rows = self._base_query().with_entities(JobModel.location, JobModel.locations).all()
         return [{"location": r[0], "locations": r[1]} for r in rows]
 
     def get_company_id_by_id(self, job_id: str) -> str | None:
-        m = self._session.query(JobModel.company_id).filter(JobModel.id == job_id).first()
+        q = self._session.query(JobModel.company_id).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        m = q.first()
         return m[0] if m else None
 
     def get_jobs_by_company_id(self, company_id: str) -> list[dict[str, Any]]:
-        rows = self._session.query(JobModel).filter(
-            JobModel.company_id == company_id,
-            JobModel.deleted == 0,
-        ).order_by(JobModel.created_at.desc()).all()
+        q = self._base_query().filter(JobModel.company_id == company_id)
+        rows = q.order_by(JobModel.created_at.desc()).all()
         return [job_model_to_dict(r) for r in rows]
 
     def reassign_company(self, from_company_id: str, to_company_id: str) -> bool:
         """Re-point all non-deleted jobs linked to ``from_company_id`` to ``to_company_id``."""
-        self._session.query(JobModel).filter(
-            JobModel.company_id == from_company_id,
-            JobModel.deleted == 0,
-        ).update(
+        q = self._base_query().filter(JobModel.company_id == from_company_id)
+        q.update(
             {"company_id": to_company_id, "updated_at": datetime.now(UTC).isoformat()},
             synchronize_session=False,
         )
@@ -940,7 +950,10 @@ class SQLAlchemyJobRepository(IJobRepository):
 
     def set_pinned(self, job_id: str, pinned: bool) -> bool:
         """Set or clear the pinned flag on a job. Returns True if the job exists."""
-        model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return False
         model.pinned = 1 if pinned else 0
@@ -950,7 +963,10 @@ class SQLAlchemyJobRepository(IJobRepository):
 
     def set_dismissed(self, job_id: str, dismissed: bool) -> bool:
         """Set or clear the dismissed flag on a job. Returns True if the job exists."""
-        model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return False
         model.dismissed = 1 if dismissed else 0
@@ -960,7 +976,10 @@ class SQLAlchemyJobRepository(IJobRepository):
 
     def set_tags(self, job_id: str, tags: list[str]) -> bool:
         """Set the tags on a job. Returns True if the job exists."""
-        model = self._session.query(JobModel).filter(JobModel.id == job_id).first()
+        q = self._session.query(JobModel).filter(JobModel.id == job_id)
+        if self._user_id:
+            q = q.filter(JobModel.user_id == self._user_id)
+        model = q.first()
         if not model:
             return False
         model.tags = json.dumps(tags, ensure_ascii=False)
