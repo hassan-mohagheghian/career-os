@@ -31,13 +31,13 @@ variable "use_existing_pg_volume" {
 variable "postgres_port" {
   description = "Host port for PostgreSQL"
   type        = number
-  default     = 5433
+  default     = 5432
 }
 
 variable "redis_port" {
   description = "Host port for Redis"
   type        = number
-  default     = 6380
+  default     = 6379
 }
 
 variable "backend_port" {
@@ -80,9 +80,14 @@ variable "postgres_db" {
 # =============================================================================
 
 variable "ai_provider" {
-  description = "AI provider to use (opencode, openai, local)"
+  description = "AI provider to use (opencode, openai, gemini, local)"
   type        = string
   default     = "opencode"
+}
+
+variable "opencode_bin" {
+  description = "Path to opencode binary on host (e.g. ~/.opencode/bin/opencode)"
+  type        = string
 }
 
 variable "worker_concurrency" {

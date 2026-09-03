@@ -8,8 +8,8 @@ project_name = "job-search"
 # Ports (changed defaults to avoid conflicts with docker-compose)
 # =============================================================================
 
-postgres_port = 5433
-redis_port    = 6380
+postgres_port = 5432
+redis_port    = 6379
 backend_port  = 5000
 frontend_port = 5173
 
@@ -26,4 +26,5 @@ postgres_db       = "jobsearch"
 # =============================================================================
 
 ai_provider        = "opencode"
+opencode_bin       = "/home/hassan/.opencode/bin/opencode"
 worker_concurrency = 4

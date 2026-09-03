@@ -191,6 +191,18 @@ resource "docker_container" "backend" {
     "AI_PROVIDER=${var.ai_provider}",
   ]
 
+  volumes {
+    host_path      = var.opencode_bin
+    container_path = "/root/.opencode/bin/opencode"
+    read_only      = true
+  }
+
+  volumes {
+    host_path      = pathexpand(var.opencode_bin)
+    container_path = "/root/.opencode/bin/opencode"
+    read_only      = true
+  }
+
   networks_advanced {
     name = docker_network.app_network.name
   }
@@ -223,6 +235,12 @@ resource "docker_container" "background" {
     "AI_PROVIDER=${var.ai_provider}",
     "WORKER_CONCURRENCY=${var.worker_concurrency}",
   ]
+
+  volumes {
+    host_path      = pathexpand(var.opencode_bin)
+    container_path = "/root/.opencode/bin/opencode"
+    read_only      = true
+  }
 
   networks_advanced {
     name = docker_network.app_network.name
