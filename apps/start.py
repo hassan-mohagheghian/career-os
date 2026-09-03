@@ -952,64 +952,74 @@ def _build_images():
     """Build Docker images for terraform deployment."""
     _header("Building Docker images")
 
-    _log("Building backend image...")
-    result = subprocess.run(
-        ["docker", "build", "-t", "job-search-backend:latest", "."],
-        cwd=str(REPO_ROOT),
-    )
-    if result.returncode != 0:
-        _err("Failed to build backend image")
-        raise typer.Exit(code=1)
-    _ok("Backend image built")
+    import concurrent.futures
 
-    _log("Building background image...")
-    result = subprocess.run(
-        ["docker", "build", "-t", "job-search-background:latest", "-f", "Dockerfile.background", "."],
-        cwd=str(REPO_ROOT),
-    )
-    if result.returncode != 0:
-        _err("Failed to build background image")
-        raise typer.Exit(code=1)
-    _ok("Background image built")
-
-    _log("Building frontend image...")
-    _log("Building frontend locally first (npm run build)...")
-    build_env = os.environ.copy()
-    build_env["BACKEND_URL"] = "http://job-search-backend:5000"
-    build_env["NEXT_PUBLIC_API_URL"] = "http://localhost:5000"
-    result = subprocess.run(
-        ["npm", "run", "build"],
-        cwd=str(REPO_ROOT / "apps" / "frontend"),
-        env=build_env,
-    )
-    if result.returncode != 0:
-        _err("Failed to build frontend locally")
-        raise typer.Exit(code=1)
-    _ok("Frontend built locally")
-
-    _log("Preparing frontend Docker context...")
-    frontend_next = REPO_ROOT / "apps" / "frontend" / ".next"
-    standalone_dir = frontend_next / "standalone"
-    static_dir = frontend_next / "static"
-    build_ctx = Path(tempfile.mkdtemp(prefix="frontend-build-"))
-    try:
-        shutil.copytree(standalone_dir, build_ctx, dirs_exist_ok=True)
-        static_dest = build_ctx / ".next" / "static"
-        shutil.copytree(static_dir, static_dest, dirs_exist_ok=True)
-        shutil.copy(
-            REPO_ROOT / "Dockerfile.frontend",
-            build_ctx / "Dockerfile",
-        )
+    def build_backend():
+        _log("Building backend image...")
         result = subprocess.run(
-            ["docker", "build", "-t", "job-search-frontend:latest", "."],
-            cwd=str(build_ctx),
+            ["docker", "build", "-t", "job-search-backend:latest", "."],
+            cwd=str(REPO_ROOT),
         )
-    finally:
-        shutil.rmtree(build_ctx, ignore_errors=True)
-    if result.returncode != 0:
-        _err("Failed to build frontend image")
+        if result.returncode != 0:
+            return False, "backend"
+        _ok("Backend image built")
+        return True, "backend"
+
+    def build_background():
+        _log("Building background image...")
+        result = subprocess.run(
+            ["docker", "build", "-t", "job-search-background:latest", "-f", "Dockerfile.background", "."],
+            cwd=str(REPO_ROOT),
+        )
+        if result.returncode != 0:
+            return False, "background"
+        _ok("Background image built")
+        return True, "background"
+
+    def build_frontend():
+        _log("Building frontend locally (npm run build)...")
+        build_env = os.environ.copy()
+        build_env["BACKEND_URL"] = "http://job-search-backend:5000"
+        build_env["NEXT_PUBLIC_API_URL"] = "http://localhost:5000"
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=str(REPO_ROOT / "apps" / "frontend"),
+            env=build_env,
+        )
+        if result.returncode != 0:
+            return False, "frontend-build"
+
+        _log("Packaging frontend Docker image...")
+        frontend_next = REPO_ROOT / "apps" / "frontend" / ".next"
+        standalone_dir = frontend_next / "standalone"
+        static_dir = frontend_next / "static"
+        build_ctx = Path(tempfile.mkdtemp(prefix="frontend-build-"))
+        try:
+            shutil.copytree(standalone_dir, build_ctx, dirs_exist_ok=True)
+            shutil.copytree(static_dir, build_ctx / ".next" / "static", dirs_exist_ok=True)
+            shutil.copy(REPO_ROOT / "Dockerfile.frontend", build_ctx / "Dockerfile")
+            result = subprocess.run(
+                ["docker", "build", "-t", "job-search-frontend:latest", "."],
+                cwd=str(build_ctx),
+            )
+        finally:
+            shutil.rmtree(build_ctx, ignore_errors=True)
+        if result.returncode != 0:
+            return False, "frontend-docker"
+        _ok("Frontend image built")
+        return True, "frontend"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f_backend = executor.submit(build_backend)
+        f_background = executor.submit(build_background)
+        f_frontend = executor.submit(build_frontend)
+
+        results = [f_backend.result(), f_background.result(), f_frontend.result()]
+
+    failed = [name for ok, name in results if not ok]
+    if failed:
+        _err(f"Failed to build: {', '.join(failed)}")
         raise typer.Exit(code=1)
-    _ok("Frontend image built")
 
 
 def _run_terraform(args: list[str], auto_approve: bool = False) -> subprocess.CompletedProcess:
