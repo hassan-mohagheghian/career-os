@@ -1,6 +1,7 @@
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
+import { SSE_RECONNECT_BASE_DELAY, SSE_RECONNECT_MAX_DELAY } from '@/shared/config/constants'
 
-const SSE_URL = '/events/processing'
+const SSE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/events/processing`
 
 const EVENT_TYPES: SSEEventType[] = [
   'execution.created',
@@ -48,7 +49,7 @@ function connect() {
     if (es === socket) es = null
     if (listeners.size === 0) return
     reconnectAttempts += 1
-    const delay = Math.min(3000 * Math.pow(2, reconnectAttempts - 1), 30000)
+    const delay = Math.min(SSE_RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts - 1), SSE_RECONNECT_MAX_DELAY)
     reconnectTimeout = setTimeout(() => {
       reconnectTimeout = null
       connect()

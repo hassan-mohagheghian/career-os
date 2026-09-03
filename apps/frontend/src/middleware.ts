@@ -8,8 +8,7 @@ export function middleware(request: NextRequest) {
 
   if (
     pathname.startsWith("/api/") ||
-    pathname.startsWith("/socket.io/") ||
-    pathname.startsWith("/events/")
+    pathname.startsWith("/socket.io/")
   ) {
     const url = new URL(pathname + request.nextUrl.search, BACKEND_URL)
     return NextResponse.rewrite(url)
@@ -19,5 +18,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*", "/socket.io/:path*", "/events/:path*"],
+  matcher: ["/api/:path*", "/socket.io/:path*"],
 }
