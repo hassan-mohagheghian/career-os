@@ -86,3 +86,11 @@ apps/backend/logs/
 # Generated schema
 sql_roadmap.json
 .aider*
+
+# Terraform
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
