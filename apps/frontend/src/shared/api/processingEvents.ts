@@ -1,6 +1,6 @@
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
 
-const SSE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/events/processing`
+const SSE_URL = '/events/processing'
 
 const EVENT_TYPES: SSEEventType[] = [
   'execution.created',
