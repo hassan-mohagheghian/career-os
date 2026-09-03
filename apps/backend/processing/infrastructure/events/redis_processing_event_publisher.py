@@ -12,6 +12,9 @@ from processing.application.ports.event_publisher import ProcessingEventPublishe
 
 
 class RedisProcessingEventPublisher(ProcessingEventPublisher):
+    def __init__(self, user_id: str = ""):
+        self._user_id = user_id
+
     def publish(
         self,
         event_name: str,
@@ -22,4 +25,4 @@ class RedisProcessingEventPublisher(ProcessingEventPublisher):
     ) -> None:
         from shared.infrastructure.events.processing_events import publish_sync
 
-        publish_sync(event_name, execution_id, job_id, status, **kwargs)
+        publish_sync(event_name, execution_id, job_id, status, user_id=self._user_id, **kwargs)

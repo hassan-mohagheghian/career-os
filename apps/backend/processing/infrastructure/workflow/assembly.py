@@ -69,7 +69,7 @@ def build_job_context_preparation_graph(session: Any, user_id: str = "") -> JobC
     extractor = CompositeContentExtractor(
         [TrafilaturaContentExtractor(), BeautifulSoupContentExtractor()]
     )
-    event_publisher = RedisProcessingEventPublisher()
+    event_publisher = RedisProcessingEventPublisher(user_id=user_id)
 
     return JobContextPreparationGraph(
         job_service=job_service,
@@ -83,7 +83,7 @@ def build_job_analysis_graph(session: Any, user_id: str = "") -> JobAnalysisGrap
     """Build the Job Analysis graph with production infrastructure adapters."""
     job_repo = SQLAlchemyJobRepository(session, user_id=user_id)
     job_service = JobService(job_repo)
-    event_publisher = RedisProcessingEventPublisher()
+    event_publisher = RedisProcessingEventPublisher(user_id=user_id)
 
     return JobAnalysisGraph(
         job_service=job_service,
@@ -126,7 +126,7 @@ def build_company_context_preparation_graph(session: Any, user_id: str = "") -> 
     extractor = CompositeContentExtractor(
         [TrafilaturaContentExtractor(), BeautifulSoupContentExtractor()]
     )
-    event_publisher = RedisProcessingEventPublisher()
+    event_publisher = RedisProcessingEventPublisher(user_id=user_id)
 
     return CompanyContextPreparationGraph(
         company_service=_company_service(session, user_id),
@@ -145,7 +145,7 @@ def build_company_analysis_graph(session: Any, user_id: str = "") -> CompanyAnal
         llm_service=get_llm_service(),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
         candidate_profile_repo=SQLAlchemyCandidateProfileRepository(session),
-        event_publisher=RedisProcessingEventPublisher(),
+        event_publisher=RedisProcessingEventPublisher(user_id=user_id),
     )
 
 
@@ -154,7 +154,7 @@ def build_candidate_source_preparation_graph(session: Any, user_id: str = "") ->
     return CandidateSourcePreparationGraph(
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
         source_repo=SQLAlchemyCandidateSourceRepository(session),
-        event_publisher=RedisProcessingEventPublisher(),
+        event_publisher=RedisProcessingEventPublisher(user_id=user_id),
     )
 
 
@@ -170,7 +170,7 @@ def build_candidate_processing_graph(session: Any, user_id: str = "") -> Candida
     )
     return CandidateProcessingGraph(
         extract_service=extract_service,
-        event_publisher=RedisProcessingEventPublisher(),
+        event_publisher=RedisProcessingEventPublisher(user_id=user_id),
     )
 
 
@@ -190,7 +190,7 @@ def build_application_intelligence_graph(session: Any, user_id: str = "") -> App
         profile_repo=SQLAlchemyCandidateProfileRepository(session),
         document_repo=SQLAlchemyDocumentRepository(session),
         llm_service=get_llm_service(),
-        event_publisher=RedisProcessingEventPublisher(),
+        event_publisher=RedisProcessingEventPublisher(user_id=user_id),
     )
 
 
@@ -214,5 +214,5 @@ def build_roadmap_generation_graph(session: Any, user_id: str = "") -> RoadmapGe
             RoadmapInMemoryEventCollector(),
         ),
         llm_service=get_llm_service(),
-        event_publisher=RedisProcessingEventPublisher(),
+        event_publisher=RedisProcessingEventPublisher(user_id=user_id),
     )

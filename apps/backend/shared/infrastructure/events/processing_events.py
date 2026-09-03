@@ -80,8 +80,9 @@ def build_event(
     The outer envelope ``{"event": ..., "data": ...}`` is the Redis pub/sub
     message. ``data`` is the SSE payload with a stable public contract:
 
-    {id, type, timestamp, job_id, execution_id, target_type, target_id, payload}
+    {id, type, timestamp, job_id, execution_id, user_id, target_type, target_id, payload}
     """
+    user_id = kwargs.pop("user_id", "")
     target_type = kwargs.pop("target_type", None)
     target_id = kwargs.pop("target_id", None)
     payload: dict[str, Any] = {"status": status}
@@ -98,6 +99,7 @@ def build_event(
             "timestamp": datetime.now(UTC).isoformat(),
             "job_id": job_id,
             "execution_id": execution_id,
+            "user_id": user_id,
             "target_type": target_type,
             "target_id": target_id,
             "payload": payload,
@@ -110,6 +112,7 @@ async def publish(
     execution_id: str,
     job_id: str | None,
     status: str,
+    user_id: str = "",
     **kwargs: Any,
 ) -> None:
     """Publish a processing event to Redis pub/sub.
@@ -117,7 +120,7 @@ async def publish(
     Publishing is best-effort: if Redis is unavailable the event is dropped
     (lifecycle state remains the source of truth in PostgreSQL).
     """
-    event = build_event(event_name, execution_id, job_id, status, **kwargs)
+    event = build_event(event_name, execution_id, job_id, status, user_id=user_id, **kwargs)
     try:
         redis = aioredis.from_url(_redis_url(), socket_connect_timeout=2)
         try:
@@ -133,7 +136,8 @@ def publish_sync(
     execution_id: str,
     job_id: str | None,
     status: str,
+    user_id: str = "",
     **kwargs: Any,
 ) -> None:
     """Synchronous wrapper used from sync API handlers."""
-    asyncio.run(publish(event_name, execution_id, job_id, status, **kwargs))
+    asyncio.run(publish(event_name, execution_id, job_id, status, user_id=user_id, **kwargs))

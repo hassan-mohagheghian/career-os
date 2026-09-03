@@ -53,6 +53,7 @@ class DispatchProcessingExecutionService:
             execution.id,
             job_id,
             ExecutionStatus.QUEUED.value,
+            user_id=execution.user_id,
             target_type=execution.target_type,
             target_id=execution.target_id,
         )

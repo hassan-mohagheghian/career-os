@@ -140,6 +140,7 @@ async def reconcile_stuck_executions() -> dict:
                     execution.id,
                     execution.target_id if execution.target_type == "job" else None,
                     ExecutionStatus.FAILED.value,
+                    user_id=getattr(execution, "user_id", ""),
                     message=execution.error_message,
                     target_type=execution.target_type,
                     target_id=execution.target_id,

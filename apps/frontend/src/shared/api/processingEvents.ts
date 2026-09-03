@@ -1,7 +1,7 @@
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
-import { SSE_RECONNECT_BASE_DELAY, SSE_RECONNECT_MAX_DELAY } from '@/shared/config/constants'
+import { AUTH_TOKEN_KEY, SSE_RECONNECT_BASE_DELAY, SSE_RECONNECT_MAX_DELAY } from '@/shared/config/constants'
 
-const SSE_URL = `${process.env.NEXT_PUBLIC_API_URL || ''}/events/processing`
+const SSE_BASE = `${process.env.NEXT_PUBLIC_API_URL || ''}/events/processing`
 
 const EVENT_TYPES: SSEEventType[] = [
   'execution.created',
@@ -23,10 +23,24 @@ let listeners = new Set<Listener>()
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempts = 0
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(AUTH_TOKEN_KEY)
+}
+
+function buildSSEUrl(): string | null {
+  const token = getToken()
+  if (!token) return null
+  return `${SSE_BASE}?token=${encodeURIComponent(token)}`
+}
+
 function connect() {
   if (es || reconnectTimeout) return
 
-  const socket = new EventSource(SSE_URL)
+  const url = buildSSEUrl()
+  if (!url) return
+
+  const socket = new EventSource(url)
   es = socket
 
   for (const type of EVENT_TYPES) {

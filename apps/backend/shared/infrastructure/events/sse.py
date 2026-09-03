@@ -57,3 +57,31 @@ async def stream_pattern(pattern: str) -> AsyncIterator[str]:
     finally:
         await pubsub.punsubscribe(pattern)
         await pubsub.aclose()
+
+
+async def stream_pattern_for_user(pattern: str, user_id: str) -> AsyncIterator[str]:
+    """Yield SSE-formatted events only for a specific user.
+
+    Filters events by the ``user_id`` field in the event data envelope.
+    Events without a ``user_id`` or with a non-matching ``user_id`` are dropped.
+    """
+    redis = aioredis.from_url(_redis_url(), socket_connect_timeout=2)
+    pubsub = redis.pubsub()
+    await pubsub.psubscribe(pattern)
+    try:
+        async for message in pubsub.listen():
+            if message["type"] != "pmessage":
+                continue
+            try:
+                payload = json.loads(message["data"])
+            except (TypeError, ValueError):
+                continue
+            data = payload.get("data", {})
+            event_user_id = data.get("user_id", "")
+            if event_user_id and event_user_id != user_id:
+                continue
+            event_name = payload.get("event", "")
+            yield f"event: {event_name}\ndata: {json.dumps(data, default=str)}\n\n"
+    finally:
+        await pubsub.punsubscribe(pattern)
+        await pubsub.aclose()
