@@ -15,6 +15,7 @@ import threading
 from typing import Any, Callable, Optional
 
 from ..base import LLMProvider, ProviderConfig, ProviderResponse
+from shared.infrastructure.config.app_config import LLM_DEFAULT_TIMEOUT, SUBPROCESS_STDIN_JOIN_TIMEOUT
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 OPENCODE_BIN = os.path.expanduser('~/.opencode/bin/opencode')
@@ -181,7 +182,7 @@ class OpencodeProvider(LLMProvider):
     def _run_subprocess(
         self,
         cmd: list,
-        timeout: int = 300,
+        timeout: int = LLM_DEFAULT_TIMEOUT,
         cwd: Optional[str] = None,
         on_event: Optional[Callable] = None,
         on_session_id: Optional[Callable] = None,
@@ -264,7 +265,7 @@ class OpencodeProvider(LLMProvider):
             timed_out.set()
             proc.wait()
             if stdin_writer is not None:
-                stdin_writer.join(timeout=5)
+                stdin_writer.join(timeout=SUBPROCESS_STDIN_JOIN_TIMEOUT)
             return proc.returncode, all_lines, session_id
 
         except Exception:
@@ -275,7 +276,7 @@ class OpencodeProvider(LLMProvider):
                 pass
             proc.wait()
             if stdin_writer is not None:
-                stdin_writer.join(timeout=5)
+                stdin_writer.join(timeout=SUBPROCESS_STDIN_JOIN_TIMEOUT)
             raise
         finally:
             timed_out.set()

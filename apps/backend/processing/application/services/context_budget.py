@@ -8,8 +8,10 @@ or malform JSON when the input is too large).
 
 from __future__ import annotations
 
-MAX_SOURCE_CHARS = 8_000
-MAX_COMBINED_CHARS = 48_000
+from shared.infrastructure.config.app_config import CONTEXT_MAX_SOURCE_CHARS, CONTEXT_MAX_COMBINED_CHARS
+
+MAX_SOURCE_CHARS = CONTEXT_MAX_SOURCE_CHARS
+MAX_COMBINED_CHARS = CONTEXT_MAX_COMBINED_CHARS
 _TRIM_SUFFIX = "\n\n[truncated]"
 
 

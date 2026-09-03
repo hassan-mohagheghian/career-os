@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.join(_file_dir, '..'))
 from shared.infrastructure.process.logging_config import get_logger
 from shared.infrastructure.database.sqlalchemy_config import Base
+from shared.infrastructure.config.app_config import LLM_BACKFILL_TIMEOUT, FETCH_MAX_CONTENT_LENGTH
 
 log = get_logger('jobs.commands.backfill_struct')
 import jobs.infrastructure.models.job_model
@@ -76,10 +77,10 @@ def get_session():
 
 
 def extract_structured(raw_text, num):
-    prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:5000])
+    prompt = EXTRACT_PROMPT.format(raw_content=raw_text[:FETCH_MAX_CONTENT_LENGTH])
     try:
         llm = get_llm_service()
-        resp = llm.generate_structured(prompt, timeout=60)
+        resp = llm.generate_structured(prompt, timeout=LLM_BACKFILL_TIMEOUT)
         return resp.content
     except Exception as e:
         log.warning("LLM error in backfill structured", error=str(e))

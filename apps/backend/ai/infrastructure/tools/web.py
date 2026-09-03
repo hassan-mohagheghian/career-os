@@ -14,6 +14,7 @@ from .base import BaseTool, ToolResult
 from .cache import get_content_cache
 from .fetch import fetch_page, MAX_CONTENT_LENGTH, COMPANY_MAX_LENGTH
 from .models import FetchedPage, FetchStatus
+from shared.infrastructure.config.app_config import CACHE_TTL_SECONDS, FETCH_COMPANY_MAX_LENGTH
 
 
 class WebFetchTool(BaseTool):
@@ -27,7 +28,7 @@ class WebFetchTool(BaseTool):
         self,
         max_length: int = MAX_CONTENT_LENGTH,
         use_cache: bool = True,
-        ttl_seconds: int = 3600 * 6,
+        ttl_seconds: int = CACHE_TTL_SECONDS,
     ):
         self._max_length = max_length
         self._use_cache = use_cache
@@ -156,7 +157,7 @@ class MultiSourceFetchTool(BaseTool):
     Consolidates _fetch_multi_source from worker.py.
     """
 
-    def __init__(self, max_total_length: int = 8000):
+    def __init__(self, max_total_length: int = FETCH_COMPANY_MAX_LENGTH):
         self._max_total_length = max_total_length
         self._fetcher = WebFetchTool()
 

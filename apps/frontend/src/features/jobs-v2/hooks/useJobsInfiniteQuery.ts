@@ -4,8 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { jobApi } from '@/entities/job/api'
 import type { JobListItem, ProcessingStatus, ProcessingStatusFilter, RecommendationFilter, TrackingStatusFilter, CreatedDateFilter, InfiniteJobSearchResult } from '@/entities/job/types'
-
-const PAGE_SIZE = 30
+import { PAGE_SIZE } from '@/shared/config/constants'
 const JOBS_KEY = 'jobs-v2-infinite'
 
 export function useJobsInfiniteQuery() {

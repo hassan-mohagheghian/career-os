@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog'
+import { DEBOUNCE_DELAY } from '@/shared/config/constants'
 
 interface DismissDialogProps {
   open: boolean
@@ -27,7 +28,7 @@ export function DismissDialog({ open, onOpenChange, jobTitle, onDismiss, isPendi
   useEffect(() => {
     if (open) {
       setNote('')
-      setTimeout(() => textareaRef.current?.focus(), 50)
+      setTimeout(() => textareaRef.current?.focus(), DEBOUNCE_DELAY)
     }
   }, [open])
 

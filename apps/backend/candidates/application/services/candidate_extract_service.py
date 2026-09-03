@@ -58,6 +58,7 @@ from candidates.domain.services.profile_merge_service import (
     ProfileMergeService,
 )
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import LLM_CANDIDATE_EXTRACT_TIMEOUT
 
 log = get_logger("candidate.extract")
 
@@ -292,7 +293,7 @@ class CandidateExtractService:
         first_reason = ""
         resp = None
         try:
-            resp = llm.generate_structured(prompt, schema=schema, timeout=240)
+            resp = llm.generate_structured(prompt, schema=schema, timeout=LLM_CANDIDATE_EXTRACT_TIMEOUT)
         except Exception as e:  # noqa: BLE001 — provider errors vary
             if not _is_json_parse_error(e):
                 return None, f"LLM call failed: {e}"
@@ -303,7 +304,7 @@ class CandidateExtractService:
             return payload, ""
 
         try:
-            resp = llm.generate_structured(prompt + _RETRY_SHORTEN_HINT, schema=schema, timeout=240)
+            resp = llm.generate_structured(prompt + _RETRY_SHORTEN_HINT, schema=schema, timeout=LLM_CANDIDATE_EXTRACT_TIMEOUT)
         except Exception as e:  # noqa: BLE001
             return None, reason or first_reason or f"LLM retry failed: {e}"
 

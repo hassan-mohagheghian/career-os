@@ -1,7 +1,9 @@
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '@/shared/config/constants'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
   ? `${process.env.NEXT_PUBLIC_API_URL}/api`
   : '/api'
-const TOKEN_KEY = 'js_auth_token'
+const TOKEN_KEY = AUTH_TOKEN_KEY
 
 export class ApiError extends Error {
   constructor(
@@ -40,7 +42,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (res.status === 401) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem('js_auth_user')
+      localStorage.removeItem(AUTH_USER_KEY)
       window.location.href = '/login'
     }
     throw new ApiError(401, 'Unauthorized')

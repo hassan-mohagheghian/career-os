@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { COLUMN_WIDTHS_KEY, MIN_COLUMN_WIDTH, MIN_LEADING_COLUMN_WIDTH } from '@/shared/config/constants'
 
-const STORAGE_KEY = 'jobs-table-column-widths'
-const MIN_COL_WIDTH = 50
-const MIN_LEADING_WIDTH = 44
+const STORAGE_KEY = COLUMN_WIDTHS_KEY
+const MIN_COL_WIDTH = MIN_COLUMN_WIDTH
+const MIN_LEADING_WIDTH = MIN_LEADING_COLUMN_WIDTH
 
 function parseGridTemplate(template: string): number[] {
   return template.split(/\s+/).map(part => {

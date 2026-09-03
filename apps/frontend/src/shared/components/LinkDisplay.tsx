@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { LinkSimple, Copy, Check } from '@phosphor-icons/react'
 import { cn } from '@/shared/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip'
+import { COPY_FEEDBACK_TIMEOUT } from '@/shared/config/constants'
 
 export function normalizeLinkUrl(url: string): string {
   const trimmed = url.trim()
@@ -73,7 +74,7 @@ export default function LinkDisplay({
       await copyToClipboard(url)
       setCopied(true)
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-      timeoutRef.current = window.setTimeout(() => setCopied(false), 1500)
+      timeoutRef.current = window.setTimeout(() => setCopied(false), COPY_FEEDBACK_TIMEOUT)
     } catch {
       // best effort
     }

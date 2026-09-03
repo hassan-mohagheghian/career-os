@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Input } from '@/shared/ui/input'
 import { cn } from '@/shared/lib/utils'
+import { DEBOUNCE_DELAY } from '@/shared/config/constants'
 
 export interface DebouncedInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'defaultValue'> {
@@ -21,7 +22,7 @@ export interface DebouncedInputProps
 export function DebouncedInput({
   value,
   onValueChange,
-  debounceMs = 300,
+  debounceMs = DEBOUNCE_DELAY,
   icon,
   clearable = false,
   clearLabel = 'Clear input',

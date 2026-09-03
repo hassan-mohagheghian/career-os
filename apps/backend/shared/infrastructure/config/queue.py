@@ -12,6 +12,7 @@ from datetime import datetime, UTC
 from typing import Optional
 
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import QUEUE_STOP_TIMEOUT
 
 logger = get_logger('queue')
 
@@ -27,7 +28,7 @@ class JobQueueManager:
         self._running = True
         logger.info("[queue] TaskIQ-based — started")
 
-    def stop(self, timeout: float = 15.0):
+    def stop(self, timeout: float = QUEUE_STOP_TIMEOUT):
         self._running = False
         logger.info("[queue] TaskIQ-based — stopped")
 

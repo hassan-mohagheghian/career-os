@@ -15,6 +15,11 @@ import time
 from typing import Optional, Dict
 
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import (
+    PROCESS_GRACEFUL_KILL_TIMEOUT,
+    PROCESS_KILL_POLL_INTERVAL,
+    PROCESS_WAIT_AFTER_KILL,
+)
 from .interfaces import IProcessManager
 from .models import ProcessHandle
 
@@ -59,7 +64,7 @@ class ProcessManager(IProcessManager):
         logger.info(f"[process] Started {description or track_key} (pid={proc.pid})")
         return handle
 
-    def cancel(self, handle: ProcessHandle, grace_period: float = 5.0) -> bool:
+    def cancel(self, handle: ProcessHandle, grace_period: float = PROCESS_GRACEFUL_KILL_TIMEOUT) -> bool:
         if not handle or not handle.is_alive:
             return True
         try:
@@ -71,14 +76,14 @@ class ProcessManager(IProcessManager):
         while time.time() - start < grace_period:
             if not handle.is_alive:
                 return True
-            time.sleep(0.2)
+            time.sleep(PROCESS_KILL_POLL_INTERVAL)
         try:
             pgid = os.getpgid(handle.pid)
             os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             pass
         try:
-            handle.proc.wait(timeout=3)
+            handle.proc.wait(timeout=PROCESS_WAIT_AFTER_KILL)
         except subprocess.TimeoutExpired:
             pass
         return not handle.is_alive
@@ -102,7 +107,7 @@ class ProcessManager(IProcessManager):
             handles = list(self._processes.values())
         for h in handles:
             if h.is_alive:
-                self.cancel(h, grace_period=3.0)
+                self.cancel(h, grace_period=PROCESS_GRACEFUL_KILL_TIMEOUT)
                 killed += 1
         with self._lock:
             self._processes.clear()

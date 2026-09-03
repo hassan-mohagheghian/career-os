@@ -4,8 +4,9 @@ import { useState, useMemo, useCallback } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cityApi } from './api'
 import type { InfiniteCitySearchResult } from './types'
+import { PAGE_SIZE_SMALL } from '@/shared/config/constants'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = PAGE_SIZE_SMALL
 const CITIES_KEY = 'cities-infinite'
 
 export function useCitiesInfiniteQuery() {

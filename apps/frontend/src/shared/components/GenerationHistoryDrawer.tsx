@@ -5,9 +5,10 @@ import { Badge } from '@/shared/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import GenerationHistoryItem from './GenerationHistoryItem'
 import { SOURCE_CONFIG, type HistoryItemData } from '@/shared/lib/sourceConfig'
+import { API_BASE, HISTORY_PAGE_SIZE, GENERATION_HISTORY_POLL_INTERVAL } from '@/shared/config/constants'
 
-const API = '/api'
-const PAGE_SIZE = 100
+const API = API_BASE
+const PAGE_SIZE = HISTORY_PAGE_SIZE
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -75,7 +76,7 @@ export default function GenerationHistoryDrawer({ open, onOpenChange }: Generati
         if (!loadingRef.current) {
           fetchHistory()
         }
-      }, 5000)
+      }, GENERATION_HISTORY_POLL_INTERVAL)
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)

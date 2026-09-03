@@ -16,11 +16,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import CACHE_TTL_SECONDS, CACHE_DIR
 from .models import FetchedPage, FetchStatus
 log = get_logger("ai.tools.cache")
 
-DEFAULT_TTL_SECONDS = 3600 * 6  # 6 hours
-DEFAULT_CACHE_DIR = "tmp/ai_tool_cache"
+DEFAULT_TTL_SECONDS = CACHE_TTL_SECONDS
+DEFAULT_CACHE_DIR = CACHE_DIR
 
 
 class ContentCache:

@@ -9,12 +9,13 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import RuleFormDrawer from './RuleFormDrawer'
+import { AUTH_TOKEN_KEY, API_BASE } from '@/shared/config/constants'
 
 const API = '/api'
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {}
-  const token = localStorage.getItem('js_auth_token')
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 

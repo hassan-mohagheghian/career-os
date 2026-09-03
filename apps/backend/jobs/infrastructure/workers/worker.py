@@ -21,6 +21,11 @@ from shared.infrastructure.process_utils import (
     broadcaster,
 )
 from shared.infrastructure.process.models import StatusUpdate, LogEntry, ProcessingComplete, ProcessingError
+from shared.infrastructure.config.app_config import (
+    SCORING_FIT_WEIGHT, SCORING_SUCCESS_WEIGHT,
+    LLM_DEFAULT_TIMEOUT, LLM_EXTRACT_JOB_TIMEOUT,
+    FETCH_MAX_CONTENT_LENGTH, FETCH_COMPANY_MAX_LENGTH,
+)
 
 from dependencies import get_session_sync
 
@@ -69,7 +74,7 @@ def calculate_overall_score(fit_score, success_score):
     """Calculate overall score as weighted average of fit and success scores."""
     if fit_score is None or success_score is None:
         return None
-    return round(fit_score * 0.6 + success_score * 0.4, 1)
+    return round(fit_score * SCORING_FIT_WEIGHT + success_score * SCORING_SUCCESS_WEIGHT, 1)
 
 def score_to_grade(score):
     """Convert a numeric score (0-100) to a letter grade."""
@@ -425,7 +430,7 @@ def rescore(job_id):
             [MIMO_BIN, 'run', prompt, '--format', 'json', '--dangerously-skip-permissions'],
             cwd=PROJECT_ROOT,
             env={**os.environ, 'NO_COLOR': '1'},
-            timeout=300,
+            timeout=LLM_DEFAULT_TIMEOUT,
             pid=rescore_pid,
         )
 
@@ -460,7 +465,7 @@ def rescore(job_id):
         # Compute overall_score: (fit * 0.6) + (success * 0.4)
         overall_score = None
         if fit_score is not None and success_score is not None:
-            overall_score = int(round(fit_score * 0.6 + success_score * 0.4))
+            overall_score = int(round(fit_score * SCORING_FIT_WEIGHT + success_score * SCORING_SUCCESS_WEIGHT))
 
         # Update the existing job with new scores
         job_data = {
@@ -601,25 +606,25 @@ def _load_rules(context='job'):
 def _extract_structured_description(raw_text, num):
     """Extract structured job info from raw description using LLM service."""
     prompt = load_prompt('job_processing/step4_extract_struct',
-        raw_content=raw_text[:5000])
+        raw_content=raw_text[:FETCH_MAX_CONTENT_LENGTH])
 
     llm = get_llm_service()
     resp = llm.generate_structured(
         prompt,
-        timeout=60,
+        timeout=LLM_EXTRACT_JOB_TIMEOUT,
     )
     return resp.content
 
 def _extract_all(raw_text, pid, session_id=None):
     """Combined extraction: validate + structured + summary in one LLM call."""
     prompt = load_prompt('job_processing/step3_extract_raw',
-        content=raw_text[:5000])
+        content=raw_text[:FETCH_MAX_CONTENT_LENGTH])
 
     llm = get_llm_service()
     resp = llm.generate_structured(
         prompt,
         context={"pid": str(pid), "session_id": session_id},
-        timeout=90,
+        timeout=LLM_EXTRACT_JOB_TIMEOUT,
     )
     # Save session_id from response
     resp_session_id = resp.metadata.get("session_id")
@@ -752,7 +757,7 @@ def _fetch_multi_source(url, notes, links, pid):
             except Exception as e:
                 _log(pid, 'fetch', f'Link fetch failed ({link_url}): {e}')
 
-    return '\n\n'.join(parts)[:8000] if parts else ''
+    return '\n\n'.join(parts)[:FETCH_COMPANY_MAX_LENGTH] if parts else ''
 
 
 def _fetch_url(url):
@@ -769,14 +774,14 @@ def _fetch_url(url):
 
 def _validate_job_content(raw_text, pid):
     """Validate and extract main job section from fetched content using LLM service."""
-    prompt = load_prompt('job_processing/step2_validate', content=raw_text[:3000])
+    prompt = load_prompt('job_processing/step2_validate', content=raw_text[:FETCH_MAX_CONTENT_LENGTH])
 
     try:
         llm = get_llm_service()
         resp = llm.generate_structured(
             prompt,
             context={"pid": str(pid)},
-            timeout=60,
+            timeout=LLM_EXTRACT_JOB_TIMEOUT,
         )
         return json.loads(resp.content)
     except Exception:

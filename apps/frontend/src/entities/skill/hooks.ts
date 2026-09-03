@@ -4,8 +4,9 @@ import { useState, useMemo, useCallback } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { skillApi } from './api'
 import type { InfiniteSkillSearchResult, SkillCreateInput, SkillUpdateInput, SkillListItem } from './types'
+import { PAGE_SIZE_SMALL, DEFAULT_STALE_TIME } from '@/shared/config/constants'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = PAGE_SIZE_SMALL
 const SKILLS_KEY = 'skills-v2-infinite'
 const CATEGORIES_KEY = 'skills-categories'
 
@@ -15,7 +16,7 @@ export function useSkillCategories() {
   const query = useQuery({
     queryKey: [CATEGORIES_KEY],
     queryFn: () => skillApi.getCategories(),
-    staleTime: 30_000,
+    staleTime: DEFAULT_STALE_TIME,
   })
 
   const categories = useMemo(() => query.data ?? [], [query.data])

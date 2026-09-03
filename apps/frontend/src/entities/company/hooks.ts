@@ -8,8 +8,9 @@ import type {
   CompanyEditInput,
   InfiniteCompanySearchResult,
 } from './types'
+import { PAGE_SIZE_SMALL } from '@/shared/config/constants'
 
-const PAGE_SIZE = 25
+const PAGE_SIZE = PAGE_SIZE_SMALL
 const COMPANIES_KEY = 'companies-v2-infinite'
 const COMPANY_DETAIL_KEY = 'company-detail'
 

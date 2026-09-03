@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { HistoryItemData } from '@/shared/lib/sourceConfig'
+import { API_BASE, LOCAL_HISTORY_POLL_INTERVAL } from '@/shared/config/constants'
 
-const API = '/api'
+const API = API_BASE
 
 interface UseLocalHistoryOptions {
   context: 'job' | 'company' | 'skill'
@@ -92,7 +93,7 @@ export function useLocalHistory(options: UseLocalHistoryOptions): UseLocalHistor
       pollRef.current = setInterval(() => {
         fetchHistory()
         fetchActiveCount()
-      }, 3000)
+      }, LOCAL_HISTORY_POLL_INTERVAL)
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)

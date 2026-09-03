@@ -29,6 +29,7 @@ from processing.application.services.execution_actions import ExecutionActionSer
 from shared.application.exceptions import NotFoundError
 from shared.infrastructure.events.processing_events import execution_channel
 from shared.infrastructure.events.sse import stream_channel
+from shared.infrastructure.config.app_config import SSE_KEEPALIVE_SECONDS
 
 router = APIRouter()
 
@@ -130,7 +131,7 @@ async def execution_events(
             yield chunk
         # Keep the connection open for late events
         while not await request.is_disconnected():
-            await asyncio.sleep(15)
+            await asyncio.sleep(SSE_KEEPALIVE_SECONDS)
 
     return StreamingResponse(
         event_stream(),

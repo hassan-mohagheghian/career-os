@@ -20,6 +20,8 @@ import difflib
 import re
 from typing import Any
 
+from shared.infrastructure.config.app_config import COMPANY_FUZZY_THRESHOLD, COMPANY_ROOT_DOMAIN_THRESHOLD
+
 # Legal-form suffixes stripped before name comparison. Keep to unambiguous
 # legal forms only — meaningful tokens like "Group"/"Systems" are preserved.
 LEGAL_SUFFIXES: tuple[str, ...] = (
@@ -49,8 +51,8 @@ LEGAL_SUFFIXES: tuple[str, ...] = (
     "co",
 )
 
-FUZZY_THRESHOLD = 0.88
-ROOT_DOMAIN_NAME_THRESHOLD = 0.6
+FUZZY_THRESHOLD = COMPANY_FUZZY_THRESHOLD
+ROOT_DOMAIN_NAME_THRESHOLD = COMPANY_ROOT_DOMAIN_THRESHOLD
 
 # Extraction company_type → companies.company_type vocabulary (only meaningful
 # when a company is created; matches are left untouched).

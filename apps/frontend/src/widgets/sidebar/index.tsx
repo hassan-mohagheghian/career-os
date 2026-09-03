@@ -22,10 +22,11 @@ import {
 } from '@/shared/ui/tooltip'
 import { Drawer, DrawerHeader } from '@/shared/components/Drawer'
 import { NAV_ITEMS, type NavItem } from './nav-items'
+import { SIDEBAR_COLLAPSED_KEY } from '@/shared/config/constants'
 
 const GenerationHistoryDrawer = dynamic(() => import('@/shared/components/GenerationHistoryDrawer'), { ssr: false })
 
-const COLLAPSE_KEY = 'job-search.sidebar.collapsed'
+const COLLAPSE_KEY = SIDEBAR_COLLAPSED_KEY
 
 function BrandMark() {
   return (

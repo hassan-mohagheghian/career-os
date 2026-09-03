@@ -16,14 +16,19 @@ from datetime import datetime
 from typing import Any, Optional
 
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import (
+    FETCH_MIN_CONTENT_LENGTH,
+    FETCH_MAX_CONTENT_LENGTH,
+    FETCH_COMPANY_MAX_LENGTH,
+    FETCH_USER_AGENT,
+    LLM_FETCH_TIMEOUT,
+    LLM_FETCH_MAX_RETRIES,
+)
 from .models import ContentExtraction, FetchError, FetchStatus, FetchedPage
 log = get_logger("ai.tools.fetch")
 
 DEFAULT_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": FETCH_USER_AGENT,
     "Accept-Language": "en-US,en;q=0.9",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
@@ -40,16 +45,16 @@ JOB_CONTENT_MARKERS = [
     "Qualifications",
 ]
 
-MIN_CONTENT_LENGTH = 100
-MAX_CONTENT_LENGTH = 5000
-COMPANY_MAX_LENGTH = 8000
+MIN_CONTENT_LENGTH = FETCH_MIN_CONTENT_LENGTH
+MAX_CONTENT_LENGTH = FETCH_MAX_CONTENT_LENGTH
+COMPANY_MAX_LENGTH = FETCH_COMPANY_MAX_LENGTH
 
 
 def fetch_page(
     url: str,
     *,
-    timeout: int = 30,
-    max_retries: int = 2,
+    timeout: int = LLM_FETCH_TIMEOUT,
+    max_retries: int = LLM_FETCH_MAX_RETRIES,
     max_length: int = MAX_CONTENT_LENGTH,
     content_markers: Optional[list[str]] = None,
     strip_scripts: bool = True,

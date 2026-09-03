@@ -18,6 +18,7 @@ import { Button } from '@/shared/ui/button'
 import { Textarea } from '@/shared/ui/textarea'
 import DateTime from '@/shared/components/DateTime'
 import type { ApplicationDetail, ApplicationDocument, ApplicationDocumentType } from '@/entities/application/types'
+import { COPY_FEEDBACK_TIMEOUT } from '@/shared/config/constants'
 import {
   useDeleteDocumentMutation,
   useDownloadDocumentPdf,
@@ -43,7 +44,7 @@ function useCopyToClipboard() {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_TIMEOUT)
     } catch {
       // clipboard unavailable
     }

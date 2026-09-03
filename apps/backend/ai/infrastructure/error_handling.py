@@ -10,6 +10,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from shared.infrastructure.config.app_config import (
+    LLM_RETRY_MAX_ATTEMPTS,
+    LLM_RETRY_BASE_DELAY,
+    LLM_RETRY_MAX_DELAY,
+)
+
 
 class ErrorType(str, Enum):
     """Types of errors that can occur in AI processing."""
@@ -79,9 +85,9 @@ class RetryStrategy:
 
     def __init__(
         self,
-        max_retries: int = 3,
-        base_delay: float = 1.0,
-        max_delay: float = 30.0,
+        max_retries: int = LLM_RETRY_MAX_ATTEMPTS,
+        base_delay: float = LLM_RETRY_BASE_DELAY,
+        max_delay: float = LLM_RETRY_MAX_DELAY,
         exponential_base: float = 2.0,
     ):
         self._max_retries = max_retries

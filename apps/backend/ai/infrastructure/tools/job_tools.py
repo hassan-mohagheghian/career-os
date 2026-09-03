@@ -6,6 +6,7 @@ from typing import Any, Optional
 from .base import BaseTool, ToolResult
 from .web import WebFetchTool, MultiSourceFetchTool
 from shared.infrastructure.utils import repair_llm_json
+from shared.infrastructure.config.app_config import FETCH_MAX_CONTENT_LENGTH, LLM_EXTRACT_JOB_TIMEOUT
 
 
 class FetchJobTool(BaseTool):
@@ -97,13 +98,13 @@ class ExtractJobDataTool(BaseTool):
 
             prompt = load_prompt(
                 "job_processing/step3_extract_raw",
-                content=content[:5000],
+                content=content[:FETCH_MAX_CONTENT_LENGTH],
             )
 
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                timeout=90,
+                timeout=LLM_EXTRACT_JOB_TIMEOUT,
             )
             result = repair_llm_json(resp.content)
             return ToolResult(

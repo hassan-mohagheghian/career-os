@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { placeholdersApi } from './api'
 import type { PlaceholderValues } from './types'
+import { DEFAULT_STALE_TIME } from '@/shared/config/constants'
 
 const PLACEHOLDERS_KEY = 'placeholders'
 
@@ -13,7 +14,7 @@ export function usePlaceholders() {
   const query = useQuery({
     queryKey: [PLACEHOLDERS_KEY],
     queryFn: () => placeholdersApi.list(),
-    staleTime: 30_000,
+    staleTime: DEFAULT_STALE_TIME,
   })
 
   const updateMutation = useMutation({

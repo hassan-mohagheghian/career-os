@@ -3,9 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { User } from '@/shared/types/auth'
 import { clearQueryCache } from '@/shared/lib/query-client'
-
-const TOKEN_KEY = 'js_auth_token'
-const USER_KEY = 'js_auth_user'
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '@/shared/config/constants'
 
 interface AuthState {
   user: User | null
@@ -31,15 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   })
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    const userJson = localStorage.getItem(USER_KEY)
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    const userJson = localStorage.getItem(AUTH_USER_KEY)
     if (token && userJson) {
       try {
         const user = JSON.parse(userJson) as User
         setState({ user, token, isLoading: false, isAuthenticated: true })
       } catch {
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
+        localStorage.removeItem(AUTH_TOKEN_KEY)
+        localStorage.removeItem(AUTH_USER_KEY)
         setState({ user: null, token: null, isLoading: false, isAuthenticated: false })
       }
     } else {
@@ -49,20 +47,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback((token: string, user: User) => {
     clearQueryCache()
-    localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(USER_KEY, JSON.stringify(user))
+    localStorage.setItem(AUTH_TOKEN_KEY, token)
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
     setState({ user, token, isLoading: false, isAuthenticated: true })
   }, [])
 
   const logout = useCallback(() => {
     clearQueryCache()
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    localStorage.removeItem(AUTH_USER_KEY)
     setState({ user: null, token: null, isLoading: false, isAuthenticated: false })
   }, [])
 
   const setUser = useCallback((user: User) => {
-    localStorage.setItem(USER_KEY, JSON.stringify(user))
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
     setState((prev) => ({ ...prev, user }))
   }, [])
 

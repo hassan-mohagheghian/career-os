@@ -17,6 +17,7 @@ from typing import Any
 from ai.infrastructure.service import get_llm_service
 from pydantic import ValidationError
 from shared.infrastructure.taskiq.config import WORKER_JOB_TIMEOUT
+from shared.infrastructure.config.app_config import LLM_RETRY_MAX_ATTEMPTS, LLM_RETRY_BACKOFF_CAP
 
 from processing.application.services.job_analysis_prompt import (
     JOB_ANALYSIS_PROMPT_VERSION,
@@ -79,8 +80,8 @@ _RETRY_SHORTEN_HINT = (
     "string and bracket must be closed."
 )
 
-_MAX_ATTEMPTS = 10
-_BACKOFF_CAP = 16.0
+_MAX_ATTEMPTS = LLM_RETRY_MAX_ATTEMPTS
+_BACKOFF_CAP = LLM_RETRY_BACKOFF_CAP
 _STEP_BUDGET_SECONDS = max(60, WORKER_JOB_TIMEOUT - 60)
 
 

@@ -14,6 +14,7 @@ import uuid
 from typing import Optional, Callable
 
 from shared.infrastructure.process.logging_config import get_logger
+from shared.infrastructure.config.app_config import LLM_DEFAULT_TIMEOUT, PROCESS_GRACEFUL_KILL_TIMEOUT
 from .interfaces import IProviderRunner, IProcessManager
 
 logger = get_logger('process.mimo_runner')
@@ -36,7 +37,7 @@ class MimoRunner(IProviderRunner):
     def __init__(self, process_manager: IProcessManager):
         self._proc_mgr = process_manager
 
-    def run(self, prompt: str, timeout: int = 300,
+    def run(self, prompt: str, timeout: int = LLM_DEFAULT_TIMEOUT,
             session_id: Optional[str] = None,
             key: Optional[str] = None,
             on_event: Optional[Callable] = None,
@@ -62,7 +63,7 @@ class MimoRunner(IProviderRunner):
             timed_out.wait(timeout)
             if not timed_out.is_set():
                 logger.warning(f"[mimo] Timeout after {timeout}s, killing pid={handle.pid}")
-                self._proc_mgr.cancel(handle, grace_period=3.0)
+                self._proc_mgr.cancel(handle, grace_period=PROCESS_GRACEFUL_KILL_TIMEOUT)
 
         timer = threading.Thread(target=_watchdog, daemon=True)
         timer.start()

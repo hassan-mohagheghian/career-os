@@ -6,6 +6,11 @@ from typing import Any, Optional
 from .base import BaseTool, ToolResult
 from .web import CompanyFetchTool, MultiSourceFetchTool
 from shared.infrastructure.utils import repair_llm_json
+from shared.infrastructure.config.app_config import (
+    FETCH_COMPANY_MAX_LENGTH,
+    LLM_EXTRACT_COMPANY_TIMEOUT,
+    LLM_ANALYZE_COMPANY_TIMEOUT,
+)
 
 
 class FetchCompanyTool(BaseTool):
@@ -43,7 +48,7 @@ class FetchCompanyTool(BaseTool):
 
 class FetchMultiSourceCompanyTool(BaseTool):
     def __init__(self):
-        self._fetcher = MultiSourceFetchTool(max_total_length=8000)
+        self._fetcher = MultiSourceFetchTool(max_total_length=FETCH_COMPANY_MAX_LENGTH)
 
     @property
     def name(self) -> str:
@@ -77,14 +82,14 @@ class ExtractCompanyTool(BaseTool):
 
             prompt = load_prompt(
                 "company/company_extract",
-                content=content[:8000],
+                content=content[:FETCH_COMPANY_MAX_LENGTH],
                 input_type="multi_note",
             )
 
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                timeout=180,
+                timeout=LLM_EXTRACT_COMPANY_TIMEOUT,
             )
             result = repair_llm_json(resp.content)
             return ToolResult(success=True, data=result)
@@ -154,7 +159,7 @@ class AnalyzeCompanyTool(BaseTool):
             llm = get_llm_service()
             resp = llm.generate_structured(
                 prompt,
-                timeout=300,
+                timeout=LLM_ANALYZE_COMPANY_TIMEOUT,
             )
             result = repair_llm_json(resp.content)
             return ToolResult(success=True, data=result)

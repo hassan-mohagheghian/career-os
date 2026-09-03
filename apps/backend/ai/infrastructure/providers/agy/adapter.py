@@ -15,6 +15,7 @@ import threading
 from typing import Any, Callable, Optional
 
 from ..base import LLMProvider, ProviderConfig, ProviderResponse
+from shared.infrastructure.config.app_config import LLM_DEFAULT_TIMEOUT
 
 _file_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.abspath(os.path.join(_file_dir, '..', '..', '..', '..'))
@@ -105,7 +106,7 @@ class AGYProvider(LLMProvider):
     def _run_subprocess(
         self,
         cmd: list[str],
-        timeout: int = 300,
+        timeout: int = LLM_DEFAULT_TIMEOUT,
         cwd: Optional[str] = None,
     ) -> tuple[int, str]:
         """Run agy subprocess with timeout. Returns (returncode, output_text)."""
