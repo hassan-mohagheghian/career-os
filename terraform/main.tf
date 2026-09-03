@@ -22,8 +22,20 @@ resource "docker_network" "app_network" {
 # Volumes
 # =============================================================================
 
+# Create volume with Terraform (only when use_existing_pg_volume = false)
+# When use_existing_pg_volume = true, the volume must already exist
 resource "docker_volume" "pg_data" {
-  name = "${var.project_name}-pg-data"
+  count = var.use_existing_pg_volume ? 0 : 1
+  name  = var.pg_volume_name
+  # Don't destroy volume on terraform destroy if it's externally managed
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# Local to reference the correct volume name
+locals {
+  pg_volume_name = var.pg_volume_name
 }
 
 # =============================================================================
@@ -46,20 +58,15 @@ resource "docker_image" "node" {
 }
 
 # Build custom images (Dockerfiles are in parent directory)
+# NOTE: Pre-build images with: docker build -t job-search-backend:latest . && docker build -t job-search-background:latest -f Dockerfile.background .
 resource "docker_image" "backend" {
   name         = "${var.project_name}-backend:latest"
-  build {
-    context    = "${abspath(path.module)}/.."
-    dockerfile = "Dockerfile"
-  }
+  keep_locally = true
 }
 
 resource "docker_image" "background" {
   name         = "${var.project_name}-background:latest"
-  build {
-    context    = "${abspath(path.module)}/.."
-    dockerfile = "Dockerfile.background"
-  }
+  keep_locally = true
 }
 
 # =============================================================================
@@ -83,7 +90,7 @@ resource "docker_container" "postgres" {
 
   volumes {
     container_path = "/var/lib/postgresql"
-    volume_name    = docker_volume.pg_data.name
+    volume_name    = var.pg_volume_name
   }
 
   networks_advanced {
@@ -225,8 +232,10 @@ resource "docker_container" "frontend" {
   working_dir = "/app"
   command = [
     "sh", "-c",
-    "npm install && npm run dev -- --port 5173 --host 0.0.0.0"
+    "npm install && npm run dev -- --port 5173 --hostname 0.0.0.0"
   ]
+
+  user = "${var.frontend_uid}:${var.frontend_gid}"
 
   ports {
     internal = 5173
@@ -234,12 +243,13 @@ resource "docker_container" "frontend" {
   }
 
   volumes {
-    host_path      = "${abspath(path.module)}/apps/frontend"
+    host_path      = "${abspath(path.module)}/../apps/frontend"
     container_path = "/app"
   }
 
   env = [
     "NEXT_PUBLIC_API_URL=http://${var.project_name}-backend:5000",
+    "BACKEND_URL=http://${var.project_name}-backend:5000",
   ]
 
   networks_advanced {

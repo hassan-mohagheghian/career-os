@@ -8,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg_data:/var/lib/postgresql
+      - jobsearch-pg-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobsearch"]
       interval: 5s
@@ -73,13 +73,16 @@ services:
   frontend:
     image: node:22-alpine
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --port 5173 --host 0.0.0.0"
+    user: "${UID:-1000}:${GID:-1000}"
+    command: sh -c "npm install && npm run dev -- --port 5173 --hostname 0.0.0.0"
     ports:
       - "5173:5173"
     volumes:
       - ./apps/frontend:/app
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:5000
+      - BACKEND_URL=http://backend:5000
 
 volumes:
-  pg_data:
+  jobsearch-pg-data:
+    external: true

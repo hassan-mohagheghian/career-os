@@ -4,9 +4,37 @@ AI-powered career platform for software engineers — job discovery, company ana
 
 ## Quick Start
 
+### Local Development (recommended)
+
 ```bash
 ./start migrate   # apply DB migrations first (migrations never run on app startup)
 ./start           # then start the apps
+```
+
+Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + background workers (TaskIQ + Redis).
+
+### Terraform (Docker-based)
+
+```bash
+./start terraform build    # build Docker images (first time only)
+./start terraform up       # provision all infrastructure
+```
+
+Opens the same services but fully containerized. Ports differ to avoid conflicts:
+
+| Service | Local Dev | Terraform |
+|---------|-----------|-----------|
+| PostgreSQL | 5432 | 5433 |
+| Redis | 6379 | 6380 |
+| Backend | 5000 | 5000 |
+| Frontend | 5173 | 5173 |
+
+Data persists across `terraform destroy` / `terraform up` cycles via an external Docker volume. See [`terraform/README.md`](terraform/README.md) for full docs.
+
+```bash
+./start terraform down     # destroy containers (keeps data)
+./start terraform status   # show service URLs
+./start terraform logs     # tail all container logs
 ```
 
 Opens FastAPI backend (port 5000) + Next.js frontend (port 5173) + background workers (TaskIQ + Redis).
@@ -179,6 +207,7 @@ Key files:
 | `docs/architecture/overview.md` | System design overview |
 | `docs/domain/overview.md` | Core entities and business rules |
 | `docs/ux/DESIGN.md` | Product & UX design |
+| `terraform/README.md` | Terraform Docker deployment docs |
 | `docs/architecture/` | Full system design, DDD contexts, runtime |
 | `docs/ai/` | AI bounded context, providers, graphs |
 | `docs/api/` | Per-context API reference |
