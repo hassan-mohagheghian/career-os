@@ -35,8 +35,10 @@ app = typer.Typer(
 )
 db_app = typer.Typer(help="Database operations")
 docker_app = typer.Typer(help="Docker operations")
+terraform_app = typer.Typer(help="Terraform operations")
 app.add_typer(db_app, name="db")
 app.add_typer(docker_app, name="docker")
+app.add_typer(terraform_app, name="terraform")
 
 console = Console()
 
@@ -937,6 +939,170 @@ def status():
         cwd=str(REPO_ROOT),
     )
     if result.returncode != 0:
+        raise typer.Exit(code=1)
+
+
+# ── Terraform commands ────────────────────────────────────────────
+
+TERRAFORM_DIR = REPO_ROOT / "terraform"
+
+
+def _build_images():
+    """Build Docker images for terraform deployment."""
+    _header("Building Docker images")
+
+    _log("Building backend image...")
+    result = subprocess.run(
+        ["docker", "build", "-t", "job-search-backend:latest", "."],
+        cwd=str(REPO_ROOT),
+    )
+    if result.returncode != 0:
+        _err("Failed to build backend image")
+        raise typer.Exit(code=1)
+    _ok("Backend image built")
+
+    _log("Building background image...")
+    result = subprocess.run(
+        ["docker", "build", "-t", "job-search-background:latest", "-f", "Dockerfile.background", "."],
+        cwd=str(REPO_ROOT),
+    )
+    if result.returncode != 0:
+        _err("Failed to build background image")
+        raise typer.Exit(code=1)
+    _ok("Background image built")
+
+
+def _run_terraform(args: list[str], auto_approve: bool = False) -> subprocess.CompletedProcess:
+    """Run a terraform command in the terraform directory."""
+    cmd = ["terraform"] + args
+    if auto_approve:
+        cmd.append("-auto-approve")
+    return subprocess.run(
+        cmd,
+        cwd=str(TERRAFORM_DIR),
+    )
+
+
+def _run_terraform_with_vars(args: list[str], auto_approve: bool = False) -> subprocess.CompletedProcess:
+    """Run a terraform command with the default vars file."""
+    cmd = args.copy()
+    vars_file = TERRAFORM_DIR / "terraform.tfvars.example"
+    if vars_file.exists():
+        cmd.extend(["-var-file", "terraform.tfvars.example"])
+    if auto_approve:
+        cmd.append("-auto-approve")
+    return _run_terraform(cmd, auto_approve=False)
+
+
+@terraform_app.command()
+def up(
+    build: bool = typer.Option(
+        False, "--build", "-b", help="Build Docker images before applying"
+    ),
+):
+    """Start infrastructure with Terraform (build images + apply)"""
+    _header("Terraform: Starting infrastructure")
+
+    if build:
+        _build_images()
+
+    _log("Initializing Terraform...")
+    result = _run_terraform(["init", "-backend=false"])
+    if result.returncode != 0:
+        _err("Terraform init failed")
+        raise typer.Exit(code=1)
+
+    _log("Applying Terraform configuration...")
+    result = _run_terraform_with_vars(["apply"], auto_approve=True)
+    if result.returncode != 0:
+        _err("Terraform apply failed")
+        raise typer.Exit(code=1)
+
+    console.print()
+    _ok("Infrastructure started!")
+    console.print()
+    console.print("  Backend:  http://localhost:5000")
+    console.print("  Frontend: http://localhost:5173")
+    console.print("  Swagger:  http://localhost:5000/api/docs")
+    console.print()
+
+
+@terraform_app.command()
+def down():
+    """Stop and destroy Terraform infrastructure"""
+    _header("Terraform: Destroying infrastructure")
+    _log("Destroying Terraform resources...")
+
+    result = _run_terraform_with_vars(["destroy"], auto_approve=True)
+    if result.returncode != 0:
+        _err("Terraform destroy failed")
+        raise typer.Exit(code=1)
+
+    _ok("Infrastructure destroyed (data volume preserved)")
+
+
+@terraform_app.command()
+def destroy():
+    """Destroy everything including the data volume (WARNING: data loss!)"""
+    _header("Terraform: Destroy everything")
+    _warn("This will destroy infrastructure AND the data volume!")
+
+    confirm = typer.confirm("Are you sure you want to destroy everything?")
+    if not confirm:
+        _log("Aborted.")
+        raise typer.Exit()
+
+    result = _run_terraform_with_vars(["destroy"], auto_approve=True)
+    if result.returncode != 0:
+        _err("Terraform destroy failed")
+        raise typer.Exit(code=1)
+
+    _log("Removing data volume...")
+    subprocess.run(["docker", "volume", "rm", "jobsearch-pg-data"], capture_output=True)
+
+    _ok("Everything destroyed (including data)")
+
+
+@terraform_app.command()
+def build():
+    """Build Docker images for Terraform deployment"""
+    _build_images()
+
+
+@terraform_app.command()
+def status():
+    """Show Terraform infrastructure status"""
+    _header("Terraform Status")
+
+    _log("Checking running containers...")
+    subprocess.run(
+        ["docker", "ps", "--filter", "name=job-search", "--format", "table {{.Names}}\t{{.Status}}\t{{.Ports}}"],
+    )
+
+    console.print()
+    _log("Terraform outputs:")
+    result = _run_terraform(["output"])
+    if result.returncode != 0:
+        _warn("No Terraform state found. Run 'start terraform up' first.")
+
+
+@terraform_app.command()
+def logs(
+    service: str = typer.Argument(
+        "backend", help="Service to show logs for (backend, frontend, postgres, redis, background)"
+    ),
+    tail: int = typer.Option(
+        50, "--tail", "-n", help="Number of lines to show"
+    ),
+):
+    """Show logs from a Terraform-managed container"""
+    container_name = f"job-search-{service}"
+    result = subprocess.run(
+        ["docker", "logs", "--tail", str(tail), container_name],
+    )
+    if result.returncode != 0:
+        _err(f"Failed to get logs for {container_name}")
+        _log("Available services: backend, frontend, postgres, redis, background")
         raise typer.Exit(code=1)
 
 

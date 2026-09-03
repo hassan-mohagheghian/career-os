@@ -9,6 +9,22 @@ variable "project_name" {
 }
 
 # =============================================================================
+# Volume Management
+# =============================================================================
+
+variable "pg_volume_name" {
+  description = "PostgreSQL volume name (shared with Docker Compose)"
+  type        = string
+  default     = "jobsearch-pg-data"
+}
+
+variable "use_existing_pg_volume" {
+  description = "Use existing PostgreSQL volume (don't create/destroy with Terraform)"
+  type        = bool
+  default     = true
+}
+
+# =============================================================================
 # Ports
 # =============================================================================
 
@@ -73,4 +89,20 @@ variable "worker_concurrency" {
   description = "Background worker concurrency"
   type        = number
   default     = 4
+}
+
+# =============================================================================
+# Frontend User (to fix permissions)
+# =============================================================================
+
+variable "frontend_uid" {
+  description = "Frontend container user ID (host user)"
+  type        = number
+  default     = 1000
+}
+
+variable "frontend_gid" {
+  description = "Frontend container group ID (host user)"
+  type        = number
+  default     = 1000
 }

@@ -63,3 +63,17 @@ output "container_names" {
     frontend   = docker_container.frontend.name
   }
 }
+
+# =============================================================================
+# Volume Information
+# =============================================================================
+
+output "pg_volume_name" {
+  description = "PostgreSQL volume name (shared with Docker Compose)"
+  value       = local.pg_volume_name
+}
+
+output "pg_volume_persistence" {
+  description = "Volume persistence mode"
+  value       = var.use_existing_pg_volume ? "external (survives terraform destroy)" : "managed (destroyed with terraform destroy)"
+}
