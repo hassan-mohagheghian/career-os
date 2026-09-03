@@ -1,4 +1,6 @@
-const API_BASE = '/api'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : '/api'
 const TOKEN_KEY = 'js_auth_token'
 
 export class ApiError extends Error {

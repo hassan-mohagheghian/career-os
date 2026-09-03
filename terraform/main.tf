@@ -69,6 +69,11 @@ resource "docker_image" "background" {
   keep_locally = true
 }
 
+resource "docker_image" "frontend" {
+  name         = "${var.project_name}-frontend:latest"
+  keep_locally = true
+}
+
 # =============================================================================
 # PostgreSQL
 # =============================================================================
@@ -169,6 +174,11 @@ resource "docker_container" "backend" {
   name  = "${var.project_name}-backend"
   image = docker_image.backend.name
 
+  command = [
+    "sh", "-c",
+    "until python -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('${var.project_name}-redis', 6379)); s.close()\" 2>/dev/null; do echo 'Waiting for Redis...'; sleep 2; done && uv run uvicorn apps.backend.entrypoints.api:app --host 0.0.0.0 --port 5000"
+  ]
+
   ports {
     internal = 5000
     external = var.backend_port
@@ -201,6 +211,11 @@ resource "docker_container" "background" {
   name  = "${var.project_name}-background"
   image = docker_image.background.name
 
+  command = [
+    "sh", "-c",
+    "until python -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('${var.project_name}-redis', 6379)); s.close()\" 2>/dev/null; do echo 'Waiting for Redis...'; sleep 2; done && uv run python -m apps.backend.entrypoints.worker"
+  ]
+
   env = [
     "DATABASE_URL=postgresql+psycopg://${var.postgres_user}:${var.postgres_password}@${var.project_name}-postgres:5432/${var.postgres_db}",
     "REDIS_HOST=${var.project_name}-redis",
@@ -227,34 +242,26 @@ resource "docker_container" "background" {
 
 resource "docker_container" "frontend" {
   name  = "${var.project_name}-frontend"
-  image = docker_image.node.name
-
-  working_dir = "/app"
-  command = [
-    "sh", "-c",
-    "npm install && npm run dev -- --port 5173 --hostname 0.0.0.0"
-  ]
-
-  user = "${var.frontend_uid}:${var.frontend_gid}"
+  image = docker_image.frontend.name
 
   ports {
     internal = 5173
     external = var.frontend_port
   }
 
-  volumes {
-    host_path      = "${abspath(path.module)}/../apps/frontend"
-    container_path = "/app"
-  }
-
   env = [
-    "NEXT_PUBLIC_API_URL=http://${var.project_name}-backend:5000",
+    "PORT=5173",
+    "NEXT_PUBLIC_API_URL=http://localhost:${var.backend_port}",
     "BACKEND_URL=http://${var.project_name}-backend:5000",
   ]
 
   networks_advanced {
     name = docker_network.app_network.name
   }
+
+  depends_on = [
+    docker_container.backend,
+  ]
 
   restart = "unless-stopped"
 }
