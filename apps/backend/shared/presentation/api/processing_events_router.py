@@ -48,11 +48,17 @@ async def processing_events(request: Request, token: str = Query(...)):
     user_id = _validate_token(token)
 
     async def event_stream():
+        # Initial comment keeps intermediaries from buffering the stream and
+        # confirms the connection without emitting a domain event.
+        yield ": connected\n\n"
         async for chunk in stream_pattern_for_user(CHANNEL_PATTERN, user_id):
             if await request.is_disconnected():
                 break
             yield chunk
         while not await request.is_disconnected():
+            # Periodic SSE comment as keepalive; EventSource ignores comments
+            # but proxies reset their idle timeout on any bytes.
+            yield ": ping\n\n"
             await asyncio.sleep(SSE_KEEPALIVE_SECONDS)
 
     return StreamingResponse(

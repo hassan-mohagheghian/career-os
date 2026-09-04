@@ -1,7 +1,15 @@
 import type { SSEEventEnvelope, SSEEventType } from '@/entities/processing/types'
 import { AUTH_TOKEN_KEY, SSE_RECONNECT_BASE_DELAY, SSE_RECONNECT_MAX_DELAY } from '@/shared/config/constants'
 
-const SSE_BASE = `${process.env.NEXT_PUBLIC_API_URL || ''}/events/processing`
+// Prefer a direct backend connection when NEXT_PUBLIC_API_URL is baked in
+// (local dev: avoids the Next dev-proxy gzip buffering documented in
+// docs/api/sse/processing-events.md). Fall back to the same-origin relative
+// URL — served via the /events/* rewrite in next.config.ts — because
+// NEXT_PUBLIC_* is frozen at frontend build time and is empty/stale in the
+// prebuilt terraform-docker image.
+const SSE_BASE = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/events/processing`
+  : '/events/processing'
 
 const EVENT_TYPES: SSEEventType[] = [
   'execution.created',
